@@ -76,6 +76,9 @@ Fundamentals
    * - :mod:`airflow.operators.subdag_operator`
      -
 
+   * - :mod:`airflow.operators.sql_branch_operator`
+     -
+
 **Sensors:**
 
 .. list-table::
@@ -490,7 +493,8 @@ These integrations allow you to perform various operations within the Amazon Web
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.s3`
-     - :mod:`airflow.providers.amazon.aws.operators.s3_file_transform`,
+     - :mod:`airflow.providers.amazon.aws.operators.s3_bucket`,
+       :mod:`airflow.providers.amazon.aws.operators.s3_file_transform`,
        :mod:`airflow.providers.amazon.aws.operators.s3_copy_object`,
        :mod:`airflow.providers.amazon.aws.operators.s3_delete_objects`,
        :mod:`airflow.providers.amazon.aws.operators.s3_list`
@@ -696,7 +700,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Dataproc <https://cloud.google.com/dataproc/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/dataproc>`
      - :mod:`airflow.providers.google.cloud.hooks.dataproc`
      - :mod:`airflow.providers.google.cloud.operators.dataproc`
      -
@@ -918,7 +922,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
    * - Local
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/local_to_gcs>`
      - :mod:`airflow.providers.google.cloud.operators.local_to_gcs`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__

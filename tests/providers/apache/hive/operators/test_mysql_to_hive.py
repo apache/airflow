@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.models.dag import DAG
-from airflow.providers.apache.hive.operators.mysql_to_hive import MySqlToHiveTransfer
+from airflow.providers.apache.hive.operators.mysql_to_hive import MySqlToHiveTransferOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils import timezone
 from tests.test_utils.mock_hooks import MockHiveServer2Hook
@@ -134,7 +134,7 @@ class TestTransfer(unittest.TestCase):
 
         with mock.patch.dict('os.environ', self.env_vars):
             sql = "SELECT * FROM baby_names LIMIT 1000;"
-            op = MySqlToHiveTransfer(
+            op = MySqlToHiveTransferOperator(
                 task_id='test_m2h',
                 hive_cli_conn_id='hive_cli_default',
                 sql=sql,
@@ -172,7 +172,7 @@ class TestTransfer(unittest.TestCase):
 
         with mock.patch.dict('os.environ', self.env_vars):
             sql = "SELECT * FROM baby_names LIMIT 1000;"
-            op = MySqlToHiveTransfer(
+            op = MySqlToHiveTransferOperator(
                 task_id='test_m2h',
                 hive_cli_conn_id='hive_cli_default',
                 sql=sql,
@@ -212,7 +212,7 @@ class TestTransfer(unittest.TestCase):
 
         with mock.patch.dict('os.environ', self.env_vars):
             sql = "SELECT * FROM baby_names LIMIT 1000;"
-            op = MySqlToHiveTransfer(
+            op = MySqlToHiveTransferOperator(
                 task_id='test_m2h',
                 hive_cli_conn_id='hive_cli_default',
                 sql=sql,
@@ -261,7 +261,7 @@ class TestTransfer(unittest.TestCase):
                     )
                 """.format(mysql_table))
 
-            op = MySqlToHiveTransfer(
+            op = MySqlToHiveTransferOperator(
                 task_id='test_m2h',
                 hive_cli_conn_id='hive_cli_default',
                 sql="SELECT * FROM {}".format(mysql_table),
@@ -318,7 +318,7 @@ class TestTransfer(unittest.TestCase):
 
             with mock.patch.dict('os.environ', self.env_vars):
                 import unicodecsv as csv
-                op = MySqlToHiveTransfer(
+                op = MySqlToHiveTransferOperator(
                     task_id='test_m2h',
                     hive_cli_conn_id='hive_cli_default',
                     sql="SELECT * FROM {}".format(mysql_table),
@@ -410,7 +410,7 @@ class TestTransfer(unittest.TestCase):
                 """.format(mysql_table, *minmax))
 
             with mock.patch.dict('os.environ', self.env_vars):
-                op = MySqlToHiveTransfer(
+                op = MySqlToHiveTransferOperator(
                     task_id='test_m2h',
                     hive_cli_conn_id='hive_cli_default',
                     sql="SELECT * FROM {}".format(mysql_table),

@@ -41,18 +41,20 @@ spec:
       labels:
         name: airflow
     spec:
+      securityContext:
+        runAsUser:  50000
+        runAsGroup: 50000
+        fsGroup: 50000
       initContainers:
       - name: "init"
         image: {{AIRFLOW_KUBERNETES_IMAGE}}
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: airflow-configmap
-          mountPath: /root/airflow/airflow.cfg
+          mountPath: /opt/airflow/airflow.cfg
           subPath: airflow.cfg
         - name: {{INIT_DAGS_VOLUME_NAME}}
-          mountPath: /root/airflow/dags
-        - name: test-volume
-          mountPath: /root/test_volume
+          mountPath: /opt/airflow/dags
         env:
         - name: SQL_ALCHEMY_CONN
           valueFrom:
@@ -85,12 +87,12 @@ spec:
               key: sql_alchemy_conn
         volumeMounts:
         - name: airflow-configmap
-          mountPath: /root/airflow/airflow.cfg
+          mountPath: /opt/airflow/airflow.cfg
           subPath: airflow.cfg
         - name: {{POD_AIRFLOW_DAGS_VOLUME_NAME}}
-          mountPath: /root/airflow/dags
+          mountPath: /opt/airflow/dags
         - name: airflow-logs
-          mountPath: /root/airflow/logs
+          mountPath: /opt/airflow/logs
       - name: scheduler
         image: {{AIRFLOW_KUBERNETES_IMAGE}}
         imagePullPolicy: IfNotPresent
@@ -107,12 +109,12 @@ spec:
               key: sql_alchemy_conn
         volumeMounts:
         - name: airflow-configmap
-          mountPath: /root/airflow/airflow.cfg
+          mountPath: /opt/airflow/airflow.cfg
           subPath: airflow.cfg
         - name: {{POD_AIRFLOW_DAGS_VOLUME_NAME}}
-          mountPath: /root/airflow/dags
+          mountPath: /opt/airflow/dags
         - name: airflow-logs
-          mountPath: /root/airflow/logs
+          mountPath: /opt/airflow/logs
       volumes:
       - name: airflow-dags
         persistentVolumeClaim:
@@ -121,12 +123,8 @@ spec:
         emptyDir: {}
       - name: airflow-dags-git
         emptyDir: {}
-      - name: test-volume
-        persistentVolumeClaim:
-          claimName: test-volume
       - name: airflow-logs
-        persistentVolumeClaim:
-          claimName: airflow-logs
+        emptyDir: {}
       - name: airflow-configmap
         configMap:
           name: airflow-configmap

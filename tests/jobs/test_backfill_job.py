@@ -194,7 +194,7 @@ class TestBackfillJob(unittest.TestCase):
             ("run_this_last", end_date),
         ]
         self.assertListEqual(
-            [((dag.dag_id, task_id, when, 1), State.SUCCESS)
+            [((dag.dag_id, task_id, when, 1), (State.SUCCESS, None))
              for (task_id, when) in expected_execution_order],
             executor.sorted_tasks
         )
@@ -274,7 +274,7 @@ class TestBackfillJob(unittest.TestCase):
 
         job.run()
         self.assertListEqual(
-            [((dag_id, task_id, DEFAULT_DATE, 1), State.SUCCESS)
+            [((dag_id, task_id, DEFAULT_DATE, 1), (State.SUCCESS, None))
              for task_id in expected_execution_order],
             executor.sorted_tasks
         )

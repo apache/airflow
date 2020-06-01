@@ -33,7 +33,7 @@ from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.decorators import apply_defaults
 
 
-class MySqlToHiveTransfer(BaseOperator):
+class MySqlToHiveTransferOperator(BaseOperator):
     """
     Moves data from MySql to Hive. The operator runs your query against
     MySQL, stores the file locally before loading it into a Hive table.

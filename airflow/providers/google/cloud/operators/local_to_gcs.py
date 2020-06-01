@@ -32,8 +32,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
 
     :param src: Path to the local file. (templated)
     :type src: str
-    :param dst: Destination path within the specified bucket, it must be the full file path
-        to destination object on GCS, including GCS object (ex. `path/to/file.txt`) (templated)
+    :param dst: The object name to set when uploading the file. (templated)
     :type dst: str
     :param bucket: The bucket to upload to. (templated)
     :type bucket: str

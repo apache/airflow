@@ -20,9 +20,43 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensorFolder, HdfsSensorRegex  # noqa
+from airflow.providers.apache.hdfs.sensors.hdfs import HdfsFolderSensor, HdfsRegexSensor
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hdfs.sensors.hdfs`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+# pylint: disable=too-many-ancestors
+class HdfsSensorFolder(HdfsFolderSensor):
+    """
+    This class is deprecated.
+    Please use:
+    `airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+# pylint: disable=too-many-ancestors
+class HdfsSensorRegex(HdfsRegexSensor):
+    """
+    This class is deprecated.
+    Please use:
+    `airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

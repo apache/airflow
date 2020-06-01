@@ -21,7 +21,7 @@ import unittest
 from unittest import mock
 
 from airflow.models.dag import DAG
-from airflow.providers.mysql.operators.vertica_to_mysql import VerticaToMySqlTransfer
+from airflow.providers.mysql.operators.vertica_to_mysql import VerticaToMySqlTransferOperator
 
 
 def mock_get_conn():
@@ -59,14 +59,14 @@ class TestVerticaToMySqlTransfer(unittest.TestCase):
         Test check selection from vertica into memory and
         after that inserting into mysql
         """
-        task = VerticaToMySqlTransfer(task_id='test_task_id',
-                                      sql='select a, b, c',
-                                      mysql_table='test_table',
-                                      vertica_conn_id='test_vertica_conn_id',
-                                      mysql_conn_id='test_mysql_conn_id',
-                                      params={},
-                                      bulk_load=False,
-                                      dag=self.dag)
+        task = VerticaToMySqlTransferOperator(task_id='test_task_id',
+                                              sql='select a, b, c',
+                                              mysql_table='test_table',
+                                              vertica_conn_id='test_vertica_conn_id',
+                                              mysql_conn_id='test_mysql_conn_id',
+                                              params={},
+                                              bulk_load=False,
+                                              dag=self.dag)
         task.execute(None)
 
     @mock.patch(
@@ -78,12 +78,12 @@ class TestVerticaToMySqlTransfer(unittest.TestCase):
         Test check selection from vertica into temporary file and
         after that bulk inserting into mysql
         """
-        task = VerticaToMySqlTransfer(task_id='test_task_id',
-                                      sql='select a, b, c',
-                                      mysql_table='test_table',
-                                      vertica_conn_id='test_vertica_conn_id',
-                                      mysql_conn_id='test_mysql_conn_id',
-                                      params={},
-                                      bulk_load=True,
-                                      dag=self.dag)
+        task = VerticaToMySqlTransferOperator(task_id='test_task_id',
+                                              sql='select a, b, c',
+                                              mysql_table='test_table',
+                                              vertica_conn_id='test_vertica_conn_id',
+                                              mysql_conn_id='test_mysql_conn_id',
+                                              params={},
+                                              bulk_load=True,
+                                              dag=self.dag)
         task.execute(None)

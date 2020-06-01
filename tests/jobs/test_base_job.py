@@ -19,7 +19,7 @@
 
 import datetime
 
-from mock import Mock, patch
+from mock import ANY, Mock, patch
 from pytest import raises
 from sqlalchemy.exc import OperationalError
 
@@ -138,3 +138,22 @@ class TestBaseJob:
         assert test_job.unixname == "testuser"
         assert test_job.state == "running"
         assert test_job.executor == mock_sequential_executor
+
+    def test_heartbeat(self, frozen_sleep, monkeypatch):
+        monkeypatch.setattr('airflow.jobs.base_job.sleep', frozen_sleep)
+        with create_session() as session:
+            job = MockJob(None, heartrate=10)
+            job.latest_heartbeat = timezone.utcnow()
+            session.add(job)
+            session.commit()
+
+            hb_callback = Mock()
+            job.heartbeat_callback = hb_callback
+
+            job.heartbeat()
+
+            hb_callback.assert_called_once_with(session=ANY)
+
+            hb_callback.reset_mock()
+            job.heartbeat(only_if_necessary=True)
+            assert hb_callback.called is False

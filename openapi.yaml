@@ -1,0 +1,2411 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+openapi: 3.0.3
+
+info:
+  title: "Airflow API (Stable)"
+  description: Apache Airflow management API.
+  version: '1.0.0'
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  contact:
+    name: Apache Software Foundation
+    url: https://airflow.apache.org
+    email: dev@airflow.apache.org
+
+servers:
+  - url: /api/v1
+    description: Apache Airflow Stable API.
+
+paths:
+  # Database entities
+  /connections:
+    get:
+      summary: Get all connection entries
+      operationId: getConnections
+      tags: [Connection]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: List of connection entry.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ConnectionCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+    post:
+      summary: Create connection entry
+      operationId: createConnection
+      tags: [Connection]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Connection'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /connections/{connection_id}:
+    parameters:
+      - $ref: '#/components/parameters/ConnectionID'
+
+    get:
+      summary: Get a connection entry
+      operationId: getConnection
+      tags: [Connection]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update a connection entry
+      operationId: updateConnection
+      tags: [Connection]
+      parameters:
+        - $ref: '#/components/parameters/UpdateMask'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Connection'
+
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete a connection entry
+      operationId: deleteConnection
+      tags: [Connection]
+      responses:
+        '204':
+          description: No content.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /dags:
+    get:
+      summary: Get all DAGs
+      operationId: getDags
+      tags: [DAG]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: List of DAGs.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DAGCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /dags/{dag_id}:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+
+    get:
+      summary: Get basic information about a DAG
+      description: >
+        Presents only information available in database (DAGModel).
+
+        If you need detailed information, consider using GET /dags/{dag_id}/detail.
+      operationId: getDag
+      tags: [DAG]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAG'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update a DAG
+      operationId: updateDag
+      tags: [DAG]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAG'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAG'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/{dag_id}/clearTaskInstances:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+
+    post:
+      summary: Clears a set of task instances associated with the DAG for a specified date range.
+      operationId: clearTaskInstance
+      tags: [DAG]
+      requestBody:
+        description: Parameters of action
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClearTaskInstance'
+
+      responses:
+        '200':
+          description: A list of cleared task references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceReferenceCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/{dag_id}/dagRuns:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+
+    get:
+      summary: Get all DAG Runs
+      description: >
+        This endpoint allows specifying `~` as the dag_id to retrieve DAG Runs for all DAGs.
+      operationId: getDagRuns
+      tags: [DAGRun]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/FilterExecutionDateGTE'
+        - $ref: '#/components/parameters/FilterExecutionDateLTE'
+        - $ref: '#/components/parameters/FilterStartDateGTE'
+        - $ref: '#/components/parameters/FilterStartDateLTE'
+        - $ref: '#/components/parameters/FilterEndDateGTE'
+        - $ref: '#/components/parameters/FilterEndDateLTE'
+      responses:
+        '200':
+          description: List of DAG Runs.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DAGRunCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /dags/~/dagRuns/list:
+    post:
+      summary: Get all DAG Runs from aall DAGs.
+      description: >
+        This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
+        would run in to maximum HTTP request URL lengthlimits
+      operationId: getDagRunsBatch
+      tags: [DAGRun]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListDagRunsForm'
+      responses:
+        '200':
+          description: List of DAG Runs.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DAGRunCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+
+    get:
+      summary: Get a DAG Run
+      operationId: getDagRun
+      tags: [DAGRun]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      summary: Trigger a DAG Run
+      operationId: createDagRun
+      tags: [DAGRun]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRun'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          $ref: '#/components/responses/AlreadyExists'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+    patch:
+      summary: Update a DAG Run
+      operationId: updateDagRun
+      tags: [DAGRun]
+      parameters:
+        - $ref: '#/components/parameters/UpdateMask'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRun'
+
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete a DAG Run
+      operationId: deleteDagRun
+      tags: [DAGRun]
+      responses:
+        '204':
+          description: No content.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /eventLogs:
+    get:
+      summary: Get all log entries from event log
+      operationId: getEventLog
+      tags: [EventLog]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: List of log entries.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/EventLogCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /eventLogs/{event_log_id}:
+    parameters:
+      - $ref: '#/components/parameters/EventLogID'
+
+    get:
+      summary: Get a log entry
+      operationId: getEventLogEntry
+      tags: [EventLog]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventLog'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /importErrors:
+    get:
+      summary: Get all import errors
+      operationId: getImportErrors
+      tags: [ImportError]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: List of import errors.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ImportErrorCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /importErrors/{import_error_id}:
+    parameters:
+      - $ref: '#/components/parameters/ImportErrorID'
+
+    get:
+      summary: Get an import error
+      operationId: getImportError
+      tags: [ImportError]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete an import error
+      operationId: deleteImportError
+      tags: [ImportError]
+      responses:
+        '204':
+          description: No content.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /pools:
+    get:
+      summary: Get all pools
+      operationId: getPools
+      tags: [Pool]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: List of pools.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PoolCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+    post:
+      summary: Create a pool
+      operationId: createPool
+      tags: [Pool]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pool'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /pools/{pool_name}:
+    parameters:
+      - $ref: '#/components/parameters/PoolName'
+
+    get:
+      summary: Get a pool
+      operationId: getPool
+      tags: [Pool]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update a pool
+      operationId: updatePool
+      tags: [Pool]
+      parameters:
+        - $ref: '#/components/parameters/UpdateMask'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pool'
+
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete a pool
+      operationId: deletePool
+      tags: [Pool]
+      responses:
+        '204':
+          description: No content.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/FilterExecutionDateGTE'
+      - $ref: '#/components/parameters/FilterExecutionDateLTE'
+      - $ref: '#/components/parameters/FilterStartDateGTE'
+      - $ref: '#/components/parameters/FilterStartDateLTE'
+      - $ref: '#/components/parameters/FilterEndDateGTE'
+      - $ref: '#/components/parameters/FilterEndDateLTE'
+      - $ref: '#/components/parameters/FilterDurationGTE'
+      - $ref: '#/components/parameters/FilterDurationLTE'
+      - $ref: '#/components/parameters/FilterState'
+      - $ref: '#/components/parameters/FilterPool'
+      - $ref: '#/components/parameters/FilterQueue'
+    get:
+      summary: Get a list of task instance of DAG.
+      description: >
+        This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve DAG Runs for all DAGs
+        and DAG Runs.
+      operationId: getTaskInstances
+      tags: [TaskInstance]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: List of task instances.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/TaskInstanceCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/TaskID'
+
+    get:
+      summary: Get a task instance
+      operationId: getTaskInstance
+      tags: [TaskInstance]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstance'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/~/dagRuns/~/taskInstances/list:
+    post:
+      summary: Get list of task instances from all DAGs and DAG Runs.
+      description: >
+        This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
+        would run in to maximum HTTP request URL lengthlimits
+      operationId: getTaskInstancesBatch
+      tags: [TaskInstance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListTaskInstanceForm'
+
+      responses:
+        '200':
+          description: List of task instances.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/TaskInstanceCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /variables:
+    get:
+      summary: Get all variables
+      description: The collection does not contain data. To get data, you must get a single entity.
+      operationId: getVariables
+      tags: [Variable]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: List of variables.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/VariableCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+    post:
+      summary: Create a variable
+      operationId: createVariable
+      tags: [Variable]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Variable'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Variable'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /variables/{variable_key}:
+    parameters:
+      - $ref: '#/components/parameters/VariableKey'
+
+    get:
+      summary: Get a variable by key
+      operationId: getVariable
+      tags: [Variable]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Variable'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update a variable by key
+      operationId: updateVariable
+      tags: [Variable]
+      parameters:
+        - $ref: '#/components/parameters/UpdateMask'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Variable'
+
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Variable'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete variable
+      operationId: deleteVariable
+      tags: [Variable]
+      responses:
+        '204':
+          description: No content.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/TaskID'
+
+    get:
+      summary: Get all XCom entries
+      description:
+        This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCOM entries for
+        for all DAGs, DAG Runs and task instances.
+      operationId: getXComEntry
+      tags: [XCom]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: List of XCom entries.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/XComCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+    post:
+      summary: Create an XCom entry
+      operationId: updateXComEntry
+      tags: [XCom]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XCom'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XCom'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/TaskID'
+      - $ref: '#/components/parameters/XComKey'
+
+    get:
+      summary: Get an XCom entry
+      operationId: getXComValue
+      tags: [XCom]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XCom'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update an XCom entry
+      operationId: updateXComValue
+      tags: [XCom]
+      parameters:
+        - $ref: '#/components/parameters/UpdateMask'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XCom'
+
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XCom'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete an XCom entry
+      operationId: deleteXComValue
+      tags: [XCom]
+      responses:
+        '204':
+          description: No content.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  # Non-database resources
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/TaskID'
+
+    get:
+      summary: Get extra links for task instance
+      operationId: getExtraLinks
+      tags: [TaskInstance]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtraLinkCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/TaskID'
+      - $ref: '#/components/parameters/TaskTryNumber'
+      - $ref: '#/components/parameters/FullContent'
+      - $ref: '#/components/parameters/ContinuationToken'
+
+    get:
+      summary: Get logs for a task instance
+      description: Get logs for a specific task instance and its try number
+      operationId: getLogs
+      tags: [TaskInstance]
+      responses:
+        '200':
+          description: Content of logs.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  continuation_token:
+                    type: string
+                  content:
+                    type: string
+            text/plain:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/{dag_id}/details:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+
+    get:
+      summary: Get a simplified representation of DAG.
+      operationId: getDagDetail
+      description: >
+        The response contains many DAG attributes, so the response can be large.
+        If possible, consider using GET /dags/{dag_id}.
+      tags: [DAG]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGDetail'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/{dag_id}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+
+    get:
+      summary: Get tasks for DAG
+      operationId: getTasks
+      tags: [DAG]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/{dag_id}/tasks/{task_id}:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/TaskID'
+
+    get:
+      summary: Get simplified representation of a task.
+      operationId: getTask
+      tags: [DAG]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dagSources/{file_token}:
+    parameters:
+      - $ref: '#/components/parameters/FileToken'
+
+    get:
+      summary: Get source code using file token
+      operationId: getDagSource
+      tags: [DAG]
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /config:
+    get:
+      summary: Get current configuration
+      operationId: getConfig
+      tags: [Config]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+      responses:
+        '200':
+          description: Return current configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+            text/plain:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+components:
+  # Reusable schemas (data models)
+  schemas:
+    # Database entities
+    ConnectionCollectionItem:
+      type: object
+      properties:
+        connection_id:
+          type: string
+        conn_type:
+          type: string
+        host:
+          type: string
+        login:
+          type: string
+        schema:
+          type: string
+        port:
+          type: integer
+
+    ConnectionCollection:
+      type: object
+      properties:
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConnectionCollectionItem'
+
+    Connection:
+      allOf:
+        - $ref: '#/components/schemas/ConnectionCollectionItem'
+        - type: object
+          properties:
+            password:
+              type: string
+              format: password
+              writeOnly: true
+            extra:
+              type: string
+
+    DAG:
+      type: object
+      properties:
+        dag_id:
+          type: string
+          readOnly: true
+        root_dag_id:
+          type: string
+          readOnly: true
+        is_paused:
+          type: boolean
+        is_subdag:
+          type: boolean
+          readOnly: true
+        fileloc:
+          type: string
+          readOnly: true
+        file_token:
+          type: string
+          readOnly: true
+          description: >
+            The key containing the encrypted path to the file. Encryption and decryption take place only on
+            the server. This prevents the client from reading an non-DAG file. This also ensures API
+            extensibility, because the format of encrypted data may change.
+        owners:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        schedule_interval:
+          $ref: '#/components/schemas/ScheduleInterval'
+          readOnly: true
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+          readOnly: true
+
+    DAGCollection:
+      type: object
+      properties:
+        dags:
+          type: array
+          items:
+            $ref: '#/components/schemas/DAG'
+
+    DAGRun:
+      type: object
+      properties:
+        dag_run_id:
+          type: string
+          description: >
+            Run ID.
+
+            The value of this field can be set only when creating the object. If you try to modify the
+            field of an existing object, the request fails with an BAD_REQUEST error.
+
+            If not provided, a value will be generated based on execution_date.
+
+            If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
+
+            This together with DAG_ID are a unique key.
+        dag_id:
+          type: string
+          readOnly: true
+        execution_date:
+          description: >
+            The execution date. This is the time when the DAG run should be started according
+            to the DAG definition.
+
+            The value of this field can be set only when creating the object. If you try to modify the
+            field of an existing object, the request fails with an BAD_REQUEST error.
+
+            This together with DAG_ID are a unique key.
+          type: string
+          format: date-time
+        start_date:
+          type: string
+          format: date-time
+          description: >
+            The start time. The time when DAG Run was actually created..
+          readOnly: True
+        end_date:
+          type: string
+          format: date-time
+          readOnly: True
+        state:
+          $ref: '#/components/schemas/DagState'
+        external_trigger:
+          type: boolean
+          default: true
+          readOnly: True
+        conf:
+          type: object
+          description: >
+            JSON object describing additional configuration parameters.
+
+            The value of this field can be set only when creating the object. If you try to modify the
+            field of an existing object, the request fails with an BAD_REQUEST error.
+      required:
+        - dag_id
+
+    DAGRunCollection:
+      type: object
+      properties:
+        dag_runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/DAGRun'
+
+    EventLog:
+      type: object
+      properties:
+        event_log_id:
+          type: integer
+          readOnly: true
+        when:
+          type: string
+          readOnly: true
+        dag_id:
+          type: string
+          readOnly: true
+        task_id:
+          type: string
+          readOnly: true
+        event:
+          type: string
+          readOnly: true
+        execution_date:
+          type: string
+          readOnly: true
+        owner:
+          type: string
+          readOnly: true
+        extra:
+          type: string
+          readOnly: true
+
+    EventLogCollection:
+      type: object
+      properties:
+        event_logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventLog'
+
+    ImportError:
+      type: object
+      properties:
+        import_error_id:
+          type: integer
+          readOnly: true
+        timestamp:
+          type: string
+          format: datetime
+          readOnly: true
+        filename:
+          type: string
+          readOnly: true
+        stack_trace:
+          type: string
+          readOnly: true
+
+    ImportErrorCollection:
+      type: object
+      properties:
+        import_errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportError'
+
+    Pool:
+      type: object
+      properties:
+        name:
+          type: string
+        slots:
+          type: integer
+        occupied_slots:
+          type: integer
+          readOnly: true
+        used_slots:
+          type: integer
+          readOnly: true
+        queued_slots:
+          type: integer
+          readOnly: true
+        open_slots:
+          type: integer
+          readOnly: true
+
+    PoolCollection:
+      type: object
+      properties:
+        pools:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pool'
+
+    SLAMiss:
+      type: object
+      properties:
+        task_id:
+          type: string
+          readOnly: true
+        dag_id:
+          type: string
+        execution_date:
+          type: string
+          format: datetime
+        email_sent:
+          type: boolean
+        timestamp:
+          type: string
+          format: datetime
+        description:
+          type: string
+        notification_sent:
+          type: boolean
+
+    SLAMissCollection:
+      type: object
+      properties:
+        sla_misses:
+          type: array
+          items:
+            $ref: '#/components/schemas/SLAMiss'
+
+    TaskFail:
+      type: object
+      properties:
+        task_id:
+          type: string
+        dag_id:
+          type: string
+        execution_date:
+          type: string
+          format: datetime
+        start_date:
+          type: string
+          format: datetime
+        end_date:
+          type: string
+          format: datetime
+        duration:
+          type: integer
+
+    TaskInstance:
+      type: object
+      properties:
+        task_id:
+          type: string
+        dag_id:
+          type: string
+        execution_date:
+          type: string
+          format: datetime
+        start_date:
+          type: string
+          format: datetime
+        end_date:
+          type: string
+          format: datetime
+        duration:
+          type: number
+        state:
+          $ref: '#/components/schemas/TaskState'
+        try_number:
+          type: integer
+        max_tries:
+          type: integer
+        hostname:
+          type: string
+        unixname:
+          type: string
+        pool:
+          type: string
+        pool_slots:
+          type: integer
+        queue:
+          type: string
+        priority_weight:
+          type: integer
+        operator:
+          type: string
+        queued_when:
+          type: string
+        pid:
+          type: integer
+        executor_config:
+          type: string
+        sla_miss:
+          $ref: '#/components/schemas/SLAMiss'
+
+    TaskInstanceCollection:
+      type: object
+      properties:
+        task_instances:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskInstance'
+
+    TaskInstanceReference:
+      type: object
+      properties:
+        task_id:
+          type: string
+          readOnly: true
+        dag_id:
+          type: string
+          readOnly: true
+        execution_date:
+          type: string
+          format: datetime
+          readOnly: true
+        dag_run_id:
+          type: string
+          readOnly: true
+
+    TaskInstanceReferenceCollection:
+      type: object
+      properties:
+        task_instances:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskInstanceReference'
+
+    VariableCollectionItem:
+      # Divided into two schemas for sensitive data protection
+      type: object
+      properties:
+        key:
+          type: string
+
+    VariableCollection:
+      type: object
+      properties:
+        variables:
+          type: array
+          items:
+            $ref: '#/components/schemas/VariableCollectionItem'
+
+    Variable:
+      allOf:
+        - $ref: '#/components/schemas/VariableCollectionItem'
+        - type: object
+          properties:
+            value:
+              type: string
+
+    XComCollectionItem:
+      # Divided into two schemas for sensitive data protection
+      type: object
+      properties:
+        key:
+          type: string
+        timestamp:
+          type: string
+          format: datetime
+        execution_date:
+          type: string
+          format: datetime
+        task_id:
+          type: string
+        dag_id:
+          type: string
+
+    XComCollection:
+      type: object
+      properties:
+        xcom_entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/XComCollectionItem'
+
+    XCom:
+      allOf:
+        - $ref: '#/components/schemas/XComCollectionItem'
+        - type: object
+          properties:
+            value:
+              type: string
+
+    # Python objects
+    # Based on
+    # airflow/serialization/schema.json
+    # but simplified to make the easier to use and to make backward compatibility easier.
+    DAGDetail:
+      allOf:
+        - $ref: '#/components/schemas/DAG'
+        - type: object
+          properties:
+            timezone:
+              $ref: '#/components/schemas/Timezone'
+            catchup:
+              type: boolean
+              readOnly: true
+            orientation:
+              type: string
+              readOnly: true
+            concurrency:
+              type: number
+              readOnly: true
+            start_date:
+              type: string
+              format: 'date-time'
+              readOnly: true
+            dag_run_timeout:
+              $ref: '#/components/schemas/TimeDelta'
+            doc_md:
+              type: string
+              readOnly: true
+            default_view:
+              type: string
+              readOnly: true
+
+    ExtraLink:
+      type: object
+      properties:
+        class_ref:
+          $ref: '#/components/schemas/ClassReference'
+        name:
+          type: string
+          readOnly: true
+        href:
+          type: string
+          readOnly: true
+
+    ExtraLinkCollection:
+      type: object
+      properties:
+        extra_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtraLink'
+
+    Task:
+      type: object
+      properties:
+        class_ref:
+          $ref: '#/components/schemas/ClassReference'
+        task_id:
+          type: string
+          readOnly: true
+        owner:
+          type: string
+          readOnly: true
+        start_date:
+          type: string
+          format: 'date-time'
+          readOnly: true
+        end_date:
+          type: string
+          format: 'date-time'
+          readOnly: true
+        trigger_rule:
+          $ref: '#/components/schemas/TriggerRule'
+        extra_links:
+          type: array
+          readOnly: true
+          items:
+            type: object
+            properties:
+              class_ref:
+                $ref: '#/components/schemas/ClassReference'
+        depends_on_past:
+          type: boolean
+          readOnly: true
+        wait_for_downstream:
+          type: boolean
+          readOnly: true
+        retries:
+          type: number
+          readOnly: true
+        queue:
+          type: string
+          readOnly: true
+        pool:
+          type: string
+          readOnly: true
+        pool_slots:
+          type: number
+          readOnly: true
+        execution_timeout:
+          $ref: '#/components/schemas/TimeDelta'
+        retry_delay:
+          $ref: '#/components/schemas/TimeDelta'
+        retry_exponential_backoff:
+          type: boolean
+          readOnly: true
+        priority_weight:
+          type: number
+          readOnly: true
+        weight_rule:
+          $ref: '#/components/schemas/WeightRule'
+        ui_color:
+          $ref: '#/components/schemas/Color'
+        ui_fgcolor:
+          $ref: '#/components/schemas/Color'
+        template_fields:
+          type: array
+          readOnly: true
+          items:
+            type: string
+        sub_dag:
+          $ref: '#/components/schemas/DAG'
+        downstream_task_ids:
+          type: array
+          readOnly: true
+          items:
+            type: string
+
+    TaskCollection:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+
+    # Configuration
+    ConfigOption:
+      type: object
+      properties:
+        key:
+          type: string
+          readOnly: true
+        value:
+          type: string
+          readOnly: true
+
+    ConfigSection:
+      type: object
+      properties:
+        name:
+          type: string
+          readOnly: true
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigOption'
+
+    Config:
+      type: object
+      properties:
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigSection'
+
+    # From
+    ClearTaskInstance:
+      type: object
+      properties:
+        dry_run:
+          description: >
+            If set, don't actually run this operation. The response will contain a list of task instances
+            planned to be cleaned, but not modified in any way.
+          type: boolean
+          default: true
+
+        start_date:
+          description: The minimum execution date to clear.
+          type: string
+          format: datetime
+
+        end_date:
+          description: The maximum execution date to clear.
+          type: string
+          format: datetime
+
+        only_failed:
+          description: Only clear failed tasks.
+          type: string
+          format: datetime
+
+        only_running:
+          description: Only clear running tasks.
+          type: string
+          format: datetime
+
+        include_subdags:
+          description: Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker.
+          type: boolean
+
+        include_parentdag:
+          description: Clear tasks in the parent dag of the subdag.
+          type: boolean
+
+        reset_dag_runs:
+          description: Set state of DAG Runs to RUNNING.
+          type: boolean
+
+    ListDagRunsForm:
+      type: object
+      properties:
+        page_offset:
+          type: integer
+          minimum: 0
+          description: The number of items to skip before starting to collect the result set.
+
+        page_limit:
+          type: integer
+          minimum: 1
+          default: 100
+          description: The numbers of items to return.
+
+        dag_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific DAG IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+        execution_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal to the specified date.
+
+            This can be combined with execution_date_lte key to receive only the selected period.
+
+        execution_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less than or equal to the specified date.
+
+            This can be combined with execution_date_gte key to receive only the selected period.
+
+        start_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal the specified date.
+
+            This can be combined with start_date_lte key to receive only the selected period.
+
+        start_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less or equal the specified date.
+
+            This can be combined with start_date_gte parameter to receive only the selected period
+
+        end_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal the specified date.
+
+            This can be combined with end_date_lte parameter to receive only the selected period.
+        end_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less than or equal to the specified date.
+
+            This can be combined with end_date_gte parameter to receive only the selected period.
+
+    ListTaskInstanceForm:
+      type: object
+      properties:
+        dag_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific DAG IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+        execution_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal to the specified date.
+
+            This can be combined with execution_date_lte parameter to receive only the selected period.
+        execution_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less than or equal to the specified date.
+
+            This can be combined with execution_date_gte parameter to receive only the selected period.
+        start_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal the specified date.
+
+            This can be combined with startd_ate_lte parameter to receive only the selected period.
+        start_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less or equal the specified date.
+
+            This can be combined with start_date_gte parameter to receive only the selected period.
+        end_date_gte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects greater or equal the specified date.
+
+            This can be combined with start_date_lte parameter to receive only the selected period.
+        end_date_lte:
+          type: string
+          format: date-time
+          description: >
+            Returns objects less than or equal to the specified date.
+
+            This can be combined with start_date_gte parameter to receive only the selected period.
+        duration_gte:
+          type: number
+          description: >
+            Returns objects greater than or equal to the specified values.
+
+            This can be combined with duration_lte parameter to receive only the selected period.
+        duration_lte:
+          type: number
+          description: >
+            Returns objects less than or equal to the specified values.
+
+            This can be combined with duration_gte parameter to receive only the selected range.
+        State:
+          type: array
+          items:
+            type: string
+          description:
+            The value can be repeated to retrieve multiple matching values (OR condition).
+        Pool:
+          type: array
+          items:
+            type: string
+          description:
+            The value can be repeated to retrieve multiple matching values (OR condition).
+        Queue:
+          type: array
+          items:
+            type: string
+          description:
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+    # Common data type
+    ScheduleInterval:
+      oneOf:
+        - $ref: '#/components/schemas/TimeDelta'
+        - $ref: '#/components/schemas/RelativeDelta'
+        - $ref: '#/components/schemas/CronExpression'
+      discriminator:
+        propertyName: __type
+
+    TimeDelta:
+      type: object
+      required:
+        - __type
+      properties:
+        __type: {type: string}
+        days: {type: integer}
+        seconds: {type: integer}
+        microsecond: {type: integer}
+
+    RelativeDelta:
+      # TODO: Why we need these fields?
+      type: object
+      required:
+        - __type
+      properties:
+        __type: {type: string}
+        years: {type: integer}
+        months: {type: integer}
+        days: {type: integer}
+        leapdays: {type: integer}
+        hours: {type: integer}
+        minutes: {type: integer}
+        seconds: {type: integer}
+        microseconds: {type: integer}
+        year: {type: integer}
+        month: {type: integer}
+        day: {type: integer}
+        hour: {type: integer}
+        minute: {type: integer}
+        second: {type: integer}
+        microsecond: {type: integer}
+
+    CronExpression:
+      type: object
+      required:
+        - __type
+      properties:
+        __type: {type: string}
+        value: {type: string}
+
+    Timezone:
+      type: string
+
+    Tag:
+      # Object to maintain extensibility
+      type: object
+      properties:
+        name:
+          type: string
+
+    Color:
+      type: string
+      pattern: ^#[a-fA-F0-9]{3,6}$
+
+    ClassReference:
+      type: object
+      properties:
+        module_path:
+          type: string
+          readOnly: true
+        class_name:
+          type: string
+          readOnly: true
+
+    # Generic
+    Error:
+      description: >
+        [RFC7807](https://tools.ietf.org/html/rfc7807) compliant response
+      type: object
+      properties:
+        type:
+          type: string
+          description: >
+            A URI reference [RFC3986] that identifies the problem type. This specification
+            encourages that, when dereferenced, it provide human-readable documentation for
+            the problem type.
+        title:
+          type: string
+          description: A short, human-readable summary of the problem  type.
+        status:
+          type: number
+          description: The HTTP status code generated by the API server for this occurrence of the problem.
+        details:
+          type: string
+          description: A human-readable explanation specific to this occurrence of the problem.
+        instance:
+          type: string
+          description: >
+            A URI reference that identifies the specific occurrence of the problem. It may or may
+            not yield further information if dereferenced.
+      required:
+        - type
+        - title
+        - status
+
+    CollectionInfo:
+      type: object
+      properties:
+        total_entries:
+          type: integer
+
+    # Enums
+    TaskState:
+      type: string
+      enum:
+        - succcess
+        - running
+        - failed
+        - upstream_failed
+        - skipped
+        - up_for_retry
+        - up_for_reschedule
+        - queued
+        - none
+        - scheduled
+
+    DagState:
+      type: string
+      enum:
+        - success
+        - running
+        - failed
+
+    TriggerRule:
+      type: string
+      enum:
+        - all_success
+        - all_failed
+        - all_done
+        - one_success
+        - one_failed
+        - none_failed
+        - none_skipped
+        - none_failed_or_skipped
+        - dummy
+
+    WeightRule:
+      type: string
+      enum:
+        - downstream
+        - upstream
+        - absolute
+
+  # Reusable path, query, header and cookie parameters
+  parameters:
+    # Pagination parameters
+    PageOffset:
+      in: query
+      name: offset
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+      description: The number of items to skip before starting to collect the result set.
+
+    PageLimit:
+      in: query
+      name: limit
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 100
+      description: The numbers of items to return.
+
+    # Database entity fields
+    ConnectionID:
+      in: path
+      name: connection_id
+      schema:
+        type: integer
+      required: true
+      description: The Connection ID.
+
+    DAGID:
+      in: path
+      name: dag_id
+      schema:
+        type: string
+      required: true
+      description: The DAG ID.
+
+    TaskID:
+      in: path
+      name: task_id
+      schema:
+        type: string
+      required: true
+      description: The Task ID.
+
+    DAGRunID:
+      in: path
+      name: dag_run_id
+      schema:
+        type: string
+      required: true
+      description: The DAG Run ID.
+
+    TaskTryNumber:
+      in: path
+      name: task_try_number
+      schema:
+        type: integer
+      required: true
+      description: The Task Try Number.
+
+    EventLogID:
+      in: path
+      name: event_log_id
+      schema:
+        type: integer
+      required: true
+      description: The Event Log ID.
+
+    ImportErrorID:
+      in: path
+      name: import_error_id
+      schema:
+        type: integer
+      required: true
+      description: The Import Error ID.
+
+    PoolName:
+      in: path
+      name: pool_name
+      schema:
+        type: string
+      required: true
+      description: The Pool name.
+
+    VariableKey:
+      in: path
+      name: variable_key
+      schema:
+        type: string
+      required: true
+      description: The Variable Key.
+
+    # Logs
+    FullContent:
+      in: query
+      name: full_content
+      schema:
+        type: boolean
+      required: false
+      description: >
+        A full content will be returned.
+        By default, only the first fragment will be returned.
+
+    ContinuationToken:
+      in: query
+      name: token
+      schema:
+        type: string
+      required: false
+      description: >
+        A token that allows you to continue fetching logs.
+        If passed, it will specify the location from which the download should be continued.
+
+    XComKey:
+      in: path
+      name: xcom_key
+      schema:
+        type: string
+      required: true
+      description: The XCom Key.
+    # Filter
+    FilterExecutionDateGTE:
+      in: query
+      name: execution_date_gte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects greater or equal to the specified date.
+
+        This can be combined with execution_date_lte parameter to receive only the selected period.
+    FilterExecutionDateLTE:
+      in: query
+      name: execution_date_lte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects less than or equal to the specified date.
+
+        This can be combined with execution_date_gte parameter to receive only the selected period.
+    FilterStartDateGTE:
+      in: query
+      name: start_date_gte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects greater or equal the specified date.
+
+        This can be combined with startd_ate_lte parameter to receive only the selected period.
+    FilterStartDateLTE:
+      in: query
+      name: start_date_lte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects less or equal the specified date.
+
+        This can be combined with start_date_gte parameter to receive only the selected period.
+    FilterEndDateGTE:
+      in: query
+      name: end_date_gte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects greater or equal the specified date.
+
+        This can be combined with start_date_lte parameter to receive only the selected period.
+    FilterEndDateLTE:
+      in: query
+      name: end_date_lte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: >
+        Returns objects less than or equal to the specified date.
+
+        This can be combined with start_date_gte parameter to receive only the selected period.
+    FilterDurationGTE:
+      in: query
+      name: duration_gte
+      schema:
+        type: number
+      required: false
+      description: >
+        Returns objects greater than or equal to the specified values.
+
+        This can be combined with duration_lte parameter to receive only the selected period.
+    FilterDurationLTE:
+      in: query
+      name: duration_lte
+      schema:
+        type: number
+      required: false
+      description: >
+        Returns objects less than or equal to the specified values.
+
+        This can be combined with duration_gte parameter to receive only the selected range.
+    FilterState:
+      in: query
+      name: state
+      schema:
+        type: array
+        items:
+          type: string
+      required: false
+      description:
+        The value can be repeated to retrieve multiple matching values (OR condition).
+    FilterPool:
+      in: query
+      name: pool
+      schema:
+        type: array
+        items:
+          type: string
+      required: false
+      description:
+        The value can be repeated to retrieve multiple matching values (OR condition).
+    FilterQueue:
+      in: query
+      name: queue
+      schema:
+        type: array
+        items:
+          type: string
+      description:
+        The value can be repeated to retrieve multiple matching values (OR condition).
+
+    # Other parameters
+    FileToken:
+      in: path
+      name: file_token
+      schema:
+        type: string
+      required: true
+      description: >
+        The key containing the encrypted path to the file. Encryption and decryption take place only on
+        the server. This prevents the client from reading an non-DAG file. This also ensures API
+        extensibility, because the format of encrypted data may change.
+
+    UpdateMask:
+      in: query
+      name: update_mask
+      schema:
+        type: array
+        items:
+          type: string
+      description: >
+        The fields to update on the connection (connection, pool etc). If absent or empty, all
+        modifiable fields are updated. A comma-separated list of fully qualified names of fields.
+      style: form
+      explode: false
+
+  # Reusable request bodies
+  requestBodies: {}
+
+  # Reusable responses, such as 401 Unauthenticated or 400 Bad Request
+  responses:
+    # 400
+    'BadRequest':
+      description: Client specified an invalid argument.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 401
+    'Unauthenticated':
+      description: Request not authenticated due to missing, invalid, authentication info.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 403
+    'PermissionDenied':
+      description: Client does not have sufficient permission.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 404
+    'NotFound':
+      description: A specified resource is not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 409
+    'AlreadyExists':
+      description: The resource that a client tried to create already exists.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 500
+    'Unknown':
+      description: Unknown server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  # Reusable response headers
+  headers: {}
+
+  # Reusable examples
+  examples: {}
+
+  # Reusable links
+  links: {}
+
+  # Reusable callbacks
+  callbacks: {}
+
+# The API will provide support for plugins to support various authorization mechanisms.
+# Detailed information will be available in the plugin specification.
+security: []
+
+tags:
+  - name: Config
+  - name: Connection
+  - name: DAG
+  - name: DAGRun
+  - name: EventLog
+  - name: ImportError
+  - name: Pool
+  - name: TaskInstance
+  - name: Variable
+  - name: XCom
+
+
+externalDocs:
+  url: http://airflow.apache.org/docs/stable/

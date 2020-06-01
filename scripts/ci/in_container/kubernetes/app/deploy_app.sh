@@ -56,19 +56,19 @@ rm -f "${BUILD_DIRNAME}"/*
 if [[ "${KUBERNETES_MODE}" == "persistent_mode" ]]; then
     INIT_DAGS_VOLUME_NAME=airflow-dags
     POD_AIRFLOW_DAGS_VOLUME_NAME=airflow-dags
-    CONFIGMAP_DAGS_FOLDER=/root/airflow/dags
+    CONFIGMAP_DAGS_FOLDER=/opt/airflow/dags
     CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT=
     CONFIGMAP_DAGS_VOLUME_CLAIM=airflow-dags
 else
     INIT_DAGS_VOLUME_NAME=airflow-dags-fake
     POD_AIRFLOW_DAGS_VOLUME_NAME=airflow-dags-git
-    CONFIGMAP_DAGS_FOLDER=/root/airflow/dags/repo/airflow/example_dags
-    CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT=/root/airflow/dags
+    CONFIGMAP_DAGS_FOLDER=/opt/airflow/dags/repo/airflow/example_dags
+    CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT=/opt/airflow/dags
     CONFIGMAP_DAGS_VOLUME_CLAIM=
 fi
 
-CONFIGMAP_GIT_REPO=${CI_TARGET_REPO:-apache/airflow}
-CONFIGMAP_BRANCH=${CI_TARGET_BRANCH:=master}
+CONFIGMAP_GIT_REPO=${GITHUB_REPOSITORY:-apache/airflow}
+CONFIGMAP_BRANCH=${GITHUB_BASE_REF:=master}
 
 if [[ "${KUBERNETES_MODE}" == "persistent_mode" ]]; then
     sed -e "s/{{INIT_GIT_SYNC}}//g" \
@@ -111,9 +111,28 @@ kubectl apply -f "${MY_DIR}/secrets.yaml"
 kubectl apply -f "${BUILD_DIRNAME}/configmaps.yaml"
 kubectl apply -f "${MY_DIR}/postgres.yaml"
 kubectl apply -f "${MY_DIR}/volumes.yaml"
+
+set +x
+set +o pipefail
+PODS_ARE_READY="0"
+for i in {1..150}; do
+    echo "------- Running kubectl get pods: $i -------"
+    PODS=$(kubectl get pods | awk 'NR>1 {print $0}')
+    echo "$PODS"
+    NUM_POSTGRES_READY=$(echo "${PODS}" | grep postgres | awk '{print $2}' | grep -cE '([1-9])\/(\1)' | xargs)
+    if [[ "${NUM_POSTGRES_READY}" == "1" ]]; then
+        PODS_ARE_READY="1"
+        break
+    fi
+    sleep 4
+done
+
+sleep 7
+
 kubectl apply -f "${BUILD_DIRNAME}/airflow.yaml"
 
 dump_logs() {
+    echo "dumping logs"
     POD=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | grep airflow | head -1)
     echo "------- pod description -------"
     kubectl describe pod "${POD}"
@@ -134,12 +153,12 @@ set +x
 set +o pipefail
 # wait for up to 10 minutes for everything to be deployed
 PODS_ARE_READY="0"
-for i in {1..150}; do
+for i in {1..20}; do
     echo "------- Running kubectl get pods: $i -------"
     PODS=$(kubectl get pods | awk 'NR>1 {print $0}')
     echo "$PODS"
-    NUM_AIRFLOW_READY=$(echo "${PODS}" | grep airflow | awk '{print $2}' | grep -cE '([0-9])\/(\1)' | xargs)
-    NUM_POSTGRES_READY=$(echo "${PODS}" | grep postgres | awk '{print $2}' | grep -cE '([0-9])\/(\1)' | xargs)
+    NUM_AIRFLOW_READY=$(echo "${PODS}" | grep airflow | awk '{print $2}' | grep -cE '([2-9])\/(\1)' | xargs)
+    NUM_POSTGRES_READY=$(echo "${PODS}" | grep postgres | awk '{print $2}' | grep -cE '([1-9])\/(\1)' | xargs)
     if [[ "${NUM_AIRFLOW_READY}" == "1" && "${NUM_POSTGRES_READY}" == "1" ]]; then
         PODS_ARE_READY="1"
         break
@@ -147,7 +166,7 @@ for i in {1..150}; do
     sleep 4
 done
 POD=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | grep airflow | head -1)
-
+dump_logs
 if [[ "${PODS_ARE_READY}" == "1" ]]; then
     echo "PODS are ready."
 else
@@ -160,7 +179,7 @@ fi
 KUBERNETES_HOST=${CLUSTER_NAME}-worker
 AIRFLOW_WEBSERVER_IS_READY="0"
 CONSECUTIVE_SUCCESS_CALLS=0
-for i in {1..30}; do
+for i in {1..20}; do
     echo "------- Wait until webserver is up: $i -------"
     PODS=$(kubectl get pods | awk 'NR>1 {print $0}')
     echo "$PODS"
@@ -182,5 +201,6 @@ if [[ "${AIRFLOW_WEBSERVER_IS_READY}" == "1" ]]; then
     echo "Airflow webserver is ready."
 else
     echo >&2 "Airflow webserver is not ready after waiting for a long time. Exiting..."
+    dump_logs
     exit 1
 fi

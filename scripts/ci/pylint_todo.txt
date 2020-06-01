@@ -1,10 +1,4 @@
 ./airflow/configuration.py
-./airflow/contrib/auth/backends/github_enterprise_auth.py
-./airflow/contrib/auth/backends/google_auth.py
-./airflow/contrib/auth/backends/kerberos_auth.py
-./airflow/contrib/auth/backends/ldap_auth.py
-./airflow/lineage/backend/atlas/typedefs.py
-./airflow/lineage/datasets.py
 ./airflow/logging_config.py
 ./airflow/macros/hive.py
 ./airflow/migrations/env.py

@@ -36,7 +36,6 @@ MISSING_TEST_FILES = {
     'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
     'tests/providers/google/cloud/operators/test_sql_to_gcs.py',
-    'tests/providers/google/cloud/sensors/test_bigquery.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
     'tests/providers/google/cloud/utils/test_field_validator.py',
     'tests/providers/google/cloud/utils/test_mlengine_operator_utils.py',
@@ -136,9 +135,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'cassandra_to_gcs'),
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
-        ('cloud', 'local_to_gcs'),
-        ('cloud', 'sheets_to_gcs'),
-        ('suite', 'gcs_to_sheets'),
     }
 
     MISSING_DOC_GUIDES = {
@@ -148,12 +144,10 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'bigquery_to_mysql',
         'cassandra_to_gcs',
         'dataflow',
-        'dataproc',
         'datastore',
         'dlp',
         'gcs_to_bigquery',
         'kubernetes_engine',
-        'local_to_gcs',
         'mlengine',
         'mssql_to_gcs',
         'mysql_to_gcs',

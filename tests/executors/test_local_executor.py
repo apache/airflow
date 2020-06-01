@@ -54,8 +54,8 @@ class TestLocalExecutor(unittest.TestCase):
         for i in range(self.TEST_SUCCESS_COMMANDS):
             key_id = success_key.format(i)
             key = key_id, 'fake_ti', execution_date, 0
-            self.assertEqual(executor.event_buffer[key], State.SUCCESS)
-        self.assertEqual(executor.event_buffer[fail_key], State.FAILED)
+            self.assertEqual(executor.event_buffer[key][0], State.SUCCESS)
+        self.assertEqual(executor.event_buffer[fail_key][0], State.FAILED)
 
         expected = self.TEST_SUCCESS_COMMANDS + 1 if parallelism == 0 else parallelism
         self.assertEqual(executor.workers_used, expected)

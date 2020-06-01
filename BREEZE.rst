@@ -78,36 +78,46 @@ Docker Compose
 
 - **Permissions**: Configure to run the ``docker-compose`` command.
 
-Docker in WSL
--------------
+Docker in WSL 2
+---------------
 
-- **WSL installation** :
-    `WSL Installation Guide <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ for details.
+- **WSL 2 installation** :
+    Install WSL 2 and a Linux Distro (e.g. Ubuntu) see
+    `WSL 2 Installation Guide <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ for details.
 
-- **Docker installation** :
-    You should install docker in WSL.
-    follow `Docker Installtion Guide <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_
-    only docker-ce without docker-ce-cli containerd.io.
+- **Docker Desktop installation** :
+    Install Docker Desktop for Windows. For Windows Home follow the
+    `Docker Windows Home Installation Guide <https://docs.docker.com/docker-for-windows/install-windows-home>`_.
+    For Windows Pro, Enterprise, or Education follow the
+    `Docker Windows Installation Guide <https://docs.docker.com/docker-for-windows/install/>`_.
+
 - **Docker setting** :
-    You should expose Docker daemon,
+    WSL integration needs to be enabled
 
-.. image:: images/docker_expose_daemon.png
+.. image:: images/docker_wsl_integration.png
     :align: left
-    :alt: Docker expose daemon
+    :alt: Docker WSL2 integration
 
-and set env variable DOCKER_HOST.
+- **WSL 2 Filesystem Performance** :
+    Accessing the host Windows filesystem incurs a performance penalty,
+    it is therefore recommended to do development on the Linux filesystem.
+    E.g. Run ``cd ~`` and create a development folder in your Linux distro home
+    and git pull the Airflow repo there.
 
-.. code-block:: bash
+- **WSL 2 Memory Usage** :
+    WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim
+    the memory after development you can:
+      * On the Linux distro clear cached memory: ``sudo sysctl -w vm.drop_caches=3``
+      * If no longer using Docker you can quit Docker Desktop
+        (right click system try icon and select "Quit Docker Desktop")
+      * If no longer using WSL you can shut it down on the Windows Host
+        with the following command: ``wsl --shutdown``
 
-    echo "export DOCKER_HOST=tcp://localhost:2375" >> ~/.bashrc && source ~/.bashrc
-
-- **WSL problems** :
-  There is a mounting problem in docker because docker could not recognize ``/mnt/c``, ``/mnt/d`` driver path.
-  run this command in Windows Version 18.03+ and reboot Windows
-
-.. code-block:: bash
-
-    printf '[automount]\nroot = /\n options = "metadata"\n' >> /etc/wsl.conf
+- **Developing in WSL 2** :
+    You can use all the standard Linux command line utilities to develop on WSL 2.
+    Further VS Code supports developing in Windows but remotely executing in WSL.
+    If VS Code is installed on the Windows host system then in the WSL Linux Distro
+    you can run ``code .`` in the root directory of you Airflow repo to launch VS Code.
 
 Docker Images Used by Breeze
 ----------------------------
@@ -181,6 +191,8 @@ Minimum 4GB RAM is required to run the full Breeze environment.
 On macOS, 2GB of RAM are available for your Docker containers by default, but more memory is recommended
 (4GB should be comfortable). For details see
 `Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
+
+On Windows WSL 2 expect the Linux Disto and Docker containers to use 7 - 8 GB of RAM.
 
 Airflow Directory Structure inside Docker
 -----------------------------------------
@@ -776,6 +788,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,
                  ssh,statsd,virtualenv
 
+  --additional-extras
+          Additional extras to pass to build images The default is no additional extras.
+
+  --additional-python-deps
+          Additional python dependencies to use when building the images.
+
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
@@ -878,7 +896,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Prepares README.md files for backport packages. You can provide (after --) optional version
         in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
-        If the first parameter is not formatted as a date, then today is used as version.
+        If the first parameter is not formatted as a date, then today is regenerated.
         If no packages are specified, readme for all packages are generated.
         If no date is specified, current date + 3 days is used (allowing for PMC votes to pass).
 
@@ -1402,6 +1420,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Production image:
                  async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,
                  ssh,statsd,virtualenv
+
+  --additional-extras
+          Additional extras to pass to build images The default is no additional extras.
+
+  --additional-python-deps
+          Additional python dependencies to use when building the images.
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images

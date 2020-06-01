@@ -28,16 +28,16 @@ data:
     parallelism = 32
     load_examples = False
     load_default_connections = True
-    plugins_folder = /root/airflow/plugins
+    plugins_folder = /opt/airflow/plugins
     sql_alchemy_conn = $SQL_ALCHEMY_CONN
 
     [logging]
-    base_log_folder = /root/airflow/logs
+    base_log_folder = /opt/airflow/logs
     logging_level = INFO
 
     [scheduler]
     dag_dir_list_interval = 300
-    child_process_log_directory = /root/airflow/logs/scheduler
+    child_process_log_directory = /opt/airflow/logs/scheduler
     # Task instances listen for external kill signal (when you clear tasks
     # from the CLI or the UI), this defines the frequency at which they should
     # listen (in seconds).
@@ -174,7 +174,7 @@ data:
     git_dags_folder_mount_point = {{CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT}}
     dags_volume_claim = {{CONFIGMAP_DAGS_VOLUME_CLAIM}}
     dags_volume_subpath =
-    logs_volume_claim = airflow-logs
+    logs_volume_claim =
     logs_volume_subpath =
     dags_volume_host =
     logs_volume_host =

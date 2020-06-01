@@ -672,7 +672,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "Airflow HiveOperator task for {{hostname}}.{{dag_id}}.{{task_id}}.{{execution_date}}"
+      default: ~
 - name: webserver
   description: ~
   options:

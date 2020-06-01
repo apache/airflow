@@ -20,11 +20,11 @@
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
 ![Airflow](https://github.com/apache/airflow/workflows/Airflow/badge.svg)
-[![Build Status](https://travis-ci.org/apache/airflow.svg?branch=master)](https://travis-ci.org/apache/airflow)
 [![Coverage Status](https://img.shields.io/codecov/c/github/apache/airflow/master.svg)](https://codecov.io/github/apache/airflow?branch=master)
 [![Documentation Status](https://readthedocs.org/projects/airflow/badge/?version=latest)](https://airflow.readthedocs.io/en/latest/?badge=latest)
 [![License](http://img.shields.io/:license-Apache%202-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
+
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://apache-airflow-slack.herokuapp.com/)
 
@@ -446,6 +446,7 @@ Currently **officially** using Airflow:
 1. [Poshmark](https://www.poshmark.com)
 1. [Postmates](http://www.postmates.com) [[@syeoryn](https://github.com/syeoryn)]
 1. [Premise](http://www.premise.com) [[@jmccallum-premise](https://github.com/jmccallum-premise)]
+1. [Promofarma](https://www.promofarma.com/) [[@JavierLopezT](https://github.com/JavierLopezT)]
 1. [Pronto Tools](http://www.prontotools.io/) [[@zkan](https://github.com/zkan) & [@mesodiar](https://github.com/mesodiar)]
 1. [proton.ai](https://proton.ai/) [[@prmsolutions](https://github.com/prmsolutions)]
 1. [PubNub](https://pubnub.com) [[@jzucker2](https://github.com/jzucker2)]

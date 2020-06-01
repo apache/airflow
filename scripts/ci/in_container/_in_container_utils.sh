@@ -39,15 +39,17 @@ function in_container_script_end() {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
-        echo "###########################################################################################"
-        echo "                   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
-        echo "###########################################################################################"
         if [[ -n ${OUT_FILE:=} ]]; then
+            echo "  ERROR ENCOUNTERED!"
+            echo
             echo "  Output:"
             echo
             cat "${OUT_FILE}"
             echo "###########################################################################################"
         fi
+        echo "###########################################################################################"
+        echo "                   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
+        echo "###########################################################################################"
     fi
 
     if [[ ${VERBOSE_COMMANDS} == "true" ]]; then
@@ -91,8 +93,8 @@ function in_container_cleanup_pycache() {
 #
 function in_container_fix_ownership() {
     set +o pipefail
-    sudo find "${AIRFLOW_SOURCES}" -user root \
-    | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
+    sudo find "${AIRFLOW_SOURCES}" -user root -print0 \
+    | sudo xargs --null chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
     set -o pipefail
 }
 
