@@ -201,7 +201,6 @@ class TestCliTasks(unittest.TestCase):
                              'end_date'],
                             tablefmt="plain")
 
-        self.maxDiff = None  # noqa  # pylint: disable=invalid-name
         # Check that prints, and log messages, are shown
         self.assertIn(expected.replace("\n", ""), actual_out.replace("\n", ""))
 
