@@ -23,6 +23,19 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
 
+ALLOWED_CONN_TYPE = {
+    "google_cloud_platform",
+    "jdbc",
+    "mssql",
+    "mysql",
+    "odbc",
+    "oracle",
+    "postgres",
+    "presto",
+    "sqlite",
+    "vertica",
+}
+
 
 class BranchSqlOperator(BaseOperator, SkipMixin):
     """
@@ -74,22 +87,10 @@ class BranchSqlOperator(BaseOperator, SkipMixin):
         self.log.debug("Get connection for %s", self.conn_id)
         conn = BaseHook.get_connection(self.conn_id)
 
-        allowed_conn_type = {
-            "google_cloud_platform",
-            "jdbc",
-            "mssql",
-            "mysql",
-            "odbc",
-            "oracle",
-            "postgres",
-            "presto",
-            "sqlite",
-            "vertica",
-        }
-        if conn.conn_type not in allowed_conn_type:
+        if conn.conn_type not in ALLOWED_CONN_TYPE:
             raise AirflowException(
                 "The connection type is not supported by BranchSqlOperator. "
-                + "Supported connection types: {}".format(list(allowed_conn_type))
+                + "Supported connection types: {}".format(list(ALLOWED_CONN_TYPE))
             )
 
         if not self._hook:
