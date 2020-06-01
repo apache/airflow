@@ -202,7 +202,6 @@ class TestCliTasks(unittest.TestCase):
                             tablefmt="plain")
 
         # Check that prints, and log messages, are shown
-        self.maxDiff = None
         self.assertEqual(expected.replace("\n", ""), actual_out.replace("\n", ""))
 
     def test_subdag_clear(self):
