@@ -1949,7 +1949,7 @@
       description: |
         Use a shallow clone with a history truncated to the specified number of commits.
         0 - do not use shallow clone.
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: "1"
