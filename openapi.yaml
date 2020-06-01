@@ -1194,7 +1194,7 @@ components:
           type: string
           readOnly: true
         schedule_interval:
-          oneOf:
+          allOf:
             - $ref: '#/components/schemas/ScheduleInterval'
           readOnly: true
         tags:
@@ -1915,7 +1915,7 @@ components:
 
     # Common data type
     ScheduleInterval:
-      oneOf:
+      allOf:
         - $ref: '#/components/schemas/TimeDelta'
         - $ref: '#/components/schemas/RelativeDelta'
         - $ref: '#/components/schemas/CronExpression'
