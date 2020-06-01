@@ -1194,8 +1194,7 @@ components:
           type: string
           readOnly: true
         schedule_interval:
-          allOf:
-            - $ref: '#/components/schemas/ScheduleInterval'
+          $ref: '#/components/schemas/ScheduleInterval'
           readOnly: true
         tags:
           type: array
@@ -1258,7 +1257,7 @@ components:
           default: true
           readOnly: True
         conf:
-          type: string
+          type: object
           description: >
             JSON object describing additional configuration parameters.
 
