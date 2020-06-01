@@ -821,20 +821,42 @@ class TestBigQueryInsertJobOperator:
 
         assert result == job_id
 
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.exponential_sleep_generator')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_execute_idempotency(self, mock_hook):
+    def test_execute_idempotency(self, mock_hook, mock_sleep_generator):
         job_id = "123456"
+
         configuration = {
             "query": {
                 "query": "SELECT * FROM any",
                 "useLegacySql": False,
             }
         }
+
+        class MockJob:
+            _call_no = 0
+            _done = False
+
+            def __init__(self):
+                pass
+
+            def reload(self):
+                if MockJob._call_no == 3:
+                    MockJob._done = True
+                else:
+                    MockJob._call_no += 1
+
+            def done(self):
+                return MockJob._done
+
+            @property
+            def job_id(self):
+                return job_id
+
         mock_hook.return_value.insert_job.return_value.result.side_effect = Conflict("any")
-        mock_hook.return_value.get_job.return_value = MagicMock(
-            job_id=job_id,
-            state="DONE",
-        )
+        mock_sleep_generator.return_value = [0, 0, 0, 0, 0]
+        mock_hook.return_value.get_job.return_value = MockJob()
+
         op = BigQueryInsertJobOperator(
             task_id="insert_query_job",
             configuration=configuration,
@@ -843,6 +865,8 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID
         )
         result = op.execute({})
+
+        assert MockJob._call_no == 3
 
         mock_hook.return_value.get_job.assert_called_once_with(
             location=TEST_DATASET_LOCATION,
