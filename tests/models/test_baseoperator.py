@@ -26,13 +26,11 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
-from airflow.models import DAG, DagBag
+from airflow.models import DAG
 from airflow.models.baseoperator import chain, cross_downstream
-from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.decorators import apply_defaults
 from tests.models import DEFAULT_DATE
-from tests.test_utils import TEST_DAGS_FOLDER
 from tests.test_utils.mock_operators import MockNamedTuple, MockOperator
 
 
@@ -368,12 +366,12 @@ class CustomOp(DummyOperator):
 class TestXComArgsRelationsAreResolved:
     def test_setattr_performs_no_custom_action_at_execute_time(self):
         op = CustomOp(task_id="test_task")
-        op.lock_for_execution()
+        op_copy = op.prepare_for_execution()
 
         with mock.patch(
             "airflow.models.baseoperator.BaseOperator.set_xcomargs_dependencies"
         ) as method_mock:
-            op.execute({})
+            op_copy.execute({})
         assert method_mock.call_count == 0
 
     def test_upstream_is_set_when_template_field_is_xcomarg(self):
@@ -408,29 +406,3 @@ class TestXComArgsRelationsAreResolved:
         with pytest.raises(AirflowException):
             op1 = DummyOperator(task_id="op1")
             CustomOp(task_id="op2", field=op1.output)
-
-    def test_set_xcomargs_dependencies_when_creating_dagbag(self):
-        dag_bag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
-        dag_id = "xcomargs_test_1"
-        dag: DAG = dag_bag.get_dag(dag_id)
-        op1, op2, op3 = sorted(dag.tasks, key=lambda t: t.task_id)
-
-        assert op1 in op2.upstream_list
-        assert op2 in op3.upstream_list
-
-    def test_set_xcomargs_dependencies_when_creating_dagbag_with_serialization(self):
-        # Persist DAG
-        dag_bag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
-
-        dag_id = "xcomargs_test_2"
-        for dag in dag_bag.dags.values():
-            if dag.dag_id == dag_id:
-                SDM.write_dag(dag)
-
-        # Retrieve the DAG
-        bag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False, store_serialized_dags=True)
-        dag: DAG = bag.get_dag(dag_id)
-        op1, op2, op3 = sorted(dag.tasks, key=lambda t: t.task_id)
-
-        assert op1 in op2.upstream_list
-        assert op2 in op3.upstream_list

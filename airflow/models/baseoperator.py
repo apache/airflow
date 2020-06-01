@@ -75,7 +75,9 @@ class BaseOperatorMeta(abc.ABCMeta):
         obj: BaseOperator = type.__call__(cls, *args, **kwargs)
         # Here we set upstream task defined by XComArgs passed to template fields of the operator
         obj.set_xcomargs_dependencies()
-        obj._instantiated = True
+
+        # Mark instance as instantiated https://docs.python.org/3/tutorial/classes.html#private-variables
+        obj._BaseOperator__instantiated = True
         return obj
 
 
@@ -312,7 +314,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
     supports_lineage = False
 
     # If True then the class constructor was called
-    _instantiated = False
+    __instantiated = False
 
     # Set to True before calling execute method
     _lock_for_execution = False
@@ -577,7 +579,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         if self._lock_for_execution:
             # Skip any custom behaviour during execute
             return
-        if self._instantiated and key in self.template_fields:
+        if self.__instantiated and key in self.template_fields:
             # Resolve upstreams set by assigning an XComArg after initializing
             # an operator, example:
             #   op = BashOperator()
@@ -670,9 +672,13 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
             NotPreviouslySkippedDep(),
         }
 
-    def lock_for_execution(self) -> None:
-        """Sets _lock_for_execution to True"""
+    def prepare_for_execution(self) -> "BaseOperator":
+        """
+        Lock task for execution to disable custom action in __setattr__ and
+        returns a copy of the task
+        """
         self._lock_for_execution = True
+        return copy.copy(self)
 
     def set_xcomargs_dependencies(self) -> None:
         """
