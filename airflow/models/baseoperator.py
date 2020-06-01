@@ -264,8 +264,13 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
     :type do_xcom_push: bool
+<<<<<<< HEAD
     :param task_tags: List of tags used to identify this task
     :type task_tags: list
+=======
+    :param tags: List of tags used to identify this task
+    :type tags: list
+>>>>>>> Add TaskTag relationship to TaskInstance and display tags in task instance tooltips
     """
     # For derived classes to define which fields will get jinjaified
     template_fields: Iterable[str] = ()
