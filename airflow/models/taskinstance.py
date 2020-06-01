@@ -874,9 +874,10 @@ class TaskInstance(Base, LoggingMixin):
             # Set the task start date. In case it was re-scheduled use the initial
             # start date that is recorded in task_reschedule table
             self.start_date = timezone.utcnow()
-            task_reschedules = TaskReschedule.find_for_task_instance(self, session)
-            if task_reschedules:
-                self.start_date = task_reschedules[0].start_date
+            if self.state == State.UP_FOR_RESCHEDULE:
+                task_reschedules = TaskReschedule.find_for_task_instance(self, session)
+                if task_reschedules:
+                    self.start_date = task_reschedules[0].start_date
 
             # Secondly we find non-runnable but requeueable tis. We reset its state.
             # This is because we might have hit concurrency limits,
