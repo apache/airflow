@@ -1952,7 +1952,7 @@
       version_added: ~
       type: string
       example: ~
-      default: ""
+      default: "1"
     - name: git_subpath
       description: |
         Subpath of git repo to be pulled for DAGs. This allows users to maintain multiple DAG
