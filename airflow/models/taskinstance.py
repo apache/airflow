@@ -219,7 +219,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
-    tags = relationship('TaskTag', cascade='all,delete_orphan', backref=backref('task_instance'))
+    tags = relationship('TaskTag', cascade='all,delete-orphan', backref=backref('task_instance'))
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
 
