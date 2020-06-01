@@ -265,7 +265,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         result
     :type do_xcom_push: bool
     :param tags: List of tags used to identify this task
-    type tags: list
+    :type tags: list
     """
     # For derived classes to define which fields will get jinjaified
     template_fields: Iterable[str] = ()

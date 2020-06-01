@@ -33,7 +33,7 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, ForeignKey, and_, func, or_
-from sqlalchemy.orm import reconstructor
+from sqlalchemy.orm import reconstructor, relationship, backref
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 
@@ -219,6 +219,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
+    tags = relationship('TaskTag', cascade='all,delete_orphan', backref=backref('task_instance'))
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
 
@@ -236,6 +237,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.task = task
+        self.tags = task.tags
         self.refresh_from_task(task)
         self._log = logging.getLogger("airflow.task")
 
@@ -551,6 +553,19 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         else:
             self.state = None
 
+        tag_qry = session.query(TaskTag).filter(
+            TaskTag.dag_id == self.dag_id,
+            TaskTag.task_id == self.task_id
+        )
+
+        if lock_for_update:
+            tags = tag_qry.with_for_update().all()
+        else:
+            tags = tag_qry.all()
+
+        if tags:
+            self.tags = [tag.name for tag in tags]
+
         self.log.debug("Refreshed TaskInstance %s", self)
 
     def refresh_from_task(self, task, pool_override=None):
@@ -570,6 +585,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.max_tries = task.retries
         self.executor_config = task.executor_config
         self.operator = task.__class__.__name__
+        self.tags = task.tags
 
     @provide_session
     def clear_xcom_data(self, session=None):

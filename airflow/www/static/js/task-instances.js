@@ -82,6 +82,9 @@ export default function tiTooltip(ti, {includeTryNumber = false} = {}) {
   if (ti.operator !== undefined) {
     tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
   }
+  if (ti.tags !== undefined) {
+    tt += `Tags: ${escapeHtml(ti.tags.join(', '))}<br>`
+  }
   // Don't translate/format this, keep it as the full ISO8601 date
   if (ti.start_date instanceof moment) {
     tt += `Started: ${escapeHtml(ti.start_date.toISOString())}<br>`;
