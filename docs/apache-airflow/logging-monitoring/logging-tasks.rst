@@ -98,7 +98,7 @@ Follow the steps below to enable custom logging config class:
     .. code-block:: python
 
       from copy import deepcopy
-      from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+      from airflow.logging_config import DEFAULT_LOGGING_CONFIG
 
       LOGGING_CONFIG = deepcopy(DEFAULT_LOGGING_CONFIG)
 

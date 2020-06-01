@@ -25,7 +25,7 @@ from itsdangerous.url_safe import URLSafeSerializer
 
 from airflow import DAG
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.logging_config import DEFAULT_LOGGING_CONFIG
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone

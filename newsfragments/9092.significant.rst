@@ -1,0 +1,8 @@
+Default logging config has moved to a new module
+
+The default logging config dict has moved from
+``airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG`` to
+``airflow.logging_config.DEFAULT_LOGGING_CONFIG``.
+
+Most users will not need to take any action as a result of this change. (If you have a custom logging config
+which imports the base one you will receive a deprecation warning.)

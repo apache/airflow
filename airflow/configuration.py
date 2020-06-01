@@ -228,6 +228,11 @@ class AirflowConfigParser(ConfigParser):
     deprecated_values: Dict[str, Dict[str, Tuple[Pattern, str, str]]] = {
         'core': {
             'hostname_callable': (re.compile(r':'), r'.', '2.1'),
+            'logging_config_class': (
+                re.compile(r'\Aairflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG\Z'),
+                'airflow.logging_config.DEFAULT_LOGGING_CONFIG',
+                '3.0',
+            ),
         },
         'webserver': {
             'navbar_color': (re.compile(r'\A#007A87\Z', re.IGNORECASE), '#fff', '2.1'),
@@ -244,6 +249,11 @@ class AirflowConfigParser(ConfigParser):
             'log_filename_template': (
                 re.compile(re.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),
                 "XX-set-after-default-config-loaded-XX",
+                '3.0',
+            ),
+            'logging_config_class': (
+                re.compile(r'\Aairflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG\Z'),
+                'airflow.logging_config.DEFAULT_LOGGING_CONFIG',
                 '3.0',
             ),
         },
@@ -422,7 +432,7 @@ class AirflowConfigParser(ConfigParser):
                 )
 
     def _using_old_value(self, old: Pattern, current_value: str) -> bool:
-        return old.search(current_value) is not None
+        return current_value is not None and old.search(current_value) is not None
 
     def _update_env_var(self, section: str, name: str, new_value: Union[str]):
         env_var = self._env_var_name(section, name)
