@@ -31,8 +31,6 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.providers.apache.hive import TestHiveEnvironment
 
-TEST_DAG_ID = "unit_test_sql_dag"
-
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
 
@@ -82,7 +80,6 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
             schedule_interval=INTERVAL,
         )
-        # self.dag = DAG(TEST_DAG_ID, default_args=args)
         self.branch_1 = DummyOperator(task_id="branch_1", dag=self.dag)
         self.branch_2 = DummyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
