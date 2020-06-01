@@ -872,7 +872,7 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{key}:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
       - $ref: '#/components/parameters/DAGRunID'
@@ -2184,7 +2184,7 @@ components:
 
     XComKey:
       in: path
-      name: key
+      name: xcom_key
       schema:
         type: string
       required: true
