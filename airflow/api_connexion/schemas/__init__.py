@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from marshmallow import post_dump, post_load
+from marshmallow import post_dump
 from marshmallow_sqlalchemy import SQLAlchemySchema
 
 from airflow.exceptions import AirflowException
@@ -26,7 +26,7 @@ class BaseSchema(SQLAlchemySchema):
     __envelope__ = {"many": None}
 
     def get_envelope_key(self, many):
-        """Helper to get the envelope key. Key can be None
+        """Helper to get the envelope key.
 
         :param many: String used to return deserialized result for
             a collection.
