@@ -90,6 +90,16 @@ def set_current_context(context: Dict[str, Any]):
             )
 
 
+class TaskTag(Base):
+    """
+    Model for task tags, connected to task instances by dag_id and task_id
+    """
+    __tablename__ = 'task_tag'
+    name = Column('name', String(length=100), primary_key=True)
+    dag_id = Column('dag_id', String(length=ID_LEN), ForeignKey('task_instance.dag_id'), primary_key=True)
+    task_id = Column('task_id', String(length=ID_LEN), ForeignKey('task_instance.task_id'), primary_key=True)
+
+
 def clear_task_instances(tis,
                          session,
                          activate_dag_runs=True,
@@ -219,7 +229,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
-    tags = relationship('TaskTag', cascade='all,delete-orphan', backref=backref('task_instance'))
+    tags = relationship('TaskTag', primaryjoin=and_(TaskTag.dag_id == dag_id, TaskTag.task_id == task_id),
+                        cascade='all,delete-orphan', backref=backref('task_instance'))
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
 
@@ -237,7 +248,6 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.task = task
-        self.tags = task.tags
         self.refresh_from_task(task)
         self._log = logging.getLogger("airflow.task")
 
@@ -564,7 +574,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             tags = tag_qry.all()
 
         if tags:
-            self.tags = [tag.name for tag in tags]
+            self.tags = tags
 
         self.log.debug("Refreshed TaskInstance %s", self)
 
@@ -1897,13 +1907,3 @@ class SimpleTaskInstance:
         else:
             ti = qry.first()
         return ti
-
-
-class TaskTag(Base):
-    """
-    Model for task tags, connected to task instances by dag_id and task_id
-    """
-    __tablename__ = 'task_tag'
-    name = Column('name', String(length=100), primary_key=True)
-    dag_id = Column('dag_id', String(length=ID_LEN), ForeignKey('task_instance.dag_id'), primary_key=True)
-    task_id = Column('task_id', String(length=ID_LEN), ForeignKey('task_instance.task_id'), primary_key=True)
