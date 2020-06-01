@@ -130,6 +130,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.git_repo = conf.get(self.kubernetes_section, 'git_repo')
         # The branch of the repository to be checked out
         self.git_branch = conf.get(self.kubernetes_section, 'git_branch')
+        # Clone depth for git sync
+        self.git_sync_depth = conf.get(self.kubernetes_section, 'git_sync_depth')
         # Optionally, the directory in the git repository containing the dags
         self.git_subpath = conf.get(self.kubernetes_section, 'git_subpath')
         # Optionally, the root directory for git operations
