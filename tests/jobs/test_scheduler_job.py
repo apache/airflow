@@ -3376,3 +3376,58 @@ def test_task_with_upstream_skip_process_task_instances():
         assert tis[dummy2.task_id].state == State.SUCCESS
         # dummy3 should be skipped because dummy1 is skipped.
         assert tis[dummy3.task_id].state == State.SKIPPED
+
+
+class TestSchedulerJobQueriesCount(unittest.TestCase):
+    """
+    These tests are designed to detect changes in the number of queries for
+    different DAG files. These tests allow easy detection when a change is
+    made that affects the performance of the SchedulerJob.
+    """
+    def setUp(self) -> None:
+        clear_db_runs()
+        clear_db_pools()
+        clear_db_dags()
+        clear_db_sla_miss()
+        clear_db_errors()
+
+    @parameterized.expand(
+        [
+            # pylint: disable=bad-whitespace
+            # expected, dag_count, task_count
+            # One DAG with one task per DAG file
+            ( 13,  1,  1),  # noqa
+            # One DAG with five tasks per DAG  file
+            ( 25,  1,  5),  # noqa
+            # 10 DAGs with 10 tasks per DAG file
+            (108, 10, 10),  # noqa
+        ]
+    )
+    def test_execute_queries_count(self, expected_query_count, dag_count, task_count):
+        with mock.patch.dict("os.environ", {
+            "PERF_DAGS_COUNT": str(dag_count),
+            "PERF_TASKS_COUNT": str(task_count),
+            "PERF_START_AGO": "1d",
+            "PERF_SCHEDULE_INTERVAL": "30m",
+            "PERF_SHAPE": "no_structure",
+        }), conf_vars({
+            ('scheduler', 'use_job_schedule'): 'True',
+            ('core', 'load_examples'): 'False',
+        }):
+
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            for i, dag in enumerate(dagbag.dags.values()):
+                dr = dag.create_dagrun(state=State.RUNNING, run_id=f"{DagRunType.MANUAL.value}__{i}")
+                for ti in dr.get_task_instances():
+                    ti.set_state(state=State.SCHEDULED)
+
+            mock_agent = mock.MagicMock()
+            mock_agent.harvest_simple_dags.return_value = [SimpleDag(d) for d in dagbag.dags.values()]
+
+            job = SchedulerJob(subdir=PERF_DAGS_FOLDER)
+            job.executor = MockExecutor()
+            job.heartbeat = mock.MagicMock()
+            job.processor_agent = mock_agent
+
+            with assert_queries_count(expected_query_count):
+                job._run_scheduler_loop()
