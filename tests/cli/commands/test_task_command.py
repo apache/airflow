@@ -203,7 +203,7 @@ class TestCliTasks(unittest.TestCase):
 
         self.maxDiff = None  # noqa  # pylint: disable=invalid-name
         # Check that prints, and log messages, are shown
-        self.assertEqual(expected.replace("\n", ""), actual_out.replace("\n", ""))
+        self.assertIn(expected.replace("\n", ""), actual_out.replace("\n", ""))
 
     def test_subdag_clear(self):
         args = self.parser.parse_args([
