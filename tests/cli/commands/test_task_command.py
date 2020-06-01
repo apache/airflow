@@ -170,9 +170,10 @@ class TestCliTasks(unittest.TestCase):
     def test_task_states_for_dag_run(self):
 
         dag2 = DagBag().dags['example_python_operator']
-
         task2 = dag2.get_task(task_id='print_the_context')
         defaut_date2 = timezone.make_aware(datetime(2016, 1, 9))
+        dag2.clear()
+
         ti2 = TaskInstance(task2, defaut_date2)
 
         ti2.set_state(State.SUCCESS)
@@ -201,6 +202,7 @@ class TestCliTasks(unittest.TestCase):
                             tablefmt="plain")
 
         # Check that prints, and log messages, are shown
+        self.maxDiff = None
         self.assertEqual(expected.replace("\n", ""), actual_out.replace("\n", ""))
 
     def test_subdag_clear(self):
