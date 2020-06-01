@@ -32,7 +32,7 @@ import dill
 import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
-from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, ForeignKey, and_, func, or_
 from sqlalchemy.orm import backref, reconstructor, relationship
 from sqlalchemy.orm.session import Session
 from sqlalchemy.schema import ForeignKeyConstraint, PrimaryKeyConstraint
@@ -1905,3 +1905,13 @@ class SimpleTaskInstance:
         else:
             ti = qry.first()
         return ti
+
+
+class TaskTag(Base):
+    """
+    Model for task tags, connected to task instances by dag_id and task_id
+    """
+    __tablename__ = 'task_tag'
+    name = Column('name', String(length=100), primary_key=True)
+    dag_id = Column('dag_id', String(length=ID_LEN), ForeignKey('task_instance.dag_id'), primary_key=True)
+    task_id = Column('task_id', String(length=ID_LEN), ForeignKey('task_instance.task_id'), primary_key=True)
