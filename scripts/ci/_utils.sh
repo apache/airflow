@@ -313,7 +313,7 @@ function sanitize_mounted_files() {
 
     # When KinD cluster is created, the folder keeps authentication information
     # across sessions
-    mkdir -p "${MY_DIR}/.kube" >/dev/null 2>&1
+    mkdir -p "${AIRFLOW_SOURCES}/.kube" >/dev/null 2>&1
 }
 
 #

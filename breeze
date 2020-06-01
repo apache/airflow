@@ -18,7 +18,7 @@
 # under the License.
 set -euo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+AIRFLOW_SOURCES="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Bash arrays need to be defined outside of functions unfortunately :(
 # Array with extra options for Docker compose
@@ -42,21 +42,18 @@ function setup_default_breeze_variables() {
     # Maximum screen width to print the lines spanning the whole terminal width
     export MAX_SCREEN_WIDTH=100
 
-    # This is where airflow sources reside
-    export AIRFLOW_SOURCES="${MY_DIR}"
-
     # Directory where all CI scripts are located
-    SCRIPTS_CI_DIR="${MY_DIR}/scripts/ci"
+    SCRIPTS_CI_DIR="${AIRFLOW_SOURCES}/scripts/ci"
 
     # Directory where all the build cache is stored - we keep there status of all the docker images
     # As well as hashes of the important files, but also we generate build scripts there that are
     # Used to execute the commands for breeze
-    BUILD_CACHE_DIR="${MY_DIR}/.build"
+    BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
     # This folder is mounted to inside the container in /files folder. This is the way how
     # We can exchange DAGs, scripts, packages etc with the container environment
-    FILES_DIR="${MY_DIR}/files"
+    FILES_DIR="${AIRFLOW_SOURCES}/files"
     # Temporary dir used well ... temporarily
-    TMP_DIR="${MY_DIR}/tmp"
+    TMP_DIR="${AIRFLOW_SOURCES}/tmp"
 
     # Create those folders above in case they do not exist
     mkdir -pv "${BUILD_CACHE_DIR}"
@@ -95,7 +92,7 @@ function setup_default_breeze_variables() {
     # Update short and long options in the breeze-complete script
     # This way autocomplete will work automatically with all options available
     # shellcheck source=breeze-complete
-    . "${MY_DIR}/breeze-complete"
+    . "${AIRFLOW_SOURCES}/breeze-complete"
 
     # By default we mount local Airflow sources
     MOUNT_LOCAL_SOURCES="true"
@@ -145,8 +142,8 @@ function setup_default_breeze_variables() {
     export FORCE_BUILD_IMAGES=${FORCE_BUILD_IMAGES:="false"}
 
     # If those files are present, the ASCII-art/cheat-sheet are suppressed
-    SUPPRESS_CHEATSHEET_FILE="${MY_DIR}/.suppress_cheatsheet"
-    SUPPRESS_ASCIIART_FILE="${MY_DIR}/.suppress_asciiart"
+    SUPPRESS_CHEATSHEET_FILE="${AIRFLOW_SOURCES}/.suppress_cheatsheet"
+    SUPPRESS_ASCIIART_FILE="${AIRFLOW_SOURCES}/.suppress_asciiart"
 
     # Default values for the flags used
 
@@ -186,9 +183,9 @@ function initialize_virtualenv() {
         echo
         echo "This will wipe out ${AIRFLOW_HOME_DIR} and reset all the databases!"
         echo
-        "${MY_DIR}/confirm" "Proceeding with the initialization"
+        "${AIRFLOW_SOURCES}/confirm" "Proceeding with the initialization"
         echo
-        pushd "${MY_DIR}"
+        pushd "${AIRFLOW_SOURCES}"
         set +e
         pip install -e ".[devel]" --constraint "requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
         RES=$?
@@ -245,11 +242,11 @@ function setup_autocomplete() {
         echo >&2
         exit 1
     fi
-    "${MY_DIR}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
+    "${AIRFLOW_SOURCES}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
     echo
     echo
     mkdir -pv ~/.bash_completion.d
-    ln -sf "${MY_DIR}/breeze-complete" "${HOME}/.bash_completion.d/"
+    ln -sf "${AIRFLOW_SOURCES}/breeze-complete" "${HOME}/.bash_completion.d/"
     touch ~/.bashrc
     cat >>~/.bashrc <<"EOF"
 for BCFILE in ~/.bash_completion.d/* ; do
@@ -272,7 +269,7 @@ EOF
         if [[ "${RES}" == "0" ]]; then
             echo "  Seems you already source .bashrc in your .bash_profile so not adding it."
         else
-            "${MY_DIR}/confirm" "This will modify  ~/.bash_profile and source .bashrc from it"
+            "${AIRFLOW_SOURCES}/confirm" "This will modify  ~/.bash_profile and source .bashrc from it"
             echo
             echo
             cat >>~/.bash_profile <<"EOF"
@@ -1839,7 +1836,7 @@ function print_cheatsheet() {
             echo "    When you exit the environment, you can add sources of Airflow to the path - you can"
             echo "    run breeze or the scripts above from any directory by calling 'breeze' commands directly"
             echo
-            echo "     export PATH=\${PATH}:\"${MY_DIR}\""
+            echo "     export PATH=\${PATH}:\"${AIRFLOW_SOURCES}\""
             echo
         fi
         set -e
