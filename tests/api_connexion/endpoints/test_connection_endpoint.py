@@ -16,9 +16,10 @@
 # under the License.
 import unittest
 
-import pytest
-
+from airflow.models import Connection
+from airflow.utils.session import create_session, provide_session
 from airflow.www import app
+from tests.test_utils.db import clear_db_connections
 
 
 class TestConnectionEndpoint(unittest.TestCase):
@@ -29,38 +30,111 @@ class TestConnectionEndpoint(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
+        # we want only the connection created here for this test
+        with create_session() as session:
+            session.query(Connection).delete()
+
+    def tearDown(self) -> None:
+        clear_db_connections()
 
 
 class TestDeleteConnection(TestConnectionEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
+    @unittest.skip("Not implemented yet")
     def test_should_response_200(self):
         response = self.client.delete("/api/v1/connections/1")
         assert response.status_code == 200
 
 
 class TestGetConnection(TestConnectionEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.get("/api/v1/connection/1")
+
+    @provide_session
+    def test_should_response_200(self, session):
+        connection_model = Connection(conn_id='test-connection-id',
+                                      conn_type='mysql',
+                                      host='mysql',
+                                      login='login',
+                                      schema='testschema',
+                                      port=80
+                                      )
+        session.add(connection_model)
+        session.commit()
+        result = session.query(Connection).all()
+        assert len(result) == 1
+        response = self.client.get("/api/v1/connections/test-connection-id")
         assert response.status_code == 200
+        self.assertEqual(
+            response.json,
+            {
+                "connection_id": "test-connection-id",
+                "conn_type": 'mysql',
+                "host": 'mysql',
+                "login": 'login',
+                'schema': 'testschema',
+                'port': 80
+            },
+        )
 
 
 class TestGetConnections(TestConnectionEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.get("/api/v1/connections/")
+
+    @provide_session
+    def test_should_response_200(self, session):
+        connection_model_1 = Connection(conn_id='test-connection-id-1',
+                                        conn_type='mysql',
+                                        host='mysql',
+                                        login='login',
+                                        schema='testschema',
+                                        port=80
+                                        )
+        connection_model_2 = Connection(conn_id='test-connection-id-2',
+                                        conn_type='mysql',
+                                        host='mysql',
+                                        login='login',
+                                        schema='testschema',
+                                        port=80
+                                        )
+        connections = [connection_model_1, connection_model_2]
+        session.add_all(connections)
+        session.commit()
+        result = session.query(Connection).all()
+        assert len(result) == 2
+        response = self.client.get("/api/v1/connections")
         assert response.status_code == 200
+        self.assertEqual(
+            response.json,
+            {
+                'connections': [
+                    {
+                        "connection_id": "test-connection-id-1",
+                        "conn_type": 'mysql',
+                        "host": 'mysql',
+                        "login": 'login',
+                        'schema': 'testschema',
+                        'port': 80
+                    },
+                    {
+                        "connection_id": "test-connection-id-2",
+                        "conn_type": 'mysql',
+                        "host": 'mysql',
+                        "login": 'login',
+                        'schema': 'testschema',
+                        'port': 80
+                    }
+                ],
+                'total_entries': 2
+            }
+        )
 
 
 class TestPatchConnection(TestConnectionEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
+    @unittest.skip("Not implemented yet")
     def test_should_response_200(self):
         response = self.client.patch("/api/v1/connections/1")
         assert response.status_code == 200
 
 
 class TestPostConnection(TestConnectionEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
+    @unittest.skip("Not implemented yet")
     def test_should_response_200(self):
         response = self.client.post("/api/v1/connections/")
         assert response.status_code == 200

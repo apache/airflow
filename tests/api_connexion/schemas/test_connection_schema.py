@@ -17,7 +17,7 @@
 
 import unittest
 
-from airflow.api_connexion.schemas.connection import (
+from airflow.api_connexion.schemas.connection_schema import (
     connection_collection_item_schema, connection_collection_schema, connection_schema,
 )
 from airflow.models import Connection
