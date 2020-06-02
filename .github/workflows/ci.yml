@@ -34,7 +34,7 @@ env:
   VERBOSE: "true"
   UPGRADE_TO_LATEST_REQUIREMENTS: "false"
   PYTHON_MAJOR_MINOR_VERSION: 3.6
-  CACHE_REGISTRY: "docker.pkg.github.com"
+  ENABLE_REGISTRY_CACHE: "true"
   CACHE_IMAGE_PREFIX: ${{ github.repository }}
   CACHE_REGISTRY_USERNAME: ${{ github.actor }}
   CACHE_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}

@@ -18,7 +18,7 @@
 # under the License.
 set -euo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+AIRFLOW_SOURCES="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Bash arrays need to be defined outside of functions unfortunately :(
 # Array with extra options for Docker compose
@@ -42,21 +42,18 @@ function setup_default_breeze_variables() {
     # Maximum screen width to print the lines spanning the whole terminal width
     export MAX_SCREEN_WIDTH=100
 
-    # This is where airflow sources reside
-    export AIRFLOW_SOURCES="${MY_DIR}"
-
     # Directory where all CI scripts are located
-    SCRIPTS_CI_DIR="${MY_DIR}/scripts/ci"
+    SCRIPTS_CI_DIR="${AIRFLOW_SOURCES}/scripts/ci"
 
     # Directory where all the build cache is stored - we keep there status of all the docker images
     # As well as hashes of the important files, but also we generate build scripts there that are
     # Used to execute the commands for breeze
-    BUILD_CACHE_DIR="${MY_DIR}/.build"
+    BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
     # This folder is mounted to inside the container in /files folder. This is the way how
     # We can exchange DAGs, scripts, packages etc with the container environment
-    FILES_DIR="${MY_DIR}/files"
+    FILES_DIR="${AIRFLOW_SOURCES}/files"
     # Temporary dir used well ... temporarily
-    TMP_DIR="${MY_DIR}/tmp"
+    TMP_DIR="${AIRFLOW_SOURCES}/tmp"
 
     # Create those folders above in case they do not exist
     mkdir -pv "${BUILD_CACHE_DIR}"
@@ -95,7 +92,7 @@ function setup_default_breeze_variables() {
     # Update short and long options in the breeze-complete script
     # This way autocomplete will work automatically with all options available
     # shellcheck source=breeze-complete
-    . "${MY_DIR}/breeze-complete"
+    . "${AIRFLOW_SOURCES}/breeze-complete"
 
     # By default we mount local Airflow sources
     MOUNT_LOCAL_SOURCES="true"
@@ -145,8 +142,8 @@ function setup_default_breeze_variables() {
     export FORCE_BUILD_IMAGES=${FORCE_BUILD_IMAGES:="false"}
 
     # If those files are present, the ASCII-art/cheat-sheet are suppressed
-    SUPPRESS_CHEATSHEET_FILE="${MY_DIR}/.suppress_cheatsheet"
-    SUPPRESS_ASCIIART_FILE="${MY_DIR}/.suppress_asciiart"
+    SUPPRESS_CHEATSHEET_FILE="${AIRFLOW_SOURCES}/.suppress_cheatsheet"
+    SUPPRESS_ASCIIART_FILE="${AIRFLOW_SOURCES}/.suppress_asciiart"
 
     # Default values for the flags used
 
@@ -186,9 +183,9 @@ function initialize_virtualenv() {
         echo
         echo "This will wipe out ${AIRFLOW_HOME_DIR} and reset all the databases!"
         echo
-        "${MY_DIR}/confirm" "Proceeding with the initialization"
+        "${AIRFLOW_SOURCES}/confirm" "Proceeding with the initialization"
         echo
-        pushd "${MY_DIR}"
+        pushd "${AIRFLOW_SOURCES}"
         set +e
         pip install -e ".[devel]" --constraint "requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
         RES=$?
@@ -245,11 +242,11 @@ function setup_autocomplete() {
         echo >&2
         exit 1
     fi
-    "${MY_DIR}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
+    "${AIRFLOW_SOURCES}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
     echo
     echo
     mkdir -pv ~/.bash_completion.d
-    ln -sf "${MY_DIR}/breeze-complete" "${HOME}/.bash_completion.d/"
+    ln -sf "${AIRFLOW_SOURCES}/breeze-complete" "${HOME}/.bash_completion.d/"
     touch ~/.bashrc
     cat >>~/.bashrc <<"EOF"
 for BCFILE in ~/.bash_completion.d/* ; do
@@ -272,7 +269,7 @@ EOF
         if [[ "${RES}" == "0" ]]; then
             echo "  Seems you already source .bashrc in your .bash_profile so not adding it."
         else
-            "${MY_DIR}/confirm" "This will modify  ~/.bash_profile and source .bashrc from it"
+            "${AIRFLOW_SOURCES}/confirm" "This will modify  ~/.bash_profile and source .bashrc from it"
             echo
             echo
             cat >>~/.bash_profile <<"EOF"
@@ -794,13 +791,24 @@ function parse_arguments() {
           echo
           export FORWARD_CREDENTIALS="true"
           shift 1 ;;
-        -u|--push-images)
+        -c|--registry-cache)
           echo
-          echo "Pushing images to DockerHub"
+          echo "Use cache for the container registry"
           echo
-          export PUSH_IMAGES="true"
-          export FORCE_BUILD_IMAGES="true"
+          export ENABLE_REGISTRY_CACHE="true"
           shift ;;
+        -G|--github-organisation)
+          echo
+          echo "GitHub organisation"
+          echo
+          export GITHUB_ORGANISATION="${2}"
+          shift 2;;
+        -g|--github-repo)
+          echo
+          echo "GitHub repository"
+          echo
+          export GITHUB_REPOSITORY="${2}"
+          shift 2;;
         -S|--version-suffix-for-pypi)
           if [[ ${VERSION_SUFFIX_FOR_SVN} != "" ]]; then
               echo
@@ -884,6 +892,10 @@ function parse_arguments() {
         generate-requirements)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_generate_requirements"
+          # if you want to  generate requirement - you want to build the image too :)
+          export FORCE_ANSWER_TO_QUESTIONS="yes"
+          # and assume you want to build it no matter if it is needed
+          export FORCE_BUILD_IMAGES="true"
           shift ;;
         prepare-backport-packages)
           LAST_SUBCOMMAND="${1}"
@@ -892,6 +904,11 @@ function parse_arguments() {
         prepare-backport-readme)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_prepare_backport_readme"
+          shift ;;
+        push-image)
+          LAST_SUBCOMMAND="${1}"
+          COMMAND_TO_RUN="perform_push_image"
+          SKIP_CHECK_REMOTE_IMAGE="true"
           shift ;;
         initialize-local-virtualenv)
           LAST_SUBCOMMAND="${1}"
@@ -1080,12 +1097,13 @@ function prepare_usage() {
     export USAGE_DOCKER_COMPOSE="Executes specified docker-compose command"
     export USAGE_EXECUTE_COMMAND="Executes specified command in the container"
     export USAGE_FLAGS="Shows all breeze's flags"
-    export USAGE_PREPARE_BACKPORT_README="Prepares backport packages readme files"
     export USAGE_GENERATE_REQUIREMENTS="Generates pinned requirements for pip dependencies"
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
+    export USAGE_PREPARE_BACKPORT_README="Prepares backport packages readme files"
+    export USAGE_PREPARE_BACKPORT_PACKAGES="Prepares backport packages"
+    export USAGE_PUSH_IMAGE="Pushes images to registry"
     export USAGE_SETUP_AUTOCOMPLETE="Sets up autocomplete for breeze"
     export USAGE_STOP="Stops the docker-compose environment"
-    export USAGE_PREPARE_BACKPORT_PACKAGES="Prepares backport packages"
     export USAGE_RESTART="Stops the docker-compose environment including DB cleanup"
     export USAGE_STATIC_CHECK="Performs selected static check for changed files"
     export USAGE_STATIC_CHECK_ALL_FILES="Performs selected static check for all files"
@@ -1143,7 +1161,7 @@ $(flag_airflow_variants)
 $(flag_choose_different_airflow_version)
 $(flag_production_image)
 $(flag_build_docker_images)
-$(flag_push_docker_images)
+$(flag_pull_push_docker_images)
 $(flag_verbosity)
 "
     # shellcheck disable=SC2090
@@ -1281,6 +1299,31 @@ $(flag_verbosity)
 "
     # shellcheck disable=SC2090
     export DETAILED_USAGE_PREPARE_BACKPORT_PACKAGES
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_PUSH_IMAGE="
+      Pushes images to docker registry. You can push the images to DockerHub registry (default)
+      or to the GitHub cache registry (if --registry-cache flag is used).
+
+      For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
+      the repository to push to. For GitHub repository --github-organisation and --github-repo
+      flags can be used for the same purpose.
+
+      You can also add --production-image flag to switch to production image (default is CI one)
+
+      Examples:
+
+      '${CMDNAME} push-image' or
+      '${CMDNAME} push-image --dockerhub-user user' to push to your private registry or
+      '${CMDNAME} push-image --production-image' - to push production image or
+      '${CMDNAME} push-image --registry-cache' - to push to GitHub cache or
+      '${CMDNAME} push-image --registry-cache --github-organisation org' - for other organisation
+
+Flags:
+$(flag_pull_push_docker_images)
+$(flag_verbosity)
+"
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_PUSH_IMAGE
     export DETAILED_USAGE_SETUP_AUTOCOMPLETE="
       Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
       shell and when typing breeze command <TAB> will provide autocomplete for
@@ -1642,19 +1685,26 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 "
 }
 
-# Prints flags controlling docker push process
-function flag_push_docker_images() {
+# Prints flags controlling docker pull and push process
+function flag_pull_push_docker_images() {
        echo "
--u, --push-images
-        After building - uploads the images to DockerHub
-        It is useful in case you use your own DockerHub user to store images and you want
-        to build them locally. Note that you need to use 'docker login' before you upload images.
-
 -D, --dockerhub-user
         DockerHub user used to pull, push and build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_USER:=}.
 
 -H, --dockerhub-repo
         DockerHub repository used to pull, push, build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_REPO:=}.
+
+-c, --registry-cache
+        If registry cache is enabled, pulls and pushes are done from the registry cache in github.
+        You need to be logged in to the registry in order to be able to pull/push from it and you
+        need to be committer to push to airflow registry.
+
+-G, --github-organisation
+        GitHub organisation used to pull, push images when cache is used. Default: ${_BREEZE_DEFAULT_GITHUB_ORGANISATION:=}.
+
+-g, --github-repo
+        GitHub repository used to pull, push images when cache is used. Default: ${_BREEZE_DEFAULT_GITHUB_REPO:=}.
+
 "
 }
 
@@ -1721,8 +1771,8 @@ $(print_star_line)
 $(flag_build_docker_images)
 
 $(print_star_line)
- Flags for pushing Docker images (both CI and production)
-$(flag_push_docker_images)
+ Flags for pulling/pushing Docker images (both CI and production)
+$(flag_pull_push_docker_images)
 
 $(print_star_line)
  Flags for generation of the backport packages
@@ -1839,7 +1889,7 @@ function print_cheatsheet() {
             echo "    When you exit the environment, you can add sources of Airflow to the path - you can"
             echo "    run breeze or the scripts above from any directory by calling 'breeze' commands directly"
             echo
-            echo "     export PATH=\${PATH}:\"${MY_DIR}\""
+            echo "     export PATH=\${PATH}:\"${AIRFLOW_SOURCES}\""
             echo
         fi
         set -e
@@ -1956,7 +2006,7 @@ function run_build_command {
                 rebuild_ci_image_if_needed
             fi
             ;;
-        build_docs|perform_static_checks|perform_generate_requirements|perform_prepare_backport_readme|perform_prepare_backport_packages)
+        build_docs|perform_static_checks|perform_generate_requirements|perform_prepare_backport_readme|perform_prepare_backport_packages|perform_push_image)
             prepare_ci_build
             rebuild_ci_image_if_needed
             ;;
@@ -1984,6 +2034,7 @@ function run_build_command {
           echo >&2
           echo >&2 "ERROR: Unknown command to run ${COMMAND_TO_RUN}"
           echo >&2
+          exit 1
           ;;
     esac
 }
@@ -2041,13 +2092,6 @@ function run_breeze_command {
             run_static_checks "$@"
             ;;
         build_image)
-            if [[ ${PUSH_IMAGES} == "true" ]]; then
-                if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-                    push_prod_images
-                else
-                    push_ci_image
-                fi
-            fi
             ;;
         cleanup_image)
             remove_images
@@ -2060,6 +2104,13 @@ function run_breeze_command {
             ;;
         perform_prepare_backport_readme)
             run_prepare_backport_readme "${@}"
+            ;;
+        perform_push_image)
+            if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
+                push_prod_images
+            else
+                push_ci_image
+            fi
             ;;
         perform_initialize_local_virtualenv)
             initialize_virtualenv

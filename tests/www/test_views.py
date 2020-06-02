@@ -116,7 +116,8 @@ class TestBase(unittest.TestCase):
     def setUpClass(cls):
         settings.configure_orm()
         cls.session = settings.Session
-        cls.app, cls.appbuilder = application.create_app(testing=True)
+        cls.app = application.create_app(testing=True)
+        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
         cls.app.config['WTF_CSRF_ENABLED'] = False
         cls.app.jinja_env.undefined = jinja2.StrictUndefined
 
@@ -1043,7 +1044,8 @@ class TestLogView(TestBase):
         sys.path.append(self.settings_folder)
 
         with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
-            self.app, self.appbuilder = application.create_app(testing=True)
+            self.app = application.create_app(testing=True)
+            self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
             self.app.config['WTF_CSRF_ENABLED'] = False
             self.client = self.app.test_client()
             settings.configure_orm()

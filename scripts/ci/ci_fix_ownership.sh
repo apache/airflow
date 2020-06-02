@@ -19,6 +19,7 @@
 #
 # Fixes ownership for files created inside container (files owned by root will be owned by host user)
 #
+set -x
 
 export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
@@ -27,6 +28,14 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 export AIRFLOW_CI_IMAGE=\
 ${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci
+
+export AIRFLOW_IMAGE=${AIRFLOW_CI_IMAGE}
+export WEBSERVER_HOST_PORT=28080
+HOST_USER_ID="$(id -ur)"
+HOST_GROUP_ID="$(id -gr)"
+
+export HOST_USER_ID
+export HOST_GROUP_ID
 
 docker-compose \
     -f "${MY_DIR}/docker-compose/base.yml" \

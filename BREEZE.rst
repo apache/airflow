@@ -669,6 +669,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
     generate-requirements                    Generates pinned requirements for pip dependencies
     prepare-backport-readme                  Prepares backport packages readme files
     prepare-backport-packages                Prepares backport packages
+    push-image                               Pushes images to registry
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
     stop                                     Stops the docker-compose environment
@@ -802,16 +803,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Uses local cache to build images. No pulled images will be used, but results of local
           builds in the Docker cache are used instead.
 
-  -u, --push-images
-          After building - uploads the images to DockerHub
-          It is useful in case you use your own DockerHub user to store images and you want
-          to build them locally. Note that you need to use 'docker login' before you upload images.
-
   -D, --dockerhub-user
           DockerHub user used to pull, push and build images. Default: apache.
 
   -H, --dockerhub-repo
           DockerHub repository used to pull, push, build images. Default: airflow.
+
+  -c, --registry-cache
+          If registry cache is enabled, pulls and pushes are done from the registry cache in github.
+          You need to be logged in to the registry in order to be able to pull/push from it and you
+          need to be committer to push to airflow registry.
+
+  -G, --github-organisation
+          GitHub organisation used to pull, push images when cache is used. Default: apache.
+
+  -g, --github-repo
+          GitHub repository used to pull, push images when cache is used. Default: airflow.
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
@@ -963,6 +970,55 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -N, --version-suffix-for-svn
           Adds optional suffix to the generated names of package. It can be used to generate
           rc1/rc2 ... versions of the packages to be uploaded to SVN.
+
+  -v, --verbose
+          Show verbose information about executed commands (enabled by default for running test).
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: push-image
+
+  breeze [FLAGS] push-image -- <EXTRA_ARGS>
+
+        Pushes images to docker registry. You can push the images to DockerHub registry (default)
+        or to the GitHub cache registry (if --registry-cache flag is used).
+
+        For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
+        the repository to push to. For GitHub repository --github-organisation and --github-repo
+        flags can be used for the same purpose.
+
+        You can also add --production-image flag to switch to production image (default is CI one)
+
+        Examples:
+
+        'breeze push-image' or
+        'breeze push-image --dockerhub-user user' to push to your private registry or
+        'breeze push-image --production-image' - to push production image or
+        'breeze push-image --registry-cache' - to push to GitHub cache or
+        'breeze push-image --registry-cache --github-organisation org' - for other organisation
+
+  Flags:
+
+  -D, --dockerhub-user
+          DockerHub user used to pull, push and build images. Default: apache.
+
+  -H, --dockerhub-repo
+          DockerHub repository used to pull, push, build images. Default: airflow.
+
+  -c, --registry-cache
+          If registry cache is enabled, pulls and pushes are done from the registry cache in github.
+          You need to be logged in to the registry in order to be able to pull/push from it and you
+          need to be committer to push to airflow registry.
+
+  -G, --github-organisation
+          GitHub organisation used to pull, push images when cache is used. Default: apache.
+
+  -g, --github-repo
+          GitHub repository used to pull, push images when cache is used. Default: airflow.
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
@@ -1436,18 +1492,24 @@ This is the current syntax for  `./breeze <./breeze>`_:
           builds in the Docker cache are used instead.
 
   ****************************************************************************************************
-   Flags for pushing Docker images (both CI and production)
-
-  -u, --push-images
-          After building - uploads the images to DockerHub
-          It is useful in case you use your own DockerHub user to store images and you want
-          to build them locally. Note that you need to use 'docker login' before you upload images.
+   Flags for pulling/pushing Docker images (both CI and production)
 
   -D, --dockerhub-user
           DockerHub user used to pull, push and build images. Default: apache.
 
   -H, --dockerhub-repo
           DockerHub repository used to pull, push, build images. Default: airflow.
+
+  -c, --registry-cache
+          If registry cache is enabled, pulls and pushes are done from the registry cache in github.
+          You need to be logged in to the registry in order to be able to pull/push from it and you
+          need to be committer to push to airflow registry.
+
+  -G, --github-organisation
+          GitHub organisation used to pull, push images when cache is used. Default: apache.
+
+  -g, --github-repo
+          GitHub repository used to pull, push images when cache is used. Default: airflow.
 
   ****************************************************************************************************
    Flags for generation of the backport packages

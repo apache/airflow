@@ -29,9 +29,6 @@ from airflow.cli.commands import celery_command
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
 
-mock.patch('airflow.utils.cli.action_logging', lambda x: x).start()
-mock_args = Namespace(queues=1, concurrency=1)
-
 
 class TestWorkerPrecheck(unittest.TestCase):
     @mock.patch('airflow.settings.validate_session')
@@ -42,7 +39,7 @@ class TestWorkerPrecheck(unittest.TestCase):
         """
         mock_validate_session.return_value = False
         with self.assertRaises(SystemExit) as cm:
-            celery_command.worker(mock_args)
+            celery_command.worker(Namespace(queues=1, concurrency=1))
         self.assertEqual(cm.exception.code, 1)
 
     @conf_vars({('core', 'worker_precheck'): 'False'})

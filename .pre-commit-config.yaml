@@ -179,14 +179,13 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         name: Lint OpenAPI using speccy
         language: docker_image
         entry: wework/speccy lint
-        files: ^openapi.yaml$
+        files: ^airflow/api_connexion/openapi/
       - id: lint-openapi
         name: Lint OpenAPI using openapi-spec-validator
-        entry: openapi-spec-validator --schema 3.0.0 openapi.yaml
+        entry: openapi-spec-validator --schema 3.0.0
         language: python
         additional_dependencies: ['openapi-spec-validator']
-        pass_filenames: false
-        files: ^openapi.yaml$
+        files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system
