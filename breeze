@@ -67,7 +67,7 @@ function setup_default_breeze_variables() {
 
     # We have different versions of images depending on the python version used. We keep up with the
     # Latest patch-level changes in Python (this is done automatically during CI builds) so we have
-    # To only take into account MAJOR and MINOR version of python. This variable keeps the major/mninor
+    # To only take into account MAJOR and MINOR version of python. This variable keeps the major/minor
     # version of python in X.Y format (3.6, 3.7 etc).
     export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION:=$(read_from_file PYTHON_MAJOR_MINOR_VERSION)}"
 
@@ -158,7 +158,7 @@ function setup_default_breeze_variables() {
 
 # Initializes development-friendly virtualenv if you are already in such env. It installs all the necessary
 # packages from PyPI and it case of problems it provides useful hints on what prerequisites should be
-# installed. It also removes and resets the existing AIRFOW_HOME installation to make sure that you
+# installed. It also removes and resets the existing AIRFLOW_HOME installation to make sure that you
 # have it synchronized with the version of airflow installed. It resets the airflow's sqlite database to
 # a clean state. You can use this function if your virtualenv is broken, to clean it up
 function initialize_virtualenv() {
@@ -792,13 +792,24 @@ function parse_arguments() {
           echo
           export FORWARD_CREDENTIALS="true"
           shift 1 ;;
-        -u|--push-images)
+        -c|--registry-cache)
           echo
-          echo "Pushing images to DockerHub"
+          echo "Use cache for the container registry"
           echo
-          export PUSH_IMAGES="true"
-          export FORCE_BUILD_IMAGES="true"
+          export ENABLE_REGISTRY_CACHE="true"
           shift ;;
+        -G|--github-organisation)
+          echo
+          echo "GitHub organisation"
+          echo
+          export GITHUB_ORGANISATION="${2}"
+          shift 2;;
+        -g|--github-repo)
+          echo
+          echo "GitHub repository"
+          echo
+          export GITHUB_REPOSITORY="${2}"
+          shift 2;;
         --)
           shift ;
           break ;;
@@ -860,6 +871,15 @@ function parse_arguments() {
         generate-requirements)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_generate_requirements"
+          # if you want to  generate requirement - you want to build the image too :)
+          export FORCE_ANSWER_TO_QUESTIONS="yes"
+          # and assume you want to build it no matter if it is needed
+          export FORCE_BUILD_IMAGES="true"
+          shift ;;
+        push-image)
+          LAST_SUBCOMMAND="${1}"
+          COMMAND_TO_RUN="perform_push_image"
+          SKIP_CHECK_REMOTE_IMAGE="true"
           shift ;;
         initialize-local-virtualenv)
           LAST_SUBCOMMAND="${1}"
@@ -1050,6 +1070,7 @@ function prepare_usage() {
     export USAGE_FLAGS="Shows all breeze's flags"
     export USAGE_GENERATE_REQUIREMENTS="Generates pinned requirements for pip dependencies"
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
+    export USAGE_PUSH_IMAGE="Pushes images to registry"
     export USAGE_SETUP_AUTOCOMPLETE="Sets up autocomplete for breeze"
     export USAGE_STOP="Stops the docker-compose environment"
     export USAGE_RESTART="Stops the docker-compose environment including DB cleanup"
@@ -1100,7 +1121,7 @@ $(flag_footer)
     # shellcheck disable=SC2089
     DETAILED_USAGE_BUILD_IMAGE="
       Builds docker image (CI or production) without entering the container. You can pass
-      aditional options to this command, such as '--force-build-image',
+      additional options to this command, such as '--force-build-image',
       '--force-pull-image' '--python' '--use-local-cache'' in order to modify build behaviour.
       You can also pass '--production-image' flag to build production image rather than CI image.
 
@@ -1109,7 +1130,7 @@ $(flag_airflow_variants)
 $(flag_choose_different_airflow_version)
 $(flag_production_image)
 $(flag_build_docker_images)
-$(flag_push_docker_images)
+$(flag_pull_push_docker_images)
 $(flag_verbosity)
 "
     # shellcheck disable=SC2090
@@ -1187,6 +1208,31 @@ $(flag_airflow_variants)
 "
     # shellcheck disable=SC2090
     export DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_PUSH_IMAGE="
+      Pushes images to docker registry. You can push the images to DockerHub registry (default)
+      or to the GitHub cache registry (if --registry-cache flag is used).
+
+      For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
+      the repository to push to. For GitHub repository --github-organisation and --github-repo
+      flags can be used for the same purpose.
+
+      You can also add --production-image flag to switch to production image (default is CI one)
+
+      Examples:
+
+      '${CMDNAME} push-image' or
+      '${CMDNAME} push-image --dockerhub-user user' to push to your private registry or
+      '${CMDNAME} push-image --production-image' - to push production image or
+      '${CMDNAME} push-image --registry-cache' - to push to GitHub cache or
+      '${CMDNAME} push-image --registry-cache --github-organisation org' - for other organisation
+
+Flags:
+$(flag_pull_push_docker_images)
+$(flag_verbosity)
+"
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_PUSH_IMAGE
     export DETAILED_USAGE_SETUP_AUTOCOMPLETE="
       Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
       shell and when typing breeze command <TAB> will provide autocomplete for
@@ -1548,19 +1594,26 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 "
 }
 
-# Prints flags controlling docker push process
-function flag_push_docker_images() {
+# Prints flags controlling docker pull and push process
+function flag_pull_push_docker_images() {
        echo "
--u, --push-images
-        After building - uploads the images to DockerHub
-        It is useful in case you use your own DockerHub user to store images and you want
-        to build them locally. Note that you need to use 'docker login' before you upload images.
-
 -D, --dockerhub-user
         DockerHub user used to pull, push and build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_USER:=}.
 
 -H, --dockerhub-repo
         DockerHub repository used to pull, push, build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_REPO:=}.
+
+-c, --registry-cache
+        If registry cache is enabled, pulls and pushes are done from the registry cache in github.
+        You need to be logged in to the registry in order to be able to pull/push from it and you
+        need to be committer to push to airflow registry.
+
+-G, --github-organisation
+        GitHub organisation used to pull, push images when cache is used. Default: ${_BREEZE_DEFAULT_GITHUB_ORGANISATION:=}.
+
+-g, --github-repo
+        GitHub repository used to pull, push images when cache is used. Default: ${_BREEZE_DEFAULT_GITHUB_REPO:=}.
+
 "
 }
 
@@ -1613,8 +1666,8 @@ $(print_star_line)
 $(flag_build_docker_images)
 
 $(print_star_line)
- Flags for pushing Docker images (both CI and production)
-$(flag_push_docker_images)
+ Flags for pulling/pushing Docker images (both CI and production)
+$(flag_pull_push_docker_images)
 
 $(print_star_line)
  Increase verbosity of the scripts
@@ -1822,7 +1875,7 @@ function run_static_checks {
     fi
 }
 
-# Runs Build before a comman - it will check and if needed rebuild necessary image, depending on the
+# Runs Build before a command - it will check and if needed rebuild necessary image, depending on the
 # command chosen
 function run_build_command {
     case "${COMMAND_TO_RUN}" in
@@ -1838,7 +1891,7 @@ function run_build_command {
                 rebuild_ci_image_if_needed
             fi
             ;;
-        build_docs|perform_static_checks|perform_generate_requirements)
+        build_docs|perform_static_checks|perform_generate_requirements|perform_push_image)
             prepare_ci_build
             rebuild_ci_image_if_needed
             ;;
@@ -1866,6 +1919,7 @@ function run_build_command {
           echo >&2
           echo >&2 "ERROR: Unknown command to run ${COMMAND_TO_RUN}"
           echo >&2
+          exit 1
           ;;
     esac
 }
@@ -1923,19 +1977,19 @@ function run_breeze_command {
             run_static_checks "$@"
             ;;
         build_image)
-            if [[ ${PUSH_IMAGES} == "true" ]]; then
-                if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-                    push_prod_images
-                else
-                    push_ci_image
-                fi
-            fi
             ;;
         cleanup_image)
             remove_images
             ;;
         perform_generate_requirements)
             run_generate_requirements
+            ;;
+        perform_push_image)
+            if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
+                push_prod_images
+            else
+                push_ci_image
+            fi
             ;;
         perform_initialize_local_virtualenv)
             initialize_virtualenv
