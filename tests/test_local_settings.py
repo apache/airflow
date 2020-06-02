@@ -23,8 +23,6 @@ import tempfile
 import unittest
 from tests.compat import MagicMock, Mock, call, patch
 
-from airflow.kubernetes.pod import Pod
-
 
 SETTINGS_FILE_POLICY = """
 def test_policy(task_instance):
@@ -149,7 +147,7 @@ class LocalSettingsTest(unittest.TestCase):
             from airflow import settings
             settings.import_local_settings()  # pylint: ignore
 
-            pod = Pod(image="ubuntu", envs={}, cmds=['echo "1"'])
+            pod = MagicMock()
             settings.pod_mutation_hook(pod)
 
             assert pod.namespace == 'airflow-tests'
