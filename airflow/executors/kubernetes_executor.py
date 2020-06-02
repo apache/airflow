@@ -36,8 +36,8 @@ from airflow.configuration import conf
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.worker_configuration import WorkerConfiguration
+from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors import Executors
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, create_session
@@ -47,87 +47,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 MAX_POD_ID_LEN = 253
 MAX_LABEL_LEN = 63
-
-
-class KubernetesExecutorConfig:
-    def __init__(self, image=None, image_pull_policy=None, request_memory=None,
-                 request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None,
-                 gcp_service_account_key=None, node_selectors=None, affinity=None,
-                 annotations=None, volumes=None, volume_mounts=None, tolerations=None, labels=None):
-        self.image = image
-        self.image_pull_policy = image_pull_policy
-        self.request_memory = request_memory
-        self.request_cpu = request_cpu
-        self.limit_memory = limit_memory
-        self.limit_cpu = limit_cpu
-        self.limit_gpu = limit_gpu
-        self.gcp_service_account_key = gcp_service_account_key
-        self.node_selectors = node_selectors
-        self.affinity = affinity
-        self.annotations = annotations
-        self.volumes = volumes
-        self.volume_mounts = volume_mounts
-        self.tolerations = tolerations
-        self.labels = labels or {}
-
-    def __repr__(self):
-        return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
-               "limit_memory={}, limit_cpu={}, limit_gpu={}, gcp_service_account_key={}, " \
-               "node_selectors={}, affinity={}, annotations={}, volumes={}, " \
-               "volume_mounts={}, tolerations={}, labels={})" \
-            .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
-                    self.request_memory, self.request_cpu, self.limit_memory,
-                    self.limit_cpu, self.limit_gpu, self.gcp_service_account_key, self.node_selectors,
-                    self.affinity, self.annotations, self.volumes, self.volume_mounts,
-                    self.tolerations, self.labels)
-
-    @staticmethod
-    def from_dict(obj):
-        if obj is None:
-            return KubernetesExecutorConfig()
-
-        if not isinstance(obj, dict):
-            raise TypeError(
-                'Cannot convert a non-dictionary object into a KubernetesExecutorConfig')
-
-        namespaced = obj.get(Executors.KubernetesExecutor, {})
-
-        return KubernetesExecutorConfig(
-            image=namespaced.get('image', None),
-            image_pull_policy=namespaced.get('image_pull_policy', None),
-            request_memory=namespaced.get('request_memory', None),
-            request_cpu=namespaced.get('request_cpu', None),
-            limit_memory=namespaced.get('limit_memory', None),
-            limit_cpu=namespaced.get('limit_cpu', None),
-            limit_gpu=namespaced.get('limit_gpu', None),
-            gcp_service_account_key=namespaced.get('gcp_service_account_key', None),
-            node_selectors=namespaced.get('node_selectors', None),
-            affinity=namespaced.get('affinity', None),
-            annotations=namespaced.get('annotations', {}),
-            volumes=namespaced.get('volumes', []),
-            volume_mounts=namespaced.get('volume_mounts', []),
-            tolerations=namespaced.get('tolerations', None),
-            labels=namespaced.get('labels', {}),
-        )
-
-    def as_dict(self):
-        return {
-            'image': self.image,
-            'image_pull_policy': self.image_pull_policy,
-            'request_memory': self.request_memory,
-            'request_cpu': self.request_cpu,
-            'limit_memory': self.limit_memory,
-            'limit_cpu': self.limit_cpu,
-            'limit_gpu': self.limit_gpu,
-            'gcp_service_account_key': self.gcp_service_account_key,
-            'node_selectors': self.node_selectors,
-            'affinity': self.affinity,
-            'annotations': self.annotations,
-            'volumes': self.volumes,
-            'volume_mounts': self.volume_mounts,
-            'tolerations': self.tolerations,
-            'labels': self.labels,
-        }
 
 
 class KubeConfig:
@@ -473,17 +392,23 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.info('Kubernetes job is %s', str(next_job))
         key, command, kube_executor_config = next_job
         dag_id, task_id, execution_date, try_number = key
-        self.log.debug("Kubernetes running for command %s", command)
-        self.log.debug("Kubernetes launching image %s", self.kube_config.kube_image)
-        pod = self.worker_configuration.make_pod(
-            namespace=self.namespace, worker_uuid=self.worker_uuid,
+
+        config_pod = self.worker_configuration.make_pod(
+            namespace=self.namespace,
+            worker_uuid=self.worker_uuid,
             pod_id=self._create_pod_id(dag_id, task_id),
             dag_id=self._make_safe_label_value(dag_id),
             task_id=self._make_safe_label_value(task_id),
             try_number=try_number,
             execution_date=self._datetime_to_label_safe_datestring(execution_date),
-            airflow_command=command, kube_executor_config=kube_executor_config
+            airflow_command=command
         )
+        # Reconcile the pod generated by the Operator and the Pod
+        # generated by the .cfg file
+        pod = PodGenerator.reconcile_pods(config_pod, kube_executor_config)
+        self.log.debug("Kubernetes running for command %s", command)
+        self.log.debug("Kubernetes launching image %s", pod.spec.containers[0].image)
+
         # the watcher will monitor pods, so we do not block.
         self.launcher.run_pod_async(pod, **self.kube_config.kube_client_request_args)
         self.log.debug("Kubernetes Job created!")
@@ -841,7 +766,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             'Add task %s with command %s with executor_config %s',
             key, command, executor_config
         )
-        kube_executor_config = KubernetesExecutorConfig.from_dict(executor_config)
+
+        kube_executor_config = PodGenerator.from_obj(executor_config)
         self.task_queue.put((key, command, kube_executor_config))
 
     def sync(self):

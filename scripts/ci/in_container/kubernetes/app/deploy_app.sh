@@ -104,13 +104,17 @@ cat "${BUILD_DIRNAME}/configmaps.yaml"
 kubectl delete -f "${MY_DIR}/postgres.yaml" || true
 kubectl delete -f "${BUILD_DIRNAME}/airflow.yaml" || true
 kubectl delete -f "${MY_DIR}/secrets.yaml" || true
+kubectl apply -f "${MY_DIR}/secrets.yaml" -n test-namespace
 
 set -e
 
 kubectl apply -f "${MY_DIR}/secrets.yaml"
+kubectl apply -f "${MY_DIR}/secrets.yaml" -n test-namespace
 kubectl apply -f "${BUILD_DIRNAME}/configmaps.yaml"
+kubectl apply -f "${BUILD_DIRNAME}/configmaps.yaml" -n test-namespace
 kubectl apply -f "${MY_DIR}/postgres.yaml"
 kubectl apply -f "${MY_DIR}/volumes.yaml"
+kubectl apply -f "${MY_DIR}/volumes.yaml" -n test-namespace
 
 set +x
 set +o pipefail

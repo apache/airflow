@@ -15,15 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Executes task in a Kubernetes POD"""
-import re
 import warnings
 
 from airflow.exceptions import AirflowException
+from airflow.kubernetes import pod_generator, kube_client, pod_launcher
+from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.kubernetes import kube_client, pod_generator, pod_launcher
-from airflow.kubernetes.pod import Resources
-from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
 
@@ -49,13 +47,13 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                                If more than one secret is required, provide a
                                comma separated list: secret_a,secret_b
     :type image_pull_secrets: str
-    :param ports: ports for launched pod.
-    :type ports: list[airflow.kubernetes.pod.Port]
-    :param volume_mounts: volumeMounts for launched pod.
-    :type volume_mounts: list[airflow.kubernetes.volume_mount.VolumeMount]
-    :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes.
-    :type volumes: list[airflow.kubernetes.volume.Volume]
-    :param labels: labels to apply to the Pod.
+    :param ports: ports for launched pod
+    :type ports: list[airflow.kubernetes.models.port.Port]
+    :param volume_mounts: volumeMounts for launched pod
+    :type volume_mounts: list[airflow.kubernetes.models.volume_mount.VolumeMount]
+    :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes
+    :type volumes: list[airflow.kubernetes.models.volume.Volume]
+    :param labels: labels to apply to the Pod
     :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :type startup_timeout_seconds: int
@@ -64,10 +62,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type name: str
     :param env_vars: Environment variables initialized in the container. (templated)
     :type env_vars: dict
-    :param secrets: Kubernetes secrets to inject in the container.
-        They can be exposed as environment vars or files in a volume
-    :type secrets: list[airflow.kubernetes.secret.Secret]
-    :param in_cluster: run kubernetes client with in_cluster configuration.
+    :param secrets: Kubernetes secrets to inject in the container,
+        They can be exposed as environment vars or files in a volume.
+    :type secrets: list[airflow.kubernetes.models.secret.Secret]
+    :param in_cluster: run kubernetes client with in_cluster configuration
     :type in_cluster: bool
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used.
@@ -105,14 +103,81 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         want mount as env variables.
     :type configmaps: list[str]
     :param pod_runtime_info_envs: environment variables about
-                                  pod runtime information (ip, namespace, nodeName, podName).
-    :type pod_runtime_info_envs: list[PodRuntimeEnv]
-    :param security_context: security options the pod should run with (PodSecurityContext).
-    :type security_context: dict
-    :param dnspolicy: dnspolicy for the pod.
+                                  pod runtime information (ip, namespace, nodeName, podName)
+    :type pod_runtime_info_envs: list[airflow.kubernetes.models.pod_runtime_info_env.PodRuntimeInfoEnv]
+    :param dnspolicy: Specify a dnspolicy for the pod
     :type dnspolicy: str
+    :param full_pod_spec: The complete podSpec
+    :type full_pod_spec: kubernetes.client.models.V1Pod
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
+
+    def execute(self, context):
+        try:
+            client = kube_client.get_kube_client(in_cluster=self.in_cluster,
+                                                 cluster_context=self.cluster_context,
+                                                 config_file=self.config_file)
+            # Add Airflow Version to the label
+            # And a label to identify that pod is launched by KubernetesPodOperator
+            self.labels.update(
+                {
+                    'airflow_version': airflow_version.replace('+', '-'),
+                    'kubernetes_pod_operator': 'True',
+                }
+            )
+
+            pod = pod_generator.PodGenerator(
+                image=self.image,
+                namespace=self.namespace,
+                cmds=self.cmds,
+                args=self.arguments,
+                labels=self.labels,
+                name=self.name,
+                envs=self.env_vars,
+                extract_xcom=self.do_xcom_push,
+                image_pull_policy=self.image_pull_policy,
+                node_selectors=self.node_selectors,
+                annotations=self.annotations,
+                affinity=self.affinity,
+                image_pull_secrets=self.image_pull_secrets,
+                service_account_name=self.service_account_name,
+                hostnetwork=self.hostnetwork,
+                tolerations=self.tolerations,
+                configmaps=self.configmaps,
+                security_context=self.security_context,
+                dnspolicy=self.dnspolicy,
+                resources=self.resources,
+                pod=self.full_pod_spec,
+            ).gen_pod()
+
+            pod = append_to_pod(pod, self.ports)
+            pod = append_to_pod(pod, self.pod_runtime_info_envs)
+            pod = append_to_pod(pod, self.volumes)
+            pod = append_to_pod(pod, self.volume_mounts)
+            pod = append_to_pod(pod, self.secrets)
+
+            self.pod = pod
+
+            launcher = pod_launcher.PodLauncher(kube_client=client,
+                                                extract_xcom=self.do_xcom_push)
+
+            try:
+                (final_state, result) = launcher.run_pod(
+                    pod,
+                    startup_timeout=self.startup_timeout_seconds,
+                    get_logs=self.get_logs)
+            finally:
+                if self.is_delete_operator_pod:
+                    launcher.delete_pod(pod)
+
+            if final_state != State.SUCCESS:
+                raise AirflowException(
+                    'Pod returned a failure: {state}'.format(state=final_state)
+                )
+
+            return result
+        except AirflowException as ex:
+            raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
@@ -136,6 +201,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  resources=None,
                  affinity=None,
                  config_file=None,
+                 do_xcom_push=False,
                  node_selectors=None,
                  image_pull_secrets=None,
                  service_account_name='default',
@@ -146,7 +212,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  security_context=None,
                  pod_runtime_info_envs=None,
                  dnspolicy=None,
-                 do_xcom_push=False,
+                 full_pod_spec=None,
                  *args,
                  **kwargs):
         # https://github.com/apache/airflow/blob/2d0eff4ee4fafcf8c7978ac287a8fb968e56605f/UPDATING.md#unification-of-do_xcom_push-flag
@@ -157,6 +223,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 DeprecationWarning, stacklevel=2
             )
         super(KubernetesPodOperator, self).__init__(*args, resources=None, **kwargs)
+        self.pod = None
         self.do_xcom_push = do_xcom_push
         self.image = image
         self.namespace = namespace
@@ -164,7 +231,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
-        self.name = self._set_name(name)
+        self.name = name
         self.env_vars = env_vars or {}
         self.ports = ports or []
         self.volume_mounts = volume_mounts or []
@@ -177,7 +244,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
-        self.resources = self._set_resources(resources)
+        self.resources = resources
         self.config_file = config_file
         self.image_pull_secrets = image_pull_secrets
         self.service_account_name = service_account_name
@@ -188,83 +255,4 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.security_context = security_context or {}
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
         self.dnspolicy = dnspolicy
-
-    def execute(self, context):
-        try:
-            if self.in_cluster is not None:
-                client = kube_client.get_kube_client(in_cluster=self.in_cluster,
-                                                     cluster_context=self.cluster_context,
-                                                     config_file=self.config_file)
-            else:
-                client = kube_client.get_kube_client(cluster_context=self.cluster_context,
-                                                     config_file=self.config_file)
-
-            # Add Airflow Version to the label
-            # And a label to identify that pod is launched by KubernetesPodOperator
-            self.labels.update(
-                {
-                    'airflow_version': airflow_version.replace('+', '-'),
-                    'kubernetes_pod_operator': 'True',
-                }
-            )
-
-            gen = pod_generator.PodGenerator()
-
-            for port in self.ports:
-                gen.add_port(port)
-            for mount in self.volume_mounts:
-                gen.add_mount(mount)
-            for volume in self.volumes:
-                gen.add_volume(volume)
-
-            pod = gen.make_pod(
-                namespace=self.namespace,
-                image=self.image,
-                pod_id=self.name,
-                cmds=self.cmds,
-                arguments=self.arguments,
-                labels=self.labels,
-            )
-
-            pod.service_account_name = self.service_account_name
-            pod.secrets = self.secrets
-            pod.envs = self.env_vars
-            pod.image_pull_policy = self.image_pull_policy
-            pod.image_pull_secrets = self.image_pull_secrets
-            pod.annotations = self.annotations
-            pod.resources = self.resources
-            pod.affinity = self.affinity
-            pod.node_selectors = self.node_selectors
-            pod.hostnetwork = self.hostnetwork
-            pod.tolerations = self.tolerations
-            pod.configmaps = self.configmaps
-            pod.security_context = self.security_context
-            pod.pod_runtime_info_envs = self.pod_runtime_info_envs
-            pod.dnspolicy = self.dnspolicy
-
-            launcher = pod_launcher.PodLauncher(kube_client=client,
-                                                extract_xcom=self.do_xcom_push)
-            try:
-                (final_state, result) = launcher.run_pod(
-                    pod,
-                    startup_timeout=self.startup_timeout_seconds,
-                    get_logs=self.get_logs)
-            finally:
-                if self.is_delete_operator_pod:
-                    launcher.delete_pod(pod)
-
-            if final_state != State.SUCCESS:
-                raise AirflowException(
-                    'Pod returned a failure: {state}'.format(state=final_state)
-                )
-            if self.do_xcom_push:
-                return result
-        except AirflowException as ex:
-            raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
-
-    def _set_resources(self, resources):
-        return Resources(**resources) if resources else Resources()
-
-    def _set_name(self, name):
-        validate_key(name, max_length=63)
-        return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
+        self.full_pod_spec = full_pod_spec

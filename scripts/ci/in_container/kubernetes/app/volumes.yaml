@@ -21,7 +21,7 @@ metadata:
   name: airflow-dags
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   capacity:
     storage: 2Gi
   hostPath:
@@ -36,7 +36,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: 2Gi
+      storage: 2G
 ---
 kind: PersistentVolume
 apiVersion: v1
