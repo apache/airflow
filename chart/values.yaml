@@ -153,14 +153,6 @@ workers:
   # Grace period for tasks to finish after SIGTERM is sent from kubernetes
   terminationGracePeriodSeconds: 600
 
-  # Apply a HorizontalPodAutoscaler
-  autoscaling:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 10
-    targetCPUUtilization: 80
-    targetMemoryUtilization: 80
-
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
