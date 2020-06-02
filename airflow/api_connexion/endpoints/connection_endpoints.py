@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import connexion
+from flask import request
+from marshmallow import ValidationError
 
 from airflow.api_connexion import parameters
 from airflow.api_connexion.schemas.connection import (
@@ -41,7 +42,6 @@ def get_connections(session):
     """
     Get all connection entries
     """
-    request = connexion.request
     offset = request.args.get(parameters.page_offset, 0)
     limit = min(request.args.get(parameters.page_limit, 100), 100)
 
@@ -57,9 +57,12 @@ def patch_connection(connection_id, session):
     """
     Update a connection entry
     """
-    request = connexion.request
     update_mask = request.args.get('update_mask')
     body = request.json
+    try:
+        data = connection_schema.load(body)
+    except ValidationError as err:
+        return err.messages, 422
 
     query = session.query(Connection)
     query = query.filter(Connection.conn_id == connection_id)
@@ -67,9 +70,9 @@ def patch_connection(connection_id, session):
     if update_mask:
         for field in update_mask:
             if hasattr(connection, field):
-                setattr(connection, field, body[field])
+                setattr(connection, field, data[field])
     else:
-        for k, v in body.items():
+        for k, v in data.items():
             setattr(connection, k, v)
     session.add(connection)
     session.commit()
@@ -82,12 +85,20 @@ def post_connection(session):
     """
     Create connection entry
     """
-    request = connexion.request
     body = request.json
-    connection = Connection(**body)
-    session.add(connection)
-    session.commit()
-    return connection_schema.dump(connection), 200
+    try:
+        data = connection_schema.load(body)
+    except ValidationError as err:
+        return err.messages, 422
+    conn_id = data['connection_id']
+    connection = session.query(Connection).filter_by(conn_id=conn_id).first()
+    if not connection:
+        connection = Connection(**data)
+        session.add(connection)
+        session.commit()
+        return connection_schema.dump(connection), 200
+    else:
+        return {"message": "Duplicate content"}  # TODO return appropriate statement, ask about this
 
 
 @provide_session
@@ -97,6 +108,6 @@ def delete_connection(connection_id, session):
     """
     query = session.query(Connection)
     query = query.filter(Connection.conn_id == connection_id)
-    connection = query.first()
+    connection = query.one_or_none()
     session.delete(connection)
-    return 'No Content', 204
+    return 'No content', 204
