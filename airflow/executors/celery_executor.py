@@ -94,8 +94,8 @@ class CeleryExecutor(BaseExecutor):
 
         self.logger.debug(
             "Inquiring about {} celery task(s)".format(len(self.tasks)))
-        for key, async in list(self.tasks.items()):
-            state = async.state
+        for key, _async in list(self.tasks.items()):
+            state = _async.state
             if self.last_state[key] != state:
                 if state == celery_states.SUCCESS:
                     self.success(key)
@@ -110,13 +110,13 @@ class CeleryExecutor(BaseExecutor):
                     del self.tasks[key]
                     del self.last_state[key]
                 else:
-                    self.logger.info("Unexpected state: " + async.state)
-                self.last_state[key] = async.state
+                    self.logger.info("Unexpected state: " + _async.state)
+                self.last_state[key] = _async.state
 
     def end(self, synchronous=False):
         if synchronous:
             while any([
-                    async.state not in celery_states.READY_STATES
-                    for async in self.tasks.values()]):
+                    _async.state not in celery_states.READY_STATES
+                    for _async in self.tasks.values()]):
                 time.sleep(5)
         self.sync()

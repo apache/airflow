@@ -439,7 +439,7 @@ class HdfsSensor(BaseSensorOperator):
         :return:
         """
         if ignore_copying:
-            regex_builder = "^.*\.(%s$)$" % '$|'.join(ignored_ext)
+            regex_builder = r"^.*\.(%s$)$" % '$|'.join(ignored_ext)
             ignored_extentions_regex = re.compile(regex_builder)
             logging.debug('Filtering result for ignored extentions: %s in files %s', ignored_extentions_regex.pattern,
                           map(lambda x: x['path'], result))

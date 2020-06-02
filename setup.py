@@ -199,7 +199,7 @@ def do_setup():
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
         install_requires=[
-            'alembic>=0.8.3, <0.9',
+            'alembic>=1.0, <2.0',
             'blinker==1.4',
             'croniter>=0.3.8, <0.4',
             'dill>=0.2.2, <0.3',
