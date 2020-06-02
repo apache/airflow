@@ -96,7 +96,7 @@ class TaskTag(Base):
     """
     __tablename__ = 'task_tag'
     tag_id = Column('tag_id', Integer, primary_key=True)
-    name = Column('name', String(length=100), primary_key=True)
+    name = Column('name', String(length=100))
 
 
 def clear_task_instances(tis,
