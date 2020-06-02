@@ -23,8 +23,9 @@ from typing import Dict, Optional
 from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
+from airflow.utils import operator_helpers
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.operator_helpers import context_to_airflow_vars, get_blank_airflow_vars
+from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class HiveOperator(BaseOperator):
@@ -147,8 +148,7 @@ class HiveOperator(BaseOperator):
     def dry_run(self):
         # Reset airflow environment variables to prevent
         # existing env vars from impacting behavior.
-        blank_env_vars = get_blank_airflow_vars()
-        os.environ.update(blank_env_vars)
+        self.clear_airflow_vars()
 
         self.hook = self.get_hook()
         self.hook.test_hql(hql=self.hql)
@@ -156,3 +156,8 @@ class HiveOperator(BaseOperator):
     def on_kill(self):
         if self.hook:
             self.hook.kill()
+
+    def clear_airflow_vars(self):
+        blank_env_vars = {value['env_var_format']: '' for value in
+                          operator_helpers.AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()}
+        os.environ.update(blank_env_vars)
