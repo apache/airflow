@@ -78,36 +78,46 @@ Docker Compose
 
 - **Permissions**: Configure to run the ``docker-compose`` command.
 
-Docker in WSL
--------------
+Docker in WSL 2
+---------------
 
-- **WSL installation** :
-    `WSL Installation Guide <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ for details.
+- **WSL 2 installation** :
+    Install WSL 2 and a Linux Distro (e.g. Ubuntu) see
+    `WSL 2 Installation Guide <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ for details.
 
-- **Docker installation** :
-    You should install docker in WSL.
-    follow `Docker Installtion Guide <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_
-    only docker-ce without docker-ce-cli containerd.io.
+- **Docker Desktop installation** :
+    Install Docker Desktop for Windows. For Windows Home follow the
+    `Docker Windows Home Installation Guide <https://docs.docker.com/docker-for-windows/install-windows-home>`_.
+    For Windows Pro, Enterprise, or Education follow the
+    `Docker Windows Installation Guide <https://docs.docker.com/docker-for-windows/install/>`_.
+
 - **Docker setting** :
-    You should expose Docker daemon,
+    WSL integration needs to be enabled
 
-.. image:: images/docker_expose_daemon.png
+.. image:: images/docker_wsl_integration.png
     :align: left
-    :alt: Docker expose daemon
+    :alt: Docker WSL2 integration
 
-and set env variable DOCKER_HOST.
+- **WSL 2 Filesystem Performance** :
+    Accessing the host Windows filesystem incurs a performance penalty,
+    it is therefore recommended to do development on the Linux filesystem.
+    E.g. Run ``cd ~`` and create a development folder in your Linux distro home
+    and git pull the Airflow repo there.
 
-.. code-block:: bash
+- **WSL 2 Memory Usage** :
+    WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim
+    the memory after development you can:
+      * On the Linux distro clear cached memory: ``sudo sysctl -w vm.drop_caches=3``
+      * If no longer using Docker you can quit Docker Desktop
+        (right click system try icon and select "Quit Docker Desktop")
+      * If no longer using WSL you can shut it down on the Windows Host
+        with the following command: ``wsl --shutdown``
 
-    echo "export DOCKER_HOST=tcp://localhost:2375" >> ~/.bashrc && source ~/.bashrc
-
-- **WSL problems** :
-  There is a mounting problem in docker because docker could not recognize ``/mnt/c``, ``/mnt/d`` driver path.
-  run this command in Windows Version 18.03+ and reboot Windows
-
-.. code-block:: bash
-
-    printf '[automount]\nroot = /\n options = "metadata"\n' >> /etc/wsl.conf
+- **Developing in WSL 2** :
+    You can use all the standard Linux command line utilities to develop on WSL 2.
+    Further VS Code supports developing in Windows but remotely executing in WSL.
+    If VS Code is installed on the Windows host system then in the WSL Linux Distro
+    you can run ``code .`` in the root directory of you Airflow repo to launch VS Code.
 
 Docker Images Used by Breeze
 ----------------------------
@@ -181,6 +191,8 @@ Minimum 4GB RAM is required to run the full Breeze environment.
 On macOS, 2GB of RAM are available for your Docker containers by default, but more memory is recommended
 (4GB should be comfortable). For details see
 `Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
+
+On Windows WSL 2 expect the Linux Disto and Docker containers to use 7 - 8 GB of RAM.
 
 Airflow Directory Structure inside Docker
 -----------------------------------------
@@ -655,6 +667,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
     cleanup-image                            Cleans up the container image created
     exec                                     Execs into running breeze container in new terminal
     generate-requirements                    Generates pinned requirements for pip dependencies
+    push-image                               Pushes images to registry
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
     stop                                     Stops the docker-compose environment
@@ -729,7 +742,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze [FLAGS] build-image -- <EXTRA_ARGS>
 
         Builds docker image (CI or production) without entering the container. You can pass
-        aditional options to this command, such as '--force-build-image',
+        additional options to this command, such as '--force-build-image',
         '--force-pull-image' '--python' '--use-local-cache'' in order to modify build behaviour.
         You can also pass '--production-image' flag to build production image rather than CI image.
 
@@ -788,16 +801,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Uses local cache to build images. No pulled images will be used, but results of local
           builds in the Docker cache are used instead.
 
-  -u, --push-images
-          After building - uploads the images to DockerHub
-          It is useful in case you use your own DockerHub user to store images and you want
-          to build them locally. Note that you need to use 'docker login' before you upload images.
-
   -D, --dockerhub-user
           DockerHub user used to pull, push and build images. Default: apache.
 
   -H, --dockerhub-repo
           DockerHub repository used to pull, push, build images. Default: airflow.
+
+  -c, --registry-cache
+          If registry cache is enabled, pulls and pushes are done from the registry cache in github.
+          You need to be logged in to the registry in order to be able to pull/push from it and you
+          need to be committer to push to airflow registry.
+
+  -G, --github-organisation
+          GitHub organisation used to pull, push images when cache is used. Default: apache.
+
+  -g, --github-repo
+          GitHub repository used to pull, push images when cache is used. Default: airflow.
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
@@ -866,6 +885,55 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  2.7 3.5 3.6 3.7
+
+  -v, --verbose
+          Show verbose information about executed commands (enabled by default for running test).
+          Note that you can further increase verbosity and see all the commands executed by breeze
+          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
+
+
+  ####################################################################################################
+
+
+  Detailed usage for command: push-image
+
+  breeze [FLAGS] push-image -- <EXTRA_ARGS>
+
+        Pushes images to docker registry. You can push the images to DockerHub registry (default)
+        or to the GitHub cache registry (if --registry-cache flag is used).
+
+        For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
+        the repository to push to. For GitHub repository --github-organisation and --github-repo
+        flags can be used for the same purpose.
+
+        You can also add --production-image flag to switch to production image (default is CI one)
+
+        Examples:
+
+        'breeze push-image' or
+        'breeze push-image --dockerhub-user user' to push to your private registry or
+        'breeze push-image --production-image' - to push production image or
+        'breeze push-image --registry-cache' - to push to GitHub cache or
+        'breeze push-image --registry-cache --github-organisation org' - for other organisation
+
+  Flags:
+
+  -D, --dockerhub-user
+          DockerHub user used to pull, push and build images. Default: apache.
+
+  -H, --dockerhub-repo
+          DockerHub repository used to pull, push, build images. Default: airflow.
+
+  -c, --registry-cache
+          If registry cache is enabled, pulls and pushes are done from the registry cache in github.
+          You need to be logged in to the registry in order to be able to pull/push from it and you
+          need to be committer to push to airflow registry.
+
+  -G, --github-organisation
+          GitHub organisation used to pull, push images when cache is used. Default: apache.
+
+  -g, --github-repo
+          GitHub repository used to pull, push images when cache is used. Default: airflow.
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
@@ -1333,18 +1401,24 @@ This is the current syntax for  `./breeze <./breeze>`_:
           builds in the Docker cache are used instead.
 
   ****************************************************************************************************
-   Flags for pushing Docker images (both CI and production)
-
-  -u, --push-images
-          After building - uploads the images to DockerHub
-          It is useful in case you use your own DockerHub user to store images and you want
-          to build them locally. Note that you need to use 'docker login' before you upload images.
+   Flags for pulling/pushing Docker images (both CI and production)
 
   -D, --dockerhub-user
           DockerHub user used to pull, push and build images. Default: apache.
 
   -H, --dockerhub-repo
           DockerHub repository used to pull, push, build images. Default: airflow.
+
+  -c, --registry-cache
+          If registry cache is enabled, pulls and pushes are done from the registry cache in github.
+          You need to be logged in to the registry in order to be able to pull/push from it and you
+          need to be committer to push to airflow registry.
+
+  -G, --github-organisation
+          GitHub organisation used to pull, push images when cache is used. Default: apache.
+
+  -g, --github-repo
+          GitHub repository used to pull, push images when cache is used. Default: airflow.
 
   ****************************************************************************************************
    Increase verbosity of the scripts
