@@ -22,8 +22,10 @@ from airflow.exceptions import AirflowException
 
 
 class BaseSchema(SQLAlchemySchema):
-    """ Base Schema for models """
-    __envelope__ = {"many": None}
+
+    """ Base Schema for sqlalchemy models """
+
+    __envelope__ = {"many": ''}
 
     def get_envelope_key(self, many):
         """Helper to get the envelope key.
@@ -32,9 +34,9 @@ class BaseSchema(SQLAlchemySchema):
             a collection.
         :type many: str
         """
-        if many is None:
+        if not many:
             raise AirflowException("You must add the 'many' envelope key to your schema")
-        key = self.__envelope__.get('many', None)
+        key = self.__envelope__.get('many')
         return key
 
     @post_dump(pass_many=True)

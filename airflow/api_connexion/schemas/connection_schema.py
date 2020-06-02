@@ -33,7 +33,7 @@ class ConnectionCollectionItemSchema(BaseSchema):
     __envelope__ = {'many': 'connections'}
 
     conn_id = auto_field(dump_to='connection_id', load_from='connection_id')
-    conn_type = auto_field()
+    conn_type = auto_field(default='')
     host = auto_field()
     login = auto_field()
     schema = auto_field()
@@ -45,7 +45,7 @@ class ConnectionSchema(ConnectionCollectionItemSchema):  # pylint: disable=too-m
     Connection schema
     """
     password = auto_field(load_only=True)
-    extra = auto_field()
+    extra = auto_field(missing='')
 
 
 connection_schema = ConnectionSchema()
