@@ -185,6 +185,7 @@ data:
     dags_in_image = False
     git_repo = https://github.com/{{CONFIGMAP_GIT_REPO}}.git
     git_branch = {{CONFIGMAP_BRANCH}}
+    git_sync_depth = "1"
     git_subpath = airflow/contrib/example_dags/
     git_user =
     git_password =
