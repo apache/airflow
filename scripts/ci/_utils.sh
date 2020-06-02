@@ -39,10 +39,15 @@ function check_verbose_setup {
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
 # printed before execution
 function verbose_docker {
-    if [[ ${VERBOSE:="false"} == "true" ]]; then
+    if [[ ${VERBOSE_COMMANDS:=} == "true" ]]; then
+      # No need to echo, we're already in set -x
+      docker "${@}"
+    elif [[ ${VERBOSE:="false"} == "true" ]]; then
         echo "docker" "${@}"
+        docker "${@}"
+    else
+        docker "${@}"
     fi
-    docker "${@}"
 }
 
 # Common environment that is initialized by both Breeze and CI scripts
@@ -717,25 +722,28 @@ function get_local_image_info() {
 function get_remote_image_info() {
     set +e
     # Pull remote manifest image
-    if ! verbose_docker pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" >/dev/null 2>&1 ; then
+    if ! verbose_docker pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" >/dev/null; then
         echo
         echo "Remote docker registry unreachable"
         echo
         REMOTE_DOCKER_REGISTRY_UNREACHABLE="true"
         return
     fi
+    set -e
+
+    # Docker needs the file passed to --cidfile to not exist, so we can't use mktemp
+    TMP_CONTAINER_ID="remote-airflow-manifest-$$.container_id"
+    trap 'rm -f "$TMP_CONTAINER_ID"' EXIT
+
     TMP_MANIFEST_REMOTE_JSON=$(mktemp)
     TMP_MANIFEST_REMOTE_SHA=$(mktemp)
-    # delete container just in case
-    verbose_docker rm --force "remote-airflow-manifest" >/dev/null 2>&1
-    set -e
     # Create container out of the manifest image without running it
-    verbose_docker create --name "remote-airflow-manifest" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" >/dev/null 2>&1
+    verbose_docker create --cidfile "${TMP_CONTAINER_ID}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     # Extract manifest and store it in local file
-    verbose_docker cp "remote-airflow-manifest:${AIRFLOW_CI_BASE_TAG}.json" "${TMP_MANIFEST_REMOTE_JSON}" >/dev/null 2>&1
+    verbose_docker cp "$(cat "${TMP_CONTAINER_ID}"):${AIRFLOW_CI_BASE_TAG}.json" "${TMP_MANIFEST_REMOTE_JSON}"
     # Filter everything except SHAs of image layers
     sed 's/ *//g' "${TMP_MANIFEST_REMOTE_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_REMOTE_SHA}"
-    verbose_docker rm --force "remote-airflow-manifest" >/dev/null 2>&1
+    verbose_docker rm --force "$( cat "${TMP_CONTAINER_ID}")"
 }
 
 # The Number determines the cut-off between local building time and pull + build time.
