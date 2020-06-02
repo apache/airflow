@@ -26,7 +26,6 @@ Create Date: 2020-05-29 14:20:37.831692
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.schema import Sequence, CreateSequence, DropSequence
 
 
 # revision identifiers, used by Alembic.
@@ -35,16 +34,12 @@ down_revision = '952da73b5eff'
 branch_labels = None
 depends_on = None
 
-tag_id_sequence = Sequence('tag_id_sequence')
-
 
 def upgrade():
     """Apply Add TaskTag table"""
-    op.execute(CreateSequence(tag_id_sequence))
-
     op.create_table(
         'task_tag',
-        sa.Column('tag_id', sa.Integer, tag_id_sequence, server_default=tag_id_sequence.next_value(), nullable=False),
+        sa.Column('tag_id', sa.Integer, nullable=False, autoincrement=True),
         sa.Column('name', sa.String(length=100), nullable=False),
         sa.PrimaryKeyConstraint('tag_id', 'name')
     )
@@ -53,4 +48,3 @@ def upgrade():
 def downgrade():
     """Unapply Add TaskTag table"""
     op.drop_table('task_tag')
-    op.execute(DropSequence(tag_id_sequence))
