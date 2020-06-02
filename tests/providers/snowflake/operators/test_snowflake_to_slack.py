@@ -61,20 +61,20 @@ class TestSnowflakeToSlackOperator(unittest.TestCase):
         snowflake_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # Test that the Snowflake hook is instantiated with the right parameters
-        mock_snowflake_hook_class.assert_called_with(database='test_database',
-                                                     role='test_role',
-                                                     schema='test_schema',
-                                                     snowflake_conn_id='snowflake_connection',
-                                                     warehouse='test_warehouse')
+        mock_snowflake_hook_class.assert_called_once_with(database='test_database',
+                                                          role='test_role',
+                                                          schema='test_schema',
+                                                          snowflake_conn_id='snowflake_connection',
+                                                          warehouse='test_warehouse')
 
         # Test that the get_pandas_df method is executed on the Snowflake hook with the prendered sql and
         # correct params
         snowflake_hook.get_pandas_df.assert_called_once_with('sql 2017-01-01', parameters=['1', '2', '3'])
 
         # Test that the Slack hook is instantiated with the right parameters
-        mock_slack_hook_class.assert_called_with(http_conn_id='slack_connection',
-                                                 message='message: 2017-01-01, 1234',
-                                                 webhook_token='test_token')
+        mock_slack_hook_class.assert_called_once_with(http_conn_id='slack_connection',
+                                                      message='message: 2017-01-01, 1234',
+                                                      webhook_token='test_token')
 
         # Test that the Slack hook's execute method gets run once
         slack_webhook_hook.execute.assert_called_once()
