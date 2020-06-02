@@ -236,7 +236,7 @@ webserver:
 
   #   # Flask-WTF flag for CSRF
   #   CSRF_ENABLED = True
-  
+
   service:
     type: ClusterIP
 
@@ -251,6 +251,9 @@ flower:
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
+
+  service:
+    type: ClusterIP
 
 # Statsd settings
 statsd:
