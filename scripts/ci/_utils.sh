@@ -145,11 +145,7 @@ function initialize_common_environment {
         print_info "Mounting necessary host volumes to Docker"
         print_info
 
-        EXTRA_DOCKER_FLAGS=()
-
-        while IFS= read -r LINE; do
-            EXTRA_DOCKER_FLAGS+=( "${LINE}")
-        done < <(convert_local_mounts_to_docker_params)
+        read -r -a EXTRA_DOCKER_FLAGS <<< "$(convert_local_mounts_to_docker_params)"
     else
         print_info
         print_info "Skip mounting host volumes to Docker"
@@ -244,53 +240,52 @@ function print_info() {
 # By default not the whole airflow sources directory is mounted because there are often
 # artifacts created there (for example .egg-info files) that are breaking the capability
 # of running different python versions in Breeze. So we only mount what is needed by default.
-LOCAL_MOUNTS="
-.bash_aliases /root/
-.bash_history /root/
-.coveragerc /opt/airflow/
-.dockerignore /opt/airflow/
-.flake8 /opt/airflow/
-.github /opt/airflow/
-.inputrc /root/
-.kube /root/
-.rat-excludes /opt/airflow/
-CHANGELOG.txt /opt/airflow/
-Dockerfile.ci /opt/airflow/
-LICENSE /opt/airflow/
-MANIFEST.in /opt/airflow/
-NOTICE /opt/airflow/
-airflow /opt/airflow/
-backport_packages /opt/airflow/
-common /opt/airflow/
-dags /opt/airflow/
-dev /opt/airflow/
-docs /opt/airflow/
-files /
-dist /
-hooks /opt/airflow/
-logs /root/airflow/
-pylintrc /opt/airflow/
-pytest.ini /opt/airflow/
-requirements /opt/airflow/
-scripts /opt/airflow/
-scripts/ci/in_container/entrypoint_ci.sh /
-setup.cfg /opt/airflow/
-setup.py /opt/airflow/
-tests /opt/airflow/
-tmp /opt/airflow/
-"
+function generate_local_mounts_list {
+    local prefix="$1"
+    LOCAL_MOUNTS=(
+        "$prefix".bash_aliases:/root/.bash_aliases:cached
+        "$prefix".bash_history:/root/.bash_history:cached
+        "$prefix".coveragerc:/opt/airflow/.coveragerc:cached
+        "$prefix".dockerignore:/opt/airflow/.dockerignore:cached
+        "$prefix".flake8:/opt/airflow/.flake8:cached
+        "$prefix".github:/opt/airflow/.github:cached
+        "$prefix".inputrc:/root/.inputrc:cached
+        "$prefix".kube:/root/.kube:cached
+        "$prefix".rat-excludes:/opt/airflow/.rat-excludes:cached
+        "$prefix"CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
+        "$prefix"Dockerfile.ci:/opt/airflow/Dockerfile.ci:cached
+        "$prefix"LICENSE:/opt/airflow/LICENSE:cached
+        "$prefix"MANIFEST.in:/opt/airflow/MANIFEST.in:cached
+        "$prefix"NOTICE:/opt/airflow/NOTICE:cached
+        "$prefix"airflow:/opt/airflow/airflow:cached
+        "$prefix"backport_packages:/opt/airflow/backport_packages:cached
+        "$prefix"common:/opt/airflow/common:cached
+        "$prefix"dags:/opt/airflow/dags:cached
+        "$prefix"dev:/opt/airflow/dev:cached
+        "$prefix"docs:/opt/airflow/docs:cached
+        "$prefix"files:/files:cached
+        "$prefix"dist:/dist:cached
+        "$prefix"hooks:/opt/airflow/hooks:cached
+        "$prefix"logs:/root/airflow/logs:cached
+        "$prefix"pylintrc:/opt/airflow/pylintrc:cached
+        "$prefix"pytest.ini:/opt/airflow/pytest.ini:cached
+        "$prefix"requirements:/opt/airflow/requirements:cached
+        "$prefix"scripts:/opt/airflow/scripts:cached
+        "$prefix"scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached
+        "$prefix"setup.cfg:/opt/airflow/setup.cfg:cached
+        "$prefix"setup.py:/opt/airflow/setup.py:cached
+        "$prefix"tests:/opt/airflow/tests:cached
+        "$prefix"tmp:/opt/airflow/tmp:cached
+    )
+}
 
 # Converts the local mounts that we defined above to the right set of -v
 # volume mappings in docker-compose file. This is needed so that we only
 # maintain the volumes in one place (above)
 function convert_local_mounts_to_docker_params() {
-    echo "${LOCAL_MOUNTS}" |sed '/^$/d' | awk -v AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-    '
-    function basename(file) {
-        sub(".*/", "", file)
-        return file
-    }
-    { print "-v"; print AIRFLOW_SOURCES "/" $1 ":" $2 basename($1) ":cached" }'
+    generate_local_mounts_list "${AIRFLOW_SOURCES}/"
+    # Bash can't "return" arrays, so we need to quote any special characters
+    printf -- '-v %q ' "${LOCAL_MOUNTS[@]}"
 }
 
 # Fixes a file that is expected to be a file. If - for whatever reason - the local file is not created
