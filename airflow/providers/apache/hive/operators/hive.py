@@ -145,6 +145,8 @@ class HiveOperator(BaseOperator):
         self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
 
     def dry_run(self):
+        # Reset airflow environment variables to prevent
+        # existing env vars from impacting behavior.
         blank_env_vars = get_blank_airflow_vars()
         os.environ.update(blank_env_vars)
 
