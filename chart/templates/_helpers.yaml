@@ -76,18 +76,6 @@
   {{ end }}
 {{- end }}
 
-{{ define "deployments_subdomain" -}}
-{{ printf "deployments.%s" .Values.ingress.baseDomain }}
-{{- end }}
-
-{{ define "airflow_subdomain" -}}
-{{ .Release.Name }}-airflow.{{ .Values.ingress.baseDomain }}
-{{- end }}
-
-{{ define "flower_subdomain" -}}
-{{ .Release.Name }}-flower.{{ .Values.ingress.baseDomain }}
-{{- end }}
-
 # This helper will change when customers deploy a new image.
 {{ define "airflow_image" -}}
 {{ printf "%s:%s" .Values.images.airflow.repository (default .Values.defaultAirflowTag .Values.images.airflow.tag) }}

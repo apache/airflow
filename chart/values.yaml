@@ -14,26 +14,6 @@ tolerations: []
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
 
-# Ingress configuration
-ingress:
-  # Enable ingress resource
-  enabled: false
-
-  # Enable for cert-manager or kube-lego
-  acme: false
-
-  # Name of tls secret to use on ingress
-  tlsSecretName: ~
-
-  # Annotations always injected when configuring webserver Ingress ojbect
-  webserverAnnotations: {}
-
-  # Annotations always injected when configuring Flower Ingress object
-  flowerAnnotations: {}
-
-  # Base domain for ingress vhosts
-  baseDomain: ~
-
 # Network policy configuration
 networkPolicies:
   # Enabled network policies
@@ -264,6 +244,9 @@ webserver:
 
   #   # Flask-WTF flag for CSRF
   #   CSRF_ENABLED = True
+  
+  service:
+    type: ClusterIP
 
 # Flower settings
 flower:

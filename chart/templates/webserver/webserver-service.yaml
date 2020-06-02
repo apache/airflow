@@ -15,7 +15,7 @@ metadata:
 {{ toYaml . | indent 4 }}
 {{- end }}
 spec:
-  type: ClusterIP
+  type: {{ .Values.webserver.service.type }}
   selector:
     tier: airflow
     component: webserver
