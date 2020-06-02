@@ -158,6 +158,9 @@ class HiveOperator(BaseOperator):
             self.hook.kill()
 
     def clear_airflow_vars(self):
+        """
+        Reset airflow environment variables to prevent existing ones from impacting behavior.
+        """
         blank_env_vars = {value['env_var_format']: '' for value in
                           operator_helpers.AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()}
         os.environ.update(blank_env_vars)
