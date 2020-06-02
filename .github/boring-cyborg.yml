@@ -51,6 +51,12 @@ labelPRBasedOnFilePath:
     - tests/runtime/kubernetes/*
     - docs/kubernetes.rst
 
+  area:API:
+    - airflow/api_connexion/*
+    - airflow/api_connexion/**/*
+    - tests/api_connexion/*
+    - tests/api_connexion/**/*
+
   area:dev:
     - scripts/**/*
     - scripts/*
