@@ -64,10 +64,14 @@ def patch_connection(connection_id, session):
     query = session.query(Connection)
     query = query.filter(Connection.conn_id == connection_id)
     connection = query.one_or_none()
-    for field in update_mask:
-        if hasattr(connection, field):
-            setattr(connection, field, body[field])
-    session.merge(connection)
+    if update_mask:
+        for field in update_mask:
+            if hasattr(connection, field):
+                setattr(connection, field, body[field])
+    else:
+        for k, v in body.items():
+            setattr(connection, k, v)
+    session.add(connection)
     session.commit()
 
     return connection_schema.dump(connection), 200
