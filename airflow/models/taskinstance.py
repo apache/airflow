@@ -96,19 +96,8 @@ class TaskTag(Base):
     Model for task tags, connected to task instances by dag_id and task_id
     """
     __tablename__ = 'task_tag'
-    __table_args__ = (
-        PrimaryKeyConstraint('name', 'dag_id', 'task_id', 'execution_date'),
-        ForeignKeyConstraint(('task_id', 'dag_id', 'execution_date'),
-                             ('task_instance.task_id',
-                              'task_instance.dag_id',
-                              'task_instance.execution_date'),
-                             ondelete='CASCADE'),
-    )
-
-    name = Column('name', String(length=100), nullable=False)
-    dag_id = Column('dag_id', String(length=ID_LEN), nullable=False)
-    task_id = Column('task_id', String(length=ID_LEN), nullable=False)
-    execution_date = Column('execution_date', UtcDateTime, nullable=False)
+    tag_id = Column('tag_id', Integer, primary_key=True)
+    name = Column('name', String(length=100), primary_key=True)
 
 
 def clear_task_instances(tis,
@@ -240,7 +229,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
-    task_tags = relationship('TaskTag', backref=backref('task_instance'), passive_deletes=True, lazy='raise')
+    tag_id = Column(Integer, ForeignKey('task_tag.tag_id'))
+    tags = relationship('TaskTag', cascade='all,delete-orphan', backref=backref('task_instance'))
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
 
@@ -570,13 +560,11 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self.operator = ti.operator
             self.queued_dttm = ti.queued_dttm
             self.pid = ti.pid
+            self.tag_id = ti.tag_id
         else:
             self.state = None
 
-        tag_qry = session.query(TaskTag).filter(
-            TaskTag.dag_id == self.dag_id,
-            TaskTag.task_id == self.task_id
-        )
+        tag_qry = session.query(TaskTag).filter(TaskTag.tag_id == self.tag_id)
 
         if lock_for_update:
             tags = tag_qry.with_for_update().all()
@@ -605,6 +593,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.max_tries = task.retries
         self.executor_config = task.executor_config
         self.operator = task.__class__.__name__
+        for tag in task.tags:
+            self.tags.append(TaskTag(name=tag))
 
     @provide_session
     def clear_xcom_data(self, session=None):

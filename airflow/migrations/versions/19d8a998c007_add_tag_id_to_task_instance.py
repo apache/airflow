@@ -16,41 +16,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add TaskTag table
+"""Add tag_id to task_instance
 
-Revision ID: 19d8a998c007
-Revises: 952da73b5eff
-Create Date: 2020-05-29 14:20:37.831692
+Revision ID: 1fac302a5b92
+Revises: 19d8a998c007
+Create Date: 2020-06-02 14:47:04.648961
 
 """
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.schema import Sequence, CreateSequence, DropSequence
 
 
 # revision identifiers, used by Alembic.
-revision = '19d8a998c007'
-down_revision = '952da73b5eff'
+revision = '1fac302a5b92'
+down_revision = '19d8a998c007'
 branch_labels = None
 depends_on = None
 
-tag_id_sequence = Sequence('tag_id_sequence')
-
 
 def upgrade():
-    """Apply Add TaskTag table"""
-    op.execute(CreateSequence(tag_id_sequence))
-
-    op.create_table(
-        'task_tag',
-        sa.Column('tag_id', sa.Integer, tag_id_sequence, server_default=tag_id_sequence.next_value(), nullable=False),
-        sa.Column('name', sa.String(length=100), nullable=False),
-        sa.PrimaryKeyConstraint('tag_id', 'name')
-    )
+    """Apply Add tag_id to task_instance"""
+    op.add_column('task_instance', sa.Column('tag_id', sa.Integer, sa.ForeignKey('task_tag.tag_id')))
 
 
 def downgrade():
-    """Unapply Add TaskTag table"""
-    op.drop_table('task_tag')
-    op.execute(DropSequence(tag_id_sequence))
+    """Unapply Add tag_id to task_instance"""
+    op.drop_column('task_instance', 'tag_id')

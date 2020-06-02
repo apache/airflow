@@ -265,10 +265,14 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         result
     :type do_xcom_push: bool
 <<<<<<< HEAD
+<<<<<<< HEAD
     :param task_tags: List of tags used to identify this task
     :type task_tags: list
 =======
     :param tags: List of tags used to identify this task
+=======
+    :param tags: List of tags used to identify this task. Duplicates are automatically removed.
+>>>>>>> Use tag_id column in task_instance as a foreign key to task_tag
     :type tags: list
 >>>>>>> Add TaskTag relationship to TaskInstance and display tags in task instance tooltips
     """
@@ -394,9 +398,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
-
-        # mypy doesn't yet understand differing getter and setter types
-        self.task_tags = task_tags  # type: ignore
+        self.tags = set(tags or [])
 
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
