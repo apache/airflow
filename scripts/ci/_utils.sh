@@ -263,7 +263,6 @@ function generate_local_mounts_list {
         "$prefix".flake8:/opt/airflow/.flake8:cached
         "$prefix".github:/opt/airflow/.github:cached
         "$prefix".inputrc:/root/.inputrc:cached
-        "$prefix".kube:/root/.kube:cached
         "$prefix".rat-excludes:/opt/airflow/.rat-excludes:cached
         "$prefix"CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
         "$prefix"LICENSE:/opt/airflow/LICENSE:cached
@@ -762,7 +761,7 @@ function get_remote_image_info() {
 # Note that this only matters if you have any of the important files changed since the last build
 # of your image such as Dockerfile.ci, setup.py etc.
 #
-MAGIC_CUT_OFF_NUMBER_OF_LAYERS=34
+MAGIC_CUT_OFF_NUMBER_OF_LAYERS=41
 
 # Compares layers from both remote and local image and set FORCE_PULL_IMAGES to true in case
 # More than the last NN layers are different.
@@ -1860,7 +1859,6 @@ function delete_cluster() {
     echo
     echo "Deleted cluster ${KIND_CLUSTER_NAME}"
     echo
-    rm -rf "${HOME}/.kube/*"
 }
 
 function perform_kind_cluster_operation() {

@@ -32,7 +32,6 @@ services:
       - ../../../.flake8:/opt/airflow/.flake8:cached
       - ../../../.github:/opt/airflow/.github:cached
       - ../../../.inputrc:/root/.inputrc:cached
-      - ../../../.kube:/root/.kube:cached
       - ../../../.rat-excludes:/opt/airflow/.rat-excludes:cached
       - ../../../CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
       - ../../../LICENSE:/opt/airflow/LICENSE:cached
@@ -62,6 +61,7 @@ services:
     environment:
       - HOST_USER_ID
       - HOST_GROUP_ID
+      - HOST_HOME=${HOME}
       - PYTHONDONTWRITEBYTECODE
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"
