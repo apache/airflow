@@ -65,7 +65,7 @@ def patch_connection():
     raise NotImplementedError("Not implemented yet.")
 
 
-def post_connection(session):
+def post_connection():
     """
     Create connection entry
     """
