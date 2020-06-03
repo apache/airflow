@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +16,31 @@
 # specific language governing permissions and limitations
 # under the License.
 
-      - name: git-sync-clone
-        env:
-        - name: GIT_SYNC_REPO
-          value: https://github.com/{{CONFIGMAP_GIT_REPO}}.git
-        - name: GIT_SYNC_BRANCH
-          value: {{CONFIGMAP_BRANCH}}
-        - name: GIT_SYNC_ROOT
-          value: /git
-        - name: GIT_SYNC_DEST
-          value: repo
-        - name: GIT_SYNC_ONE_TIME
-          value: "true"
-        image: gcr.io/google-containers/git-sync-amd64:v2.0.5
-        imagePullPolicy: IfNotPresent
-        securityContext:
-          runAsUser: 0
-        volumeMounts:
-        - mountPath: /git
-          name: airflow-dags-git
+set -euo pipefail
+
+echo
+echo "Initializing the Airflow db"
+echo
+
+
+# Init and upgrade the database to latest heads
+cd "${AIRFLOW_SOURCES}"/airflow || exit 1
+
+airflow initdb
+alembic upgrade heads
+
+echo
+echo "Initialized the database"
+echo
+
+# Create Airflow User if it does not exist
+airflow create_user \
+    --username airflow \
+    --lastname airflow \
+    --firstname jon \
+    --email airflow@apache.org \
+    --role Admin --password airflow || true
+
+echo
+echo "Created airflow user"
+echo

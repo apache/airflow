@@ -20,16 +20,18 @@ import time
 import unittest
 from subprocess import check_call, check_output
 
-import pytest
 import requests
 import requests.exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-KUBERNETES_HOST = (os.environ.get('CLUSTER_NAME') or "docker") + "-worker:30809"
+KUBERNETES_HOST_PORT = (os.environ.get('CLUSTER_HOST') or "localhost") + ":30809"
+
+print()
+print("Cluster host/port used: ${KUBERNETES_HOST_PORT}".format(KUBERNETES_HOST_PORT=KUBERNETES_HOST_PORT))
+print()
 
 
-@pytest.mark.runtime("kubernetes")
 class TestKubernetesExecutor(unittest.TestCase):
 
     @staticmethod
@@ -56,7 +58,7 @@ class TestKubernetesExecutor(unittest.TestCase):
 
     def _ensure_airflow_webserver_is_healthy(self):
         response = self.session.get(
-            "http://{host}/health".format(host=KUBERNETES_HOST),
+            "http://{host}/health".format(host=KUBERNETES_HOST_PORT),
             timeout=1,
         )
 
@@ -80,16 +82,15 @@ class TestKubernetesExecutor(unittest.TestCase):
 
             # Trigger a new dagrun
             try:
-                result = self.session.get(
-                    'http://{host}/api/experimental/dags/{dag_id}/'
-                    'dag_runs/{execution_date}/tasks/{task_id}'
-                    .format(host=host,
-                            dag_id=dag_id,
-                            execution_date=execution_date,
-                            task_id=task_id)
-                )
+                get_string = \
+                    'http://{host}/api/experimental/dags/{dag_id}/' \
+                    'dag_runs/{execution_date}/tasks/{task_id}'.format(
+                        host=host, dag_id=dag_id, execution_date=execution_date, task_id=task_id)
+                print("Calling [monitor_task]#1 {get_string}".format(get_string=get_string))
+                result = self.session.get(get_string)
                 self.assertEqual(result.status_code, 200, "Could not get the status")
                 result_json = result.json()
+                print("Received [monitor_task]#2: {result_json}".format(result_json=result_json))
                 state = result_json['state']
                 print("Attempt {}: Current state of operator is {}".format(tries, state))
 
@@ -112,18 +113,16 @@ class TestKubernetesExecutor(unittest.TestCase):
         while tries < max_tries:
             time.sleep(5)
 
+            get_string = \
+                'http://{host}/api/experimental/dags/{dag_id}/' \
+                'dag_runs/{execution_date}'.format(host=host,
+                                                   dag_id=dag_id, execution_date=execution_date)
+            print("Calling {get_string}".format(get_string=get_string))
             # Trigger a new dagrun
-            result = self.session.get(
-                'http://{host}/api/experimental/dags/{dag_id}/'
-                'dag_runs/{execution_date}'
-                .format(host=host,
-                        dag_id=dag_id,
-                        execution_date=execution_date)
-            )
-            print(result)
+            result = self.session.get(get_string)
             self.assertEqual(result.status_code, 200, "Could not get the status")
             result_json = result.json()
-            print(result_json)
+            print("Received: {result}".format(result=result))
             state = result_json['state']
             check_call(
                 ["echo", "Attempt {}: Current state of dag is {}".format(tries, state)])
@@ -138,53 +137,60 @@ class TestKubernetesExecutor(unittest.TestCase):
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
-        result = self.session.get(
-            'http://{host}/api/experimental/'
-            'dags/{dag_id}/paused/false'.format(host=host, dag_id=dag_id)
-        )
+        get_string = 'http://{host}/api/experimental/' \
+                     'dags/{dag_id}/paused/false'.format(host=host, dag_id=dag_id)
+        print("Calling [start_dag]#1 {get_string}".format(get_string=get_string))
+        result = self.session.get(get_string)
         try:
             result_json = result.json()
         except ValueError:
             result_json = str(result)
-
+        print("Received [start_dag]#1 {result_json}".format(result_json=result_json))
         self.assertEqual(result.status_code, 200, "Could not enable DAG: {result}"
                          .format(result=result_json))
-
+        post_string = 'http://{host}/api/experimental/' \
+                      'dags/{dag_id}/dag_runs'.format(host=host, dag_id=dag_id)
+        print("Calling [start_dag]#2 {post_string}".format(post_string=post_string))
         # Trigger a new dagrun
-        result = self.session.post(
-            'http://{host}/api/experimental/'
-            'dags/{dag_id}/dag_runs'.format(host=host, dag_id=dag_id),
-            json={}
-        )
+        result = self.session.post(post_string, json={})
         try:
             result_json = result.json()
         except ValueError:
             result_json = str(result)
-
+        print("Received [start_dag]#2 {result_json}".format(result_json=result_json))
         self.assertEqual(result.status_code, 200, "Could not trigger a DAG-run: {result}"
                          .format(result=result_json))
 
         time.sleep(1)
 
-        result = self.session.get(
-            'http://{}/api/experimental/latest_runs'.format(host)
-        )
+        get_string = 'http://{host}/api/experimental/latest_runs'.format(host=host)
+        print("Calling [start_dag]#3 {get_string}".format(get_string=get_string))
+        result = self.session.get(get_string)
         self.assertEqual(result.status_code, 200, "Could not get the latest DAG-run:"
                                                   " {result}"
                          .format(result=result.json()))
         result_json = result.json()
+        print("Received: [start_dag]#3 {result_json}".format(result_json=result_json))
         return result_json
 
+    def start_job_in_kubernetes(self, dag_id, host):
+        result_json = self.start_dag(dag_id=dag_id, host=host)
+        self.assertGreater(len(result_json['items']), 0)
+        execution_date = None
+        for dag_run in result_json['items']:
+            if dag_run['dag_id'] == dag_id:
+                execution_date = dag_run['execution_date']
+                break
+        self.assertIsNotNone(execution_date,
+                             "No execution_date can be found for the dag with {dag_id}".format(dag_id=dag_id))
+        return execution_date
+
     def test_integration_run_dag(self):
-        host = KUBERNETES_HOST
+        host = KUBERNETES_HOST_PORT
         dag_id = 'example_kubernetes_executor_config'
 
-        result_json = self.start_dag(dag_id=dag_id, host=host)
-
-        self.assertGreater(len(result_json['items']), 0)
-
-        execution_date = result_json['items'][0]['execution_date']
-        print("Found the job with execution date {}".format(execution_date))
+        execution_date = self.start_job_in_kubernetes(dag_id, host)
+        print("Found the job with execution date {execution_date}".format(execution_date=execution_date))
 
         # Wait some time for the operator to complete
         self.monitor_task(host=host,
@@ -199,15 +205,10 @@ class TestKubernetesExecutor(unittest.TestCase):
                                        expected_final_state='success', timeout=200)
 
     def test_integration_run_dag_with_scheduler_failure(self):
-        host = KUBERNETES_HOST
+        host = KUBERNETES_HOST_PORT
         dag_id = 'example_kubernetes_executor_config'
 
-        result_json = self.start_dag(dag_id=dag_id, host=host)
-
-        self.assertGreater(len(result_json['items']), 0)
-
-        execution_date = result_json['items'][0]['execution_date']
-        print("Found the job with execution date {}".format(execution_date))
+        execution_date = self.start_job_in_kubernetes(dag_id, host)
 
         self._delete_airflow_pod()
 

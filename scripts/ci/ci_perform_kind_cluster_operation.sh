@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "2.2"
-services:
-  airflow:
-    environment:
-      - RUNTIME=kubernetes
-      - KUBERNETES_MODE
-      - KUBERNETES_VERSION
-      - KIND_CLUSTER_OPERATION
+
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
+
+check_kind_and_kubectl_are_installed
+
+perform_kind_cluster_operation "${@}"
+
+check_cluster_ready_for_airflow
