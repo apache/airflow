@@ -41,15 +41,11 @@ function check_verbose_setup {
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
 # printed before execution
 function verbose_docker {
-    if [[ ${VERBOSE_COMMANDS:=} == "true" ]]; then
-      # No need to echo, we're already in set -x
-      docker "${@}"
-    elif [[ ${VERBOSE:="false"} == "true" ]]; then
+    if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
+       # do not print echo if VERSBOSE_COMMAND is set (set -x does it already)
         echo "docker" "${@}"
-        docker "${@}"
-    else
-        docker "${@}"
     fi
+    docker "${@}"
 }
 
 # Common environment that is initialized by both Breeze and CI scripts
