@@ -618,11 +618,19 @@ class TestDataflowJob(unittest.TestCase):
 
 class TestDataflow(unittest.TestCase):
 
-    def test_data_flow_valid_job_id(self):
+    def test_data_flow_valid_job_id_old_format(self):
         cmd = [
             'echo', 'additional unit test lines.\n' +
             'https://console.cloud.google.com/dataflow/jobsDetail/locations/us-central1/'
             'jobs/{}?project=XXX'.format(TEST_JOB_ID)
+        ]
+        self.assertEqual(_DataflowRunner(cmd).wait_for_done(), TEST_JOB_ID)
+
+    def test_data_flow_valid_job_id(self):
+        cmd = [
+            'echo', 'additional unit test lines.\n' +
+            'https://console.cloud.google.com/dataflow/jobs/us-central1/'
+            '{}?project=XXX'.format(TEST_JOB_ID)
         ]
         self.assertEqual(_DataflowRunner(cmd).wait_for_done(), TEST_JOB_ID)
 

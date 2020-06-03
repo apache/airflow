@@ -40,11 +40,14 @@ from airflow.utils.python_virtualenv import prepare_virtualenv
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 
-
-# https://github.com/apache/beam/blob/75eee7857bb80a0cdb4ce99ae3e184101092e2ed/sdks/go/pkg/beam/runners/
-# universal/runnerlib/execute.go#L85
+# https://github.com/apache/beam/blob/279a05604b83a54e8e5a79e13d8761f94841f326/runners/
+# google-cloud-dataflow-java/src/main/java/org/apache/beam/runners/dataflow/util/MonitoringUtil.java#L192
+OLD_JOB_ID_PATTERN = re.compile(
+    r'https?://console\.cloud\.google\.com/dataflow/jobsDetail/locations/.*/jobs/([a-z|0-9|A-Z|\-|\_]+).*?')
+# https://github.com/apache/beam/blob/master/runners/google-cloud-dataflow-java/src/
+# main/java/org/apache/beam/runners/dataflow/util/MonitoringUtil.java#L192
 JOB_ID_PATTERN = re.compile(
-    r'https?://console\.cloud\.google\.com/dataflow/jobsDetail/locations/.+?/jobs/([a-z|0-9|A-Z|\-|\_]+).*?')
+    r'https?://console\.cloud\.google\.com/dataflow/jobs/.*/([a-z|0-9|A-Z|\-|\_]+).*?')
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
 
@@ -297,9 +300,9 @@ class _DataflowRunner(LoggingMixin):
         :return: job_id or None if no match
         :rtype: Optional[str]
         """
-        # Job id info: https://goo.gl/SE29y9.
-        matched_job = JOB_ID_PATTERN.search(line)
-        if matched_job:
+        for pattern in (OLD_JOB_ID_PATTERN, JOB_ID_PATTERN):
+          matched_job = pattern.search(line)
+          if matched_job:
             job_id = matched_job.group(1)
             self.log.info("Found Job ID: %s", job_id)
             return job_id
