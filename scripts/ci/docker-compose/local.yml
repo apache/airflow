@@ -57,6 +57,7 @@ services:
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
+      - ../../../kubernetes_tests:/opt/airflow/kubernetes_tests:cached
       - ../../../tmp:/opt/airflow/tmp:cached
       # END automatically generated volumes from LOCAL_MOUNTS in _utils.sh
     environment:

@@ -1218,7 +1218,8 @@ These integrations allow you to perform various operations within various servic
    * - `Snowflake <https://www.snowflake.com/>`__
      -
      - :mod:`airflow.providers.snowflake.hooks.snowflake`
-     - :mod:`airflow.providers.snowflake.operators.snowflake`
+     - :mod:`airflow.providers.snowflake.operators.snowflake`,
+       :mod:`airflow.providers.snowflake.operators.snowflake_to_slack`
      -
 
    * - `Vertica <https://www.vertica.com/>`__

@@ -468,6 +468,7 @@ opsgenie                   http
 postgres                   amazon
 sftp                       ssh
 slack                      http
+snowflake                  slack
 ========================== ===========================
 
   .. END PACKAGE DEPENDENCIES HERE

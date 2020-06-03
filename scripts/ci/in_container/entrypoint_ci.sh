@@ -29,7 +29,6 @@ BACKEND=${BACKEND:=sqlite}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
-RUNTIME=${RUNTIME:=""}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -143,52 +142,30 @@ if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
 fi
 
 
-if [[ "${RUNTIME}" == "" ]]; then
-    # Start MiniCluster
-    java -cp "/opt/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
-        >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
+# Start MiniCluster
+java -cp "/opt/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
+    >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
 
-    # Set up ssh keys
-    echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
-        >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
+# Set up ssh keys
+echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
+    >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
 
-    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-    ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
-    chmod 600 ~/.ssh/*
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
+chmod 600 ~/.ssh/*
 
-    # SSH Service
-    sudo service ssh restart >/dev/null 2>&1
+# SSH Service
+sudo service ssh restart >/dev/null 2>&1
 
-    # Sometimes the server is not quick enough to load the keys!
-    while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
-        echo "Not all keys yet loaded by the server"
-        sleep 0.05
-    done
+# Sometimes the server is not quick enough to load the keys!
+while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
+    echo "Not all keys yet loaded by the server"
+    sleep 0.05
+done
 
-    ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
-fi
+ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 
-
-export KIND_CLUSTER_OPERATION="${KIND_CLUSTER_OPERATION:="start"}"
 export KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
-
-if [[ ${RUNTIME:=""} == "kubernetes" ]]; then
-    unset KRB5_CONFIG
-    unset KRB5_KTNAME
-    export AIRFLOW_KUBERNETES_IMAGE=${AIRFLOW_CI_IMAGE}-kubernetes
-    AIRFLOW_KUBERNETES_IMAGE_NAME=$(echo "${AIRFLOW_KUBERNETES_IMAGE}" | cut -f 1 -d ":")
-    export AIRFLOW_KUBERNETES_IMAGE_NAME
-    AIRFLOW_KUBERNETES_IMAGE_TAG=$(echo "${AIRFLOW_KUBERNETES_IMAGE}" | cut -f 2 -d ":")
-    export AIRFLOW_KUBERNETES_IMAGE_TAG
-fi
-
-if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
-    export CLUSTER_NAME="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"
-    "${MY_DIR}/kubernetes/setup_kind_cluster.sh"
-    if [[ ${KIND_CLUSTER_OPERATION} == "stop" ]]; then
-        exit 1
-    fi
-fi
 
 # shellcheck source=scripts/ci/in_container/configure_environment.sh
 . "${MY_DIR}/configure_environment.sh"
@@ -239,9 +216,9 @@ if [[ ${#@} -gt 0 && -n "$1" ]]; then
 fi
 
 if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
-    for INTEGRATION in ${RUN_INTEGRATION_TESTS}
+    for INT in ${RUN_INTEGRATION_TESTS}
     do
-        CI_ARGS+=("--integration" "${INTEGRATION}")
+        CI_ARGS+=("--integration" "${INT}")
     done
     CI_ARGS+=("-rpfExX")
 elif [[ ${ONLY_RUN_LONG_RUNNING_TESTS:=""} == "true" ]]; then
@@ -259,17 +236,6 @@ elif [[ ${ONLY_RUN_QUARANTINED_TESTS:=""} == "true" ]]; then
         "--reruns" "3"
         "--timeout" "90")
 fi
-
-
-if [[ -n ${RUNTIME} ]]; then
-    CI_ARGS+=("--runtime" "${RUNTIME}" "-rpfExX")
-    TESTS_TO_RUN="tests/runtime"
-    if [[ ${RUNTIME} == "kubernetes" ]]; then
-        export SKIP_INIT_DB=true
-        "${MY_DIR}/deploy_airflow_to_kubernetes.sh"
-    fi
-fi
-
 
 ARGS=("${CI_ARGS[@]}" "${TESTS_TO_RUN}")
 

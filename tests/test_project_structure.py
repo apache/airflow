@@ -33,7 +33,6 @@ MISSING_TEST_FILES = {
     'tests/providers/apache/hive/operators/test_vertica_to_hive.py',
     'tests/providers/apache/pig/operators/test_pig.py',
     'tests/providers/apache/spark/hooks/test_spark_jdbc_script.py',
-    'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
     'tests/providers/google/cloud/operators/test_sql_to_gcs.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',

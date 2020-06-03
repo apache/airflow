@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 ---
 name: CI Build
 on:
@@ -25,7 +24,9 @@ on:
     branches: ['master', 'v1-10-test', 'v1-10-stable']
   pull_request:
     branches: ['master', 'v1-10-test', 'v1-10-stable']
+
 env:
+
   MOUNT_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   SKIP_CHECK_REMOTE_IMAGE: "true"
@@ -38,7 +39,9 @@ env:
   CACHE_IMAGE_PREFIX: ${{ github.repository }}
   CACHE_REGISTRY_USERNAME: ${{ github.actor }}
   CACHE_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
+
   static-checks-1:
     timeout-minutes: 60
     name: "Checks: some checks"
@@ -52,9 +55,9 @@ jobs:
         with:
           python-version: '3.x'
       - name: Cache pre-commit env
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         env:
-          cache-name: cache-pre-commit
+          cache-name: cache-pre-commit-v2
         with:
           path: ~/.cache/pre-commit
           key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -166,17 +169,18 @@ jobs:
           ./scripts/ci/ci_count_changed_files.sh ${GITHUB_SHA} '\.py$|.github/workflows/|^Dockerfile'
           echo "::set-output name=count::$?"
         id: pyfiles
+
   tests-kubernetes:
     timeout-minutes: 80
-    name: "kubernetes-test-${{matrix.kube-mode}}-kube"
+    name: "K8s: ${{matrix.kube-mode}} ${{matrix.python-version}} ${{matrix.kubernetes-version}}"
     runs-on: ubuntu-latest
     needs: [static-checks-1, static-checks-2, pyfiles]
     strategy:
       matrix:
+        python-version: [3.6, 3.7]
         kube-mode:
-          - persistent_mode
-#          #TODO These tests will be unblocked when k8s tests run on host
-#          - git_mode
+          - image
+          - git
         kubernetes-version:
           - "v1.15.3"
       fail-fast: false
@@ -185,12 +189,14 @@ jobs:
       TEST_TYPE: ${{ matrix.test-type }}
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
-      PYTHON_MAJOR_MINOR_VERSION: "3.6"
       SKIP_CI_IMAGE_CHECK: "true"
       RUNTIME: "kubernetes"
       ENABLE_KIND_CLUSTER: "true"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       KUBERNETES_MODE: "${{ matrix.kube-mode }}"
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
+    # For pull requests only run tests when python files changed
+    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -198,12 +204,23 @@ jobs:
           python-version: '3.x'
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
-      - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_image_on_ci.sh
       - name: "Build PROD image ${{ matrix.python-version }}"
         run: ./scripts/ci/ci_build_production_images.sh
+      - name: "Setup KinD cluster"
+        run: ./scripts/ci/ci_perform_kind_cluster_operation.sh start
+      - name: "Deploy app to cluster"
+        run: ./scripts/ci/ci_deploy_app_to_kubernetes.sh
+      - name: Cache virtualenv for kubernetes testing
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-kubernetes-tests-virtualenv-v2
+        with:
+          path: .build/.kubernetes_venv
+          key: "${{ env.cache-name }}-${{ github.job }}-\
+${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') }}"
       - name: "Tests"
-        run: ./scripts/ci/ci_run_airflow_testing.sh
+        run: ./scripts/ci/ci_run_kubernetes_tests.sh
+
   tests-postgres:
     timeout-minutes: 80
     name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
