@@ -264,7 +264,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
     :type do_xcom_push: bool
-    :param tags: List of tags used to identify this task. Duplicates are automatically removed.
+    :param tags: List of tags used to identify this task
     :type tags: list
     """
     # For derived classes to define which fields will get jinjaified
@@ -389,7 +389,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
-        self.tags = set(tags or [])
+        self.tags = tags
 
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
