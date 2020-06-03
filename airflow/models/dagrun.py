@@ -27,7 +27,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstance import TaskInstance as TI, TaskTag
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -212,6 +212,11 @@ class DagRun(Base, LoggingMixin):
         tis = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.execution_date == self.execution_date,
+        ).join(TaskTag, and_(
+                TaskTag.dag_id == TI.dag_id,
+                TaskTag.task_id == TI.task_id,
+                TaskTag.execution_date == TI.execution_date
+            )
         )
 
         if state:
@@ -246,6 +251,11 @@ class DagRun(Base, LoggingMixin):
             TI.dag_id == self.dag_id,
             TI.execution_date == self.execution_date,
             TI.task_id == task_id
+        ).join(TaskTag, and_(
+                TaskTag.dag_id == TI.dag_id,
+                TaskTag.task_id == TI.task_id,
+                TaskTag.execution_date == TI.execution_date
+            )
         ).first()
 
         return ti

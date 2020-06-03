@@ -33,7 +33,7 @@ import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, and_, or_
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.session import Session
 
@@ -47,7 +47,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, TaskTag, clear_task_instances
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
@@ -853,6 +853,11 @@ class DAG(BaseDag, LoggingMixin):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.execution_date >= start_date,
             TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
+        ).join(TaskTag, and_(
+                TaskTag.dag_id == TaskInstance.dag_id,
+                TaskTag.task_id == TaskInstance.task_id,
+                TaskTag.execution_date == TaskInstance.execution_date
+            )
         )
 
         if load_task_tags:
