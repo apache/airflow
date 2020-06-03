@@ -26,7 +26,7 @@ declare -a EXTRA_DOCKER_PROD_BUILD_FLAGS
 export EXTRA_DOCKER_FLAGS
 export EXTRA_DOCKER_PROD_BUILD_FLAGS
 
-declare -a files_to_cleanup_on_exit=()
+declare -a FILES_TO_CLEANUP_ON_EXIT=()
 
 # In case "VERBOSE_COMMANDS" is set to "true" set -x is used to enable debugging
 function check_verbose_setup {
@@ -731,7 +731,7 @@ function get_remote_image_info() {
 
     # Docker needs the file passed to --cidfile to not exist, so we can't use mktemp
     TMP_CONTAINER_ID="remote-airflow-manifest-$$.container_id"
-    files_to_cleanup_on_exit+=("$TMP_CONTAINER_ID")
+    FILES_TO_CLEANUP_ON_EXIT+=("$TMP_CONTAINER_ID")
 
     TMP_MANIFEST_REMOTE_JSON=$(mktemp)
     TMP_MANIFEST_REMOTE_SHA=$(mktemp)
@@ -908,8 +908,8 @@ function script_end {
         set +x
     fi
 
-    if [[ ${#files_to_cleanup_on_exit[@]} -gt 0 ]]; then
-      rm -rf -- "${files_to_cleanup_on_exit[@]}"
+    if [[ ${#FILES_TO_CLEANUP_ON_EXIT[@]} -gt 0 ]]; then
+      rm -rf -- "${FILES_TO_CLEANUP_ON_EXIT[@]}"
     fi
 
     END_SCRIPT_TIME=$(date +%s)
