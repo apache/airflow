@@ -99,6 +99,7 @@ class TaskTag(Base):
     name = Column('name', String(length=100), primary_key=True)
     dag_id = Column('dag_id', String(length=ID_LEN), ForeignKey('task_instance.dag_id'), primary_key=True)
     task_id = Column('task_id', String(length=ID_LEN), ForeignKey('task_instance.task_id'), primary_key=True)
+    execution_date = Column('execution_date', UtcDateTime, ForeignKey('task_instance.execution_date'), primary_key=True)
 
 
 def clear_task_instances(tis,
@@ -230,7 +231,10 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
-    tags = relationship('TaskTag', primaryjoin=and_(TaskTag.dag_id == dag_id, TaskTag.task_id == task_id),
+    tags = relationship('TaskTag',
+                        primaryjoin=and_(TaskTag.dag_id == dag_id,
+                                         TaskTag.task_id == task_id,
+                                         TaskTag.execution_date == execution_date),
                         cascade='all,delete-orphan', backref=backref('task_instance'))
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
@@ -566,7 +570,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
         tag_qry = session.query(TaskTag).filter(
             TaskTag.dag_id == self.dag_id,
-            TaskTag.task_id == self.task_id
+            TaskTag.task_id == self.task_id,
+            TaskTag.execution_date == self.execution_date
         )
 
         if lock_for_update:
@@ -596,6 +601,10 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.max_tries = task.retries
         self.executor_config = task.executor_config
         self.operator = task.__class__.__name__
+        for tag in task.tags:
+            self.tags.append(
+                TaskTag(name=tag, dag_id=self.dag_id, task_id=self.task_id, execution_date=self.execution_date)
+            )
 
     @provide_session
     def clear_xcom_data(self, session=None):
