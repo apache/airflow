@@ -20,10 +20,15 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-function run_test_package_installation() {
+function run_test_package_import_all_classes() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         -v "${AIRFLOW_SOURCES}/dist:/dist:cached" \
+        -v "${AIRFLOW_SOURCES}/setup.py:/airflow_sources/setup.py:cached" \
+        -v "${AIRFLOW_SOURCES}/setup.cfg:/airflow_sources/setup.cfg:cached" \
+        -v "${AIRFLOW_SOURCES}/airflow/__init__.py:/airflow_sources/airflow/__init__.py:cached" \
+        -v "${AIRFLOW_SOURCES}/airflow/version.py:/airflow_sources/airflow/version.py:cached" \
+        -v "${AIRFLOW_SOURCES}/backport_packages/import_all_provider_classes.py:/import_all_provider_classes.py:cached" \
         --env PYTHONDONTWRITEBYTECODE \
         --env INSTALL_AIRFLOW_VERSION \
         --env VERBOSE \
@@ -32,8 +37,9 @@ function run_test_package_installation() {
         --env HOST_GROUP_ID="$(id -gr)" \
         --rm \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_test_package_installation.sh" \
+        "--" "/opt/airflow/scripts/ci/in_container/run_test_package_import_all_classes.sh" \
         | tee -a "${OUTPUT_LOG}"
+
 }
 
 get_ci_environment
@@ -42,4 +48,4 @@ prepare_ci_build
 
 rebuild_ci_image_if_needed
 
-run_test_package_installation
+run_test_package_import_all_classes

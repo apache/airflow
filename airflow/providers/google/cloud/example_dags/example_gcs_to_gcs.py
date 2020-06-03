@@ -22,7 +22,9 @@ Example Airflow DAG for Google Cloud Storage to Google Cloud Storage transfer op
 import os
 
 from airflow import models
-from airflow.providers.google.cloud.operators.gcs_to_gcs import GCSSynchronizeBuckets, GCSToGCSOperator
+from airflow.providers.google.cloud.operators.gcs_to_gcs import (
+    GCSSynchronizeBucketsOperator, GCSToGCSOperator,
+)
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}
@@ -43,7 +45,7 @@ with models.DAG(
     "example_gcs_to_gcs", default_args=default_args, schedule_interval=None, tags=['example']
 ) as dag:
     # [START howto_synch_bucket]
-    sync_bucket = GCSSynchronizeBuckets(
+    sync_bucket = GCSSynchronizeBucketsOperator(
         task_id="sync_bucket",
         source_bucket=BUCKET_1_SRC,
         destination_bucket=BUCKET_1_DST
@@ -51,7 +53,7 @@ with models.DAG(
     # [END howto_synch_bucket]
 
     # [START howto_synch_full_bucket]
-    sync_full_bucket = GCSSynchronizeBuckets(
+    sync_full_bucket = GCSSynchronizeBucketsOperator(
         task_id="sync_full_bucket",
         source_bucket=BUCKET_1_SRC,
         destination_bucket=BUCKET_1_DST,
@@ -61,7 +63,7 @@ with models.DAG(
     # [END howto_synch_full_bucket]
 
     # [START howto_synch_to_subdir]
-    sync_to_subdirectory = GCSSynchronizeBuckets(
+    sync_to_subdirectory = GCSSynchronizeBucketsOperator(
         task_id="sync_to_subdirectory",
         source_bucket=BUCKET_1_SRC,
         destination_bucket=BUCKET_1_DST,
@@ -70,7 +72,7 @@ with models.DAG(
     # [END howto_synch_to_subdir]
 
     # [START howto_sync_from_subdir]
-    sync_from_subdirectory = GCSSynchronizeBuckets(
+    sync_from_subdirectory = GCSSynchronizeBucketsOperator(
         task_id="sync_from_subdirectory",
         source_bucket=BUCKET_1_SRC,
         source_object="subdir/",

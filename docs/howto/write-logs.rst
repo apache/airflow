@@ -47,7 +47,7 @@ Advanced configuration
 Not all configuration options are available from the ``airflow.cfg`` file. Some configuration options require
 that the logging config class be overwritten. This can be done by ``logging_config_class`` option
 in ``airflow.cfg`` file. This option should specify the import path indicating to a configuration compatible with
-:class:`logging.config.dictConfig`. If your file is a standard import location, then you should set a  :any:`PYTHONPATH` environment.
+:func:`logging.config.dictConfig`. If your file is a standard import location, then you should set a :envvar:`PYTHONPATH` environment.
 
 Follow the steps below to enable custom logging config class:
 
@@ -147,7 +147,7 @@ Airflow can be configured to read and write task logs in Azure Blob Storage.
 
 Follow the steps below to enable Azure Blob Storage logging:
 
-#. Airflow's logging system requires a custom ``.py`` file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file, ``$AIRFLOW_HOME/config`` is recommended.
+#. Airflow's logging system requires a custom ``.py`` file to be located in the :envvar:`PYTHONPATH`, so that it's importable from Airflow. Start by creating a directory to store the config file, ``$AIRFLOW_HOME/config`` is recommended.
 #. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
 #. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file created in ``Step 2``.
 #. Customize the following portions of the template:

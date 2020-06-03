@@ -62,14 +62,14 @@ class AwsBaseHook(BaseHook):
     """
 
     def __init__(
-            self,
-            aws_conn_id: Optional[str] = "aws_default",
-            verify: Union[bool, str, None] = None,
-            region_name: Optional[str] = None,
-            client_type: Optional[str] = None,
-            resource_type: Optional[str] = None,
-            config: Optional[Config] = None
-    ):
+        self,
+        aws_conn_id: Optional[str] = "aws_default",
+        verify: Union[bool, str, None] = None,
+        region_name: Optional[str] = None,
+        client_type: Optional[str] = None,
+        resource_type: Optional[str] = None,
+        config: Optional[Config] = None
+    ) -> None:
         super().__init__()
         self.aws_conn_id = aws_conn_id
         self.verify = verify

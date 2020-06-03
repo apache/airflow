@@ -22,7 +22,8 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 "${MY_DIR}/ci_prepare_backport_readme.sh"
 "${MY_DIR}/ci_prepare_backport_packages.sh"
-"${MY_DIR}/ci_test_backport_packages.sh"
+"${MY_DIR}/ci_test_backport_packages_install_separately.sh"
+"${MY_DIR}/ci_test_backport_packages_import_all_classes.sh"
 
 cd "${MY_DIR}/../../backport_packages" || exit 1
 

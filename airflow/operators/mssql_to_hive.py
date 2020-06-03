@@ -19,10 +19,25 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.providers.apache.hive.operators.mssql_to_hive import MsSqlToHiveTransfer  # noqa
+from airflow.providers.apache.hive.operators.mssql_to_hive import MsSqlToHiveTransferOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.operators.mssql_to_hive`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class MsSqlToHiveTransfer(MsSqlToHiveTransferOperator):
+    """
+    This class is deprecated.
+    Please use:
+    `airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlToHiveTransferOperator`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlToHiveTransferOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

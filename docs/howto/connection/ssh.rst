@@ -19,7 +19,9 @@
 
 SSH Connection
 ==============
-The SSH connection type provides connection to use :class:`~airflow.providers.ssh.hooks.ssh.SSHHook` to run commands on a remote server using :class:`~airflow.providers.ssh.operators.ssh.SSHOperator` or transfer file from/to the remote server using :class:`~airflow.providers.ssh.operators.ssh.SFTPOperator`.
+The SSH connection type provides connection to use :class:`~airflow.providers.ssh.hooks.ssh.SSHHook` to run
+commands on a remote server using :class:`~airflow.providers.ssh.operators.ssh.SSHOperator` or transfer
+file from/to the remote server using :class:`~airflow.providers.sftp.operators.sftp.SFTPOperator`.
 
 Configuring the Connection
 --------------------------
@@ -59,7 +61,7 @@ Extra (optional)
           "allow_host_key_change": "false"
        }
 
-    When specifying the connection as URI (in ``AIRFLOW_CONN_*`` variable) you should specify it
+    When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
     following the standard syntax of connections, where extras are passed as parameters
     of the URI (note that all components of the URI should be URL-encoded).
 

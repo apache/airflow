@@ -17,13 +17,16 @@
 # under the License.
 """Tests for Google Cloud Build operators """
 
+import tempfile
 from copy import deepcopy
+from datetime import datetime
 from unittest import TestCase
 
 import mock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
+from airflow.models import DAG, TaskInstance
 from airflow.providers.google.cloud.operators.cloud_build import BuildProcessor, CloudBuildCreateOperator
 
 TEST_CREATE_BODY = {
@@ -34,6 +37,7 @@ TEST_CREATE_BODY = {
     "images": ["gcr.io/$PROJECT_ID/my-image"],
 }
 TEST_PROJECT_ID = "example-id"
+TEST_DEFAULT_DATE = datetime(year=2020, month=1, day=1)
 
 
 class TestBuildProcessor(TestCase):
@@ -180,6 +184,7 @@ class TestGcpCloudBuildCreateOperator(TestCase):
         operator = CloudBuildCreateOperator(
             body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
+
         return_value = operator.execute({})
         expected_body = {
             # [START howto_operator_gcp_cloud_build_source_repo_dict]
@@ -203,3 +208,29 @@ class TestGcpCloudBuildCreateOperator(TestCase):
             body=expected_body, project_id=TEST_PROJECT_ID
         )
         self.assertEqual(return_value, TEST_CREATE_BODY)
+
+    def test_load_templated_yaml(self):
+        dag = DAG(dag_id='example_cloudbuild_operator', start_date=TEST_DEFAULT_DATE)
+        with tempfile.NamedTemporaryFile(suffix='.yaml', mode='w+t') as build:
+            build.writelines("""
+            steps:
+                - name: 'ubuntu'
+                  args: ['echo', 'Hello {{ params.name }}!']
+            """)
+            build.seek(0)
+            body_path = build.name
+            operator = CloudBuildCreateOperator(
+                body=body_path,
+                task_id="task-id", dag=dag,
+                params={'name': 'airflow'}
+            )
+            operator.prepare_template()
+            ti = TaskInstance(operator, TEST_DEFAULT_DATE)
+            ti.render_templates()
+            expected_body = {'steps': [
+                {'name': 'ubuntu',
+                 'args': ['echo', 'Hello airflow!']
+                 }
+            ]
+            }
+            self.assertEqual(expected_body, operator.body)

@@ -27,7 +27,7 @@ from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.utils.decorators import apply_defaults
 
 
-class OracleToAzureDataLakeTransfer(BaseOperator):
+class OracleToAzureDataLakeTransferOperator(BaseOperator):
     """
     Moves data from Oracle to Azure Data Lake. The operator runs the query against
     Oracle and stores the file locally before loading it into Azure Data Lake.

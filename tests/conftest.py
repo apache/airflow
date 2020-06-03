@@ -19,7 +19,9 @@ import os
 import subprocess
 import sys
 from contextlib import ExitStack
+from datetime import datetime, timedelta
 
+import freezegun
 import pytest
 
 # We should set these before loading _any_ of the rest of airflow so that the
@@ -415,3 +417,39 @@ def pytest_runtest_setup(item):
         skip_quarantined_test(item)
     skip_if_credential_file_missing(item)
     skip_if_airflow_2_test(item)
+
+
+@pytest.fixture
+def frozen_sleep(monkeypatch):
+    """
+    Use freezegun to "stub" sleep, so that it takes no time, but that
+    ``datetime.now()`` appears to move forwards
+
+    If your module under test does ``import time`` and then ``time.sleep``::
+
+        def test_something(frozen_sleep):
+            my_mod.fn_under_test()
+
+
+    If your module under test does ``from time import sleep`` then you will
+    have to mock that sleep function directly::
+
+        def test_something(frozen_sleep, monkeypatch):
+            monkeypatch.setattr('my_mod.sleep', frozen_sleep)
+            my_mod.fn_under_test()
+    """
+    freezegun_control = None
+
+    def fake_sleep(seconds):
+        nonlocal freezegun_control
+        utcnow = datetime.utcnow()
+        if freezegun_control is not None:
+            freezegun_control.stop()
+        freezegun_control = freezegun.freeze_time(utcnow + timedelta(seconds=seconds))
+        freezegun_control.start()
+
+    monkeypatch.setattr("time.sleep", fake_sleep)
+    yield fake_sleep
+
+    if freezegun_control is not None:
+        freezegun_control.stop()

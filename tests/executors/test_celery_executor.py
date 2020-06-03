@@ -142,8 +142,10 @@ class TestCeleryExecutor(unittest.TestCase):
 
                 executor.end(synchronous=True)
 
-        self.assertEqual(executor.event_buffer[('success', 'fake_simple_ti', execute_date, 0)], State.SUCCESS)
-        self.assertEqual(executor.event_buffer[('fail', 'fake_simple_ti', execute_date, 0)], State.FAILED)
+        self.assertEqual(executor.event_buffer[('success', 'fake_simple_ti', execute_date, 0)][0],
+                         State.SUCCESS)
+        self.assertEqual(executor.event_buffer[('fail', 'fake_simple_ti', execute_date, 0)][0],
+                         State.FAILED)
 
         self.assertNotIn('success', executor.tasks)
         self.assertNotIn('fail', executor.tasks)
@@ -248,7 +250,7 @@ class TestBulkStateFetcher(unittest.TestCase):
         self.assertEqual(set(mget_args[0]), {b'celery-task-meta-456', b'celery-task-meta-123'})
         mock_mget.assert_called_once_with(mock.ANY)
 
-        self.assertEqual(result, {'123': 'SUCCESS', '456': "PENDING"})
+        self.assertEqual(result, {'123': ('SUCCESS', None), '456': ("PENDING", None)})
 
     @mock.patch("celery.backends.database.DatabaseBackend.ResultSession")
     @pytest.mark.integration("redis")
@@ -270,7 +272,7 @@ class TestBulkStateFetcher(unittest.TestCase):
             mock.MagicMock(task_id="456"),
         ])
 
-        self.assertEqual(result, {'123': 'SUCCESS', '456': "PENDING"})
+        self.assertEqual(result, {'123': ('SUCCESS', None), '456': ("PENDING", None)})
 
     @pytest.mark.integration("redis")
     @pytest.mark.integration("rabbitmq")
@@ -286,4 +288,4 @@ class TestBulkStateFetcher(unittest.TestCase):
                     ClassWithCustomAttributes(task_id="456", state="PENDING"),
                 ])
 
-        self.assertEqual(result, {'123': 'SUCCESS', '456': "PENDING"})
+        self.assertEqual(result, {'123': ('SUCCESS', None), '456': ("PENDING", None)})

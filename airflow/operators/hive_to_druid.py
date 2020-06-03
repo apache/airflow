@@ -20,9 +20,25 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.apache.druid.operators.hive_to_druid import HiveToDruidTransfer  # noqa
+from airflow.providers.apache.druid.operators.hive_to_druid import HiveToDruidTransferOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.druid.operators.hive_to_druid`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class HiveToDruidTransfer(HiveToDruidTransferOperator):
+    """
+    This class is deprecated.
+    Please use:
+    `airflow.providers.apache.druid.operators.hive_to_druid.HiveToDruidTransferOperator`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.apache.druid.operators.hive_to_druid.HiveToDruidTransferOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

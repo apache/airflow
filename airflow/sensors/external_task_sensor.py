@@ -119,7 +119,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         if self.execution_delta:
             dttm = context['execution_date'] - self.execution_delta
         elif self.execution_date_fn:
-            dttm = self.execution_date_fn(context['execution_date'])
+            dttm = self._handle_execution_date_fn(context=context)
         else:
             dttm = context['execution_date']
 
@@ -203,6 +203,26 @@ class ExternalTaskSensor(BaseSensorOperator):
                 DR.execution_date.in_(dttm_filter),
             ).scalar()
         return count
+
+    def _handle_execution_date_fn(self, context):
+        """
+        This function is to handle backwards compatibility with how this operator was
+        previously where it only passes the execution date, but also allow for the newer
+        implementation to pass all context through as well, to allow for more sophisticated
+        returns of dates to return.
+        Namely, this function check the number of arguments in the execution_date_fn
+        signature and if its 1, treat the legacy way, if it's 2, pass the context as
+        the 2nd argument, and if its more, throw an exception.
+        """
+        num_fxn_params = self.execution_date_fn.__code__.co_argcount
+        if num_fxn_params == 1:
+            return self.execution_date_fn(context['execution_date'])
+        elif num_fxn_params == 2:
+            return self.execution_date_fn(context['execution_date'], context)
+        else:
+            raise AirflowException(
+                'execution_date_fn passed {} args but only allowed up to 2'.format(num_fxn_params)
+            )
 
 
 class ExternalTaskMarker(DummyOperator):

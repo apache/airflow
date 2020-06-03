@@ -38,9 +38,10 @@ from celery.result import AsyncResult
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.base_executor import BaseExecutor, CommandType
+from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.net import get_hostname
 from airflow.utils.timeout import timeout
 
 log = logging.getLogger(__name__)
@@ -78,7 +79,8 @@ def execute_command(command_to_exec: CommandType) -> None:
     except subprocess.CalledProcessError as e:
         log.exception('execute_command encountered a CalledProcessError')
         log.error(e.output)
-        raise AirflowException('Celery command failed')
+        msg = 'Celery command failed on host: ' + get_hostname()
+        raise AirflowException(msg)
 
 
 class ExceptionWithTraceback:
@@ -220,29 +222,29 @@ class CeleryExecutor(BaseExecutor):
         """Updates states of the tasks."""
 
         self.log.debug("Inquiring about %s celery task(s)", len(self.tasks))
-        states_by_celery_task_id = self.bulk_state_fetcher.get_many(self.tasks.values())
+        state_and_info_by_celery_task_id = self.bulk_state_fetcher.get_many(self.tasks.values())
 
         self.log.debug("Inquiries completed.")
         for key, async_result in list(self.tasks.items()):
-            state_by_task_id = states_by_celery_task_id.get(async_result.task_id)
-            if state_by_task_id:
-                self.update_task_state(key, state_by_task_id)
+            state, info = state_and_info_by_celery_task_id.get(async_result.task_id)
+            if state:
+                self.update_task_state(key, state, info)
 
-    def update_task_state(self, key: TaskInstanceKeyType, state: str) -> None:
+    def update_task_state(self, key: TaskInstanceKeyType, state: str, info: Any) -> None:
         """Updates state of a single task."""
         # noinspection PyBroadException
         try:
             if self.last_state[key] != state:
                 if state == celery_states.SUCCESS:
-                    self.success(key)
+                    self.success(key, info)
                     del self.tasks[key]
                     del self.last_state[key]
                 elif state == celery_states.FAILURE:
-                    self.fail(key)
+                    self.fail(key, info)
                     del self.tasks[key]
                     del self.last_state[key]
                 elif state == celery_states.REVOKED:
-                    self.fail(key)
+                    self.fail(key, info)
                     del self.tasks[key]
                     del self.last_state[key]
                 else:
@@ -269,7 +271,8 @@ class CeleryExecutor(BaseExecutor):
         pass
 
 
-def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, ExceptionWithTraceback]]:
+def fetch_celery_task_state(async_result: AsyncResult) -> \
+        Tuple[str, Union[str, ExceptionWithTraceback], Any]:
     """
     Fetch and return the state of the given celery task. The scope of this function is
     global so that it can be called by subprocesses in the pool.
@@ -277,18 +280,20 @@ def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, 
     :param async_result: a tuple of the Celery task key and the async Celery object used
         to fetch the task's state
     :type async_result: tuple(str, celery.result.AsyncResult)
-    :return: a tuple of the Celery task key and the Celery state of the task
-    :rtype: tuple[str, str]
+    :return: a tuple of the Celery task key and the Celery state and the celery info
+        of the task
+    :rtype: tuple[str, str, str]
     """
 
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             # Accessing state property of celery task will make actual network request
             # to get the current state of the task
-            return async_result.task_id, async_result.state
+            info = async_result.info if hasattr(async_result, 'info') else None
+            return async_result.task_id, async_result.state, info
     except Exception as e:  # pylint: disable=broad-except
         exception_traceback = f"Celery Task ID: {async_result}\n{traceback.format_exc()}"
-        return async_result.task_id, ExceptionWithTraceback(e, exception_traceback)
+        return async_result.task_id, ExceptionWithTraceback(e, exception_traceback), None
 
 
 def _tasks_list_to_task_ids(async_tasks) -> Set[str]:
@@ -307,7 +312,7 @@ class BulkStateFetcher(LoggingMixin):
         super().__init__()
         self._sync_parallelism = sync_parralelism
 
-    def get_many(self, async_results) -> Mapping[str, str]:
+    def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
         """
         Gets status for many Celery tasks using the best method available.
         """
@@ -321,16 +326,16 @@ class BulkStateFetcher(LoggingMixin):
         self.log.debug("Fetched %d states for %d task", len(result), len(async_results))
         return result
 
-    def _get_many_from_kv_backend(self, async_tasks) -> Mapping[str, str]:
+    def _get_many_from_kv_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
         task_ids = _tasks_list_to_task_ids(async_tasks)
         keys = [app.backend.get_key_for_task(k) for k in task_ids]
         values = app.backend.mget(keys)
         task_results = [app.backend.decode_result(v) for v in values if v]
         task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
 
-        return self._preapre_state_by_task_dict(task_ids, task_results_by_task_id)
+        return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
-    def _get_many_from_db_backend(self, async_tasks) -> Mapping[str, str]:
+    def _get_many_from_db_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
         task_ids = _tasks_list_to_task_ids(async_tasks)
         session = app.backend.ResultSession()
         with session_cleanup(session):
@@ -338,38 +343,41 @@ class BulkStateFetcher(LoggingMixin):
 
         task_results = [app.backend.meta_from_decoded(task.to_dict()) for task in tasks]
         task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
-        return self._preapre_state_by_task_dict(task_ids, task_results_by_task_id)
+        return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
     @staticmethod
-    def _preapre_state_by_task_dict(task_ids, task_results_by_task_id) -> Mapping[str, str]:
-        states: MutableMapping[str, str] = {}
+    def _prepare_state_and_info_by_task_dict(task_ids,
+                                             task_results_by_task_id) -> Mapping[str, EventBufferValueType]:
+        state_info: MutableMapping[str, EventBufferValueType] = {}
         for task_id in task_ids:
             task_result = task_results_by_task_id.get(task_id)
             if task_result:
                 state = task_result["status"]
+                info = None if not hasattr(task_result, "info") else task_result["info"]
             else:
                 state = celery_states.PENDING
-            states[task_id] = state
-        return states
+                info = None
+            state_info[task_id] = state, info
+        return state_info
 
-    def _get_many_using_multiprocessing(self, async_results) -> Mapping[str, str]:
+    def _get_many_using_multiprocessing(self, async_results) -> Mapping[str, EventBufferValueType]:
         num_process = min(len(async_results), self._sync_parallelism)
 
         with Pool(processes=num_process) as sync_pool:
             chunksize = max(1, math.floor(math.ceil(1.0 * len(async_results) / self._sync_parallelism)))
 
-            task_id_to_states_or_exception = sync_pool.map(
+            task_id_to_states_and_info = sync_pool.map(
                 fetch_celery_task_state,
                 async_results,
                 chunksize=chunksize)
 
-            states_by_task_id: MutableMapping[str, str] = {}
-            for task_id, state_or_exception in task_id_to_states_or_exception:
+            states_and_info_by_task_id: MutableMapping[str, EventBufferValueType] = {}
+            for task_id, state_or_exception, info in task_id_to_states_and_info:
                 if isinstance(state_or_exception, ExceptionWithTraceback):
                     self.log.error(  # pylint: disable=logging-not-lazy
                         CELERY_FETCH_ERR_MSG_HEADER + ":%s\n%s\n",
                         state_or_exception.exception, state_or_exception.traceback
                     )
                 else:
-                    states_by_task_id[task_id] = state_or_exception
-        return states_by_task_id
+                    states_and_info_by_task_id[task_id] = state_or_exception, info
+        return states_and_info_by_task_id

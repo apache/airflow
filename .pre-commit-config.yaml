@@ -175,6 +175,17 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         entry: koalaman/shellcheck:stable -x -a
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
         exclude: ^airflow/_vendor/.*$
+      - id: lint-openapi
+        name: Lint OpenAPI using speccy
+        language: docker_image
+        entry: wework/speccy lint
+        files: ^airflow/api_connexion/openapi/
+      - id: lint-openapi
+        name: Lint OpenAPI using openapi-spec-validator
+        entry: openapi-spec-validator --schema 3.0.0
+        language: python
+        additional_dependencies: ['openapi-spec-validator']
+        files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system
@@ -195,7 +206,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         files: ^setup.py$
         pass_filenames: false
         require_serial: true
-        entry: tests/test_order_setup.py
+        entry: ./scripts/ci/pre_commit_check_order_setup.py
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
         entry: "./scripts/ci/pre_commit_breeze_cmd_line.sh"
@@ -256,7 +267,8 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
-          ^airflow/contrib/.*$
+          ^airflow/contrib/.*$|
+          ^backport_packages/.*$
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
@@ -314,7 +326,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         files: "config.yml$|default_airflow.cfg$|default.cfg$"
         pass_filenames: false
         require_serial: false
-        entry: scripts/ci/pre_commit_yaml_to_cfg.py
+        entry: ./scripts/ci/pre_commit_yaml_to_cfg.py
         additional_dependencies: ['pyyaml']
       - id: mypy
         name: Run mypy

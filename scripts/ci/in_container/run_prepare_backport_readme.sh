@@ -18,6 +18,8 @@
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
+OUT_FILE=$(mktemp)
+
 # adding trap to exiting trap
 HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
 # shellcheck disable=SC2064
@@ -28,22 +30,18 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 # install extra packages missing in devel_ci
 export PYTHONPATH="${AIRFLOW_SOURCES}"
 
-pip install ".[all]"
+echo
+echo "Installing remaining packages from 'all' extras"
+echo
+pip install ".[all]" >>"${OUT_FILE}" 2>&1
+
+echo > "${OUT_FILE}"
 
 cd "${AIRFLOW_SOURCES}/backport_packages" || exit 1
 
-if [[ ${1:-} =~ [0-9]{4}.[0-9]{2}\.[0-9]{2} ]]; then
-    DATE_OF_RELEASE="${1}"
-    shift
-else
-    DATE_OF_RELEASE="$(date "+%Y.%m.%d" -d "+5 days")"
-fi
+python3 setup_backport_packages.py update-package-release-notes "$@"
 
-echo "Preparing readme for date of release: ${DATE_OF_RELEASE}"
-
-python3 setup_backport_packages.py update-package-release-notes "${DATE_OF_RELEASE}" "$@"
-
-AIRFLOW_BACKPORT_README_TGZ_FILE="/dist/airflow-backport-readme-${DATE_OF_RELEASE}.tar.gz"
+AIRFLOW_BACKPORT_README_TGZ_FILE="/dist/airflow-backport-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 

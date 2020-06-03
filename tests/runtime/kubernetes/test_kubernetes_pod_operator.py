@@ -457,9 +457,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
     def test_volume_mount(self):
         with mock.patch.object(PodLauncher, 'log') as mock_logger:
             volume_mount = VolumeMount('test-volume',
-                                       mount_path='/root/mount_file',
+                                       mount_path='/tmp/test_volume',
                                        sub_path=None,
-                                       read_only=True)
+                                       read_only=False)
 
             volume_config = {
                 'persistentVolumeClaim':
@@ -468,7 +468,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
                     }
             }
             volume = Volume(name='test-volume', configs=volume_config)
-            args = ["cat /root/mount_file/test.txt"]
+            args = ["echo \"retrieved from mount\" > /tmp/test_volume/test.txt "
+                    "&& cat /tmp/test_volume/test.txt"]
             k = KubernetesPodOperator(
                 namespace='default',
                 image="ubuntu:16.04",
@@ -489,8 +490,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             self.expected_pod['spec']['containers'][0]['args'] = args
             self.expected_pod['spec']['containers'][0]['volumeMounts'] = [{
                 'name': 'test-volume',
-                'mountPath': '/root/mount_file',
-                'readOnly': True
+                'mountPath': '/tmp/test_volume',
+                'readOnly': False
             }]
             self.expected_pod['spec']['volumes'] = [{
                 'name': 'test-volume',

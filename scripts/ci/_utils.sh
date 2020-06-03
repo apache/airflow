@@ -83,6 +83,11 @@ function initialize_common_environment {
     # Default branch name for triggered builds is the one configured in default branch
     export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
 
+    export GITHUB_ORGANISATION=${GITHUB_ORGANISATION:="apache"}
+    export GITHUB_REPO=${GITHUB_REPO:="airflow"}
+    export CACHE_REGISTRY=${CACHE_REGISTRY:="docker.pkg.github.com"}
+    export ENABLE_REGISTRY_CACHE=${ENABLE_REGISTRY_CACHE:="false"}
+
     # Default port numbers for forwarded ports
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
@@ -91,10 +96,6 @@ function initialize_common_environment {
     # Default MySQL/Postgres versions
     export POSTGRES_VERSION=${POSTGRES_VERSION:="9.6"}
     export MYSQL_VERSION=${MYSQL_VERSION:="5.7"}
-
-    # Do not push images by default (push them directly from the build script on Dockerhub or when
-    # --push-images flag is specified
-    export PUSH_IMAGES=${PUSH_IMAGES:="false"}
 
     # Whether base python images should be pulled from cache
     export PULL_PYTHON_BASE_IMAGES_FROM_CACHE=${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"}
@@ -144,11 +145,7 @@ function initialize_common_environment {
         print_info "Mounting necessary host volumes to Docker"
         print_info
 
-        EXTRA_DOCKER_FLAGS=()
-
-        while IFS= read -r LINE; do
-            EXTRA_DOCKER_FLAGS+=( "${LINE}")
-        done < <(convert_local_mounts_to_docker_params)
+        read -r -a EXTRA_DOCKER_FLAGS <<< "$(convert_local_mounts_to_docker_params)"
     else
         print_info
         print_info "Skip mounting host volumes to Docker"
@@ -243,53 +240,52 @@ function print_info() {
 # By default not the whole airflow sources directory is mounted because there are often
 # artifacts created there (for example .egg-info files) that are breaking the capability
 # of running different python versions in Breeze. So we only mount what is needed by default.
-LOCAL_MOUNTS="
-.bash_aliases /root/
-.bash_history /root/
-.coveragerc /opt/airflow/
-.dockerignore /opt/airflow/
-.flake8 /opt/airflow/
-.github /opt/airflow/
-.inputrc /root/
-.kube /root/
-.rat-excludes /opt/airflow/
-CHANGELOG.txt /opt/airflow/
-Dockerfile.ci /opt/airflow/
-LICENSE /opt/airflow/
-MANIFEST.in /opt/airflow/
-NOTICE /opt/airflow/
-airflow /opt/airflow/
-backport_packages /opt/airflow/
-common /opt/airflow/
-dags /opt/airflow/
-dev /opt/airflow/
-docs /opt/airflow/
-files /
-dist /
-hooks /opt/airflow/
-logs /root/airflow/
-pylintrc /opt/airflow/
-pytest.ini /opt/airflow/
-requirements /opt/airflow/
-scripts /opt/airflow/
-scripts/ci/in_container/entrypoint_ci.sh /
-setup.cfg /opt/airflow/
-setup.py /opt/airflow/
-tests /opt/airflow/
-tmp /opt/airflow/
-"
+function generate_local_mounts_list {
+    local prefix="$1"
+    LOCAL_MOUNTS=(
+        "$prefix".bash_aliases:/root/.bash_aliases:cached
+        "$prefix".bash_history:/root/.bash_history:cached
+        "$prefix".coveragerc:/opt/airflow/.coveragerc:cached
+        "$prefix".dockerignore:/opt/airflow/.dockerignore:cached
+        "$prefix".flake8:/opt/airflow/.flake8:cached
+        "$prefix".github:/opt/airflow/.github:cached
+        "$prefix".inputrc:/root/.inputrc:cached
+        "$prefix".kube:/root/.kube:cached
+        "$prefix".rat-excludes:/opt/airflow/.rat-excludes:cached
+        "$prefix"CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
+        "$prefix"Dockerfile.ci:/opt/airflow/Dockerfile.ci:cached
+        "$prefix"LICENSE:/opt/airflow/LICENSE:cached
+        "$prefix"MANIFEST.in:/opt/airflow/MANIFEST.in:cached
+        "$prefix"NOTICE:/opt/airflow/NOTICE:cached
+        "$prefix"airflow:/opt/airflow/airflow:cached
+        "$prefix"backport_packages:/opt/airflow/backport_packages:cached
+        "$prefix"common:/opt/airflow/common:cached
+        "$prefix"dags:/opt/airflow/dags:cached
+        "$prefix"dev:/opt/airflow/dev:cached
+        "$prefix"docs:/opt/airflow/docs:cached
+        "$prefix"files:/files:cached
+        "$prefix"dist:/dist:cached
+        "$prefix"hooks:/opt/airflow/hooks:cached
+        "$prefix"logs:/root/airflow/logs:cached
+        "$prefix"pylintrc:/opt/airflow/pylintrc:cached
+        "$prefix"pytest.ini:/opt/airflow/pytest.ini:cached
+        "$prefix"requirements:/opt/airflow/requirements:cached
+        "$prefix"scripts:/opt/airflow/scripts:cached
+        "$prefix"scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached
+        "$prefix"setup.cfg:/opt/airflow/setup.cfg:cached
+        "$prefix"setup.py:/opt/airflow/setup.py:cached
+        "$prefix"tests:/opt/airflow/tests:cached
+        "$prefix"tmp:/opt/airflow/tmp:cached
+    )
+}
 
 # Converts the local mounts that we defined above to the right set of -v
 # volume mappings in docker-compose file. This is needed so that we only
 # maintain the volumes in one place (above)
 function convert_local_mounts_to_docker_params() {
-    echo "${LOCAL_MOUNTS}" |sed '/^$/d' | awk -v AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-    '
-    function basename(file) {
-        sub(".*/", "", file)
-        return file
-    }
-    { print "-v"; print AIRFLOW_SOURCES "/" $1 ":" $2 basename($1) ":cached" }'
+    generate_local_mounts_list "${AIRFLOW_SOURCES}/"
+    # Bash can't "return" arrays, so we need to quote any special characters
+    printf -- '-v %q ' "${LOCAL_MOUNTS[@]}"
 }
 
 # Fixes a file that is expected to be a file. If - for whatever reason - the local file is not created
@@ -313,7 +309,7 @@ function sanitize_mounted_files() {
 
     # When KinD cluster is created, the folder keeps authentication information
     # across sessions
-    mkdir -p "${MY_DIR}/.kube" >/dev/null 2>&1
+    mkdir -p "${AIRFLOW_SOURCES}/.kube" >/dev/null 2>&1
 }
 
 #
@@ -1336,6 +1332,8 @@ Docker building ${AIRFLOW_CI_IMAGE}.
             --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
+        --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
+        --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
         --build-arg UPGRADE_TO_LATEST_REQUIREMENTS="${UPGRADE_TO_LATEST_REQUIREMENTS}" \
         "${DOCKER_CACHE_CI_DIRECTIVE[@]}" \
@@ -1389,6 +1387,8 @@ function build_prod_image() {
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
+        --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
+        --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
         -t "${AIRFLOW_PROD_BUILD_IMAGE}" \
         --target "airflow-build-image" \
@@ -1397,6 +1397,8 @@ function build_prod_image() {
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
+        --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
+        --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
         "${DOCKER_CACHE_PROD_DIRECTIVE[@]}" \
@@ -1474,11 +1476,14 @@ function prepare_ci_build() {
     export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
-    if [[ ${CACHE_REGISTRY=""} != "" ]]; then
-        echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
-            --username "${CACHE_REGISTRY_USERNAME}" \
-            --password-stdin \
-            "${CACHE_REGISTRY}"
+    if [[ ${ENABLE_REGISTRY_CACHE="false"} == "true" ]]; then
+        if [[ ${CACHE_REGISTRY_PASSWORD:=} != "" ]]; then
+            echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
+                --username "${CACHE_REGISTRY_USERNAME}" \
+                --password-stdin \
+                "${CACHE_REGISTRY}"
+        fi
+        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_ORGANISATION}/${GITHUB_REPO}}
         export CACHED_AIRFLOW_CI_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_CI_BASE_TAG}"
         export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
     else
@@ -1498,8 +1503,9 @@ function prepare_ci_build() {
     export IMAGE_DESCRIPTION="Airflow CI"
     export AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="true"
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_CI_EXTRAS}"}"
+    export ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS:=""}"
+    export ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS:=""}"
     export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
-
     go_to_airflow_sources
     fix_group_permissions
 }
@@ -1557,12 +1563,18 @@ function prepare_prod_build() {
     export THE_IMAGE_TYPE="PROD"
     export IMAGE_DESCRIPTION="Airflow production"
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_PROD_EXTRAS}"}"
+    export ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS:=""}"
+    export ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS:=""}"
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
-    if [[ ${CACHE_REGISTRY=""} != "" ]]; then
-        echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
-            --username "${CACHE_REGISTRY_USERNAME}" \
-            --password-stdin \
-            "${CACHE_REGISTRY}"
+
+    if [[ ${ENABLE_REGISTRY_CACHE="false"} == "true" ]]; then
+        if [[ ${CACHE_REGISTRY_PASSWORD:=} != "" ]]; then
+            echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
+                --username "${CACHE_REGISTRY_USERNAME}" \
+                --password-stdin \
+                "${CACHE_REGISTRY}"
+        fi
+        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_ORGANISATION}/${GITHUB_REPO}}
         export CACHED_AIRFLOW_PROD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}"
         export CACHED_AIRFLOW_PROD_BUILD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}-build"
         export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"

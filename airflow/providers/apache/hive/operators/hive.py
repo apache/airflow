@@ -95,8 +95,9 @@ class HiveOperator(BaseOperator):
         self.mapred_queue = mapred_queue
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
-        self.mapred_job_name_template = conf.get('hive',
-                                                 'mapred_job_name_template')
+        self.mapred_job_name_template = conf.get(
+            'hive', 'mapred_job_name_template',
+            fallback="Airflow HiveOperator task for {hostname}.{dag_id}.{task_id}.{execution_date}")
 
         # assigned lazily - just for consistency we can create the attribute with a
         # `None` initial value, later it will be populated by the execute method.

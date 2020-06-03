@@ -121,7 +121,7 @@ class SalesforceHook(BaseHook):
         :param obj: The name of the Salesforce object that we are getting a description of.
         :type obj: str
         :return: the names of the fields.
-        :rtype: list of str
+        :rtype: list(str)
         """
         self.get_conn()
 
@@ -157,9 +157,9 @@ class SalesforceHook(BaseHook):
         Convert a column of a dataframe to UNIX timestamps if applicable
 
         :param column: A Series object representing a column of a dataframe.
-        :type column: pd.Series
+        :type column: pandas.Series
         :return: a new series that maintains the same index as the original
-        :rtype: pd.Series
+        :rtype: pandas.Series
         """
         # try and convert the column to datetimes
         # the column MUST have a four digit year somewhere in the string
@@ -230,7 +230,7 @@ class SalesforceHook(BaseHook):
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
         :type record_time_added: bool
         :return: the dataframe that gets written to the file.
-        :rtype: pd.Dataframe
+        :rtype: pandas.Dataframe
         """
         fmt = fmt.lower()
         if fmt not in ['csv', 'json', 'ndjson']:
@@ -285,7 +285,7 @@ class SalesforceHook(BaseHook):
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
         :type record_time_added: bool
         :return: the dataframe.
-        :rtype: pd.Dataframe
+        :rtype: pandas.Dataframe
         """
 
         # this line right here will convert all integers to floats

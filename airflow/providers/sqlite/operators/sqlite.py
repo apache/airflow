@@ -32,7 +32,7 @@ class SqliteOperator(BaseOperator):
     :param sqlite_conn_id: reference to a specific sqlite database
     :type sqlite_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     """
 
     template_fields = ('sql',)

@@ -278,7 +278,7 @@ Airflow provides operators for many common tasks, including:
 In addition to these basic building blocks, there are many more specific
 operators: :class:`~airflow.providers.docker.operators.docker.DockerOperator`,
 :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`, :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`,
-:class:`~airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransfer`,
+:class:`~airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransferOperator`,
 :class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`... you get the idea!
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
@@ -705,7 +705,7 @@ Storing Variables in Environment Variables
 .. versionadded:: 1.10.10
 
 Airflow Variables can also be created and managed using Environment Variables. The environment variable
-naming convention is ``AIRFLOW_VAR_<variable_name>``, all uppercase.
+naming convention is :envvar:`AIRFLOW_VAR_{VARIABLE_NAME}`, all uppercase.
 So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VAR_FOO``.
 
 For example,
@@ -1066,7 +1066,7 @@ may look like inside your ``airflow_local_settings.py``:
         if task.timeout > timedelta(hours=48):
             task.timeout = timedelta(hours=48)
 
-To define policy, add a ``airflow_local_settings`` module to your PYTHONPATH
+To define policy, add a ``airflow_local_settings`` module to your :envvar:`PYTHONPATH`
 or to AIRFLOW_HOME/config folder that defines this ``policy`` function. It receives a ``TaskInstance``
 object and can alter it where needed.
 
