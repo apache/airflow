@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,21 +15,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import random
 import unittest
 from datetime import timedelta
+from tests.compat import mock
 
-from airflow import DAG, operators
+from airflow.exceptions import AirflowSensorTimeout
+from airflow.models.dag import DAG
 from airflow.sensors.named_hive_partition_sensor import NamedHivePartitionSensor
 from airflow.utils.timezone import datetime
-from airflow.hooks.hive_hooks import HiveMetastoreHook
+from tests.hive import TestHiveEnvironment
+from tests.test_utils.mock_hooks import MockHiveMetastoreHook
+from tests.test_utils.mock_operators import MockHiveOperator
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
-class NamedHivePartitionSensorTests(unittest.TestCase):
+class TestNamedHivePartitionSensor(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)
@@ -53,23 +57,18 @@ class NamedHivePartitionSensorTests(unittest.TestCase):
                 ALTER TABLE {{ params.table }}
                 ADD PARTITION({{ params.partition_by }}='{{ ds }}');
                 """
-        self.hook = HiveMetastoreHook()
-        t = operators.hive_operator.HiveOperator(
+        self.hook = MockHiveMetastoreHook()
+        op = MockHiveOperator(
             task_id='HiveHook_' + str(random.randint(1, 10000)),
             params={
                 'database': self.database,
                 'table': self.table,
                 'partition_by': self.partition_by
             },
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             hql=self.hql, dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-              ignore_ti_state=True)
-
-    def tearDown(self):
-        hook = HiveMetastoreHook()
-        with hook.get_conn() as metastore:
-            metastore.drop_table(self.database, self.table, deleteData=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
 
     def test_parse_partition_name_correct(self):
         schema = 'default'
@@ -103,6 +102,7 @@ class NamedHivePartitionSensorTests(unittest.TestCase):
         self.assertEqual(partition, parsed_partition)
 
     def test_poke_existing(self):
+        self.hook.metastore.__enter__().check_for_named_partition.return_value = True
         partitions = ["{}.{}/{}={}".format(self.database,
                                            self.table,
                                            self.partition_by,
@@ -113,8 +113,11 @@ class NamedHivePartitionSensorTests(unittest.TestCase):
                                           hook=self.hook,
                                           dag=self.dag)
         self.assertTrue(sensor.poke(None))
+        self.hook.metastore.__enter__().check_for_named_partition.assert_called_with(
+            self.database, self.table, "{}={}".format(self.partition_by, DEFAULT_DATE_DS))
 
     def test_poke_non_existing(self):
+        self.hook.metastore.__enter__().check_for_named_partition.return_value = False
         partitions = ["{}.{}/{}={}".format(self.database,
                                            self.table,
                                            self.partition_by,
@@ -125,3 +128,79 @@ class NamedHivePartitionSensorTests(unittest.TestCase):
                                           hook=self.hook,
                                           dag=self.dag)
         self.assertFalse(sensor.poke(None))
+        self.hook.metastore.__enter__().check_for_named_partition.assert_called_with(
+            self.database, self.table, "{}={}".format(self.partition_by, self.next_day))
+
+
+@unittest.skipIf(
+    'AIRFLOW_RUNALL_TESTS' not in os.environ,
+    "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+class TestPartitions(TestHiveEnvironment):
+
+    def test_succeeds_on_one_partition(self):
+        mock_hive_metastore_hook = MockHiveMetastoreHook()
+        mock_hive_metastore_hook.check_for_named_partition = mock.MagicMock(
+            return_value=True)
+
+        op = NamedHivePartitionSensor(
+            task_id='hive_partition_check',
+            partition_names=[
+                "airflow.static_babynames_partitioned/ds={{ds}}"
+            ],
+            dag=self.dag,
+            hook=mock_hive_metastore_hook
+        )
+
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
+
+        mock_hive_metastore_hook.check_for_named_partition.assert_called_once_with(
+            'airflow', 'static_babynames_partitioned', 'ds=2015-01-01')
+
+    def test_succeeds_on_multiple_partitions(self):
+        mock_hive_metastore_hook = MockHiveMetastoreHook()
+        mock_hive_metastore_hook.check_for_named_partition = mock.MagicMock(
+            return_value=True)
+
+        op = NamedHivePartitionSensor(
+            task_id='hive_partition_check',
+            partition_names=[
+                "airflow.static_babynames_partitioned/ds={{ds}}",
+                "airflow.static_babynames_partitioned2/ds={{ds}}"
+            ],
+            dag=self.dag,
+            hook=mock_hive_metastore_hook
+        )
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
+        mock_hive_metastore_hook.check_for_named_partition.assert_any_call(
+            'airflow', 'static_babynames_partitioned', 'ds=2015-01-01')
+        mock_hive_metastore_hook.check_for_named_partition.assert_any_call(
+            'airflow', 'static_babynames_partitioned2', 'ds=2015-01-01')
+
+    def test_parses_partitions_with_periods(self):
+        name = NamedHivePartitionSensor.parse_partition_name(
+            partition="schema.table/part1=this.can.be.an.issue/part2=ok")
+        self.assertEqual(name[0], "schema")
+        self.assertEqual(name[1], "table")
+        self.assertEqual(name[2], "part1=this.can.be.an.issue/part2=ok")
+
+    def test_times_out_on_nonexistent_partition(self):
+        with self.assertRaises(AirflowSensorTimeout):
+            mock_hive_metastore_hook = MockHiveMetastoreHook()
+            mock_hive_metastore_hook.check_for_named_partition = mock.MagicMock(
+                return_value=False)
+
+            op = NamedHivePartitionSensor(
+                task_id='hive_partition_check',
+                partition_names=[
+                    "airflow.static_babynames_partitioned/ds={{ds}}",
+                    "airflow.static_babynames_partitioned/ds=nonexistent"
+                ],
+                poke_interval=0.1,
+                timeout=1,
+                dag=self.dag,
+                hook=mock_hive_metastore_hook
+            )
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                   ignore_ti_state=True)

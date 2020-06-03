@@ -19,6 +19,7 @@
 
 from __future__ import print_function, unicode_literals
 
+import collections
 import contextlib
 import os
 import re
@@ -181,7 +182,7 @@ class HiveCliHook(BaseHook):
             return []
         return as_flattened_list(
             zip(["-hiveconf"] * len(d),
-                ["{}={}".format(k, v) for k, v in d.items()])
+                ["{}={}".format(k, v) for k, v in collections.OrderedDict(sorted(d.items())).items()])
         )
 
     def run_cli(self, hql, schema=None, verbose=True, hive_conf=None):
@@ -825,6 +826,7 @@ class HiveServer2Hook(BaseHook):
             auth=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             username=db.login or username,
+            password=db.password,
             database=schema or db.schema or 'default')
 
     def _get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
