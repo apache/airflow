@@ -849,7 +849,7 @@ class DAG(BaseDag, LoggingMixin):
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
 
-        tis = session.query(TaskInstance).filter(
+        tis = session.query(TaskInstance).options(joinedload(TaskInstance.tags)).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.execution_date >= start_date,
             TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
@@ -876,12 +876,7 @@ class DAG(BaseDag, LoggingMixin):
                         )
                 else:
                     tis = tis.filter(TaskInstance.state.in_(state))
-        tis = tis.order_by(TaskInstance.execution_date).join(TaskTag, and_(
-                TaskTag.dag_id == TaskInstance.dag_id,
-                TaskTag.task_id == TaskInstance.task_id,
-                TaskTag.execution_date == TaskInstance.execution_date
-            ), isouter=True
-        ).all()
+        tis = tis.order_by(TaskInstance.execution_date).all()
         return tis
 
     @property
