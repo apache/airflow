@@ -24,7 +24,7 @@ from unittest.mock import Mock, PropertyMock, patch
 from airflow import PY38
 
 if PY38:
-    MsSqlToHiveTransfer = None
+    MsSqlToHiveTransferOperator = None
 else:
     from airflow.providers.apache.hive.operators.mssql_to_hive import MsSqlToHiveTransferOperator
 
