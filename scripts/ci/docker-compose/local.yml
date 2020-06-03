@@ -35,7 +35,6 @@ services:
       - ../../../.kube:/root/.kube:cached
       - ../../../.rat-excludes:/opt/airflow/.rat-excludes:cached
       - ../../../CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
-      - ../../../Dockerfile.ci:/opt/airflow/Dockerfile.ci:cached
       - ../../../LICENSE:/opt/airflow/LICENSE:cached
       - ../../../MANIFEST.in:/opt/airflow/MANIFEST.in:cached
       - ../../../NOTICE:/opt/airflow/NOTICE:cached

@@ -266,7 +266,6 @@ function generate_local_mounts_list {
         "$prefix".kube:/root/.kube:cached
         "$prefix".rat-excludes:/opt/airflow/.rat-excludes:cached
         "$prefix"CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
-        "$prefix"Dockerfile.ci:/opt/airflow/Dockerfile.ci:cached
         "$prefix"LICENSE:/opt/airflow/LICENSE:cached
         "$prefix"MANIFEST.in:/opt/airflow/MANIFEST.in:cached
         "$prefix"NOTICE:/opt/airflow/NOTICE:cached

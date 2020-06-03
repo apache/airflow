@@ -221,34 +221,6 @@ function setup_kerberos() {
     fi
 }
 
-
-function dump_container_logs() {
-    echo "###########################################################################################"
-    echo "                   Dumping logs from all the containers"
-    echo "###########################################################################################"
-    echo "  Docker processes:"
-    echo "###########################################################################################"
-    docker ps --no-trunc
-    echo "###########################################################################################"
-    for CONTAINER in $(docker ps -qa)
-    do
-        CONTAINER_NAME=$(docker inspect --format "{{.Name}}" "${CONTAINER}")
-        echo "-------------------------------------------------------------------------------------------"
-        echo " Docker inspect: ${CONTAINER_NAME}"
-        echo "-------------------------------------------------------------------------------------------"
-        echo
-        docker inspect "${CONTAINER}"
-        echo
-        echo "-------------------------------------------------------------------------------------------"
-        echo " Docker logs: ${CONTAINER_NAME}"
-        echo "-------------------------------------------------------------------------------------------"
-        echo
-        docker logs "${CONTAINER}"
-        echo
-        echo "###########################################################################################"
-    done
-}
-
 function dump_airflow_logs() {
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
@@ -259,21 +231,6 @@ function dump_airflow_logs() {
     echo "###########################################################################################"
 }
 
-
-function send_docker_logs_to_file_io() {
-    echo "##############################################################################"
-    echo
-    echo "   DUMPING LOG FILES FROM CONTAINERS AND SENDING THEM TO file.io"
-    echo
-    echo "##############################################################################"
-    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_docker_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}.log.gz
-    dump_container_logs 2>&1 | gzip >"${DUMP_FILE}"
-    echo
-    echo "   Logs saved to ${DUMP_FILE}"
-    echo
-    echo "##############################################################################"
-    curl -F "file=@${DUMP_FILE}" https://file.io
-}
 
 function send_airflow_logs_to_file_io() {
     echo "##############################################################################"
