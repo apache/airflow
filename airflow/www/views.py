@@ -1464,7 +1464,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
                 'retries': task.retries,
                 'owner': task.owner,
                 'ui_color': task.ui_color,
-                'tags': task.task_tags
+                'tags': task.tags
             }
 
             if task.downstream_list:
