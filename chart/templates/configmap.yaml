@@ -71,11 +71,6 @@ data:
     json_format = True
     log_id_template = {dag_id}_{task_id}_{execution_date}_{try_number}
 
-    # This is the older format for these variable names, kept here for backward compatibility
-    elasticsearch_write_stdout = True
-    elasticsearch_json_format = True
-    elasticsearch_log_id_template = {dag_id}_{task_id}_{execution_date}_{try_number}
-
     [elasticsearch_configs]
     max_retries = 3
     timeout = 30
