@@ -853,12 +853,8 @@ class DAG(BaseDag, LoggingMixin):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.execution_date >= start_date,
             TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
-        ).join(TaskTag, and_(
-                TaskTag.dag_id == TaskInstance.dag_id,
-                TaskTag.task_id == TaskInstance.task_id,
-                TaskTag.execution_date == TaskInstance.execution_date
-            )
         )
+
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:
             end_date = end_date or timezone.utcnow()
@@ -880,7 +876,12 @@ class DAG(BaseDag, LoggingMixin):
                         )
                 else:
                     tis = tis.filter(TaskInstance.state.in_(state))
-        tis = tis.order_by(TaskInstance.execution_date).all()
+        tis = tis.order_by(TaskInstance.execution_date).join(TaskTag, and_(
+                TaskTag.dag_id == TaskInstance.dag_id,
+                TaskTag.task_id == TaskInstance.task_id,
+                TaskTag.execution_date == TaskInstance.execution_date
+            ), isouter=True
+        ).all()
         return tis
 
     @property
