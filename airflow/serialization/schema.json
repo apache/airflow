@@ -145,6 +145,7 @@
         "do_xcom_push": { "type": "boolean" },
         "ui_color": { "$ref": "#/definitions/color" },
         "ui_fgcolor": { "$ref": "#/definitions/color" },
+        "tags": { "type": "array" },
         "template_fields": {
           "type": "array",
           "items": { "type": "string" }
