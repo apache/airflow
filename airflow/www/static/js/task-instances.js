@@ -83,7 +83,7 @@ export default function tiTooltip(ti, {includeTryNumber = false} = {}) {
     tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
   }
   if (ti.tags !== undefined) {
-    tt += `Tags: ${escapeHtml(ti.tags.map(t => t.name).join(', '))}<br>`
+    tt += `Tags: ${escapeHtml(ti.tags.map(t => t.name).join(', '))}<br>`;
   }
   // Don't translate/format this, keep it as the full ISO8601 date
   if (ti.start_date instanceof moment) {

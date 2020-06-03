@@ -1088,38 +1088,6 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         return list(map(lambda task_id: dag.task_dict[task_id],
                         self.get_flat_relative_ids(upstream)))
 
-    @provide_session
-    def set_task_tags_to_db(self, session: Session = None) -> None:
-        """
-        Adds missing tags to meta db and removes old tags from meta db
-        """
-        if not self.tags:
-            return
-
-        tags_set = set(self.tags)
-        db_tags = session.query(TaskTag)\
-            .filter(TaskTag.dag_id == self.dag_id)\
-            .filter(TaskTag.task_id == self.task_id)\
-            .all()
-        db_tag_names = [tag.name for tag in db_tags]
-
-        # Add missing tags
-        for name in tags_set:
-            if name not in db_tag_names:
-                tag = TaskTag(name=name, dag_id=self.dag_id, task_id=self.task_id)
-                session.add(tag)
-
-        # Remove old tags
-        for name in db_tag_names:
-            if name not in tags_set:
-                session.query(TaskTag)\
-                    .filter(TaskTag.name == name)\
-                    .filter(TaskTag.dag_id == self.dag_id)\
-                    .filter(TaskTag.task_id == self.task_id)\
-                    .delete()
-
-        session.commit()
-
     def run(
             self,
             start_date: Optional[datetime] = None,
@@ -1130,8 +1098,6 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         """
         Run a set of task instances for a date range.
         """
-        self.set_task_tags_to_db()
-
         start_date = start_date or self.start_date
         end_date = end_date or self.end_date or timezone.utcnow()
 
