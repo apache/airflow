@@ -2106,7 +2106,7 @@ components:
       in: path
       name: connection_id
       schema:
-        type: integer
+        type: string
       required: true
       description: The Connection ID.
 
