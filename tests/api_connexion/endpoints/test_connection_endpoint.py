@@ -79,20 +79,8 @@ class TestGetConnections(TestConnectionEndpoint):
 
     @provide_session
     def test_should_response_200(self, session):
-        connection_model_1 = Connection(conn_id='test-connection-id-1',
-                                        conn_type='mysql',
-                                        host='mysql',
-                                        login='login',
-                                        schema='testschema',
-                                        port=80
-                                        )
-        connection_model_2 = Connection(conn_id='test-connection-id-2',
-                                        conn_type='mysql',
-                                        host='mysql',
-                                        login='login',
-                                        schema='testschema',
-                                        port=80
-                                        )
+        connection_model_1 = Connection(conn_id='test-connection-id-1')
+        connection_model_2 = Connection(conn_id='test-connection-id-2')
         connections = [connection_model_1, connection_model_2]
         session.add_all(connections)
         session.commit()
@@ -106,19 +94,19 @@ class TestGetConnections(TestConnectionEndpoint):
                 'connections': [
                     {
                         "connection_id": "test-connection-id-1",
-                        "conn_type": 'mysql',
-                        "host": 'mysql',
-                        "login": 'login',
-                        'schema': 'testschema',
-                        'port': 80
+                        "conn_type": '',
+                        "host": '',
+                        "login": '',
+                        'schema': '',
+                        'port': 0
                     },
                     {
                         "connection_id": "test-connection-id-2",
-                        "conn_type": 'mysql',
-                        "host": 'mysql',
-                        "login": 'login',
-                        'schema': 'testschema',
-                        'port': 80
+                        "conn_type": '',
+                        "host": '',
+                        "login": '',
+                        'schema': '',
+                        'port': 0
                     }
                 ],
                 'total_entries': 2
