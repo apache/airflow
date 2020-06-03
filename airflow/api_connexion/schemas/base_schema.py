@@ -16,7 +16,7 @@
 # under the License.
 from typing import List, Optional
 
-from marshmallow import post_dump
+from marshmallow import post_dump, pre_load
 from marshmallow_sqlalchemy import SQLAlchemySchema
 
 from airflow.exceptions import AirflowException
@@ -59,31 +59,48 @@ class BaseSchema(SQLAlchemySchema):
         """
         self.check_collection_name()
         if many:
-            data = self._process_list_data(data)
+            data = self._process_list_data_for_dump(data)
             return {self.COLLECTION_NAME: data, 'total_entries': len(data)}
-        data = self._process_data(data)
+        data = self._process_data_for_dump(data)
         return data
 
-    def _process_list_data(self, data):
-        d_data = {}
-        d_list = []
-        for item in data:
-            for k, v in item.items():
-                if v is None and k in self.FIELDS_FROM_NONE_TO_EMPTY_STRING:
-                    v = ''
-                elif v is None and k in self.FIELDS_FROM_NONE_TO_ZERO:
-                    v = 0
-                d_data[k] = v
-            d_list.append(d_data)
-            d_data = {}
-        return d_list
+    @pre_load(pass_many=True)
+    def unwrap_with_envelope(self, data, many, **kwargs):
+        """
+        Checks if data is a list and use the envelope key to load it together
+        :param data: The deserialized data
+        :param many: Whether the data is a collection
+        """
+        self.check_collection_name()
+        if many:
+            data = data[self.COLLECTION_NAME]
+            data = self._process_list_data_for_load(data)
+            return data
+        data = self._process_data_for_load(data)
+        return data
 
-    def _process_data(self, data):
+    def _process_list_data_for_dump(self, data):
+        return [self._process_data_for_dump(item) for item in data]
+
+    def _process_data_for_dump(self, data):
         d_data = {}
         for k, v in data.items():
             if v is None and k in self.FIELDS_FROM_NONE_TO_EMPTY_STRING:
                 v = ''
             elif v is None and k in self.FIELDS_FROM_NONE_TO_ZERO:
                 v = 0
+            d_data[k] = v
+        return d_data
+
+    def _process_list_data_for_load(self, data):
+        return [self._process_data_for_load(item) for item in data]
+
+    def _process_data_for_load(self, data):
+        d_data = {}
+        for k, v in data.items():
+            if v == '' and k in self.FIELDS_FROM_NONE_TO_EMPTY_STRING:
+                v = None
+            elif v == 0 and k in self.FIELDS_FROM_NONE_TO_ZERO:
+                v = None
             d_data[k] = v
         return d_data

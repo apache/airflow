@@ -23,7 +23,6 @@ from airflow.models.connection import Connection
 
 
 class ConnectionCollectionItemSchema(BaseSchema):
-
     """
     Schema for a connection item
     """
