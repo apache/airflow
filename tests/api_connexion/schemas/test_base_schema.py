@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowException
 
 class TestBaseSchema(unittest.TestCase):
 
-    def test_get_envelope_key_raises(self):
+    def test_get_collection_name_raises(self):
         class MySchema(BaseSchema):
             name = fields.Str()
             number = fields.Int()
@@ -34,7 +34,7 @@ class TestBaseSchema(unittest.TestCase):
         with self.assertRaises(AirflowException):
             schema.dump([{'name': 'test'}, {'name': 'test2'}])
 
-    def test_get_envelope_key_pass(self):
+    def test_wrap_with_envelope(self):
 
         class Model:
             def __init__(self, name=None, number=None):
@@ -42,9 +42,9 @@ class TestBaseSchema(unittest.TestCase):
                 self.number = number
 
         class MySchema(BaseSchema):
-            __envelope__ = {'many': 'children'}
-            STRING_FIELDS = ['name']
-            INTEGER_FIELDS = ['number']
+            COLLECTION_NAME = 'children'
+            FIELDS_FROM_NONE_TO_EMPTY_STRING = ['name']
+            FIELDS_FROM_NONE_TO_ZERO = ['number']
             name = fields.Str()
             number = fields.Int()
 
@@ -71,9 +71,9 @@ class TestBaseSchema(unittest.TestCase):
                 self.number = number
 
         class MySchema(BaseSchema):
-            __envelope__ = {'many': 'children'}
-            STRING_FIELDS = ['name']
-            INTEGER_FIELDS = ['number']
+            COLLECTION_NAME = 'children'
+            FIELDS_FROM_NONE_TO_EMPTY_STRING = ['name']
+            FIELDS_FROM_NONE_TO_ZERO = ['number']
             name = fields.Str()
             number = fields.Int()
 
@@ -100,9 +100,9 @@ class TestBaseSchema(unittest.TestCase):
                 self.number = number
 
         class MySchema(BaseSchema):
-            __envelope__ = {'many': 'children'}
-            STRING_FIELDS = ['name']
-            INTEGER_FIELDS = ['number']
+            COLLECTION_NAME = 'children'
+            FIELDS_FROM_NONE_TO_EMPTY_STRING = ['name']
+            FIELDS_FROM_NONE_TO_ZERO = ['number']
             name = fields.Str()
             number = fields.Int()
 
