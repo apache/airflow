@@ -264,17 +264,8 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
     :type do_xcom_push: bool
-<<<<<<< HEAD
-<<<<<<< HEAD
-    :param task_tags: List of tags used to identify this task
-    :type task_tags: list
-=======
     :param tags: List of tags used to identify this task
-=======
-    :param tags: List of tags used to identify this task. Duplicates are automatically removed.
->>>>>>> Use tag_id column in task_instance as a foreign key to task_tag
     :type tags: list
->>>>>>> Add TaskTag relationship to TaskInstance and display tags in task instance tooltips
     """
     # For derived classes to define which fields will get jinjaified
     template_fields: Iterable[str] = ()
@@ -398,7 +389,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
-        self.tags = set(tags or [])
+        self.tags = tags
 
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
