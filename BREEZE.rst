@@ -1083,7 +1083,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -1302,7 +1302,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
