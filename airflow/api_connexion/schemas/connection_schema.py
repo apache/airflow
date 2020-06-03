@@ -18,11 +18,12 @@
 
 from marshmallow_sqlalchemy import auto_field
 
-from airflow.api_connexion.schemas import BaseSchema
+from airflow.api_connexion.schemas.base_schema import BaseSchema
 from airflow.models.connection import Connection
 
 
 class ConnectionCollectionItemSchema(BaseSchema):
+
     """
     Schema for a connection item
     """
@@ -31,6 +32,8 @@ class ConnectionCollectionItemSchema(BaseSchema):
         model = Connection
 
     __envelope__ = {'many': 'connections'}
+    STRING_FIELDS = ['connection_id', 'conn_type', 'host', 'login', 'schema']
+    INTEGER_FIELDS = ['port']
 
     conn_id = auto_field(dump_to='connection_id', load_from='connection_id')
     conn_type = auto_field(default='')
