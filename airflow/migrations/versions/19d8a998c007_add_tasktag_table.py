@@ -39,8 +39,9 @@ def upgrade():
     """Apply Add TaskTag table"""
     op.create_table(
         'task_tag',
-        sa.Column('tag_id', sa.Integer, nullable=False, primary_key=True, autoincrement=True),
-        sa.Column('name', sa.String(length=100), nullable=False)
+        sa.Column('tag_id', sa.Integer, primary_key=True, nullable=False),
+        sa.Column('name', sa.String(length=100), nullable=False),
+        sa.ForeignKeyConstraint(['tag_id'], ['task_instance.tag_id'])
     )
 
 

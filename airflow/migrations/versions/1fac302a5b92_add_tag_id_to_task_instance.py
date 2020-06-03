@@ -38,19 +38,10 @@ depends_on = None
 def upgrade():
     """Apply Add tag_id to task_instance"""
     with op.batch_alter_table('task_instance') as batch_op:
-        batch_op.add_column(sa.Column('tag_id', sa.Integer))
-        batch_op.create_foreign_key(
-            'task_instance_tag_id_fkey',
-            'task_tag',
-            ['tag_id'], ['tag_id']
-        )
+        batch_op.add_column(sa.Column('tag_id', sa.Integer, autoincrement=True))
 
 
 def downgrade():
     """Unapply Add tag_id to task_instance"""
     with op.batch_alter_table('task_instance') as batch_op:
-        batch_op.drop_constraint(
-            'task_instance_tag_id_fkey',
-            type_='foreignkey'
-        )
         batch_op.drop_column('task_instance', 'tag_id')
