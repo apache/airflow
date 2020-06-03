@@ -226,7 +226,8 @@ webserver:
   extraVolumeMounts: []
 
   # This will be mounted into the Airflow Webserver as
-  # a custom webserver_config.py
+  # a custom webserver_config.py. You can bake a 
+  # webserver_config.py in to your image instead
   webserverConfig: ~
   # webserverConfig: |
   #   from airflow import configuration as conf
