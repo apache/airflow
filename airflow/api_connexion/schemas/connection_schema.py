@@ -31,12 +31,12 @@ class ConnectionCollectionItemSchema(BaseSchema):
         """ Meta """
         model = Connection
 
-    __envelope__ = {'many': 'connections'}
-    STRING_FIELDS = ['connection_id', 'conn_type', 'host', 'login', 'schema']
-    INTEGER_FIELDS = ['port']
+    COLLECTION_NAME = 'connections'
+    FIELDS_FROM_NONE_TO_EMPTY_STRING = ['connection_id', 'conn_type', 'host', 'login', 'schema']
+    FIELDS_FROM_NONE_TO_ZERO = ['port']
 
     conn_id = auto_field(dump_to='connection_id', load_from='connection_id')
-    conn_type = auto_field(default='')
+    conn_type = auto_field()
     host = auto_field()
     login = auto_field()
     schema = auto_field()
@@ -47,8 +47,10 @@ class ConnectionSchema(ConnectionCollectionItemSchema):  # pylint: disable=too-m
     """
     Connection schema
     """
+    FIELDS_FROM_NONE_TO_EMPTY_STRING = ConnectionCollectionItemSchema.\
+        FIELDS_FROM_NONE_TO_EMPTY_STRING + ['extra']
     password = auto_field(load_only=True)
-    extra = auto_field(missing='')
+    extra = auto_field()
 
 
 connection_schema = ConnectionSchema()

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from marshmallow import post_dump
 from marshmallow_sqlalchemy import SQLAlchemySchema
@@ -24,23 +24,30 @@ from airflow.exceptions import AirflowException
 
 class BaseSchema(SQLAlchemySchema):
 
-    """ Base Schema for sqlalchemy models """
+    """ Base Schema for sqlalchemy models
 
-    __envelope__: Dict[str, Optional[str]] = {"many": None}
-    STRING_FIELDS: List[str] = []
-    INTEGER_FIELDS: List[str] = []
+    :param COLLECTION_NAME: A name to use to return serialized data if the data is a list
+    :type COLLECTION_NAME: str
 
-    def get_envelope_key(self, many):  # pylint: disable=unused-argument
-        """Helper to get the envelope key.
+    :param FIELDS_FROM_NONE_TO_EMPTY_STRING: A list of fields to convert to empty string if value is None
+        after serialization
+    :type FIELDS_FROM_NONE_TO_EMPTY_STRING: List[str]
 
-        :param many: String used to return deserialized result for
-            a collection.
-        :type many: str
+    :param FIELDS_FROM_NONE_TO_ZERO: A list of fields to convert to integer zero if value is None
+        after serialization
+    :type FIELDS_FROM_NONE_TO_ZERO: List[str]
+    """
+
+    COLLECTION_NAME: Optional[str] = None
+    FIELDS_FROM_NONE_TO_EMPTY_STRING: List[str] = []
+    FIELDS_FROM_NONE_TO_ZERO: List[str] = []
+
+    def check_collection_name(self):
         """
-        key = self.__envelope__.get('many', None)
-        if key is None:
-            raise AirflowException("You must add the 'many' envelope key to your schema")
-        return key
+        Method to check that COLLLECTION_NAME attribute is not None
+        """
+        if not self.COLLECTION_NAME:
+            raise AirflowException("The COLLECTION_NAME attribute is missing in the schema")
 
     @post_dump(pass_many=True)
     def wrap_with_envelope(self, data, many, **kwargs):
@@ -48,35 +55,35 @@ class BaseSchema(SQLAlchemySchema):
         Checks if data is a list and use the envelope key to return it together
         with total_entries meta
         :param data: The deserialized data
-        :param many: The envelope key to use in returning the data
+        :param many: Whether the data is a collection
         """
-        key = self.get_envelope_key(many)
-        if isinstance(data, list):
-            data = self._process_list_obj(data)
-            return {key: data, 'total_entries': len(data)}
-        data = self._process_obj(data)
+        self.check_collection_name()
+        if many:
+            data = self._process_list_data(data)
+            return {self.COLLECTION_NAME: data, 'total_entries': len(data)}
+        data = self._process_data(data)
         return data
 
-    def _process_list_obj(self, data):
+    def _process_list_data(self, data):
         d_data = {}
         d_list = []
         for item in data:
             for k, v in item.items():
-                if v is None and k in self.STRING_FIELDS:
+                if v is None and k in self.FIELDS_FROM_NONE_TO_EMPTY_STRING:
                     v = ''
-                elif v is None and k in self.INTEGER_FIELDS:
+                elif v is None and k in self.FIELDS_FROM_NONE_TO_ZERO:
                     v = 0
                 d_data[k] = v
             d_list.append(d_data)
             d_data = {}
         return d_list
 
-    def _process_obj(self, data):
+    def _process_data(self, data):
         d_data = {}
         for k, v in data.items():
-            if v is None and k in self.STRING_FIELDS:
+            if v is None and k in self.FIELDS_FROM_NONE_TO_EMPTY_STRING:
                 v = ''
-            elif v is None and k in self.INTEGER_FIELDS:
+            elif v is None and k in self.FIELDS_FROM_NONE_TO_ZERO:
                 v = 0
             d_data[k] = v
         return d_data
