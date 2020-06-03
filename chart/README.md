@@ -36,6 +36,7 @@ This chart will bootstrap an [Airfow](https://airflow.apache.org) deployment on 
 To install this repository from source (using helm 3)
 ```bash
 kubectl create namespace airflow
+helm dep update
 helm install airflow . --namespace airflow
 ```
 
