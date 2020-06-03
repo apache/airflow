@@ -2801,3 +2801,56 @@ class TestDecorators(TestBase):
         self.session.commit()
         self.check_last_log("example_bash_operator", event="clear",
                             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
+
+
+class TestRemoteLogs(TestBase):
+    DEFAULT_DATE = datetime(2017, 9, 1)
+    PARAMS = {
+        'dag_id': 'example_bash_operator',
+        'task_id': 'runme_0',
+        'execution_date': quote_plus(DEFAULT_DATE.isoformat()),
+        'try_number': 1,
+    }
+    GRAPH_ENDPOINT = '/graph?dag_id={dag_id}&root={task_id}'.format(**PARAMS)
+    LOG_ID_TEMPLATE = '{dag_id}-{task_id}-{execution_date}-{try_number}'
+    LOG_ID = LOG_ID_TEMPLATE.format(**PARAMS)
+
+    def test_elasticsearch_not_configured(self):
+        with self.capture_templates() as templates:
+            self.client.get(self.GRAPH_ENDPOINT, follow_redirects=True)
+
+            self.assertFalse(templates[0].local_context['show_external_logs'])
+
+    @parameterized.expand([
+        # Common case
+        ('localhost:5601/{log_id}', LOG_ID_TEMPLATE, 'https://localhost:5601/' + LOG_ID),
+        # Ignore template if "{log_id}"" is missing in the URL
+        ('localhost:5601', LOG_ID_TEMPLATE, 'https://localhost:5601'),
+        # Automatically add https://
+        ('http://localhost:5601', LOG_ID_TEMPLATE, 'https://http://localhost:5601'),
+        # If template not present, use default
+        ('localhost:5601/{log_id}', None, 'https://localhost:5601/' + LOG_ID),
+    ])
+    def test_elasticsearch_configured(self, es_frontend, log_id_template, expected_location):
+        log_vars = {('logging', 'remote_logging'): 'True',
+                    ('elasticsearch', 'frontend'): es_frontend}
+        if log_id_template:
+            log_vars[('elasticsearch', 'log_id_template')] = log_id_template
+
+        with conf_vars(log_vars):
+
+            # Test variable used for rendering
+            with self.capture_templates() as templates:
+                self.client.get(self.GRAPH_ENDPOINT, follow_redirects=True)
+
+                self.assertTrue(templates[0].local_context['show_external_logs'])
+
+            # Test redirect
+            url_template = 'elasticsearch?dag_id={dag_id}&' \
+                           'task_id={task_id}&execution_date={execution_date}&' \
+                           'try_number={try_number}'
+            url = url_template.format(**self.PARAMS)
+            resp = self.client.get(url)
+
+            self.assertEqual(302, resp.status_code)
+            self.assertEqual(expected_location, resp.headers['Location'])
