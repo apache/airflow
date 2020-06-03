@@ -41,7 +41,7 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="3"
+ARG DEPENDENCIES_EPOCH_NUMBER="4"
 # Increase the value below to force renstalling of all dependencies
 ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
@@ -119,14 +119,10 @@ RUN adduser airflow \
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && curl -fsSL https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add - \
-    && echo 'deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ buster main' > \
-        /etc/apt/sources.list.d/adoptopenjdk.list \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
       gnupg \
       libgcc-8-dev \
-      adoptopenjdk-8-hotspot-jre \
       apt-transport-https \
       bash-completion \
       ca-certificates \
@@ -149,50 +145,6 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-ENV JAVA_HOME=/usr/lib/jvm/adoptopenjdk-8-hotspot-jre-amd64
-
-# Install Hadoop and Hive
-# It is done in one step to share variables.
-ENV HADOOP_HOME="/opt/hadoop-cdh" HIVE_HOME="/opt/hive"
-
-RUN HADOOP_DISTRO="cdh" \
-    && HADOOP_MAJOR="5" \
-    && HADOOP_DISTRO_VERSION="5.11.0" \
-    && HADOOP_VERSION="2.6.0" \
-    && HADOOP_URL="https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/"\
-    && HADOOP_DOWNLOAD_URL="${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
-    && HADOOP_TMP_FILE="/tmp/hadoop.tar.gz" \
-    && mkdir -pv "${HADOOP_HOME}" \
-    && curl --fail --location "${HADOOP_DOWNLOAD_URL}" --output "${HADOOP_TMP_FILE}" \
-    && tar xzf "${HADOOP_TMP_FILE}" --absolute-names --strip-components 1 -C "${HADOOP_HOME}" \
-    && rm "${HADOOP_TMP_FILE}" \
-    && echo "Installing Hive" \
-    && HIVE_VERSION="1.1.0" \
-    && HIVE_URL="${HADOOP_URL}hive-${HIVE_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
-    && HIVE_VERSION="1.1.0" \
-    && HIVE_TMP_FILE="/tmp/hive.tar.gz" \
-    && mkdir -pv "${HIVE_HOME}" \
-    && mkdir -pv "/user/hive/warehouse" \
-    && chmod -R 777 "${HIVE_HOME}" \
-    && chmod -R 777 "/user/" \
-    && curl --fail --location  "${HIVE_URL}" --output "${HIVE_TMP_FILE}" \
-    && tar xzf "${HIVE_TMP_FILE}" --strip-components 1 -C "${HIVE_HOME}" \
-    && rm "${HIVE_TMP_FILE}"
-
-ENV PATH "${PATH}:/opt/hive/bin"
-
-# Install Minicluster
-ENV MINICLUSTER_HOME="/opt/minicluster"
-
-RUN MINICLUSTER_BASE="https://github.com/bolkedebruin/minicluster/releases/download/" \
-    && MINICLUSTER_VER="1.1" \
-    && MINICLUSTER_URL="${MINICLUSTER_BASE}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip" \
-    && MINICLUSTER_TMP_FILE="/tmp/minicluster.zip" \
-    && mkdir -pv "${MINICLUSTER_HOME}" \
-    && curl --fail --location "${MINICLUSTER_URL}" --output "${MINICLUSTER_TMP_FILE}" \
-    && unzip "${MINICLUSTER_TMP_FILE}" -d "/opt" \
-    && rm "${MINICLUSTER_TMP_FILE}"
 
 # Install Docker
 RUN curl --fail --location https://download.docker.com/linux/debian/gpg | apt-key add - \
