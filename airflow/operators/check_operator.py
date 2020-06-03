@@ -20,14 +20,13 @@
 
 import warnings
 
+# pylint: disable=unused-import
+# flake8: noqa F401
 from airflow.operators.sql import (
-    SQLCheckOperator as CheckOperator,
-    SQLIntervalCheckOperator as IntervalCheckOperator,
-    SQLThresholdCheckOperator as ThresholdCheckOperator,
-    SQLValueCheckOperator as ValueCheckOperator,
+    SQLCheckOperator as CheckOperator, SQLIntervalCheckOperator as IntervalCheckOperator,
+    SQLThresholdCheckOperator as ThresholdCheckOperator, SQLValueCheckOperator as ValueCheckOperator,
 )
 
-# pylint: disable=unused-import
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.sql`.",
     DeprecationWarning,

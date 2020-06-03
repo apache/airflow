@@ -16,6 +16,9 @@
 # under the License.
 """This module is deprecated. Please use `airflow.operators.sql`."""
 import warnings
+
+# pylint: disable=unused-import
+# flake8: noqa F401
 from airflow.operators.sql import BranchSQLOperator as BranchSqlOperator
 
 warnings.warn(

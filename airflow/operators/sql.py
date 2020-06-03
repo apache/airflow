@@ -217,9 +217,7 @@ class SQLValueCheckOperator(BaseOperator):
     def _get_numeric_matches(self, numeric_records, numeric_pass_value_conv):
         if self.has_tolerance:
             return [
-                numeric_pass_value_conv * (1 - self.tol)
-                <= record
-                <= numeric_pass_value_conv * (1 + self.tol)
+                numeric_pass_value_conv * (1 - self.tol) <= record <= numeric_pass_value_conv * (1 + self.tol)
                 for record in numeric_records
             ]
 
@@ -542,8 +540,8 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
 
         if conn.conn_type not in ALLOWED_CONN_TYPE:
             raise AirflowException(
-                "The connection type is not supported by BranchSqlOperator. "
-                + "Supported connection types: {}".format(list(ALLOWED_CONN_TYPE))
+                "The connection type is not supported by BranchSQLOperator.\
+                Supported connection types: {}".format(list(ALLOWED_CONN_TYPE))
             )
 
         if not self._hook:
