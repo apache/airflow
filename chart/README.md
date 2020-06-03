@@ -2,48 +2,9 @@
 
 [Apache Airflow](https://airflow.apache.org/) is a platform to programmatically author, schedule and monitor workflows.
 
-## TL;DR
-
-To install this helm chart remotely (using helm 3)
-
-```bash
-kubectl create namespace airflow
-
-helm repo add astronomer https://helm.astronomer.io
-helm install airflow --namespace airflow astronomer/airflow
-```
-
-To install airflow with the KEDA autoscaler
-
-```bash
-helm repo add kedacore https://kedacore.github.io/charts
-helm repo add astronomer https://helm.astronomer.io
-
-helm repo update
-
-kubectl create namespace keda
-helm install keda \
-    --namespace keda kedacore/keda
-
-kubectl create namespace airflow
-
-helm install airflow \
-    --set executor=CeleryExecutor \
-    --set workers.keda.enabled=true \
-    --set workers.persistence.enabled=false \
-    --namespace airflow \
-    astronomer/airflow
-
-```
-To install this repository from source
-```bash
-kubectl create namespace airflow
-helm install --namespace airflow .
-```
-
 ## Introduction
 
-This chart will bootstrap an [Airfow](https://github.com/astronomer/astronomer/tree/master/docker/airflow) deployment on a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager.
+This chart will bootstrap an [Airfow](https://airflow.apache.org) deployment on a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager.
 
 ## Prerequisites
 
@@ -52,10 +13,11 @@ This chart will bootstrap an [Airfow](https://github.com/astronomer/astronomer/t
 - PV provisioner support in the underlying infrastructure
 
 ## Installing the Chart
-To install the chart with the release name `my-release`:
 
+To install this repository from source (using helm 3)
 ```bash
-helm install --name my-release .
+kubectl create namespace airflow
+helm install airflow . --namespace airflow
 ```
 
 The command deploys Airflow on the Kubernetes cluster in the default configuration. The [Parameters](#parameters) section lists the parameters that can be configured during installation.
@@ -63,18 +25,18 @@ The command deploys Airflow on the Kubernetes cluster in the default configurati
 > **Tip**: List all releases using `helm list`
 
 ## Upgrading the Chart
-To upgrade the chart with the release name `my-release`:
+To upgrade the chart with the release name `airflow`:
 
 ```bash
-helm upgrade --name my-release .
+helm upgrade airflow . --namespace airflow
 ```
 
 ## Uninstalling the Chart
 
-To uninstall/delete the `my-release` deployment:
+To uninstall/delete the `airflow` deployment:
 
 ```bash
-helm delete my-release
+helm delete airflow --namespace airflow
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
@@ -84,7 +46,7 @@ The command removes all the Kubernetes components associated with the chart and 
 The recommended way to update your DAGs with this chart is to build a new docker image with the latest code (`docker build -t my-company/airflow:8a0da78 .`), push it to an accessible registry (`docker push my-company/airflow:8a0da78`), then update the Airflow pods with that image:
 
 ```bash
-helm upgrade my-release . \
+helm upgrade airflow . \
   --set images.airflow.repository=my-company/airflow \
   --set images.airflow.tag=8a0da78
 ```
@@ -212,17 +174,13 @@ on this chart by setting `workers.keda.enabled=true` your helm command or in the
 (Note: KEDA does not support StatefulSets so you need to set `worker.persistence.enabled` to `false`)
 
 ```bash
-helm repo add astronomer https://helm.astronomer.io
-helm repo update
-
 kubectl create namespace airflow
 
-helm install airflow \
+helm install airflow . \
+    --namespace airflow \
     --set executor=CeleryExecutor \
     --set workers.keda.enabled=true \
-    --set workers.persistence.enabled=false \
-    --namespace airflow \
-    astronomer/airflow
+    --set workers.persistence.enabled=false
 ```
 
 ## Walkthrough using kind
