@@ -70,9 +70,10 @@ class BaseSchema(SQLAlchemySchema):
     def _process_data(self, data):
         d_data = {}
         for k, v in data.items():
-            if v is None and k in self.FIELDS_FROM_NONE_TO_EMPTY_STRING:
-                v = ''
-            elif v is None and k in self.FIELDS_FROM_NONE_TO_ZERO:
-                v = 0
+            if v is None:
+                if k in self.FIELDS_FROM_NONE_TO_EMPTY_STRING:
+                    v = ''
+                elif k in self.FIELDS_FROM_NONE_TO_ZERO:
+                    v = 0
             d_data[k] = v
         return d_data
