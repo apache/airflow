@@ -389,7 +389,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
-        self.tags = set(tags or [])
+        self.tags = list(set(tags or []))
 
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):

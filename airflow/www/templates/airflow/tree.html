@@ -120,6 +120,7 @@ function populate_taskinstance_properties(node) {
     task_instance.operator = node.operator;
     task_instance.execution_date = dr_instance.execution_date;
     task_instance.external_trigger = dr_instance.external_trigger;
+    task_instance.tags = dr_instance.tags;
 
     // compute start_date and end_date if applicable
     if (task_instance.start_ts !== null) {
@@ -287,6 +288,7 @@ function update(source) {
           tt += "owner: " + escapeHtml(d.owner) + "<br/>";
           tt += "start_date: " + escapeHtml(d.start_date) + "<br/>";
           tt += "end_date: " + escapeHtml(d.end_date) + "<br/>";
+          tt += "tags: " + escapeHtml(d.tags.join(", ")) + "<br/>";
         }
         taskTip.direction('e')
         taskTip.show(tt, this)

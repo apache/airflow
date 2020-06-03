@@ -567,20 +567,6 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         else:
             self.state = None
 
-        tag_qry = session.query(TaskTag).filter(
-            TaskTag.dag_id == self.dag_id,
-            TaskTag.task_id == self.task_id,
-            TaskTag.execution_date == self.execution_date
-        )
-
-        if lock_for_update:
-            tags = tag_qry.with_for_update().all()
-        else:
-            tags = tag_qry.all()
-
-        if tags:
-            self.tags = tags
-
         self.log.debug("Refreshed TaskInstance %s", self)
 
     def refresh_from_task(self, task, pool_override=None):
