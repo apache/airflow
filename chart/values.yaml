@@ -43,7 +43,7 @@ allowPodLaunching: true
 defaultAirflowRepository: astronomerinc/ap-airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: 1.10.7-alpine3.10
+defaultAirflowTag: 1.10.7-buster
 
 # Images
 images:
