@@ -166,7 +166,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         name: Check yaml files with yamllint
         entry: yamllint -c yamllint-config.yml
         types: [yaml]
-        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$
+        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/templates/.*\.yaml$
   - repo: https://github.com/timothycrosley/isort
     rev: 4.3.21-2
     hooks:
