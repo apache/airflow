@@ -64,7 +64,7 @@ class TestBaseSchema(unittest.TestCase):
             }
         )
 
-    def test_process_list_obj(self):
+    def test_process_list_data_for_dump(self):
         class Model:
             def __init__(self, name=None, number=None):
                 self.name = name
@@ -93,7 +93,7 @@ class TestBaseSchema(unittest.TestCase):
             }
         )
 
-    def test_process_obj(self):
+    def test_process_data_for_dump(self):
         class Model:
             def __init__(self, name=None, number=None):
                 self.name = name
@@ -113,3 +113,64 @@ class TestBaseSchema(unittest.TestCase):
         self.assertEqual(result[0],
                          {'name': '', 'number': 0},
                          )
+
+    def test_unwrap_with_envelope_list_data(self):
+
+        class Model:
+            def __init__(self, name=None, number=None):
+                self.name = name
+                self.number = number
+
+        class MySchema(BaseSchema):
+            class Meta:
+                model = Model
+            COLLECTION_NAME = 'children'
+            FIELDS_FROM_NONE_TO_EMPTY_STRING = ['name']
+            FIELDS_FROM_NONE_TO_ZERO = ['number']
+            name = fields.Str(required=False, allow_none=True)
+            number = fields.Int(required=False, allow_none=True)
+
+        schema = MySchema(many=True)
+
+        deserialized = {
+            'children': [
+                {'name': '', 'number': 0},
+                {'name': '', 'number': 0}
+            ],
+            'total_entries': 2
+        }
+
+        result = schema.load(deserialized)
+        self.assertEqual(
+            result[0],
+            [
+                {'name': None, 'number': None},
+                {'name': None, 'number': None}
+            ]
+        )
+
+    def test_unwrap_with_envelope_one_data(self):
+
+        class Model:
+            def __init__(self, name=None, number=None):
+                self.name = name
+                self.number = number
+
+        class MySchema(BaseSchema):
+            class Meta:
+                model = Model
+
+            COLLECTION_NAME = 'children'
+            FIELDS_FROM_NONE_TO_EMPTY_STRING = ['name']
+            FIELDS_FROM_NONE_TO_ZERO = ['number']
+            name = fields.Str(required=False, allow_none=True)
+            number = fields.Int(required=False, allow_none=True)
+
+        schema = MySchema()
+        dump_data = {'name': '', 'number': 0}
+
+        result = schema.load(dump_data)
+        self.assertEqual(
+            result[0],
+            {'name': None, 'number': None}
+        )
