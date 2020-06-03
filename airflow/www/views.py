@@ -2492,8 +2492,8 @@ class DagRunModelView(AirflowModelView):
     base_permissions = ['can_list', 'can_add']
 
     add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
-    list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf', 'run_type']
-    search_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf', 'run_type']
+    list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'run_type', 'external_trigger', 'conf']
+    search_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'run_type', 'external_trigger', 'conf']
 
     base_order = ('execution_date', 'desc')
 

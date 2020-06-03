@@ -26,7 +26,7 @@ import threading
 import time
 from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout, suppress
-from datetime import datetime, timedelta
+from datetime import timedelta
 from itertools import groupby
 from typing import Any, Dict, List, Optional, Tuple
 
