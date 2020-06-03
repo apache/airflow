@@ -1,4 +1,23 @@
-# Helm Chart for Apache Airflow 
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+ -->
+
+# Helm Chart for Apache Airflow
 
 [Apache Airflow](https://airflow.apache.org/) is a platform to programmatically author, schedule and monitor workflows.
 
@@ -169,8 +188,8 @@ helm install \
     --namespace keda --name keda kedacore/keda
 ```
 
-Once KEDA is installed (which should be pretty quick since there is only one pod). You can try out KEDA autoscaling 
-on this chart by setting `workers.keda.enabled=true` your helm command or in the `values.yaml`. 
+Once KEDA is installed (which should be pretty quick since there is only one pod). You can try out KEDA autoscaling
+on this chart by setting `workers.keda.enabled=true` your helm command or in the `values.yaml`.
 (Note: KEDA does not support StatefulSets so you need to set `worker.persistence.enabled` to `false`)
 
 ```bash
@@ -221,7 +240,7 @@ kubectl get pods --all-namespaces
 helm list -n airflow
 ```
 
-Run `kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow` 
+Run `kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow`
 to port-forward the Airflow UI to http://localhost:8080/ to cofirm Airflow is working.
 
 **Build a Docker image from your DAGs:**
@@ -231,7 +250,7 @@ to port-forward the Airflow UI to http://localhost:8080/ to cofirm Airflow is wo
         mkdir my-airflow-project && cd my-airflow-project
         astro dev init
 
-2. Then build the image: 
+2. Then build the image:
 
         docker build -t my-dags:0.0.1 .
 
