@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-      - name: git-sync-clone
-        env:
-        - name: GIT_SYNC_REPO
-          value: https://github.com/{{CONFIGMAP_GIT_REPO}}.git
-        - name: GIT_SYNC_BRANCH
-          value: {{CONFIGMAP_BRANCH}}
-        - name: GIT_SYNC_ROOT
-          value: /git
-        - name: GIT_SYNC_DEST
-          value: repo
-        - name: GIT_SYNC_ONE_TIME
-          value: "true"
-        image: gcr.io/google-containers/git-sync-amd64:v2.0.5
-        imagePullPolicy: IfNotPresent
-        securityContext:
-          runAsUser: 0
-        volumeMounts:
-        - mountPath: /git
-          name: airflow-dags-git
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
+
+check_kind_and_kubectl_are_installed
+
+perform_kind_cluster_operation "${@}"
+
+check_cluster_ready_for_airflow

@@ -16,8 +16,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -x
+set -euo pipefail
 
-cd /opt/airflow && \
-airflow initdb && \
-(airflow create_user -u airflow -l airflow -f jon -e airflow@apache.org -r Admin -p airflow || true)
+echo
+echo "Copying airflow dags"
+echo
+
+
+# Create DAGS folder if it does not exist
+mkdir -pv "${AIRFLOW_HOME}/dags"
+ls -la "${AIRFLOW_HOME}/dags/"
+rm -rvf "${AIRFLOW_HOME}/dags/*"
+
+# Copy DAGS from current sources
+cp -Rv "${AIRFLOW_SOURCES}"/airflow/example_dags/* "${AIRFLOW_HOME}/dags/"
+
+echo
+echo "Copied airflow dags"
+echo

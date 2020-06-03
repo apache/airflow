@@ -115,5 +115,4 @@ def load_kube_config(client_configuration, config_file=None, context=None):
 
     loader = _get_kube_config_loader_for_yaml_file(
         config_file, active_context=context, config_persister=None)
-
     loader.load_and_set(client_configuration)
