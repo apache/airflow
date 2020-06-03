@@ -29,6 +29,6 @@ class DagRunType(enum.Enum):
         Resolved DagRun type from run_id.
         """
         for run_type in DagRunType:
-            if run_id.startswith(f"{run_type.value}__"):
+            if run_id and run_id.startswith(f"{run_type.value}__"):
                 return run_type
         return DagRunType.MANUAL
