@@ -26,7 +26,6 @@ declare -a EXTRA_DOCKER_PROD_BUILD_FLAGS
 export EXTRA_DOCKER_FLAGS
 export EXTRA_DOCKER_PROD_BUILD_FLAGS
 
-declare -a FILES_TO_CLEANUP_ON_EXIT=()
 
 # In case "VERBOSE_COMMANDS" is set to "true" set -x is used to enable debugging
 function check_verbose_setup {
@@ -52,6 +51,8 @@ function verbose_docker {
 function initialize_common_environment {
     # default python Major/Minor version
     PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
+
+    FILES_TO_CLEANUP_ON_EXIT=()
 
     # Sets to where airflow sources are located
     AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
