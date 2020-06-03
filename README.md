@@ -65,6 +65,7 @@ Apache Airflow is tested with:
 * Postgres DB: 9.6, 10
 * MySQL DB: 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
+* Kubernetes - 1.16.2, 1.17.0
 
 ### Stable version (1.10.9)
 
@@ -72,6 +73,7 @@ Apache Airflow is tested with:
 * Postgres DB: 9.6, 10
 * MySQL DB: 5.6, 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
+* Kubernetes - 1.16.2, 1.17.0
 
 ## Getting started
 Please visit the Airflow Platform documentation (latest **stable** release) for help with [installing Airflow](https://airflow.apache.org/installation.html), getting a [quick start](https://airflow.apache.org/start.html), or a more complete [tutorial](https://airflow.apache.org/tutorial.html).

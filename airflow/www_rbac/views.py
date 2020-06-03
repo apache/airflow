@@ -53,6 +53,8 @@ from sqlalchemy import and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 
+import nvd3
+
 import airflow
 from airflow import models, jobs
 from airflow import settings, configuration
@@ -69,7 +71,6 @@ from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import provide_session, create_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.state import State
-from airflow._vendor import nvd3
 from airflow.www_rbac import utils as wwwutils
 from airflow.www_rbac.app import app, appbuilder
 from airflow.www_rbac.decorators import action_logging, gzipped, has_dag_access

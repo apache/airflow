@@ -15,30 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-# any argument received is overriding the default nose execution arguments:
-PYTEST_ARGS=( "$@" )
+set -euo pipefail
 
 echo
-echo "Starting the tests with those pytest arguments: ${PYTEST_ARGS[*]}"
+echo "Copying airflow dags"
 echo
-set +e
 
-pytest "${PYTEST_ARGS[@]}"
 
-RES=$?
+# Create DAGS folder if it does not exist
+mkdir -pv "${AIRFLOW_HOME}/dags"
+ls -la "${AIRFLOW_HOME}/dags/"
+rm -rvf "${AIRFLOW_HOME}/dags/*"
 
-set +x
-if [[ "${RES}" == "0" && ${CI:="false"} == "true" ]]; then
-    echo "All tests successful"
-    bash <(curl -s https://codecov.io/bash)
-fi
+# Copy DAGS from current sources
+cp -Rv "${AIRFLOW_SOURCES}"/airflow/example_dags/* "${AIRFLOW_HOME}/dags/"
 
-if [[ ${CI} == "true" ]]; then
-    send_docker_logs_to_file_io
-    send_airflow_logs_to_file_io
-fi
-
-exit "${RES}"
+echo
+echo "Copied airflow dags"
+echo

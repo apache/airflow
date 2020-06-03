@@ -185,7 +185,6 @@ release = airflow.__version__
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = [
-    '_api/airflow/_vendor',
     '_api/airflow/api',
     '_api/airflow/bin',
     '_api/airflow/config_templates',

@@ -46,31 +46,53 @@ spec:
         runAsGroup: 50000
         fsGroup: 50000
       initContainers:
-      - name: "init"
-        image: {{AIRFLOW_KUBERNETES_IMAGE}}
-        imagePullPolicy: IfNotPresent
-        volumeMounts:
-        - name: airflow-configmap
-          mountPath: /opt/airflow/airflow.cfg
-          subPath: airflow.cfg
-        - name: {{INIT_DAGS_VOLUME_NAME}}
-          mountPath: /opt/airflow/dags
-        env:
-        - name: SQL_ALCHEMY_CONN
-          valueFrom:
-            secretKeyRef:
-              name: airflow-secrets
-              key: sql_alchemy_conn
-        command:
-          - "bash"
-        args:
-          - "-cx"
-          - "/tmp/airflow-test-env-init.sh"
+        - name: "init-dags"
+          image: {{AIRFLOW_KUBERNETES_IMAGE}}
+          imagePullPolicy: Never
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: airflow-configmap
+              mountPath: /opt/airflow/airflow.cfg
+              subPath: airflow.cfg
+            - name: {{INIT_DAGS_VOLUME_NAME}}
+              mountPath: /opt/airflow/dags
+          env:
+            - name: SQL_ALCHEMY_CONN
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-secrets
+                  key: sql_alchemy_conn
+          command:
+            - "bash"
+          args:
+            - "-cx"
+            - "/tmp/airflow-test-env-init-dags.sh"
+        - name: "init-db"
+          image: {{AIRFLOW_KUBERNETES_IMAGE}}
+          imagePullPolicy: Never
+          volumeMounts:
+          - name: airflow-configmap
+            mountPath: /opt/airflow/airflow.cfg
+            subPath: airflow.cfg
+          - name: {{INIT_DAGS_VOLUME_NAME}}
+            mountPath: /opt/airflow/dags
+          env:
+          - name: SQL_ALCHEMY_CONN
+            valueFrom:
+              secretKeyRef:
+                name: airflow-secrets
+                key: sql_alchemy_conn
+          command:
+            - "bash"
+          args:
+            - "-cx"
+            - "/tmp/airflow-test-env-init-db.sh"
 {{INIT_GIT_SYNC}}
       containers:
       - name: webserver
         image: {{AIRFLOW_KUBERNETES_IMAGE}}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Never
         ports:
         - name: webserver
           containerPort: 8080
@@ -95,7 +117,7 @@ spec:
           mountPath: /opt/airflow/logs
       - name: scheduler
         image: {{AIRFLOW_KUBERNETES_IMAGE}}
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Never
         args: ["scheduler"]
         env:
         - name: AIRFLOW__KUBERNETES__NAMESPACE

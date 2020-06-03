@@ -15,13 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-if [[ "$1" = "webserver" ]]
-then
-    exec airflow webserver
-fi
+cd "${AIRFLOW_SOURCES}" || exit 1
 
-if [[ "$1" = "scheduler" ]]
-then
-    exec airflow scheduler
-fi
+export KUBERNETES_VERSION=${KUBERNETES_VERSION:="v1.15.3"}
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
+export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
+
+prepare_prod_build
+echo
+echo "Loading the ${AIRFLOW_KUBERNETES_IMAGE} to cluster ${KIND_CLUSTER_NAME} from docker"
+echo
+"${AIRFLOW_SOURCES}/.build/bin/kind" load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_KUBERNETES_IMAGE}"
+echo
+echo "Loaded the ${AIRFLOW_KUBERNETES_IMAGE} to cluster ${KIND_CLUSTER_NAME}"
+echo
