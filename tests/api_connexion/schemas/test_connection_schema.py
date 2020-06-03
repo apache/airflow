@@ -70,12 +70,7 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
             'port': 80
         }
         connection_dump_2 = {
-            'connection_id': "mysql_default_2",
-            'conn_type': '',
-            'host': '',
-            'login': '',
-            'schema': '',
-            'port': 0
+            'connection_id': "mysql_default_2"
         }
         result_1 = connection_collection_item_schema.load(connection_dump_1)
         result_2 = connection_collection_item_schema.load(connection_dump_2)
@@ -91,16 +86,10 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
                 'port': 80
             }
         )
-
         self.assertEqual(
             result_2[0],
             {
                 'conn_id': "mysql_default_2",
-                'conn_type': None,
-                'host': None,
-                'login': None,
-                'schema': None,
-                'port': None
             }
         )
 
@@ -149,51 +138,6 @@ class TestConnectionCollectionSchema(unittest.TestCase):
                 ],
                 'total_entries': 2
             }
-        )
-
-    def test_deserialization(self):
-        deserialized_connection_collection = {
-            'connections': [
-                {
-                    "connection_id": "mysql_default_1",
-                    "conn_type": '',
-                    "host": '',
-                    "login": '',
-                    'schema': '',
-                    'port': 0
-                },
-                {
-                    "connection_id": "mysql_default_2",
-                    "conn_type": '',
-                    "host": '',
-                    "login": '',
-                    'schema': '',
-                    'port': 0
-                }
-            ],
-            'total_entries': 2
-        }
-        result = connection_collection_schema.load(deserialized_connection_collection)
-        self.assertEqual(
-            result[0],
-            [
-                {
-                    "conn_id": "mysql_default_1",
-                    "conn_type": None,
-                    "host": None,
-                    "login": None,
-                    'schema': None,
-                    'port': None
-                },
-                {
-                    "conn_id": "mysql_default_2",
-                    "conn_type": None,
-                    "host": None,
-                    "login": None,
-                    'schema': None,
-                    'port': None
-                }
-            ]
         )
 
 
