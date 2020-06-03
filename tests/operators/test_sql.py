@@ -19,33 +19,23 @@
 import datetime
 import unittest
 
-# from unittest import mock
-
+import mock
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.sql import BranchSQLOperator
-from airflow.utils import timezone
-from airflow.utils.session import create_session
-from airflow.utils.state import State
-from tests.providers.apache.hive import TestHiveEnvironment
-
-import unittest
-
-# from datetime import datetime
-
-import mock
-
-# from airflow.exceptions import AirflowException
-# from airflow.models import DAG
 from airflow.operators.check_operator import (
     CheckOperator,
     IntervalCheckOperator,
     ThresholdCheckOperator,
     ValueCheckOperator,
 )
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.sql import BranchSQLOperator
+from airflow.utils import timezone
+from airflow.utils.session import create_session
+from airflow.utils.state import State
+from tests.providers.apache.hive import TestHiveEnvironment
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
