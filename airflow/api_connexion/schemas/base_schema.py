@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List
+from typing import Dict, List, Optional
 
 from marshmallow import post_dump
 from marshmallow_sqlalchemy import SQLAlchemySchema
@@ -26,7 +26,7 @@ class BaseSchema(SQLAlchemySchema):
 
     """ Base Schema for sqlalchemy models """
 
-    __envelope__ = {"many": None}
+    __envelope__: Dict[str, Optional[str]] = {"many": None}
     STRING_FIELDS: List[str] = []
     INTEGER_FIELDS: List[str] = []
 
