@@ -216,7 +216,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         name: Update mounts in the local yml file
         entry: "./scripts/ci/pre_commit_local_yml_mounts.sh"
         language: system
-        files: ^scripts/ci/_utils.sh$|s^scripts/ci/docker_compose/local.yml"
+        files: ^scripts/ci/libraries/_local_mounts.sh$|s^scripts/ci/docker_compose/local.yml"
         pass_filenames: false
         require_serial: true
       - id: update-setup-cfg-file

@@ -16,24 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
-
-# This should only be sourced from CI directory!
-
-SCRIPTS_CI_DIR="$( dirname "${BASH_SOURCE[0]}" )"
-export SCRIPTS_CI_DIR
-
-# shellcheck source=scripts/ci/_all_libs.sh
-. "${SCRIPTS_CI_DIR}"/_all_libs.sh
-
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export MY_DIR
-
-initialize_common_environment
-
-basic_sanity_checks
-
-script_start
-
-trap script_end EXIT
+# In case of the pylint checks we filter out some files which are still in pylint_todo.txt list
+function filter_out_files_from_pylint_todo_list() {
+  FILTERED_FILES=()
+  set +e
+  for FILE in "$@"
+  do
+      if [[ ${FILE} == "airflow/migrations/versions/"* ]]; then
+          # Skip all generated migration scripts
+          continue
+      fi
+      if ! grep -x "./${FILE}" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt" >/dev/null; then
+          FILTERED_FILES+=("${FILE}")
+      fi
+  done
+  set -e
+  export FILTERED_FILES
+}

@@ -16,24 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
-
-# This should only be sourced from CI directory!
-
-SCRIPTS_CI_DIR="$( dirname "${BASH_SOURCE[0]}" )"
-export SCRIPTS_CI_DIR
-
-# shellcheck source=scripts/ci/_all_libs.sh
-. "${SCRIPTS_CI_DIR}"/_all_libs.sh
-
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export MY_DIR
-
-initialize_common_environment
-
-basic_sanity_checks
-
-script_start
-
-trap script_end EXIT
+# Removes airflow CI and base images
+function remove_all_images() {
+    echo
+    "${AIRFLOW_SOURCES}/confirm" "Removing all local images ."
+    echo
+    verbose_docker rmi "${PYTHON_BASE_IMAGE}" || true
+    verbose_docker rmi "${AIRFLOW_CI_IMAGE}" || true
+    echo
+    echo "###################################################################"
+    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
+    echo "       But the disk space in docker will be reclaimed only after"
+    echo "       running 'docker system prune' command."
+    echo "###################################################################"
+    echo
+}
