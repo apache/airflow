@@ -23,7 +23,6 @@ This module contains various unit tests for GCP DLP Operators
 
 import tempfile
 from copy import deepcopy
-
 from datetime import datetime
 from unittest import TestCase, mock
 
