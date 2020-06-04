@@ -74,6 +74,19 @@ class TestGetConnection(TestConnectionEndpoint):
             },
         )
 
+    def test_should_response_404(self):
+        response = self.client.get("/api/v1/connections/invalid-connection")
+        assert response.status_code == 404
+        self.assertEqual(
+            {
+                'detail': None,
+                'status': 404,
+                'title': 'Connection not found',
+                'type': 'about:blank'
+            },
+            response.json
+        )
+
 
 class TestGetConnections(TestConnectionEndpoint):
 
@@ -112,6 +125,39 @@ class TestGetConnections(TestConnectionEndpoint):
                 'total_entries': 2
             }
         )
+
+    @provide_session
+    def test_handle_limit(self, session):
+        connections = [Connection(conn_id='mycon-id' + str(i)) for i in range(100)]
+        session.add_all(connections)
+        session.commit()
+        result = session.query(Connection).all()
+        assert len(result) == 100
+        response = self.client.get("/api/v1/connections?limit=10")
+        assert response.status_code == 200
+        self.assertEqual(response.json.get('total_entries'), 10)
+
+    @provide_session
+    def test_handle_offset(self, session):
+        connections = [Connection(conn_id='mycon-id' + str(i)) for i in range(100)]
+        session.add_all(connections)
+        session.commit()
+        result = session.query(Connection).all()
+        assert len(result) == 100
+        response = self.client.get("/api/v1/connections?offset=50")
+        assert response.status_code == 200
+        self.assertEqual(response.json.get('total_entries'), 50)
+
+    @provide_session
+    def test_handle_limit_and_offset(self, session):
+        connections = [Connection(conn_id='mycon-id' + str(i)) for i in range(100)]
+        session.add_all(connections)
+        session.commit()
+        result = session.query(Connection).all()
+        assert len(result) == 100
+        response = self.client.get("/api/v1/connections?offset=50&limit=10")
+        assert response.status_code == 200
+        self.assertEqual(response.json.get('total_entries'), 10)
 
 
 class TestPatchConnection(TestConnectionEndpoint):
