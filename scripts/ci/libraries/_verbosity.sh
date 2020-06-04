@@ -16,24 +16,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
+# In case "VERBOSE_COMMANDS" is set to "true" set -x is used to enable debugging
+function check_verbose_setup {
+    if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
+        set -x
+    else
+        set +x
+    fi
+}
 
-# This should only be sourced from CI directory!
+# In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
+# printed before execution
+function verbose_docker {
+    if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
+       # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
+        echo "docker" "${@}"
+    fi
+    docker "${@}"
+}
 
-SCRIPTS_CI_DIR="$( dirname "${BASH_SOURCE[0]}" )"
-export SCRIPTS_CI_DIR
-
-# shellcheck source=scripts/ci/_all_libs.sh
-. "${SCRIPTS_CI_DIR}"/_all_libs.sh
-
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export MY_DIR
-
-initialize_common_environment
-
-basic_sanity_checks
-
-script_start
-
-trap script_end EXIT
+# Prints verbose information in case VERBOSE variable is set
+function print_info() {
+    if [[ ${VERBOSE:="false"} == "true" ]]; then
+        echo "$@"
+    fi
+}
