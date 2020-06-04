@@ -32,8 +32,8 @@ import dill
 import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
-from sqlalchemy import Column, Float, Index, Integer, PickleType, String, ForeignKey, and_, func, or_
-from sqlalchemy.orm import reconstructor, relationship, backref, joinedload
+from sqlalchemy import Column, Float, ForeignKey, Index, Integer, PickleType, String, and_, func, or_
+from sqlalchemy.orm import backref, joinedload, reconstructor, relationship
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 
