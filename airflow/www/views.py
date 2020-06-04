@@ -2703,6 +2703,28 @@ class TaskRescheduleModelView(AirflowModelView):
 class TaskInstanceModelView(TaskTagModelView):
     """View to show records from TaskInstance table"""
 
+    class TagContainsFilter(BaseFilter):
+        name = lazy_gettext('Contains')
+        arg_name = 'tagct'
+
+        def apply(self, query, value):
+            return query.filter(
+                models.TaskInstance.tags.any(
+                    models.taskinstance.TaskTag.name.ilike('%' + value + '%')
+                )
+            )
+
+    class TagNotContainsFilter(BaseFilter):
+        name = lazy_gettext('Not Contains')
+        arg_name = 'tagnct'
+
+        def apply(self, query, value):
+            return query.filter(
+                ~models.TaskInstance.tags.any(
+                    models.taskinstance.TaskTag.name.ilike('%' + value + '%')
+                )
+            )
+
     route_base = '/taskinstance'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskInstance)
@@ -2724,6 +2746,11 @@ class TaskInstanceModelView(TaskTagModelView):
     base_order = ('job_id', 'asc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
+
+    column_filters = [
+        TagContainsFilter(column_name='tags', datamodel=models.TaskInstance),
+        TagNotContainsFilter(column_name='tags', datamodel=models.TaskInstance)
+    ]
 
     def log_url_formatter(attr):
         log_url = attr.get('log_url')
