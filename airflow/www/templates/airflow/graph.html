@@ -299,7 +299,8 @@
                         .style("stroke-width", highlightStrokeWidth);
                 }
                 else if (task_instances[d] !== undefined && task_instances[d].tags !== undefined) {
-                    var has_matches = task_instances[d].tags.reduce((m, t) => {
+
+                    var hasMatches = task_instances[d].tags.reduce((t, m) => {
                         // since we don't care how many matches we get,
                         // if we have one match just propagate it up
                         if (m > 0)
@@ -307,11 +308,9 @@
 
                         if (t.indexOf(s) > -1)
                             return m + 1;
-                        else
-                            return m;
                     }, 0)
 
-                    if (has_matches > 0) {
+                    if (hasMatches > 0) {
                         if (!match)
                             match = this;
                         d3.select(this)
