@@ -25,11 +25,11 @@ repos:
     rev: v1.1.7
     hooks:
       - id: forbid-tabs
-        exclude: ^airflow/_vendor/.*$|^docs/Makefile$
+        exclude: ^docs/Makefile$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "/*||*/"
@@ -38,7 +38,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all other files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "|#|"
@@ -49,7 +49,7 @@ repos:
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
       - id: insert-license
         name: Add license for all rst files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "||"
@@ -60,7 +60,7 @@ repos:
       - id: insert-license
         name: Add license for all JS/CSS files
         files: \.(js|css)$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$|^airflow/www/static/.*|^airflow/www_rbac/static/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "/**| *| */"
@@ -70,7 +70,7 @@ repos:
       - id: insert-license
         name: Add license for all JINJA template files
         files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$  # yamllint disable-line rule:line-length
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "{#||#}"
@@ -79,7 +79,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all shell files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
         args:
           - --comment-style
@@ -89,7 +89,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all python files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [python]
         args:
           - --comment-style
@@ -99,7 +99,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all XML files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [xml]
         args:
           - --comment-style
@@ -109,7 +109,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all yaml files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [yaml]
         args:
           - --comment-style
@@ -120,7 +120,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "<!--|| -->"
@@ -169,7 +169,6 @@ repos:
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
-        exclude: ^airflow/_vendor/.*$
         ##
         ## Dear committer.
         ##
@@ -240,7 +239,7 @@ repos:
                 ^\sdef\s*\S*\(.*\):\s*\-\>\s*\S*.*  # Matches -> return value syntax from Python3
             )$
         files: \.py$
-        exclude: ^airflow/_vendor|^dev/
+        exclude: ^dev/
         pass_filenames: true
       - id: python2-compile
         name: Compile code using python2
@@ -288,7 +287,7 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^airflow/_vendor/.*$|^dev
+        exclude: ^dev
         require_serial: true
       - id: flake8
         name: Run flake8

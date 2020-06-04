@@ -109,7 +109,7 @@ function in_container_basic_sanity_check() {
     in_container_cleanup_pycache
 }
 
-export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access"
+export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
 
 function start_output_heartbeat() {
     MESSAGE=${1:-"Still working!"}

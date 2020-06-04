@@ -74,11 +74,12 @@ apache-airflow-.*\+source.tar.gz.*
 apache-airflow-.*\+bin.tar.gz.*
 PULL_REQUEST_TEMPLATE.md
 
-# vendored modules
-_vendor/*
 
 # Locally mounted files
 .*egg-info/*
 .bash_history
 .bash_aliases
 .inputrc
+
+# the example notebook is ASF 2 licensed but RAT cannot read this
+input_notebook.ipynb
