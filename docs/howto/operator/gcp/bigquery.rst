@@ -241,10 +241,10 @@ You can also use this operator to delete a view.
     :start-after: [START howto_operator_bigquery_delete_view]
     :end-before: [END howto_operator_bigquery_delete_view]
 
-.. _howto/operator:BigQueryExecuteQueryOperator:
+.. _howto/operator:BigQueryInsertJobOperator:
 
-Execute queries
-^^^^^^^^^^^^^^^
+Execute BigQuery jobs
+^^^^^^^^^^^^^^^^^^^^^
 
 Let's say you would like to execute the following query.
 
@@ -255,32 +255,23 @@ Let's say you would like to execute the following query.
     :end-before: [END howto_operator_bigquery_query]
 
 To execute the SQL query in a specific BigQuery database you can use
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator`.
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator` with
+proper query job configuration.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_bigquery_execute_query]
-    :end-before: [END howto_operator_bigquery_execute_query]
+    :start-after: [START howto_operator_bigquery_insert_job]
+    :end-before: [END howto_operator_bigquery_insert_job]
 
-``sql`` argument can receive a str representing a sql statement, a list of str
-(sql statements), or reference to a template file. Template reference are recognized
-by str ending in '.sql'.
+For more information on types of BigQuery job please check
+`documentation <https://cloud.google.com/bigquery/docs/reference/v2/jobs>`__.
 
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_bigquery_execute_query_list]
-    :end-before: [END howto_operator_bigquery_execute_query_list]
-
-You can store the results of the query in a table by specifying
-``destination_dataset_table``.
-
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_bigquery_execute_query_save]
-    :end-before: [END howto_operator_bigquery_execute_query_save]
+Additionally you can use ``job_id`` parameter of
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator` to improve
+idempotency. If this parameter is not passed then uuid will be used as ``job_id``. If provided then
+operator will try to submit a new job with this ``job_id```. If there's already a job with such ``job_id``
+then it will reattach to the existing job.
 
 Validate data
 ^^^^^^^^^^^^^

@@ -39,7 +39,7 @@ class PubSubPullSensor(BaseSensorOperator):
 
     .. seealso::
         If you don't want to wait for at least one message to come, use Operator instead:
-        :class:`airflow.providers.google.cloud.operators.PubSubPullOperator`
+        :class:`~airflow.providers.google.cloud.operators.pubsub.PubSubPullOperator`
 
     This sensor operator will pull up to ``max_messages`` messages from the
     specified PubSub subscription. When the subscription returns messages,
@@ -68,7 +68,7 @@ class PubSubPullSensor(BaseSensorOperator):
         The Sensor task will (by definition) always wait for a message, regardless of this argument value.
 
         If you want a non-blocking task that does not to wait for messages, please use
-        :class:`airflow.providers.google.cloud.operators.PubSubPullOperator`
+        :class:`~airflow.providers.google.cloud.operators.pubsub.PubSubPullOperator`
         instead.
     :type return_immediately: bool
     :param ack_messages: If True, each message will be acknowledged

@@ -170,8 +170,8 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-# 'Start dependencies group' and 'Start dependencies group' are mark for ./test/test_order_setup.py
-# If you change this mark you should also change ./test/test_order_setup.py function test_main_dependent_group
+# 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
+# If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 amazon = [
     'boto3>=1.12.0,<2.0.0',
@@ -190,9 +190,9 @@ atlas = [
 ]
 azure = [
     'azure-batch>=8.0.0',
-    'azure-cosmos>=3.0.1',
+    'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
-    'azure-kusto-data>=0.0.43',
+    'azure-kusto-data>=0.0.43,<0.1',
     'azure-mgmt-containerinstance>=1.5.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
@@ -263,7 +263,7 @@ google = [
     'google-cloud-bigtable>=1.0.0',
     'google-cloud-build>=1.0.0',
     'google-cloud-container>=0.1.1',
-    'google-cloud-datacatalog>=0.5.0',
+    'google-cloud-datacatalog>=0.5.0,<0.8',
     'google-cloud-dataproc>=0.5.0',
     'google-cloud-dlp>=0.11.0',
     'google-cloud-kms>=1.2.1',
@@ -286,17 +286,19 @@ google = [
     'pandas-gbq',
 ]
 grpc = [
+    'google-auth>=1.0.0, <2.0.0dev',
+    'google-auth-httplib2>=0.0.1',
     'grpcio>=1.15.0',
 ]
 hashicorp = [
     'hvac~=0.10',
 ]
 hdfs = [
-    'snakebite>=2.7.8',
+    'snakebite-py3',
 ]
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive>=0.6.0',
+    'pyhive[hive]>=0.6.0',
 ]
 jdbc = [
     'jaydebeapi>=1.1.1',
@@ -501,8 +503,8 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "dingding": [],
     "discord": [],
     "docker": docker,
-    "email": [],
     "elasticsearch": [],
+    "email": [],
     "exasol": exasol,
     "facebook": facebook,
     "ftp": [],
@@ -683,6 +685,7 @@ INSTALL_REQUIREMENTS = [
     'cached_property~=1.5',
     'cattrs~=1.0',
     'colorlog==4.0.2',
+    'connexion[swagger-ui,flask]>=2.6.0,<3',
     'croniter>=0.3.17, <0.4',
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
@@ -726,11 +729,6 @@ INSTALL_REQUIREMENTS = [
 ]
 
 
-def get_dependency_name(dep):
-    """Get name of a dependency."""
-    return dep.replace(">", '=').replace("<", "=").split("=")[0]
-
-
 def do_setup():
     """Perform the Airflow package setup."""
     write_version()
@@ -745,6 +743,7 @@ def do_setup():
         package_data={
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
                  "airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
+            'airflow.api_connexion.openapi': ['*.yaml'],
             'airflow.serialization': ["*.json"],
         },
         include_package_data=True,

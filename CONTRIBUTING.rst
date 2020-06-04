@@ -468,6 +468,7 @@ opsgenie                   http
 postgres                   amazon
 sftp                       ssh
 slack                      http
+snowflake                  slack
 ========================== ===========================
 
   .. END PACKAGE DEPENDENCIES HERE
@@ -824,7 +825,6 @@ useful for "bisecting" when looking for a commit that introduced some bugs.
 
 
 First of all - you can read about rebase workflow here:
-`Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_ - this is an
 `Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_ - this is an
 excellent article that describes all ins/outs of rebase. I recommend reading it and keeping it as reference.
 

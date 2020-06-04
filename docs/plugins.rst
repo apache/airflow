@@ -115,8 +115,9 @@ looks like:
         # buttons.
         operator_extra_links = []
 
-You can derive it by inheritance (please refer to the example below).
-Please note ``name`` inside this class must be specified.
+You can derive it by inheritance (please refer to the example below). In the example, all options have been
+defined as class attributes, but you can also define them as properties if you need to perform
+additional initialization. Please note ``name`` inside this class must be specified.
 
 After the plugin is imported into Airflow,
 you can invoke it using statement like

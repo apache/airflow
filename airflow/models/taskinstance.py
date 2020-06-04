@@ -963,6 +963,7 @@ class TaskInstance(Base, LoggingMixin):
 
         context = {}  # type: Dict
         actual_start_date = timezone.utcnow()
+        Stats.incr('ti.start.{}.{}'.format(task.dag_id, task.task_id))
         try:
             if not mark_success:
                 context = self.get_template_context()
@@ -1084,6 +1085,8 @@ class TaskInstance(Base, LoggingMixin):
         except (Exception, KeyboardInterrupt) as e:
             self.handle_failure(e, test_mode, context)
             raise
+        finally:
+            Stats.incr('ti.finish.{}.{}.{}'.format(task.dag_id, task.task_id, self.state))
 
         # Success callback
         try:

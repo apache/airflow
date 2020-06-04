@@ -19,7 +19,6 @@
 from typing import Any, Optional
 
 from slack import WebClient
-from slack.errors import SlackClientError  # pylint: disable=E0611
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -87,7 +86,7 @@ class SlackHook(BaseHook):
         raise AirflowException('Cannot get token: '
                                'No valid Slack token nor slack_conn_id supplied.')
 
-    def call(self, *args, **kwargs) -> None:
+    def call(self, api_method, *args, **kwargs) -> None:
         """
         Calls Slack WebClient `WebClient.api_call` with given arguments.
 
@@ -106,10 +105,4 @@ class SlackHook(BaseHook):
         :type json: dict
         """
 
-        return_code = self.client.api_call(*args, **kwargs)
-
-        try:
-            return_code.validate()
-        except SlackClientError as exc:
-            msg = f"Slack API call failed ({exc})"
-            raise AirflowException(msg)
+        self.client.api_call(api_method, *args, **kwargs)

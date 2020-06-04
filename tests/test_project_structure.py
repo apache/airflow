@@ -33,10 +33,8 @@ MISSING_TEST_FILES = {
     'tests/providers/apache/hive/operators/test_vertica_to_hive.py',
     'tests/providers/apache/pig/operators/test_pig.py',
     'tests/providers/apache/spark/hooks/test_spark_jdbc_script.py',
-    'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
     'tests/providers/google/cloud/operators/test_sql_to_gcs.py',
-    'tests/providers/google/cloud/sensors/test_bigquery.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
     'tests/providers/google/cloud/utils/test_field_validator.py',
     'tests/providers/google/cloud/utils/test_mlengine_operator_utils.py',
@@ -57,7 +55,7 @@ class TestProjectStructure(unittest.TestCase):
             self.assert_file_not_contains(filename, "providers")
 
     def test_deprecated_packages(self):
-        for directory in ["operator", "hooks", "sensors", "task_runner"]:
+        for directory in ["hooks", "operators", "secrets", "sensors", "task_runner"]:
             path_pattern = f"{ROOT_FOLDER}/airflow/contrib/{directory}/*.py"
 
             for filename in glob.glob(path_pattern, recursive=True):
@@ -136,9 +134,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'cassandra_to_gcs'),
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
-        ('cloud', 'local_to_gcs'),
-        ('cloud', 'sheets_to_gcs'),
-        ('suite', 'gcs_to_sheets'),
     }
 
     MISSING_DOC_GUIDES = {
@@ -148,12 +143,10 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'bigquery_to_mysql',
         'cassandra_to_gcs',
         'dataflow',
-        'dataproc',
         'datastore',
         'dlp',
         'gcs_to_bigquery',
         'kubernetes_engine',
-        'local_to_gcs',
         'mlengine',
         'mssql_to_gcs',
         'mysql_to_gcs',
@@ -244,7 +237,7 @@ class TestOperatorsHooks(unittest.TestCase):
         files = itertools.chain(*[
             glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
             for resource_type in ["operators", "hooks", "sensors", "example_dags"]
-            for part in ["airlfow", "tests"]
+            for part in ["airflow", "tests"]
         ])
 
         invalid_files = [

@@ -21,7 +21,10 @@
 This module contains various unit tests for GCP DLP Operators
 """
 
+import tempfile
 from copy import deepcopy
+
+from datetime import datetime
 from unittest import TestCase, mock
 
 from google.cloud.devtools.cloudbuild_v1.types import Build, RepoSource, StorageSource
@@ -29,6 +32,7 @@ from google.protobuf.json_format import ParseDict
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
+from airflow.models import DAG, TaskInstance
 from airflow.providers.google.cloud.operators.cloud_build import (
     BuildProcessor, CloudBuildCancelBuildOperator, CloudBuildCreateBuildOperator,
     CloudBuildCreateBuildTriggerOperator, CloudBuildDeleteBuildTriggerOperator, CloudBuildGetBuildOperator,
@@ -64,6 +68,7 @@ BUILD_TRIGGER = {
 }
 OPERATION = {"metadata": {"build": {"id": BUILD_ID}}}
 TRIGGER_ID = "32488e7f-09d6-4fe9-a5fb-4ca1419a6e7a"
+TEST_DEFAULT_DATE = datetime(year=2020, month=1, day=1)
 
 
 class TestCloudBuildOperator(TestCase):
@@ -118,6 +123,32 @@ class TestCloudBuildOperator(TestCase):
             timeout=None,
             metadata=None,
         )
+
+    def test_load_templated_yaml(self):
+        dag = DAG(dag_id='example_cloudbuild_operator', start_date=TEST_DEFAULT_DATE)
+        with tempfile.NamedTemporaryFile(suffix='.yaml', mode='w+t') as build:
+            build.writelines("""
+            steps:
+                - name: 'ubuntu'
+                  args: ['echo', 'Hello {{ params.name }}!']
+            """)
+            build.seek(0)
+            body_path = build.name
+            operator = CloudBuildCreateBuildOperator(
+                build=body_path,
+                task_id="task-id", dag=dag,
+                params={'name': 'airflow'}
+            )
+            operator.prepare_template()
+            ti = TaskInstance(operator, TEST_DEFAULT_DATE)
+            ti.render_templates()
+            expected_body = {'steps': [
+                {'name': 'ubuntu',
+                 'args': ['echo', 'Hello airflow!']
+                 }
+            ]
+            }
+            self.assertEqual(expected_body, operator.body)
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook"

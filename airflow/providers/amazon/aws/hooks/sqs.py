@@ -43,11 +43,11 @@ class SQSHook(AwsBaseHook):
         :param queue_name: name of the queue.
         :type queue_name: str
         :param attributes: additional attributes for the queue (default: None)
-            For details of the attributes parameter see :py:meth:`botocore.client.SQS.create_queue`
+            For details of the attributes parameter see :py:meth:`SQS.create_queue`
         :type attributes: dict
 
         :return: dict with the information about the queue
-            For details of the returned value see :py:meth:`botocore.client.SQS.create_queue`
+            For details of the returned value see :py:meth:`SQS.create_queue`
         :rtype: dict
         """
         return self.get_conn().create_queue(QueueName=queue_name, Attributes=attributes or {})

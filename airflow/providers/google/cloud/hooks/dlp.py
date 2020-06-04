@@ -38,8 +38,6 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"
-# Time to sleep between active checks of the operation results
-TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 # pylint: disable=R0904, C0302
@@ -180,6 +178,7 @@ class CloudDLPHook(GoogleBaseHook):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         wait_until_finished: bool = True,
+        time_to_sleep_in_seconds: int = 60
     ) -> DlpJob:
         """
         Creates a new job to inspect storage or calculate risk metrics.
@@ -207,6 +206,9 @@ class CloudDLPHook(GoogleBaseHook):
             until it is set to DONE.
         :type wait_until_finished: bool
         :rtype: google.cloud.dlp_v2.types.DlpJob
+        :param time_to_sleep_in_seconds: (Optional) Time to sleep, in seconds, between active checks
+            of the operation results. Defaults to 60.
+        :type time_to_sleep_in_seconds: int
         """
 
         client = self.get_conn()
@@ -242,7 +244,7 @@ class CloudDLPHook(GoogleBaseHook):
                 DlpJob.JobState.RUNNING,
                 DlpJob.JobState.JOB_STATE_UNSPECIFIED,
             ]:
-                time.sleep(TIME_TO_SLEEP_IN_SECONDS)
+                time.sleep(time_to_sleep_in_seconds)
             else:
                 raise AirflowException(
                     "Stopped polling DLP job state. DLP job {} state: {}.".format(

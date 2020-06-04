@@ -16,11 +16,13 @@
 # under the License.
 
 from typing import NamedTuple
+from unittest import mock
 
 import attr
 
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -158,3 +160,9 @@ class GithubLink(BaseOperatorLink):
 
     def get_link(self, operator, dttm):
         return 'https://github.com/apache/airflow'
+
+
+class MockHiveOperator(HiveOperator):
+    def __init__(self, *args, **kwargs):
+        self.run = mock.MagicMock()
+        super().__init__(*args, **kwargs)

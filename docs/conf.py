@@ -271,13 +271,16 @@ keep_warnings = True
 
 intersphinx_mapping = {
     'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
+    'celery': ('https://docs.celeryproject.org/en/stable/', None),
+    'hdfs': ('https://hdfscli.readthedocs.io/en/latest/', None),
+    'jinja2': ('https://jinja.palletsprojects.com/en/master/', None),
     'mongodb': ('https://api.mongodb.com/python/current/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'python': ('https://docs.python.org/3/', None),
     'requests': ('https://requests.readthedocs.io/en/master/', None),
     'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
-    'hdfs': ('https://hdfscli.readthedocs.io/en/latest/', None),
-    # google-cloud-python
+    # google-api
+    'google-api-core': ('https://googleapis.dev/python/google-api-core/latest', None),
     'google-cloud-automl': ('https://googleapis.dev/python/automl/latest', None),
     'google-cloud-bigquery': ('https://googleapis.dev/python/bigquery/latest', None),
     'google-cloud-bigquery-datatransfer': ('https://googleapis.dev/python/bigquerydatatransfer/latest', None),

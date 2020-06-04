@@ -38,7 +38,7 @@ def max_partition(
                        e.g. {'key1': 'value1', 'key2': 'value2'}.
                        Only partitions matching all partition_key:partition_value
                        pairs will be considered as candidates of max partition.
-    :type filter_map: map
+    :type filter_map: dict
     :param field: the field to get the max value from. If there's only
         one partition field, this will be inferred
     :type field: str

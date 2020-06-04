@@ -29,6 +29,7 @@ This DAG relies on the following OS environment variables:
 """
 
 import os
+from pathlib import Path
 
 from future.backports.urllib.parse import urlparse
 
@@ -49,6 +50,8 @@ GCP_SOURCE_REPOSITORY_NAME = os.environ.get("GCP_CLOUD_BUILD_REPOSITORY_NAME", "
 
 GCP_SOURCE_ARCHIVE_URL_PARTS = urlparse(GCP_SOURCE_ARCHIVE_URL)
 GCP_SOURCE_BUCKET_NAME = GCP_SOURCE_ARCHIVE_URL_PARTS.netloc
+CURRENT_FOLDER = Path(__file__).parent
+
 
 # [START howto_operator_gcp_create_build_trigger_body]
 create_build_trigger_body = {
@@ -168,6 +171,14 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_retry_build]
+
+    # [START howto_operator_gcp_create_build_from_yaml_body]
+    create_build_from_file = CloudBuildCreateBuildOperator(
+        task_id="create_build_from_file", project_id=GCP_PROJECT_ID,
+        build=str(CURRENT_FOLDER.joinpath('example_cloud_build.yaml')),
+        params={'name': 'Airflow'}
+    )
+    # [END howto_operator_gcp_create_build_from_yaml_body]
 
     create_build_from_storage >> create_build_from_storage_result  # pylint: disable=pointless-statement
     create_build_from_storage_result >> list_builds  # pylint: disable=pointless-statement

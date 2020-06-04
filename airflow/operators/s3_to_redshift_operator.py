@@ -19,10 +19,25 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.providers.amazon.aws.operators.s3_to_redshift import S3ToRedshiftTransfer  # noqa
+from airflow.providers.amazon.aws.operators.s3_to_redshift import S3ToRedshiftTransferOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3_to_redshift`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class S3ToRedshiftTransfer(S3ToRedshiftTransferOperator):
+    """
+    This class is deprecated.
+    Please use:
+    `airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransferOperator`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransferOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

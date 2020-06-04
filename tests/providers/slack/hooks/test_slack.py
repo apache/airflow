@@ -102,33 +102,11 @@ class TestSlackHook(unittest.TestCase):
         self.assertRaises(AirflowException, SlackHook, token=None, slack_conn_id=None)
 
     @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
-    def test_call_with_success(self, slack_client_class_mock):
-        slack_client_mock = mock.Mock()
-        slack_client_class_mock.return_value = slack_client_mock
-        slack_response = mock.Mock()
-        slack_client_mock.api_call.return_value = slack_response
-        slack_response.validate.return_value = True
-
-        test_token = 'test_token'
-        test_slack_conn_id = 'test_slack_conn_id'
-        slack_hook = SlackHook(token=test_token, slack_conn_id=test_slack_conn_id)
-        test_method = 'test_method'
-        test_api_params = {'key1': 'value1', 'key2': 'value2'}
-
-        slack_hook.call(test_method, json=test_api_params)
-
-        slack_client_class_mock.assert_called_once_with(test_token)
-        slack_client_mock.api_call.assert_called_once_with(test_method, json=test_api_params)
-        self.assertEqual(slack_response.validate.call_count, 1)
-
-    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
     def test_call_with_failure(self, slack_client_class_mock):
         slack_client_mock = mock.Mock()
         slack_client_class_mock.return_value = slack_client_mock
-        slack_response = mock.Mock()
-        slack_client_mock.api_call.return_value = slack_response
         expected_exception = SlackApiError(message='foo', response='bar')
-        slack_response.validate = mock.Mock(side_effect=expected_exception)
+        slack_client_mock.api_call = mock.Mock(side_effect=expected_exception)
 
         test_token = 'test_token'
         test_slack_conn_id = 'test_slack_conn_id'
@@ -136,12 +114,8 @@ class TestSlackHook(unittest.TestCase):
         test_method = 'test_method'
         test_api_params = {'key1': 'value1', 'key2': 'value2'}
 
-        try:
+        with self.assertRaises(SlackApiError):
             slack_hook.call(test_method, test_api_params)
-            self.fail()
-        except AirflowException as exc:
-            self.assertIn("foo", str(exc))
-            self.assertIn("bar", str(exc))
 
     @mock.patch('airflow.providers.slack.hooks.slack.WebClient.api_call', autospec=True)
     @mock.patch('airflow.providers.slack.hooks.slack.WebClient')

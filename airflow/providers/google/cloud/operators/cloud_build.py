@@ -18,12 +18,15 @@
 
 """Operators that integrates with Google Cloud Build service."""
 
+
+import json
 import re
 import warnings
 from copy import deepcopy
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 from urllib.parse import unquote, urlparse
 
+import yaml
 from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 from google.protobuf.json_format import MessageToDict, ParseDict
@@ -100,8 +103,9 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     Starts a build with the specified configuration.
 
     :param build: The build resource to create. If a dict is provided, it must be of the same form
-        as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`
-    :type build: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.Build`]
+        as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`. This can be a
+        dictionary or path to a file type like YAML or JSON.
+    :type build: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.Build`, str]
     :param body: (Deprecated) The build resource to create.
         This parameter has been deprecated. You should pass the build parameter instead.
     :type body: optional[dict]
@@ -125,11 +129,12 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     """
 
     template_fields = ("project_id", "build", "body", "gcp_conn_id")
+    template_ext = ['.yml', '.yaml', '.json']
 
     @apply_defaults
     def __init__(
         self,
-        build: Union[Dict, Build],
+        build: Union[Dict, Build, str],
         body: Optional[Dict] = None,
         project_id: Optional[str] = None,
         wait: bool = True,
@@ -142,6 +147,8 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.build = build
+        # Not template fields to keep original value
+        self.build_raw = build
         self.body = body
         self.project_id = project_id
         self.wait = wait
@@ -149,6 +156,16 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+
+    def prepare_template(self) -> None:
+        # if no file is specified, skip
+        if not isinstance(self.build_raw, str):
+            return
+        with open(self.build_raw, 'r') as file:
+            if any(self.build_raw.endswith(ext) for ext in ['.yaml', '.yml']):
+                self.body = yaml.load(file.read(), Loader=yaml.FullLoader)
+            if self.build_raw.endswith('.json'):
+                self.body = json.loads(file.read())
 
     def execute(self, context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id)
@@ -779,8 +796,10 @@ class BuildProcessor:
         :return: the body.
         :rtype: `google.cloud.devtools.cloudbuild_v1.types.Build`
         """
-        self._verify_source()
-        self._reformat_source()
+
+        if 'source' in self.build:
+            self._verify_source()
+            self._reformat_source()
         return ParseDict(self.build, Build())
 
     @staticmethod

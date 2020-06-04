@@ -22,11 +22,27 @@ Please use `airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`.
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.providers.amazon.aws.operators.google_api_to_s3_transfer import GoogleApiToS3Transfer  # noqa
+from airflow.providers.amazon.aws.operators.google_api_to_s3_transfer import GoogleApiToS3TransferOperator
 
 warnings.warn(
     "This module is deprecated. "
     "Please use `airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GoogleApiToS3Transfer(GoogleApiToS3TransferOperator):
+    """
+    This class is deprecated.
+    Please use:
+    `airflow.providers.amazon.aws.operators.google_api_to_s3_transfer.GoogleApiToS3TransferOperator`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.amazon.aws.operators.""" +
+            "google_api_to_s3_transfer.GoogleApiToS3TransferOperator`.",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

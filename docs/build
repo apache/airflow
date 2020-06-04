@@ -21,6 +21,7 @@ import re
 import shlex
 import shutil
 import sys
+from functools import total_ordering
 from subprocess import run
 from contextlib import suppress
 from glob import glob
@@ -34,10 +35,26 @@ if __name__ != "__main__":
     )
 
 
+@total_ordering
 class DocBuildError(NamedTuple):
     file_path: Optional[str]
     line_no: Optional[int]
     message: str
+
+    def __eq__(self, other):
+        left = (self.file_path, self.line_no, self.message)
+        right = (other.file_path, other.line_no, other.message)
+        return left == right
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __lt__(self, other):
+        file_path_a = self.file_path or ''
+        file_path_b = other.file_path or ''
+        line_no_a = self.line_no or 0
+        line_no_b = other.line_no or 0
+        return (file_path_a, line_no_a, self.message) < (file_path_b, line_no_b, other.message)
 
 
 build_errors: List[DocBuildError] = []
@@ -294,15 +311,15 @@ def build_sphinx_docs() -> None:
     with NamedTemporaryFile() as tmp_file:
         build_cmd = [
             "sphinx-build",
-            "-b",
+            "-b",  # builder to use
             "html",
-            "-d",
+            "-d",  # path for the cached environment and doctree files
             "_build/doctrees",
-            "--color",
-            "-w",
+            "--color",  # do emit colored output
+            "-w",  # turn warnings into errors
             tmp_file.name,
-            ".",
-            "_build/html",
+            ".",  # path to documentation source files
+            "_build/html",  # path to output directory
         ]
         print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
 

@@ -49,6 +49,20 @@ Release: 2020.5.20
 This is a backport providers package for `google` provider. All classes for this provider package
 are in `airflow.providers.google` python package.
 
+**Only Python 3.6+ is supported for this backport package.**
+
+While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
+want to use this backport package.
+
+
+## Additional notes
+
+The BigQuery classes are undergoing heavy rewriting. The implementation in Airflow 2.0 will not
+be fully backwards compatible with the old BigQuery operators. Therefore, the BigQuery classes
+have been stripped out of the current release of the backport packages. We will add the
+BigQuery Classes back in one of the future releases of the provider&#39;s package.
+
+
 ## Installation
 
 You can install this package on top of an existing airflow 1.10.* installation via
@@ -72,7 +86,7 @@ For full compatibility and test status of the backport packages check
 | google-cloud-bigquery-datatransfer | &gt;=0.4.0            |
 | google-cloud-bigtable              | &gt;=1.0.0            |
 | google-cloud-container             | &gt;=0.1.1            |
-| google-cloud-datacatalog           | &gt;=0.5.0            |
+| google-cloud-datacatalog           | &gt;=0.5.0,&lt;0.8       |
 | google-cloud-dataproc              | &gt;=0.5.0            |
 | google-cloud-dlp                   | &gt;=0.11.0           |
 | google-cloud-kms                   | &gt;=1.2.1            |
@@ -196,7 +210,7 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 | [cloud.operators.functions.CloudFunctionInvokeFunctionOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/functions.py)                                                         |
 | [cloud.operators.gcs.GCSDeleteBucketOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/gcs.py)                                                                                 |
 | [cloud.operators.gcs.GCSFileTransformOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/gcs.py)                                                                                |
-| [cloud.operators.gcs_to_gcs.GCSSynchronizeBuckets](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/gcs_to_gcs.py)                                                                     |
+| [cloud.operators.gcs_to_gcs.GCSSynchronizeBucketsOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/gcs_to_gcs.py)                                                             |
 | [cloud.operators.gcs_to_sftp.GCSToSFTPOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/gcs_to_sftp.py)                                                                       |
 | [cloud.operators.life_sciences.LifeSciencesRunPipelineOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/life_sciences.py)                                                     |
 | [cloud.operators.mlengine.MLEngineCreateModelOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/operators/mlengine.py)                                                                   |
@@ -258,7 +272,7 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 | [marketing_platform.operators.search_ads.GoogleSearchAdsDownloadReportOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/marketing_platform/operators/search_ads.py)                           |
 | [marketing_platform.operators.search_ads.GoogleSearchAdsInsertReportOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/marketing_platform/operators/search_ads.py)                             |
 | [suite.operators.gcs_to_sheets.GCSToGoogleSheetsOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/suite/operators/gcs_to_sheets.py)                                                           |
-| [suite.operators.sheets.GoogleSheetsCreateSpreadsheet](https://github.com/apache/airflow/blob/master/airflow/providers/google/suite/operators/sheets.py)                                                                     |
+| [suite.operators.sheets.GoogleSheetsCreateSpreadsheetOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/suite/operators/sheets.py)                                                             |
 
 
 
@@ -517,6 +531,15 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)                                                                                                        |
+| [3994030ea](https://github.com/apache/airflow/commit/3994030ea678727daaf9c2bfed0ca94a096f8d2a) | 2020-05-26  | Refactor BigQuery operators (#8858)                                                                                                                                |
+| [cdb3f2545](https://github.com/apache/airflow/commit/cdb3f25456e49d0199cd7ccd680626dac01c9be6) | 2020-05-26  | All classes in backport providers are now importable in Airflow 1.10 (#8991)                                                                                       |
+| [1d36b0303](https://github.com/apache/airflow/commit/1d36b0303b8632fce6de78ca4e782ae26ee06fea) | 2020-05-23  | Fix references in docs (#8984)                                                                                                                                     |
+| [cf5cf45e1](https://github.com/apache/airflow/commit/cf5cf45e1c0dff9a40e02f0dc221542f974831a7) | 2020-05-23  | Support YAML input for CloudBuildCreateOperator (#8808)                                                                                                            |
+| [499493c5c](https://github.com/apache/airflow/commit/499493c5c5cf324ab8452ead80a10b71ce0c3b14) | 2020-05-19  | [AIRFLOW-6586] Improvements to gcs sensor (#7197)                                                                                                                  |
+| [375d1ca22](https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f) | 2020-05-19  | Release candidate 2 for backport packages 2020.05.20 (#8898)                                                                                                       |
+| [841d81664](https://github.com/apache/airflow/commit/841d81664737c25d73d095a7dab5de80d369c87c) | 2020-05-19  | Allow setting the pooling time in DLPHook (#8824)                                                                                                                  |
+| [12c5e5d8a](https://github.com/apache/airflow/commit/12c5e5d8ae25fa633efe63ccf4db389e2b796d79) | 2020-05-17  | Prepare release candidate for backport packages (#8891)                                                                                                            |
 | [f3521fb0e](https://github.com/apache/airflow/commit/f3521fb0e36733d8bd356123e56a453fd37a6dca) | 2020-05-16  | Regenerate readme files for backport package release (#8886)                                                                                                       |
 | [15273f0ea](https://github.com/apache/airflow/commit/15273f0ea05ec579c631ce26b5d620233ebdc4d2) | 2020-05-16  | Check for same task instead of Equality to detect Duplicate Tasks (#8828)                                                                                          |
 | [92585ca4c](https://github.com/apache/airflow/commit/92585ca4cb375ac879f4ab331b3a063106eb7b92) | 2020-05-15  | Added automated release notes generation for backport operators (#8807)                                                                                            |

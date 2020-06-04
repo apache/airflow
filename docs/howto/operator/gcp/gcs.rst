@@ -85,7 +85,7 @@ GCSObjectCreateAclEntryOperator
 Creates a new ACL entry on the specified object.
 
 For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.gcs_acl_operator.GCSObjectCreateAclEntryOperator`
+:class:`~airflow.providers.google.cloud.operators.gcs.GCSObjectCreateAclEntryOperator`
 
 Using the operator
 """"""""""""""""""

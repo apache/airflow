@@ -40,7 +40,7 @@ services:
       - ../../../MANIFEST.in:/opt/airflow/MANIFEST.in:cached
       - ../../../NOTICE:/opt/airflow/NOTICE:cached
       - ../../../airflow:/opt/airflow/airflow:cached
-      - ../../../backport_packages/setup_backport_packages.py:/opt/airflow/backport_packages/setup_backport_packages.py:cached
+      - ../../../backport_packages:/opt/airflow/backport_packages:cached
       - ../../../common:/opt/airflow/common:cached
       - ../../../dags:/opt/airflow/dags:cached
       - ../../../dev:/opt/airflow/dev:cached
@@ -57,6 +57,7 @@ services:
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
+      - ../../../kubernetes_tests:/opt/airflow/kubernetes_tests:cached
       - ../../../tmp:/opt/airflow/tmp:cached
       # END automatically generated volumes from LOCAL_MOUNTS in _utils.sh
     environment:

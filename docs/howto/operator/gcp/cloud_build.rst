@@ -77,6 +77,7 @@ Build configuration
 
 In order to trigger a build, it is necessary to pass the build configuration.
 
+
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
     :language: python
     :dedent: 0
@@ -92,6 +93,14 @@ In addition, a build can refer to source stored in `Google Cloud Source Reposito
     :dedent: 0
     :start-after: [START howto_operator_create_build_from_repo_body]
     :end-before: [END howto_operator_create_build_from_repo_body]
+
+It is also possible to specify it using a YAML or JSON format.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_gcp_create_build_from_yaml_body]
+    :end-before: [END howto_operator_gcp_create_build_from_yaml_body]
 
 Read `Build Configuration Overview <https://cloud.google.com/cloud-build/docs/build-config>`__ to understand all the fields you can include in a build config file.
 

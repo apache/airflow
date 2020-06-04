@@ -35,7 +35,7 @@ class VolumeMount(K8SModel):
     :param mount_path:
     :type mount_path: str
     :param sub_path: subpath within the volume mount
-    :type sub_path: str
+    :type sub_path: Optional[str]
     :param read_only: whether to access pod with read-only mode
     :type read_only: bool
     """

@@ -26,6 +26,7 @@ declare -a EXTRA_DOCKER_PROD_BUILD_FLAGS
 export EXTRA_DOCKER_FLAGS
 export EXTRA_DOCKER_PROD_BUILD_FLAGS
 
+
 # In case "VERBOSE_COMMANDS" is set to "true" set -x is used to enable debugging
 function check_verbose_setup {
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
@@ -39,7 +40,8 @@ function check_verbose_setup {
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
 # printed before execution
 function verbose_docker {
-    if [[ ${VERBOSE:="false"} == "true" ]]; then
+    if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
+       # do not print echo if VERSBOSE_COMMAND is set (set -x does it already)
         echo "docker" "${@}"
     fi
     docker "${@}"
@@ -49,6 +51,8 @@ function verbose_docker {
 function initialize_common_environment {
     # default python Major/Minor version
     PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
+
+    FILES_TO_CLEANUP_ON_EXIT=()
 
     # Sets to where airflow sources are located
     AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
@@ -83,6 +87,11 @@ function initialize_common_environment {
     # Default branch name for triggered builds is the one configured in default branch
     export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
 
+    export GITHUB_ORGANISATION=${GITHUB_ORGANISATION:="apache"}
+    export GITHUB_REPO=${GITHUB_REPO:="airflow"}
+    export CACHE_REGISTRY=${CACHE_REGISTRY:="docker.pkg.github.com"}
+    export ENABLE_REGISTRY_CACHE=${ENABLE_REGISTRY_CACHE:="false"}
+
     # Default port numbers for forwarded ports
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
@@ -92,9 +101,8 @@ function initialize_common_environment {
     export POSTGRES_VERSION=${POSTGRES_VERSION:="9.6"}
     export MYSQL_VERSION=${MYSQL_VERSION:="5.7"}
 
-    # Do not push images by default (push them directly from the build script on Dockerhub or when
-    # --push-images flag is specified
-    export PUSH_IMAGES=${PUSH_IMAGES:="false"}
+    # Whether base python images should be pulled from cache
+    export PULL_PYTHON_BASE_IMAGES_FROM_CACHE=${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"}
 
     # Disable writing .pyc files - slightly slower imports but not messing around when switching
     # Python version and avoids problems with root-owned .pyc files in host
@@ -130,7 +138,7 @@ function initialize_common_environment {
     # Add the right volume mount for sources, depending which mount strategy is used
     if [[ ${MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
         print_info
-        print_info "Mount whole airflow source directory for static checks (make sure all files are in container)"
+        print_info "Mount whole airflow source directory for static checks"
         print_info
         EXTRA_DOCKER_FLAGS=( \
           "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
@@ -141,11 +149,7 @@ function initialize_common_environment {
         print_info "Mounting necessary host volumes to Docker"
         print_info
 
-        EXTRA_DOCKER_FLAGS=()
-
-        while IFS= read -r LINE; do
-            EXTRA_DOCKER_FLAGS+=( "${LINE}")
-        done < <(convert_local_mounts_to_docker_params)
+        read -r -a EXTRA_DOCKER_FLAGS <<< "$(convert_local_mounts_to_docker_params)"
     else
         print_info
         print_info "Skip mounting host volumes to Docker"
@@ -208,12 +212,11 @@ function initialize_common_environment {
     # Default extras used for building CI image
     export DEFAULT_CI_EXTRAS="devel_ci"
 
-
     # Default extras used for building Production image. The master of this information is in the Dockerfile
     DEFAULT_PROD_EXTRAS=$(grep "ARG AIRFLOW_EXTRAS=" "${AIRFLOW_SOURCES}/Dockerfile"|
             awk 'BEGIN { FS="=" } { print $2 }' | tr -d '"')
 
-    # By default we build CI images  but when we specify `--producton-image` we switch to production image
+    # By default we build CI images  but when we specify `--production-image` we switch to production image
     export PRODUCTION_IMAGE="false"
 
     # The SQLlite URL used for sqlite runs
@@ -222,8 +225,21 @@ function initialize_common_environment {
     # Determines if airflow should be installed from a specified reference in GitHub
     export INSTALL_AIRFLOW_REFERENCE=""
 
-    # Version suffix for the generated backport packages
-    export VERSION_SUFFIX=""
+    # Version suffix for PyPI packaging
+    export VERSION_SUFFIX_FOR_PYPI=""
+
+    # Artifact name suffix for SVN packaging
+    export VERSION_SUFFIX_FOR_SVN=""
+
+    # Version of Kubernetes to run
+    export KUBERNETES_VERSION="${KUBERNETES_VERSION:="v1.15.3"}"
+
+    # Name of the KinD cluster to connect to
+    export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
+
+    # Name of the KinD cluster to connect to when referred to via kubectl
+    export KUBECTL_CLUSTER_NAME=kind-${KIND_CLUSTER_NAME}
+
 }
 
 # Prints verbose information in case VERBOSE variable is set
@@ -237,53 +253,53 @@ function print_info() {
 # By default not the whole airflow sources directory is mounted because there are often
 # artifacts created there (for example .egg-info files) that are breaking the capability
 # of running different python versions in Breeze. So we only mount what is needed by default.
-LOCAL_MOUNTS="
-.bash_aliases /root/
-.bash_history /root/
-.coveragerc /opt/airflow/
-.dockerignore /opt/airflow/
-.flake8 /opt/airflow/
-.github /opt/airflow/
-.inputrc /root/
-.kube /root/
-.rat-excludes /opt/airflow/
-CHANGELOG.txt /opt/airflow/
-Dockerfile.ci /opt/airflow/
-LICENSE /opt/airflow/
-MANIFEST.in /opt/airflow/
-NOTICE /opt/airflow/
-airflow /opt/airflow/
-backport_packages/setup_backport_packages.py /opt/airflow/backport_packages/
-common /opt/airflow/
-dags /opt/airflow/
-dev /opt/airflow/
-docs /opt/airflow/
-files /
-dist /
-hooks /opt/airflow/
-logs /root/airflow/
-pylintrc /opt/airflow/
-pytest.ini /opt/airflow/
-requirements /opt/airflow/
-scripts /opt/airflow/
-scripts/ci/in_container/entrypoint_ci.sh /
-setup.cfg /opt/airflow/
-setup.py /opt/airflow/
-tests /opt/airflow/
-tmp /opt/airflow/
-"
+function generate_local_mounts_list {
+    local prefix="$1"
+    LOCAL_MOUNTS=(
+        "$prefix".bash_aliases:/root/.bash_aliases:cached
+        "$prefix".bash_history:/root/.bash_history:cached
+        "$prefix".coveragerc:/opt/airflow/.coveragerc:cached
+        "$prefix".dockerignore:/opt/airflow/.dockerignore:cached
+        "$prefix".flake8:/opt/airflow/.flake8:cached
+        "$prefix".github:/opt/airflow/.github:cached
+        "$prefix".inputrc:/root/.inputrc:cached
+        "$prefix".kube:/root/.kube:cached
+        "$prefix".rat-excludes:/opt/airflow/.rat-excludes:cached
+        "$prefix"CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
+        "$prefix"Dockerfile.ci:/opt/airflow/Dockerfile.ci:cached
+        "$prefix"LICENSE:/opt/airflow/LICENSE:cached
+        "$prefix"MANIFEST.in:/opt/airflow/MANIFEST.in:cached
+        "$prefix"NOTICE:/opt/airflow/NOTICE:cached
+        "$prefix"airflow:/opt/airflow/airflow:cached
+        "$prefix"backport_packages:/opt/airflow/backport_packages:cached
+        "$prefix"common:/opt/airflow/common:cached
+        "$prefix"dags:/opt/airflow/dags:cached
+        "$prefix"dev:/opt/airflow/dev:cached
+        "$prefix"docs:/opt/airflow/docs:cached
+        "$prefix"files:/files:cached
+        "$prefix"dist:/dist:cached
+        "$prefix"hooks:/opt/airflow/hooks:cached
+        "$prefix"logs:/root/airflow/logs:cached
+        "$prefix"pylintrc:/opt/airflow/pylintrc:cached
+        "$prefix"pytest.ini:/opt/airflow/pytest.ini:cached
+        "$prefix"requirements:/opt/airflow/requirements:cached
+        "$prefix"scripts:/opt/airflow/scripts:cached
+        "$prefix"scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached
+        "$prefix"setup.cfg:/opt/airflow/setup.cfg:cached
+        "$prefix"setup.py:/opt/airflow/setup.py:cached
+        "$prefix"tests:/opt/airflow/tests:cached
+        "$prefix"kubernetes_tests:/opt/airflow/kubernetes_tests:cached
+        "$prefix"tmp:/opt/airflow/tmp:cached
+    )
+}
 
 # Converts the local mounts that we defined above to the right set of -v
 # volume mappings in docker-compose file. This is needed so that we only
 # maintain the volumes in one place (above)
 function convert_local_mounts_to_docker_params() {
-    echo "${LOCAL_MOUNTS}" |sed '/^$/d' | awk -v AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-    '
-    function basename(file) {
-        sub(".*/", "", file)
-        return file
-    }
-    { print "-v"; print AIRFLOW_SOURCES "/" $1 ":" $2 basename($1) ":cached" }'
+    generate_local_mounts_list "${AIRFLOW_SOURCES}/"
+    # Bash can't "return" arrays, so we need to quote any special characters
+    printf -- '-v %q ' "${LOCAL_MOUNTS[@]}"
 }
 
 # Fixes a file that is expected to be a file. If - for whatever reason - the local file is not created
@@ -307,7 +323,7 @@ function sanitize_mounted_files() {
 
     # When KinD cluster is created, the folder keeps authentication information
     # across sessions
-    mkdir -p "${MY_DIR}/.kube" >/dev/null 2>&1
+    mkdir -p "${AIRFLOW_SOURCES}/.kube" >/dev/null 2>&1
 }
 
 #
@@ -343,7 +359,7 @@ function remove_cache_directory() {
 # The md5sum files are stored in .build directory - you can delete this directory
 # If you want to rebuild everything from the scratch
 #
-function check_file_md5sum {
+function calculate_file_md5sum {
     local FILE="${1}"
     local MD5SUM
     local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
@@ -404,6 +420,19 @@ function update_all_md5_files() {
     touch "${BUILT_IMAGE_FLAG_FILE}"
 }
 
+
+function calculate_md5sum_for_all_files() {
+    FILES_MODIFIED="false"
+    set +e
+    for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
+    do
+        if ! calculate_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
+            FILES_MODIFIED="true"
+        fi
+    done
+    set +e
+}
+
 #
 # Checks md5sum of all important files in order to optimise speed of running various operations
 # That mount sources of Airflow to container and require docker image built with latest dependencies.
@@ -429,23 +458,13 @@ function check_if_docker_build_is_needed() {
     print_info
     if [[ ${FORCE_BUILD_IMAGES:=""} == "true" ]]; then
         echo "Docker image build is forced for ${THE_IMAGE_TYPE} image"
-        set +e
-        for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
-        do
-            # Just store md5sum for all files in md5sum.new - do not check if it is different
-            check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
-        done
-        set -e
+        calculate_md5sum_for_all_files
         export NEEDS_DOCKER_BUILD="true"
     else
-        set +e
-        for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
-        do
-            if ! check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
-                export NEEDS_DOCKER_BUILD="true"
-            fi
-        done
-        set -e
+        calculate_md5sum_for_all_files
+        if [[ ${FILES_MODIFIED} == "true" ]]; then
+            export NEEDS_DOCKER_BUILD="true"
+        fi
         if [[ ${NEEDS_DOCKER_BUILD} == "true" ]]; then
             echo "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
         else
@@ -532,7 +551,7 @@ function assert_not_in_container() {
     fi
 }
 
-# Removes the "Forced answer" (yes/no/quit) given previously, unles you specifically want to remember it.
+# Removes the "Forced answer" (yes/no/quit) given previously, unless you specifically want to remember it.
 #
 # This is the default behaviour of all rebuild scripts to ask independently whether you want to
 # rebuild the image or not. Sometimes however we want to remember answer previously given. For
@@ -705,25 +724,28 @@ function get_local_image_info() {
 function get_remote_image_info() {
     set +e
     # Pull remote manifest image
-    if ! verbose_docker pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" >/dev/null 2>&1 ; then
+    if ! verbose_docker pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" >/dev/null; then
         echo
         echo "Remote docker registry unreachable"
         echo
         REMOTE_DOCKER_REGISTRY_UNREACHABLE="true"
         return
     fi
+    set -e
+
+    # Docker needs the file passed to --cidfile to not exist, so we can't use mktemp
+    TMP_CONTAINER_ID="remote-airflow-manifest-$$.container_id"
+    FILES_TO_CLEANUP_ON_EXIT+=("$TMP_CONTAINER_ID")
+
     TMP_MANIFEST_REMOTE_JSON=$(mktemp)
     TMP_MANIFEST_REMOTE_SHA=$(mktemp)
-    # delete container just in case
-    verbose_docker rm --force "remote-airflow-manifest" >/dev/null 2>&1
-    set -e
-    # Create container out of the manifest image without runnning it
-    verbose_docker create --name "remote-airflow-manifest" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" >/dev/null 2>&1
+    # Create container out of the manifest image without running it
+    verbose_docker create --cidfile "${TMP_CONTAINER_ID}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     # Extract manifest and store it in local file
-    verbose_docker cp "remote-airflow-manifest:${AIRFLOW_CI_BASE_TAG}.json" "${TMP_MANIFEST_REMOTE_JSON}" >/dev/null 2>&1
+    verbose_docker cp "$(cat "${TMP_CONTAINER_ID}"):${AIRFLOW_CI_BASE_TAG}.json" "${TMP_MANIFEST_REMOTE_JSON}"
     # Filter everything except SHAs of image layers
     sed 's/ *//g' "${TMP_MANIFEST_REMOTE_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_REMOTE_SHA}"
-    verbose_docker rm --force "remote-airflow-manifest" >/dev/null 2>&1
+    verbose_docker rm --force "$( cat "${TMP_CONTAINER_ID}")"
 }
 
 # The Number determines the cut-off between local building time and pull + build time.
@@ -757,7 +779,7 @@ function compare_layers() {
     if (( NUM_DIFF >= MAGIC_CUT_OFF_NUMBER_OF_LAYERS )); then
         echo
         echo
-        echo "WARNING! Your image and the dockerhub image differ signifcantly"
+        echo "WARNING! Your image and the dockerhub image differ significantly"
         echo
         echo "Forcing pulling the images. It will be faster than rebuilding usually."
         echo "You can avoid it by setting SKIP_CHECK_REMOTE_IMAGE to true"
@@ -889,6 +911,11 @@ function script_end {
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set +x
     fi
+
+    if [[ ${#FILES_TO_CLEANUP_ON_EXIT[@]} -gt 0 ]]; then
+      rm -rf -- "${FILES_TO_CLEANUP_ON_EXIT[@]}"
+    fi
+
     END_SCRIPT_TIME=$(date +%s)
     RUN_SCRIPT_TIME=$((END_SCRIPT_TIME-START_SCRIPT_TIME))
     if [[ ${BREEZE:=} != "true" ]]; then
@@ -1009,6 +1036,8 @@ function get_ci_environment() {
     export CI_EVENT_TYPE="manual"
     export CI_TARGET_REPO="apache/airflow"
     export CI_TARGET_BRANCH="master"
+    export CI_SOURCE_REPO="apache/airflow"
+    export CI_SOURCE_BRANCH="master"
     export CI_BUILD_ID="default-build-id"
     export CI_JOB_ID="default-job-id"
     if [[ ${CI:=} != "true" ]]; then
@@ -1017,29 +1046,50 @@ function get_ci_environment() {
         echo
     else
         if [[ ${TRAVIS:=} == "true" ]]; then
+            export CI_TARGET_REPO="${TRAVIS_REPO_SLUG}"
+            export CI_TARGET_BRANCH="${TRAVIS_BRANCH}"
+            export CI_BUILD_ID="${TRAVIS_BUILD_ID}"
+            export CI_JOB_ID="${TRAVIS_JOB_ID}"
             if [[ "${TRAVIS_PULL_REQUEST:=}" == "true" ]]; then
                 export CI_EVENT_TYPE="pull_request"
+                export CI_SOURCE_REPO="${TRAVIS_PULL_REQUEST_SLUG}"
+                export CI_SOURCE_BRANCH="${TRAVIS_PULL_REQUEST_BRANCH}"
             elif [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
                 export CI_EVENT_TYPE="schedule"
             else
                 export CI_EVENT_TYPE="push"
             fi
-            export CI_TARGET_BRANCH="${TRAVIS_BRANCH}"
-            export CI_TARGET_REPO="${TRAVIS_REPO_SLUG}"
-            export CI_BUILD_ID="${TRAVIS_BUILD_ID}"
-            export CI_JOB_ID="${TRAVIS_JOB_ID}"
         elif [[ ${GITHUB_ACTIONS:=} == "true" ]]; then
+            export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
+            export CI_TARGET_BRANCH="${GITHUB_BASE_REF}"
+            export CI_BUILD_ID="${GITHUB_RUN_ID}"
+            export CI_JOB_ID="${GITHUB_JOB}"
             if [[ ${GITHUB_EVENT_NAME:=} == "pull_request" ]]; then
                 export CI_EVENT_TYPE="pull_request"
+                # default name of the source repo (assuming it's forked without rename)
+                export SOURCE_AIRFLOW_REPO=${SOURCE_AIRFLOW_REPO:="airflow"}
+                # For Pull Requests it's ambiguous to find the PR and we need to
+                # assume that name of repo is airflow but it could be overridden in case it's not
+                export CI_SOURCE_REPO="${GITHUB_ACTOR}/${SOURCE_AIRFLOW_REPO}"
+                export CI_SOURCE_BRANCH="${GITHUB_HEAD_REF}"
+                BRANCH_EXISTS=$(git ls-remote --heads \
+                    "https://github.com/${CI_SOURCE_REPO}.git" "${CI_SOURCE_BRANCH}")
+                if [[ ${BRANCH_EXISTS} == "" ]]; then
+                    echo
+                    echo "https://github.com/${CI_SOURCE_REPO}.git Branch ${CI_SOURCE_BRANCH} does not exist"
+                    echo
+                    echo
+                    echo "Fallback to https://github.com/${CI_TARGET_REPO}.git Branch ${CI_TARGET_BRANCH}"
+                    echo
+                    # Fallback to the target repository if the repo does not exist
+                    export CI_SOURCE_REPO="${CI_TARGET_REPO}"
+                    export CI_SOURCE_BRANCH="${CI_TARGET_BRANCH}"
+                fi
             elif [[ ${GITHUB_EVENT_TYPE:=} == "schedule" ]]; then
                 export CI_EVENT_TYPE="schedule"
             else
                 export CI_EVENT_TYPE="push"
             fi
-            export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
-            export CI_TARGET_BRANCH="${GITHUB_BASE_REF}"
-            export CI_BUILD_ID="${GITHUB_RUN_ID}"
-            export CI_JOB_ID="${GITHUB_JOB}"
         else
             echo
             echo "ERROR! Unknown CI environment. Exiting"
@@ -1052,6 +1102,8 @@ function get_ci_environment() {
     echo "CI_EVENT_TYPE=${CI_EVENT_TYPE}"
     echo "CI_TARGET_REPO=${CI_TARGET_REPO}"
     echo "CI_TARGET_BRANCH=${CI_TARGET_BRANCH}"
+    echo "CI_SOURCE_REPO=${CI_SOURCE_REPO}"
+    echo "CI_SOURCE_BRANCH=${CI_SOURCE_BRANCH}"
     echo "CI_BUILD_ID=${CI_BUILD_ID}"
     echo "CI_JOB_ID=${CI_JOB_ID}"
     echo
@@ -1209,7 +1261,11 @@ function pull_ci_image_if_needed() {
 Docker pulling ${PYTHON_BASE_IMAGE}.
                     " > "${DETECTED_TERMINAL}"
             fi
-            verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+            if [[ ${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"} == "true" ]]; then
+                pull_image_possibly_from_cache "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
+            else
+                verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+            fi
             echo
         fi
         pull_image_possibly_from_cache "${AIRFLOW_CI_IMAGE}" "${CACHED_AIRFLOW_CI_IMAGE}"
@@ -1227,7 +1283,11 @@ function pull_prod_images_if_needed() {
             echo
             echo "Force pull base image ${PYTHON_BASE_IMAGE}"
             echo
-            verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+            if [[ ${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"} == "true" ]]; then
+                pull_image_possibly_from_cache "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
+            else
+                verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+            fi
             echo
         fi
         # "Build" segment of production image
@@ -1322,6 +1382,8 @@ Docker building ${AIRFLOW_CI_IMAGE}.
             --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
+        --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
+        --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
         --build-arg UPGRADE_TO_LATEST_REQUIREMENTS="${UPGRADE_TO_LATEST_REQUIREMENTS}" \
         "${DOCKER_CACHE_CI_DIRECTIVE[@]}" \
@@ -1375,6 +1437,8 @@ function build_prod_image() {
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
+        --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
+        --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
         -t "${AIRFLOW_PROD_BUILD_IMAGE}" \
         --target "airflow-build-image" \
@@ -1383,6 +1447,8 @@ function build_prod_image() {
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
+        --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
+        --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
         "${DOCKER_CACHE_PROD_DIRECTIVE[@]}" \
@@ -1394,6 +1460,7 @@ function build_prod_image() {
         verbose_docker tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_IMAGE}" | tee -a "${OUTPUT_LOG}"
     fi
 }
+
 
 # Removes airflow CI and base images
 function remove_all_images() {
@@ -1460,14 +1527,19 @@ function prepare_ci_build() {
     export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
-    if [[ ${CACHE_REGISTRY=""} != "" ]]; then
-        echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
-            --username "${CACHE_REGISTRY_USERNAME}" \
-            --password-stdin \
-            "${CACHE_REGISTRY}"
+    if [[ ${ENABLE_REGISTRY_CACHE="false"} == "true" ]]; then
+        if [[ ${CACHE_REGISTRY_PASSWORD:=} != "" ]]; then
+            echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
+                --username "${CACHE_REGISTRY_USERNAME}" \
+                --password-stdin \
+                "${CACHE_REGISTRY}"
+        fi
+        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_ORGANISATION}/${GITHUB_REPO}}
         export CACHED_AIRFLOW_CI_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_CI_BASE_TAG}"
+        export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
     else
         export CACHED_AIRFLOW_CI_IMAGE=""
+        export CACHED_PYTHON_BASE_IMAGE=""
     fi
     export AIRFLOW_BUILD_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}/${AIRFLOW_CI_BASE_TAG}"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-ci"
@@ -1482,8 +1554,9 @@ function prepare_ci_build() {
     export IMAGE_DESCRIPTION="Airflow CI"
     export AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="true"
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_CI_EXTRAS}"}"
+    export ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS:=""}"
+    export ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS:=""}"
     export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
-
     go_to_airflow_sources
     fix_group_permissions
 }
@@ -1541,18 +1614,31 @@ function prepare_prod_build() {
     export THE_IMAGE_TYPE="PROD"
     export IMAGE_DESCRIPTION="Airflow production"
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_PROD_EXTRAS}"}"
+    export ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS:=""}"
+    export ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS:=""}"
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
-    if [[ ${CACHE_REGISTRY=""} != "" ]]; then
-        echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
-            --username "${CACHE_REGISTRY_USERNAME}" \
-            --password-stdin \
-            "${CACHE_REGISTRY}"
+
+    if [[ ${ENABLE_REGISTRY_CACHE="false"} == "true" ]]; then
+        if [[ ${CACHE_REGISTRY_PASSWORD:=} != "" ]]; then
+            echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
+                --username "${CACHE_REGISTRY_USERNAME}" \
+                --password-stdin \
+                "${CACHE_REGISTRY}"
+        fi
+        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_ORGANISATION}/${GITHUB_REPO}}
         export CACHED_AIRFLOW_PROD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}"
         export CACHED_AIRFLOW_PROD_BUILD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}-build"
+        export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
     else
         export CACHED_AIRFLOW_PROD_IMAGE=""
         export CACHED_AIRFLOW_PROD_BUILD_IMAGE=""
+        export CACHED_PYTHON_BASE_IMAGE=""
     fi
+    export AIRFLOW_KUBERNETES_IMAGE=${AIRFLOW_PROD_IMAGE}-kubernetes
+    AIRFLOW_KUBERNETES_IMAGE_NAME=$(echo "${AIRFLOW_KUBERNETES_IMAGE}" | cut -f 1 -d ":")
+    export AIRFLOW_KUBERNETES_IMAGE_NAME
+    AIRFLOW_KUBERNETES_IMAGE_TAG=$(echo "${AIRFLOW_KUBERNETES_IMAGE}" | cut -f 2 -d ":")
+    export AIRFLOW_KUBERNETES_IMAGE_TAG
 
     if [[ "${INSTALL_AIRFLOW_REFERENCE:=}" != "" ]]; then
         # When --install-airflow-reference is used then the image is build from github tag
@@ -1578,7 +1664,7 @@ function prepare_prod_build() {
 }
 
 # Pushes Ci image and it's manifest to the registry. In case the image was taken from cache registry
-# it is also pushed to the cache, not to the main registry. Manifest is only pushed to the main registry
+# it is pushed to the cache, not to the main registry. Manifest is only pushed to the main registry
 function push_ci_image() {
     if [[ ${CACHED_AIRFLOW_CI_IMAGE:=} != "" ]]; then
         verbose_docker tag "${AIRFLOW_CI_IMAGE}" "${CACHED_AIRFLOW_CI_IMAGE}"
@@ -1595,6 +1681,11 @@ function push_ci_image() {
             verbose_docker push "${DEFAULT_IMAGE}"
         fi
     fi
+    if [[ ${CACHED_PYTHON_BASE_IMAGE} != "" ]]; then
+        verbose_docker tag "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
+        verbose_docker push "${CACHED_PYTHON_BASE_IMAGE}"
+    fi
+
 }
 
 # Pushes PROD image to the registry. In case the image was taken from cache registry
@@ -1617,6 +1708,8 @@ function push_prod_images() {
     if [[ -n ${DEFAULT_IMAGE:=""} && ${CACHED_AIRFLOW_PROD_IMAGE} == "" ]]; then
         verbose_docker push "${DEFAULT_IMAGE}"
     fi
+
+    # we do not need to push PYTHON base image here - they are already pushed in the CI push
 }
 
 # Docker command to generate constraint requirement files.
@@ -1649,7 +1742,8 @@ function run_prepare_backport_packages() {
         --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
         --env PYTHON_MAJOR_MINOR_VERSION \
         --env CHECK_REQUIREMENTS_ONLY \
-        --env VERSION_SUFFIX \
+        --env VERSION_SUFFIX_FOR_PYPI \
+        --env VERSION_SUFFIX_FOR_SVN \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         --rm \
@@ -1659,7 +1753,7 @@ function run_prepare_backport_packages() {
 }
 
 # Docker command to generate release notes for backport packages
-function run_generate_backport_readme() {
+function run_prepare_backport_readme() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         --env PYTHONDONTWRITEBYTECODE \
@@ -1674,7 +1768,7 @@ function run_generate_backport_readme() {
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         --rm \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_generate_backport_readme.sh" "${@}" \
+        "--" "/opt/airflow/scripts/ci/in_container/run_prepare_backport_readme.sh" "${@}" \
         | tee -a "${OUTPUT_LOG}"
 }
 
@@ -1682,4 +1776,438 @@ function run_generate_backport_readme() {
 # Version we use if it was build from PyPI or GitHub
 function get_airflow_version_from_production_image() {
      docker run --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'echo "${AIRFLOW_VERSION}"'
+}
+
+function dump_kind_logs() {
+    echo "###########################################################################################"
+    echo "                   Dumping logs from KIND"
+    echo "###########################################################################################"
+
+    FILE_NAME="${1}"
+    kind --name "${KIND_CLUSTER_NAME}" export logs "${FILE_NAME}"
+}
+
+
+function send_kubernetes_logs_to_file_io() {
+    echo "##############################################################################"
+    echo
+    echo "   DUMPING LOG FILES FROM KIND AND SENDING THEM TO file.io"
+    echo
+    echo "##############################################################################"
+    DUMP_DIR_NAME=$(date "+%Y-%m-%d")_kind_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
+    DUMP_DIR=/tmp/${DUMP_DIR_NAME}
+    dump_kind_logs "${DUMP_DIR}"
+    tar -cvzf "${DUMP_DIR}.tar.gz" -C /tmp "${DUMP_DIR_NAME}"
+    echo
+    echo "   Logs saved to ${DUMP_DIR}.tar.gz"
+    echo
+    echo "##############################################################################"
+    curl -F "file=@${DUMP_DIR}.tar.gz" https://file.io
+}
+
+function check_kind_and_kubectl_are_installed() {
+    SYSTEM=$(uname -s| tr '[:upper:]' '[:lower:]')
+    KIND_VERSION="v0.7.0"
+    KIND_URL="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-${SYSTEM}-amd64"
+    KIND_PATH="${BUILD_CACHE_DIR}/bin/kind"
+    KUBECTL_VERSION="v1.15.3"
+    KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${SYSTEM}/amd64/kubectl"
+    KUBECTL_PATH="${BUILD_CACHE_DIR}/bin/kubectl"
+    mkdir -pv "${BUILD_CACHE_DIR}/bin"
+    if [[ ! -f "${KIND_PATH}" ]]; then
+        echo
+        echo "Downloading Kind version ${KIND_VERSION}"
+        echo
+        curl --fail --location "${KIND_URL}" --output "${KIND_PATH}"
+        chmod +x "${KIND_PATH}"
+    fi
+    if [[ ! -f "${KUBECTL_PATH}" ]]; then
+        echo
+        echo "Downloading Kubectl version ${KUBECTL_VERSION}"
+        echo
+        curl --fail --location "${KUBECTL_URL}" --output "${KUBECTL_PATH}"
+        chmod +x "${KUBECTL_PATH}"
+    fi
+    PATH=${PATH}:${BUILD_CACHE_DIR}/bin
+}
+
+function create_cluster() {
+    if [[ "${TRAVIS:="false"}" == "true" ]]; then
+        # Travis CI does not handle the nice output of Kind well, so we need to capture it
+        # And display only if kind fails to start
+        start_output_heartbeat "Creating kubernetes cluster" 10
+        set +e
+        if ! OUTPUT=$(kind create cluster \
+                        --name "${KIND_CLUSTER_NAME}" \
+                        --config "${AIRFLOW_SOURCES}/scripts/ci/kubernetes/kind-cluster-conf.yaml" \
+                        --image "kindest/node:${KUBERNETES_VERSION}" 2>&1); then
+            echo "${OUTPUT}"
+        fi
+        stop_output_heartbeat
+    else
+        kind create cluster \
+            --name "${KIND_CLUSTER_NAME}" \
+            --config "${AIRFLOW_SOURCES}/scripts/ci/kubernetes/kind-cluster-conf.yaml" \
+            --image "kindest/node:${KUBERNETES_VERSION}"
+    fi
+    echo
+    echo "Created cluster ${KIND_CLUSTER_NAME}"
+    echo
+
+}
+
+function delete_cluster() {
+    kind delete cluster --name "${KIND_CLUSTER_NAME}"
+    echo
+    echo "Deleted cluster ${KIND_CLUSTER_NAME}"
+    echo
+    rm -rf "${HOME}/.kube/*"
+}
+
+function perform_kind_cluster_operation() {
+    OPERATION="${1}"
+    ALL_CLUSTERS=$(kind get clusters || true)
+
+    echo
+    echo "Kubernetes mode: ${KUBERNETES_MODE}"
+    echo
+
+    if [[ ${OPERATION} == "status" ]]; then
+        if [[ ${ALL_CLUSTERS} == *"${KIND_CLUSTER_NAME}"* ]]; then
+            echo
+            echo "Cluster name: ${KIND_CLUSTER_NAME}"
+            echo
+            kind get nodes --name "${KIND_CLUSTER_NAME}"
+            echo
+            exit
+        else
+            echo
+            echo "Cluster ${KIND_CLUSTER_NAME} is not running"
+            echo
+            exit
+        fi
+    fi
+    if [[ ${ALL_CLUSTERS} == *"${KIND_CLUSTER_NAME}"* ]]; then
+        if [[ ${OPERATION} == "start" ]]; then
+            echo
+            echo "Cluster ${KIND_CLUSTER_NAME} is already created"
+            echo "Reusing previously created cluster"
+            echo
+        elif [[ ${OPERATION} == "restart" ]]; then
+            echo
+            echo "Recreating cluster"
+            echo
+            delete_cluster
+            create_cluster
+        elif [[ ${OPERATION} == "stop" ]]; then
+            echo
+            echo "Deleting cluster"
+            echo
+            delete_cluster
+            exit
+        elif [[ ${OPERATION} == "deploy" ]]; then
+            echo
+            echo "Deploying Airflow to KinD"
+            echo
+            get_ci_environment
+            check_kind_and_kubectl_are_installed
+            build_kubernetes_image
+            load_image_to_kind_cluster
+            prepare_kubernetes_app_variables
+            prepare_kubernetes_resources
+            apply_kubernetes_resources
+            wait_for_airflow_pods_up_and_running
+            wait_for_airflow_webserver_up_and_running
+        elif [[ ${OPERATION} == "test" ]]; then
+            echo
+            echo "Testing with kind to KinD"
+            echo
+            "${AIRFLOW_SOURCES}/scripts/ci/ci_run_kubernetes_tests.sh"
+        else
+            echo
+            echo "Wrong cluster operation: ${OPERATION}. Should be one of:"
+            echo "${FORMATTED_KIND_OPERATIONS}"
+            echo
+            exit 1
+        fi
+    else
+        if [[ ${OPERATION} == "start" ]]; then
+            echo
+            echo "Creating cluster"
+            echo
+            create_cluster
+        elif [[ ${OPERATION} == "recreate" ]]; then
+            echo
+            echo "Cluster ${KIND_CLUSTER_NAME} does not exist. Creating rather than recreating"
+            echo "Creating cluster"
+            echo
+            create_cluster
+        elif [[ ${OPERATION} == "stop" || ${OEPRATON} == "deploy" || ${OPERATION} == "test" ]]; then
+            echo
+            echo "Cluster ${KIND_CLUSTER_NAME} does not exist. It should exist for ${OPERATION} operation"
+            echo
+            exit 1
+        else
+            echo
+            echo "Wrong cluster operation: ${OPERATION}. Should be one of:"
+            echo "${FORMATTED_KIND_OPERATIONS}"
+            echo
+            exit 1
+        fi
+    fi
+}
+
+function check_cluster_ready_for_airflow() {
+    kubectl cluster-info --cluster "${KUBECTL_CLUSTER_NAME}"
+    kubectl get nodes --cluster "${KUBECTL_CLUSTER_NAME}"
+    echo
+    echo "Showing storageClass"
+    echo
+    kubectl get storageclass --cluster "${KUBECTL_CLUSTER_NAME}"
+    echo
+    echo "Showing kube-system pods"
+    echo
+    kubectl get -n kube-system pods --cluster "${KUBECTL_CLUSTER_NAME}"
+    echo
+    echo "Airflow environment on kubernetes is good to go!"
+    echo
+    kubectl create namespace test-namespace --cluster "${KUBECTL_CLUSTER_NAME}"
+}
+
+
+function build_kubernetes_image() {
+    cd "${AIRFLOW_SOURCES}" || exit 1
+    prepare_prod_build
+    if [[ $(docker images -q "${AIRFLOW_PROD_IMAGE}") == "" ||
+            ${FORCE_BUILD_IMAGES:="false"} == "true" ]]; then
+        build_prod_image
+    else
+        echo
+        echo "Skip rebuilding prod image. Use --force-build-images to rebuild prod image."
+        echo
+    fi
+    echo
+    echo "Adding kubernetes-specific scripts to prod image."
+    echo "Building ${AIRFLOW_KUBERNETES_IMAGE} from ${AIRFLOW_PROD_IMAGE} with latest sources."
+    echo
+    docker build \
+        --build-arg AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}" \
+        --cache-from "${AIRFLOW_PROD_IMAGE}" \
+        --tag="${AIRFLOW_KUBERNETES_IMAGE}" \
+        -f- . << 'EOF'
+    ARG AIRFLOW_PROD_IMAGE
+    FROM ${AIRFLOW_PROD_IMAGE}
+
+    ARG AIRFLOW_SOURCES=/home/airflow/airflow_sources/
+    ENV AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+
+    USER root
+
+    COPY --chown=airflow:airflow . ${AIRFLOW_SOURCES}
+
+    COPY scripts/ci/kubernetes/docker/airflow-test-env-init-db.sh /tmp/airflow-test-env-init-db.sh
+    COPY scripts/ci/kubernetes/docker/airflow-test-env-init-dags.sh /tmp/airflow-test-env-init-dags.sh
+    COPY scripts/ci/kubernetes/docker/bootstrap.sh /bootstrap.sh
+
+    RUN chmod +x /bootstrap.sh
+
+
+    USER airflow
+
+
+    ENTRYPOINT ["/bootstrap.sh"]
+EOF
+
+    echo "The ${AIRFLOW_KUBERNETES_IMAGE} is prepared for deployment."
+}
+
+function load_image_to_kind_cluster() {
+    echo
+    echo "Loading ${AIRFLOW_KUBERNETES_IMAGE} to ${KIND_CLUSTER_NAME}"
+    echo
+    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_KUBERNETES_IMAGE}"
+}
+
+function prepare_kubernetes_app_variables() {
+    echo
+    echo "Preparing kubernetes variables"
+    echo
+    KUBERNETES_APP_DIR="${AIRFLOW_SOURCES}/scripts/ci/kubernetes/app"
+    TEMPLATE_DIRNAME="${KUBERNETES_APP_DIR}/templates"
+    BUILD_DIRNAME="${KUBERNETES_APP_DIR}/build"
+
+    # shellcheck source=common/_image_variables.sh
+    . "${AIRFLOW_SOURCES}/common/_image_variables.sh"
+
+    # Source branch will be set in DockerHub
+    SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
+    BRANCH_NAME=${BRANCH_NAME:=${SOURCE_BRANCH}}
+
+    if [[ ! -d "${BUILD_DIRNAME}" ]]; then
+        mkdir -p "${BUILD_DIRNAME}"
+    fi
+
+    rm -f "${BUILD_DIRNAME}"/*
+    rm -f "${BUILD_DIRNAME}"/*
+
+    if [[ "${KUBERNETES_MODE}" == "image" ]]; then
+        INIT_DAGS_VOLUME_NAME=airflow-dags
+        POD_AIRFLOW_DAGS_VOLUME_NAME=airflow-dags
+        CONFIGMAP_DAGS_FOLDER=/opt/airflow/dags
+        CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT=
+        CONFIGMAP_DAGS_VOLUME_CLAIM=airflow-dags
+    else
+        INIT_DAGS_VOLUME_NAME=airflow-dags-fake
+        POD_AIRFLOW_DAGS_VOLUME_NAME=airflow-dags-git
+        CONFIGMAP_DAGS_FOLDER=/opt/airflow/dags/repo/airflow/example_dags
+        CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT=/opt/airflow/dags
+        CONFIGMAP_DAGS_VOLUME_CLAIM=
+    fi
+
+
+    CONFIGMAP_GIT_REPO=${CI_SOURCE_REPO}
+    CONFIGMAP_BRANCH=${CI_SOURCE_BRANCH}
+}
+
+function prepare_kubernetes_resources() {
+    echo
+    echo "Preparing kubernetes resources"
+    echo
+    if [[ "${KUBERNETES_MODE}" == "image" ]]; then
+        sed -e "s/{{INIT_GIT_SYNC}}//g" \
+            "${TEMPLATE_DIRNAME}/airflow.template.yaml" >"${BUILD_DIRNAME}/airflow.yaml"
+    else
+        sed -e "/{{INIT_GIT_SYNC}}/{r ${TEMPLATE_DIRNAME}/init_git_sync.template.yaml" -e 'd}' \
+            "${TEMPLATE_DIRNAME}/airflow.template.yaml" >"${BUILD_DIRNAME}/airflow.yaml"
+    fi
+    sed -i "s|{{AIRFLOW_KUBERNETES_IMAGE}}|${AIRFLOW_KUBERNETES_IMAGE}|g" "${BUILD_DIRNAME}/airflow.yaml"
+
+    sed -i "s|{{CONFIGMAP_GIT_REPO}}|${CONFIGMAP_GIT_REPO}|g" "${BUILD_DIRNAME}/airflow.yaml"
+    sed -i "s|{{CONFIGMAP_BRANCH}}|${CONFIGMAP_BRANCH}|g" "${BUILD_DIRNAME}/airflow.yaml"
+    sed -i "s|{{INIT_DAGS_VOLUME_NAME}}|${INIT_DAGS_VOLUME_NAME}|g" "${BUILD_DIRNAME}/airflow.yaml"
+    sed -i "s|{{POD_AIRFLOW_DAGS_VOLUME_NAME}}|${POD_AIRFLOW_DAGS_VOLUME_NAME}|g" \
+        "${BUILD_DIRNAME}/airflow.yaml"
+
+    sed "s|{{CONFIGMAP_DAGS_FOLDER}}|${CONFIGMAP_DAGS_FOLDER}|g" \
+        "${TEMPLATE_DIRNAME}/configmaps.template.yaml" >"${BUILD_DIRNAME}/configmaps.yaml"
+    sed -i "s|{{CONFIGMAP_GIT_REPO}}|${CONFIGMAP_GIT_REPO}|g" "${BUILD_DIRNAME}/configmaps.yaml"
+    sed -i "s|{{CONFIGMAP_BRANCH}}|${CONFIGMAP_BRANCH}|g" "${BUILD_DIRNAME}/configmaps.yaml"
+    sed -i "s|{{CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT}}|${CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT}|g" \
+        "${BUILD_DIRNAME}/configmaps.yaml"
+    sed -i "s|{{CONFIGMAP_DAGS_VOLUME_CLAIM}}|${CONFIGMAP_DAGS_VOLUME_CLAIM}|g" \
+        "${BUILD_DIRNAME}/configmaps.yaml"
+    sed -i "s|{{AIRFLOW_KUBERNETES_IMAGE_NAME}}|${AIRFLOW_KUBERNETES_IMAGE_NAME}|g" \
+        "${BUILD_DIRNAME}/configmaps.yaml"
+    sed -i "s|{{AIRFLOW_KUBERNETES_IMAGE_TAG}}|${AIRFLOW_KUBERNETES_IMAGE_TAG}|g" \
+        "${BUILD_DIRNAME}/configmaps.yaml"
+}
+
+function apply_kubernetes_resources() {
+    echo
+    echo "Apply kubernetes resources."
+    echo
+
+
+    kubectl delete -f "${KUBERNETES_APP_DIR}/postgres.yaml" --cluster "${KUBECTL_CLUSTER_NAME}" \
+        2>&1 | grep -v "NotFound" || true
+    kubectl delete -f "${BUILD_DIRNAME}/airflow.yaml" --cluster "${KUBECTL_CLUSTER_NAME}" \
+        2>&1 | grep -v "NotFound" || true
+    kubectl delete -f "${KUBERNETES_APP_DIR}/secrets.yaml" --cluster "${KUBECTL_CLUSTER_NAME}" \
+        2>&1 | grep -v "NotFound" || true
+
+    set -e
+
+    kubectl apply -f "${KUBERNETES_APP_DIR}/secrets.yaml" --cluster "${KUBECTL_CLUSTER_NAME}"
+    kubectl apply -f "${BUILD_DIRNAME}/configmaps.yaml" --cluster "${KUBECTL_CLUSTER_NAME}"
+    kubectl apply -f "${KUBERNETES_APP_DIR}/postgres.yaml" --cluster "${KUBECTL_CLUSTER_NAME}"
+    kubectl apply -f "${KUBERNETES_APP_DIR}/volumes.yaml" --cluster "${KUBECTL_CLUSTER_NAME}"
+    kubectl apply -f "${BUILD_DIRNAME}/airflow.yaml" --cluster "${KUBECTL_CLUSTER_NAME}"
+}
+
+
+function dump_kubernetes_logs() {
+    POD=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' \
+        --cluster "${KUBECTL_CLUSTER_NAME}" | grep airflow | head -1)
+    echo "------- pod description -------"
+    kubectl describe pod "${POD}" --cluster "${KUBECTL_CLUSTER_NAME}"
+    echo "------- webserver init container logs - init -------"
+    kubectl logs "${POD}" -c init --cluster "${KUBECTL_CLUSTER_NAME}" || true
+    if [[ "${KUBERNETES_MODE}" == "git" ]]; then
+        echo "------- webserver init container logs - git-sync-clone -------"
+        kubectl logs "${POD}" -c git-sync-clone --cluster "${KUBECTL_CLUSTER_NAME}" || true
+    fi
+    echo "------- webserver logs -------"
+    kubectl logs "${POD}" -c webserver --cluster "${KUBECTL_CLUSTER_NAME}" || true
+    echo "------- scheduler logs -------"
+    kubectl logs "${POD}" -c scheduler --cluster "${KUBECTL_CLUSTER_NAME}" || true
+    echo "--------------"
+}
+
+function wait_for_airflow_pods_up_and_running() {
+    set +o pipefail
+    # wait for up to 10 minutes for everything to be deployed
+    PODS_ARE_READY="0"
+    for i in {1..150}; do
+        echo "------- Running kubectl get pods: $i -------"
+        PODS=$(kubectl get pods --cluster "${KUBECTL_CLUSTER_NAME}" | awk 'NR>1 {print $0}')
+        echo "$PODS"
+        NUM_AIRFLOW_READY=$(echo "${PODS}" | grep airflow | awk '{print $2}' | grep -cE '([0-9])\/(\1)' \
+            | xargs)
+        NUM_POSTGRES_READY=$(echo "${PODS}" | grep postgres | awk '{print $2}' | grep -cE '([0-9])\/(\1)' \
+            | xargs)
+        if [[ "${NUM_AIRFLOW_READY}" == "1" && "${NUM_POSTGRES_READY}" == "1" ]]; then
+            PODS_ARE_READY="1"
+            break
+        fi
+        sleep 4
+    done
+    POD=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' \
+        --cluster "${KUBECTL_CLUSTER_NAME}" | grep airflow | head -1)
+
+    if [[ "${PODS_ARE_READY}" == "1" ]]; then
+        echo "PODS are ready."
+        set -o pipefail
+    else
+        echo >&2 "PODS are not ready after waiting for a long time. Exiting..."
+        dump_kubernetes_logs
+        exit 1
+    fi
+}
+
+
+function wait_for_airflow_webserver_up_and_running() {
+    set +o pipefail
+    # Wait until Airflow webserver is up
+    KUBERNETES_HOST=localhost
+    AIRFLOW_WEBSERVER_IS_READY="0"
+    CONSECUTIVE_SUCCESS_CALLS=0
+    for i in {1..30}; do
+        echo "------- Wait until webserver is up: $i -------"
+        PODS=$(kubectl get pods --cluster "${KUBECTL_CLUSTER_NAME}" | awk 'NR>1 {print $0}')
+        echo "$PODS"
+        HTTP_CODE=$(curl -LI "http://${KUBERNETES_HOST}:30809/health" -o /dev/null -w '%{http_code}\n' -sS) \
+            || true
+        if [[ "${HTTP_CODE}" == 200 ]]; then
+            ((CONSECUTIVE_SUCCESS_CALLS += 1))
+        else
+            CONSECUTIVE_SUCCESS_CALLS="0"
+        fi
+        if [[ "${CONSECUTIVE_SUCCESS_CALLS}" == 3 ]]; then
+            AIRFLOW_WEBSERVER_IS_READY="1"
+            break
+        fi
+        sleep 10
+    done
+    set -o pipefail
+    if [[ "${AIRFLOW_WEBSERVER_IS_READY}" == "1" ]]; then
+        echo
+        echo "Airflow webserver is ready."
+        echo
+    else
+        echo >&2
+        echo >&2 "Airflow webserver is not ready after waiting for a long time. Exiting..."
+        echo >&2
+        dump_kubernetes_logs
+        exit 1
+    fi
 }

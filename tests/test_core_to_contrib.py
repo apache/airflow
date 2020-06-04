@@ -1111,11 +1111,11 @@ OPERATOR = [
         'airflow.operators.hive_operator.HiveOperator',
     ),
     (
-        'airflow.providers.apache.hive.operators.mysql_to_hive.MySqlToHiveTransfer',
+        'airflow.providers.apache.hive.operators.mysql_to_hive.MySqlToHiveTransferOperator',
         'airflow.operators.mysql_to_hive.MySqlToHiveTransfer',
     ),
     (
-        'airflow.providers.apache.hive.operators.s3_to_hive.S3ToHiveTransfer',
+        'airflow.providers.apache.hive.operators.s3_to_hive.S3ToHiveTransferOperator',
         'airflow.operators.s3_to_hive_operator.S3ToHiveTransfer',
     ),
     (
@@ -1380,27 +1380,27 @@ OPERATOR = [
         'airflow.operators.gcs_to_s3.GCSToS3Operator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer',
+        'airflow.providers.amazon.aws.operators.google_api_to_s3_transfer.GoogleApiToS3TransferOperator',
         'airflow.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer',
     ),
     (
-        'airflow.providers.amazon.aws.operators.redshift_to_s3.RedshiftToS3Transfer',
+        'airflow.providers.amazon.aws.operators.redshift_to_s3.RedshiftToS3TransferOperator',
         'airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer',
     ),
     (
-        'airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransfer',
+        'airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransferOperator',
         'airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer',
     ),
     (
-        'airflow.providers.apache.hive.operators.vertica_to_hive.VerticaToHiveTransfer',
+        'airflow.providers.apache.hive.operators.vertica_to_hive.VerticaToHiveTransferOperator',
         'airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer',
     ),
     (
-        'airflow.providers.apache.druid.operators.hive_to_druid.HiveToDruidTransfer',
+        'airflow.providers.apache.druid.operators.hive_to_druid.HiveToDruidTransferOperator',
         'airflow.operators.hive_to_druid.HiveToDruidTransfer',
     ),
     (
-        'airflow.providers.apache.hive.operators.hive_to_mysql.HiveToMySqlTransfer',
+        'airflow.providers.apache.hive.operators.hive_to_mysql.HiveToMySqlTransferOperator',
         'airflow.operators.hive_to_mysql.HiveToMySqlTransfer',
     ),
     (
@@ -1408,7 +1408,7 @@ OPERATOR = [
         'airflow.operators.hive_to_samba_operator.Hive2SambaOperator',
     ),
     (
-        'airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlToHiveTransfer',
+        'airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlToHiveTransferOperator',
         'airflow.operators.mssql_to_hive.MsSqlToHiveTransfer',
     ),
     (
@@ -1421,11 +1421,11 @@ OPERATOR = [
     ),
     (
         'airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer'
-        '.OracleToAzureDataLakeTransfer',
-        'airflow.contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeTransfer',
+        '.OracleToAzureDataLakeTransferOperator',
+        'airflow.contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeTransferOperator',
     ),
     (
-        'airflow.providers.oracle.operators.oracle_to_oracle_transfer.OracleToOracleTransfer',
+        'airflow.providers.oracle.operators.oracle_to_oracle_transfer.OracleToOracleTransferOperator',
         'airflow.contrib.operators.oracle_to_oracle_transfer.OracleToOracleTransfer',
     ),
     (
@@ -1433,11 +1433,11 @@ OPERATOR = [
         'airflow.contrib.operators.s3_to_gcs_operator.S3ToGCSOperator',
     ),
     (
-        'airflow.providers.mysql.operators.vertica_to_mysql.VerticaToMySqlTransfer',
+        'airflow.providers.mysql.operators.vertica_to_mysql.VerticaToMySqlTransferOperator',
         'airflow.contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer',
     ),
     (
-        'airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransfer',
+        'airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransferOperator',
         'airflow.operators.presto_to_mysql.PrestoToMySqlTransfer',
     ),
     (
@@ -1575,11 +1575,11 @@ SENSOR = [
         "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
     ),
     (
-        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensorFolder',
+        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor',
         'airflow.contrib.sensors.hdfs_sensor.HdfsSensorFolder',
     ),
     (
-        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensorRegex',
+        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor',
         'airflow.contrib.sensors.hdfs_sensor.HdfsSensorRegex',
     ),
     (

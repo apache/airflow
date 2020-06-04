@@ -20,12 +20,12 @@
 from tabulate import tabulate
 
 from airflow.utils import cli as cli_utils
-from airflow.www.app import cached_appbuilder
+from airflow.www.app import cached_app
 
 
 def roles_list(args):
     """Lists all existing roles"""
-    appbuilder = cached_appbuilder()
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     roles = appbuilder.sm.get_all_roles()
     print("Existing roles:\n")
     role_names = sorted([[r.name] for r in roles])
@@ -38,6 +38,6 @@ def roles_list(args):
 @cli_utils.action_logging
 def roles_create(args):
     """Creates new empty role in DB"""
-    appbuilder = cached_appbuilder()
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     for role_name in args.role:
         appbuilder.sm.add_role(role_name)

@@ -20,7 +20,10 @@ import gc
 import os
 import statistics
 import sys
+import textwrap
 import time
+from argparse import Namespace
+from operator import attrgetter
 
 import click
 
@@ -31,65 +34,82 @@ class ShortCircuitExecutorMixin:
     '''
     Mixin class to manage the scheduler state during the performance test run.
     '''
-    def __init__(self, stop_when_these_completed):
+    def __init__(self, dag_ids_to_watch, num_runs):
         super().__init__()
-        self.reset(stop_when_these_completed)
+        self.num_runs_per_dag = num_runs
+        self.reset(dag_ids_to_watch)
 
-    def reset(self, stop_when_these_completed):
+    def reset(self, dag_ids_to_watch):
         '''
         Capture the value that will determine when the scheduler is reset.
         '''
-        self.stop_when_these_completed = {
-            # We want to store the dag run here, but we don't have them until they are created.
-            key: None for key in stop_when_these_completed
+        self.dags_to_watch = {
+            dag_id: Namespace(
+                waiting_for=self.num_runs_per_dag,
+                # A "cache" of DagRun row, so we don't have to look it up each
+                # time. This is to try and reduce the impact of our
+                # benchmarking code on runtime,
+                runs={}
+            ) for dag_id in dag_ids_to_watch
         }
 
-    def change_state(self, key, state):
+    def change_state(self, key, state, info=None):
         '''
         Change the state of scheduler by waiting till the tasks is complete
         and then shut down the scheduler after the task is complete
         '''
         from airflow.utils.state import State
-        super().change_state(key, state)
+        super().change_state(key, state, info=info)
 
         dag_id, _, execution_date, __ = key
-        run_key = (dag_id, execution_date.timestamp())
-        if run_key in self.stop_when_these_completed:
+        if dag_id not in self.dags_to_watch:
+            return
 
-            if self.stop_when_these_completed[run_key] is None:
-                import airflow.models
+        # This fn is called before the DagRun state is updated, so we can't
+        # check the DR.state - so instead we need to check the state of the
+        # tasks in that run
 
-                # We are interested in this run, but don't yet have the record for it.
-                run = airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date)[0]
-                self.stop_when_these_completed[run_key] = run
-            else:
-                run = self.stop_when_these_completed[run_key]
+        run = self.dags_to_watch[dag_id].runs.get(execution_date)
+        if not run:
+            import airflow.models
+            # odd `list()` is to work across Airflow versions.
+            run = list(airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date))[0]
+            self.dags_to_watch[dag_id].runs[execution_date] = run
 
-            if run and all(t.state == State.SUCCESS for t in run.get_task_instances()):
-                self.stop_when_these_completed.pop(run_key)
+        if run and all(t.state == State.SUCCESS for t in run.get_task_instances()):
+            self.dags_to_watch[dag_id].runs.pop(execution_date)
+            self.dags_to_watch[dag_id].waiting_for -= 1
 
-                if not self.stop_when_these_completed:
-                    self.log.warning("STOPPING SCHEDULER -- all runs complete")
-                    self.scheduler_job.processor_agent._done = True  # pylint: disable=protected-access
-                else:
-                    self.log.warning("WAITING ON %d RUNS", len(self.stop_when_these_completed))
+            if self.dags_to_watch[dag_id].waiting_for == 0:
+                self.dags_to_watch.pop(dag_id)
+
+            if not self.dags_to_watch:
+                self.log.warning("STOPPING SCHEDULER -- all runs complete")
+                self.scheduler_job.processor_agent._done = True  # pylint: disable=protected-access
+                return
+        self.log.warning("WAITING ON %d RUNS",
+                         sum(map(attrgetter('waiting_for'), self.dags_to_watch.values())))
 
 
-def get_executor_under_test():
+def get_executor_under_test(dotted_path):
     '''
     Create and return a MockExecutor
     '''
 
-    try:
-        # Run against master and 1.10.x releases
-        from tests.test_utils.mock_executor import MockExecutor
-    except ImportError:
-        from tests.executors.test_executor import TestExecutor as MockExecutor
+    from airflow.executors.executor_loader import ExecutorLoader
 
-    # from airflow.executors.local_executor import LocalExecutor
+    if dotted_path == "MockExecutor":
+        try:
+            # Run against master and 1.10.x releases
+            from tests.test_utils.mock_executor import MockExecutor as Executor
+        except ImportError:
+            from tests.executors.test_executor import TestExecutor as Executor
+
+    else:
+        Executor = ExecutorLoader.load_executor(dotted_path)
 
     # Change this to try other executors
-    class ShortCircuitExecutor(ShortCircuitExecutorMixin, MockExecutor):
+    class ShortCircuitExecutor(ShortCircuitExecutorMixin, Executor):
         '''
         Placeholder class that implements the inheritance hierarchy
         '''
@@ -128,15 +148,21 @@ def create_dag_runs(dag, num_runs, session):
     '''
     Create  `num_runs` of dag runs for sub-sequent schedules
     '''
-    from airflow.models.dagrun import DagRun
     from airflow.utils import timezone
     from airflow.utils.state import State
+
+    try:
+        from airflow.utils.types import DagRunType
+        ID_PREFIX = f'{DagRunType.SCHEDULED.value}__'
+    except ImportError:
+        from airflow.models.dagrun import DagRun
+        ID_PREFIX = DagRun.ID_PREFIX
 
     next_run_date = dag.normalize_schedule(dag.start_date or min(t.start_date for t in dag.tasks))
 
     for _ in range(num_runs):
         dag.create_dagrun(
-            run_id=DagRun.ID_PREFIX + next_run_date.isoformat(),
+            run_id=ID_PREFIX + next_run_date.isoformat(),
             execution_date=next_run_date,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -154,8 +180,13 @@ def create_dag_runs(dag, num_runs, session):
 
         Warning: this makes the scheduler do (slightly) less work so may skew your numbers. Use sparingly!
         ''')
+@click.option('--executor-class', default='MockExecutor',
+              help=textwrap.dedent('''
+          Dotted path Executor class to test, for example
+          'airflow.executors.local_executor.LocalExecutor'. Defaults to MockExcutor which doesn't run tasks.
+      '''))
 @click.argument('dag_ids', required=True, nargs=-1)
-def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too-many-locals
+def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):  # pylint: disable=too-many-locals
     """
     This script can be used to measure the total "scheduler overhead" of Airflow.
 
@@ -187,9 +218,10 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too
 
     # Set this so that dags can dynamically configure their end_date
     os.environ['AIRFLOW_BENCHMARK_MAX_DAG_RUNS'] = str(num_runs)
+    os.environ['PERF_MAX_RUNS'] = str(num_runs)
 
     if pre_create_dag_runs:
-        os.environ['AIRFLOW__SCHEDULER__USE_JOB_SCHEDULER'] = 'False'
+        os.environ['AIRFLOW__SCHEDULER__USE_JOB_SCHEDULE'] = 'False'
 
     from airflow.jobs.scheduler_job import SchedulerJob
     from airflow.models.dagbag import DagBag
@@ -198,7 +230,6 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too
     dagbag = DagBag()
 
     dags = []
-    dag_run_keys = []
 
     with db.create_session() as session:
         pause_all_dags(session)
@@ -210,14 +241,8 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too
 
             next_run_date = dag.normalize_schedule(dag.start_date or min(t.start_date for t in dag.tasks))
 
-            # Compute the execution_dates we want to wait on. We only "need" the last
-            # one, but having them all means we get a more useful "count down" in the
-            # log
-            dag_run_keys.append((dag.dag_id, next_run_date.timestamp()))
-
             for _ in range(num_runs - 1):
                 next_run_date = dag.following_schedule(next_run_date)
-                dag_run_keys.append((dag.dag_id, next_run_date.timestamp()))
 
             end_date = dag.end_date or dag.default_args.get('end_date')
             if end_date != next_run_date:
@@ -230,9 +255,9 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too
             if pre_create_dag_runs:
                 create_dag_runs(dag, num_runs, session)
 
-    ShortCircutExecutor = get_executor_under_test()
+    ShortCircutExecutor = get_executor_under_test(executor_class)
 
-    executor = ShortCircutExecutor(stop_when_these_completed=dag_run_keys)
+    executor = ShortCircutExecutor(dag_ids_to_watch=dag_ids, num_runs=num_runs)
     scheduler_job = SchedulerJob(dag_ids=dag_ids, do_pickle=False, executor=executor)
     executor.scheduler_job = scheduler_job
 
@@ -263,7 +288,7 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too
                 for dag in dags:
                     reset_dag(dag, session)
 
-            executor.reset(dag_run_keys)
+            executor.reset(dag_ids)
             scheduler_job = SchedulerJob(dag_ids=dag_ids, do_pickle=False, executor=executor)
             executor.scheduler_job = scheduler_job
 

@@ -41,8 +41,4 @@ if [[ ${CI} == "true" ]]; then
     send_airflow_logs_to_file_io
 fi
 
-if [[ ${CI} == "true" && ${ENABLE_KIND_CLUSTER} == "true" ]]; then
-    send_kubernetes_logs_to_file_io
-fi
-
 exit "${RES}"

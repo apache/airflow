@@ -30,7 +30,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS, json
+from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -205,9 +205,6 @@ class SerializedDagModel(Base):
         :type dags: List[airflow.models.dag.DAG]
         :return: None
         """
-        if not STORE_SERIALIZED_DAGS:
-            return
-
         for dag in dags:
             if not dag.is_subdag:
                 SerializedDagModel.write_dag(

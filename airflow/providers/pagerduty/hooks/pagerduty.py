@@ -96,7 +96,7 @@ class PagerdutyHook(BaseHook):
         :param class_type: The class/type of the event.
         :type class_type: str
         :param links: List of links to include.
-        :type class_type: list of str
+        :type class_type: list(str)
         """
         if routing_key is None:
             routing_key = self.routing_key

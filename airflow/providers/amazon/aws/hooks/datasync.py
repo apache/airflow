@@ -191,7 +191,7 @@ class AWSDataSyncHook(AwsBaseHook):
         :param list source_location_arns: List of source LocationArns.
         :param list destination_location_arns: List of destination LocationArns.
         :return: list
-        :rtype: List of TaskArns.
+        :rtype: list(TaskArns)
         :raises AirflowBadRequest: if ``source_location_arns`` or ``destination_location_arns`` are empty.
         """
         if not source_location_arns:

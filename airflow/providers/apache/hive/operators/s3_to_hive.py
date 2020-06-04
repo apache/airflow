@@ -35,7 +35,7 @@ from airflow.utils.compression import uncompress_file
 from airflow.utils.decorators import apply_defaults
 
 
-class S3ToHiveTransfer(BaseOperator):  # pylint: disable=too-many-instance-attributes
+class S3ToHiveTransferOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
     Moves data from S3 to Hive. The operator downloads a file from S3,
     stores the file locally before loading it into a Hive table.

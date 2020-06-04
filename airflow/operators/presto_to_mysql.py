@@ -20,9 +20,25 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransfer  # noqa
+from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransferOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.mysql.operators.presto_to_mysql`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class PrestoToMySqlTransfer(PrestoToMySqlTransferOperator):
+    """
+    This class is deprecated.
+    Please use:
+    `airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransferOperator`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransferOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
