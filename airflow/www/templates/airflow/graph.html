@@ -298,6 +298,34 @@
                         .selectAll("rect")
                         .style("stroke-width", highlightStrokeWidth);
                 }
+                else if (task_instances[d] !== undefined && task_instances[d].tags !== undefined) {
+                    var hasMatches = task_instances[d].tags.reduce((t, m) => {
+                        // since we don't care how many matches we get,
+                        // if we have one match just propagate it up
+                        if (m > 0)
+                            return m;
+
+                        if (t.indexOf(s) > -1)
+                            return m + 1;
+                    }, 0)
+
+                    if (hasMatches > 0) {
+                        if (!match)
+                            match = this;
+                        d3.select(this)
+                            .transition().duration(duration)
+                            .style("opacity", 1)
+                            .selectAll("rect")
+                            .style("stroke-width", highlightStrokeWidth);
+                    }
+                    else {
+                        d3.select(this)
+                            .transition()
+                            .style("opacity", 0.2).duration(duration)
+                            .selectAll("rect")
+                            .style("stroke-width", initialStrokeWidth);
+                    }
+                }
                 else {
                     d3.select(this)
                         .transition()
