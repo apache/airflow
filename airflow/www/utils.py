@@ -22,13 +22,22 @@ from urllib.parse import urlencode
 import markdown
 import sqlalchemy as sqla
 from flask import Markup, Response, request, url_for
+from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from flask_babel import lazy_gettext
+from wtforms.fields import StringField
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 
 from airflow.configuration import conf
+<<<<<<< HEAD
+=======
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskinstance import TaskTag
+from airflow.operators.subdag_operator import SubDagOperator
+>>>>>>> Move filters to utils and add check for task tags in UtcAwareFilterConverter
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
@@ -373,13 +382,49 @@ class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual
     pass
 
 
+class TagContainsFilter(fab_sqlafilters.BaseFilter):
+    name = lazy_gettext('Contains')
+    arg_name = 'tagct'
+
+    def __init__(self, column_name, datamodel, column, relation_column, is_related_view=False):
+        super().__init__(column_name=column_name, datamodel=datamodel, is_related_view=is_related_view)
+        self.column = column
+        self.rel_column = relation_column
+
+    def apply(self, query, value):
+        return query.filter(
+            self.column.any(
+                self.rel_column.ilike('%' + value + '%')
+            )
+        )
+
+
+class TagNotContainsFilter(fab_sqlafilters.BaseFilter):
+    name = lazy_gettext('Not Contains')
+    arg_name = 'tagnct'
+
+    def __init__(self, column_name, datamodel, column, relation_column, is_related_view=False):
+        super().__init__(column_name=column_name, datamodel=datamodel, is_related_view=is_related_view)
+        self.column = column
+        self.rel_column = relation_column
+
+    def apply(self, query, value):
+        return query.filter(
+            ~self.column.any(
+                self.rel_column.ilike('%' + value + '%')
+            )
+        )
+
+
 class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):  # noqa: D101
 
     conversion_table = (
         (('is_utcdatetime', [UtcAwareFilterEqual,
                              UtcAwareFilterGreater,
                              UtcAwareFilterSmaller,
-                             UtcAwareFilterNotEqual]),) +
+                             UtcAwareFilterNotEqual]),
+         ('is_tasktag', [TagContainsFilter,
+                         TagNotContainsFilter]),) +
         fab_sqlafilters.SQLAFilterConverter.conversion_table
     )
 
@@ -414,6 +459,12 @@ class CustomSQLAInterface(SQLAInterface):
                 isinstance(obj.impl, UtcDateTime)
         return False
 
+    def is_tasktag(self, col_name):
+        if col_name in self.list_properties:
+            cls = self.list_properties[col_name].mapper.class_
+            return cls is TaskTag
+        return False
+
     filter_converter_class = UtcAwareFilterConverter
 
 
@@ -421,6 +472,7 @@ class CustomSQLAInterface(SQLAInterface):
 # subclass) so we have no other option than to edit the converstion table in
 # place
 FieldConverter.conversion_table = (
-    (('is_utcdatetime', DateTimeWithTimezoneField, AirflowDateTimePickerWidget),) +
+    (('is_utcdatetime', DateTimeWithTimezoneField, AirflowDateTimePickerWidget),
+     ('is_tasktag', StringField, BS3TextFieldWidget)) +
     FieldConverter.conversion_table
 )

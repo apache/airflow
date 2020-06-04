@@ -2680,28 +2680,6 @@ class TaskRescheduleModelView(AirflowModelView):
 
 class TaskInstanceModelView(AirflowModelView):
     """View to show records from TaskInstance table"""
-    
-    class TagContainsFilter(BaseFilter):
-        name = lazy_gettext('Contains')
-        arg_name = 'tagct'
-
-        def apply(self, query, value):
-            return query.filter(
-                models.TaskInstance.tags.any(
-                    models.taskinstance.TaskTag.name.ilike('%' + value + '%')
-                )
-            )
-
-    class TagNotContainsFilter(BaseFilter):
-        name = lazy_gettext('Not Contains')
-        arg_name = 'tagnct'
-
-        def apply(self, query, value):
-            return query.filter(
-                ~models.TaskInstance.tags.any(
-                    models.taskinstance.TaskTag.name.ilike('%' + value + '%')
-                )
-            )
 
     route_base = '/taskinstance'
 
@@ -2716,7 +2694,7 @@ class TaskInstanceModelView(AirflowModelView):
                     'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
                     'pool', 'tags', 'log_url']
 
-    order_columns = [item for item in list_columns if item not in ['try_number', 'log_url']]
+    order_columns = [item for item in list_columns if item not in ['try_number', 'log_url', 'tags']]
 
     search_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'hostname',
                       'queue', 'pool', 'operator', 'start_date', 'end_date', 'tags']
@@ -2724,11 +2702,6 @@ class TaskInstanceModelView(AirflowModelView):
     base_order = ('job_id', 'asc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
-
-    column_filters = [
-        TagContainsFilter(column_name='tags', datamodel=datamodel),
-        TagNotContainsFilter(column_name='tags', datamodel=datamodel)
-    ]
 
     def log_url_formatter(attr):
         log_url = attr.get('log_url')
