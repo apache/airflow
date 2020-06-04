@@ -621,12 +621,10 @@ credentials stored in your ``home`` directory. Use this feature with care as it 
 visible to anything that you have installed inside the Docker container.
 
 Currently forwarded credentials are:
-  * all credentials stored in ``${HOME}/.config`` (for example, GCP credentials)
-  * credentials stored in ``${HOME}/.gsutil`` for ``gsutil`` tool from GCS
-  * credentials stored in ``${HOME}/.aws``, ``${HOME}/.boto``, and ``${HOME}/.s3`` (for AWS authentication)
-  * credentials stored in ``${HOME}/.docker`` for docker
-  * credentials stored in ``${HOME}/.kube`` for kubectl
-
+  * credentials stored in ``${HOME}/.aws`` for the aws Amazon Web Services client
+  * credentials stored in ``${HOME}/.azure`` for the az Microsoft Azure client
+  * credentials stored in ``${HOME}/.config`` for gcloud Google Cloud Platform client (among others)
+  * credentials stored in ``${HOME}/.docker`` for docker client
 
 Adding a New System Test
 --------------------------
