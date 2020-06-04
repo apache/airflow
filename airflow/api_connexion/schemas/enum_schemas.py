@@ -15,12 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Pagination parameters
-page_offset = "offset"
-page_limit = "limit"
-filter_execution_date_gte = 'filter_execution_date_gte'
-filter_execution_date_lte = 'filter_execution_date_lte'
-filter_start_date_gte = "filter_start_date_gte"
-filter_start_date_lte = "filter_start_date_lte"
-filter_end_date_gte = 'filter_end_date_gte'
-filter_end_date_lte = "filter_end_date_lte"
+from marshmallow import fields, validate
+from marshmallow.schema import Schema
+
+
+class DagState(Schema):
+    """DagState schema"""
+    state = fields.Str(validate=validate.OneOf(["success", "running", "failed"]))

@@ -18,6 +18,11 @@
 # TODO(mik-laj): We have to implement it.
 #     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8129
 
+from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.schemas.dagrun_schema import dagrun_schema
+from airflow.models import DagRun
+from airflow.utils.session import provide_session
+
 
 def delete_dag_run():
     """
@@ -26,11 +31,18 @@ def delete_dag_run():
     raise NotImplementedError("Not implemented yet.")
 
 
-def get_dag_run():
+@provide_session
+def get_dag_run(dag_id, dag_run_id, session):
     """
     Get a DAG Run.
     """
-    raise NotImplementedError("Not implemented yet.")
+    query = session.query(DagRun)
+    query = query.filter(DagRun.dag_id == dag_id)
+    query = query.filter(DagRun.run_id == dag_run_id)
+    dag_run = query.one_or_none()
+    if dag_run is None:
+        raise NotFound("DAGRun not found")
+    return dagrun_schema.dump(dag_run)
 
 
 def get_dag_runs():
