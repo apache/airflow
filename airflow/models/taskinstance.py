@@ -565,7 +565,6 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self.operator = ti.operator
             self.queued_dttm = ti.queued_dttm
             self.pid = ti.pid
-            self.tags = ti.tags
         else:
             self.state = None
 
