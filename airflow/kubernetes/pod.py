@@ -19,13 +19,27 @@ Classes for interacting with Kubernetes API
 """
 
 import copy
+
 import kubernetes.client.models as k8s
+
 from airflow.kubernetes.k8s_model import K8SModel
 
 
 class Resources(K8SModel):
     __slots__ = ('request_memory', 'request_cpu', 'limit_memory', 'limit_cpu', 'limit_gpu')
 
+    """
+    :param request_memory: requested memory
+    :type request_memory: str
+    :param request_cpu: requested CPU number
+    :type request_cpu: float | str
+    :param limit_memory: limit for memory usage
+    :type limit_memory: str
+    :param limit_cpu: Limit for CPU used
+    :type limit_cpu: float | str
+    :param limit_gpu: Limits for GPU used
+    :type limit_gpu: int
+    """
     def __init__(
             self,
             request_memory=None,
@@ -40,12 +54,15 @@ class Resources(K8SModel):
         self.limit_gpu = limit_gpu
 
     def is_empty_resource_request(self):
+        """Whether resource is empty"""
         return not self.has_limits() and not self.has_requests()
 
     def has_limits(self):
+        """Whether resource has limits"""
         return self.limit_cpu is not None or self.limit_memory is not None or self.limit_gpu is not None
 
     def has_requests(self):
+        """Whether resource has requests"""
         return self.request_cpu is not None or self.request_memory is not None
 
     def to_k8s_client_obj(self):
@@ -62,10 +79,14 @@ class Resources(K8SModel):
 
 
 class Port(K8SModel):
+    """POD port"""
+    __slots__ = ('name', 'container_port')
+
     def __init__(
             self,
             name=None,
             container_port=None):
+        """Creates port"""
         self.name = name
         self.container_port = container_port
 
