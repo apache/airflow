@@ -378,17 +378,6 @@ EOF
 
 EOF
         fi
-
-        if [[ ${INTEGRATIONS[*]} == *"kubernetes"* ]]; then
-            cat <<EOF
-
-                               Kubernetes mode:     ${KUBERNETES_MODE}
-                               Kubernetes version:  ${KUBERNETES_VERSION}
-
-                               Enable KinD cluster: ${ENABLE_KIND_CLUSTER}
-                               Cluster operation:   ${KIND_CLUSTER_OPERATION}
-EOF
-        fi
     else
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             cat <<EOF
@@ -422,18 +411,6 @@ EOF
 
 EOF
         fi
-        set +u
-        if [[ ${INTEGRATIONS[*]} == *"kubernetes"* ]]; then
-            cat <<EOF
-
-   Kubernetes mode:     ${KUBERNETES_MODE}
-   Kubernetes version:  ${KUBERNETES_VERSION}
-
-   Enable KinD cluster: ${ENABLE_KIND_CLUSTER}
-   Cluster operation:   ${KIND_CLUSTER_OPERATION}
-EOF
-        fi
-        set -u
     fi
 }
 
@@ -458,9 +435,6 @@ export DOCKERHUB_REPO=${DOCKERHUB_REPO}
 export COMPOSE_FILE="${COMPOSE_FILE}"
 export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
 export BACKEND="${BACKEND}"
-export ENABLE_KIND_CLUSTER="${ENABLE_KIND_CLUSTER}"
-export KUBERNETES_MODE="${KUBERNETES_MODE}"
-export KUBERNETES_VERSION="${KUBERNETES_VERSION}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
 export RUN_TESTS="${TESTS}"
