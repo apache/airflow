@@ -113,6 +113,7 @@ function populate_taskinstance_properties(node) {
       try_number: row[1],
       start_ts: row[2],
       duration: row[3],
+      tags: row[4]
     };
     node.instances[j] = task_instance;
 
@@ -120,7 +121,6 @@ function populate_taskinstance_properties(node) {
     task_instance.operator = node.operator;
     task_instance.execution_date = dr_instance.execution_date;
     task_instance.external_trigger = dr_instance.external_trigger;
-    task_instance.tags = dr_instance.tags;
 
     // compute start_date and end_date if applicable
     if (task_instance.start_ts !== null) {

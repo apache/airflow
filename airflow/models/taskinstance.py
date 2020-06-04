@@ -33,7 +33,7 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, ForeignKey, and_, func, or_
-from sqlalchemy.orm import reconstructor, relationship, backref
+from sqlalchemy.orm import reconstructor, relationship, backref, joinedload
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 
@@ -535,7 +535,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """
         self.log.debug("Refreshing TaskInstance %s from DB", self)
 
-        qry = session.query(TaskInstance).filter(
+        qry = session.query(TaskInstance).options(joinedload(TaskInstance.tags)).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.execution_date == self.execution_date)
@@ -564,6 +564,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self.operator = ti.operator
             self.queued_dttm = ti.queued_dttm
             self.pid = ti.pid
+            self.tags = ti.tags
         else:
             self.state = None
 

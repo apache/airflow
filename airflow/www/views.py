@@ -1436,6 +1436,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
                 ti.try_number,
                 None,  # start_ts
                 None,  # duration
+                [tag.name for tag in ti.tags]  # tags
             ]
 
             if ti.start_date:
@@ -1596,10 +1597,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
         task_instances = {}
         for ti in dag.get_task_instances(dttm, dttm):
             task_instances[ti.task_id] = alchemy_to_dict(ti)
-            task_instances[ti.task_id]['tags'] = []
-            for tag in ti.tags:
-                task_instances[tag.task_id]['tags'].append(tag.name)
-
+            task_instances[ti.task_id]['tags'] = [tag.name for tag in ti.tags]
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
@@ -2093,9 +2091,10 @@ class Airflow(AirflowBaseView):  # noqa: D101
         else:
             return "Error: Invalid execution_date"
 
-        task_instances = {
-            ti.task_id: alchemy_to_dict(ti)
-            for ti in dag.get_task_instances(dttm, dttm)}
+        task_instances = {}
+        for ti in dag.get_task_instances(dttm, dttm):
+            task_instances[ti.task_id] = alchemy_to_dict(ti)
+            task_instances[ti.task_id]['tags'] = [tag.name for tag in ti.tags]
 
         return json.dumps(task_instances)
 
