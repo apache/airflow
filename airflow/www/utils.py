@@ -23,10 +23,10 @@ import markdown
 import sqlalchemy as sqla
 from flask import Markup, Response, request, url_for
 from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
-from flask_appbuilder.forms import GeneralModelConverter, FieldConverter
-from flask_appbuilder.models.sqla import filters as fab_sqlafilters
+from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
+from wtforms.fields import StringField
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy.orm import joinedload
@@ -379,34 +379,35 @@ class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual
 
 
 class TagContainsFilter(fab_sqlafilters.BaseFilter):
-    """
-    Filter for checking if any of the tags for this TaskInstance
-    contain the specified value
-    """
-
     name = lazy_gettext('Contains')
     arg_name = 'tagct'
 
+    def __init__(self, column_name, datamodel, column, relation_column, is_related_view=False):
+        super().__init__(column_name=column_name, datamodel=datamodel, is_related_view=is_related_view)
+        self.column = column
+        self.rel_column = relation_column
+
     def apply(self, query, value):
         return query.filter(
-            TaskInstance.task_tags.any(
-                TaskTag.name.ilike('%' + value + '%')
+            self.column.any(
+                self.rel_column.ilike('%' + value + '%')
             )
         )
 
 
 class TagNotContainsFilter(fab_sqlafilters.BaseFilter):
-    """
-    Filter for checking if none of the tags for this TaskInstance
-    contain the specified value
-    """
     name = lazy_gettext('Not Contains')
     arg_name = 'tagnct'
 
+    def __init__(self, column_name, datamodel, column, relation_column, is_related_view=False):
+        super().__init__(column_name=column_name, datamodel=datamodel, is_related_view=is_related_view)
+        self.column = column
+        self.rel_column = relation_column
+
     def apply(self, query, value):
         return query.filter(
-            ~TaskInstance.task_tags.any(
-                TaskTag.name.ilike('%' + value + '%')
+            ~self.column.any(
+                self.rel_column.ilike('%' + value + '%')
             )
         )
 
@@ -455,28 +456,10 @@ class CustomSQLAInterface(SQLAInterface):
         return False
 
     def is_tasktag(self, col_name):
-        if col_name in self.list_properties and self.is_relation(col_name):
-            cls = self.get_related_model(col_name)
+        if col_name in self.list_properties:
+            cls = self.list_properties[col_name].mapper.class_
             return cls is TaskTag
         return False
-
-    def get_col_default(self, col_name):
-        if self.is_tasktag(col_name):
-            return None
-        else:
-            return super().get_col_default(col_name)
-
-    def _get_base_query(
-        self, query=None, filters=None, order_column="", order_direction=""
-    ):
-        """
-        If a FAB view is querying a TaskInstance, do an explicit joinedload for
-        task_tags name column
-        """
-        query = super()._get_base_query(query, filters, order_column, order_direction)
-        if query.column_descriptions[0]['name'] == 'TaskInstance':
-            query = query.options(joinedload('task_tags').load_only('name'))
-        return query
 
     filter_converter_class = UtcAwareFilterConverter
 
