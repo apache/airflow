@@ -58,8 +58,6 @@ class TestDag(unittest.TestCase):
 
     @staticmethod
     def _clean_up(dag_id: str):
-        if os.environ.get('KUBERNETES_VERSION') is not None:
-            return
         with create_session() as session:
             session.query(DagRun).filter(
                 DagRun.dag_id == dag_id).delete(
