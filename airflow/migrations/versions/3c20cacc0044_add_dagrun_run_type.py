@@ -66,7 +66,7 @@ class DagRun(Base):
 
 def upgrade():
     """Apply Add DagRun run_type"""
-    op.add_column("dag_run", sa.Column("run_type", sa.String(length=50)))
+    op.add_column("dag_run", sa.Column("run_type", sa.String(length=50), nullable=False))
 
     connection = op.get_bind()
     sessionmaker = sa.orm.sessionmaker()
@@ -81,8 +81,6 @@ def upgrade():
         {DagRun.run_type: DagRunType.MANUAL.value}, synchronize_session=False
     )
     session.commit()
-
-    op.alter_column("dag_run", "run_type", nullable=False)
 
 
 def downgrade():
