@@ -35,7 +35,7 @@ from airflow.configuration import conf
 <<<<<<< HEAD
 =======
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskinstance import TaskTag
+from airflow.models.taskinstance import TaskInstance, TaskTag
 from airflow.operators.subdag_operator import SubDagOperator
 >>>>>>> Move filters to utils and add check for task tags in UtcAwareFilterConverter
 from airflow.utils import timezone
@@ -386,15 +386,10 @@ class TagContainsFilter(fab_sqlafilters.BaseFilter):
     name = lazy_gettext('Contains')
     arg_name = 'tagct'
 
-    def __init__(self, column_name, datamodel, column, relation_column, is_related_view=False):
-        super().__init__(column_name=column_name, datamodel=datamodel, is_related_view=is_related_view)
-        self.column = column
-        self.rel_column = relation_column
-
     def apply(self, query, value):
         return query.filter(
-            self.column.any(
-                self.rel_column.ilike('%' + value + '%')
+            TaskInstance.tags.any(
+                TaskTag.name.ilike('%' + value + '%')
             )
         )
 
@@ -403,15 +398,10 @@ class TagNotContainsFilter(fab_sqlafilters.BaseFilter):
     name = lazy_gettext('Not Contains')
     arg_name = 'tagnct'
 
-    def __init__(self, column_name, datamodel, column, relation_column, is_related_view=False):
-        super().__init__(column_name=column_name, datamodel=datamodel, is_related_view=is_related_view)
-        self.column = column
-        self.rel_column = relation_column
-
     def apply(self, query, value):
         return query.filter(
-            ~self.column.any(
-                self.rel_column.ilike('%' + value + '%')
+            ~TaskInstance.tags.any(
+                TaskTag.name.ilike('%' + value + '%')
             )
         )
 
@@ -460,7 +450,7 @@ class CustomSQLAInterface(SQLAInterface):
         return False
 
     def is_tasktag(self, col_name):
-        if col_name in self.list_properties:
+        if col_name in self.list_properties and self.is_relation(col_name):
             cls = self.list_properties[col_name].mapper.class_
             return cls is TaskTag
         return False
