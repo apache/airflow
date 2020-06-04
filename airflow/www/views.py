@@ -2691,12 +2691,12 @@ class TaskInstanceModelView(AirflowModelView):
     list_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'operator',
                     'start_date', 'end_date', 'duration', 'job_id', 'hostname',
                     'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
-                    'pool', 'log_url']
+                    'pool', 'tags', 'log_url']
 
     order_columns = [item for item in list_columns if item not in ['try_number', 'log_url']]
 
     search_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'hostname',
-                      'queue', 'pool', 'operator', 'start_date', 'end_date']
+                      'queue', 'pool', 'operator', 'start_date', 'end_date', 'tags']
 
     base_order = ('job_id', 'asc')
 
@@ -2715,6 +2715,14 @@ class TaskInstanceModelView(AirflowModelView):
         if end_date and duration:
             return timedelta(seconds=duration)
 
+    def tags_formatter(attr):
+        tags = attr.get('tags')
+        tags_str = [tag.name for tag in tags]
+        if tags:
+            return ', '.join(tags_str)
+        else:
+            return ''
+
     formatters_columns = {
         'log_url': log_url_formatter,
         'task_id': wwwutils.task_instance_link,
@@ -2726,6 +2734,7 @@ class TaskInstanceModelView(AirflowModelView):
         'queued_dttm': wwwutils.datetime_f('queued_dttm'),
         'dag_id': wwwutils.dag_link,
         'duration': duration_f,
+        'tags': tags_formatter
     }
 
     @provide_session
