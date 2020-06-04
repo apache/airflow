@@ -34,9 +34,9 @@ the CI jobs and we are mapping all the CI-specific environment variables to gene
 The only two places where CI-specific code might be are:
 
 - CI-specific declaration file (for example it is `<.github/workflow/ci.yml>`_ for GitHub Actions
-- The ``get_ci_environment`` function in `<scripts/ci/_utils.sh>`_ where mapping is performed from
-  the CI-environment specific to generic values. Example for that is CI_EVENT_TYPE variable which
-  determines whether we are running a ``push``. ``schedule`` or ``pull_request`` kind of CI job. For
+- The ``get_ci_environment`` function in `<scripts/ci/libraries/_build_images.sh>`_ where mapping is
+  performed from the CI-environment specific to generic values. Example for that is CI_EVENT_TYPE variable
+  which determines whether we are running a ``push``. ``schedule`` or ``pull_request`` kind of CI job. For
   GitHub Action those are values mapped from ``GITHUB_EVENT_NAME`` variable, for Travis several other
   variables were used to determine it (``TRAVIS_PULL_REQUEST``, ``TRAVIS_EVENT_TYPE``).
 
