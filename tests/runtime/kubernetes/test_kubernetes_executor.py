@@ -196,7 +196,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         self.ensure_dag_expected_state(host=host,
                                        execution_date=execution_date,
                                        dag_id=dag_id,
-                                       expected_final_state='success', timeout=100)
+                                       expected_final_state='success', timeout=200)
 
     def test_integration_run_dag_with_scheduler_failure(self):
         host = KUBERNETES_HOST
@@ -229,7 +229,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         self.ensure_dag_expected_state(host=host,
                                        execution_date=execution_date,
                                        dag_id=dag_id,
-                                       expected_final_state='success', timeout=100)
+                                       expected_final_state='success', timeout=200)
 
         self.assertEqual(self._num_pods_in_namespace('test-namespace'),
                          0,
