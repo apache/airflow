@@ -355,7 +355,7 @@ function remove_cache_directory() {
 # The md5sum files are stored in .build directory - you can delete this directory
 # If you want to rebuild everything from the scratch
 #
-function check_file_md5sum {
+function calculate_file_md5sum {
     local FILE="${1}"
     local MD5SUM
     local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
@@ -416,6 +416,19 @@ function update_all_md5_files() {
     touch "${BUILT_IMAGE_FLAG_FILE}"
 }
 
+
+function calculate_md5sum_for_all_files() {
+    FILES_MODIFIED="false"
+    set +e
+    for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
+    do
+        if ! calculate_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
+            FILES_MODIFIED="true"
+        fi
+    done
+    set +e
+}
+
 #
 # Checks md5sum of all important files in order to optimise speed of running various operations
 # That mount sources of Airflow to container and require docker image built with latest dependencies.
@@ -441,23 +454,13 @@ function check_if_docker_build_is_needed() {
     print_info
     if [[ ${FORCE_BUILD_IMAGES:=""} == "true" ]]; then
         echo "Docker image build is forced for ${THE_IMAGE_TYPE} image"
-        set +e
-        for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
-        do
-            # Just store md5sum for all files in md5sum.new - do not check if it is different
-            check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
-        done
-        set -e
+        calculate_md5sum_for_all_files
         export NEEDS_DOCKER_BUILD="true"
     else
-        set +e
-        for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
-        do
-            if ! check_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
-                export NEEDS_DOCKER_BUILD="true"
-            fi
-        done
-        set -e
+        calculate_md5sum_for_all_files
+        if [[ ${FILES_MODIFIED} == "true" ]]; then
+            export NEEDS_DOCKER_BUILD="true"
+        fi
         if [[ ${NEEDS_DOCKER_BUILD} == "true" ]]; then
             echo "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
         else

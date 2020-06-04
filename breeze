@@ -2041,6 +2041,7 @@ function run_build_command {
                 build_prod_image
             else
                 prepare_ci_build
+                calculate_md5sum_for_all_files
                 build_ci_image
                 update_all_md5_files
                 build_ci_image_manifest
