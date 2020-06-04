@@ -608,9 +608,9 @@ function build_ci_image() {
             "--cache-from" "${AIRFLOW_CI_IMAGE}"
         )
     else
-        echo 2>&1
-        echo 2>&1 "Error - thee ${DOCKER_CACHE} cache is unknown!"
-        echo 2>&1
+        echo >&2
+        echo >&2 "Error - thee ${DOCKER_CACHE} cache is unknown!"
+        echo >&2
         exit 1
     fi
     if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
@@ -734,9 +734,9 @@ function build_prod_image() {
             "--cache-from" "${AIRFLOW_PROD_BUILD_IMAGE}"
         )
     else
-        echo 2>&1
-        echo 2>&1 "Error - thee ${DOCKER_CACHE} cache is unknown!"
-        echo 2>&1
+        echo >&2
+        echo >&2 "Error - thee ${DOCKER_CACHE} cache is unknown!"
+        echo >&2
         exit 1
     fi
     set +u

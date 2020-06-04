@@ -30,7 +30,6 @@ function generate_local_mounts_list {
         "$prefix".flake8:/opt/airflow/.flake8:cached
         "$prefix".github:/opt/airflow/.github:cached
         "$prefix".inputrc:/root/.inputrc:cached
-        "$prefix".kube:/root/.kube:cached
         "$prefix".rat-excludes:/opt/airflow/.rat-excludes:cached
         "$prefix"CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
         "$prefix"LICENSE:/opt/airflow/LICENSE:cached

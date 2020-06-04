@@ -29,12 +29,7 @@ BACKEND=${BACKEND:=sqlite}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
-if [[ -z ${AIRFLOW_SOURCES:=} ]]; then
-    echo >&2
-    echo >&2 AIRFLOW_SOURCES not set !!!!
-    echo >&2
-    exit 1
-fi
+: "${AIRFLOW_SOURCES:?"ERROR: AIRFLOW_SOURCES not set !!!!"}"
 
 echo
 echo "Airflow home: ${AIRFLOW_HOME}"

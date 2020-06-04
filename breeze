@@ -2084,12 +2084,7 @@ function run_breeze_command {
             fi
             AIRFLOW_TESTING_CONTAINER=$("${DC_FILE}" ps | \
                     grep airflow | awk '{print $1}' 2>/dev/null)
-            if [[ -z ${AIRFLOW_TESTING_CONTAINER} ]]; then
-                echo
-                echo "ERROR! Breeze must be running in order to exec into running container"
-                echo
-                exit 1
-            fi
+              : "${AIRFLOW_TESTING_CONTAINER:?"ERROR! Breeze must be running in order to exec into running container"}"
             set -e
             docker exec -it "${AIRFLOW_TESTING_CONTAINER}" \
                 "/opt/airflow/scripts/ci/in_container/entrypoint_exec.sh"

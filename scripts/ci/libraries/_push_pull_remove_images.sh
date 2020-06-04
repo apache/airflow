@@ -116,3 +116,68 @@ function pull_prod_images_if_needed() {
         pull_image_possibly_from_cache "${AIRFLOW_PROD_IMAGE}" "${CACHED_AIRFLOW_PROD_IMAGE}"
     fi
 }
+
+# Pushes Ci image and it's manifest to the registry. In case the image was taken from cache registry
+# it is pushed to the cache, not to the main registry. Manifest is only pushed to the main registry
+function push_ci_image() {
+    if [[ ${CACHED_AIRFLOW_CI_IMAGE:=} != "" ]]; then
+        verbose_docker tag "${AIRFLOW_CI_IMAGE}" "${CACHED_AIRFLOW_CI_IMAGE}"
+        IMAGE_TO_PUSH="${CACHED_AIRFLOW_CI_IMAGE}"
+    else
+        IMAGE_TO_PUSH="${AIRFLOW_CI_IMAGE}"
+    fi
+    verbose_docker push "${IMAGE_TO_PUSH}"
+    if [[ ${CACHED_AIRFLOW_CI_IMAGE} == "" ]]; then
+        # Only push manifest image for builds that are not using CI cache
+        verbose_docker tag "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+        verbose_docker push "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+        if [[ -n ${DEFAULT_IMAGE:=""} ]]; then
+            verbose_docker push "${DEFAULT_IMAGE}"
+        fi
+    fi
+    if [[ ${CACHED_PYTHON_BASE_IMAGE} != "" ]]; then
+        verbose_docker tag "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
+        verbose_docker push "${CACHED_PYTHON_BASE_IMAGE}"
+    fi
+
+}
+
+# Pushes PROD image to the registry. In case the image was taken from cache registry
+# it is also pushed to the cache, not to the main registry
+function push_prod_images() {
+    if [[ ${CACHED_AIRFLOW_PROD_IMAGE:=} != "" ]]; then
+        verbose_docker tag "${AIRFLOW_PROD_IMAGE}" "${CACHED_AIRFLOW_PROD_IMAGE}"
+        IMAGE_TO_PUSH="${CACHED_AIRFLOW_PROD_IMAGE}"
+    else
+        IMAGE_TO_PUSH="${AIRFLOW_PROD_IMAGE}"
+    fi
+    if [[ ${CACHED_AIRFLOW_PROD_BUILD_IMAGE:=} != "" ]]; then
+        verbose_docker tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${CACHED_AIRFLOW_PROD_BUILD_IMAGE}"
+        IMAGE_TO_PUSH_BUILD="${CACHED_AIRFLOW_PROD_BUILD_IMAGE}"
+    else
+        IMAGE_TO_PUSH_BUILD="${AIRFLOW_PROD_BUILD_IMAGE}"
+    fi
+    verbose_docker push "${IMAGE_TO_PUSH}"
+    verbose_docker push "${IMAGE_TO_PUSH_BUILD}"
+    if [[ -n ${DEFAULT_IMAGE:=""} && ${CACHED_AIRFLOW_PROD_IMAGE} == "" ]]; then
+        verbose_docker push "${DEFAULT_IMAGE}"
+    fi
+
+    # we do not need to push PYTHON base image here - they are already pushed in the CI push
+}
+
+# Removes airflow CI and base images
+function remove_all_images() {
+    echo
+    "${AIRFLOW_SOURCES}/confirm" "Removing all local images ."
+    echo
+    verbose_docker rmi "${PYTHON_BASE_IMAGE}" || true
+    verbose_docker rmi "${AIRFLOW_CI_IMAGE}" || true
+    echo
+    echo "###################################################################"
+    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."
+    echo "       But the disk space in docker will be reclaimed only after"
+    echo "       running 'docker system prune' command."
+    echo "###################################################################"
+    echo
+}

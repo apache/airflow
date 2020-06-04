@@ -16,20 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# extra flags passed to the docker run for CI image commands (as Bash array)
-declare -a EXTRA_DOCKER_FLAGS
-# extra flags passed to the docker run for PROD image commands(as Bash array)
-declare -a EXTRA_DOCKER_PROD_BUILD_FLAGS
-export EXTRA_DOCKER_FLAGS
-export EXTRA_DOCKER_PROD_BUILD_FLAGS
-
 # Common environment that is initialized by both Breeze and CI scripts
 function initialize_common_environment {
     # default python Major/Minor version
     PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
 
+    # extra flags passed to docker run for CI image
+    # shellcheck disable=SC2034
+    EXTRA_DOCKER_FLAGS=()
+
+    # extra flags passed to docker run for PROD image
+    # shellcheck disable=SC2034
+    EXTRA_DOCKER_PROD_BUILD_FLAGS=()
+
     # files that should be cleaned up when the script exits
-    export FILES_TO_CLEANUP_ON_EXIT=()
+    # shellcheck disable=SC2034
+    FILES_TO_CLEANUP_ON_EXIT=()
 
     # Sets to where airflow sources are located
     AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
@@ -145,7 +147,6 @@ function initialize_common_environment {
             EXTRA_DOCKER_FLAGS+=("${ENV_PARAM}")
         done
     fi
-    EXTRA_DOCKER_PROD_BUILD_FLAGS=()
 
     # We use pulled docker image cache by default to speed up the builds
     # but we can also set different docker caching strategy (for example we can use local cache

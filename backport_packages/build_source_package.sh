@@ -27,12 +27,7 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "${MY_DIR}"/..
 
 function check_version() {
-  if [[ ${VERSION:=} == "" ]]; then
-    echo
-    echo "Please export VERSION variable with the version of source package to prepare"
-    echo
-    exit 1
-  fi
+    : "${VERSION:?"Please export VERSION variable with the version of source package to prepare"}"
 }
 
 function tag_release() {

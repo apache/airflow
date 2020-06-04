@@ -16,14 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# SCRIPTS_CI_DIR must be set
-
-if [[ "${SCRIPTS_CI_DIR}" == "" ]]; then
-        echo 2>&1
-        echo 2>&1 "Error - the script should have  SCRIPTS_CI_DIR variable set!"
-        echo 2>&1
-        exit 1
-fi
+SCRIPTS_CI_DIR=$(dirname "${BASH_SOURCE[0]}")
 
 # must be first to initialize arrays TODO: For sure?
 # shellcheck source=scripts/ci/libraries/_initialization.sh
@@ -44,14 +37,10 @@ fi
 . "${SCRIPTS_CI_DIR}"/libraries/_parameters.sh
 # shellcheck source=scripts/ci/libraries/_permissions.sh
 . "${SCRIPTS_CI_DIR}"/libraries/_permissions.sh
-# shellcheck source=scripts/ci/libraries/_pull_images.sh
-. "${SCRIPTS_CI_DIR}"/libraries/_pull_images.sh
-# shellcheck source=scripts/ci/libraries/_push_images.sh
-. "${SCRIPTS_CI_DIR}"/libraries/_push_images.sh
+# shellcheck source=scripts/ci/libraries/_push_pull_remove_images.sh
+. "${SCRIPTS_CI_DIR}"/libraries/_push_pull_remove_images.sh
 # shellcheck source=scripts/ci/libraries/_pylint.sh
 . "${SCRIPTS_CI_DIR}"/libraries/_pylint.sh
-# shellcheck source=scripts/ci/libraries/_remove_images.sh
-. "${SCRIPTS_CI_DIR}"/libraries/_remove_images.sh
 # shellcheck source=scripts/ci/libraries/_runs.sh
 . "${SCRIPTS_CI_DIR}"/libraries/_runs.sh
 # shellcheck source=scripts/ci/libraries/_spinner.sh
