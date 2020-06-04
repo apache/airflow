@@ -432,7 +432,7 @@ class TestAirflowBaseViews(TestBase):
             resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
-    def test_doc_site_url(self):
+    def test_doc_urls(self):
         resp = self.client.get('/', follow_redirects=True)
         if "dev" in version.version:
             airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
@@ -440,6 +440,7 @@ class TestAirflowBaseViews(TestBase):
             airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
 
         self.check_content_in_response(airflow_doc_site, resp)
+        self.check_content_in_response("/api/v1/ui", resp)
 
     def test_health(self):
 
