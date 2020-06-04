@@ -72,15 +72,15 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.13.21
+boto3==1.13.22
 boto==2.49.0
-botocore==1.16.21
+botocore==1.16.22
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
 cassandra-driver==3.20.2
 cattrs==1.0.0
-celery==4.4.3
+celery==4.4.4
 certifi==2020.4.5.1
 cffi==1.14.0
 cfgv==3.1.0
@@ -119,7 +119,7 @@ email-validator==1.1.1
 entrypoints==0.3
 eventlet==0.25.2
 execnet==1.7.1
-facebook-business==7.0.1
+facebook-business==7.0.2
 fastavro==0.23.4
 filelock==3.0.12
 fissix==20.5.1
@@ -154,7 +154,7 @@ google-cloud-dlp==0.15.0
 google-cloud-kms==1.4.0
 google-cloud-language==1.3.0
 google-cloud-logging==1.15.0
-google-cloud-monitoring==0.36.0
+google-cloud-monitoring==1.0.0
 google-cloud-pubsub==1.5.0
 google-cloud-redis==1.0.0
 google-cloud-secret-manager==1.0.0
@@ -166,8 +166,8 @@ google-cloud-texttospeech==2.0.0
 google-cloud-translate==2.0.1
 google-cloud-videointelligence==1.14.0
 google-cloud-vision==1.0.0
-google-resumable-media==0.5.0
-googleapis-common-protos==1.51.0
+google-resumable-media==0.5.1
+googleapis-common-protos==1.52.0
 graphviz==0.14
 greenlet==0.4.15
 grpc-google-iam-v1==0.12.3
@@ -204,7 +204,7 @@ jsonschema==3.2.0
 junit-xml==1.9
 jupyter-client==6.1.3
 jupyter-core==4.6.3
-kombu==4.6.9
+kombu==4.6.10
 kubernetes==11.0.0
 lazy-object-proxy==1.4.3
 ldap3==2.7
@@ -236,7 +236,7 @@ networkx==2.4
 nodeenv==1.4.0
 nteract-scrapbook==0.4.1
 ntlm-auth==1.4.0
-numpy==1.18.4
+numpy==1.18.5
 oauthlib==2.1.0
 openapi-spec-validator==0.2.8
 oscrypto==1.2.0
@@ -306,7 +306,7 @@ pytz==2020.1
 pytzdata==2019.3
 pywinrm==0.4.1
 pyzmq==19.0.1
-qds-sdk==1.15.2
+qds-sdk==1.16.0
 redis==3.5.3
 regex==2020.5.14
 requests-kerberos==0.12.0
@@ -364,7 +364,7 @@ thrift==0.13.0
 toml==0.10.1
 toolz==0.10.0
 tornado==5.1.1
-tqdm==4.46.0
+tqdm==4.46.1
 traitlets==4.3.3
 typed-ast==1.4.1
 typing-extensions==3.7.4.2
