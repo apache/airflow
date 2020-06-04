@@ -2748,8 +2748,8 @@ class TaskInstanceModelView(TaskTagModelView):
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     column_filters = [
-        TagContainsFilter(column_name='tags', datamodel=models.TaskInstance),
-        TagNotContainsFilter(column_name='tags', datamodel=models.TaskInstance)
+        TagContainsFilter(column_name='tags', datamodel=datamodel),
+        TagNotContainsFilter(column_name='tags', datamodel=datamodel)
     ]
 
     def log_url_formatter(attr):
