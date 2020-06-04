@@ -25,11 +25,11 @@ repos:
     rev: v1.1.7
     hooks:
       - id: forbid-tabs
-        exclude: ^airflow/_vendor/.*$|^docs/Makefile$
+        exclude: ^docs/Makefile$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "/*||*/"
@@ -38,7 +38,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all other files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "|#|"
@@ -49,7 +49,7 @@ repos:
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
       - id: insert-license
         name: Add license for all rst files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "||"
@@ -60,7 +60,7 @@ repos:
       - id: insert-license
         name: Add license for all JS/CSS files
         files: \.(js|css)$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "/**| *| */"
@@ -71,7 +71,7 @@ repos:
         name: Add license for all JINJA template files
         files: "^airflow/www/templates/.*\\.html$|^docs/templates/.*\\.html$|^airflow/contrib/plugins/\
 metastore_browser/templates/.*\\.html$|.*\\.jinja2"
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "{#||#}"
@@ -80,7 +80,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all shell files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
         args:
           - --comment-style
@@ -90,7 +90,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all python files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [python]
         args:
           - --comment-style
@@ -100,7 +100,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all XML files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [xml]
         args:
           - --comment-style
@@ -110,7 +110,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all yaml files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [yaml]
         args:
           - --comment-style
@@ -121,7 +121,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*|PROVIDERS_CHANGES.*\.md
+        exclude: ^\.github/.*$|PROVIDERS_CHANGES.*\.md
         args:
           - --comment-style
           - "<!--|| -->"
@@ -154,7 +154,6 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
       - id: fix-encoding-pragma
         args:
           - --remove
-        exclude: ^airflow/_vendor/.*$
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.5.1
     hooks:
@@ -174,7 +173,6 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
-        exclude: ^airflow/_vendor/.*$
       - id: lint-openapi
         name: Lint OpenAPI using speccy
         language: docker_image
@@ -198,7 +196,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         entry: isort
         files: \.py$
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^airflow/_vendor/.*$|^build/.*$|^.tox/.*$|^venv/.*$
+        exclude: ^build/.*$|^.tox/.*$|^venv/.*$
         additional_dependencies: ['isort']
       - id: setup-order
         name: Checks for an order of dependencies in setup.py
@@ -333,14 +331,14 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         language: system
         entry: "./scripts/ci/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^airflow/_vendor/.*$|^dev|^backport_packages
+        exclude: ^dev|^backport_packages
         require_serial: true
       - id: pylint
         name: Run pylint for main sources
         language: system
         entry: "./scripts/ci/pre_commit_pylint_main.sh"
         files: \.py$
-        exclude: ^tests/.*\.py$|^airflow/_vendor/.*|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
+        exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
         pass_filenames: true
         require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
       - id: pylint-tests

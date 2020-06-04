@@ -33,6 +33,7 @@ from urllib.parse import quote, unquote
 
 import lazy_object_proxy
 import markdown
+import nvd3
 import sqlalchemy as sqla
 from flask import (
     Markup, Response, current_app, escape, flash, jsonify, make_response, redirect, render_template, request,
@@ -51,7 +52,6 @@ from wtforms import SelectField, validators
 
 import airflow
 from airflow import models, settings
-from airflow._vendor import nvd3
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
