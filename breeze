@@ -422,7 +422,7 @@ EOF
 
 EOF
         fi
-
+        set +u
         if [[ ${INTEGRATIONS[*]} == *"kubernetes"* ]]; then
             cat <<EOF
 
@@ -433,6 +433,7 @@ EOF
    Cluster operation:   ${KIND_CLUSTER_OPERATION}
 EOF
         fi
+        set -u
     fi
 }
 
