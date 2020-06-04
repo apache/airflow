@@ -66,8 +66,13 @@ class DagRun(Base):
 
 def upgrade():
     """Apply Add DagRun run_type"""
-    op.add_column("dag_run", sa.Column("run_type", sa.String(length=50), nullable=False))
+    run_type_col_type = sa.String(length=50)
 
+    # Add nullable column
+    with op.batch_alter_table("dag_run") as batch_op:
+        batch_op.add_column(sa.Column("run_type", run_type_col_type, nullable=True))
+
+    # Generate run type for existing records
     connection = op.get_bind()
     sessionmaker = sa.orm.sessionmaker()
     session = sessionmaker(bind=connection)
@@ -81,6 +86,10 @@ def upgrade():
         {DagRun.run_type: DagRunType.MANUAL.value}, synchronize_session=False
     )
     session.commit()
+
+    # Make run_type not nullable
+    with op.batch_alter_table("dag_run") as batch_op:
+        batch_op.alter_column("run_type", type_=run_type_col_type, nullable=False)
 
 
 def downgrade():
