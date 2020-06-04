@@ -159,6 +159,7 @@ class DockerOperator(BaseOperator):
             auto_remove: bool = False,
             shm_size: Optional[int] = None,
             tty: Optional[bool] = False,
+            cap_add: Optional[Iterable[str]] = None,
             *args,
             **kwargs) -> None:
 
@@ -191,6 +192,7 @@ class DockerOperator(BaseOperator):
         self.docker_conn_id = docker_conn_id
         self.shm_size = shm_size
         self.tty = tty
+        self.cap_add = cap_add
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
@@ -231,7 +233,8 @@ class DockerOperator(BaseOperator):
                     dns=self.dns,
                     dns_search=self.dns_search,
                     cpu_shares=int(round(self.cpus * 1024)),
-                    mem_limit=self.mem_limit),
+                    mem_limit=self.mem_limit,
+                    cap_add=self.cap_add),
                 image=self.image,
                 user=self.user,
                 working_dir=self.working_dir,
