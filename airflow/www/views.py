@@ -35,8 +35,8 @@ from functools import wraps
 from textwrap import dedent
 
 import markdown
-import pendulum
 import sqlalchemy as sqla
+import pendulum
 from flask import (
     abort, jsonify, redirect, url_for, request, Markup, Response,
     current_app, render_template, make_response)
@@ -52,14 +52,16 @@ from jinja2 import escape
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 from past.builtins import basestring
 from pygments import highlight, lexers
-from pygments.formatters import HtmlFormatter
 import six
+from pygments.formatters.html import HtmlFormatter
 from six.moves.urllib.parse import quote, unquote
 
 from sqlalchemy import or_, desc, and_, union_all
 from wtforms import (
     Form, SelectField, TextAreaField, PasswordField,
     StringField, IntegerField, validators)
+
+import nvd3
 
 import airflow
 from airflow import LoggingMixin, configuration
@@ -83,7 +85,6 @@ from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow._vendor import nvd3
 from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
