@@ -123,6 +123,8 @@ class DockerOperator(BaseOperator):
     :param tty: Allocate pseudo-TTY to the container
         This needs to be set see logs of the Docker container.
     :type tty: bool
+    :param cap_add: Include container capabilities
+    :type cap_add: list[str]
     """
     template_fields = ('command', 'environment', 'container_name')
     template_ext = ('.sh', '.bash',)
