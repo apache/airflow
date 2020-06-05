@@ -22,7 +22,7 @@ from unittest import mock
 
 from boto3.session import Session
 
-from airflow.providers.amazon.aws.operators.s3_to_redshift import S3ToRedshiftTransfer
+from airflow.providers.amazon.aws.operators.s3_to_redshift import S3ToRedshiftTransferOperator
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
@@ -41,7 +41,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
         s3_key = "key"
         copy_options = ""
 
-        op = S3ToRedshiftTransfer(
+        op = S3ToRedshiftTransferOperator(
             schema=schema,
             table=table,
             s3_bucket=s3_bucket,

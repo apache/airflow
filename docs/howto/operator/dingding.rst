@@ -34,7 +34,7 @@ To use this operators, you must do a few things:
 Basic Usage
 ^^^^^^^^^^^
 
-Use the :class:`~airflow.contrib.operators.dingding_operator.DingdingOperator`
+Use the :class:`~airflow.providers.dingding.operators.dingding.DingdingOperator`
 to send Dingding message:
 
 .. exampleinclude:: ../../../airflow/providers/dingding/example_dags/example_dingding.py

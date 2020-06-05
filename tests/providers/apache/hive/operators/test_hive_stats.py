@@ -17,6 +17,7 @@
 # under the License.
 
 import os
+import re
 import unittest
 from collections import OrderedDict
 from unittest.mock import patch
@@ -24,6 +25,7 @@ from unittest.mock import patch
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 from tests.providers.apache.hive import DEFAULT_DATE, DEFAULT_DATE_DS, TestHiveEnvironment
+from tests.test_utils.mock_hooks import MockHiveMetastoreHook, MockMySqlHook, MockPrestoHook
 
 
 class _FakeCol:
@@ -288,11 +290,50 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
     @unittest.skipIf(
         'AIRFLOW_RUNALL_TESTS' not in os.environ,
         "Skipped because AIRFLOW_RUNALL_TESTS is not set")
-    def test_runs_for_hive_stats(self):
-        op = HiveStatsCollectionOperator(
-            task_id='hive_stats_check',
-            table="airflow.static_babynames_partitioned",
-            partition={'ds': DEFAULT_DATE_DS},
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
+    @patch('airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook',
+           side_effect=MockHiveMetastoreHook)
+    def test_runs_for_hive_stats(self, mock_hive_metastore_hook):
+        mock_mysql_hook = MockMySqlHook()
+        mock_presto_hook = MockPrestoHook()
+        with patch('airflow.providers.apache.hive.operators.hive_stats.PrestoHook',
+                   return_value=mock_presto_hook):
+            with patch('airflow.providers.apache.hive.operators.hive_stats.MySqlHook',
+                       return_value=mock_mysql_hook):
+                op = HiveStatsCollectionOperator(
+                    task_id='hive_stats_check',
+                    table="airflow.static_babynames_partitioned",
+                    partition={'ds': DEFAULT_DATE_DS},
+                    dag=self.dag)
+                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                       ignore_ti_state=True)
+
+        select_count_query = "SELECT COUNT(*) AS __count FROM airflow." \
+            + "static_babynames_partitioned WHERE ds = '2015-01-01';"
+        mock_presto_hook.get_first.assert_called_with(hql=select_count_query)
+
+        expected_stats_select_query = "SELECT 1 FROM hive_stats WHERE table_name='airflow." \
+            + "static_babynames_partitioned' AND " \
+            + "partition_repr='{\"ds\": \"2015-01-01\"}' AND " \
+            + "dttm='2015-01-01T00:00:00+00:00' " \
+            + "LIMIT 1;"
+
+        raw_stats_select_query = mock_mysql_hook.get_records.call_args_list[0][0][0]
+        actual_stats_select_query = re.sub(r'\s{2,}', ' ', raw_stats_select_query).strip()
+
+        self.assertEqual(expected_stats_select_query, actual_stats_select_query)
+
+        insert_rows_val = [('2015-01-01', '2015-01-01T00:00:00+00:00',
+                            'airflow.static_babynames_partitioned',
+                            '{"ds": "2015-01-01"}', '', 'count', ['val_0', 'val_1'])]
+
+        mock_mysql_hook.insert_rows.assert_called_with(table='hive_stats',
+                                                       rows=insert_rows_val,
+                                                       target_fields=[
+                                                           'ds',
+                                                           'dttm',
+                                                           'table_name',
+                                                           'partition_repr',
+                                                           'col',
+                                                           'metric',
+                                                           'value',
+                                                       ])

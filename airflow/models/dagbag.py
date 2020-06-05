@@ -287,8 +287,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                     try:
                         dag.is_subdag = False
                         self.bag_dag(dag, parent_dag=dag, root_dag=dag)
-                        if isinstance(dag._schedule_interval, str):
-                            croniter(dag._schedule_interval)
+                        if isinstance(dag.normalized_schedule_interval, str):
+                            croniter(dag.normalized_schedule_interval)
                         found_dags.append(dag)
                         found_dags += dag.subdags
                     except (CroniterBadCronError,
@@ -456,4 +456,5 @@ class DagBag(BaseDagBag, LoggingMixin):
         from airflow.models.dag import DAG
         from airflow.models.serialized_dag import SerializedDagModel
         DAG.bulk_sync_to_db(self.dags.values())
-        SerializedDagModel.bulk_sync_to_db(self.dags.values())
+        if self.store_serialized_dags:
+            SerializedDagModel.bulk_sync_to_db(self.dags.values())

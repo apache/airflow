@@ -48,11 +48,11 @@ def _create_dagruns(dag, execution_dates, state, run_type):
 
     for date in dates_to_create:
         dag_run = dag.create_dagrun(
-            run_id=f"{run_type}__{date.isoformat()}",
             execution_date=date,
             start_date=timezone.utcnow(),
             external_trigger=False,
             state=state,
+            run_type=run_type,
         )
         dag_runs.append(dag_run)
 
@@ -136,34 +136,34 @@ def set_state(
 # Flake and pylint disagree about correct indents here
 def all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates):  # noqa: E123
     """Get *all* tasks of the sub dags"""
-    qry_sub_dag = session.query(TaskInstance).\
+    qry_sub_dag = session.query(TaskInstance). \
         filter(
-            TaskInstance.dag_id.in_(sub_dag_run_ids),
-            TaskInstance.execution_date.in_(confirmed_dates)  # noqa: E123
-        ).\
+        TaskInstance.dag_id.in_(sub_dag_run_ids),
+        TaskInstance.execution_date.in_(confirmed_dates)
+    ). \
         filter(
-            or_(
-                TaskInstance.state.is_(None),
-                TaskInstance.state != state
-            )
-        )  # noqa: E123
+        or_(
+            TaskInstance.state.is_(None),
+            TaskInstance.state != state
+        )
+    )  # noqa: E123
     return qry_sub_dag
 
 
-def get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates):  # noqa: E123
+def get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates):
     """Get all tasks of the main dag that will be affected by a state change"""
-    qry_dag = session.query(TaskInstance).\
+    qry_dag = session.query(TaskInstance). \
         filter(
-            TaskInstance.dag_id == dag.dag_id,
-            TaskInstance.execution_date.in_(confirmed_dates),
-            TaskInstance.task_id.in_(task_ids)  # noqa: E123
-        ).\
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.execution_date.in_(confirmed_dates),
+        TaskInstance.task_id.in_(task_ids)  # noqa: E123
+    ). \
         filter(
-            or_(
-                TaskInstance.state.is_(None),
-                TaskInstance.state != state
-            )
+        or_(
+            TaskInstance.state.is_(None),
+            TaskInstance.state != state
         )
+    )
     return qry_dag
 
 
@@ -188,7 +188,7 @@ def get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates):
                 dag_runs = _create_dagruns(current_task.subdag,
                                            execution_dates=confirmed_dates,
                                            state=State.RUNNING,
-                                           run_type=DagRunType.BACKFILL_JOB.value)
+                                           run_type=DagRunType.BACKFILL_JOB)
 
                 verify_dagruns(dag_runs, commit, state, session, current_task)
 
@@ -244,7 +244,7 @@ def find_task_relatives(tasks, downstream, upstream):
 
 def get_execution_dates(dag, execution_date, future, past):
     """Returns dates of DAG execution"""
-    latest_execution_date = dag.latest_execution_date
+    latest_execution_date = dag.get_latest_execution_date()
     if latest_execution_date is None:
         raise ValueError("Received non-localized date {}".format(execution_date))
     # determine date range of dag runs and tasks to consider

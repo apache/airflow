@@ -72,7 +72,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         if 'TrainingJobDefinition' in self.config:
             config = self.config['TrainingJobDefinition']
             if 'RoleArn' in config:
-                hook = AwsBaseHook(self.aws_conn_id)
+                hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
                 config['RoleArn'] = hook.expand_role(config['RoleArn'])
 
     def execute(self, context):

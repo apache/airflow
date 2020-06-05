@@ -604,11 +604,12 @@ class GCSFileTransformOperator(BaseOperator):
                 close_fds=True
             )
             self.log.info("Process output:")
-            for line in iter(process.stdout.readline, b''):
-                self.log.info(line.decode(self.output_encoding).rstrip())
+            if process.stdout:
+                for line in iter(process.stdout.readline, b''):
+                    self.log.info(line.decode(self.output_encoding).rstrip())
 
             process.wait()
-            if process.returncode > 0:
+            if process.returncode:
                 raise AirflowException(
                     "Transform script failed: {0}".format(process.returncode)
                 )

@@ -207,7 +207,3 @@ class TestSqoopOperator(unittest.TestCase):
         )
         with self.assertRaises(AirflowException):
             operator.execute({})
-
-
-if __name__ == '__main__':
-    unittest.main()

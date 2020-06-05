@@ -547,7 +547,3 @@ class TestSparkKubernetesSensor(unittest.TestCase):
                                                         namespace='mock_namespace',
                                                         plural='sparkapplications',
                                                         version='v1beta2')
-
-
-if __name__ == '__main__':
-    unittest.main()

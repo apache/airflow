@@ -51,7 +51,3 @@ class TestImapAttachmentSensor(unittest.TestCase):
             mail_folder=self.kwargs['mail_folder'],
             mail_filter=self.kwargs['mail_filter']
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

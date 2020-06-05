@@ -481,7 +481,3 @@ class TestLivyHook(unittest.TestCase):
         with self.subTest('random string'):
             with self.assertRaises(TypeError):
                 LivyHook._validate_session_id('asd')
-
-
-if __name__ == '__main__':
-    unittest.main()

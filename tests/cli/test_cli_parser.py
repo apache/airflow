@@ -17,6 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import argparse
+import contextlib
+import io
 import re
 from collections import Counter
 from unittest import TestCase
@@ -132,3 +135,49 @@ class TestCli(TestCase):
                 self.assertEqual([], conflict_short_option,
                                  f"Command group {group} function {com.name} have conflict "
                                  f"short option flags {conflict_short_option}")
+
+    def test_falsy_default_value(self):
+        arg = cli_parser.Arg(("--test",), default=0, type=int)
+        parser = argparse.ArgumentParser()
+        arg.add_to_parser(parser)
+
+        args = parser.parse_args(['--test', '10'])
+        self.assertEqual(args.test, 10)
+
+        args = parser.parse_args([])
+        self.assertEqual(args.test, 0)
+
+    def test_commands_and_command_group_sections(self):
+        parser = cli_parser.get_parser()
+
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            with self.assertRaises(SystemExit):
+                parser.parse_args(['--help'])
+            stdout = stdout.getvalue()
+        self.assertIn("Commands", stdout)
+        self.assertIn("Groups", stdout)
+
+    def test_should_display_helps(self):
+        parser = cli_parser.get_parser()
+
+        all_command_as_args = [
+            command_as_args
+            for top_commaand in cli_parser.airflow_commands
+            for command_as_args in (
+                [[top_commaand.name]]
+                if isinstance(top_commaand, cli_parser.ActionCommand)
+                else [
+                    [top_commaand.name, nested_command.name] for nested_command in top_commaand.subcommands
+                ]
+            )
+        ]
+        for cmd_args in all_command_as_args:
+            with self.assertRaises(SystemExit):
+                parser.parse_args([*cmd_args, '--help'])
+
+    def test_positive_int(self):
+        self.assertEqual(1, cli_parser.positive_int('1'))
+
+        with self.assertRaises(argparse.ArgumentTypeError):
+            cli_parser.positive_int('0')
+            cli_parser.positive_int('-1')

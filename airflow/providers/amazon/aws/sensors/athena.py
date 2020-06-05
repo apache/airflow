@@ -57,14 +57,12 @@ class AthenaSensor(BaseSensorOperator):
         super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.query_execution_id = query_execution_id
-        self.hook = None
         self.sleep_time = sleep_time
         self.max_retires = max_retires
+        self.hook = None
 
     def poke(self, context):
-        self.hook = self.get_hook()
-        self.hook.get_conn()
-        state = self.hook.poll_query_status(self.query_execution_id, self.max_retires)
+        state = self.get_hook().poll_query_status(self.query_execution_id, self.max_retires)
 
         if state in self.FAILURE_STATES:
             raise AirflowException('Athena sensor failed')
@@ -74,5 +72,7 @@ class AthenaSensor(BaseSensorOperator):
         return True
 
     def get_hook(self):
-        """Create and return an AWSAthenaHook."""
-        return AWSAthenaHook(self.aws_conn_id, self.sleep_time)
+        """Create and return an AWSAthenaHook"""
+        if not self.hook:
+            self.hook = AWSAthenaHook(self.aws_conn_id, self.sleep_time)
+        return self.hook

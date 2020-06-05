@@ -140,7 +140,3 @@ class TestPool(unittest.TestCase):
         with self.assertRaisesRegex(AirflowBadRequest,
                                     "^default_pool cannot be deleted$"):
             pool_api.delete_pool(Pool.DEFAULT_POOL_NAME)
-
-
-if __name__ == '__main__':
-    unittest.main()

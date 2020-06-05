@@ -79,7 +79,3 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
                                       target_status='cluster_not_found')
 
         self.assertTrue(op.poke(None))
-
-
-if __name__ == '__main__':
-    unittest.main()

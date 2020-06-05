@@ -41,8 +41,9 @@ dag = DAG('example_http_operator', default_args=default_args, tags=['example'])
 
 dag.doc_md = __doc__
 
-# t1, t2 and t3 are examples of tasks created by instantiating operators
-t1 = SimpleHttpOperator(
+# task_post_op, task_get_op and task_put_op are examples of tasks created by instantiating operators
+# [START howto_operator_http_task_post_op]
+task_post_op = SimpleHttpOperator(
     task_id='post_op',
     endpoint='post',
     data=json.dumps({"priority": 5}),
@@ -50,16 +51,18 @@ t1 = SimpleHttpOperator(
     response_check=lambda response: response.json()['json']['priority'] == 5,
     dag=dag,
 )
-
-t5 = SimpleHttpOperator(
+# [END howto_operator_http_task_post_op]
+# [START howto_operator_http_task_post_op_formenc]
+task_post_op_formenc = SimpleHttpOperator(
     task_id='post_op_formenc',
     endpoint='post',
     data="name=Joe",
     headers={"Content-Type": "application/x-www-form-urlencoded"},
     dag=dag,
 )
-
-t2 = SimpleHttpOperator(
+# [END howto_operator_http_task_post_op_formenc]
+# [START howto_operator_http_task_get_op]
+task_get_op = SimpleHttpOperator(
     task_id='get_op',
     method='GET',
     endpoint='get',
@@ -67,8 +70,9 @@ t2 = SimpleHttpOperator(
     headers={},
     dag=dag,
 )
-
-t3 = SimpleHttpOperator(
+# [END howto_operator_http_task_get_op]
+# [START howto_operator_http_task_put_op]
+task_put_op = SimpleHttpOperator(
     task_id='put_op',
     method='PUT',
     endpoint='put',
@@ -76,8 +80,9 @@ t3 = SimpleHttpOperator(
     headers={"Content-Type": "application/json"},
     dag=dag,
 )
-
-t4 = SimpleHttpOperator(
+# [END howto_operator_http_task_put_op]
+# [START howto_operator_http_task_del_op]
+task_del_op = SimpleHttpOperator(
     task_id='del_op',
     method='DELETE',
     endpoint='delete',
@@ -85,8 +90,9 @@ t4 = SimpleHttpOperator(
     headers={"Content-Type": "application/x-www-form-urlencoded"},
     dag=dag,
 )
-
-sensor = HttpSensor(
+# [END howto_operator_http_task_del_op]
+# [START howto_operator_http_http_sensor_check]
+task_http_sensor_check = HttpSensor(
     task_id='http_sensor_check',
     http_conn_id='http_default',
     endpoint='',
@@ -95,5 +101,5 @@ sensor = HttpSensor(
     poke_interval=5,
     dag=dag,
 )
-
-sensor >> t1 >> t2 >> t3 >> t4 >> t5
+# [END howto_operator_http_http_sensor_check]
+task_http_sensor_check >> task_post_op >> task_get_op >> task_put_op >> task_del_op >> task_post_op_formenc

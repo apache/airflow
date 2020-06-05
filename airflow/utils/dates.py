@@ -70,6 +70,8 @@ def date_range(start_date, end_date=None, num=None, delta=None):  # pylint: disa
         raise Exception("Wait. Either specify end_date OR num")
     if not end_date and not num:
         end_date = timezone.utcnow()
+    if delta in cron_presets:
+        delta = cron_presets.get(delta)
 
     delta_iscron = False
     time_zone = start_date.tzinfo

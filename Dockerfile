@@ -34,9 +34,9 @@
 #                        much smaller.
 #
 ARG AIRFLOW_VERSION="2.0.0.dev0"
-ARG WWW_FOLDER="www"
-
 ARG AIRFLOW_EXTRAS="async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv"
+ARG ADDITIONAL_AIRFLOW_EXTRAS=""
+ARG ADDITIONAL_PYTHON_DEPS=""
 
 ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
@@ -93,7 +93,6 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            apt-utils \
            build-essential \
            ca-certificates \
-           curl \
            gnupg \
            dirmngr \
            freetds-bin \
@@ -154,6 +153,9 @@ ENV PIP_VERSION=${PIP_VERSION}
 
 RUN pip install --upgrade pip==${PIP_VERSION}
 
+ARG AIRFLOW_SOURCES_FROM="."
+ENV AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}
+
 ARG AIRFLOW_SOURCES_TO="/opt/airflow"
 ENV AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}
 
@@ -166,7 +168,11 @@ ARG AIRFLOW_VERSION
 ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 
 ARG AIRFLOW_EXTRAS
-ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}
+ARG ADDITIONAL_AIRFLOW_EXTRAS=""
+ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS}
+
+ARG ADDITIONAL_PYTHON_DEPS=""
+ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS}
 
 ARG AIRFLOW_INSTALL_SOURCES="."
 ENV AIRFLOW_INSTALL_SOURCES=${AIRFLOW_INSTALL_SOURCES}
@@ -177,9 +183,6 @@ ENV AIRFLOW_INSTALL_VERSION=${AIRFLOW_INSTALL_VERSION}
 ARG CONSTRAINT_REQUIREMENTS="requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
 ENV CONSTRAINT_REQUIREMENTS=${CONSTRAINT_REQUIREMENTS}
 
-ARG AIRFLOW_SOURCES_FROM="."
-ENV AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}
-
 WORKDIR /opt/airflow
 
 # hadolint ignore=DL3020
@@ -189,19 +192,22 @@ ENV PATH=${PATH}:/root/.local/bin
 
 RUN pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
     --constraint /requirements.txt && \
+    if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then pip install --user ${ADDITIONAL_PYTHON_DEPS} \
+    --constraint /requirements.txt; fi && \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r && \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
 
-
-ARG WWW_FOLDER
-ENV WWW_FOLDER=${WWW_FOLDER}
-
-ENV AIRFLOW_WWW=/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/${WWW_FOLDER}
-
-RUN if [[ -f "${AIRFLOW_WWW}/package.json" ]]; then \
-        yarn --cwd ${AIRFLOW_WWW} install --frozen-lockfile --no-cache; \
-        yarn --cwd ${AIRFLOW_WWW} run prod; \
-        rm -rf ${AIRFLOW_WWW}/node_modules; \
+RUN \
+    AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow"; \
+    if [[ -f "${AIRFLOW_SITE_PACKAGE}/www_rbac/package.json" ]]; then \
+        WWW_DIR="${AIRFLOW_SITE_PACKAGE}/www_rbac"; \
+    elif [[ -f "${AIRFLOW_SITE_PACKAGE}/www/package.json" ]]; then \
+        WWW_DIR="${AIRFLOW_SITE_PACKAGE}/www"; \
+    fi; \
+    if [[ ${WWW_DIR:=} != "" ]]; then \
+        yarn --cwd "${WWW_DIR}" install --frozen-lockfile --no-cache; \
+        yarn --cwd "${WWW_DIR}" run prod; \
+        rm -rf "${WWW_DIR}/node_modules"; \
     fi
 
 ARG ENTRYPOINT_FILE="entrypoint.sh"
@@ -209,6 +215,7 @@ ENV ENTRYPOINT_FILE="${ENTRYPOINT_FILE}"
 
 # hadolint ignore=DL3020
 ADD ${ENTRYPOINT_FILE} /entrypoint
+RUN chmod a+x /entrypoint
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
@@ -328,5 +335,8 @@ WORKDIR ${AIRFLOW_HOME}
 
 ENV AIRFLOW__CORE__LOAD_EXAMPLES="false"
 
+EXPOSE 8080
+
+COPY scripts/include/clean-logs.sh /usr/local/bin/clean-airflow-logs
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
-CMD ["airflow", "--help"]
+CMD ["--help"]

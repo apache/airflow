@@ -421,6 +421,20 @@ class TestGoogleBaseHook(unittest.TestCase):
         )
         self.assertEqual((mock_credentials, "PROJECT_ID"), result)
 
+    @mock.patch('google.auth.default')
+    def test_get_credentials_and_project_id_with_default_auth_and_unsupported_delegate(
+        self, mock_auth_default
+    ):
+        self.instance.delegate_to = "TEST_DELLEGATE_TO"
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
+
+        with self.assertRaisesRegex(AirflowException, re.escape(
+            "The `delegate_to` parameter cannot be used here as the current authentication method does not "
+            "support account impersonate. Please use service-account for authorization."
+        )):
+            self.instance._get_credentials_and_project_id()
+
     @mock.patch(  # type: ignore
         MODULE_NAME + '.get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID")
@@ -577,7 +591,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         }
         self.assertEqual(self.instance.num_retries, 5)
 
-    @mock.patch("airflow.providers.google.common.hooks.base_google.httplib2.Http")
+    @mock.patch("airflow.providers.google.common.hooks.base_google.build_http")
     @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
     def test_authorize_assert_user_agent_is_sent(self, mock_get_credentials, mock_http):
         """
@@ -601,6 +615,22 @@ class TestGoogleBaseHook(unittest.TestCase):
         )
         self.assertEqual(response, new_response)
         self.assertEqual(content, new_content)
+
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    def test_authorize_assert_http_308_is_excluded(self, mock_get_credentials):
+        """
+        Verify that 308 status code is excluded from httplib2's redirect codes
+        """
+        http_authorized = self.instance._authorize().http
+        self.assertTrue(308 not in http_authorized.redirect_codes)
+
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    def test_authorize_assert_http_timeout_is_present(self, mock_get_credentials):
+        """
+        Verify that http client has a timeout set
+        """
+        http_authorized = self.instance._authorize().http
+        self.assertNotEqual(http_authorized.timeout, None)
 
 
 class TestProvideAuthorizedGcloud(unittest.TestCase):
@@ -710,3 +740,49 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
             ],
             any_order=False
         )
+
+
+class TestNumRetry(unittest.TestCase):
+
+    def test_should_return_int_when_set_int_via_connection(self):
+        instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
+        instance.extras = {
+            'extra__google_cloud_platform__num_retries': 10,
+        }
+
+        self.assertIsInstance(instance.num_retries, int)
+        self.assertEqual(10, instance.num_retries)
+
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT=(
+            'google-cloud-platform://?extra__google_cloud_platform__num_retries=5'
+        )
+    )
+    def test_should_return_int_when_set_via_env_var(self):
+        instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
+        self.assertIsInstance(instance.num_retries, int)
+
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT=(
+            'google-cloud-platform://?extra__google_cloud_platform__num_retries=cat'
+        )
+    )
+    def test_should_raise_when_invalid_value_via_env_var(self):
+        instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
+        with self.assertRaisesRegex(
+            AirflowException, re.escape("The num_retries field should be a integer.")
+        ):
+            self.assertIsInstance(instance.num_retries, int)
+
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT=(
+            'google-cloud-platform://?extra__google_cloud_platform__num_retries='
+        )
+    )
+    def test_should_fallback_when_empty_string_in_env_var(self):
+        instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
+        self.assertIsInstance(instance.num_retries, int)
+        self.assertEqual(5, instance.num_retries)

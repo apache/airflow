@@ -58,8 +58,6 @@ class TestDag(unittest.TestCase):
 
     @staticmethod
     def _clean_up(dag_id: str):
-        if os.environ.get('KUBERNETES_VERSION') is not None:
-            return
         with create_session() as session:
             session.query(DagRun).filter(
                 DagRun.dag_id == dag_id).delete(
@@ -646,6 +644,15 @@ class TestDag(unittest.TestCase):
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
 
+    def test_dagtag_repr(self):
+        clear_db_dags()
+        dag = DAG('dag-test-dagtag', start_date=DEFAULT_DATE, tags=['tag-1', 'tag-2'])
+        dag.sync_to_db()
+        with create_session() as session:
+            self.assertEqual({'tag-1', 'tag-2'},
+                             {repr(t) for t in session.query(DagTag).filter(
+                                 DagTag.dag_id == 'dag-test-dagtag').all()})
+
     def test_bulk_sync_to_db(self):
         clear_db_dags()
         dags = [
@@ -859,7 +866,7 @@ class TestDag(unittest.TestCase):
             'dag_paused'
         )
         dag.sync_to_db()
-        self.assertFalse(dag.is_paused)
+        self.assertFalse(dag.get_is_paused())
 
         dag = DAG(
             'dag_paused',
@@ -867,7 +874,7 @@ class TestDag(unittest.TestCase):
         )
         dag.sync_to_db()
         # Since the dag existed before, it should not follow the pause flag upon creation
-        self.assertFalse(dag.is_paused)
+        self.assertFalse(dag.get_is_paused())
 
     def test_new_dag_is_paused_upon_creation(self):
         dag = DAG(
@@ -903,7 +910,7 @@ class TestDag(unittest.TestCase):
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
         self.assertFalse(orm_dag.is_active)
 
-        # CleanUp
+        # pylint: disable=no-member
         session.execute(DagModel.__table__.delete().where(DagModel.dag_id == dag_id))
         session.close()
 
@@ -970,14 +977,6 @@ class TestDag(unittest.TestCase):
 
         self.assertEqual(dag.task_dict, {op1.task_id: op1})
 
-        # Also verify that DAGs with duplicate task_ids don't raise errors
-        with DAG("test_dag_1", start_date=DEFAULT_DATE) as dag1:
-            op3 = DummyOperator(task_id="t3")
-            op4 = BashOperator(task_id="t4", bash_command="sleep 1")
-            op3 >> op4
-
-        self.assertEqual(dag1.task_dict, {op3.task_id: op3, op4.task_id: op4})
-
     def test_duplicate_task_ids_not_allowed_without_dag_context_manager(self):
         """Verify tasks with Duplicate task_id raises error"""
         with self.assertRaisesRegex(
@@ -985,18 +984,10 @@ class TestDag(unittest.TestCase):
         ):
             dag = DAG("test_dag", start_date=DEFAULT_DATE)
             op1 = DummyOperator(task_id="t1", dag=dag)
-            op2 = BashOperator(task_id="t1", bash_command="sleep 1", dag=dag)
+            op2 = DummyOperator(task_id="t1", dag=dag)
             op1 >> op2
 
         self.assertEqual(dag.task_dict, {op1.task_id: op1})
-
-        # Also verify that DAGs with duplicate task_ids don't raise errors
-        dag1 = DAG("test_dag_1", start_date=DEFAULT_DATE)
-        op3 = DummyOperator(task_id="t3", dag=dag1)
-        op4 = DummyOperator(task_id="t4", dag=dag1)
-        op3 >> op4
-
-        self.assertEqual(dag1.task_dict, {op3.task_id: op3, op4.task_id: op4})
 
     def test_duplicate_task_ids_for_same_task_is_allowed(self):
         """Verify that same tasks with Duplicate task_id do not raise error"""
@@ -1108,8 +1099,7 @@ class TestDag(unittest.TestCase):
             start_date=DEFAULT_DATE))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        run_id = f"{DagRunType.SCHEDULED.value}__{DEFAULT_DATE.isoformat()}"
-        dag.create_dagrun(run_id=run_id,
+        dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                           execution_date=DEFAULT_DATE,
                           state=State.SUCCESS,
                           external_trigger=True)
@@ -1136,6 +1126,7 @@ class TestDag(unittest.TestCase):
         dag_id = "test_schedule_dag_once"
         dag = DAG(dag_id=dag_id)
         dag.schedule_interval = '@once'
+        self.assertEqual(dag.normalized_schedule_interval, None)
         dag.add_task(BaseOperator(
             task_id="faketastic",
             owner='Also fake',
@@ -1319,6 +1310,51 @@ class TestDag(unittest.TestCase):
             session.query(DagModel).filter(
                 DagModel.dag_id == dag_id).delete(
                 synchronize_session=False)
+
+    @parameterized.expand([
+        (None, None),
+        ("@daily", "0 0 * * *"),
+        ("@weekly", "0 0 * * 0"),
+        ("@monthly", "0 0 1 * *"),
+        ("@quarterly", "0 0 1 */3 *"),
+        ("@yearly", "0 0 1 1 *"),
+        ("@once", None),
+        (datetime.timedelta(days=1), datetime.timedelta(days=1)),
+    ])
+    def test_normalized_schedule_interval(
+        self, schedule_interval, expected_n_schedule_interval
+    ):
+        dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
+
+        self.assertEqual(dag.normalized_schedule_interval, expected_n_schedule_interval)
+        self.assertEqual(dag.schedule_interval, schedule_interval)
+
+    def test_set_dag_runs_state(self):
+        clear_db_runs()
+        dag_id = "test_set_dag_runs_state"
+        dag = DAG(dag_id=dag_id)
+
+        for i in range(3):
+            dag.create_dagrun(run_id=f"test{i}", state=State.RUNNING)
+
+        dag.set_dag_runs_state(state=State.NONE)
+        drs = DagRun.find(dag_id=dag_id)
+
+        assert len(drs) == 3
+        assert all(dr.state == State.NONE for dr in drs)
+
+    def test_create_dagrun_run_id_is_generated(self):
+        dag = DAG(dag_id="run_id_is_generated")
+        dr = dag.create_dagrun(run_type=DagRunType.MANUAL, execution_date=DEFAULT_DATE, state=State.NONE)
+        assert dr.run_id == f"{DagRunType.MANUAL.value}__{DEFAULT_DATE.isoformat()}"
+
+    def test_create_dagrun_run_type_is_obtained_from_run_id(self):
+        dag = DAG(dag_id="run_type_is_obtained_from_run_id")
+        dr = dag.create_dagrun(run_id=f"{DagRunType.SCHEDULED.value}__", state=State.NONE)
+        assert dr.run_type == DagRunType.SCHEDULED.value
+
+        dr = dag.create_dagrun(run_id="custom_is_set_to_manual", state=State.NONE)
+        assert dr.run_type == DagRunType.MANUAL.value
 
 
 class TestQueries(unittest.TestCase):

@@ -94,10 +94,16 @@ def unify_bucket_name_and_key(func):
 class S3Hook(AwsBaseHook):
     """
     Interact with AWS S3, using the boto3 library.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def get_conn(self):
-        return self.get_client_type('s3')
+    def __init__(self, *args, **kwargs):
+        super().__init__(client_type='s3', *args, **kwargs)
 
     @staticmethod
     def parse_s3_url(s3url):
@@ -133,7 +139,7 @@ class S3Hook(AwsBaseHook):
             self.get_conn().head_bucket(Bucket=bucket_name)
             return True
         except ClientError as e:
-            self.log.info(e.response["Error"]["Message"])
+            self.log.error(e.response["Error"]["Message"])
             return False
 
     @provide_bucket_name
@@ -159,9 +165,8 @@ class S3Hook(AwsBaseHook):
         :param region_name: The name of the aws region in which to create the bucket.
         :type region_name: str
         """
-        s3_conn = self.get_conn()
         if not region_name:
-            region_name = s3_conn.meta.region_name
+            region_name = self.get_conn().meta.region_name
         if region_name == 'us-east-1':
             self.get_conn().create_bucket(Bucket=bucket_name)
         else:
@@ -292,7 +297,7 @@ class S3Hook(AwsBaseHook):
             self.get_conn().head_object(Bucket=bucket_name, Key=key)
             return True
         except ClientError as e:
-            self.log.info(e.response["Error"]["Message"])
+            self.log.error(e.response["Error"]["Message"])
             return False
 
     @provide_bucket_name
@@ -460,8 +465,9 @@ class S3Hook(AwsBaseHook):
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
         if gzip:
-            filename_gz = filename.name + '.gz'
-            with open(filename.name, 'rb') as f_in:
+            filename_gz = ''
+            with open(filename, 'rb') as f_in:
+                filename_gz = f_in.name + '.gz'
                 with gz.open(filename_gz, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
                     filename = filename_gz
@@ -658,6 +664,26 @@ class S3Hook(AwsBaseHook):
                                                ACL=acl_policy)
         return response
 
+    @provide_bucket_name
+    def delete_bucket(self, bucket_name: str, force_delete: bool = False) -> None:
+        """
+        To delete s3 bucket, delete all s3 bucket objects and then delete the bucket.
+
+        :param bucket_name: Bucket name
+        :type bucket_name: str
+        :param force_delete: Enable this to delete bucket even if not empty
+        :type force_delete: bool
+        :return: None
+        :rtype: None
+        """
+        if force_delete:
+            bucket_keys = self.list_keys(bucket_name=bucket_name)
+            if bucket_keys:
+                self.delete_objects(bucket=bucket_name, keys=bucket_keys)
+        self.conn.delete_bucket(
+            Bucket=bucket_name
+        )
+
     def delete_objects(self, bucket, keys):
         """
         Delete keys from the bucket.
@@ -724,3 +750,32 @@ class S3Hook(AwsBaseHook):
             s3_obj.download_fileobj(local_tmp_file)
 
         return local_tmp_file.name
+
+    def generate_presigned_url(self, client_method, params=None, expires_in=3600, http_method=None):
+        """
+        Generate a presigned url given a client, its method, and arguments
+
+        :param client_method: The client method to presign for.
+        :type client_method: str
+        :param params: The parameters normally passed to ClientMethod.
+        :type params: dict
+        :param expires_in: The number of seconds the presigned url is valid for.
+            By default it expires in an hour (3600 seconds).
+        :type expires_in: int
+        :param http_method: The http method to use on the generated url.
+            By default, the http method is whatever is used in the method's model.
+        :type http_method: str
+        :return: The presigned url.
+        :rtype: str
+        """
+
+        s3_client = self.get_conn()
+        try:
+            return s3_client.generate_presigned_url(ClientMethod=client_method,
+                                                    Params=params,
+                                                    ExpiresIn=expires_in,
+                                                    HttpMethod=http_method)
+
+        except ClientError as e:
+            self.log.error(e.response["Error"]["Message"])
+            return None

@@ -52,6 +52,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
+@pytest.mark.quarantined
 class TestBackfillJob(unittest.TestCase):
 
     def _get_dummy_dag(self, dag_id, pool=Pool.DEFAULT_POOL_NAME, task_concurrency=None):
@@ -193,7 +194,7 @@ class TestBackfillJob(unittest.TestCase):
             ("run_this_last", end_date),
         ]
         self.assertListEqual(
-            [((dag.dag_id, task_id, when, 1), State.SUCCESS)
+            [((dag.dag_id, task_id, when, 1), (State.SUCCESS, None))
              for (task_id, when) in expected_execution_order],
             executor.sorted_tasks
         )
@@ -273,7 +274,7 @@ class TestBackfillJob(unittest.TestCase):
 
         job.run()
         self.assertListEqual(
-            [((dag_id, task_id, DEFAULT_DATE, 1), State.SUCCESS)
+            [((dag_id, task_id, DEFAULT_DATE, 1), (State.SUCCESS, None))
              for task_id in expected_execution_order],
             executor.sorted_tasks
         )
@@ -1062,7 +1063,7 @@ class TestBackfillJob(unittest.TestCase):
         drs = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
         dr = drs[0]
 
-        self.assertEqual(f"{DagRunType.BACKFILL_JOB.value}__{DEFAULT_DATE.isoformat()}", dr.run_id)
+        self.assertEqual(DagRun.generate_run_id(DagRunType.BACKFILL_JOB, DEFAULT_DATE), dr.run_id)
         for ti in dr.get_task_instances():
             if ti.task_id == 'leave1' or ti.task_id == 'leave2':
                 self.assertEqual(State.SUCCESS, ti.state)
@@ -1173,6 +1174,7 @@ class TestBackfillJob(unittest.TestCase):
                 .query(DagRun)
                 .filter(DagRun.dag_id == subdag.dag_id)
                 .filter(DagRun.execution_date == start_date)
+                # pylint: disable=comparison-with-callable
                 .filter(DagRun.state == State.SUCCESS)
                 .count()
             )
@@ -1295,7 +1297,7 @@ class TestBackfillJob(unittest.TestCase):
         job = BackfillJob(dag=dag)
 
         session = settings.Session()
-        dr = dag.create_dagrun(run_id=DagRunType.SCHEDULED.value,
+        dr = dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                                state=State.RUNNING,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,

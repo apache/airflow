@@ -140,9 +140,10 @@ def execute_in_subprocess(cmd: List[str]):
         close_fds=True
     )
     log.info("Output:")
-    with proc.stdout:
-        for line in iter(proc.stdout.readline, b''):
-            log.info("%s", line.decode().rstrip())
+    if proc.stdout:
+        with proc.stdout:
+            for line in iter(proc.stdout.readline, b''):
+                log.info("%s", line.decode().rstrip())
 
     exit_code = proc.wait()
     if exit_code != 0:
@@ -269,6 +270,8 @@ def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
     if pid_lock_file.is_locked():
         # Read the pid
         pid = pid_lock_file.read_pid()
+        if pid is None:
+            return
         try:
             # Check if process is still running
             proc = psutil.Process(pid)

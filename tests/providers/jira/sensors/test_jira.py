@@ -80,7 +80,3 @@ class TestJiraSensor(unittest.TestCase):
     @staticmethod
     def field_checker_func(context, issue):  # pylint: disable=unused-argument
         return "test-label-1" in issue['fields']['labels']
-
-
-if __name__ == '__main__':
-    unittest.main()

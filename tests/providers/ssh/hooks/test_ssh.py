@@ -249,7 +249,3 @@ class TestSSHHook(unittest.TestCase):
                 port='port',
                 sock=None
             )
-
-
-if __name__ == '__main__':
-    unittest.main()

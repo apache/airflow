@@ -47,7 +47,7 @@ def safe_name(s: str) -> str:
 default_args = {"start_date": days_ago(1)}
 
 with models.DAG(
-    dag_id=f"example_presto_to_gcs",
+    dag_id="example_presto_to_gcs",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
     tags=["example"],

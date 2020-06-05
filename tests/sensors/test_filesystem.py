@@ -40,7 +40,6 @@ class TestFileSensor(unittest.TestCase):
             'start_date': DEFAULT_DATE
         }
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
-        dag.schedule_interval = '@once'
         self.hook = hook
         self.dag = dag
 
@@ -173,7 +172,3 @@ class TestFileSensor(unittest.TestCase):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                      ignore_ti_state=True)
             shutil.rmtree(temp_dir)
-
-
-if __name__ == '__main__':
-    unittest.main()

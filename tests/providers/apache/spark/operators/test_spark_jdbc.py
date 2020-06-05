@@ -139,7 +139,3 @@ class TestSparkJDBCOperator(unittest.TestCase):
         self.assertEqual(expected_dict['upper_bound'], operator._upper_bound)
         self.assertEqual(expected_dict['create_table_column_types'],
                          operator._create_table_column_types)
-
-
-if __name__ == '__main__':
-    unittest.main()

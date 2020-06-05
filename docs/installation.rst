@@ -23,19 +23,59 @@ Installation
 Getting Airflow
 '''''''''''''''
 
-The easiest way to install the latest stable version of Airflow is with ``pip``:
+Airflow is published as ``apache-airflow`` package in PyPI. Installing it however might be sometimes tricky
+because Airflow is a bit of both a library and application. Libraries usually keep their dependencies open and
+applications usually pin them, but we should do neither and both at the same time. We decided to keep
+our dependencies as open as possible (in ``setup.py``) so users can install different version of libraries
+if needed. This means that from time to time plain ``pip install apache-airflow`` will not work or will
+produce unusable Airflow installation.
+
+In order to have repeatable installation, however, starting from **Airflow 1.10.10** we also keep a set of
+"known-to-be-working" requirement files in the ``requirements`` folder. Those "known-to-be-working"
+requirements are per major/minor python version (3.6/3.7). You can use them as constraint
+files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
+and python versions in the URL.
+
+1. Installing just airflow
 
 .. code-block:: bash
 
-    pip install apache-airflow
+    pip install \
+     apache-airflow==1.10.10 \
+     --constraint \
+            https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
 
-You can also install Airflow with support for extra features like ``gcp`` or ``postgres``:
+
+2. Installing with extras (for example postgres, google)
 
 .. code-block:: bash
 
-    pip install 'apache-airflow[postgres,gcp]'
+    pip install \
+     apache-airflow[postgres,google]==1.10.10 \
+     --constraint \
+            https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
 
-Airflow require that your operating system has ``libffi-dev`` installed.
+
+You need certain system level requirements in order to install Airflow. Those are requirements that are known
+to be needed for Linux system (Tested on Ubuntu Buster LTS) :
+
+.. code-block:: bash
+
+   sudo apt-get install -y --no-install-recommends \
+           freetds-bin \
+           krb5-user \
+           ldap-utils \
+           libffi6 \
+           libsasl2-2 \
+           libsasl2-modules \
+           libssl1.1 \
+           locales  \
+           lsb-release \
+           sasl2-bin \
+           sqlite3 \
+           unixodbc
+
+You also need database client packages (Postgres or MySQL) if you want to use those databases.
 
 If the ``airflow`` command is not getting recognized (can happen on Windows when using WSL), then
 ensure that ``~/.local/bin`` is in your ``PATH`` environment variable, and add it in if necessary:
@@ -85,17 +125,19 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | subpackage          | install command                                     | enables                                                              |
 +=====================+=====================================================+======================================================================+
-| atlas               | ``pip install 'apache-airflow[atlas]'``             | Apache Atlas to use Data Lineage feature                             |
+| atlas               | ``pip install 'apache-airflow[apache.atlas]'``      | Apache Atlas to use Data Lineage feature                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| cassandra           | ``pip install 'apache-airflow[cassandra]'``         | Cassandra related operators & hooks                                  |
+| cassandra           | ``pip install 'apache-airflow[apache.cassandra]'``  | Cassandra related operators & hooks                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| druid               | ``pip install 'apache-airflow[druid]'``             | Druid related operators & hooks                                      |
+| druid               | ``pip install 'apache-airflow[apache.druid]'``      | Druid related operators & hooks                                      |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| hdfs                | ``pip install 'apache-airflow[hdfs]'``              | HDFS hooks and operators                                             |
+| hdfs                | ``pip install 'apache-airflow[apache.hdfs]'``       | HDFS hooks and operators                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| hive                | ``pip install 'apache-airflow[hive]'``              | All Hive related operators                                           |
+| hive                | ``pip install 'apache-airflow[apache.hive]'``       | All Hive related operators                                           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| presto              | ``pip install 'apache-airflow[presto]'``            | All Presto related operators & hooks                                 |
+| presto              | ``pip install 'apache-airflow[apache.presto]'``     | All Presto related operators & hooks                                 |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| spark               | ``pip install 'apache-airflow[apache.spark]'``      | All Spark related operators & hooks                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | webhdfs             | ``pip install 'apache-airflow[webhdfs]'``           | HDFS hooks and operators                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
@@ -106,9 +148,9 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | subpackage          | install command                                     | enables                                                              |
 +=====================+=====================================================+======================================================================+
-| aws                 | ``pip install 'apache-airflow[aws]'``               | Amazon Web Services                                                  |
+| aws                 | ``pip install 'apache-airflow[amazon]'``            | Amazon Web Services                                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| azure               | ``pip install 'apache-airflow[azure]'``             | Microsoft Azure                                                      |
+| azure               | ``pip install 'apache-airflow[microsoft.azure]'``   | Microsoft Azure                                                      |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | cloudant            | ``pip install 'apache-airflow[cloudant]'``          | Cloudant hook                                                        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
@@ -116,7 +158,9 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | datadog             | ``pip install 'apache-airflow[datadog]'``           | Datadog hooks and sensors                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| gcp                 | ``pip install 'apache-airflow[gcp]'``               | Google Cloud Platform                                                |
+| facebook            | ``pip install 'apache-airflow[facebook]'``          | Facebook Social                                                      |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| gcp                 | ``pip install 'apache-airflow[google]'``            | Google Cloud Platform                                                |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | github_enterprise   | ``pip install 'apache-airflow[github_enterprise]'`` | GitHub Enterprise auth backend                                       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
@@ -159,11 +203,11 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
 | exasol              | ``pip install 'apache-airflow[exasol]'``            | Exasol hooks and operators                                                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| kubernetes          | ``pip install 'apache-airflow[kubernetes]'``        | Kubernetes Executor and operator                                                  |
+| kubernetes          | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor and operator                                                  |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
 | mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators                                                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| mssql (deprecated)  | ``pip install 'apache-airflow[mssql]'``             | Microsoft SQL Server operators and hook,                                          |
+| mssql (deprecated)  | ``pip install 'apache-airflow[microsoft.mssql]'``   | Microsoft SQL Server operators and hook,                                          |
 |                     |                                                     | support as an Airflow backend.  Uses pymssql.                                     |
 |                     |                                                     | Will be replaced by subpackage ``odbc``.                                          |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
@@ -214,7 +258,7 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | ssh                 | ``pip install 'apache-airflow[ssh]'``               | SSH hooks and Operator                                               |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| winrm               | ``pip install 'apache-airflow[winrm]'``             | WinRM hooks and operators                                            |
+| winrm               | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 Initiating Airflow Database

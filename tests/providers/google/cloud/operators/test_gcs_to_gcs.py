@@ -23,7 +23,7 @@ import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.gcs_to_gcs import (
-    WILDCARD, GCSSynchronizeBuckets, GCSToGCSOperator,
+    WILDCARD, GCSSynchronizeBucketsOperator, GCSToGCSOperator,
 )
 
 TASK_ID = 'test-gcs-to-gcs-operator'
@@ -505,7 +505,7 @@ class TestGoogleCloudStorageSync(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.gcs_to_gcs.GCSHook')
     def test_execute(self, mock_hook):
-        task = GCSSynchronizeBuckets(
+        task = GCSSynchronizeBucketsOperator(
             task_id="task-id",
             source_bucket="SOURCE_BUCKET",
             destination_bucket="DESTINATION_BUCKET",

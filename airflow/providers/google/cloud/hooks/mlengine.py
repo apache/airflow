@@ -78,7 +78,7 @@ class MLEngineHook(GoogleBaseHook):
     def create_job(
         self,
         job: Dict,
-        project_id: Optional[str] = None,
+        project_id: str,
         use_existing_job_fn: Optional[Callable] = None
     ) -> Dict:
         """
@@ -112,9 +112,6 @@ class MLEngineHook(GoogleBaseHook):
             terminal state (which might be FAILED or CANCELLED state).
         :rtype: dict
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         hook = self.get_conn()
 
         self._append_label(job)
@@ -152,7 +149,7 @@ class MLEngineHook(GoogleBaseHook):
     def cancel_job(
         self,
         job_id: str,
-        project_id: Optional[str] = None
+        project_id: str,
     ) -> Dict:
 
         """
@@ -169,10 +166,6 @@ class MLEngineHook(GoogleBaseHook):
         :rtype: dict
         :raises: googleapiclient.errors.HttpError
         """
-
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         hook = self.get_conn()
 
         request = hook.projects().jobs().cancel(  # pylint: disable=no-member
@@ -251,7 +244,7 @@ class MLEngineHook(GoogleBaseHook):
         self,
         model_name: str,
         version_spec: Dict,
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> Dict:
         """
         Creates the Version on Google Cloud ML Engine.
@@ -291,7 +284,7 @@ class MLEngineHook(GoogleBaseHook):
         self,
         model_name: str,
         version_name: str,
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> Dict:
         """
         Sets a version to be the default. Blocks until finished.
@@ -327,7 +320,7 @@ class MLEngineHook(GoogleBaseHook):
     def list_versions(
         self,
         model_name: str,
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> List[Dict]:
         """
         Lists all available versions of a model. Blocks until finished.
@@ -364,7 +357,7 @@ class MLEngineHook(GoogleBaseHook):
         self,
         model_name: str,
         version_name: str,
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> Dict:
         """
         Deletes the given version of a model. Blocks until finished.
@@ -379,9 +372,6 @@ class MLEngineHook(GoogleBaseHook):
             Otherwise raises an error.
         :rtype: Dict
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         hook = self.get_conn()
         full_name = 'projects/{}/models/{}/versions/{}'.format(
             project_id, model_name, version_name)
@@ -401,7 +391,7 @@ class MLEngineHook(GoogleBaseHook):
     def create_model(
         self,
         model: Dict,
-        project_id: Optional[str] = None
+        project_id: str,
     ) -> Dict:
         """
         Create a Model. Blocks until finished.
@@ -458,7 +448,7 @@ class MLEngineHook(GoogleBaseHook):
     def get_model(
         self,
         model_name: str,
-        project_id: Optional[str] = None,
+        project_id: str,
     ) -> Optional[Dict]:
         """
         Gets a Model. Blocks until finished.
@@ -492,8 +482,8 @@ class MLEngineHook(GoogleBaseHook):
     def delete_model(
         self,
         model_name: str,
+        project_id: str,
         delete_contents: bool = False,
-        project_id: Optional[str] = None,
     ) -> None:
         """
         Delete a Model. Blocks until finished.
@@ -509,9 +499,6 @@ class MLEngineHook(GoogleBaseHook):
         :type project_id: str
         :raises: googleapiclient.errors.HttpError
         """
-        if not project_id:
-            raise ValueError("The project_id should be set")
-
         hook = self.get_conn()
 
         if not model_name:

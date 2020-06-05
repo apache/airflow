@@ -337,7 +337,3 @@ class TestSqoopHook(unittest.TestCase):
             hook.cmd_mask_password(cmd),
             cmd
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

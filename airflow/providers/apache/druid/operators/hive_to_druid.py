@@ -31,7 +31,7 @@ LOAD_CHECK_INTERVAL = 5
 DEFAULT_TARGET_PARTITION_SIZE = 5000000
 
 
-class HiveToDruidTransfer(BaseOperator):
+class HiveToDruidTransferOperator(BaseOperator):
     """
     Moves data from Hive to Druid, [del]note that for now the data is loaded
     into memory before being pushed to Druid, so this operator should

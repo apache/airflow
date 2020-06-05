@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -55,7 +54,6 @@ def kubectl_delete_list(manifests):
         subprocess.run(command, check=True)
 
 
-@pytest.mark.runtime("kubernetes")
 @pytest.mark.system("cncf.kubernetes")
 class SparkKubernetesExampleDagsSystemTest(SystemTest):
 

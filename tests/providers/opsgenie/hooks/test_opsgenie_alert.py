@@ -129,7 +129,3 @@ class TestOpsgenieAlertHook(unittest.TestCase):
         )
         resp = hook.execute(payload=self._payload)
         self.assertEqual(json.loads(resp.request.body), self._payload)
-
-
-if __name__ == '__main__':
-    unittest.main()

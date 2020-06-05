@@ -45,7 +45,7 @@ import pytest
 from moto import mock_batch, mock_ec2, mock_ecs, mock_iam, mock_logs
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.batch_waiters import AwsBatchWaiters
+from airflow.providers.amazon.aws.hooks.batch_waiters import AwsBatchWaitersHook
 
 # Use dummy AWS credentials
 AWS_REGION = "eu-west-1"
@@ -225,9 +225,9 @@ def batch_infrastructure(
 
 
 def test_aws_batch_waiters(aws_region):
-    assert inspect.isclass(AwsBatchWaiters)
-    batch_waiters = AwsBatchWaiters(region_name=aws_region)
-    assert isinstance(batch_waiters, AwsBatchWaiters)
+    assert inspect.isclass(AwsBatchWaitersHook)
+    batch_waiters = AwsBatchWaitersHook(region_name=aws_region)
+    assert isinstance(batch_waiters, AwsBatchWaitersHook)
 
 
 @mock_batch
@@ -254,7 +254,7 @@ def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_defi
     aws_resources = batch_infrastructure(
         aws_clients, aws_region, job_queue_name, job_definition_name
     )
-    batch_waiters = AwsBatchWaiters(region_name=aws_resources.aws_region)
+    batch_waiters = AwsBatchWaitersHook(region_name=aws_resources.aws_region)
 
     job_exists_waiter = batch_waiters.get_waiter("JobExists")
     assert job_exists_waiter
@@ -334,23 +334,18 @@ class TestAwsBatchWaiters(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook")
-    def setUp(self, aws_hook_mock):
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def setUp(self, get_client_type_mock):
         self.job_id = "8ba9d676-4108-4474-9dca-8bbac1da9b19"
         self.region_name = AWS_REGION
-        self.aws_hook_mock = aws_hook_mock
 
-        self.batch_waiters = AwsBatchWaiters(region_name=self.region_name)
-        self.assertEqual(self.batch_waiters.aws_conn_id, None)
+        self.batch_waiters = AwsBatchWaitersHook(region_name=self.region_name)
+        self.assertEqual(self.batch_waiters.aws_conn_id, 'aws_default')
         self.assertEqual(self.batch_waiters.region_name, self.region_name)
-
-        # init the mock hook
-        self.assertEqual(self.batch_waiters.hook, self.aws_hook_mock.return_value)
-        self.aws_hook_mock.assert_called_once_with(aws_conn_id=None)
 
         # init the mock client
         self.client_mock = self.batch_waiters.client
-        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with(
+        get_client_type_mock.assert_called_once_with(
             "batch", region_name=self.region_name
         )
 
@@ -464,7 +459,3 @@ class TestAwsBatchWaiters(unittest.TestCase):
             self.assertEqual(get_waiter.call_args_list, [mock.call("JobExists")])
             mock_waiter.wait.assert_called_with(jobs=[self.job_id])
             self.assertEqual(mock_waiter.wait.call_count, 1)
-
-
-if __name__ == "__main__":
-    unittest.main()

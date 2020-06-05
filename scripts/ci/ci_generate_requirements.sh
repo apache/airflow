@@ -20,6 +20,8 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
+get_ci_environment
+
 prepare_ci_build
 
 rebuild_ci_image_if_needed

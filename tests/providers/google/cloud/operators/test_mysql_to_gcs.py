@@ -33,6 +33,10 @@ SQL = 'select 1'
 BUCKET = 'gs://test'
 JSON_FILENAME = 'test_{}.ndjson'
 CSV_FILENAME = 'test_{}.csv'
+SCHEMA = [
+    {'mode': 'REQUIRED', 'name': 'some_str', 'type': 'FLOAT'},
+    {'mode': 'REQUIRED', 'name': 'some_num', 'type': 'TIMESTAMP'}
+]
 
 ROWS = [
     ('mock_row_content_1', 42),
@@ -65,6 +69,10 @@ SCHEMA_JSON = [
     b'[{"mode": "REQUIRED", "name": "some_str", "type": "FLOAT"}, ',
     b'{"mode": "REQUIRED", "name": "some_num", "type": "STRING"}]'
 ]
+CUSTOM_SCHEMA_JSON = [
+    b'[{"mode": "REQUIRED", "name": "some_str", "type": "FLOAT"}, ',
+    b'{"mode": "REQUIRED", "name": "some_num", "type": "TIMESTAMP"}]'
+]
 
 
 class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
@@ -84,9 +92,11 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
     @parameterized.expand([
         ("string", None, "string"),
         (datetime.date(1970, 1, 2), None, 86400),
+        (datetime.date(1970, 1, 2), "DATE", "1970-01-02"),
         (datetime.datetime(1970, 1, 1, 1, 0), None, 3600),
         (decimal.Decimal(5), None, 5),
         (b"bytes", "BYTES", "Ynl0ZXM="),
+        (b"\x00\x01", "INTEGER", 1),
         (None, "BYTES", None)
     ])
     def test_convert_type(self, value, schema_type, expected):
@@ -288,6 +298,36 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
             bucket=BUCKET,
             filename=JSON_FILENAME,
             schema_filename=SCHEMA_FILENAME)
+        op.execute(None)
+
+        # once for the file and once for the schema
+        self.assertEqual(2, gcs_hook_mock.upload.call_count)
+
+    @mock.patch('airflow.providers.google.cloud.operators.mysql_to_gcs.MySqlHook')
+    @mock.patch('airflow.providers.google.cloud.operators.sql_to_gcs.GCSHook')
+    def test_schema_file_with_custom_schema(self, gcs_hook_mock_class, mysql_hook_mock_class):
+        """Test writing schema files with customized schema"""
+        mysql_hook_mock = mysql_hook_mock_class.return_value
+        mysql_hook_mock.get_conn().cursor().__iter__.return_value = iter(ROWS)
+        mysql_hook_mock.get_conn().cursor().description = CURSOR_DESCRIPTION
+
+        gcs_hook_mock = gcs_hook_mock_class.return_value
+
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):  # pylint: disable=unused-argument
+            if obj == SCHEMA_FILENAME:
+                self.assertFalse(gzip)
+                with open(tmp_filename, 'rb') as file:
+                    self.assertEqual(b''.join(CUSTOM_SCHEMA_JSON), file.read())
+
+        gcs_hook_mock.upload.side_effect = _assert_upload
+
+        op = MySQLToGCSOperator(
+            task_id=TASK_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=JSON_FILENAME,
+            schema_filename=SCHEMA_FILENAME,
+            schema=SCHEMA)
         op.execute(None)
 
         # once for the file and once for the schema

@@ -19,13 +19,15 @@
 
 _BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS="3.6 3.7"
 _BREEZE_ALLOWED_BACKENDS="sqlite mysql postgres"
-_BREEZE_ALLOWED_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis all"
-_BREEZE_ALLOWED_KUBERNETES_MODES="persistent_mode git_mode"
-_BREEZE_ALLOWED_KUBERNETES_VERSIONS="v1.15.3 v1.16.2"
+_BREEZE_ALLOWED_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
+_BREEZE_ALLOWED_KUBERNETES_MODES="image git"
+_BREEZE_ALLOWED_KUBERNETES_VERSIONS="v1.15.3"
 _BREEZE_ALLOWED_MYSQL_VERSIONS="5.7 8"
 _BREEZE_ALLOWED_POSTGRES_VERSIONS="9.6 10"
+_BREEZE_ALLOWED_KIND_OPERATIONS="start stop restart status deploy test"
 
 _BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=$(cat <<-EOF
+1.10.10
 1.10.9
 1.10.8
 1.10.7
@@ -42,51 +44,75 @@ EOF
 _BREEZE_ALLOWED_STATIC_CHECKS=$(cat <<-EOF
 all
 all-but-pylint
+airflow-config-yaml
+base-operator
 bat-tests
+build
+build-providers-dependencies
 check-apache-license
 check-executables-have-shebangs
 check-hooks-apply
+check-integrations
 check-merge-conflict
 check-xml
+consistent-pylint
+daysago-import-check
 debug-statements
-doctoc
 detect-private-key
+doctoc
 end-of-file-fixer
+fix-encoding-pragma
 flake8
 forbid-tabs
+incorrect-use-of-LoggingMixin
 insert-license
+isort
 lint-dockerfile
 mixed-line-ending
 mypy
+provide-create-sessions
+pydevd
 pylint
-pylint-test
+pylint-tests
+python-no-log-warn
+rst-backticks
 setup-order
 shellcheck
+stylelint
+trailing-whitespace
+update-breeze-file
+update-extras
+update-local-yml-file
+update-setup-cfg-file
+yamllint
 EOF
 )
 
 _BREEZE_DEFAULT_DOCKERHUB_USER="apache"
 _BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
+_BREEZE_DEFAULT_GITHUB_ORGANISATION="apache"
+_BREEZE_DEFAULT_GITHUB_REPO="airflow"
 
 _BREEZE_SHORT_OPTIONS="
 h p: b: i:
 K: V:
-s x r
 l a: t: d:
 v y n q f
 F P I E: C L
-D: R: u
+D: R: c g: G:
+S: N:
 "
 
 _BREEZE_LONG_OPTIONS="
 help python: backend: integration:
 kubernetes-mode: kubernetes-version:
-kind-cluster-start kind-cluster-stop kind-cluster-recreate
 skip-mounting-local-sources install-airflow-version: install-airflow-reference: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials
 force-build-images force-pull-images production-image extras: force-clean-images use-local-cache
-dockerhub-user: dockerhub-repo: push-images
+dockerhub-user: dockerhub-repo: registry-cache github-organisation: github-repo:
 postgres-version: mysql-version:
+version-suffix-for-pypi: version-suffix-for-svn:
+additional-extras: additional-python-deps:
 "
 
 export BREEZE_COMMANDS="
@@ -96,7 +122,11 @@ build-image
 cleanup-image
 exec
 generate-requirements
+prepare-backport-readme
+prepare-backport-packages
+push-image
 initialize-local-virtualenv
+kind-cluster
 setup-autocomplete
 stop
 restart
@@ -106,6 +136,7 @@ toggle-suppress-asciiart"
 export BREEZE_EXTRA_ARG_COMMANDS="
 docker-compose
 execute-command
+kind-cluster
 static-check
 static-check-all-files
 test-target"
@@ -165,6 +196,15 @@ function _get_known_values_breeze() {
         ;;
     -R | --dockerhub-repo)
         _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}"
+        ;;
+    -G | --github-organisation)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_GITHUB_ORGANISATION}"
+        ;;
+    -g | --github-repo)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_GITHUB_REPO}"
+        ;;
+    kind-cluster)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_ALLOWED_KIND_OPERATIONS}"
         ;;
     *)
         _BREEZE_KNOWN_VALUES=""
@@ -232,9 +272,10 @@ function _comp_breeze {
     ALL_OPTIONS="${ALL_OPTIONS} ${ALL_BREEZE_COMMANDS}"
     EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${BREEZE_EXTRA_ARG_COMMANDS}"
 
-    LAST_COMMAND_PREFIX="${COMP_WORDS[${#COMP_WORDS[@]} - 1]}"
+    LAST_COMMAND_PREFIX="${COMP_WORDS[${COMP_CWORD}]}"
+
     if [[ ${#COMP_WORDS[@]} -gt 1 ]]; then
-        PREVIOUS_COMMAND="${COMP_WORDS[${#COMP_WORDS[@]} - 2]}"
+        PREVIOUS_COMMAND="${COMP_WORDS[${COMP_CWORD} - 1]}"
     else
         PREVIOUS_COMMAND=""
     fi

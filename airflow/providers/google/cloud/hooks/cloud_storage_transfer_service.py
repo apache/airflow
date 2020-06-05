@@ -20,6 +20,7 @@ This module contains a Google Storage Transfer Service Hook.
 """
 
 import json
+import logging
 import time
 import warnings
 from copy import deepcopy
@@ -27,9 +28,12 @@ from datetime import timedelta
 from typing import Dict, List, Optional, Set, Union
 
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+log = logging.getLogger(__name__)
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 10
@@ -62,6 +66,7 @@ AWS_ACCESS_KEY = "awsAccessKey"
 AWS_S3_DATA_SOURCE = 'awsS3DataSource'
 BODY = 'body'
 BUCKET_NAME = 'bucketName'
+JOB_NAME = 'name'
 DAY = 'day'
 DESCRIPTION = "description"
 FILTER = 'filter'
@@ -94,8 +99,23 @@ TRANSFER_OPERATIONS = 'transferOperations'
 TRANSFER_OPTIONS = 'transfer_options'
 TRANSFER_SPEC = 'transferSpec'
 YEAR = 'year'
+ALREADY_EXIST_CODE = 409
 
 NEGATIVE_STATUSES = {GcpTransferOperationStatus.FAILED, GcpTransferOperationStatus.ABORTED}
+
+
+def gen_job_name(job_name: str) -> str:
+    """
+    Adds unique suffix to job name. If suffix already exists, updates it.
+    Suffix — current timestamp
+
+    :param job_name:
+    :rtype job_name: str
+    :return: job_name with suffix
+    :rtype: str
+    """
+    uniq = int(time.time())
+    return f"{job_name}_{uniq}"
 
 
 # noinspection PyAbstractClass
@@ -143,11 +163,39 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :rtype: dict
         """
         body = self._inject_project_id(body, BODY, PROJECT_ID)
-        return self.get_conn().transferJobs().create(body=body).execute(  # pylint: disable=no-member
-            num_retries=self.num_retries)
+        try:
+            transfer_job = self.get_conn().transferJobs()\
+                .create(body=body).execute(  # pylint: disable=no-member
+                num_retries=self.num_retries)
+        except HttpError as e:
+            # If status code "Conflict"
+            # https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Code.ENUM_VALUES.ALREADY_EXISTS
+            # we should try to find this job
+            job_name = body.get(JOB_NAME, "")
+            if int(e.resp.status) == ALREADY_EXIST_CODE and job_name:
+                transfer_job = self.get_transfer_job(
+                    job_name=job_name, project_id=body.get(PROJECT_ID))
+                # Generate new job_name, if jobs status is deleted
+                # and try to create this job again
+                if transfer_job.get(STATUS) == GcpTransferJobsStatus.DELETED:
+                    body[JOB_NAME] = gen_job_name(job_name)
+                    self.log.info(
+                        "Job `%s` has been soft deleted. Creating job with "
+                        "new name `%s`", job_name, {body[JOB_NAME]})
+                    # pylint: disable=no-member
+                    return self.get_conn()\
+                        .transferJobs()\
+                        .create(body=body)\
+                        .execute(num_retries=self.num_retries)
+                elif transfer_job.get(STATUS) == GcpTransferJobsStatus.DISABLED:
+                    return self.enable_transfer_job(
+                        job_name=job_name, project_id=body.get(PROJECT_ID))
+            else:
+                raise e
+        return transfer_job
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_transfer_job(self, job_name: str, project_id: Optional[str] = None) -> Dict:
+    def get_transfer_job(self, job_name: str, project_id: str) -> Dict:
         """
         Gets the latest state of a long-running operation in Google Storage
         Transfer Service.
@@ -161,8 +209,6 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :return: Transfer Job
         :rtype: dict
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         return (
             self.get_conn()  # pylint: disable=no-member
             .transferJobs()
@@ -206,6 +252,34 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         return jobs
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def enable_transfer_job(self, job_name: str, project_id: str) -> Dict:
+        """
+        New transfers will be performed based on the schedule.
+
+        :param job_name: (Required) Name of the job to be updated
+        :type job_name: str
+        :param project_id: (Optional) the ID of the project that owns the Transfer
+            Job. If set to None or missing, the default project_id from the GCP
+            connection is used.
+        :type project_id: str
+        :return: If successful, TransferJob.
+        :rtype: dict
+        """
+        return (
+            self.get_conn()  # pylint: disable=no-member
+                .transferJobs()
+                .patch(
+                jobName=job_name,
+                body={
+                    PROJECT_ID: project_id,
+                    TRANSFER_JOB: {STATUS1: GcpTransferJobsStatus.ENABLED},
+                    TRANSFER_JOB_FIELD_MASK: STATUS1,
+                },
+            )
+            .execute(num_retries=self.num_retries)
+        )
+
     def update_transfer_job(self, job_name: str, body: Dict) -> Dict:
         """
         Updates a transfer job that runs periodically.
@@ -227,7 +301,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_transfer_job(self, job_name: str, project_id: Optional[str] = None) -> None:
+    def delete_transfer_job(self, job_name: str, project_id: str) -> None:
         """
         Deletes a transfer job. This is a soft delete. After a transfer job is
         deleted, the job and all the transfer executions are subject to garbage
@@ -242,8 +316,6 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :type project_id: str
         :rtype: None
         """
-        if not project_id:
-            raise ValueError("Project ID should be set.")
         (
             self.get_conn()  # pylint: disable=no-member
             .transferJobs()

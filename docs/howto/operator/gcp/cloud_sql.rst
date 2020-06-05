@@ -518,7 +518,7 @@ used to create tables in an idempotent way.
 Arguments
 """""""""
 
-If you define connection via ``AIRFLOW_CONN_*`` URL defined in an environment
+If you define connection via :envvar:`AIRFLOW_CONN_{CONN_ID}` URL defined in an environment
 variable, make sure the URL components in the URL are URL-encoded.
 See examples below for details.
 
@@ -539,7 +539,7 @@ Using the operator
 """"""""""""""""""
 
 Example operators below are using all connectivity options. Note connection id
-from the operator matches the ``AIRFLOW_CONN_*`` postfix uppercase. This is
+from the operator matches the :envvar:`AIRFLOW_CONN_{CONN_ID}` postfix uppercase. This is
 standard AIRFLOW notation for defining connection via environment variables):
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_sql_query.py

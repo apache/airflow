@@ -17,7 +17,7 @@
 # under the License.
 #
 
-from flask import g
+from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from sqlalchemy import and_, or_
@@ -26,7 +26,6 @@ from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.www.app import appbuilder
 from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = {
@@ -250,8 +249,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if user is None:
             user = g.user
         if user.is_anonymous:
-            public_role = appbuilder.config.get('AUTH_ROLE_PUBLIC')
-            return [appbuilder.security_manager.find_role(public_role)] \
+            public_role = current_app.appbuilder.config.get('AUTH_ROLE_PUBLIC')
+            return [current_app.appbuilder.security_manager.find_role(public_role)] \
                 if public_role else []
         return user.roles
 

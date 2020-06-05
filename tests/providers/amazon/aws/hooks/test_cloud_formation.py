@@ -98,7 +98,3 @@ class TestAWSCloudFormationHook(unittest.TestCase):
         stacks = self.hook.get_conn().describe_stacks()['Stacks']
         matching_stacks = [x for x in stacks if x['StackName'] == stack_name]
         self.assertEqual(len(matching_stacks), 0, f'stack with name {stack_name} should not exist')
-
-
-if __name__ == '__main__':
-    unittest.main()

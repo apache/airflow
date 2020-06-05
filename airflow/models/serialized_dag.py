@@ -30,7 +30,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS, json
+from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -140,26 +140,28 @@ class SerializedDagModel(Base):
         :param dag_id: dag_id to be deleted
         :param session: ORM Session
         """
+        # pylint: disable=no-member
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
     @classmethod
     @provide_session
-    def remove_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
-        """Deletes DAGs not included in alive_dag_filelocs.
-
-        :param alive_dag_filelocs: file paths of alive DAGs
-        :param session: ORM Session
+    def remove_stale_dags(cls, expiration_date, session=None):
         """
-        alive_fileloc_hashes = [
-            DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
+        Deletes Serialized DAGs that were last touched by the scheduler before
+        the expiration date. These DAGs were likely deleted.
 
-        log.debug("Deleting Serialized DAGs (for which DAG files are deleted) "
-                  "from %s table ", cls.__tablename__)
+        :param expiration_date: set inactive DAGs that were touched before this
+            time
+        :type expiration_date: datetime
+        :return: None
+        """
+        log.debug("Deleting Serialized DAGs that haven't been touched by the "
+                  "scheduler since %s from %s table ", expiration_date, cls.__tablename__)
 
         session.execute(
-            cls.__table__.delete().where(
-                and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
-                     cls.fileloc.notin_(alive_dag_filelocs))))
+            # pylint: disable=no-member
+            cls.__table__.delete().where(cls.last_updated < expiration_date)
+        )
 
     @classmethod
     @provide_session
@@ -203,9 +205,6 @@ class SerializedDagModel(Base):
         :type dags: List[airflow.models.dag.DAG]
         :return: None
         """
-        if not STORE_SERIALIZED_DAGS:
-            return
-
         for dag in dags:
             if not dag.is_subdag:
                 SerializedDagModel.write_dag(

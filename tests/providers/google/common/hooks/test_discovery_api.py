@@ -142,7 +142,3 @@ class TestGoogleDiscoveryApiHook(unittest.TestCase):
             call(google_api_conn_client_sub_call, api_endpoint_name_parts[2] + '_next'),
             call()(google_api_conn_client_sub_call, google_api_conn_client_sub_call.execute.return_value)
         ])
-
-
-if __name__ == '__main__':
-    unittest.main()

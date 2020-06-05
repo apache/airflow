@@ -37,10 +37,10 @@ import botocore.exceptions
 import botocore.waiter
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClient
+from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
 
 
-class AwsBatchWaiters(AwsBatchClient):
+class AwsBatchWaitersHook(AwsBatchClientHook):
     """
     A utility to manage waiters for AWS batch services.
 
@@ -105,12 +105,12 @@ class AwsBatchWaiters(AwsBatchClient):
 
     def __init__(
         self,
+        *args,
         waiter_config: Optional[Dict] = None,
-        aws_conn_id: Optional[str] = None,
-        region_name: Optional[str] = None,
+        **kwargs
     ):
 
-        AwsBatchClient.__init__(self, aws_conn_id=aws_conn_id, region_name=region_name)
+        super().__init__(*args, **kwargs)
 
         self._default_config = None  # type: Optional[Dict]
         self._waiter_config = waiter_config or self.default_config

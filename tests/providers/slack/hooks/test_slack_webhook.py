@@ -154,7 +154,3 @@ class TestSlackWebhookHook(unittest.TestCase):
             data=mock.ANY
         )
         mock_request.reset_mock()
-
-
-if __name__ == '__main__':
-    unittest.main()

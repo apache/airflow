@@ -38,10 +38,10 @@ Use the
 :class:`~airflow.providers.google.cloud.operators.gcs_to_bigquery.GCSToBigQueryOperator`
 to execute a BigQuery load job.
 
-.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_bq.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_bigquery.py
     :language: python
-    :start-after: [START howto_operator_gcs_to_bq]
-    :end-before: [END howto_operator_gcs_to_bq]
+    :start-after: [START howto_operator_gcs_to_bigquery]
+    :end-before: [END howto_operator_gcs_to_bigquery]
 
 .. _howto/operator:GCSBucketCreateAclEntryOperator:
 
@@ -85,7 +85,7 @@ GCSObjectCreateAclEntryOperator
 Creates a new ACL entry on the specified object.
 
 For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.gcs_acl_operator.GCSObjectCreateAclEntryOperator`
+:class:`~airflow.providers.google.cloud.operators.gcs.GCSObjectCreateAclEntryOperator`
 
 Using the operator
 """"""""""""""""""

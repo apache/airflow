@@ -118,7 +118,3 @@ class TestOpenFaasHook(unittest.TestCase):
         mock_connection = Connection(host="http://open-faas.io")
         mock_get_connection.return_value = mock_connection
         self.assertEqual(self.hook.deploy_function(False, {}), None)
-
-
-if __name__ == '__main__':
-    unittest.main()

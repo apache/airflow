@@ -24,8 +24,6 @@
 {{ super() }}
 <link rel="stylesheet" type="text/css"
     href="{{ url_for('static', filename='css/tree.css') }}">
-<link rel="stylesheet" type="text/css"
-    href="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
 <link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
 <link rel="stylesheet" type="text/css"
       href="{{ url_for_asset('nv.d3.min.css') }}">
@@ -73,6 +71,5 @@
       handleCheck();
     });
   </script>
-  <script src="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.js')}}"></script>
   {{ super() }}
 {% endblock %}

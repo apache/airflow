@@ -25,6 +25,7 @@ import logging
 import os
 import time
 from datetime import datetime
+from typing import Optional
 
 import yaml
 from kubernetes.client import Configuration
@@ -91,7 +92,7 @@ class RefreshConfiguration(Configuration):
         return Configuration.get_api_key_with_prefix(self, identifier)
 
 
-def _get_kube_config_loader_for_yaml_file(filename, **kwargs):
+def _get_kube_config_loader_for_yaml_file(filename, **kwargs) -> Optional[RefreshKubeConfigLoader]:
     """
     Adapted from the upstream _get_kube_config_loader_for_yaml_file function, changed
     KubeConfigLoader to RefreshKubeConfigLoader
@@ -115,5 +116,4 @@ def load_kube_config(client_configuration, config_file=None, context=None):
 
     loader = _get_kube_config_loader_for_yaml_file(
         config_file, active_context=context, config_persister=None)
-
     loader.load_and_set(client_configuration)

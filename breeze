@@ -18,7 +18,7 @@
 # under the License.
 set -euo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+AIRFLOW_SOURCES="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Bash arrays need to be defined outside of functions unfortunately :(
 # Array with extra options for Docker compose
@@ -30,38 +30,49 @@ declare -a REMAINING_ARGS
 # This is where static check options are defined
 declare -a EXTRA_STATIC_CHECK_OPTIONS
 
-
+# Sets up all the default variables for Breeze
+# They are needed by all other functions
 function setup_default_breeze_variables() {
-    # Whether to actually run docker compose with the command set given
+    # Default command to run - entering breeze environment
     COMMAND_TO_RUN="enter_breeze"
+    # In some cases we also want to run two commands in a row (for example when we restart the environment)
     SECOND_COMMAND_TO_RUN=""
+    # Indicates that we are inside Breeze environment
     export BREEZE=true
+    # Maximum screen width to print the lines spanning the whole terminal width
     export MAX_SCREEN_WIDTH=100
 
-    export AIRFLOW_SOURCES="${MY_DIR}"
-
     # Directory where all CI scripts are located
-    SCRIPTS_CI_DIR="${MY_DIR}/scripts/ci"
+    export SCRIPTS_CI_DIR="${AIRFLOW_SOURCES}/scripts/ci"
 
-    BUILD_CACHE_DIR="${MY_DIR}/.build"
-    FILES_DIR="${MY_DIR}/files"
-    TMP_DIR="${MY_DIR}/tmp"
+    # Directory where all the build cache is stored - we keep there status of all the docker images
+    # As well as hashes of the important files, but also we generate build scripts there that are
+    # Used to execute the commands for breeze
+    export BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
+    # This folder is mounted to inside the container in /files folder. This is the way how
+    # We can exchange DAGs, scripts, packages etc with the container environment
+    export FILES_DIR="${AIRFLOW_SOURCES}/files"
+    # Temporary dir used well ... temporarily
+    export TMP_DIR="${AIRFLOW_SOURCES}/tmp"
 
+    # Create those folders above in case they do not exist
     mkdir -pv "${BUILD_CACHE_DIR}"
     mkdir -pv "${TMP_DIR}"
     mkdir -pv "${FILES_DIR}"
 
-    # Note - we do not use __script_init.sh here because it can only be used from within
-    # the CI directory and we need to overrride PYTHON_MAJOR_MINOR_VERSION based on what we store
-    # in the .build directory
+    # load all the common functions here - those are the functions that are shared between Breeze
+    # and CI scripts (CI scripts do not use Breeze as execution environment)
+    # shellcheck source=scripts/ci/_all_libs.sh
+    . "${SCRIPTS_CI_DIR}/_all_libs.sh"
 
-    # Beginning of the initialisation here
-
-    # shellcheck source=scripts/ci/_utils.sh
-    . "${SCRIPTS_CI_DIR}/_utils.sh"
-
+    # We have different versions of images depending on the python version used. We keep up with the
+    # Latest patch-level changes in Python (this is done automatically during CI builds) so we have
+    # To only take into account MAJOR and MINOR version of python. This variable keeps the major/minor
+    # version of python in X.Y format (3.6, 3.7 etc).
     export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION:=$(read_from_file PYTHON_MAJOR_MINOR_VERSION)}"
 
+    # When we generate documentation for README files, we want to force the width of terminal so that
+    # No matter who is running the documentation generation gets the same output
     if [[ ${FORCE_SCREEN_WIDTH:="false"} != "true" ]]; then
         # Sets width of the screen from terminal
         SCREEN_WIDTH="$(tput cols)"
@@ -75,41 +86,39 @@ function setup_default_breeze_variables() {
         SCREEN_WIDTH=${MAX_SCREEN_WIDTH}
     fi
 
-    # Name of the script
+    # Name of the script is kept in this variable
     CMDNAME="$(basename -- "$0")"
 
     # Update short and long options in the breeze-complete script
-    # This way autocomplete will work automatically with all options
+    # This way autocomplete will work automatically with all options available
     # shellcheck source=breeze-complete
-    . "${MY_DIR}/breeze-complete"
+    . "${AIRFLOW_SOURCES}/breeze-complete"
 
-    # Skips mounting local Airflow sources
+    # By default we mount local Airflow sources
     MOUNT_LOCAL_SOURCES="true"
 
-    # Holds last subcommand used
+    # Holds last sub-command used - this is used by --help flag to print help for the command entered
     LAST_SUBCOMMAND=""
 
     # Determines if help should be run (set to true by --help flag)
     RUN_HELP="false"
 
-    # Holds chosen command if the -x flag is used.
+    # Holds chosen command to run in case 'execute-command' command is used.
     RUN_COMMAND=""
 
-    # Holds the test target if the -t flag is used.
+    # Holds the test target if the 'test-target' command is used.
     TEST_TARGET=""
 
-    # Holds docker compose command if the -d flag is used.
+    # Holds docker compose command if the `docker-compose` command is used.
     DOCKER_COMPOSE_COMMAND=""
 
-    # If true, the docker images are rebuilt locally.
+    # If set to true, the docker images are rebuilt locally. By default we assume we do not need to
+    # rebuild the image but if we find we do, this variable will be set to "true"
     export NEEDS_DOCKER_BUILD="false"
 
     # By default we only pull images if we do not have them locally.
-    # This can be overridden by -p flag
+    # This can be overridden by '--force-pull-images' flag
     export FORCE_PULL_IMAGES="false"
-
-    # Runtime is empty initially (might be set to kubernetes in case kubernetes is chosen)
-    RUNTIME=""
 
     # Do not enable Kind Kubernetes cluster by default
     export ENABLE_KIND_CLUSTER="false"
@@ -117,45 +126,46 @@ function setup_default_breeze_variables() {
     # By default we do not push images. This can be overridden by -u flag.
     export PUSH_IMAGES=${PUSH_IMAGES:="false"}
 
-    # Forward credentials to docker
+    # Forward common host credentials to docker (gcloud, aws etc.).
     export FORWARD_CREDENTIALS="false"
 
-    # Reset DB at entry
+    # If set to true, the database will be reset at entry. Works for Postgres and MySQL
     export DB_RESET="false"
 
-    # If install released airflow is set to specified version, then the source version of airflow
-    # is removed and the specified version of airflow is installed from pypi
+    # If it set is set to specified version, then the source version of Airflow
+    # is removed and the specified version of Airflow is installed from PyPi
     export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:=""}
 
-    # If install released airflow is set to specified reference (tag/branch), then the source version
-    # of airflow is removed and the specified version of airflow is installed from GitHub
+    # If it is set to specified reference (tag/branch), then the source version
+    # of Airflow is removed and the specified version of Airflow is installed from GitHub
     export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
 
-    # Determine version of the Airflow from version.py
-    AIRFLOW_VERSION=$(grep version "airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
-    export AIRFLOW_VERSION
-
-    # Whether to force build without checking if it is needed
+    # Determines whether to force build without checking if it is needed
+    # Can be overridden by '--force-build-images' flag.
     export FORCE_BUILD_IMAGES=${FORCE_BUILD_IMAGES:="false"}
 
-    # Files determining whether asciiart/cheatsheet are suppressed
-    SUPPRESS_CHEATSHEET_FILE="${MY_DIR}/.suppress_cheatsheet"
-    SUPPRESS_ASCIIART_FILE="${MY_DIR}/.suppress_asciiart"
+    # If those files are present, the ASCII-art/cheat-sheet are suppressed
+    SUPPRESS_CHEATSHEET_FILE="${AIRFLOW_SOURCES}/.suppress_cheatsheet"
+    SUPPRESS_ASCIIART_FILE="${AIRFLOW_SOURCES}/.suppress_asciiart"
 
-    # Default values for flags
+    # Default values for the flags used
 
     _BREEZE_DEFAULT_BACKEND="sqlite"
-    _BREEZE_DEFAULT_KUBERNETES_MODE="git_mode"
+    _BREEZE_DEFAULT_KUBERNETES_MODE="image"
     _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.15.3"
     _BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
+    _BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
     _BREEZE_DEFAULT_MYSQL_VERSION="5.7"
-
     STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION=3.6
 }
-# End of initialisation here
 
+# Initializes development-friendly virtualenv if you are already in such env. It installs all the necessary
+# packages from PyPI and it case of problems it provides useful hints on what prerequisites should be
+# installed. It also removes and resets the existing AIRFLOW_HOME installation to make sure that you
+# have it synchronized with the version of airflow installed. It resets the airflow's sqlite database to
+# a clean state. You can use this function if your virtualenv is broken, to clean it up
 function initialize_virtualenv() {
-   # Check if we are in virtualenv
+   # Check if we are inside virtualenv
    set +e
    echo -e "import sys\nif not hasattr(sys,'base_prefix'):\n  sys.exit(1)" | "python${PYTHON_MAJOR_MINOR_VERSION}"
    RES=$?
@@ -164,7 +174,7 @@ function initialize_virtualenv() {
         echo >&2
         echo >&2 "ERROR:  Initializing local virtualenv only works when you have virtualenv activated"
         echo >&2
-        echo >&2 "Please enter your local virtualenv before (for example using 'workon') "
+        echo >&2 "Please enter your local virtualenv before (for example using 'pyenv activate' or 'workon') "
         echo >&2
         exit 1
    else
@@ -176,9 +186,9 @@ function initialize_virtualenv() {
         echo
         echo "This will wipe out ${AIRFLOW_HOME_DIR} and reset all the databases!"
         echo
-        "${MY_DIR}/confirm" "Proceeding with the initialization"
+        "${AIRFLOW_SOURCES}/confirm" "Proceeding with the initialization"
         echo
-        pushd "${MY_DIR}"
+        pushd "${AIRFLOW_SOURCES}"
         set +e
         pip install -e ".[devel]" --constraint "requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
         RES=$?
@@ -187,11 +197,11 @@ function initialize_virtualenv() {
         if [[ ${RES} != "0" ]]; then
             echo "#######################################################################"
             echo "  You had some troubles installing the venv !!!!!"
-            echo "  Try runnning the command below and rerun virtualenv installation"
+            echo "  Try running the command below and rerun virtualenv installation"
             echo
             SYSTEM=$(uname -s)
             if [[ ${SYSTEM} == "Darwin" ]]; then
-                echo "  brew install sqlite mysql postgresql"
+                echo "  brew install sqlite mysql postgresql openssl"
             else
                 echo "  sudo apt install build-essentials python3.6-dev python3.7-dev python-dev openssl \\"
                 echo "              sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresql"
@@ -218,6 +228,8 @@ function initialize_virtualenv() {
    fi
 }
 
+
+# Sets up autocomplete for Breeze for both - bash and zsh
 function setup_autocomplete() {
     echo "Installing bash/zsh completion for local user"
     echo "Note that completion for zsh is just limited to flags - without their values"
@@ -233,11 +245,11 @@ function setup_autocomplete() {
         echo >&2
         exit 1
     fi
-    "${MY_DIR}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
+    "${AIRFLOW_SOURCES}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
     echo
     echo
     mkdir -pv ~/.bash_completion.d
-    ln -sf "${MY_DIR}/breeze-complete" "${HOME}/.bash_completion.d/"
+    ln -sf "${AIRFLOW_SOURCES}/breeze-complete" "${HOME}/.bash_completion.d/"
     touch ~/.bashrc
     cat >>~/.bashrc <<"EOF"
 for BCFILE in ~/.bash_completion.d/* ; do
@@ -260,7 +272,7 @@ EOF
         if [[ "${RES}" == "0" ]]; then
             echo "  Seems you already source .bashrc in your .bash_profile so not adding it."
         else
-            "${MY_DIR}/confirm" "This will modify  ~/.bash_profile and source .bashrc from it"
+            "${AIRFLOW_SOURCES}/confirm" "This will modify  ~/.bash_profile and source .bashrc from it"
             echo
             echo
             cat >>~/.bash_profile <<"EOF"
@@ -280,6 +292,8 @@ EOF
     exit 0
 }
 
+# Prints information about the current configuration of Breeze - if you enter breeze interactively
+# and you did not suppress cheatsheet or asciiart, it also prints those
 function print_badge {
     if [[ ${BACKEND} == "postgres" ]]; then
         BACKEND_VERSION="${POSTGRES_VERSION}"
@@ -339,6 +353,7 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_PROD_IMAGE}
+                               Airflow source version: $(get_airflow_version_from_production_image)
 EOF
         else
             cat <<EOF
@@ -347,10 +362,10 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_CI_IMAGE}
+                               Airflow source version: ${AIRFLOW_VERSION}
 EOF
         fi
         cat <<EOF
-                               Airflow source version: ${AIRFLOW_VERSION}
                                Python version:         ${PYTHON_MAJOR_MINOR_VERSION}
                                DockerHub user:         ${DOCKERHUB_USER}
                                DockerHub repo:         ${DOCKERHUB_REPO}
@@ -361,19 +376,6 @@ EOF
 
                                Airflow installed from: ${INSTALL_AIRFLOW_VERSION}${INSTALL_AIRFLOW_REFERENCE}
 
-EOF
-        fi
-
-        if [[ ${RUNTIME} == "kubernetes" ]]; then
-            cat <<EOF
-
-                               Kubernetes RUNTIME
-
-                               Kubernetes mode:    ${KUBERNETES_MODE}
-                               Kubernetes version: ${KUBERNETES_VERSION}
-
-                               Enable kind:        ${ENABLE_KIND_CLUSTER}
-                               Cluster operation:  ${KIND_CLUSTER_OPERATION}
 EOF
         fi
     else
@@ -409,22 +411,15 @@ EOF
 
 EOF
         fi
-
-        if [[ ${RUNTIME} == "kubernetes" ]]; then
-            cat <<EOF
-
-   Kubernetes RUNTIME
-
-   Kubernetes mode:    ${KUBERNETES_MODE}
-   Kubernetes version: ${KUBERNETES_VERSION}
-
-   Enable kind:        ${ENABLE_KIND_CLUSTER}
-   Cluster operation:  ${KIND_CLUSTER_OPERATION}
-EOF
-        fi
     fi
 }
 
+# Prepares command file that can be used to easily run the commands without the need of using Breeze
+# The command file generated in cache ./build directory is a standalone script that contains
+# All the environment variables and docker-compose configuration to run the command. This is because
+# depending on configuration of Breeze we might have different compose files used and different variables
+# set. Those are a convenience scripts that you might use to debug command execution although
+# In most cases they are used internally by Breeze
 function prepare_command_file() {
     local FILE="${1}"
     local CMD="${2}"
@@ -440,10 +435,6 @@ export DOCKERHUB_REPO=${DOCKERHUB_REPO}
 export COMPOSE_FILE="${COMPOSE_FILE}"
 export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
 export BACKEND="${BACKEND}"
-export RUNTIME="${RUNTIME}"
-export ENABLE_KIND_CLUSTER="${ENABLE_KIND_CLUSTER}"
-export KUBERNETES_MODE="${KUBERNETES_MODE}"
-export KUBERNETES_VERSION="${KUBERNETES_VERSION}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
 export RUN_TESTS="${TESTS}"
@@ -455,18 +446,27 @@ export MYSQL_VERSION="${MYSQL_VERSION}"
 export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
 export AIRFOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
 export AIRFLOW_IMAGE="${AIRFLOW_IMAGE}"
-export SQLITE_VERSION="${SQLITE_VERSION}"
+export SQLITE_URL="${SQLITE_URL}"
 docker-compose --log-level INFO ${CMD}\$${EXPANSION}"
 EOF
     chmod u+x "${FILE}"
 }
 
+
+# Prepare all command files that we are using. Depending on the command to execute we use different
+# convenience scripts:
+#    cmd_run_ci - to run CI image command (for example entering Breeze, or running a script in CI image)
+#    cmd_run_prod - to run PROD image command (for example entering Prod image or running a script there)
+#    test_run_ci - to run test target in CI image
+#    dc_ci - to run docker compose command for CI image
+#    dc_prod - to run docker compose command for PROD image
+#
 function prepare_command_files() {
     MAIN_CI_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     MAIN_PROD_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     BACKEND_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
     LOCAL_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/local.yml
-    KUBERNETES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/runtime-kubernetes.yml
+    LOCAL_PROD_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/local-prod.yml
     REMOVE_SOURCES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
     FORWARD_CREDENTIALS_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml
 
@@ -475,6 +475,7 @@ function prepare_command_files() {
 
     if [[ "${MOUNT_LOCAL_SOURCES}" != "false" ]]; then
         COMPOSE_CI_FILE=${COMPOSE_CI_FILE}:${LOCAL_DOCKER_COMPOSE_FILE}
+        COMPOSE_PROD_FILE=${COMPOSE_PROD_FILE}:${LOCAL_PROD_DOCKER_COMPOSE_FILE}
     fi
 
     if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
@@ -484,11 +485,6 @@ function prepare_command_files() {
 
     if [[ ${INSTALL_AIRFLOW_VERSION} != "" ]]; then
         COMPOSE_CI_FILE=${COMPOSE_CI_FILE}:${REMOVE_SOURCES_DOCKER_COMPOSE_FILE}
-    fi
-
-    if [[ ${RUNTIME} == "kubernetes" ]]; then
-        COMPOSE_CI_FILE=${COMPOSE_CI_FILE}:${KUBERNETES_DOCKER_COMPOSE_FILE}
-        COMPOSE_PROD_FILE=${COMPOSE_PROD_FILE}:${KUBERNETES_DOCKER_COMPOSE_FILE}
     fi
 
     set +u
@@ -532,7 +528,7 @@ function prepare_command_files() {
 
     # Prepare script for "run test"
     prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_TEST_CI_FILE}" \
-        "${DC_RUN_CI_COMMAND}" "${COMPOSE_CI_FILE}" "true" "${AIRFLOW_CI_IMAGE}" '*'
+        "${DC_RUN_CI_COMMAND}" "true" "${COMPOSE_CI_FILE}" "${AIRFLOW_CI_IMAGE}" '*'
 
     # Prepare script for "run docker compose command"
     prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE}" \
@@ -543,7 +539,9 @@ function prepare_command_files() {
         '"' "false" "${COMPOSE_PROD_FILE}" "${AIRFLOW_PROD_IMAGE}"
 }
 
-do_help_all() {
+# Prints detailed help for all commands and flgas. Used to generate documentation added to BREEZE.rst
+# automatically.
+function do_help_all() {
     echo
     print_line
     usage
@@ -557,19 +555,14 @@ do_help_all() {
     for SUBCOMMAND in ${ALL_BREEZE_COMMANDS}
     do
       detailed_usage "${SUBCOMMAND}"
-      print_star_line
+      print_line
+      echo
     done
-    echo
-    print_line
-    echo
-    echo
-    echo "Flags"
-    echo
-    print_line
     echo
     flags
 }
 
+# Parses all arguments that can be passed to Breeze command - that includes command to run and flags.
 function parse_arguments() {
     set -u
     if ! PARAMS=$(getopt \
@@ -697,27 +690,6 @@ function parse_arguments() {
           export DOCKER_CACHE="no-cache"
           export FORCE_BUILD_IMAGES="true"
           shift ;;
-        -s|--kind-cluster-start)
-          export RUNTIME=kubernetes
-          export ENABLE_KIND_CLUSTER="true"
-          export KIND_CLUSTER_OPERATION="start"
-          echo "Starting kubernetes cluster"
-          echo
-          shift ;;
-        -r|--kind-cluster-recreate)
-          export RUNTIME=kubernetes
-          export ENABLE_KIND_CLUSTER="true"
-          export KIND_CLUSTER_OPERATION="recreate"
-          echo "Recreating kind cluster"
-          echo
-          shift ;;
-        -x|--kind-cluster-stop)
-          export RUNTIME=kubernetes
-          export ENABLE_KIND_CLUSTER="true"
-          export KIND_CLUSTER_OPERATION="stop"
-          echo "Stop kind cluster"
-          echo
-          shift ;;
         -L|--use-local-cache)
           echo "Use local cache to build images"
           echo
@@ -733,7 +705,7 @@ function parse_arguments() {
           shift ;;
         -I|--production-image)
           export PRODUCTION_IMAGE="true"
-          export SQLITE_VERSION=
+          export SQLITE_URL=
           echo
           echo "*************** PRODUCTION IMAGE *************************"
           echo
@@ -741,6 +713,14 @@ function parse_arguments() {
         -E|--extras)
           export AIRFLOW_EXTRAS="${2}"
           echo "Extras : ${AIRFLOW_EXTRAS}"
+          shift 2 ;;
+        --additional-extras)
+          export ADDITIONAL_AIRFLOW_EXTRAS="${2}"
+          echo "Additional extras : ${ADDITIONAL_AIRFLOW_EXTRAS}"
+          shift 2 ;;
+        --additional-python-deps)
+          export ADDITIONAL_PYTHON_DEPS="${2}"
+          echo "Additional python dependencies: ${ADDITIONAL_PYTHON_DEPS}"
           shift 2 ;;
         -D|--dockerhub-user)
           export DOCKERHUB_USER="${2}"
@@ -753,17 +733,50 @@ function parse_arguments() {
           echo
           shift 2 ;;
         -f|--forward-credentials)
-          echo "Fowarding credentials. Be careful as your credentials ar available in the container!"
+          echo "Forwarding credentials. Be careful as your credentials ar available in the container!"
           echo
           export FORWARD_CREDENTIALS="true"
           shift 1 ;;
-        -u|--push-images)
+        -c|--registry-cache)
           echo
-          echo "Pushing images to DockerHub"
+          echo "Use cache for the container registry"
           echo
-          export PUSH_IMAGES="true"
-          export FORCE_BUILD_IMAGES="true"
+          export ENABLE_REGISTRY_CACHE="true"
           shift ;;
+        -G|--github-organisation)
+          echo
+          echo "GitHub organisation"
+          echo
+          export GITHUB_ORGANISATION="${2}"
+          shift 2;;
+        -g|--github-repo)
+          echo
+          echo "GitHub repository"
+          echo
+          export GITHUB_REPOSITORY="${2}"
+          shift 2;;
+        -S|--version-suffix-for-pypi)
+          if [[ ${VERSION_SUFFIX_FOR_SVN} != "" ]]; then
+              echo
+              echo "You can only set one version suffix - either for PyPI or for SVN"
+              echo
+              exit 1
+          fi
+          export VERSION_SUFFIX_FOR_PYPI="${2}"
+          echo "Version suffix for PyPI ${VERSION_SUFFIX_FOR_PYPI}"
+          echo
+          shift 2 ;;
+        -N|--version-suffix-for-svn)
+          if [[ ${VERSION_SUFFIX_FOR_PYPI} != "" ]]; then
+              echo
+              echo "You can only set one version suffix - either for PyPI or for SVN"
+              echo
+              exit 1
+          fi
+          export VERSION_SUFFIX_FOR_SVN="${2}"
+          echo "Version suffix for SVN ${VERSION_SUFFIX_FOR_SVN}"
+          echo
+          shift 2 ;;
         --)
           shift ;
           break ;;
@@ -776,7 +789,7 @@ function parse_arguments() {
           ;;
       esac
     done
-    # Parse commaands
+    # Parse commands
     if [[ "$#" -ne 0 ]]; then
       case "${1}" in
         shell)
@@ -807,14 +820,17 @@ function parse_arguments() {
           COMMAND_TO_RUN="cleanup_image"
           shift ;;
         docker-compose)
-          if [[ "$#" -lt 2 ]]; then
-            echo "You should specify docker compose command to run"
-            exit 1
-          fi
           LAST_SUBCOMMAND="${1}"
-          DOCKER_COMPOSE_COMMAND="${2}"
+          if [[ $# -lt 2 ]]; then
+            echo "You should specify docker compose command to run"
+            shift
+            RUN_HELP="true"
+          else
+            DOCKER_COMPOSE_COMMAND="${2}"
+            shift 2
+          fi
           COMMAND_TO_RUN="run_docker_compose"
-          shift 2 ;;
+          ;;
         execute-command)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="run_in_bash"
@@ -822,6 +838,23 @@ function parse_arguments() {
         generate-requirements)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_generate_requirements"
+          # if you want to  generate requirement - you want to build the image too :)
+          export FORCE_ANSWER_TO_QUESTIONS="yes"
+          # and assume you want to build it no matter if it is needed
+          export FORCE_BUILD_IMAGES="true"
+          shift ;;
+        prepare-backport-packages)
+          LAST_SUBCOMMAND="${1}"
+          COMMAND_TO_RUN="perform_prepare_backport_packages"
+          shift ;;
+        prepare-backport-readme)
+          LAST_SUBCOMMAND="${1}"
+          COMMAND_TO_RUN="perform_prepare_backport_readme"
+          shift ;;
+        push-image)
+          LAST_SUBCOMMAND="${1}"
+          COMMAND_TO_RUN="perform_push_image"
+          SKIP_CHECK_REMOTE_IMAGE="true"
           shift ;;
         initialize-local-virtualenv)
           LAST_SUBCOMMAND="${1}"
@@ -829,6 +862,16 @@ function parse_arguments() {
           echo
           COMMAND_TO_RUN="perform_initialize_local_virtualenv"
           shift ;;
+        kind-cluster)
+          LAST_SUBCOMMAND="${1}"
+          COMMAND_TO_RUN="manage_kind_cluster"
+          export KIND_CLUSTER_OPERATION="${2:-}"
+          if [[ ${KIND_CLUSTER_OPERATION} != "" ]]; then
+              shift 2
+          else
+              shift
+          fi
+          ;;
         setup-autocomplete)
           LAST_SUBCOMMAND="${1}"
           echo "Setting up autocomplete"
@@ -839,34 +882,56 @@ function parse_arguments() {
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_static_checks"
           if [[ "$#" -lt 2 ]]; then
-            echo "You should specify static check that you would like to run or 'all' to run all checks."
-            echo "One of [${_BREEZE_ALLOWED_STATIC_CHECKS:=}]."
-            echo
-            echo "For example:"
-            echo "${CMDNAME} static-check mypy"
-            exit 1
+            if [[ ${RUN_HELP} != "true" ]]; then
+              echo "You should specify static check that you would like to run or 'all' to run all checks."
+              echo
+              echo "One of :"
+              echo
+              echo "${_BREEZE_ALLOWED_STATIC_CHECKS:=}"
+              echo
+              echo "For example:"
+              echo
+              echo "${CMDNAME} static-check mypy"
+              echo
+              exit 1
+            else
+              shift
+            fi
+          else
+            export PYTHON_MAJOR_MINOR_VERSION=${STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION}
+            export STATIC_CHECK="${2:-}"
+            export STATIC_CHECK_ALL_FILES="false"
+            EXTRA_STATIC_CHECK_OPTIONS+=("--show-diff-on-failure")
+            shift 2
           fi
-          export PYTHON_MAJOR_MINOR_VERSION=${STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION}
-          export STATIC_CHECK="${2}"
-          export STATIC_CHECK_ALL_FILES="false"
-          EXTRA_STATIC_CHECK_OPTIONS+=("--show-diff-on-failure")
-          shift 2 ;;
+          ;;
         static-check-all-files)
           LAST_SUBCOMMAND="${1}"
-          if [[ "$#" -lt 2 ]]; then
-            echo "You should specify static check that you would like to run or 'all' to run all checks."
-            echo "One of [${_BREEZE_ALLOWED_STATIC_CHECKS:=}]."
-            echo
-            echo "For example:"
-            echo "${CMDNAME} static-check-all-files mypy"
-            exit 1
-          fi
           COMMAND_TO_RUN="perform_static_checks"
-          export PYTHON_MAJOR_MINOR_VERSION=${STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION}
-          export STATIC_CHECK="${2}"
-          export STATIC_CHECK_ALL_FILES="true"
-          EXTRA_STATIC_CHECK_OPTIONS+=("--all-files" "--show-diff-on-failure")
-          shift 2 ;;
+          if [[ "$#" -lt 2 ]]; then
+            if [[ ${RUN_HELP} != "true" ]]; then
+              echo "You should specify static check that you would like to run or 'all' to run all checks."
+              echo
+              echo "One of :"
+              echo
+              echo "${_BREEZE_ALLOWED_STATIC_CHECKS:=}"
+              echo
+              echo "For example:"
+              echo
+              echo "${CMDNAME} static-check-all-files mypy"
+              echo
+              exit 1
+            else
+              shift
+            fi
+          else
+            export PYTHON_MAJOR_MINOR_VERSION=${STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION}
+            export STATIC_CHECK="${2:-}"
+            export STATIC_CHECK_ALL_FILES="true"
+            EXTRA_STATIC_CHECK_OPTIONS+=("--all-files" "--show-diff-on-failure")
+            shift 2
+          fi
+          ;;
         stop)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="run_docker_compose"
@@ -883,13 +948,14 @@ function parse_arguments() {
           shift ;;
         test-target)
           LAST_SUBCOMMAND="${1}"
-          if [[ "${TEST_TARGET}" == "." ]]; then
-              export TEST_TARGET=""
+          if [[ $# -lt 2 ]]; then
+            RUN_HELP="true"
+            shift
           else
-              export TEST_TARGET="${2}"
+            export TEST_TARGET="${2}"
+            shift 2
           fi
-          COMMAND_TO_RUN="run_tests"
-          shift 2 ;;
+          COMMAND_TO_RUN="run_tests" ;;
         toggle-suppress-cheatsheet)
           LAST_SUBCOMMAND="${1}"
           if [[ -f "${SUPPRESS_CHEATSHEET_FILE}" ]]; then
@@ -915,7 +981,6 @@ function parse_arguments() {
           exit 0 ;;
         help)
           usage
-          flag_footer
           exit 0 ;;
         help-all)
           do_help_all
@@ -939,14 +1004,16 @@ function parse_arguments() {
               flag_footer
           else
               detailed_usage "${LAST_SUBCOMMAND}"
-              flag_footer
           fi
           exit 0
     fi
     REMAINING_ARGS+=("$@")
 }
 
-prepare_formatted_versions() {
+# Prepares nicely formatted versions of list of allowed and default values defined in Breeze.
+# It is used in help command to print the lists in a readable format and fold the lists
+# so that they fit the screen width.
+function prepare_formatted_versions() {
     INDENT=15
     LIST_PREFIX=$(printf "%-${INDENT}s" " ")
     WIDTH=$((SCREEN_WIDTH - INDENT))
@@ -962,6 +1029,8 @@ prepare_formatted_versions() {
       fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
     FORMATTED_KUBERNETES_VERSIONS=$(echo "${_BREEZE_ALLOWED_KUBERNETES_VERSIONS=""}" | tr '\n' ' ' | \
       fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+    FORMATTED_KIND_OPERATIONS=$(echo "${_BREEZE_ALLOWED_KIND_OPERATIONS=""}" | tr '\n' ' ' | \
+      fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
     FORMATTED_INSTALL_AIRFLOW_VERSIONS=$(echo "${_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=""}" | \
       tr '\n' ' ' | fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
     FORMATTED_POSTGRES_VERSIONS=$(echo "${_BREEZE_ALLOWED_POSTGRES_VERSIONS=""}" | \
@@ -974,7 +1043,9 @@ prepare_formatted_versions() {
       tr ',' ' ' | fold -w "${WIDTH}" -s | sed "s/ /,/g; s/^/${LIST_PREFIX}/")
 }
 
-prepare_usage() {
+# Prepares usage information for all the commands in Breeze.
+# Those usage commands are stored in appropriate environment variables.
+function prepare_usage() {
     # Note that MacOS uses Bash 3.* and we cannot use associative arrays
     export USAGE_SHELL="[Default] Enters interactive shell in the container"
     export USAGE_EXEC="Execs into running breeze container in new terminal"
@@ -986,9 +1057,13 @@ prepare_usage() {
     export USAGE_FLAGS="Shows all breeze's flags"
     export USAGE_GENERATE_REQUIREMENTS="Generates pinned requirements for pip dependencies"
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
+    export USAGE_PREPARE_BACKPORT_README="Prepares backport packages readme files"
+    export USAGE_PREPARE_BACKPORT_PACKAGES="Prepares backport packages"
+    export USAGE_PUSH_IMAGE="Pushes images to registry"
+    export USAGE_KIND_CLUSTER="Manages KinD cluster on the host"
     export USAGE_SETUP_AUTOCOMPLETE="Sets up autocomplete for breeze"
-    export USAGE_STOP="Stops the docker-compose evironment"
-    export USAGE_RESTART="Stops the docker-compose evironment including DB cleanup"
+    export USAGE_STOP="Stops the docker-compose environment"
+    export USAGE_RESTART="Stops the docker-compose environment including DB cleanup"
     export USAGE_STATIC_CHECK="Performs selected static check for changed files"
     export USAGE_STATIC_CHECK_ALL_FILES="Performs selected static check for all files"
     export USAGE_TOGGLE_SUPPRESS_CHEATSHEET="Toggles on/off cheatsheet"
@@ -998,10 +1073,13 @@ prepare_usage() {
     export USAGE_HELP_ALL="Shows detailed help for all commands and flags"
 
 
-    export DETAILED_USAGE_SHELL="
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_SHELL="
+${CMDNAME} shell [FLAGS] -- <EXTRA_ARGS>
+
       This is default subcommand if no subcommand is used.
 
-      Enters interactive shell where you can run all tests, start airflow webserver, scheduler,
+      Enters interactive shell where you can run all tests, start Airflow webserver, scheduler,
       workers, interact with the database, run DAGs etc. It is the default command if no command
       is selected. The shell is executed in the container and in case integrations are chosen,
       the integrations will be started as separated docker containers - under the docker-compose
@@ -1013,39 +1091,84 @@ prepare_usage() {
       and setup. This file is automatically sourced when you enter the container. Database
       and webserver ports are forwarded to appropriate database/webserver so that you can
       connect to it from your host environment.
+
+Flags:
+$(flag_footer)
 "
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_SHELL
     export DETAILED_USAGE_EXEC="
+${CMDNAME} exec
+
       Execs into interactive shell to an already running container. The container mus be started
       already by breeze shell command. If you are not familiar with tmux, this is the best
       way to run multiple processes in the same container at the same time for example scheduler,
       webserver, workers, database console and interactive terminal.
 "
     export DETAILED_USAGE_BUILD_DOCS="
-      Builds airflow documentation. The documentation is build inside docker container - to
+${CMDNAME} build-docs
+
+      Builds Airflow documentation. The documentation is build inside docker container - to
       maintain the same build environment for everyone. Appropriate sources are mapped from
       the host to the container so that latest sources are used. The folders where documentation
       is generated ('docs/build') are also mounted to the container - this way results of
       the documentation build is available in the host.
 "
-    export DETAILED_USAGE_BUILD_IMAGE="
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_BUILD_IMAGE="
+${CMDNAME} build-image [FLAGS]
+
       Builds docker image (CI or production) without entering the container. You can pass
       additional options to this command, such as '--force-build-image',
       '--force-pull-image' '--python' '--use-local-cache'' in order to modify build behaviour.
       You can also pass '--production-image' flag to build production image rather than CI image.
+
+Flags:
+$(flag_airflow_variants)
+$(flag_choose_different_airflow_version)
+$(flag_production_image)
+$(flag_build_docker_images)
+$(flag_pull_push_docker_images)
+$(flag_verbosity)
 "
-    export DETAILED_USAGE_CLEANUP_IMAGE="
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_BUILD_IMAGE
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_CLEANUP_IMAGE="
+${CMDNAME} cleanup-image [FLAGS]
+
       Removes the breeze-related images created in your local docker image cache. This will
       not reclaim space in docker cache. You need to 'docker system prune' (optionally
       with --all) to reclaim that space.
+
+Flags:
+$(flag_airflow_variants)
+$(flag_production_image)
+$(flag_verbosity)
 "
-    export DETAILED_USAGE_DOCKER_COMPOSE="
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_CLEANUP_IMAGE
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_DOCKER_COMPOSE="
+${CMDNAME} docker-compose [FLAGS] COMMAND -- <EXTRA_ARGS>
+
       Run docker-compose command instead of entering the environment. Use 'help' as command
       to see available commands. The <EXTRA_ARGS> passed after -- are treated
       as additional options passed to docker-compose. For example
 
       '${CMDNAME} docker-compose pull -- --ignore-pull-failures'
+
+Flags:
+$(flag_airflow_variants)
+$(flag_backend_variants)
+$(flag_verbosity)
 "
-    export DETAILED_USAGE_EXECUTE_COMMAND="
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_DOCKER_COMPOSE
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_EXECUTE_COMMAND="
+${CMDNAME} execute-command [FLAGS] COMMAND -- <EXTRA_ARGS>
+
       Run chosen command instead of entering the environment. The command is run using
       'bash -c \"<command with args>\" if you need to pass arguments to your command, you need
       to pass them together with command surrounded with \" or '. Alternatively you can
@@ -1053,40 +1176,182 @@ prepare_usage() {
 
       '${CMDNAME} execute-command \"ls -la\"' or
       '${CMDNAME} execute-command ls -- --la'
+
+Flags:
+$(flag_airflow_variants)
+$(flag_backend_variants)
+$(flag_verbosity)
 "
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_EXECUTE_COMMAND
     export DETAILED_USAGE_FLAGS="
       Explains in detail all the flags that can be used with breeze.
 "
-    export DETAILED_USAGE_GENERATE_REQUIREMENTS="
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_PREPARE_BACKPORT_README="
+${CMDNAME} prepare-backport-packages [FLAGS] -- [YYYY.MM.DD] [PACKAGE_ID ...]
+
+      Prepares README.md files for backport packages. You can provide (after --) optional version
+      in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
+      If the first parameter is not formatted as a date, then today is regenerated.
+      If no packages are specified, readme for all packages are generated.
+      If no date is specified, current date + 3 days is used (allowing for PMC votes to pass).
+
+      Examples:
+
+      '${CMDNAME} prepare-backport-readme' or
+      '${CMDNAME} prepare-backport-readme -- 2020.05.10' or
+      '${CMDNAME} prepare-backport-readme -- 2020.05.10 https google amazon'
+
+      General form:
+
+      '${CMDNAME} prepare-backport-readme -- YYYY.MM.DD <PACKAGE_ID> ...'
+
+      * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
+        cannot be earlier than the already released version (the script will fail if it
+        will be). It can be set in the future anticipating the future release date.
+
+      * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
+        'google' but in several cases, it might be one level deeper separated with
+        '.' for example 'apache.hive'
+
+Flags:
+$(flag_verbosity)
+"
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_PREPARE_BACKPORT_README
+    DETAILED_USAGE_GENERATE_REQUIREMENTS="
+${CMDNAME} generate-requirements [FLAGS]
+
       Generates pinned requirements from setup.py. Those requirements are generated in requirements
       directory - separately for different python version. Those requirements are used to run
       CI builds as well as run repeatable production image builds. You can use those requirements
-      to predictably install released airflow versions. You should run it always after you update
+      to predictably install released Airflow versions. You should run it always after you update
       setup.py.
+
+Flags:
+$(flag_airflow_variants)
+$(flag_verbosity)
 "
-    export DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV="
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_GENERATE_REQUIREMENTS
+    DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV="
+${CMDNAME} initialize-local-virtualenv [FLAGS]
+
       Initializes locally created virtualenv installing all dependencies of Airflow
       taking into account the frozen requirements from requirements folder.
       This local virtualenv can be used to aid autocompletion and IDE support as
       well as run unit tests directly from the IDE. You need to have virtualenv
       activated before running this command.
+
+Flags:
+$(flag_airflow_variants)
 "
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_PREPARE_BACKPORT_PACKAGES="
+${CMDNAME} prepare-backport-packages [FLAGS] -- [PACKAGE_ID ...]
+
+      Prepares backport packages. You can provide (after --) optional list of packages to prepare.
+      If no packages are specified, readme for all packages are generated. You can specify optional
+      --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
+      --version-suffix-for-pypi flag to generate rc candidates for PyPI packages.
+
+      Examples:
+
+      '${CMDNAME} prepare-backport-packages' or
+      '${CMDNAME} prepare-backport-packages -- google' or
+      '${CMDNAME} prepare-backport-packages --version-suffix-for-svn rc1 -- http google amazon' or
+      '${CMDNAME} prepare-backport-packages --version-suffix-for-pypi rc1 -- http google amazon'
+
+      General form:
+
+      '${CMDNAME} prepare-backport-packages \\
+            [--version-suffix-for-svn|--version-suffix-for-pypi] -- <PACKAGE_ID> ...'
+
+      * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
+        'google'), but in several cases, it might be one level deeper separated with '.'
+        for example 'apache.hive'
+
+Flags:
+$(flag_version_suffix)
+$(flag_verbosity)
+"
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_PREPARE_BACKPORT_PACKAGES
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_PUSH_IMAGE="
+${CMDNAME} push_image [FLAGS]
+
+      Pushes images to docker registry. You can push the images to DockerHub registry (default)
+      or to the GitHub cache registry (if --registry-cache flag is used).
+
+      For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
+      the repository to push to. For GitHub repository --github-organisation and --github-repo
+      flags can be used for the same purpose.
+
+      You can also add --production-image flag to switch to production image (default is CI one)
+
+      Examples:
+
+      '${CMDNAME} push-image' or
+      '${CMDNAME} push-image --dockerhub-user user' to push to your private registry or
+      '${CMDNAME} push-image --production-image' - to push production image or
+      '${CMDNAME} push-image --registry-cache' - to push to GitHub cache or
+      '${CMDNAME} push-image --registry-cache --github-organisation org' - for other organisation
+
+Flags:
+$(flag_pull_push_docker_images)
+$(flag_verbosity)
+"
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_PUSH_IMAGE
+    DETAILED_USAGE_KIND_CLUSTER="
+${CMDNAME} kind-cluster [FLAGS] OPERATION
+
+      Manages host-side Kind Kubernetes cluster that is used to run Kubernetes integration tests.
+      It allows to start/stop/restart/status the Kind Kubernetes cluster and deploy Airflow to it.
+      This enables you to run tests inside the breeze environment with latest airflow images loaded.
+      Note that in case of deploying airflow, the first step is to rebuild the image and loading it
+      to the cluster so you can also pass appropriate build image flags that will influence
+      rebuilding the production image. Operation is one of:
+
+${FORMATTED_KIND_OPERATIONS}
+
+Flags:
+$(flag_airflow_variants)
+$(flag_build_docker_images)
+"
+    export DETAILED_USAGE_KIND_CLUSTER
     export DETAILED_USAGE_SETUP_AUTOCOMPLETE="
+${CMDNAME} setup-autocomplete
+
       Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
       shell and when typing breeze command <TAB> will provide autocomplete for
       parameters and values.
 "
     export DETAILED_USAGE_STOP="
+${CMDNAME} stop
+
       Brings down running docker compose environment. When you start the environment, the docker
       containers will continue running so that startup time is shorter. But they take quite a lot of
       memory and CPU. This command stops all running containers from the environment.
 "
-    export DETAILED_USAGE_RESTART="
+    DETAILED_USAGE_RESTART="
+${CMDNAME} restart [FLAGS]
+
       Restarts running docker compose environment. When you restart the environment, the docker
       containers will be restarted. That includes cleaning up the databases. This is
-      especially useful if you switch between different versions of airflow.
+      especially useful if you switch between different versions of Airflow.
+
+Flags:
+$(flag_footer)
 "
+    export DETAILED_USAGE_RESTART
     export DETAILED_USAGE_STATIC_CHECK="
+${CMDNAME} static-check [FLAGS] STATIC_CHECK
+
       Run selected static checks for currently changed files. You should specify static check that
       you would like to run or 'all' to run all checks. One of:
 
@@ -1103,6 +1368,8 @@ ${FORMATTED_STATIC_CHECKS}
       '${CMDNAME} static-check mypy -- --help'
 "
     export DETAILED_USAGE_STATIC_CHECK_ALL_FILES="
+${CMDNAME} static-check-all [FLAGS] STATIC_CHECK
+
       Run selected static checks for all applicable files. You should specify static check that
       you would like to run or 'all' to run all checks. One of:
 
@@ -1118,28 +1385,45 @@ ${FORMATTED_STATIC_CHECKS}
 
       '${CMDNAME} static-check-all-files mypy -- --help'
 "
-    export DETAILED_USAGE_TEST_TARGET="
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_TEST_TARGET="
+${CMDNAME} test-target [FLAGS] TEST_TARGET -- <EXTRA_ARGS>
+
       Run the specified unit test target. There might be multiple
       targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
       as additional options passed to pytest. For example:
 
       '${CMDNAME} test-target tests/test_core.py -- --logging-level=DEBUG'
+
+Flags:
+$(flag_footer)
 "
+    # shellcheck disable=SC2090
+    export DETAILED_USAGE_TEST_TARGET
     export DETAILED_USAGE_TOGGLE_SUPPRESS_CHEATSHEET="
+${CMDNAME} toggle-suppress-cheatsheet
+
       Toggles on/off cheatsheet displayed before starting bash shell.
 "
     export DETAILED_USAGE_TOGGLE_SUPPRESS_ASCIIART="
+${CMDNAME} toggle-suppress-asciiart
+
       Toggles on/off asciiart displayed before starting bash shell.
 "
     export DETAILED_USAGE_HELP="
-      Shows this help message.
+${CMDNAME} help
+
+      Shows general help message for all commands.
 "
     export DETAILED_USAGE_HELP_ALL="
+${CMDNAME} help-all
+
       Shows detailed help for all commands and flags.
 "
 }
 
-get_variable_from_lowercase_name() {
+# Gets environment variable value converting the lowercase name of command into variable name
+function get_variable_from_lowercase_name() {
     PREFIX="${1}"
     NAME="${2}"
     SUFFIX="$(echo "${NAME}" | tr "[:lower:]-" "[:upper:]_")"
@@ -1147,16 +1431,19 @@ get_variable_from_lowercase_name() {
     echo "${!VARIABLE_NAME}"
 }
 
-get_usage() {
+# Gets usage information from lowercase command
+function get_usage() {
     get_variable_from_lowercase_name USAGE "${1}"
 }
 
-get_detailed_usage() {
+
+# Gets detailed usage information from lowercase command
+function get_detailed_usage() {
     get_variable_from_lowercase_name DETAILED_USAGE "${1}"
 }
 
-
-usage() {
+# Prints general usage information
+function usage() {
       echo "
 
 Usage: ${CMDNAME} [FLAGS] [COMMAND] -- <EXTRA_ARGS>
@@ -1187,35 +1474,39 @@ Help commands:
       echo
 }
 
-detailed_usage() {
-  SUBCOMMAND=${1}
+# Prints detailed usage for command specified
+function detailed_usage() {
+      SUBCOMMAND=${1}
       echo "
-${CMDNAME} [FLAGS] ${SUBCOMMAND} -- <EXTRA_ARGS>
-$(get_detailed_usage "${SUBCOMMAND}")"
-}
 
-flag_footer() {
-    echo "
-Run '${CMDNAME} flags' to see available flags
+Detailed usage for command: ${SUBCOMMAND}
+
+$(get_detailed_usage "${SUBCOMMAND}")
+
 "
 }
 
-flags() {
+# Prints flag footer
+function flag_footer() {
+     echo "
+Run '${CMDNAME} flags' to see all applicable flags.
+"
+}
+
+# Prints flags for different variants of airflow to use
+function flag_airflow_variants() {
       echo "
-$(print_star_line)
-
-List of flags supported by breeze:
-
-$(print_star_line)
- Choose Airflow variant
-$(print_star_line)
-
 -p, --python <PYTHON_MAJOR_MINOR_VERSION>
         Python version used for the image. This is always major/minor version.
         One of:
 
 ${FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS}
+"
+}
 
+# Prints flags for different backend to use
+function flag_backend_variants() {
+      echo "
 -b, --backend <BACKEND>
         Backend to use for tests - it determines which database is used.
         One of:
@@ -1224,50 +1515,51 @@ ${FORMATTED_BACKENDS}
 
         Default: ${_BREEZE_DEFAULT_BACKEND:=}
 
+--postgres-version <POSTGRES_VERSION>
+        Postgres version used. One of:
+
+${FORMATTED_POSTGRES_VERSIONS}
+
+--mysql-version <MYSQL_VERSION>
+        Mysql version used. One of:
+
+${FORMATTED_MYSQL_VERSIONS}
+"
+}
+
+# Prints production image flgas
+function flag_production_image() {
+      echo "
+-I, --production-image
+        Use production image for entering the environment and builds (not for tests).
+"
+}
+
+# Prints additional breeze action flags
+function flag_breeze_actions() {
+      echo "
 -d, --db-reset
-        Resets the database at entry to the envvironment. It will drop all the tables
+        Resets the database at entry to the environment. It will drop all the tables
         and data and recreate the DB from scratch even if 'restart' command was not used.
         Combined with 'restart' command it enters the environment in the state that is
-        ready to start airflow webserver/scheduler/worker. Without the switch, the database
+        ready to start Airflow webserver/scheduler/worker. Without the switch, the database
         does not have any tables and you need to run reset db manually.
 
 -i, --integration <INTEGRATION>
         Integration to start during tests - it determines which integrations are started
         for integration tests. There can be more than one integration started, or all to
+        }
         start all integrations. Selected integrations are not saved for future execution.
         One of:
 
 ${FORMATTED_INTEGRATIONS}
+"
+}
 
--I, --production-image
-        Use production image for entering the environment and builds (not for tests).
-
-$(print_star_line)
- Manage Kind kubernetes cluster (optional)
-$(print_star_line)
-
-
-Acion for the cluster : only one of the --kind-cluster-* flags can be used at a time:
-
--s, --kind-cluster-start
-        Starts kind Kubernetes cluster after entering the environment. The cluster is started using
-        Kubernetes Mode selected and Kubernetes version specified via --kubernetes-mode and
-        --kubernetes-version flags.
-
--x, --kind-cluster-stop
-        Stops kind Kubernetes cluster if one has already been created. By default, if you do not
-        stop environment, the Kubernetes cluster created for testing is continuously running and
-        when you start Kubernetes testing again it will be reused. You can force deletion and
-        recreation of such cluster with this flag.
-
--r, --kind-cluster-recreate
-
-        Recreates kind Kubernetes cluster if one has already been created. By default, if you do
-        not stop environment, the Kubernetes cluster created for testing is continuously running
-        and when you start Kubernetes testing again it will be reused. You can force deletion and
-        recreation of such cluster with this flag.
-
-Kubernetes mode/version flags:
+# Prints Kubernetes action flags
+function flag_kubernetes_configuration() {
+      echo "
+Configuration for the KinD Kubernetes cluster and tests:
 
 -K, --kubernetes-mode <KUBERNETES_MODE>
         Kubernetes mode - only used in case one of --kind-cluster-* commands is used.
@@ -1284,48 +1576,36 @@ ${FORMATTED_KUBERNETES_MODES}
 ${FORMATTED_KUBERNETES_VERSIONS}
 
         Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
+"
+}
 
-$(print_star_line)
- Manage mounting local files
-$(print_star_line)
-
+# Prints flags that determine what is the source mounting scheme
+function flag_local_file_mounting() {
+      echo "
 -l, --skip-mounting-local-sources
         Skips mounting local volume with sources - you get exactly what is in the
-        docker image rather than your current local sources of airflow.
+        docker image rather than your current local sources of Airflow.
+"
+}
 
-$(print_star_line)
- Install Airflow if different than current
-$(print_star_line)
-
+# Prints flags that allow to choose different airflow variants
+function flag_choose_different_airflow_version() {
+      echo "
 -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
-        If specified, installs airflow directly from PIP released version. One of:
+        If specified, installs Airflow directly from PIP released version. This happens at
+        image building time in production image and at container entering time for CI image. One of:
 
 ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
 -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
-        Only for production image - if specified, installs airflow directly from reference in GitHub
+        If specified, installs Airflow directly from reference in GitHub. This happens at
+        image building time in production image and at container entering time for CI image.
+"
+}
 
-
-$(print_star_line)
- Database versions
-$(print_star_line)
-
---postgres-version <POSTGRES_VERSION>
-        Postgres version used. One of:
-
-${FORMATTED_POSTGRES_VERSIONS}
-
-
---mysql-version <MYSQL_VERSION>
-        Mysql version used. One of:
-
-${FORMATTED_MYSQL_VERSIONS}
-
-
-$(print_star_line)
- Assume answers to questions
-$(print_star_line)
-
+# Prints flags that allow to set assumed answers to questions
+function flag_assume_answers_to_questions() {
+      echo "
 -y, --assume-yes
         Assume 'yes' answer to all questions.
 
@@ -1334,28 +1614,38 @@ $(print_star_line)
 
 -q, --assume-quit
         Assume 'quit' answer to all questions.
+"
+}
 
-$(print_star_line)
- Credentials
-$(print_star_line)
-
+# Prints flags that are used for credential forwarding
+function flag_credentials() {
+      echo "
 -f, --forward-credentials
         Forwards host credentials to docker container. Use with care as it will make
         your credentials available to everything you install in Docker.
+"
+}
 
-$(print_star_line)
- Increase verbosity of the script
-$(print_star_line)
-
+# Prints flags that control verbosity
+function flag_verbosity() {
+      echo "
 -v, --verbose
         Show verbose information about executed commands (enabled by default for running test).
         Note that you can further increase verbosity and see all the commands executed by breeze
         by running 'export VERBOSE_COMMANDS=\"true\"' before running breeze.
+"
+}
 
-$(print_star_line)
- Flags for building the docker images
-$(print_star_line)
+function flag_help() {
+      echo "
+-h, --help
+        Shows detailed help message for the command specified.
+"
+}
 
+# Prints flags controlling docker build process
+function flag_build_docker_images() {
+      echo "
 -F, --force-build-images
         Forces building of the local docker images. The images are rebuilt
         automatically for the first time or when changes are detected in
@@ -1375,6 +1665,12 @@ ${FORMATTED_DEFAULT_CI_EXTRAS}
         Production image:
 ${FORMATTED_DEFAULT_PROD_EXTRAS}
 
+--additional-extras
+        Additional extras to pass to build images The default is no additional extras.
+
+--additional-python-deps
+        Additional python dependencies to use when building the images.
+
 -C, --force-clean-images
         Force build images with cache disabled. This will remove the pulled or build images
         and start building images from scratch. This might take a long time.
@@ -1382,30 +1678,113 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 -L, --use-local-cache
         Uses local cache to build images. No pulled images will be used, but results of local
         builds in the Docker cache are used instead.
+"
+}
 
-$(print_star_line)
- Flags for pushing the docker images
-$(print_star_line)
-
--u, --push-images
-        After building - uploads the images to DockerHub
-        It is useful in case you use your own DockerHub user to store images and you want
-        to build them locally. Note that you need to use 'docker login' before you upload images.
-
-$(print_star_line)
- User and repo used to login to github registry
-$(print_star_line)
-
+# Prints flags controlling docker pull and push process
+function flag_pull_push_docker_images() {
+       echo "
 -D, --dockerhub-user
         DockerHub user used to pull, push and build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_USER:=}.
 
 -H, --dockerhub-repo
         DockerHub repository used to pull, push, build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_REPO:=}.
 
-$(print_star_line)
+-c, --registry-cache
+        If registry cache is enabled, pulls and pushes are done from the registry cache in github.
+        You need to be logged in to the registry in order to be able to pull/push from it and you
+        need to be committer to push to airflow registry.
+
+-G, --github-organisation
+        GitHub organisation used to pull, push images when cache is used. Default: ${_BREEZE_DEFAULT_GITHUB_ORGANISATION:=}.
+
+-g, --github-repo
+        GitHub repository used to pull, push images when cache is used. Default: ${_BREEZE_DEFAULT_GITHUB_REPO:=}.
+
 "
 }
 
+# Prints flags that control version of generated packages
+function flag_version_suffix() {
+      echo "
+-S, --version-suffix-for-pypi
+        Adds optional suffix to the version in the generated backport package. It can be used
+        to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+-N, --version-suffix-for-svn
+        Adds optional suffix to the generated names of package. It can be used to generate
+        rc1/rc2 ... versions of the packages to be uploaded to SVN.
+"
+}
+
+
+
+# Prints all flags
+function flags() {
+      echo "
+$(print_line)
+
+Summary of all flags supported by Breeze:
+
+$(print_star_line)
+ Choose Airflow variant
+$(flag_airflow_variants)
+
+$(print_star_line)
+ Choose backend to run for Airflow
+$(flag_backend_variants)
+
+$(print_star_line)
+ Enable production image
+$(flag_production_image)
+
+$(print_star_line)
+ Additional actions executed while entering breeze
+$(flag_breeze_actions)
+
+$(print_star_line)
+ Kind kubernetes and Kubernetes tests configuration(optional)
+$(flag_kubernetes_configuration)
+
+$(print_star_line)
+ Manage mounting local files
+$(flag_local_file_mounting)
+
+$(print_star_line)
+ Assume answers to questions
+$(flag_assume_answers_to_questions)
+
+$(print_star_line)
+ Choose different Airflow version to install or run
+$(flag_choose_different_airflow_version)
+
+$(print_star_line)
+ Credentials
+$(flag_credentials)
+
+$(print_star_line)
+ Flags for building Docker images (both CI and production)
+$(flag_build_docker_images)
+
+$(print_star_line)
+ Flags for pulling/pushing Docker images (both CI and production)
+$(flag_pull_push_docker_images)
+
+$(print_star_line)
+ Flags for generation of the backport packages
+$(flag_version_suffix)
+
+$(print_star_line)
+ Increase verbosity of the scripts
+$(flag_verbosity)
+
+$(print_star_line)
+ Print detailed help message
+$(flag_help)
+"
+}
+
+# Prints header line filling screen width - only when VERBOSE is set
 function print_header_line() {
     if [ ${VERBOSE:="false"} == "true" ]; then
         echo
@@ -1415,14 +1794,21 @@ function print_header_line() {
 }
 
 
+# Prints separation line filling screen width
 function print_line {
     printf '#%.0s' $(seq "${SCREEN_WIDTH}")
 }
 
+# Prints star line filling screen width
 function print_star_line {
     printf '*%.0s' $(seq "${SCREEN_WIDTH}")
 }
 
+# Reads save environment variables. Some of the variables are stored across session so that once
+# you use them you do not have to use it next time. That makes those flags persistent
+# An example of it is `--backend` or '--kubernetes-mode' flags. Note that PYTHON_MAJOR_MINOR_VERSION is
+# not read here - it is read at the `setup_default_breeze_variables` method because it is needed
+# t determine the right images to use and set several variables that depend on the Python version
 function read_saved_environment_variables {
     export BACKEND="${BACKEND:=$(read_from_file BACKEND)}"
     export BACKEND=${BACKEND:-${_BREEZE_DEFAULT_BACKEND}}
@@ -1441,17 +1827,19 @@ function read_saved_environment_variables {
 
     # Here you read DockerHub user/account that you use
     # You can populate your own images in DockerHub this way and work with the,
-    # You can override it with "-d" option and it will be stored in .build directory
+    # You can override it with "--dockerhub-user" option and it will be stored in .build directory
     export DOCKERHUB_USER="${DOCKERHUB_USER:=$(read_from_file DOCKERHUB_USER)}"
     export DOCKERHUB_USER="${DOCKERHUB_USER:=${_BREEZE_DEFAULT_DOCKERHUB_USER}}"
 
     # Here you read DockerHub repo that you use
     # You can populate your own images in DockerHub this way and work with them
-    # You can override it with "-d" option and it will be stored in .build directory
+    # You can override it with "--dockerhub-repo" option and it will be stored in .build directory
     export DOCKERHUB_REPO="${DOCKERHUB_REPO:=$(read_from_file DOCKERHUB_REPO)}"
     export DOCKERHUB_REPO="${DOCKERHUB_REPO:=${_BREEZE_DEFAULT_DOCKERHUB_REPO}}"
 }
 
+# Checks if variables are correctly set and if they are - saves them so that they can be used across
+# sessions.
 function check_and_save_all_params() {
     check_and_save_allowed_param "PYTHON_MAJOR_MINOR_VERSION"  "Python version" "--python"
     check_and_save_allowed_param "BACKEND"  "backend" "--backend"
@@ -1460,31 +1848,12 @@ function check_and_save_all_params() {
     check_and_save_allowed_param "POSTGRES_VERSION"  "Postgres version" "--postgres-version"
     check_and_save_allowed_param "MYSQL_VERSION"  "Mysql version" "--mysql-version"
 
-    # Can't verify those
+    # Can't verify those - they can be anything, so let's just save them
     save_to_file DOCKERHUB_USER
     save_to_file DOCKERHUB_REPO
 }
 
-function fix_local_file {
-    if [[ -d "${MY_DIR}/${1}" ]]; then
-        rm -rf "${MY_DIR:?}/${1}"
-    fi
-    touch "${MY_DIR}/${1}"
-
-}
-
-function touch_local_files {
-    # Those files are mounted into container when run locally
-    # .bash_history is preserved and you can modify .bash_aliases and .inputrc
-    # according to your liking
-    fix_local_file ".bash_history"
-    fix_local_file ".bash_aliases"
-    fix_local_file ".inputrc"
-    # When kind cluster is created, the folder keeps authentication information
-    # across sessiosn
-    mkdir -pv "${MY_DIR}/.kube"
-}
-
+# Prints cheatsheet if it is not suppressed
 function print_cheatsheet() {
     if [[ ! -f ${SUPPRESS_CHEATSHEET_FILE} && ${COMMAND_TO_RUN} == "enter_breeze" ]]; then
         echo
@@ -1505,7 +1874,7 @@ function print_cheatsheet() {
         echo "    * Run command in CI environment     : ${BUILD_CACHE_DIR}/${LAST_DC_RUN_CI_FILE} "\
                                                            "[command with args] [bash options]"
         echo "    * Run tests in CI environment       : ${BUILD_CACHE_DIR}/${LAST_DC_TEST_CI_FILE} "\
-                                                           "[test target] [nosetest options]"
+                                                           "[test target] [pytest options]"
         echo "    * Run docker-compose CI command     : ${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE} "\
                                                            "[docker compose command] [docker-compose options]"
         echo "    * Run docker-compose production cmd : ${BUILD_CACHE_DIR}/${LAST_DC_PROD_FILE} "\
@@ -1517,10 +1886,10 @@ function print_cheatsheet() {
             print_line
             echo
             echo " Adding breeze to your path:"
-            echo "    When you exit the environment, you can add sources of airflow to the path - you can"
+            echo "    When you exit the environment, you can add sources of Airflow to the path - you can"
             echo "    run breeze or the scripts above from any directory by calling 'breeze' commands directly"
             echo
-            echo "     export PATH=\${PATH}:\"${MY_DIR}\""
+            echo "     export PATH=\${PATH}:\"${AIRFLOW_SOURCES}\""
             echo
         fi
         set -e
@@ -1530,9 +1899,9 @@ function print_cheatsheet() {
         echo " Port forwarding:"
         echo
         echo "   Ports are forwarded to the running docker containers for webserver and database"
-        echo "     * ${WEBSERVER_HOST_PORT} -> forwarded to airflow webserver -> airflow:8080"
-        echo "     * ${POSTGRES_HOST_PORT} -> forwarded to postgres database -> postgres:5432"
-        echo "     * ${MYSQL_HOST_PORT} -> forwarded to mysql database  -> mysql:3306"
+        echo "     * ${WEBSERVER_HOST_PORT} -> forwarded to Airflow webserver -> airflow:8080"
+        echo "     * ${POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432"
+        echo "     * ${MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306"
         echo
         echo "   Here are links to those services that you can use on host:"
         echo "     * Webserver: http://127.0.0.1:28080"
@@ -1544,6 +1913,8 @@ function print_cheatsheet() {
     fi
 }
 
+# Prints setup instruction in case we find that autocomplete is not set
+# also prints how to toggle asciiart/cheatsheet
 function print_setup_instructions {
     if [[ ${COMMAND_TO_RUN} == "enter_breeze" ]] ; then
         # shellcheck disable=SC2034  # Unused variables left for comp_breeze usage
@@ -1568,6 +1939,8 @@ function print_setup_instructions {
     fi
 }
 
+# Checks that pre-commit is installed and upgrades it if needed
+# this is used in case static check command is used
 function make_sure_precommit_is_installed {
     echo
     echo "Making sure pre-commit is installed"
@@ -1588,12 +1961,15 @@ function make_sure_precommit_is_installed {
     export PATH="${PATH}":~/.local/bin
 }
 
+# Removes CI and PROD images and cleans up the flag that indicates that the image was already built
 function remove_images {
     docker rmi "${PYTHON_BASE_IMAGE}" || true
     docker rmi "${AIRFLOW_CI_IMAGE}" || true
+    docker rmi "${AIRFLOW_PROD_IMAGE}" || true
     rm -f "${BUILT_IMAGE_FLAG_FILE}"
 }
 
+# Runs chosen static checks
 function run_static_checks {
     if [[ ${STATIC_CHECK} == "all" ]]; then
         echo
@@ -1614,6 +1990,8 @@ function run_static_checks {
     fi
 }
 
+# Runs Build before a command - it will check and if needed rebuild necessary image, depending on the
+# command chosen
 function run_build_command {
     case "${COMMAND_TO_RUN}" in
         run_tests|run_docker_compose|run_in_bash)
@@ -1628,7 +2006,7 @@ function run_build_command {
                 rebuild_ci_image_if_needed
             fi
             ;;
-        build_docs|perform_static_checks|perform_generate_requirements)
+        build_docs|perform_static_checks|perform_generate_requirements|perform_prepare_backport_readme|perform_prepare_backport_packages|perform_push_image)
             prepare_ci_build
             rebuild_ci_image_if_needed
             ;;
@@ -1638,7 +2016,10 @@ function run_build_command {
                 build_prod_image
             else
                 prepare_ci_build
+                calculate_md5sum_for_all_files
                 build_ci_image
+                update_all_md5_files
+                build_ci_image_manifest
             fi
             ;;
         cleanup_image|run_exec)
@@ -1650,14 +2031,39 @@ function run_build_command {
             ;;
         perform_initialize_local_virtualenv|perform_setup_autocomplete)
             ;;
+        manage_kind_cluster)
+            if [[ ${KIND_CLUSTER_OPERATION} == "start" ]] ; then
+              echo "Starts KinD cluster"
+            elif [[ ${KIND_CLUSTER_OPERATION} == "stop" ]] ; then
+              echo "Stops KinD cluster"
+            elif [[ ${KIND_CLUSTER_OPERATION} == "restart" ]] ; then
+              echo "Restarts KinD cluster"
+            elif [[ ${KIND_CLUSTER_OPERATION} == "status" ]] ; then
+              echo "Checks status of KinD cluster"
+            elif [[ ${KIND_CLUSTER_OPERATION} == "deploy" ]] ; then
+              echo "Deploys Airflow to KinD cluster"
+            elif [[ ${KIND_CLUSTER_OPERATION} == "test" ]] ; then
+              echo "Run Kubernetes tests with the KinD cluster "
+            else
+              echo "ERROR: Unknown Kind Kubernetes cluster operation: '${KIND_CLUSTER_OPERATION}'"
+              echo
+              echo "Should be one of:"
+              echo "${FORMATTED_KIND_OPERATIONS}"
+              echo
+              exit 1
+            fi
+            ;;
         *)
           echo >&2
           echo >&2 "ERROR: Unknown command to run ${COMMAND_TO_RUN}"
           echo >&2
+          exit 1
           ;;
     esac
 }
 
+# Runs the actual command - depending on the command chosen it will use the right
+# Convenient script and run the right command with it
 function run_breeze_command {
     set -u
     case "${COMMAND_TO_RUN}" in
@@ -1669,7 +2075,7 @@ function run_breeze_command {
             fi
             ;;
         run_exec)
-            # Unfortunately docker-compose exec does not support execing into containers started with run :(
+            # Unfortunately docker-compose exec does not support exec'ing into containers started with run :(
             set +e
             if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
                 DC_FILE="${BUILD_CACHE_DIR}/${LAST_DC_PROD_FILE}"
@@ -1678,12 +2084,7 @@ function run_breeze_command {
             fi
             AIRFLOW_TESTING_CONTAINER=$("${DC_FILE}" ps | \
                     grep airflow | awk '{print $1}' 2>/dev/null)
-            if [[ -z ${AIRFLOW_TESTING_CONTAINER} ]]; then
-                echo
-                echo "ERROR! Breeze must be running in order to exec into running container"
-                echo
-                exit 1
-            fi
+              : "${AIRFLOW_TESTING_CONTAINER:?"ERROR! Breeze must be running in order to exec into running container"}"
             set -e
             docker exec -it "${AIRFLOW_TESTING_CONTAINER}" \
                 "/opt/airflow/scripts/ci/in_container/entrypoint_exec.sh"
@@ -1709,13 +2110,6 @@ function run_breeze_command {
             run_static_checks "$@"
             ;;
         build_image)
-            if [[ ${PUSH_IMAGES} == "true" ]]; then
-                if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-                    push_prod_images
-                else
-                    push_ci_image
-                fi
-            fi
             ;;
         cleanup_image)
             remove_images
@@ -1723,11 +2117,28 @@ function run_breeze_command {
         perform_generate_requirements)
             run_generate_requirements
             ;;
+        perform_prepare_backport_packages)
+            run_prepare_backport_packages "${@}"
+            ;;
+        perform_prepare_backport_readme)
+            run_prepare_backport_readme "${@}"
+            ;;
+        perform_push_image)
+            if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
+                push_prod_images
+            else
+                push_ci_image
+            fi
+            ;;
         perform_initialize_local_virtualenv)
             initialize_virtualenv
             ;;
         perform_setup_autocomplete)
             setup_autocomplete
+            ;;
+        manage_kind_cluster)
+            check_kind_and_kubectl_are_installed
+            perform_kind_cluster_operation "${KIND_CLUSTER_OPERATION}"
             ;;
         build_docs)
             run_docs
@@ -1765,7 +2176,7 @@ read_saved_environment_variables
 
 check_and_save_all_params
 
-touch_local_files
+sanitize_mounted_files
 
 prepare_command_files
 

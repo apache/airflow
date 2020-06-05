@@ -41,20 +41,21 @@ class SnowflakeHook(DbApiHook):
         self.region = kwargs.pop("region", None)
         self.role = kwargs.pop("role", None)
         self.schema = kwargs.pop("schema", None)
-        self.snowflake_conn_id = 'snowflake_conn_id'
+        self.authenticator = kwargs.pop("authenticator", None)
 
     def _get_conn_params(self):
         """
         one method to fetch connection params as a dict
         used in get_uri() and get_connection()
         """
-        conn = self.get_connection(self.snowflake_conn_id)
+        conn = self.get_connection(self.snowflake_conn_id)  # pylint: disable=no-member
         account = conn.extra_dejson.get('account', '')
         warehouse = conn.extra_dejson.get('warehouse', '')
         database = conn.extra_dejson.get('database', '')
         region = conn.extra_dejson.get("region", '')
         role = conn.extra_dejson.get('role', '')
         schema = conn.schema or ''
+        authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
 
         conn_config = {
             "user": conn.login,
@@ -64,8 +65,8 @@ class SnowflakeHook(DbApiHook):
             "account": self.account or account,
             "warehouse": self.warehouse or warehouse,
             "region": self.region or region,
-            "role": self.role or role
-
+            "role": self.role or role,
+            "authenticator": self.authenticator or authenticator
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
@@ -101,7 +102,7 @@ class SnowflakeHook(DbApiHook):
         """
         conn_config = self._get_conn_params()
         uri = 'snowflake://{user}:{password}@{account}/{database}/{schema}' \
-              '?warehouse={warehouse}&role={role}'
+              '?warehouse={warehouse}&role={role}&authenticator={authenticator}'
         return uri.format(**conn_config)
 
     def get_conn(self):
@@ -119,8 +120,8 @@ class SnowflakeHook(DbApiHook):
 
         intended to be used by external import and export statements
         """
-        if self.snowflake_conn_id:
-            connection_object = self.get_connection(self.snowflake_conn_id)
+        if self.snowflake_conn_id:  # pylint: disable=no-member
+            connection_object = self.get_connection(self.snowflake_conn_id)  # pylint: disable=no-member
             if 'aws_secret_access_key' in connection_object.extra_dejson:
                 aws_access_key_id = connection_object.extra_dejson.get(
                     'aws_access_key_id')

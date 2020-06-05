@@ -29,7 +29,7 @@ from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryA
 from airflow.utils.decorators import apply_defaults
 
 
-class GoogleApiToS3Transfer(BaseOperator):
+class GoogleApiToS3TransferOperator(BaseOperator):
     """
     Basic class for transferring data from a Google API endpoint into a S3 Bucket.
 

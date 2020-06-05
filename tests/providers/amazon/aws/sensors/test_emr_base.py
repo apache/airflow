@@ -110,7 +110,3 @@ class TestEmrBaseSensor(unittest.TestCase):
         self.assertIn('EMR job failed', str(context.exception))
         self.assertIn(EXPECTED_CODE, str(context.exception))
         self.assertNotIn(EMPTY_CODE, str(context.exception))
-
-
-if __name__ == '__main__':
-    unittest.main()

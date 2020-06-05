@@ -49,7 +49,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        app, _ = application.create_app(testing=True)
+        app = application.create_app(testing=True)
         self.app = app.test_client()
 
     def tearDown(self):
@@ -158,7 +158,3 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
             self.assertIsInstance(data, list)
             self.assertEqual(len(data), 0)
-
-
-if __name__ == '__main__':
-    unittest.main()

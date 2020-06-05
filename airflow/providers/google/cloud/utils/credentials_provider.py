@@ -45,7 +45,7 @@ def build_gcp_conn(
     project_id: Optional[str] = None,
 ) -> str:
     """
-    Builds a variable that can be used as ``AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`` with provided service key,
+    Builds a uri that can be used as :envvar:`AIRFLOW_CONN_{CONN_ID}` with provided service key,
     scopes and project id.
 
     :param key_file_path: Path to service key.
@@ -116,7 +116,7 @@ def provide_gcp_connection(
     project_id: Optional[str] = None,
 ):
     """
-    Context manager that provides a temporary value of AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT
+    Context manager that provides a temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`
     connection. It build a new connection that includes path to provided service json,
     required scopes and project id.
 
@@ -151,7 +151,7 @@ def provide_gcp_conn_and_credentials(
 
     - GCP credentials for application supporting `Application Default Credentials (ADC)
     strategy <https://cloud.google.com/docs/authentication/production>`__.
-    - temporary value of ``AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`` connection
+    - temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT` connection
 
     :param key_file_path: Path to file with GCP credentials .json file.
     :type key_file_path: str
@@ -241,7 +241,14 @@ def get_credentials_and_project_id(
         project_id = credentials.project_id
 
     if delegate_to:
-        credentials = credentials.with_subject(delegate_to)
+        if hasattr(credentials, 'with_subject'):
+            credentials = credentials.with_subject(delegate_to)
+        else:
+            raise AirflowException(
+                "The `delegate_to` parameter cannot be used here as the current "
+                "authentication method does not support account impersonate. "
+                "Please use service-account for authorization."
+            )
 
     return credentials, project_id
 

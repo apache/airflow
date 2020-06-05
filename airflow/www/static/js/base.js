@@ -39,6 +39,10 @@ function changDisplayedTimezone(tz) {
   localStorage.setItem('selected-timezone', tz);
   setDisplayedTimezone(tz);
   displayTime();
+  $('body').trigger({
+    type: 'airflow.timezone-change',
+    timezone: tz,
+  });
 }
 
 var el = document.createElement("span");

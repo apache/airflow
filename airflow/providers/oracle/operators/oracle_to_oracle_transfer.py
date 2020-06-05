@@ -21,7 +21,7 @@ from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.utils.decorators import apply_defaults
 
 
-class OracleToOracleTransfer(BaseOperator):
+class OracleToOracleTransferOperator(BaseOperator):
     """
     Moves data from Oracle to Oracle.
 

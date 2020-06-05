@@ -33,6 +33,7 @@ PROJECT_ID = "test_project_id"
 PIPELINE_NAME = "shrubberyPipeline"
 PIPELINE = {"test": "pipeline"}
 INSTANCE_URL = "http://datafusion.instance.com"
+RUNTIME_ARGS = {"arg1": "a", "arg2": "b"}
 
 # pylint: disable=redefined-outer-name
 
@@ -204,11 +205,16 @@ class TestDataFusionHook:
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_start_pipeline(self, mock_request, hook):
         mock_request.return_value.status = 200
-        hook.start_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
+        hook.start_pipeline(
+            pipeline_name=PIPELINE_NAME,
+            instance_url=INSTANCE_URL,
+            runtime_args=RUNTIME_ARGS
+        )
         mock_request.assert_called_once_with(
             url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/"
                 f"workflows/DataPipelineWorkflow/start",
             method="POST",
+            body=RUNTIME_ARGS
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))

@@ -50,6 +50,15 @@ def upgradedb(args):
     db.upgradedb()
 
 
+def check_migrations(args):
+    """
+    Function to wait for all airflow migrations to complete. Used for launching airflow in k8s
+    @param timeout:
+    @return:
+    """
+    db.check_migrations(timeout=args.migration_wait_timeout)
+
+
 @cli_utils.action_logging
 def shell(args):
     """Run a shell that allows to access metadata database"""

@@ -25,7 +25,7 @@ import mock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClient
+from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
 
 # Use dummy AWS credentials
 AWS_REGION = "eu-west-1"
@@ -43,16 +43,16 @@ class TestAwsBatchClient(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook")
-    def setUp(self, aws_hook_mock):
-        self.aws_hook_mock = aws_hook_mock
-        self.batch_client = AwsBatchClient(
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def setUp(self, get_client_type_mock):
+        self.get_client_type_mock = get_client_type_mock
+        self.batch_client = AwsBatchClientHook(
             max_retries=self.MAX_RETRIES,
             status_retries=self.STATUS_RETRIES,
-            aws_conn_id=None,
+            aws_conn_id='airflow_test',
             region_name=AWS_REGION,
         )
-        self.client_mock = self.aws_hook_mock.return_value.get_client_type.return_value
+        self.client_mock = get_client_type_mock.return_value
         self.assertEqual(self.batch_client.client, self.client_mock)  # setup client property
 
         # don't pause in these unit tests
@@ -65,12 +65,10 @@ class TestAwsBatchClient(unittest.TestCase):
         self.assertEqual(self.batch_client.max_retries, self.MAX_RETRIES)
         self.assertEqual(self.batch_client.status_retries, self.STATUS_RETRIES)
         self.assertEqual(self.batch_client.region_name, AWS_REGION)
-        self.assertEqual(self.batch_client.aws_conn_id, None)
-        self.assertEqual(self.batch_client.hook, self.aws_hook_mock.return_value)
+        self.assertEqual(self.batch_client.aws_conn_id, 'airflow_test')
         self.assertEqual(self.batch_client.client, self.client_mock)
 
-        self.aws_hook_mock.assert_called_once_with(aws_conn_id=None)
-        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with(
+        self.get_client_type_mock.assert_called_once_with(
             "batch", region_name=AWS_REGION
         )
 
@@ -255,13 +253,15 @@ class TestAwsBatchClientDelays(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     def setUp(self):
-        self.batch_client = AwsBatchClient(region_name=AWS_REGION)
+        self.batch_client = AwsBatchClientHook(
+            aws_conn_id='airflow_test',
+            region_name=AWS_REGION)
 
     def test_init(self):
         self.assertEqual(self.batch_client.max_retries, self.batch_client.MAX_RETRIES)
         self.assertEqual(self.batch_client.status_retries, self.batch_client.STATUS_RETRIES)
         self.assertEqual(self.batch_client.region_name, AWS_REGION)
-        self.assertEqual(self.batch_client.aws_conn_id, None)
+        self.assertEqual(self.batch_client.aws_conn_id, 'airflow_test')
 
     def test_add_jitter(self):
         minima = 0
@@ -273,12 +273,12 @@ class TestAwsBatchClientDelays(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.uniform")
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.sleep")
     def test_delay_defaults(self, mock_sleep, mock_uniform):
-        self.assertEqual(AwsBatchClient.DEFAULT_DELAY_MIN, 1)
-        self.assertEqual(AwsBatchClient.DEFAULT_DELAY_MAX, 10)
+        self.assertEqual(AwsBatchClientHook.DEFAULT_DELAY_MIN, 1)
+        self.assertEqual(AwsBatchClientHook.DEFAULT_DELAY_MAX, 10)
         mock_uniform.return_value = 0
         self.batch_client.delay()
         mock_uniform.assert_called_once_with(
-            AwsBatchClient.DEFAULT_DELAY_MIN, AwsBatchClient.DEFAULT_DELAY_MAX
+            AwsBatchClientHook.DEFAULT_DELAY_MIN, AwsBatchClientHook.DEFAULT_DELAY_MAX
         )
         mock_sleep.assert_called_once_with(0)
 
@@ -322,7 +322,3 @@ class TestAwsBatchClientDelays(unittest.TestCase):
         result = self.batch_client.exponential_delay(tries)
         self.assertGreaterEqual(result, lower)
         self.assertLessEqual(result, upper)
-
-
-if __name__ == "__main__":
-    unittest.main()

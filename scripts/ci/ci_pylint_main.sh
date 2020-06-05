@@ -49,9 +49,11 @@ function run_pylint_main() {
     fi
 }
 
+get_ci_environment
+
 prepare_ci_build
 
-rebuild_ci_image_if_needed
+# rebuild_ci_image_if_needed
 
 if [[ "${#@}" != "0" ]]; then
     filter_out_files_from_pylint_todo_list "$@"

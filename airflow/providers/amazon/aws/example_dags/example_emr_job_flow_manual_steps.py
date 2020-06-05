@@ -39,7 +39,7 @@ DEFAULT_ARGS = {
     'email_on_retry': False
 }
 
-SPARK_TEST_STEPS = [
+SPARK_STEPS = [
     {
         'Name': 'calculate_pi',
         'ActionOnFailure': 'CONTINUE',
@@ -55,7 +55,23 @@ SPARK_TEST_STEPS = [
 ]
 
 JOB_FLOW_OVERRIDES = {
-    'Name': 'PiCalc'
+    'Name': 'PiCalc',
+    'ReleaseLabel': 'emr-5.29.0',
+    'Instances': {
+        'InstanceGroups': [
+            {
+                'Name': 'Master node',
+                'Market': 'SPOT',
+                'InstanceRole': 'MASTER',
+                'InstanceType': 'm1.medium',
+                'InstanceCount': 1,
+            }
+        ],
+        'KeepJobFlowAliveWhenNoSteps': True,
+        'TerminationProtected': False,
+    },
+    'JobFlowRole': 'EMR_EC2_DefaultRole',
+    'ServiceRole': 'EMR_DefaultRole',
 }
 
 with DAG(
@@ -66,6 +82,7 @@ with DAG(
     tags=['example'],
 ) as dag:
 
+    # [START howto_operator_emr_manual_steps_tasks]
     cluster_creator = EmrCreateJobFlowOperator(
         task_id='create_job_flow',
         job_flow_overrides=JOB_FLOW_OVERRIDES,
@@ -77,7 +94,7 @@ with DAG(
         task_id='add_steps',
         job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
         aws_conn_id='aws_default',
-        steps=SPARK_TEST_STEPS
+        steps=SPARK_STEPS
     )
 
     step_checker = EmrStepSensor(
@@ -94,3 +111,4 @@ with DAG(
     )
 
     cluster_creator >> step_adder >> step_checker >> cluster_remover
+    # [END howto_operator_emr_manual_steps_tasks]

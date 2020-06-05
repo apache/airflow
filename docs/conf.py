@@ -195,6 +195,7 @@ exclude_patterns: List[str] = [
     '_api/airflow/providers/index.rst',
     # Packages with subpackages
     "_api/airflow/providers/amazon/index.rst",
+    "_api/airflow/providers/facebook/index.rst",
     "_api/airflow/providers/microsoft/index.rst",
     "_api/airflow/providers/google/index.rst",
     "_api/airflow/providers/apache/index.rst",
@@ -210,9 +211,13 @@ exclude_patterns: List[str] = [
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 
 # Generate top-level
+
+# do not exclude these top-level modules from the doc build:
+allowed_top_level = ("exceptions.py",)
+
 for path in glob(f"{ROOT_DIR}/airflow/*"):
     name = os.path.basename(path)
-    if os.path.isfile(path):
+    if os.path.isfile(path) and not path.endswith(allowed_top_level):
         exclude_patterns.append(f"_api/airflow/{name.rpartition('.')[0]}")
     browsable_packages = ["operators", "hooks", "sensors", "providers", "executors", "models", "secrets"]
     if os.path.isdir(path) and name not in browsable_packages:
@@ -266,13 +271,16 @@ keep_warnings = True
 
 intersphinx_mapping = {
     'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
+    'celery': ('https://docs.celeryproject.org/en/stable/', None),
+    'hdfs': ('https://hdfscli.readthedocs.io/en/latest/', None),
+    'jinja2': ('https://jinja.palletsprojects.com/en/master/', None),
     'mongodb': ('https://api.mongodb.com/python/current/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'python': ('https://docs.python.org/3/', None),
     'requests': ('https://requests.readthedocs.io/en/master/', None),
     'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
-    'hdfs': ('https://hdfscli.readthedocs.io/en/latest/', None),
-    # google-cloud-python
+    # google-api
+    'google-api-core': ('https://googleapis.dev/python/google-api-core/latest', None),
     'google-cloud-automl': ('https://googleapis.dev/python/automl/latest', None),
     'google-cloud-bigquery': ('https://googleapis.dev/python/bigquery/latest', None),
     'google-cloud-bigquery-datatransfer': ('https://googleapis.dev/python/bigquerydatatransfer/latest', None),

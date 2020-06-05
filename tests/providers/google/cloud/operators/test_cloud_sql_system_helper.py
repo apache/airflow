@@ -375,7 +375,7 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
             try:
                 os.makedirs(os.path.dirname(filepath))
             except OSError as exc:  # Guard against race condition
-                self.log.info("Error while creating dir.")
+                self.log.error("Error while creating dir.")
                 if exc.errno != errno.EEXIST:
                     raise
         self.log.info("... Done. Dir created.")

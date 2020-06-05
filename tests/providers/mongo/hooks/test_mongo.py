@@ -290,7 +290,3 @@ class TestMongoHook(unittest.TestCase):
             self.assertIsNotNone(ctx_hook.client)
 
         self.assertIsNone(ctx_hook.client)
-
-
-if __name__ == '__main__':
-    unittest.main()

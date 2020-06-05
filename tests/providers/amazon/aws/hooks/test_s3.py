@@ -16,15 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import gzip as gz
+import os
 import tempfile
 from unittest.mock import Mock
 
 import boto3
 import mock
 import pytest
-from botocore.exceptions import NoCredentialsError
+from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -277,25 +277,27 @@ class TestAwsS3Hook:
 
     def test_load_file_gzip(self, s3_bucket):
         hook = S3Hook()
-        with tempfile.NamedTemporaryFile() as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_file.write(b"Content")
             temp_file.seek(0)
-            hook.load_file(temp_file, "my_key", s3_bucket, gzip=True)
+            hook.load_file(temp_file.name, "my_key", s3_bucket, gzip=True)
             resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
             assert gz.decompress(resource.get()['Body'].read()) == b'Content'
+            os.unlink(temp_file.name)
 
     def test_load_file_acl(self, s3_bucket):
         hook = S3Hook()
-        with tempfile.NamedTemporaryFile() as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_file.write(b"Content")
             temp_file.seek(0)
-            hook.load_file(temp_file, "my_key", s3_bucket, gzip=True,
+            hook.load_file(temp_file.name, "my_key", s3_bucket, gzip=True,
                            acl_policy='public-read')
             response = boto3.client('s3').get_object_acl(Bucket=s3_bucket,
                                                          Key="my_key",
                                                          RequestPayer='requester')  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
             assert ((response['Grants'][1]['Permission'] == 'READ') and
                     (response['Grants'][0]['Permission'] == 'FULL_CONTROL'))
+            os.unlink(temp_file.name)
 
     def test_copy_object_acl(self, s3_bucket):
         hook = S3Hook()
@@ -309,6 +311,24 @@ class TestAwsS3Hook:
                                                          RequestPayer='requester')  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
             assert ((response['Grants'][0]['Permission'] == 'FULL_CONTROL') and
                     (len(response['Grants']) == 1))
+
+    @mock_s3
+    def test_delete_bucket_if_bucket_exist(self, s3_bucket):
+        # assert if the bucket is created
+        mock_hook = S3Hook()
+        mock_hook.create_bucket(bucket_name=s3_bucket)
+        assert mock_hook.check_for_bucket(bucket_name=s3_bucket)
+        mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
+        assert not mock_hook.check_for_bucket(s3_bucket)
+
+    @mock_s3
+    def test_delete_bucket_if_not_bucket_exist(self, s3_bucket):
+        # assert if exception is raised if bucket not present
+        mock_hook = S3Hook()
+        with pytest.raises(ClientError) as error:
+            # assert error
+            assert mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
+        assert error.value.response['Error']['Code'] == 'NoSuchBucket'
 
     @mock.patch.object(S3Hook, 'get_connection', return_value=Connection(schema='test_bucket'))
     def test_provide_bucket_name(self, mock_get_connection):
@@ -399,3 +419,15 @@ class TestAwsS3Hook:
         s3_hook.check_for_key.assert_called_once_with(key, bucket)
         s3_hook.get_key.assert_called_once_with(key, bucket)
         s3_obj.download_fileobj.assert_called_once_with(mock_temp_file)
+
+    def test_generate_presigned_url(self, s3_bucket):
+        hook = S3Hook()
+        presigned_url = hook.generate_presigned_url(client_method="get_object",
+                                                    params={'Bucket': s3_bucket,
+                                                            'Key': "my_key"})
+
+        url = presigned_url.split("?")[1]
+        params = {x[0]: x[1]
+                  for x in [x.split("=") for x in url[0:].split("&")]}
+
+        assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))

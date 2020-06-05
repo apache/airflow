@@ -71,7 +71,7 @@ class DatastoreHook(GoogleBaseHook):
         return self.connection
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def allocate_ids(self, partial_keys: List, project_id: Optional[str] = None) -> List:
+    def allocate_ids(self, partial_keys: List, project_id: str) -> List:
         """
         Allocate IDs for incomplete keys.
 
@@ -95,7 +95,7 @@ class DatastoreHook(GoogleBaseHook):
         return resp['keys']
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def begin_transaction(self, project_id: Optional[str] = None) -> str:
+    def begin_transaction(self, project_id: str) -> str:
         """
         Begins a new transaction.
 
@@ -117,7 +117,7 @@ class DatastoreHook(GoogleBaseHook):
         return resp['transaction']
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def commit(self, body: Dict, project_id: Optional[str] = None) -> Dict:
+    def commit(self, body: Dict, project_id: str) -> Dict:
         """
         Commit a transaction, optionally creating, deleting or modifying some entities.
 
@@ -141,11 +141,13 @@ class DatastoreHook(GoogleBaseHook):
         return resp
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def lookup(self,
-               keys: List,
-               read_consistency: Optional[str] = None,
-               transaction: Optional[str] = None,
-               project_id: Optional[str] = None) -> Dict:
+    def lookup(
+        self,
+        keys: List,
+        project_id: str,
+        read_consistency: Optional[str] = None,
+        transaction: Optional[str] = None,
+    ) -> Dict:
         """
         Lookup some entities by key.
 
@@ -179,7 +181,7 @@ class DatastoreHook(GoogleBaseHook):
         return resp
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def rollback(self, transaction: str, project_id: Optional[str] = None) -> Any:
+    def rollback(self, transaction: str, project_id: str) -> Any:
         """
         Roll back a transaction.
 
@@ -198,7 +200,7 @@ class DatastoreHook(GoogleBaseHook):
         ).execute(num_retries=self.num_retries)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def run_query(self, body: Dict, project_id: Optional[str] = None) -> Dict:
+    def run_query(self, body: Dict, project_id: str) -> Dict:
         """
         Run a query for entities.
 
@@ -289,12 +291,14 @@ class DatastoreHook(GoogleBaseHook):
                 return result
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def export_to_storage_bucket(self,
-                                 bucket: str,
-                                 namespace: Optional[str] = None,
-                                 entity_filter: Optional[Dict] = None,
-                                 labels: Optional[Dict[str, str]] = None,
-                                 project_id: Optional[str] = None) -> Dict:
+    def export_to_storage_bucket(
+            self,
+            bucket: str,
+            project_id: str,
+            namespace: Optional[str] = None,
+            entity_filter: Optional[Dict] = None,
+            labels: Optional[Dict[str, str]] = None,
+    ) -> Dict:
         """
         Export entities from Cloud Datastore to Cloud Storage for backup.
 
@@ -337,13 +341,15 @@ class DatastoreHook(GoogleBaseHook):
         return resp
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def import_from_storage_bucket(self,
-                                   bucket: str,
-                                   file: str,
-                                   namespace: Optional[str] = None,
-                                   entity_filter: Optional[Dict] = None,
-                                   labels: Optional[Union[Dict, str]] = None,
-                                   project_id: Optional[str] = None) -> Dict:
+    def import_from_storage_bucket(
+            self,
+            bucket: str,
+            file: str,
+            project_id: str,
+            namespace: Optional[str] = None,
+            entity_filter: Optional[Dict] = None,
+            labels: Optional[Union[Dict, str]] = None,
+    ) -> Dict:
         """
         Import a backup from Cloud Storage to Cloud Datastore.
 

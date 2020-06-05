@@ -28,7 +28,7 @@ from airflow.providers.vertica.hooks.vertica import VerticaHook
 from airflow.utils.decorators import apply_defaults
 
 
-class VerticaToMySqlTransfer(BaseOperator):
+class VerticaToMySqlTransferOperator(BaseOperator):
     """
     Moves data from Vertica to MySQL.
 

@@ -77,7 +77,3 @@ class TestSageMakerEndpointConfigOperator(unittest.TestCase):
             }
         }
         self.assertRaises(AirflowException, self.sagemaker.execute, None)
-
-
-if __name__ == '__main__':
-    unittest.main()

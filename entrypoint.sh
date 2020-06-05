@@ -24,8 +24,8 @@ set -euo pipefail
 function verify_db_connection {
     DB_URL="${1}"
 
-    DB_CHECK_MAX_COUNT=${MAX_DB_CHECK_COUNT:=10}
-    DB_CHECK_SLEEP_TIME=${DB_CHECK_SLEEP_TIME:=2}
+    DB_CHECK_MAX_COUNT=${MAX_DB_CHECK_COUNT:=20}
+    DB_CHECK_SLEEP_TIME=${DB_CHECK_SLEEP_TIME:=3}
 
     local DETECTED_DB_BACKEND=""
     local DETECTED_DB_HOST=""
@@ -81,7 +81,7 @@ function verify_db_connection {
             fi
         done
         if [[ ${RES} != 0 ]]; then
-            echo "        ERROR: ${BACKEND} db could not be reached!"
+            echo "        ERROR: ${DB_URL} db could not be reached!"
             echo
             echo "${LAST_CHECK_RESULT}"
             echo
@@ -102,7 +102,7 @@ if [[ -n ${AIRFLOW__CELERY__BROKER_URL} ]] && \
     verify_db_connection "${AIRFLOW__CELERY__BROKER_URL}"
 fi
 
-if [[ ${AIRFLOW_COMMAND} == "" ]]; then
+if [[ ${AIRFLOW_COMMAND} == "bash" ]]; then
    exec "/bin/bash"
 fi
 

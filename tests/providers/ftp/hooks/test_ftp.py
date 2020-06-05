@@ -164,7 +164,3 @@ class TestIntegrationFTPHook(unittest.TestCase):
     def test_ftps_active_mode(self, mock_ftp):
         from airflow.providers.ftp.hooks.ftp import FTPSHook
         self._test_mode(FTPSHook, "ftp_active", False)
-
-
-if __name__ == '__main__':
-    unittest.main()
