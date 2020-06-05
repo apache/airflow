@@ -18,8 +18,11 @@
 # TODO(mik-laj): We have to implement it.
 #     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8129
 
+from flask import request
+
+from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
-from airflow.api_connexion.schemas.dagrun_schema import dagrun_schema
+from airflow.api_connexion.schemas.dagrun_schema import dagrun_collection_schema, dagrun_schema
 from airflow.models import DagRun
 from airflow.utils.session import provide_session
 
@@ -45,11 +48,66 @@ def get_dag_run(dag_id, dag_run_id, session):
     return dagrun_schema.dump(dag_run)
 
 
-def get_dag_runs():
+@provide_session
+def get_dag_runs(dag_id, session):
     """
     Get all DAG Runs.
     """
-    raise NotImplementedError("Not implemented yet.")
+    offset = request.args.get(parameters.page_offset, 0)
+    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
+    start_date_gte = request.args.get(parameters.filter_start_date_gte, None)
+    start_date_lte = request.args.get(parameters.filter_start_date_lte, None)
+    execution_date_gte = request.args.get(parameters.filter_execution_date_gte, None)
+    execution_date_lte = request.args.get(parameters.filter_execution_date_lte, None)
+    end_date_gte = request.args.get(parameters.filter_end_date_gte, None)
+    end_date_lte = request.args.get(parameters.filter_end_date_lte, None)
+
+    query = session.query(DagRun)
+
+    #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
+    if dag_id == '~':
+        dag_run = query.all()
+        return dagrun_collection_schema.dump(dag_run)
+
+    query = query.filter(DagRun.dag_id == dag_id)
+
+    # filter start date
+    if start_date_gte and start_date_lte:
+        query = query.filter(DagRun.start_date <= start_date_lte,
+                             DagRun.start_date >= start_date_gte)
+
+    elif start_date_gte and not start_date_lte:
+        query = query.filter(DagRun.start_date >= start_date_gte)
+
+    elif start_date_lte and not start_date_gte:
+        query = query.filter(DagRun.start_date <= start_date_lte)
+
+    # filter execution date
+    if execution_date_gte and execution_date_lte:
+        query = query.filter(DagRun.execution_date <= execution_date_lte,
+                             DagRun.execution_date >= execution_date_gte)
+
+    elif execution_date_gte and not execution_date_lte:
+        query = query.filter(DagRun.execution_date >= execution_date_gte)
+
+    elif execution_date_lte and not execution_date_gte:
+        query = query.filter(DagRun.execution_date <= execution_date_lte)
+
+    # filter end date
+    if end_date_gte and end_date_lte:
+        query = query.filter(DagRun.end_date <= end_date_lte,
+                             DagRun.end_date >= end_date_gte)
+
+    elif end_date_gte and not end_date_lte:
+        query = query.filter(DagRun.end_date >= end_date_gte)
+
+    elif end_date_lte and not end_date_gte:
+        query = query.filter(DagRun.end_date <= end_date_lte)
+
+    # apply offset and limit
+    dag_run = query.offset(offset).limit(limit)
+
+    return dagrun_collection_schema.dump(dag_run)
 
 
 def get_dag_runs_batch():

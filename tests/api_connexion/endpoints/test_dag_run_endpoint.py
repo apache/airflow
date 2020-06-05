@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from datetime import timedelta
 
 import pytest
 
@@ -95,10 +96,114 @@ class TestGetDagRun(TestDagRunEndpoint):
 
 
 class TestGetDagRuns(TestDagRunEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.get("/dags/TEST_DAG_ID/dagRuns/")
+
+    @provide_session
+    def test_should_response_200(self, session):
+        dagrun_model_1 = DagRun(
+            dag_id='TEST_DAG_ID',
+            run_id='TEST_DAG_RUN_ID_1',
+            run_type=DagRunType.MANUAL.value,
+            execution_date=self.now,
+            start_date=self.now,
+            external_trigger=True,
+        )
+        dagrun_model_2 = DagRun(
+            dag_id='TEST_DAG_ID',
+            run_id='TEST_DAG_RUN_ID_2',
+            run_type=DagRunType.MANUAL.value,
+            execution_date=self.now + timedelta(minutes=1),
+            start_date=self.now,
+            external_trigger=True,
+        )
+        session.add_all([dagrun_model_1, dagrun_model_2])
+        session.commit()
+        result = session.query(DagRun).all()
+        assert len(result) == 2
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns")
         assert response.status_code == 200
+        self.assertEqual(
+            response.json,
+            {
+                "dag_runs": [
+                    {
+                        'dag_id': 'TEST_DAG_ID',
+                        'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                        'end_date': '',
+                        'state': 'running',
+                        'execution_date': self.now.isoformat(),
+                        'external_trigger': True,
+                        'start_date': self.now.isoformat(),
+                        'conf': {},
+                    },
+                    {
+                        'dag_id': 'TEST_DAG_ID',
+                        'dag_run_id': 'TEST_DAG_RUN_ID_2',
+                        'end_date': '',
+                        'state': 'running',
+                        'execution_date': (self.now + timedelta(minutes=1)).isoformat(),
+                        'external_trigger': True,
+                        'start_date': self.now.isoformat(),
+                        'conf': {},
+                    }
+                ],
+                "total_entries": 2
+            }
+        )
+
+    @provide_session
+    def test_should_return_all_with_approx_char_as_dag_id(self, session):
+        dagrun_model_1 = DagRun(
+            dag_id='TEST_DAG_ID',
+            run_id='TEST_DAG_RUN_ID_1',
+            run_type=DagRunType.MANUAL.value,
+            execution_date=self.now,
+            start_date=self.now,
+            external_trigger=True,
+        )
+        dagrun_model_2 = DagRun(
+            dag_id='TEST_DAG_ID',
+            run_id='TEST_DAG_RUN_ID_2',
+            run_type=DagRunType.MANUAL.value,
+            execution_date=self.now + timedelta(minutes=1),
+            start_date=self.now,
+            external_trigger=True,
+        )
+        session.add_all([dagrun_model_1, dagrun_model_2])
+        session.commit()
+        result = session.query(DagRun).all()
+        assert len(result) == 2
+        response = self.client.get("api/v1/dags/~/dagRuns")
+        assert response.status_code == 200
+        self.assertEqual(
+            response.json,
+            {
+                "dag_runs": [
+                    {
+                        'dag_id': 'TEST_DAG_ID',
+                        'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                        'end_date': '',
+                        'state': 'running',
+                        'execution_date': self.now.isoformat(),
+                        'external_trigger': True,
+                        'start_date': self.now.isoformat(),
+                        'conf': {},
+                    },
+                    {
+                        'dag_id': 'TEST_DAG_ID',
+                        'dag_run_id': 'TEST_DAG_RUN_ID_2',
+                        'end_date': '',
+                        'state': 'running',
+                        'execution_date': (self.now + timedelta(minutes=1)).isoformat(),
+                        'external_trigger': True,
+                        'start_date': self.now.isoformat(),
+                        'conf': {},
+                    }
+                ],
+                "total_entries": 2
+            }
+        )
+        #  TODO: add tests for pagination and filters
+        #  TODO: Handle repeated model add codes
 
 
 class TestPatchDagRun(TestDagRunEndpoint):
