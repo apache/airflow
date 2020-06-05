@@ -44,9 +44,10 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         return build('deploymentmanager', 'v2', http=http_authorized, cache_discovery=False)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def list_deployments(self, project_id: str,  # pylint: disable=too-many-arguments
+    def list_deployments(self, project_id: Optional[str] = None,  # pylint: disable=too-many-arguments
                          deployment_filter: Optional[str] = None,
-                         max_results: Optional[int] = None, order_by: Optional[str] = None,
+                         max_results: Optional[int] = None,
+                         order_by: Optional[str] = None,
                          page_token: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Lists deployments in a google cloud project.
@@ -77,7 +78,10 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         return deployments
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_deployment(self, project_id: str, deployment: str, delete_policy: str = "DELETE"):
+    def delete_deployment(self,
+                          project_id: Optional[str],
+                          deployment: Optional[str] = None,
+                          delete_policy: Optional[str] = "DELETE"):
         """
         Deletes a deployment and all associated resources in a google cloud project.
 

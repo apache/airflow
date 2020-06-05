@@ -44,7 +44,7 @@ class TestDeploymentManagerHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
     def test_list_deployments(self, mock_get_conn):
-        _ = self.gdm_hook.list_deployments(TEST_PROJECT)
+        _ = self.gdm_hook.list_deployments(project_id=TEST_PROJECT)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.deployments().list.assert_called_once_with(
             project=TEST_PROJECT,
@@ -56,7 +56,7 @@ class TestDeploymentManagerHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
     def test_list_deployments_with_params(self, mock_get_conn):
-        _ = self.gdm_hook.list_deployments(TEST_PROJECT, deployment_filter=FILTER,
+        _ = self.gdm_hook.list_deployments(project_id=TEST_PROJECT, deployment_filter=FILTER,
                                            max_results=MAX_RESULTS, order_by=ORDER_BY)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.deployments().list.assert_called_once_with(
@@ -69,7 +69,7 @@ class TestDeploymentManagerHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
     def test_delete_deployment(self, mock_get_conn):
-        self.gdm_hook.delete_deployment(TEST_PROJECT, TEST_DEPLOYMENT)
+        self.gdm_hook.delete_deployment(project_id=TEST_PROJECT, deployment=TEST_DEPLOYMENT)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.deployments().delete.assert_called_once_with(
             project=TEST_PROJECT,
