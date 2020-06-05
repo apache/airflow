@@ -446,9 +446,15 @@ class CustomSQLAInterface(SQLAInterface):
 
     def is_tasktag(self, col_name):
         if col_name in self.list_properties and self.is_relation(col_name):
-            cls = self.list_properties[col_name].mapper.class_
+            cls = self.get_related_model(col_name)
             return cls is TaskTag
         return False
+
+    def get_col_default(self, col_name):
+        if self.is_tasktag(col_name):
+            return None
+        else:
+            return super().get_col_default(col_name)
 
     filter_converter_class = UtcAwareFilterConverter
 
