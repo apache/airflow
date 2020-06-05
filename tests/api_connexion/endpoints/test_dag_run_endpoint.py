@@ -18,7 +18,12 @@ import unittest
 
 import pytest
 
+from airflow.models import DagRun
+from airflow.utils import timezone
+from airflow.utils.session import provide_session
+from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.db import clear_db_runs
 
 
 class TestDagRunEndpoint(unittest.TestCase):
@@ -29,20 +34,64 @@ class TestDagRunEndpoint(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
+        self.now = timezone.utcnow()
+        clear_db_runs()
+
+    def tearDown(self) -> None:
+        clear_db_runs()
 
 
 class TestDeleteDagRun(TestDagRunEndpoint):
     @pytest.mark.skip(reason="Not implemented yet")
     def test_should_response_200(self):
-        response = self.client.delete("/dags/TEST_DAG_ID}/dagRuns/TEST_DAG_RUN_ID")
+        response = self.client.delete("api/v1/dags/TEST_DAG_ID}/dagRuns/TEST_DAG_RUN_ID")
         assert response.status_code == 204
 
 
 class TestGetDagRun(TestDagRunEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID")
+
+    @provide_session
+    def test_should_response_200(self, session):
+        dagrun_model = DagRun(
+            dag_id='TEST_DAG_ID',
+            run_id='TEST_DAG_RUN_ID',
+            run_type=DagRunType.MANUAL.value,
+            execution_date=self.now,
+            start_date=self.now,
+            external_trigger=True,
+        )
+        session.add(dagrun_model)
+        session.commit()
+        result = session.query(DagRun).all()
+        assert len(result) == 1
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID")
         assert response.status_code == 200
+        self.assertEqual(
+            response.json,
+            {
+                'dag_id': 'TEST_DAG_ID',
+                'dag_run_id': 'TEST_DAG_RUN_ID',
+                'end_date': '',
+                'state': 'running',
+                'execution_date': self.now.isoformat(),
+                'external_trigger': True,
+                'start_date': self.now.isoformat(),
+                'conf': {},
+            }
+        )
+
+    def test_should_response_404(self):
+        response = self.client.get("api/v1/dags/invalid-id/dagRuns/invalid-id")
+        assert response.status_code == 404
+        self.assertEqual(
+            {
+                'detail': None,
+                'status': 404,
+                'title': 'DAGRun not found',
+                'type': 'about:blank'
+            },
+            response.json
+        )
 
 
 class TestGetDagRuns(TestDagRunEndpoint):
