@@ -205,7 +205,7 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
   - python3
   - -c
   - |
-        from airfflow import settings
+        from airflow import settings
         from alembic.runtime.migration import MigrationContext
         from alembic.script import ScriptDirectory
 
