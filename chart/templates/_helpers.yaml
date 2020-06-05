@@ -201,16 +201,27 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
 {{- end }}
 
 {{ define "wait-for-migrations-command" }}
-  # From Airflow 2.0.0 this can become [airflow, db, check-migrations]
+  {{/* From Airflow 2.0.0 this can become [airflow, db, check-migrations] */}}
   - python3
   - -c
   - |
-        from airflow import settings
+        import importlib
+        import os
+        import time
+
+        from alembic.config import Config
         from alembic.runtime.migration import MigrationContext
         from alembic.script import ScriptDirectory
 
-        config = _get_alembic_config()
+        from airflow import settings
+
+        package_dir = os.path.dirname(importlib.util.find_spec('airflow').origin)
+        directory = os.path.join(package_dir, 'migrations')
+        config = Config(os.path.join(package_dir, 'alembic.ini'))
+        config.set_main_option('script_location', directory)
+        config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN)
         script_ = ScriptDirectory.from_config(config)
+
         timeout=60
 
         with settings.engine.connect() as connection:
