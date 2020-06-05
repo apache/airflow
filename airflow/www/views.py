@@ -2703,6 +2703,8 @@ class TaskInstanceModelView(AirflowModelView):
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
+    search_form = wwwutils.TaskTagModelConverter.create_form(inc_columns=search_columns)
+
     def log_url_formatter(attr):
         log_url = attr.get('log_url')
         return Markup(

@@ -23,7 +23,8 @@ import markdown
 import sqlalchemy as sqla
 from flask import Markup, Response, request, url_for
 from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
-from flask_appbuilder.forms import FieldConverter
+<<<<<<< HEAD
+from flask_appbuilder.forms import GeneralModelConverter, FieldConverter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
@@ -32,12 +33,7 @@ from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 
 from airflow.configuration import conf
-<<<<<<< HEAD
-=======
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskTag
-from airflow.operators.subdag_operator import SubDagOperator
->>>>>>> Move filters to utils and add check for task tags in UtcAwareFilterConverter
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
@@ -456,6 +452,31 @@ class CustomSQLAInterface(SQLAInterface):
         return False
 
     filter_converter_class = UtcAwareFilterConverter
+
+
+class TaskTagModelConverter(GeneralModelConverter):
+
+    def _convert_col(
+        self,
+        col_name,
+        label,
+        description,
+        lst_validators,
+        filter_rel_fields,
+        form_props,
+    ):
+        if self.datamodel.is_tasktag(col_name):
+            return self._convert_simple(
+                col_name, label, description, lst_validators, form_props
+            )
+        else:
+            return super(TaskTagModelConverter, self)._convert_col(
+                col_name=col_name,
+                label=label,
+                description=description,
+                lst_validators=lst_validators,
+                filter_rel_fields=filter_rel_fields,
+                form_props=form_props)
 
 
 # This class is used directly (i.e. we cant tell Fab to use a different
