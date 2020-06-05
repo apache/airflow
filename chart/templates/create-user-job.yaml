@@ -55,8 +55,11 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args:
-            - "airflow"
-            - "create_user"
+            - "sh"
+            - "-c"
+            # Support running against 1.10.x and 2.0.0dev/master
+            - 'airflow create_user "$@" || airflow users create "$@"'
+            - --
             - "-r"
             - {{ .Values.webserver.defaultUser.role }}
             - "-u"
