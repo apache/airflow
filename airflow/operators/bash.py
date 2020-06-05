@@ -30,7 +30,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class BashOperator(BaseOperator):
-    """
+    r"""
     Execute a Bash script, command or set of commands.
 
     .. seealso::
