@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+docker pull gcr.io/google.com/cloudsdktool/cloud-sdk:latest
