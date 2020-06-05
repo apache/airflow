@@ -68,7 +68,7 @@ spec:
         - name: flower
           image: {{ template "flower_image" . }}
           imagePullPolicy: {{ .Values.images.flower.pullPolicy }}
-          args: ["airflow", "flower"]
+          args: ["flower"]
           resources:
 {{ toYaml .Values.flower.resources | indent 12 }}
           volumeMounts:

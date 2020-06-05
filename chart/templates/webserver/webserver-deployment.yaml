@@ -85,7 +85,7 @@ spec:
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["airflow", "webserver"]
+          args: ["webserver"]
           resources:
 {{ toYaml .Values.webserver.resources | indent 12 }}
           volumeMounts:

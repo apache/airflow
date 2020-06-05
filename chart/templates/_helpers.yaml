@@ -95,7 +95,7 @@
 
 # This helper will change when customers deploy a new image.
 {{ define "airflow_image" -}}
-{{ printf "%s:%s" .Values.images.airflow.repository (default .Values.defaultAirflowTag .Values.images.airflow.tag) }}
+{{ printf "%s:%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.airflow.tag | default .Values.defaultAirflowTag) }}
 {{- end }}
 
 # This helper is used for airflow containers that do not need the users code.
@@ -104,7 +104,7 @@
 {{- end }}
 
 {{ define "flower_image" -}}
-{{ printf "%s:%s" .Values.images.airflow.repository (default .Values.defaultAirflowTag .Values.images.airflow.tag) }}
+{{ printf "%s:%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.airflow.tag | default .Values.defaultAirflowTag) }}
 {{- end }}
 
 {{ define "statsd_image" -}}
@@ -202,7 +202,7 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
 
 {{ define "wait-for-migrations-command" }}
   {{/* From Airflow 2.0.0 this can become [airflow, db, check-migrations] */}}
-  - python3
+  - python
   - -c
   - |
         import importlib

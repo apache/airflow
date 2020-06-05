@@ -20,8 +20,19 @@
 # Declare variables to be passed into your templates.
 
 # User and group of airflow user
-uid: 100
-gid: 101
+uid: 50000
+gid: 50000
+
+# Airflow home directory
+# Used for mount paths
+airflowHome: "/opt/airflow"
+
+# Default airflow repository -- overrides all the specific images below
+defaultAirflowRepository: apache/airflow
+
+# Default airflow tag to deploy
+defaultAirflowTag: 1.10.10-1-python3.6
+
 
 # Select certain nodes for airflow pods.
 nodeSelector: {}
@@ -36,9 +47,6 @@ networkPolicies:
   # Enabled network policies
   enabled: false
 
-# Airflow home directory
-# Used for mount paths
-airflowHome: "/usr/local/airflow"
 
 # Extra annotations to apply to all
 # Airflow pods
@@ -56,20 +64,14 @@ executor: "KubernetesExecutor"
 # If this is true and using the CeleryExecutor, the workers will be able to launch pods.
 allowPodLaunching: true
 
-# Default airflow repository
-defaultAirflowRepository: astronomerinc/ap-airflow
-
-# Default airflow tag to deploy
-defaultAirflowTag: 1.10.10-buster
-
 # Images
 images:
   airflow:
-    repository: astronomerinc/ap-airflow
+    repository: ~
     tag: ~
     pullPolicy: IfNotPresent
   flower:
-    repository: astronomerinc/ap-airflow
+    repository: ~
     tag: ~
     pullPolicy: IfNotPresent
   statsd:
@@ -77,8 +79,8 @@ images:
     tag: 0.11.0
     pullPolicy: IfNotPresent
   redis:
-    repository: astronomerinc/ap-redis
-    tag: 0.11.0
+    repository: redis
+    tag: 6-buster
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: astronomerinc/ap-pgbouncer
