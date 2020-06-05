@@ -203,6 +203,7 @@ jsonschema==3.2.0
 junit-xml==1.9
 jupyter-client==6.1.6
 jupyter-core==4.6.3
+kafka==1.3.5
 kombu==4.6.11
 kubernetes==11.0.0
 kylinpy==2.8.1
