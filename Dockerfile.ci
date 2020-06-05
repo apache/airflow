@@ -228,6 +228,7 @@ RUN pip install \
         --constraint "https://raw.githubusercontent.com/${AIRFLOW_REPO}/${AIRFLOW_BRANCH}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt" \
     && pip uninstall --yes apache-airflow;
 
+
 # Link dumb-init for backwards compatibility (so that older images also work)
 RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
 

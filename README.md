@@ -61,7 +61,7 @@ Apache Airflow is tested with:
 
 ### Master version (2.0.0dev)
 
-* Python versions: 3.6, 3.7
+* Python versions: 3.6, 3.7, 3.8
 * Postgres DB: 9.6, 10
 * MySQL DB: 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
@@ -69,7 +69,7 @@ Apache Airflow is tested with:
 
 ### Stable version (1.10.10)
 
-* Python versions: 2.7, 3.5, 3.6, 3.7
+* Python versions: 2.7, 3.5, 3.6, 3.7, 3.8
 * Postgres DB: 9.6, 10
 * MySQL DB: 5.6, 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
@@ -100,7 +100,7 @@ produce unusable Airflow installation.
 
 In order to have repeatable installation, however, starting from **Airflow 1.10.10** we also keep a set of
 "known-to-be-working" requirement files in the `requirements` folder. Those "known-to-be-working"
-requirements are per major/minor python version (3.6/3.7). You can use them as constraint files
+requirements are per major/minor python version (3.6/3.7/3.8). You can use them as constraint files
 when installing Airflow from PyPI. Note that you have to specify correct Airflow version and python versions
 in the URL.
 

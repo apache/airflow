@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 version = imp.load_source('airflow.version', os.path.join('airflow', 'version.py')).version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
+PY38 = PY3 and sys.version_info[1] >= 8
 
 my_dir = dirname(__file__)
 
@@ -184,7 +185,7 @@ aws = [
     'boto3~=1.10',
 ]
 azure_blob_storage = [
-    'azure-storage>=0.34.0,<0.37.0',
+    'azure-storage>=0.34.0, <0.37.0',
     'azure-storage-blob<12.0',
 ]
 azure_container_instances = [
@@ -456,8 +457,10 @@ devel_all = (all_dbs + atlas + aws +
 
 # Snakebite is not Python 3 compatible :'(
 if PY3:
-    devel_all = [package for package in devel_all if package not in
-                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
+    package_to_excludes = ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']
+    if PY38:
+        package_to_excludes.extend(['pymssql~=2.1.1'])
+    devel_all = [package for package in devel_all if package not in package_to_excludes]
     devel_ci = devel_all
 else:
     devel_ci = devel_all + ['unittest2']
@@ -642,6 +645,7 @@ def do_setup():
             'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',
