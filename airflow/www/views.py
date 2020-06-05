@@ -2193,6 +2193,18 @@ class AirflowModelView(ModelView):  # noqa: D101
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
 
 
+class TaskTagModelView(AirflowModelView):
+    def _init_forms(self):
+        conv = wwwutils.TaskTagModelConverter(self.datamodel)
+        if not self.search_form:
+            self.search_form = conv.create_form(
+                self.label_columns,
+                self.search_columns,
+                extra_fields=self.search_form_extra_fields,
+                filter_rel_fields=self.search_form_query_rel_fields,
+            )
+
+
 class SlaMissModelView(AirflowModelView):
     """View to show SlaMiss table"""
     route_base = '/slamiss'
@@ -2678,7 +2690,7 @@ class TaskRescheduleModelView(AirflowModelView):
     }
 
 
-class TaskInstanceModelView(AirflowModelView):
+class TaskInstanceModelView(TaskTagModelView):
     """View to show records from TaskInstance table"""
 
     route_base = '/taskinstance'
@@ -2702,8 +2714,6 @@ class TaskInstanceModelView(AirflowModelView):
     base_order = ('job_id', 'asc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
-
-    search_form = wwwutils.TaskTagModelConverter.create_form(inc_columns=search_columns)
 
     def log_url_formatter(attr):
         log_url = attr.get('log_url')
