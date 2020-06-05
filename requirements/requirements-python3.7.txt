@@ -75,6 +75,9 @@ blinker==1.4
 boto3==1.14.20
 boto==2.49.0
 botocore==1.17.20
+boto3==1.13.23
+boto==2.49.0
+botocore==1.16.23
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.1

@@ -227,7 +227,6 @@ moto==1.3.14
 msgpack==1.0.0
 msrest==0.6.17
 msrestazure==0.6.4
-msrest==0.6.14
 multi-key-dict==2.0.3
 multidict==4.7.6
 mypy-extensions==0.4.3
