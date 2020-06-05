@@ -71,6 +71,7 @@ serialized_simple_dag_ground_truth = {
                 "_task_type": "BashOperator",
                 "_task_module": "airflow.operators.bash",
                 "pool": "default_pool",
+                "tags": ["example", "bash"]
             },
             {
                 "task_id": "custom_task",
@@ -769,7 +770,8 @@ class TestStringifiedDAGs(unittest.TestCase):
                           'task_id': '10',
                           'trigger_rule': 'all_success',
                           'wait_for_downstream': False,
-                          'weight_rule': 'downstream'}, fields,
+                          'weight_rule': 'downstream',
+                          'tags': []}, fields,
                          """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
