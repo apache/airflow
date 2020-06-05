@@ -81,10 +81,9 @@ def _trigger_dag(
         run_conf = conf if isinstance(conf, dict) else json.loads(conf)
 
     triggers = []
-    dags_to_trigger = [dag]
-    while dags_to_trigger:
-        dag = dags_to_trigger.pop()
-        trigger = dag.create_dagrun(
+    dags_to_trigger = [dag] + dag.subdags
+    for _dag in dags_to_trigger:
+        trigger = _dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
             state=State.RUNNING,
@@ -93,8 +92,6 @@ def _trigger_dag(
         )
 
         triggers.append(trigger)
-        if dag.subdags:
-            dags_to_trigger.extend(dag.subdags)
     return triggers
 
 

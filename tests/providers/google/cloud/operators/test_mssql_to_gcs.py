@@ -20,7 +20,10 @@ import unittest
 
 import mock
 
-from airflow.providers.google.cloud.operators.mssql_to_gcs import MSSQLToGCSOperator
+from airflow import PY38
+
+if not PY38:
+    from airflow.providers.google.cloud.operators.mssql_to_gcs import MSSQLToGCSOperator
 
 TASK_ID = 'test-mssql-to-gcs'
 MSSQL_CONN_ID = 'mssql_conn_test'
@@ -50,6 +53,7 @@ SCHEMA_JSON = [
 ]
 
 
+@unittest.skipIf(PY38, "Mssql package not avaible when Python >= 3.8.")
 class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
 
     def test_init(self):

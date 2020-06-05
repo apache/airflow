@@ -123,7 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       CI_JOB_TYPE: "Prod image"
@@ -228,7 +228,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     needs: [static-checks-1, static-checks-2, pyfiles]
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
         postgres-version: [9.6, 10]
         test-type: [Core, Integration]
       fail-fast: false
@@ -260,7 +260,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     needs: [static-checks-1, static-checks-2, pyfiles]
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
         mysql-version: [5.7]
         test-type: [Core, Integration]
       fail-fast: false
@@ -292,7 +292,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     needs: [static-checks-1, static-checks-2, pyfiles]
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
         test-type: [Core, Integration]
       fail-fast: false
     env:
@@ -354,7 +354,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
       fail-fast: false
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -386,7 +386,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     if: github.ref == 'refs/heads/master' && github.event_name != 'schedule'
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       CI_JOB_TYPE: "Prod image"
@@ -417,7 +417,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       github.event_name != 'schedule'
     strategy:
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8]
     env:
       PULL_PYTHON_BASE_IMAGES_FROM_CACHE: "false"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}

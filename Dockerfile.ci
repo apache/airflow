@@ -220,11 +220,17 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 # We do not have to always reinstall it from the scratch.
 # This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
 # And is automatically reinstalled from the scratch every month
+
+ARG AIRFLOW_PY_VERSION_REQ_FILE="https://raw.githubusercontent.com/${AIRFLOW_REPO}/${AIRFLOW_BRANCH}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ENV AIRFLOW_PY_VERSION_REQ_FILE_STATUS="$(curl -s --head -w %{http_code} ${AIRFLOW_PY_VERSION_REQ_FILE} -o /dev/null)"
+RUN echo $AIRFLOW_PY_VERSION_REQ_FILE_STATUS;
+
 RUN \
-    if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" ]]; then \
-        pip install \
+    if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" && "${AIRFLOW_PY_VERSION_REQ_FILE_STATUS}" == "200" ]]; then \
+        echo "Using optimized build." \
+        && pip install \
         "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-            --constraint "https://raw.githubusercontent.com/${AIRFLOW_REPO}/${AIRFLOW_BRANCH}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt" \
+            --constraint ${AIRFLOW_PY_VERSION_REQ_FILE} \
         && pip uninstall --yes apache-airflow; \
     fi
 

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-_BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS="3.6 3.7"
+_BREEZE_ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS="3.6 3.7 3.8"
 _BREEZE_ALLOWED_BACKENDS="sqlite mysql postgres"
 _BREEZE_ALLOWED_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
 _BREEZE_ALLOWED_KUBERNETES_MODES="image git"

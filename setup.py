@@ -41,6 +41,7 @@ spec.loader.exec_module(mod)  # type: ignore
 version = mod.version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
+PY38 = PY3 and sys.version_info[1] >= 8
 
 my_dir = dirname(__file__)
 
@@ -196,7 +197,7 @@ azure = [
     'azure-mgmt-containerinstance>=1.5.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage>=0.34.0,<0.37.0',
+    'azure-storage>=0.34.0, <0.37.0',
     'azure-storage-blob<12.0',
 ]
 cassandra = [
@@ -634,9 +635,13 @@ PACKAGES_EXCLUDED_FOR_ALL = [
 ]
 
 if PY3:
-    # Snakebite is not Python 3 compatible :'(
     PACKAGES_EXCLUDED_FOR_ALL.extend([
         'snakebite',
+    ])
+
+if PY38:
+    PACKAGES_EXCLUDED_FOR_ALL.extend([
+        'pymssql',
     ])
 
 # Those packages are excluded because they break tests (downgrading mock) and they are
@@ -771,6 +776,7 @@ def do_setup():
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',

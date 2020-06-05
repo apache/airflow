@@ -15,7 +15,7 @@ Flask==1.1.2
 GitPython==3.1.3
 HeapDict==1.0.1
 JPype1==0.7.5
-JayDeBeApi==1.2.1
+JayDeBeApi==1.2.2
 Jinja2==2.10.3
 Mako==1.1.3
 Markdown==2.6.11
@@ -45,7 +45,7 @@ apispec==1.3.3
 appdirs==1.4.4
 argcomplete==1.11.1
 asn1crypto==1.3.0
-astroid==2.3.3
+astroid==2.4.1
 async-generator==1.10
 async-timeout==3.0.1
 atlasclient==1.0.0
@@ -61,7 +61,7 @@ azure-mgmt-containerinstance==1.5.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
-azure-mgmt-resource==9.0.0
+azure-mgmt-resource==10.0.0
 azure-nspkg==3.0.2
 azure-storage-blob==2.1.0
 azure-storage-common==2.1.0
@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.13.22
+boto3==1.13.23
 boto==2.49.0
-botocore==1.16.22
+botocore==1.16.23
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
@@ -139,11 +139,11 @@ gcsfs==0.6.2
 gevent==20.5.2
 gitdb==4.0.5
 google-ads==4.0.0
-google-api-core==1.17.0
+google-api-core==1.19.0
 google-api-python-client==1.9.1
 google-auth-httplib2==0.0.3
 google-auth-oauthlib==0.4.1
-google-auth==1.16.0
+google-auth==1.16.1
 google-cloud-automl==0.10.0
 google-cloud-bigquery-datatransfer==1.0.0
 google-cloud-bigquery==1.24.0
@@ -181,7 +181,7 @@ hmsclient==0.1.1
 httplib2==0.18.1
 humanize==0.5.1
 hvac==0.10.3
-identify==1.4.18
+identify==1.4.19
 idna-ssl==1.1.0
 idna==2.9
 ijson==2.6.1
@@ -225,7 +225,7 @@ monotonic==1.5
 more-itertools==8.3.0
 moto==1.3.14
 msgpack==1.0.0
-msrest==0.6.14
+msrest==0.6.15
 msrestazure==0.6.3
 multi-key-dict==2.0.3
 multidict==4.7.6
@@ -335,7 +335,7 @@ setproctitle==1.1.10
 sh==1.13.1
 simple-salesforce==1.0.0
 six==1.15.0
-slackclient==2.7.0
+slackclient==2.7.1
 smmap==3.0.4
 snowballstemmer==2.0.0
 snowflake-connector-python==2.2.7
@@ -388,7 +388,7 @@ virtualenv==20.0.21
 watchtower==0.7.3
 wcwidth==0.2.3
 websocket-client==0.57.0
-wrapt==1.11.2
+wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.23.0
 yandexcloud==0.40.0

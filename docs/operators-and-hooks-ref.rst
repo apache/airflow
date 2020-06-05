@@ -735,7 +735,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Kubernetes Engine <https://cloud.google.com/kubernetes_engine/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/kubernetes_engine>`
      - :mod:`airflow.providers.google.cloud.hooks.kubernetes_engine`
      - :mod:`airflow.providers.google.cloud.operators.kubernetes_engine`
      -

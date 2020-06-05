@@ -68,7 +68,7 @@ function setup_default_breeze_variables() {
     # We have different versions of images depending on the python version used. We keep up with the
     # Latest patch-level changes in Python (this is done automatically during CI builds) so we have
     # To only take into account MAJOR and MINOR version of python. This variable keeps the major/minor
-    # version of python in X.Y format (3.6, 3.7 etc).
+    # version of python in X.Y format (3.6, 3.7, 3.8 etc).
     export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION:=$(read_from_file PYTHON_MAJOR_MINOR_VERSION)}"
 
     # When we generate documentation for README files, we want to force the width of terminal so that
@@ -203,7 +203,7 @@ function initialize_virtualenv() {
             if [[ ${SYSTEM} == "Darwin" ]]; then
                 echo "  brew install sqlite mysql postgresql openssl"
             else
-                echo "  sudo apt install build-essentials python3.6-dev python3.7-dev python-dev openssl \\"
+                echo "  sudo apt install build-essentials python3.6-dev python3.7-dev python3.8-dev python-dev openssl \\"
                 echo "              sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresql"
             fi
             echo

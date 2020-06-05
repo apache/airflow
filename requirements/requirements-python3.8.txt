@@ -45,7 +45,7 @@ apispec==1.3.3
 appdirs==1.4.4
 argcomplete==1.11.1
 asn1crypto==1.3.0
-astroid==2.3.3
+astroid==2.4.1
 async-generator==1.10
 async-timeout==3.0.1
 atlasclient==1.0.0
@@ -281,7 +281,6 @@ pyflakes==2.2.0
 pykerberos==1.2.1
 pylint==2.4.4
 pymongo==3.10.1
-pymssql==2.1.4
 pyodbc==4.0.30
 pyparsing==2.4.7
 pypd==1.1.0
@@ -381,7 +380,7 @@ virtualenv==20.0.21
 watchtower==0.7.3
 wcwidth==0.2.3
 websocket-client==0.57.0
-wrapt==1.11.2
+wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.23.0
 yandexcloud==0.40.0
