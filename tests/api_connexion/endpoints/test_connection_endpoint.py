@@ -155,9 +155,9 @@ class TestGetConnections(TestConnectionEndpoint):
         session.commit()
         result = session.query(Connection).all()
         assert len(result) == 100
-        response = self.client.get("/api/v1/connections?offset=50&limit=10")
+        response = self.client.get("/api/v1/connections?offset=91&limit=10")
         assert response.status_code == 200
-        self.assertEqual(response.json.get('total_entries'), 10)
+        self.assertEqual(response.json.get('total_entries'), 9)
 
 
 class TestPatchConnection(TestConnectionEndpoint):
