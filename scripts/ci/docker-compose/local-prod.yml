@@ -39,4 +39,5 @@ services:
     environment:
       - HOST_USER_ID
       - HOST_GROUP_ID
+      - HOST_HOME=${HOME}
       - PYTHONDONTWRITEBYTECODE

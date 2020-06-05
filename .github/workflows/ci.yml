@@ -166,7 +166,7 @@ jobs:
       - name: "Get count of changed python files"
         run: |
           set +e
-          ./scripts/ci/ci_count_changed_files.sh ${GITHUB_SHA} '\.py$|.github/workflows/|^Dockerfile'
+          ./scripts/ci/ci_count_changed_files.sh ${GITHUB_SHA} '\.py$|.github/workflows/|^Dockerfile|^scripts'
           echo "::set-output name=count::$?"
         id: pyfiles
 

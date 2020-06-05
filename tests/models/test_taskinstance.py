@@ -48,6 +48,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
@@ -1266,7 +1267,7 @@ class TestTaskInstance(unittest.TestCase):
 
         def get_test_ti(session, execution_date: pendulum.datetime, state: str) -> TI:
             dag.create_dagrun(
-                run_id='scheduled__{}'.format(execution_date.to_iso8601_string()),
+                run_type=DagRunType.SCHEDULED,
                 state=state,
                 execution_date=execution_date,
                 start_date=pendulum.utcnow(),
@@ -1576,7 +1577,7 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual('hive_in_python_op', os.environ['AIRFLOW_CTX_TASK_ID'])
         self.assertEqual(DEFAULT_DATE.isoformat(),
                          os.environ['AIRFLOW_CTX_EXECUTION_DATE'])
-        self.assertEqual('manual__' + DEFAULT_DATE.isoformat(),
+        self.assertEqual(DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
                          os.environ['AIRFLOW_CTX_DAG_RUN_ID'])
 
     def test_echo_env_variables(self):
@@ -1586,7 +1587,7 @@ class TestTaskInstance(unittest.TestCase):
                             dag=dag,
                             python_callable=self._env_var_check_callback)
         dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING,

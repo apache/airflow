@@ -115,7 +115,9 @@ labelPRBasedOnFilePath:
     - docs/lineage.rst
 
   area:Plugins:
+    - airflow/cli/commands/plugins_command.py
     - airflow/plugins_manager.py
+    - tests/cli/commands/test_plugins_command.py
     - tests/plugins/*
     - docs/plugins.rst
 

@@ -68,22 +68,17 @@ def _trigger_dag(
                     execution_date.isoformat(),
                     min_dag_start_date.isoformat()))
 
-    if not run_id:
-        run_id = f"{DagRunType.MANUAL.value}__{execution_date.isoformat()}"
+    run_id = run_id or DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
+    dag_run = dag_run.find(dag_id=dag_id, run_id=run_id)
 
-    dag_run_id = dag_run.find(dag_id=dag_id, run_id=run_id)
-    if dag_run_id:
-        raise DagRunAlreadyExists("Run id {} already exists for dag id {}".format(
-            run_id,
-            dag_id
-        ))
+    if dag_run:
+        raise DagRunAlreadyExists(
+            f"Run id {dag_run.run_id} already exists for dag id {dag_id}"
+        )
 
     run_conf = None
     if conf:
-        if isinstance(conf, dict):
-            run_conf = conf
-        else:
-            run_conf = json.loads(conf)
+        run_conf = conf if isinstance(conf, dict) else json.loads(conf)
 
     triggers = []
     dags_to_trigger = [dag]
@@ -96,6 +91,7 @@ def _trigger_dag(
             conf=run_conf,
             external_trigger=True,
         )
+
         triggers.append(trigger)
         if dag.subdags:
             dags_to_trigger.extend(dag.subdags)

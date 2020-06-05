@@ -43,17 +43,17 @@ function setup_default_breeze_variables() {
     export MAX_SCREEN_WIDTH=100
 
     # Directory where all CI scripts are located
-    SCRIPTS_CI_DIR="${AIRFLOW_SOURCES}/scripts/ci"
+    export SCRIPTS_CI_DIR="${AIRFLOW_SOURCES}/scripts/ci"
 
     # Directory where all the build cache is stored - we keep there status of all the docker images
     # As well as hashes of the important files, but also we generate build scripts there that are
     # Used to execute the commands for breeze
-    BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
+    export BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
     # This folder is mounted to inside the container in /files folder. This is the way how
     # We can exchange DAGs, scripts, packages etc with the container environment
-    FILES_DIR="${AIRFLOW_SOURCES}/files"
+    export FILES_DIR="${AIRFLOW_SOURCES}/files"
     # Temporary dir used well ... temporarily
-    TMP_DIR="${AIRFLOW_SOURCES}/tmp"
+    export TMP_DIR="${AIRFLOW_SOURCES}/tmp"
 
     # Create those folders above in case they do not exist
     mkdir -pv "${BUILD_CACHE_DIR}"
@@ -62,8 +62,8 @@ function setup_default_breeze_variables() {
 
     # load all the common functions here - those are the functions that are shared between Breeze
     # and CI scripts (CI scripts do not use Breeze as execution environment)
-    # shellcheck source=scripts/ci/_utils.sh
-    . "${SCRIPTS_CI_DIR}/_utils.sh"
+    # shellcheck source=scripts/ci/_all_libs.sh
+    . "${SCRIPTS_CI_DIR}/_all_libs.sh"
 
     # We have different versions of images depending on the python version used. We keep up with the
     # Latest patch-level changes in Python (this is done automatically during CI builds) so we have
@@ -378,17 +378,6 @@ EOF
 
 EOF
         fi
-
-        if [[ ${INTEGRATIONS[*]} == *"kubernetes"* ]]; then
-            cat <<EOF
-
-                               Kubernetes mode:     ${KUBERNETES_MODE}
-                               Kubernetes version:  ${KUBERNETES_VERSION}
-
-                               Enable KinD cluster: ${ENABLE_KIND_CLUSTER}
-                               Cluster operation:   ${KIND_CLUSTER_OPERATION}
-EOF
-        fi
     else
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             cat <<EOF
@@ -422,17 +411,6 @@ EOF
 
 EOF
         fi
-
-        if [[ ${INTEGRATIONS[*]} == *"kubernetes"* ]]; then
-            cat <<EOF
-
-   Kubernetes mode:     ${KUBERNETES_MODE}
-   Kubernetes version:  ${KUBERNETES_VERSION}
-
-   Enable KinD cluster: ${ENABLE_KIND_CLUSTER}
-   Cluster operation:   ${KIND_CLUSTER_OPERATION}
-EOF
-        fi
     fi
 }
 
@@ -457,9 +435,6 @@ export DOCKERHUB_REPO=${DOCKERHUB_REPO}
 export COMPOSE_FILE="${COMPOSE_FILE}"
 export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
 export BACKEND="${BACKEND}"
-export ENABLE_KIND_CLUSTER="${ENABLE_KIND_CLUSTER}"
-export KUBERNETES_MODE="${KUBERNETES_MODE}"
-export KUBERNETES_VERSION="${KUBERNETES_VERSION}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
 export RUN_TESTS="${TESTS}"
@@ -2041,6 +2016,7 @@ function run_build_command {
                 build_prod_image
             else
                 prepare_ci_build
+                calculate_md5sum_for_all_files
                 build_ci_image
                 update_all_md5_files
                 build_ci_image_manifest
@@ -2108,12 +2084,7 @@ function run_breeze_command {
             fi
             AIRFLOW_TESTING_CONTAINER=$("${DC_FILE}" ps | \
                     grep airflow | awk '{print $1}' 2>/dev/null)
-            if [[ -z ${AIRFLOW_TESTING_CONTAINER} ]]; then
-                echo
-                echo "ERROR! Breeze must be running in order to exec into running container"
-                echo
-                exit 1
-            fi
+              : "${AIRFLOW_TESTING_CONTAINER:?"ERROR! Breeze must be running in order to exec into running container"}"
             set -e
             docker exec -it "${AIRFLOW_TESTING_CONTAINER}" \
                 "/opt/airflow/scripts/ci/in_container/entrypoint_exec.sh"

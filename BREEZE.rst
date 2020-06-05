@@ -105,8 +105,9 @@ Docker in WSL 2
     and git pull the Airflow repo there.
 
 - **WSL 2 Memory Usage** :
-    WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim
-    the memory after development you can:
+    WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim the memory after
+    development you can:
+
       * On the Linux distro clear cached memory: ``sudo sysctl -w vm.drop_caches=3``
       * If no longer using Docker you can quit Docker Desktop
         (right click system try icon and select "Quit Docker Desktop")
@@ -195,7 +196,7 @@ On macOS, 2GB of RAM are available for your Docker containers by default, but mo
 On Windows WSL 2 expect the Linux Disto and Docker containers to use 7 - 8 GB of RAM.
 
 Airflow Directory Structure inside Docker
------------------------------------------
+=========================================
 
 When you are in the CI container, the following directories are used:
 
@@ -230,6 +231,42 @@ Note that when running in your local environment, the ``/root/airflow/logs`` fol
 from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
 visible in the host as well. Every time you enter the container, the ``logs`` directory is
 cleaned so that logs do not accumulate.
+
+CLIs for cloud providers
+========================
+
+For development convenience we installed simple wrappers for the most common cloud providers CLIs. Those
+CLIs are not installed when you build or pull the image - they will be downloaded as docker images
+the first time you attempt to use them. It is downloaded and executed in your host's docker engine so once
+it is downloaded, it will stay until you remove the downloaded images from your host container.
+
+For each of those CLI credentials are taken (automatically) from the credentials you have defined in
+your ${HOME} directory on host.
+
+Those are currently installed CLIs (they are available as aliases to the docker commands):
+
++-----------------------+----------+-------------------------------------------------+-------------------+
+| Cloud Provider        | CLI tool | Docker image                                    | Configuration dir |
++=======================+==========+=================================================+===================+
+| Amazon Web Services   | aws      | amazon/aws-cli:latest                           | .aws              |
++-----------------------+----------+-------------------------------------------------+-------------------+
+| Microsoft Azure       | az       | mcr.microsoft.com/azure-cli:latest              | .azure            |
++-----------------------+----------+-------------------------------------------------+-------------------+
+| Google Cloud Platform | bq       | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
+|                       +----------+-------------------------------------------------+-------------------+
+|                       | gcloud   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
+|                       +----------+-------------------------------------------------+-------------------+
+|                       | gsutil   | gcr.io/google.com/cloudsdktool/cloud-sdk:latest | .config/gcloud    |
++-----------------------+----------+-------------------------------------------------+-------------------+
+
+For each of the CLIs we have also an accompanying ``*-update`` alias (for example ``aws-update``) which
+will pull the latest image for the tool. Note that all Google Cloud Platform tools are served by one
+image and they are updated together.
+
+Also - in case you run several different Breeze containers in parallel (from different directories,
+with different versions) - they docker images for CLI Cloud Providers tools are shared so if you update it
+for one Breeze container, they will also get updated for all the other containers.
+
 
 Using the Airflow Breeze Environment
 =====================================

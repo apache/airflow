@@ -39,6 +39,7 @@ from airflow.operators.python import (
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -176,7 +177,7 @@ class TestPythonOperator(TestPythonBase):
             dag=self.dag)
 
         self.dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -210,7 +211,7 @@ class TestPythonOperator(TestPythonBase):
             dag=self.dag)
 
         self.dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -244,7 +245,7 @@ class TestPythonOperator(TestPythonBase):
 
     def test_conflicting_kwargs(self):
         self.dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -270,7 +271,7 @@ class TestPythonOperator(TestPythonBase):
 
     def test_context_with_conflicting_op_args(self):
         self.dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -291,7 +292,7 @@ class TestPythonOperator(TestPythonBase):
 
     def test_context_with_kwargs(self):
         self.dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -408,7 +409,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag.clear()
 
         dr = self.dag.create_dagrun(
-            run_id="manual__",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -437,7 +438,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag.clear()
 
         dr = self.dag.create_dagrun(
-            run_id="manual__",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -466,7 +467,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag.clear()
 
         dr = self.dag.create_dagrun(
-            run_id="manual__",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -495,7 +496,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag.clear()
 
         dr = self.dag.create_dagrun(
-            run_id="manual__",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -522,7 +523,7 @@ class TestBranchOperator(unittest.TestCase):
         self.dag.clear()
 
         dr = self.dag.create_dagrun(
-            run_id="manual__",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -657,7 +658,7 @@ class TestShortCircuitOperator(unittest.TestCase):
 
         logging.error("Tasks %s", dag.tasks)
         dr = dag.create_dagrun(
-            run_id="manual__",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -717,7 +718,7 @@ class TestShortCircuitOperator(unittest.TestCase):
         dag.clear()
 
         dr = dag.create_dagrun(
-            run_id="manual__",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING

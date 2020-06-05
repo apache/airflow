@@ -25,6 +25,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 DM = models.DagModel
 DR = models.DagRun
@@ -66,7 +67,7 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         test_date = days_ago(1)
         with create_session() as session:
             session.add(DM(dag_id=self.key, fileloc=self.dag_file_path, is_subdag=for_sub_dag))
-            session.add(DR(dag_id=self.key))
+            session.add(DR(dag_id=self.key, run_type=DagRunType.MANUAL.value))
             session.add(TI(task=task,
                            execution_date=test_date,
                            state=State.SUCCESS))

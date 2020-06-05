@@ -26,18 +26,10 @@ AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
 PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
 BACKEND=${BACKEND:=sqlite}
-KUBERNETES_MODE=${KUBERNETES_MODE:=""}
-KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
-ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
-if [[ -z ${AIRFLOW_SOURCES:=} ]]; then
-    echo >&2
-    echo >&2 AIRFLOW_SOURCES not set !!!!
-    echo >&2
-    exit 1
-fi
+: "${AIRFLOW_SOURCES:?"ERROR: AIRFLOW_SOURCES not set !!!!"}"
 
 echo
 echo "Airflow home: ${AIRFLOW_HOME}"
@@ -164,8 +156,6 @@ while [[ $(ssh-keyscan -H localhost 2>/dev/null | wc -l) != "3" ]] ; do
 done
 
 ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
-
-export KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 
 # shellcheck source=scripts/ci/in_container/configure_environment.sh
 . "${MY_DIR}/configure_environment.sh"

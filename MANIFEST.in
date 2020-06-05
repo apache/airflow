@@ -24,7 +24,6 @@ graft licenses
 graft airflow/www
 graft airflow/www/static
 graft airflow/www/templates
-graft airflow/_vendor/
 include airflow/alembic.ini
 include airflow/git_version
 include airflow/serialization/schema.json
