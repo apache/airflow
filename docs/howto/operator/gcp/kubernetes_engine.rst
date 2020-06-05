@@ -96,7 +96,7 @@ There are two operators available in order to run a pod on a GKE cluster:
 * :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`
 
 ``GKEStartPodOperator`` extends ``KubernetesPodOperator`` to provide authorization using Google Cloud credentials.
-There is no need to manage the `kube_config` file, as it will be generated automatically.
+There is no need to manage the ``kube_config`` file, as it will be generated automatically.
 All Kubernetes  parameters (except ``config_file``) are also valid for the ``GKEStartPodOperator``.
 For more information on ``KubernetesPodOperator``, please look at: :ref:`howto/operator:KubernetesPodOperator` guide.
 
