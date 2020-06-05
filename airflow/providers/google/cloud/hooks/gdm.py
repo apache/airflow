@@ -17,7 +17,7 @@
 # under the License.
 #
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from googleapiclient.discovery import build
 
@@ -44,9 +44,10 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         return build('deploymentmanager', 'v2', http=http_authorized, cache_discovery=False)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def list_deployments(self, project_id: str, deployment_filter: Optional[str]=None,
-                         max_results: Optional[int]=None, order_by: Optional[str]=None,
-                         page_token: Optional[str]=None) -> List[Dict[str, Any]]:  # pylint: disable=too-many-arguments
+    def list_deployments(self, project_id: str,  # pylint: disable=too-many-arguments
+                         deployment_filter: Optional[str] = None,
+                         max_results: Optional[int] = None, order_by: Optional[str] = None,
+                         page_token: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Lists deployments in a google cloud project.
 
@@ -56,7 +57,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         :type filter: str
         :param max_results: The maximum number of results to return
         :type max_results: Optional[int]
-        :param order_by: A filed name to order by, ex: "creationTimestamp desc"
+        :param order_by: A field name to order by, ex: "creationTimestamp desc"
         :type order_by: Optional[str]
         :param page_token: specifies a page_token to use
         :type page_token: str
