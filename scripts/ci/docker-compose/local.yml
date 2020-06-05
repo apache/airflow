@@ -14,17 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "2.2"
-services:
-  airflow:
-    # We need to mount files an directories individually because some files
-    # such apache_airflow.egg-info should not be mounted from host
-    # we only mount those files that it makes sense to edit while developing
-    # or those that might be useful to see in the host as output of the
-    # tests (such as logs)
-    volumes:
-      # START automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
+
       - ../../../.bash_aliases:/root/.bash_aliases:cached
       - ../../../.bash_history:/root/.bash_history:cached
       - ../../../.coveragerc:/opt/airflow/.coveragerc:cached
