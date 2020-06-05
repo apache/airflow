@@ -145,13 +145,12 @@ class CloudBuildHook(GoogleBaseHook):
             raise AirflowException("Could not retrieve Build ID from Operation.")
 
         if wait:
-            return self._wait_for_operation_to_complete(
+            self._wait_for_operation_to_complete(
                 func=self.get_build,
                 id_=id_,  # type: ignore
                 project_id=project_id  # type: ignore
             )
-        else:
-            return self.get_build(id_=id_, project_id=project_id)
+        return self.get_build(id_=id_, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_build_trigger(
@@ -433,13 +432,12 @@ class CloudBuildHook(GoogleBaseHook):
             raise AirflowException("Could not retrieve Build ID from Operation.")
 
         if wait:
-            return self._wait_for_operation_to_complete(
+            self._wait_for_operation_to_complete(
                 func=self.get_build,
                 id_=id_,  # type: ignore
                 project_id=project_id  # type: ignore
             )
-        else:
-            return self.get_build(id_=id_, project_id=project_id)
+        return self.get_build(id_=id_, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def run_build_trigger(
@@ -496,13 +494,12 @@ class CloudBuildHook(GoogleBaseHook):
             raise AirflowException("Could not retrieve Build ID from Operation.")
 
         if wait:
-            return self._wait_for_operation_to_complete(
+            self._wait_for_operation_to_complete(
                 func=self.get_build,
                 id_=id_,  # type: ignore
                 project_id=project_id  # type: ignore
             )
-        else:
-            return self.get_build(id_=id_, project_id=project_id)
+        return self.get_build(id_=id_, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_build_trigger(
