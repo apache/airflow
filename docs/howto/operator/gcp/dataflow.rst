@@ -86,7 +86,7 @@ Execution options for pipelines
 
 Dataflow has multiple options of executing pipelines. It can be done in the following modes:
 asynchronously (fire and forget), blocking (wait until completion), or streaming (run indefinitely).
-In Airflow it is best to use asychronous pipelines as blocking ones tax the Airflow resources by listening
+In Airflow it is best to use asynchronous pipelines as blocking ones tax the Airflow resources by listening
 to the job until it completes.
 
 Asynchronous execution
