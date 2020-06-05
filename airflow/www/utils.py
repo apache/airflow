@@ -23,7 +23,7 @@ import markdown
 import sqlalchemy as sqla
 from flask import Markup, Response, request, url_for
 from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
-from flask_appbuilder.forms import FieldConverter
+from flask_appbuilder.forms import GeneralModelConverter, FieldConverter
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
 from wtforms.fields import StringField
@@ -457,12 +457,6 @@ class CustomSQLAInterface(SQLAInterface):
 
 
 class TaskTagModelConverter(GeneralModelConverter):
-    """
-    GeneralModelConverter currently checks if the specified column is a relation
-    before doing a simple conversion. The default behavior does not take into
-    account explicitly specified field and widget for task tags.
-    """
-
     def _convert_col(
         self,
         col_name,
@@ -472,11 +466,6 @@ class TaskTagModelConverter(GeneralModelConverter):
         filter_rel_fields,
         form_props,
     ):
-        """
-        Checks first if the specified column is a task tag relation before
-        continuing to GeneralModelConverter._convert_col
-        """
-
         if self.datamodel.is_tasktag(col_name):
             return self._convert_simple(
                 col_name, label, description, lst_validators, form_props
