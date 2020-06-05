@@ -200,6 +200,9 @@ def create_app(config=None, testing=False, app_name="Airflow"):
             appbuilder.add_link("GitHub",
                                 href='https://github.com/apache/airflow',
                                 category="Docs")
+            appbuilder.add_link("REST API Reference",
+                                href='/api/v1./api/v1_swagger_ui_index',
+                                category="Docs")
             appbuilder.add_view(views.VersionView,
                                 'Version',
                                 category='About',

@@ -292,4 +292,4 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
             hook.upload(self.bucket, tmp_file.get('file_name'),
                         tmp_file.get('file_handle').name,
                         mime_type=tmp_file.get('file_mime_type'),
-                        gzip=self.gzip if tmp_file.get('file_name') == self.schema_filename else False)
+                        gzip=self.gzip if tmp_file.get('file_name') != self.schema_filename else False)

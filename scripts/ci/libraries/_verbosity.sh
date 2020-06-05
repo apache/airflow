@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,3 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# In case "VERBOSE_COMMANDS" is set to "true" set -x is used to enable debugging
+function check_verbose_setup {
+    if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
+        set -x
+    else
+        set +x
+    fi
+}
+
+# In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
+# printed before execution
+function verbose_docker {
+    if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
+       # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
+        echo "docker" "${@}"
+    fi
+    docker "${@}"
+}
+
+# Prints verbose information in case VERBOSE variable is set
+function print_info() {
+    if [[ ${VERBOSE:="false"} == "true" ]]; then
+        echo "$@"
+    fi
+}

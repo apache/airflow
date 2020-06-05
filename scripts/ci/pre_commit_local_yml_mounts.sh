@@ -30,8 +30,8 @@ trap 'rm -rf -- "${TMP_OUTPUT}" 2>/dev/null' EXIT
 
 LOCAL_YML_FILE="${MY_DIR}/docker-compose/local.yml"
 
-LEAD='      # START automatically generated volumes from LOCAL_MOUNTS in _utils.sh'
-TAIL='      # END automatically generated volumes from LOCAL_MOUNTS in _utils.sh'
+LEAD='      # START automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh'
+TAIL='      # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh'
 
 generate_local_mounts_list "      - ../../../"
 

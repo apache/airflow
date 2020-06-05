@@ -390,7 +390,6 @@ class TestMountPoint(unittest.TestCase):
 
 class TestAirflowBaseViews(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
-    run_id = f"test_{DagRunType.SCHEDULED.value}__{EXAMPLE_DAG_DEFAULT_DATE.isoformat()}"
 
     @classmethod
     def setUpClass(cls):
@@ -411,19 +410,19 @@ class TestAirflowBaseViews(TestBase):
         self.xcom_dag = self.dagbag.dags['example_xcom']
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.sub_dagrun = self.sub_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.xcom_dagrun = self.xcom_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
@@ -433,7 +432,7 @@ class TestAirflowBaseViews(TestBase):
             resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
-    def test_doc_site_url(self):
+    def test_doc_urls(self):
         resp = self.client.get('/', follow_redirects=True)
         if "dev" in version.version:
             airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
@@ -441,6 +440,7 @@ class TestAirflowBaseViews(TestBase):
             airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
 
         self.check_content_in_response(airflow_doc_site, resp)
+        self.check_content_in_response("/api/v1/ui", resp)
 
     def test_health(self):
 
@@ -634,9 +634,9 @@ class TestAirflowBaseViews(TestBase):
     def test_escape_in_tree_view(self, test_str, seralized_test_str):
         dag = self.dagbag.dags['test_tree_view']
         dag.create_dagrun(
-            run_id=self.run_id,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
+            run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             conf={"abc": test_str},
         )
@@ -648,7 +648,7 @@ class TestAirflowBaseViews(TestBase):
     def test_dag_details_trigger_origin_tree_view(self):
         dag = self.dagbag.dags['test_tree_view']
         dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
@@ -662,7 +662,7 @@ class TestAirflowBaseViews(TestBase):
     def test_dag_details_trigger_origin_graph_view(self):
         dag = self.dagbag.dags['test_graph_view']
         dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
@@ -1494,7 +1494,6 @@ class TestDagACLView(TestBase):
     """
     next_year = dt.now().year + 1
     default_date = timezone.datetime(next_year, 6, 1)
-    run_id = f"test_{DagRunType.SCHEDULED.value}__{default_date.isoformat()}"
 
     @classmethod
     def setUpClass(cls):
@@ -1508,13 +1507,13 @@ class TestDagACLView(TestBase):
         self.sub_dag = dagbag.dags['example_subdag_operator']
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.default_date,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.sub_dagrun = self.sub_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.default_date,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
@@ -2284,7 +2283,8 @@ class TestTriggerDag(TestBase):
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
-        self.assertIn("manual__", run.run_id)
+        self.assertIn(DagRunType.MANUAL.value, run.run_id)
+        self.assertEqual(run.run_type, DagRunType.MANUAL.value)
 
     @pytest.mark.xfail(condition=using_mysql, reason="This test might be flaky on mysql")
     def test_trigger_dag_conf(self):
@@ -2300,7 +2300,8 @@ class TestTriggerDag(TestBase):
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
-        self.assertIn("manual__", run.run_id)
+        self.assertIn(DagRunType.MANUAL.value, run.run_id)
+        self.assertEqual(run.run_type, DagRunType.MANUAL.value)
         self.assertEqual(run.conf, conf_dict)
 
     def test_trigger_dag_conf_malformed(self):
@@ -2723,7 +2724,6 @@ class TestDagRunModelView(TestBase):
 
 class TestDecorators(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
-    run_id = f"test_{DagRunType.SCHEDULED.value}__{EXAMPLE_DAG_DEFAULT_DATE.isoformat()}"
 
     @classmethod
     def setUpClass(cls):
@@ -2745,19 +2745,19 @@ class TestDecorators(TestBase):
         self.xcom_dag = dagbag.dags['example_xcom']
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.sub_dagrun = self.sub_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.xcom_dagrun = self.xcom_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)

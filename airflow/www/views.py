@@ -33,6 +33,7 @@ from urllib.parse import quote, unquote
 
 import lazy_object_proxy
 import markdown
+import nvd3
 import sqlalchemy as sqla
 from flask import (
     Markup, Response, current_app, escape, flash, jsonify, make_response, redirect, render_template, request,
@@ -51,7 +52,6 @@ from wtforms import SelectField, validators
 
 import airflow
 from airflow import models, settings
-from airflow._vendor import nvd3
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
@@ -1035,11 +1035,10 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         execution_date = timezone.utcnow()
-        run_id = f"{DagRunType.MANUAL.value}__{execution_date.isoformat()}"
 
-        dr = DagRun.find(dag_id=dag_id, run_id=run_id)
+        dr = DagRun.find(dag_id=dag_id, execution_date=execution_date, run_type=DagRunType.MANUAL)
         if dr:
-            flash("This run_id {} already exists".format(run_id))
+            flash(f"This run_id {dr.run_id} already exists")
             return redirect(origin)
 
         run_conf = {}
@@ -1058,11 +1057,11 @@ class Airflow(AirflowBaseView):
 
         dag = dagbag.get_dag(dag_id)
         dag.create_dagrun(
-            run_id=run_id,
+            run_type=DagRunType.MANUAL,
             execution_date=execution_date,
             state=State.RUNNING,
             conf=run_conf,
-            external_trigger=True
+            external_trigger=True,
         )
 
         flash(
@@ -2493,8 +2492,8 @@ class DagRunModelView(AirflowModelView):
     base_permissions = ['can_list', 'can_add']
 
     add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
-    list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
-    search_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
+    list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'run_type', 'external_trigger', 'conf']
+    search_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'run_type', 'external_trigger', 'conf']
 
     base_order = ('execution_date', 'desc')
 

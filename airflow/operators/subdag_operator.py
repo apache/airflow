@@ -33,6 +33,7 @@ from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 
 class SkippedStatePropagationOptions(Enum):
@@ -146,7 +147,7 @@ class SubDagOperator(BaseSensorOperator):
 
         if dag_run is None:
             dag_run = self.subdag.create_dagrun(
-                run_id="scheduled__{}".format(execution_date.isoformat()),
+                run_type=DagRunType.SCHEDULED,
                 execution_date=execution_date,
                 state=State.RUNNING,
                 external_trigger=True,
