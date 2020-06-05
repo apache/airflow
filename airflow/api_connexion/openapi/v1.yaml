@@ -1146,14 +1146,19 @@ components:
           type: string
         conn_type:
           type: string
+          nullable: true
         host:
           type: string
+          nullable: true
         login:
           type: string
+          nullable: true
         schema:
           type: string
+          nullable: true
         port:
           type: integer
+          nullable: true
 
     ConnectionCollection:
       type: object
@@ -1174,6 +1179,7 @@ components:
               writeOnly: true
             extra:
               type: string
+              nullable: true
 
     DAG:
       type: object

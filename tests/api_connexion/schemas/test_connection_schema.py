@@ -121,19 +121,19 @@ class TestConnectionCollectionSchema(unittest.TestCase):
                 'connections': [
                     {
                         "connection_id": "mysql_default_1",
-                        "conn_type": '',
-                        "host": '',
-                        "login": '',
-                        'schema': '',
-                        'port': 0
+                        "conn_type": None,
+                        "host": None,
+                        "login": None,
+                        'schema': None,
+                        'port': None
                     },
                     {
                         "connection_id": "mysql_default_2",
-                        "conn_type": '',
-                        "host": '',
-                        "login": '',
-                        'schema': '',
-                        'port': 0
+                        "conn_type": None,
+                        "host": None,
+                        "login": None,
+                        'schema': None,
+                        'port': None
                     }
                 ],
                 'total_entries': 2

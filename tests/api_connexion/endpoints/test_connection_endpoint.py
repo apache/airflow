@@ -107,19 +107,19 @@ class TestGetConnections(TestConnectionEndpoint):
                 'connections': [
                     {
                         "connection_id": "test-connection-id-1",
-                        "conn_type": '',
-                        "host": '',
-                        "login": '',
-                        'schema': '',
-                        'port': 0
+                        "conn_type": None,
+                        "host": None,
+                        "login": None,
+                        'schema': None,
+                        'port': None
                     },
                     {
                         "connection_id": "test-connection-id-2",
-                        "conn_type": '',
-                        "host": '',
-                        "login": '',
-                        'schema': '',
-                        'port': 0
+                        "conn_type": None,
+                        "host": None,
+                        "login": None,
+                        'schema': None,
+                        'port': None
                     }
                 ],
                 'total_entries': 2

@@ -31,8 +31,6 @@ class ConnectionCollectionItemSchema(BaseSchema):
         model = Connection
 
     COLLECTION_NAME = 'connections'
-    FIELDS_FROM_NONE_TO_EMPTY_STRING = ['connection_id', 'conn_type', 'host', 'login', 'schema']
-    FIELDS_FROM_NONE_TO_ZERO = ['port']
 
     conn_id = auto_field(dump_to='connection_id', load_from='connection_id')
     conn_type = auto_field()
@@ -46,8 +44,7 @@ class ConnectionSchema(ConnectionCollectionItemSchema):  # pylint: disable=too-m
     """
     Connection schema
     """
-    FIELDS_FROM_NONE_TO_EMPTY_STRING = ConnectionCollectionItemSchema.\
-        FIELDS_FROM_NONE_TO_EMPTY_STRING + ['extra']
+
     password = auto_field(load_only=True)
     extra = auto_field()
 
