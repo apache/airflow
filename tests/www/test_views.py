@@ -2291,23 +2291,24 @@ class TestDagACLView(TestBase):
 class TestTaskInstanceView(TestBase):
     DAG_ID = 'dag_for_testing_task_instance'
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
-    TI_ENDPOINT_TAG = '/taskinstance/list/?_flt_{}_task_tags={}'
+    TI_ENDPOINT_TAG = '/taskinstance/list/?_flt_{}_tags={}'
     TI_ENDPOINT_DATE = '/taskinstance/list/?_flt_0_execution_date={}'
 
     def setUp(self):
         super().setUp()
+        from airflow.www.views import dagbag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dag.sync_to_db()
-        models.DagBag(include_examples=False).bag_dag(dag, parent_dag=dag, root_dag=dag)
+        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
         with create_session() as session:
             self.ti = TaskInstance(
-                task=DummyOperator(task_id='task_instance_1', task_tags=['test_tag_1'], dag=dag),
+                task=DummyOperator(task_id='task_instance_1', tags=['test_tag_1'], dag=dag),
                 execution_date=self.DEFAULT_DATE
             )
             self.ti.try_number = 1
             session.merge(self.ti)
             self.ti2 = TaskInstance(
-                task=DummyOperator(task_id='task_instance_2', task_tags=['test_tag_2'], dag=dag),
+                task=DummyOperator(task_id='task_instance_2', tags=['test_tag_2'], dag=dag),
                 execution_date=self.DEFAULT_DATE
             )
             self.ti2.try_number = 1
@@ -2328,12 +2329,12 @@ class TestTaskInstanceView(TestBase):
         self.check_content_in_response('List Task Instance', resp)
 
     def test_tag_filter_contains(self):
-        resp = self.client.get(self.TI_ENDPOINT_TAG.format(0, 'test_tag_1'))
+        resp = self.client.get(self.TI_ENDPOINT_DATE.format(0, 'test_tag_1'))
         self.check_content_in_response('task_instance_1', resp)
         self.check_content_not_in_response('task_instance_2', resp)
 
     def test_tag_filter_not_contains(self):
-        resp = self.client.get(self.TI_ENDPOINT_TAG.format(1, 'test_tag_1'))
+        resp = self.client.get(self.TI_ENDPOINT_DATE.format(1, 'test_tag_1'))
         self.check_content_in_response('task_instance_2', resp)
         self.check_content_not_in_response('task_instance_1', resp)
 
