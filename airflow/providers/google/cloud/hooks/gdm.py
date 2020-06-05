@@ -43,27 +43,28 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         http_authorized = self._authorize()
         return build('deploymentmanager', 'v2', http=http_authorized, cache_discovery=False)
 
-    def list_deployments(self, project, deployment_filter=None,
-                         max_results=None, order_by=None,
-                         page_token=None) -> List[Dict[str, Any]]:  # pylint: disable=too-many-arguments
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_deployments(self, project_id: str, deployment_filter: Optional[str]=None,
+                         max_results: Optional[int]=None, order_by: Optional[str]=None,
+                         page_token: Optional[str]=None) -> List[Dict[str, Any]]:  # pylint: disable=too-many-arguments
         """
         Lists deployments in a google cloud project.
 
-        :param project: The project ID for this request.
-        :type key_name: str
-        :param filter: A filter expression which limits resources returned in the response.
-        :type filter: string
+        :param project_id: The project ID for this request.
+        :type project_id: str
+        :param deployment_filter: A filter expression which limits resources returned in the response.
+        :type filter: str
         :param max_results: The maximum number of results to return
-        :type max_results: int
+        :type max_results: Optional[int]
         :param order_by: A filed name to order by, ex: "creationTimestamp desc"
-        :type order_by: string
+        :type order_by: Optional[str]
         :param page_token: specifies a page_token to use
-        :type page_token: string
+        :type page_token: str
 
         :rtype: list
         """
         client = self.get_conn()
-        request = client.deployments().list(project=project,    # pylint: disable=no-member
+        request = client.deployments().list(project=project_id,    # pylint: disable=no-member
                                             filter=deployment_filter,
                                             maxResults=max_results,
                                             orderBy=order_by,
@@ -74,21 +75,22 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
             return []
         return deployments
 
-    def delete_deployment(self, project: str, deployment: str, delete_policy: str = "DELETE"):
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_deployment(self, project_id: str, deployment: str, delete_policy: str = "DELETE"):
         """
         Deletes a deployment and all associated resources in a google cloud project.
 
-        :param project: The project ID for this request.
-        :type project: str
+        :param project_id: The project ID for this request.
+        :type project_id: str
         :param deployment: The name of the deployment for this request.
-        :type deployment: string
+        :type deployment: str
         :param delete_policy: Sets the policy to use for deleting resources. (ABANDON | DELETE)
         :type delete_policy: string
 
         :rtype: None
         """
         client = self.get_conn()
-        request = client.deployments().delete(project=project,  # pylint: disable=no-member
+        request = client.deployments().delete(project=project_id,  # pylint: disable=no-member
                                               deployment=deployment,
                                               deletePolicy=delete_policy)
         resp = request.execute()
