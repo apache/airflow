@@ -1112,7 +1112,7 @@ class DataProcPySparkOperatorTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            task.template_fields, ['arguments', 'job_name', 'cluster_name',
+            task.template_fields, ['main', 'arguments', 'job_name', 'cluster_name',
                                    'region', 'dataproc_jars', 'dataproc_properties'])
 
         ti = TaskInstance(task, DEFAULT_DATE)
