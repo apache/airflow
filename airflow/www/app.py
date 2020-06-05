@@ -69,6 +69,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
     app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
+    app.config['SESSION_COOKIE_NAME'] = conf.get('webserver', 'COOKIE_NAME')
 
     if config:
         app.config.from_mapping(config)

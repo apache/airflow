@@ -952,6 +952,13 @@
       type: string
       example: ~
       default: ""
+    - name: cookie_name
+      description: |
+        Set session cookie name
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: ""
     - name: default_wrap
       description: |
         Default setting for wrap toggle on DAG code and TI log views.
