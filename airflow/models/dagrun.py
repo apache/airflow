@@ -275,12 +275,16 @@ class DagRun(Base, LoggingMixin):
         # small speed up
         if unfinished_tasks and none_depends_on_past and none_task_concurrency:
             scheduleable_tasks = [ut for ut in unfinished_tasks if ut.state in SCHEDULEABLE_STATES]
-
-            self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(scheduleable_tasks))
+            self.log.debug(
+                "number of scheduleable tasks for %s: %s task(s)",
+                self, len(scheduleable_tasks))
             ready_tis, changed_tis = self._get_ready_tis(scheduleable_tasks, finished_tasks, session)
             self.log.debug("ready tis length for %s: %s task(s)", self, len(ready_tis))
-            are_runnable_tasks = ready_tis or self._are_premature_tis(
-                unfinished_tasks, finished_tasks, session) or changed_tis
+            if none_depends_on_past and none_task_concurrency:
+                # small speed up
+                are_runnable_tasks = ready_tis or self._are_premature_tis(
+                    unfinished_tasks, finished_tasks, session) or changed_tis
+
         duration = (timezone.utcnow() - start_dttm).total_seconds() * 1000
         Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
 
