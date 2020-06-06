@@ -17,9 +17,12 @@
 # under the License.
 #
 
+import pytest
+
 from tests.test_utils.amazon_system_helpers import AWS_DAG_FOLDER, AmazonSystemTest
 
 
+@pytest.mark.backend("postgres", "mysql")
 class ECSSystemTest(AmazonSystemTest):
     """
     ECS System Test to run and test example ECS dags
