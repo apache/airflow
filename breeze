@@ -103,12 +103,6 @@ function setup_default_breeze_variables() {
     # Determines if help should be run (set to true by --help flag)
     RUN_HELP="false"
 
-    # Holds chosen command to run in case 'execute-command' command is used.
-    RUN_COMMAND=""
-
-    # Holds the test target if the 'test-target' command is used.
-    TEST_TARGET=""
-
     # Holds docker compose command if the `docker-compose` command is used.
     DOCKER_COMPOSE_COMMAND=""
 
@@ -426,12 +420,24 @@ function prepare_command_file() {
     local TESTS="${3}"
     local COMPOSE_FILE="${4}"
     local AIRFLOW_IMAGE="${5}"
-    local EXPANSION="${6-@}"
     cat <<EOF > "${FILE}"
 #!/usr/bin/env bash
-cd "\$(pwd)" || exit
+if [[ \${VERBOSE} == "true" ]]; then
+  echo
+  echo "Executing script:"
+  echo
+  echo "\${BASH_SOURCE[0]} \${@}"
+  echo
+  set -x
+fi
+cd "\$( dirname "\${BASH_SOURCE[0]}" )" || exit
 export DOCKERHUB_USER=${DOCKERHUB_USER}
 export DOCKERHUB_REPO=${DOCKERHUB_REPO}
+HOST_USER_ID=\$(id -ur)
+export HOST_USER_ID
+HOST_GROUP_ID=\$(id -gr)
+export HOST_GROUP_ID
+export HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}"
 export COMPOSE_FILE="${COMPOSE_FILE}"
 export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
 export BACKEND="${BACKEND}"
@@ -445,10 +451,10 @@ export MYSQL_HOST_PORT="${MYSQL_HOST_PORT}"
 export MYSQL_VERSION="${MYSQL_VERSION}"
 export AIRFLOW_SOURCES="${AIRFLOW_SOURCES}"
 export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
-export AIRFOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
+export AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
 export AIRFLOW_IMAGE="${AIRFLOW_IMAGE}"
 export SQLITE_URL="${SQLITE_URL}"
-docker-compose --log-level INFO ${CMD}\$${EXPANSION}"
+docker-compose --log-level INFO ${CMD}
 EOF
     chmod u+x "${FILE}"
 }
@@ -501,43 +507,22 @@ function prepare_command_files() {
     export COMPOSE_CI_FILE
     export COMPOSE_PROD_FILE
 
-    CI_ENTRYPOINT_FILE="/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh"
-    PROD_ENTRYPOINT_FILE="/entrypoint"
-
     # Base python image for the build
     export PYTHON_BASE_IMAGE=python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
     export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
     export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
-    DC_RUN_CI_COMMAND="run --service-ports --rm airflow \"${CI_ENTRYPOINT_FILE} "
-    DC_RUN_PROD_COMMAND="run --service-ports --rm airflow \"${PROD_ENTRYPOINT_FILE} "
-
-    LAST_DC_RUN_CI_FILE="cmd_run_ci"
-    LAST_DC_RUN_PROD_FILE="cmd_run_prod"
-    LAST_DC_TEST_CI_FILE="test_run_ci"
     LAST_DC_CI_FILE="dc_ci"
     LAST_DC_PROD_FILE="dc_prod"
 
-    # Prepare script for "run ci command"
-    prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_RUN_CI_FILE}" \
-        "${DC_RUN_CI_COMMAND}" "false" "${COMPOSE_CI_FILE}" "${AIRFLOW_CI_IMAGE}" '*'
-
-    # Prepare script for "run prod command"
-    prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_RUN_PROD_FILE}" \
-        "${DC_RUN_PROD_COMMAND}" "false" "${COMPOSE_PROD_FILE}" "${AIRFLOW_PROD_IMAGE}" '*'
-
-    # Prepare script for "run test"
-    prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_TEST_CI_FILE}" \
-        "${DC_RUN_CI_COMMAND}" "true" "${COMPOSE_CI_FILE}" "${AIRFLOW_CI_IMAGE}" '*'
-
-    # Prepare script for "run docker compose command"
+    # Prepare script for "run docker compose CI command"
     prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE}" \
-        '"' "false" "${COMPOSE_CI_FILE}" "${AIRFLOW_CI_IMAGE}"
+        "\"\${@}\"" "false" "${COMPOSE_CI_FILE}" "${AIRFLOW_CI_IMAGE}"
 
-    # Prepare script for "run docker compose prod command"
+    # Prepare script for "run docker compose PROD command"
     prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_PROD_FILE}" \
-        '"' "false" "${COMPOSE_PROD_FILE}" "${AIRFLOW_PROD_IMAGE}"
+        "\"\${@}\"" "false" "${COMPOSE_PROD_FILE}" "${AIRFLOW_PROD_IMAGE}"
 }
 
 # Prints detailed help for all commands and flgas. Used to generate documentation added to BREEZE.rst
@@ -746,11 +731,11 @@ function parse_arguments() {
           echo
           export FORWARD_CREDENTIALS="true"
           shift 1 ;;
-        -c|--registry-cache)
+        -c|--github-registry)
           echo
-          echo "Use cache for the container registry"
+          echo "Use github registry"
           echo
-          export ENABLE_REGISTRY_CACHE="true"
+          export USE_GITHUB_REGISTRY="true"
           shift ;;
         -G|--github-organisation)
           echo
@@ -840,10 +825,6 @@ function parse_arguments() {
           fi
           COMMAND_TO_RUN="run_docker_compose"
           ;;
-        execute-command)
-          LAST_SUBCOMMAND="${1}"
-          COMMAND_TO_RUN="run_in_bash"
-          shift ;;
         generate-requirements)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_generate_requirements"
@@ -863,7 +844,7 @@ function parse_arguments() {
         push-image)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_push_image"
-          SKIP_CHECK_REMOTE_IMAGE="true"
+          export SKIP_CHECK_REMOTE_IMAGE="true"
           shift ;;
         initialize-local-virtualenv)
           LAST_SUBCOMMAND="${1}"
@@ -914,33 +895,6 @@ function parse_arguments() {
             shift 2
           fi
           ;;
-        static-check-all-files)
-          LAST_SUBCOMMAND="${1}"
-          COMMAND_TO_RUN="perform_static_checks"
-          if [[ "$#" -lt 2 ]]; then
-            if [[ ${RUN_HELP} != "true" ]]; then
-              echo "You should specify static check that you would like to run or 'all' to run all checks."
-              echo
-              echo "One of :"
-              echo
-              echo "${_BREEZE_ALLOWED_STATIC_CHECKS:=}"
-              echo
-              echo "For example:"
-              echo
-              echo "${CMDNAME} static-check-all-files mypy"
-              echo
-              exit 1
-            else
-              shift
-            fi
-          else
-            export PYTHON_MAJOR_MINOR_VERSION=${STATIC_CHECK_PYTHON_MAJOR_MINOR_VERSION}
-            export STATIC_CHECK="${2:-}"
-            export STATIC_CHECK_ALL_FILES="true"
-            EXTRA_STATIC_CHECK_OPTIONS+=("--all-files" "--show-diff-on-failure")
-            shift 2
-          fi
-          ;;
         stop)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="run_docker_compose"
@@ -955,14 +909,11 @@ function parse_arguments() {
           SECOND_COMMAND_TO_RUN="enter_breeze"
           echo "Restarts the environment. Includes emptying the databases."
           shift ;;
-        test-target)
+        tests)
           LAST_SUBCOMMAND="${1}"
           if [[ $# -lt 2 ]]; then
             RUN_HELP="true"
             shift
-          else
-            export TEST_TARGET="${2}"
-            shift 2
           fi
           COMMAND_TO_RUN="run_tests" ;;
         toggle-suppress-cheatsheet)
@@ -1062,7 +1013,6 @@ function prepare_usage() {
     export USAGE_BUILD_IMAGE="Builds CI or Production docker image"
     export USAGE_CLEANUP_IMAGE="Cleans up the container image created"
     export USAGE_DOCKER_COMPOSE="Executes specified docker-compose command"
-    export USAGE_EXECUTE_COMMAND="Executes specified command in the container"
     export USAGE_FLAGS="Shows all breeze's flags"
     export USAGE_GENERATE_REQUIREMENTS="Generates pinned requirements for pip dependencies"
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
@@ -1077,14 +1027,14 @@ function prepare_usage() {
     export USAGE_STATIC_CHECK_ALL_FILES="Performs selected static check for all files"
     export USAGE_TOGGLE_SUPPRESS_CHEATSHEET="Toggles on/off cheatsheet"
     export USAGE_TOGGLE_SUPPRESS_ASCIIART="Toggles on/off asciiart"
-    export USAGE_TEST_TARGET="Runs selected test target in the container"
+    export USAGE_TESTS="Runs selected tests in the container"
     export USAGE_HELP="Shows this help message"
     export USAGE_HELP_ALL="Shows detailed help for all commands and flags"
 
 
     # shellcheck disable=SC2089
     DETAILED_USAGE_SHELL="
-${CMDNAME} shell [FLAGS] -- <EXTRA_ARGS>
+${CMDNAME} shell [FLAGS] [-- <EXTRA_ARGS>]
 
       This is default subcommand if no subcommand is used.
 
@@ -1101,13 +1051,18 @@ ${CMDNAME} shell [FLAGS] -- <EXTRA_ARGS>
       and webserver ports are forwarded to appropriate database/webserver so that you can
       connect to it from your host environment.
 
+      You can also pass <EXTRA_ARGS> after -- they will be passed as bash parameters, this is
+      especially useful to pass bash options, for example -c to execute command:
+
+      '${CMDNAME} shell -- -c \"ls -la\"'
+
 Flags:
 $(flag_footer)
 "
     # shellcheck disable=SC2090
     export DETAILED_USAGE_SHELL
     export DETAILED_USAGE_EXEC="
-${CMDNAME} exec
+${CMDNAME} exec [-- <EXTRA_ARGS>]
 
       Execs into interactive shell to an already running container. The container mus be started
       already by breeze shell command. If you are not familiar with tmux, this is the best
@@ -1159,7 +1114,7 @@ $(flag_verbosity)
     export DETAILED_USAGE_CLEANUP_IMAGE
     # shellcheck disable=SC2089
     DETAILED_USAGE_DOCKER_COMPOSE="
-${CMDNAME} docker-compose [FLAGS] COMMAND -- <EXTRA_ARGS>
+${CMDNAME} docker-compose [FLAGS] COMMAND [-- <EXTRA_ARGS>]
 
       Run docker-compose command instead of entering the environment. Use 'help' as command
       to see available commands. The <EXTRA_ARGS> passed after -- are treated
@@ -1174,31 +1129,12 @@ $(flag_verbosity)
 "
     # shellcheck disable=SC2090
     export DETAILED_USAGE_DOCKER_COMPOSE
-    # shellcheck disable=SC2089
-    DETAILED_USAGE_EXECUTE_COMMAND="
-${CMDNAME} execute-command [FLAGS] COMMAND -- <EXTRA_ARGS>
-
-      Run chosen command instead of entering the environment. The command is run using
-      'bash -c \"<command with args>\" if you need to pass arguments to your command, you need
-      to pass them together with command surrounded with \" or '. Alternatively you can
-      pass arguments as <EXTRA_ARGS> passed after --. For example:
-
-      '${CMDNAME} execute-command \"ls -la\"' or
-      '${CMDNAME} execute-command ls -- --la'
-
-Flags:
-$(flag_airflow_variants)
-$(flag_backend_variants)
-$(flag_verbosity)
-"
-    # shellcheck disable=SC2090
-    export DETAILED_USAGE_EXECUTE_COMMAND
     export DETAILED_USAGE_FLAGS="
       Explains in detail all the flags that can be used with breeze.
 "
     # shellcheck disable=SC2089
     DETAILED_USAGE_PREPARE_BACKPORT_README="
-${CMDNAME} prepare-backport-packages [FLAGS] -- [YYYY.MM.DD] [PACKAGE_ID ...]
+${CMDNAME} prepare-backport-packages [FLAGS] [YYYY.MM.DD] [PACKAGE_ID ...]
 
       Prepares README.md files for backport packages. You can provide (after --) optional version
       in the form of YYYY.MM.DD, optionally followed by the list of packages to generate readme for.
@@ -1209,12 +1145,12 @@ ${CMDNAME} prepare-backport-packages [FLAGS] -- [YYYY.MM.DD] [PACKAGE_ID ...]
       Examples:
 
       '${CMDNAME} prepare-backport-readme' or
-      '${CMDNAME} prepare-backport-readme -- 2020.05.10' or
-      '${CMDNAME} prepare-backport-readme -- 2020.05.10 https google amazon'
+      '${CMDNAME} prepare-backport-readme 2020.05.10' or
+      '${CMDNAME} prepare-backport-readme 2020.05.10 https google amazon'
 
       General form:
 
-      '${CMDNAME} prepare-backport-readme -- YYYY.MM.DD <PACKAGE_ID> ...'
+      '${CMDNAME} prepare-backport-readme YYYY.MM.DD <PACKAGE_ID> ...'
 
       * YYYY.MM.DD - is the CALVER version of the package to prepare. Note that this date
         cannot be earlier than the already released version (the script will fail if it
@@ -1260,7 +1196,7 @@ $(flag_airflow_variants)
     export DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV
     # shellcheck disable=SC2089
     DETAILED_USAGE_PREPARE_BACKPORT_PACKAGES="
-${CMDNAME} prepare-backport-packages [FLAGS] -- [PACKAGE_ID ...]
+${CMDNAME} prepare-backport-packages [FLAGS] [PACKAGE_ID ...]
 
       Prepares backport packages. You can provide (after --) optional list of packages to prepare.
       If no packages are specified, readme for all packages are generated. You can specify optional
@@ -1270,14 +1206,14 @@ ${CMDNAME} prepare-backport-packages [FLAGS] -- [PACKAGE_ID ...]
       Examples:
 
       '${CMDNAME} prepare-backport-packages' or
-      '${CMDNAME} prepare-backport-packages -- google' or
-      '${CMDNAME} prepare-backport-packages --version-suffix-for-svn rc1 -- http google amazon' or
-      '${CMDNAME} prepare-backport-packages --version-suffix-for-pypi rc1 -- http google amazon'
+      '${CMDNAME} prepare-backport-packages google' or
+      '${CMDNAME} prepare-backport-packages --version-suffix-for-svn rc1 http google amazon' or
+      '${CMDNAME} prepare-backport-packages --version-suffix-for-pypi rc1 http google amazon'
 
       General form:
 
       '${CMDNAME} prepare-backport-packages \\
-            [--version-suffix-for-svn|--version-suffix-for-pypi] -- <PACKAGE_ID> ...'
+            [--version-suffix-for-svn|--version-suffix-for-pypi] <PACKAGE_ID> ...'
 
       * <PACKAGE_ID> is usually directory in the airflow/providers folder (for example
         'google'), but in several cases, it might be one level deeper separated with '.'
@@ -1294,7 +1230,7 @@ $(flag_verbosity)
 ${CMDNAME} push_image [FLAGS]
 
       Pushes images to docker registry. You can push the images to DockerHub registry (default)
-      or to the GitHub cache registry (if --registry-cache flag is used).
+      or to the GitHub registry (if --github-registry flag is used).
 
       For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
       the repository to push to. For GitHub repository --github-organisation and --github-repo
@@ -1307,8 +1243,8 @@ ${CMDNAME} push_image [FLAGS]
       '${CMDNAME} push-image' or
       '${CMDNAME} push-image --dockerhub-user user' to push to your private registry or
       '${CMDNAME} push-image --production-image' - to push production image or
-      '${CMDNAME} push-image --registry-cache' - to push to GitHub cache or
-      '${CMDNAME} push-image --registry-cache --github-organisation org' - for other organisation
+      '${CMDNAME} push-image --github-registry' - to push to GitHub image registry or
+      '${CMDNAME} push-image --github-registry --github-organisation org' - for other organisation
 
 Flags:
 $(flag_pull_push_docker_images)
@@ -1359,7 +1295,7 @@ $(flag_footer)
 "
     export DETAILED_USAGE_RESTART
     export DETAILED_USAGE_STATIC_CHECK="
-${CMDNAME} static-check [FLAGS] STATIC_CHECK
+${CMDNAME} static-check [FLAGS] STATIC_CHECK [-- <EXTRA_ARGS>]
 
       Run selected static checks for currently changed files. You should specify static check that
       you would like to run or 'all' to run all checks. One of:
@@ -1371,44 +1307,29 @@ ${FORMATTED_STATIC_CHECKS}
 
       '${CMDNAME} static-check mypy' or
       '${CMDNAME} static-check mypy -- --files tests/core.py'
+      '${CMDNAME} static-check mypy -- --all-files'
 
       You can see all the options by adding --help EXTRA_ARG:
 
       '${CMDNAME} static-check mypy -- --help'
 "
-    export DETAILED_USAGE_STATIC_CHECK_ALL_FILES="
-${CMDNAME} static-check-all [FLAGS] STATIC_CHECK
-
-      Run selected static checks for all applicable files. You should specify static check that
-      you would like to run or 'all' to run all checks. One of:
-
-${FORMATTED_STATIC_CHECKS}
-
-      You can pass extra arguments including options to the pre-commit framework as
-      <EXTRA_ARGS> passed after --. For example:
-
-      '${CMDNAME} static-check-all-files mypy' or
-      '${CMDNAME} static-check-all-files mypy -- --verbose'
-
-      You can see all the options by adding --help EXTRA_ARG:
-
-      '${CMDNAME} static-check-all-files mypy -- --help'
-"
     # shellcheck disable=SC2089
-    DETAILED_USAGE_TEST_TARGET="
-${CMDNAME} test-target [FLAGS] TEST_TARGET -- <EXTRA_ARGS>
+    DETAILED_USAGE_TESTS="
+${CMDNAME} tests [FLAGS] [TEST_TARGET ..] [-- <EXTRA_ARGS>]
 
       Run the specified unit test target. There might be multiple
       targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
-      as additional options passed to pytest. For example:
+      as additional options passed to pytest. You can pass 'tests' as target to
+      run all tests. For example:
 
-      '${CMDNAME} test-target tests/test_core.py -- --logging-level=DEBUG'
+      '${CMDNAME} tests tests/test_core.py -- --logging-level=DEBUG'
+      '${CMDNAME} tests tests
 
 Flags:
 $(flag_footer)
 "
     # shellcheck disable=SC2090
-    export DETAILED_USAGE_TEST_TARGET
+    export DETAILED_USAGE_TESTS
     export DETAILED_USAGE_TOGGLE_SUPPRESS_CHEATSHEET="
 ${CMDNAME} toggle-suppress-cheatsheet
 
@@ -1507,6 +1428,10 @@ function flag_airflow_variants() {
       echo "
 -p, --python <PYTHON_MAJOR_MINOR_VERSION>
         Python version used for the image. This is always major/minor version.
+
+        Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
+        --install-airflow-version or --install-airflow-reference flags.
+
         One of:
 
 ${FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS}
@@ -1705,10 +1630,10 @@ function flag_pull_push_docker_images() {
 -H, --dockerhub-repo
         DockerHub repository used to pull, push, build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_REPO:=}.
 
--c, --registry-cache
-        If registry cache is enabled, pulls and pushes are done from the registry cache in github.
-        You need to be logged in to the registry in order to be able to pull/push from it and you
-        need to be committer to push to airflow registry.
+-c, --github-registry
+        If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
+        DockerHub. You need to be logged in to the registry in order to be able to pull/push from it
+        and you need to be committer to push to Apache Airflow' GitHub registry.
 
 -G, --github-organisation
         GitHub organisation used to pull, push images when cache is used. Default: ${_BREEZE_DEFAULT_GITHUB_ORGANISATION:=}.
@@ -1857,6 +1782,29 @@ function read_saved_environment_variables {
 # sessions.
 function check_and_save_all_params() {
     check_and_save_allowed_param "PYTHON_MAJOR_MINOR_VERSION"  "Python version" "--python"
+
+    if [[ "${INSTALL_AIRFLOW_REFERENCE:=}" != "" ]]; then
+        if [[ ${INSTALL_AIRFLOW_REFERENCE} == *1_10* ]]; then
+            export BRANCH_NAME="v1-10-test"
+        fi
+    elif [[ "${INSTALL_AIRFLOW_VERSION:=}" != "" ]]; then
+        if [[ ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
+            export BRANCH_NAME="v1-10-test"
+        fi
+    fi
+
+    if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ]]; then
+        if [[ ${BRANCH_NAME} == "master" ]]; then
+            echo >&2
+            echo >&2 "The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*"
+            echo >&2
+            echo >&2 "You can use it only when you specify 1.10 Airflow via --install-airflow-version"
+            echo >&2 "or --install-airflow-reference and they point to 1.10 version of Airflow"
+            echo >&2
+            exit 1
+        fi
+    fi
+
     check_and_save_allowed_param "BACKEND"  "backend" "--backend"
     check_and_save_allowed_param "KUBERNETES_MODE"  "Kubernetes mode" "--kubernetes-mode"
     check_and_save_allowed_param "KUBERNETES_VERSION"  "Kubernetes version" "--kubernetes-version"
@@ -1877,25 +1825,6 @@ function print_cheatsheet() {
         echo
         echo "                                  Airflow Breeze CHEATSHEET"
         echo
-        print_line
-        echo
-        echo
-        print_line
-        echo
-        echo " Bash scripts to run commands quickly:"
-        echo
-        echo "    * Enter the CI environment          : ${BUILD_CACHE_DIR}/${LAST_DC_RUN_CI_FILE}"
-        echo "    * Enter the production environment  : ${BUILD_CACHE_DIR}/${LAST_DC_RUN_PROD_FILE}"
-        echo "    * Run command in CI environment     : ${BUILD_CACHE_DIR}/${LAST_DC_RUN_CI_FILE} "\
-                                                           "[command with args] [bash options]"
-        echo "    * Run tests in CI environment       : ${BUILD_CACHE_DIR}/${LAST_DC_TEST_CI_FILE} "\
-                                                           "[test target] [pytest options]"
-        echo "    * Run docker-compose CI command     : ${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE} "\
-                                                           "[docker compose command] [docker-compose options]"
-        echo "    * Run docker-compose production cmd : ${BUILD_CACHE_DIR}/${LAST_DC_PROD_FILE} "\
-                                                           "[docker compose command] [docker-compose options]"
-        echo
-
         set +e
         if ! command -v breeze; then
             print_line
@@ -2009,7 +1938,7 @@ function run_static_checks {
 # command chosen
 function run_build_command {
     case "${COMMAND_TO_RUN}" in
-        run_tests|run_docker_compose|run_in_bash)
+        run_tests|run_docker_compose)
             prepare_ci_build
             rebuild_ci_image_if_needed
             ;;
@@ -2084,9 +2013,9 @@ function run_breeze_command {
     case "${COMMAND_TO_RUN}" in
         enter_breeze)
             if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-                "${BUILD_CACHE_DIR}/${LAST_DC_RUN_PROD_FILE}"
+                "${BUILD_CACHE_DIR}/${LAST_DC_PROD_FILE}" run --service-ports --rm airflow "${@}"
             else
-                "${BUILD_CACHE_DIR}/${LAST_DC_RUN_CI_FILE}"
+                "${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE}" run --service-ports --rm airflow "${@}"
             fi
             ;;
         run_exec)
@@ -2102,10 +2031,10 @@ function run_breeze_command {
               : "${AIRFLOW_TESTING_CONTAINER:?"ERROR! Breeze must be running in order to exec into running container"}"
             set -e
             docker exec -it "${AIRFLOW_TESTING_CONTAINER}" \
-                "/opt/airflow/scripts/ci/in_container/entrypoint_exec.sh"
+                "/opt/airflow/scripts/ci/in_container/entrypoint_exec.sh" "${@}"
             ;;
         run_tests)
-            "${BUILD_CACHE_DIR}/${LAST_DC_TEST_CI_FILE}" "\"${TEST_TARGET}\"" "$@"
+            "${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE}" run --service-ports --rm airflow "$@"
             ;;
         run_docker_compose)
             set +u
@@ -2117,16 +2046,13 @@ function run_breeze_command {
             "${DC_FILE}" "${DOCKER_COMPOSE_COMMAND}" "${EXTRA_DC_OPTIONS[@]}" "$@"
             set -u
             ;;
-        run_in_bash)
-            "${BUILD_CACHE_DIR}/${LAST_DC_RUN_CI_FILE}" "${RUN_COMMAND}" "$@"
-            ;;
         perform_static_checks)
             make_sure_precommit_is_installed
-            run_static_checks "$@"
+            run_static_checks "${@}"
             ;;
         build_image)
             ;;
-        cleanup_image)
+          cleanup_image)
             remove_images
             ;;
         perform_generate_requirements)

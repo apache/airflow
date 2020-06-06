@@ -46,6 +46,16 @@ function initialize_common_environment {
     # All the subsequent questions
     export LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
 
+    # This folder is mounted to inside the container in /files folder. This is the way how
+    # We can exchange DAGs, scripts, packages etc with the container environment
+    export FILES_DIR="${AIRFLOW_SOURCES}/files"
+    # Temporary dir used well ... temporarily
+    export TMP_DIR="${AIRFLOW_SOURCES}/tmp"
+
+    # Create those folders above in case they do not exist
+    mkdir -p "${TMP_DIR}"
+    mkdir -p "${FILES_DIR}"
+
     # Create useful directories if not yet created
     mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
     mkdir -p "${AIRFLOW_SOURCES}/logs"
@@ -69,7 +79,7 @@ function initialize_common_environment {
     export GITHUB_ORGANISATION=${GITHUB_ORGANISATION:="apache"}
     export GITHUB_REPO=${GITHUB_REPO:="airflow"}
     export CACHE_REGISTRY=${CACHE_REGISTRY:="docker.pkg.github.com"}
-    export ENABLE_REGISTRY_CACHE=${ENABLE_REGISTRY_CACHE:="false"}
+    export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
 
     # Default port numbers for forwarded ports
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}

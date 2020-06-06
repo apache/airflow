@@ -224,10 +224,11 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 # In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
 # This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
-# And is automatically reinstalled from the scratch with every python patch level release
-RUN pip install "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
+# And is automatically reinstalled from the scratch every time patch release of python gets released
+RUN pip install \
+    "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
         --constraint "https://raw.githubusercontent.com/${AIRFLOW_REPO}/${AIRFLOW_BRANCH}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt" \
-    && pip uninstall --yes apache-airflow
+    && pip uninstall --yes apache-airflow;
 
 # Link dumb-init for backwards compatibility (so that older images also work)
 RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
@@ -275,7 +276,8 @@ COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
 # Package JS/css for production
 RUN yarn --cwd airflow/www run prod
 
-COPY entrypoint.sh /entrypoint.sh
+COPY scripts/ci/in_container/entrypoint_ci.sh /entrypoint
+RUN chmod a+x /entrypoint
 
 # Copy selected subdirectories only
 COPY .github/ ${AIRFLOW_SOURCES}/.github/
@@ -290,9 +292,6 @@ COPY .coveragerc .rat-excludes .flake8 pylintrc LICENSE MANIFEST.in NOTICE CHANG
      .github pytest.ini \
      setup.cfg setup.py \
      ${AIRFLOW_SOURCES}/
-
-# Needed for building images via docker-in-docker inside the docker
-COPY Dockerfile.ci ${AIRFLOW_SOURCES}/Dockerfile.ci
 
 # Install autocomplete for airflow
 RUN register-python-argcomplete airflow >> ~/.bashrc
@@ -317,6 +316,4 @@ ENV PATH="${HOME}:${PATH}"
 
 EXPOSE 8080
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint.sh"]
-
-CMD ["--help"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]

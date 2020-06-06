@@ -157,6 +157,23 @@ ENV PIP_VERSION=${PIP_VERSION}
 
 RUN pip install --upgrade pip==${PIP_VERSION}
 
+ARG AIRFLOW_REPO=apache/airflow
+ENV AIRFLOW_REPO=${AIRFLOW_REPO}
+
+ARG AIRFLOW_BRANCH=master
+ENV AIRFLOW_BRANCH=${AIRFLOW_BRANCH}
+
+ARG AIRFLOW_EXTRAS
+ARG ADDITIONAL_AIRFLOW_EXTRAS=""
+ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS}
+
+# In case of Production build image segment we want to pre-install master version of airflow
+# dependencies from github so that we do not have to always reinstall it from the scratch.
+RUN pip install --user \
+    "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
+        --constraint "https://raw.githubusercontent.com/${AIRFLOW_REPO}/${AIRFLOW_BRANCH}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt" \
+    && pip uninstall --yes apache-airflow;
+
 ARG AIRFLOW_SOURCES_FROM="."
 ENV AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM}
 
@@ -170,10 +187,6 @@ ENV CASS_DRIVER_BUILD_CONCURRENCY=${CASS_DRIVER_BUILD_CONCURRENCY}
 
 ARG AIRFLOW_VERSION
 ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
-
-ARG AIRFLOW_EXTRAS
-ARG ADDITIONAL_AIRFLOW_EXTRAS=""
-ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS}
 
 ARG ADDITIONAL_PYTHON_DEPS=""
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS}
@@ -213,13 +226,6 @@ RUN \
         yarn --cwd "${WWW_DIR}" run prod; \
         rm -rf "${WWW_DIR}/node_modules"; \
     fi
-
-ARG ENTRYPOINT_FILE="entrypoint.sh"
-ENV ENTRYPOINT_FILE="${ENTRYPOINT_FILE}"
-
-# hadolint ignore=DL3020
-ADD ${ENTRYPOINT_FILE} /entrypoint
-RUN chmod a+x /entrypoint
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
@@ -333,7 +339,11 @@ RUN mkdir -pv "${AIRFLOW_HOME}"; \
     chown -R "airflow" "${AIRFLOW_HOME}"
 
 COPY --chown=airflow:airflow --from=airflow-build-image /root/.local "/home/airflow/.local"
-COPY --chown=airflow:airflow --from=airflow-build-image /entrypoint /entrypoint
+
+COPY scripts/prod/entrypoint_prod.sh /entrypoint
+COPY scripts/prod/clean-logs.sh /clean-logs
+
+RUN chmod a+x /entrypoint /clean-logs
 
 USER airflow
 
@@ -345,6 +355,5 @@ ENV AIRFLOW__CORE__LOAD_EXAMPLES="false"
 
 EXPOSE 8080
 
-COPY scripts/include/clean-logs.sh /usr/local/bin/clean-airflow-logs
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD ["--help"]

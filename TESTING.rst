@@ -131,23 +131,23 @@ Running Tests for a Specified Target Using Breeze from the Host
 ---------------------------------------------------------------
 
 If you wish to only run tests and not to drop into shell, apply the
-``-t``, ``--test-target`` flag. You can add extra pytest flags after ``--`` in the command line.
+``tests`` command. You can add extra targets and pytest flags after the ``tests`` command.
 
 .. code-block:: bash
 
-     ./breeze test-target tests/hooks/test_druid_hook.py -- --logging-level=DEBUG
+     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --logging-level=DEBUG
 
-You can run the whole test suite with a special '.' test target:
+You can run the whole test suite with a 'tests' test target:
 
 .. code-block:: bash
 
-    ./breeze test-target .
+    ./breeze tests tests
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze test-target tests/test_core.py::TestCore
+    ./breeze tests tests/test_core.py::TestCore
 
 
 Airflow Integration Tests

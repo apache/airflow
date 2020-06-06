@@ -49,7 +49,7 @@ function generate_local_mounts_list {
         "$prefix"pytest.ini:/opt/airflow/pytest.ini:cached
         "$prefix"requirements:/opt/airflow/requirements:cached
         "$prefix"scripts:/opt/airflow/scripts:cached
-        "$prefix"scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached
+        "$prefix"scripts/ci/in_container/entrypoint_ci.sh:/entrypoint:cached
         "$prefix"setup.cfg:/opt/airflow/setup.cfg:cached
         "$prefix"setup.py:/opt/airflow/setup.py:cached
         "$prefix"tests:/opt/airflow/tests:cached
