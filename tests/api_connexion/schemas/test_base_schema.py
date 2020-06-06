@@ -43,8 +43,6 @@ class TestBaseSchema(unittest.TestCase):
 
         class MySchema(BaseSchema):
             COLLECTION_NAME = 'children'
-            FIELDS_FROM_NONE_TO_EMPTY_STRING = ['name']
-            FIELDS_FROM_NONE_TO_ZERO = ['number']
             name = fields.Str()
             number = fields.Int()
 
@@ -63,53 +61,3 @@ class TestBaseSchema(unittest.TestCase):
                 'total_entries': 2
             }
         )
-
-    def test_process_list_data_for_dump(self):
-        class Model:
-            def __init__(self, name=None, number=None):
-                self.name = name
-                self.number = number
-
-        class MySchema(BaseSchema):
-            COLLECTION_NAME = 'children'
-            FIELDS_FROM_NONE_TO_EMPTY_STRING = ['name']
-            FIELDS_FROM_NONE_TO_ZERO = ['number']
-            name = fields.Str()
-            number = fields.Int()
-
-        schema = MySchema(many=True)
-        obj1 = Model(name=None, number=None)
-        obj2 = Model(name=None, number=None)
-
-        result = schema.dump([obj1, obj2])
-        self.assertEqual(
-            result[0],
-            {
-                'children': [
-                    {'name': '', 'number': 0},
-                    {'name': '', 'number': 0}
-                ],
-                'total_entries': 2
-            }
-        )
-
-    def test_process_data_for_dump(self):
-        class Model:
-            def __init__(self, name=None, number=None):
-                self.name = name
-                self.number = number
-
-        class MySchema(BaseSchema):
-            COLLECTION_NAME = 'children'
-            FIELDS_FROM_NONE_TO_EMPTY_STRING = ['name']
-            FIELDS_FROM_NONE_TO_ZERO = ['number']
-            name = fields.Str()
-            number = fields.Int()
-
-        schema = MySchema()
-        obj = Model(name=None, number=None)
-
-        result = schema.dump(obj)
-        self.assertEqual(result[0],
-                         {'name': '', 'number': 0},
-                         )

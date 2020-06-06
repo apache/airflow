@@ -17,7 +17,7 @@
 
 import unittest
 
-from airflow.api_connexion.schemas.dagrun_schema import dagrun_collection_schema, dagrun_schema
+from airflow.api_connexion.schemas.dag_run_schema import dagrun_collection_schema, dagrun_schema
 from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -54,9 +54,9 @@ class TestDAGRunSchema(TestDAGRunBase):
         self.assertEqual(
             deserialized_dagrun[0],
             {
-                'dag_id': "",
+                'dag_id': None,
                 'dag_run_id': 'my-dag-run',
-                'end_date': '',
+                'end_date': None,
                 'state': 'running',
                 'execution_date': str(self.now.isoformat()),
                 'external_trigger': True,
@@ -70,9 +70,9 @@ class TestDAGRunSchema(TestDAGRunBase):
         # and conf are loaded.
         # dag_run_id should be loaded as run_id
         serialized_dagrun = {
-            'dag_id': "",
+            'dag_id': None,
             'dag_run_id': 'my-dag-run',
-            'end_date': '',
+            'end_date': None,
             'state': 'failed',
             'execution_date': str(self.now.isoformat()),
             'external_trigger': True,
@@ -118,9 +118,9 @@ class TestDagRunCollection(TestDAGRunBase):
             {
                 'dag_runs': [
                     {
-                        'dag_id': "",
+                        'dag_id': None,
                         'dag_run_id': 'my-dag-run',
-                        'end_date': '',
+                        'end_date': None,
                         'execution_date': str(self.now.isoformat()),
                         'external_trigger': True,
                         'state': 'running',
@@ -128,9 +128,9 @@ class TestDagRunCollection(TestDAGRunBase):
                         'conf': '{"start": "stop"}'
                     },
                     {
-                        'dag_id': "",
+                        'dag_id': None,
                         'dag_run_id': 'my-dag-run-2',
-                        'end_date': '',
+                        'end_date': None,
                         'state': 'running',
                         'execution_date': str(self.now.isoformat()),
                         'external_trigger': True,

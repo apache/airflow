@@ -22,7 +22,7 @@ from flask import request
 
 from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
-from airflow.api_connexion.schemas.dagrun_schema import dagrun_collection_schema, dagrun_schema
+from airflow.api_connexion.schemas.dag_run_schema import dagrun_collection_schema, dagrun_schema
 from airflow.models import DagRun
 from airflow.utils.session import provide_session
 

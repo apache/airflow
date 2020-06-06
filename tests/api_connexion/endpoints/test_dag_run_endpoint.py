@@ -72,7 +72,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             {
                 'dag_id': 'TEST_DAG_ID',
                 'dag_run_id': 'TEST_DAG_RUN_ID',
-                'end_date': '',
+                'end_date': None,
                 'state': 'running',
                 'execution_date': self.now.isoformat(),
                 'external_trigger': True,
@@ -128,7 +128,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     {
                         'dag_id': 'TEST_DAG_ID',
                         'dag_run_id': 'TEST_DAG_RUN_ID_1',
-                        'end_date': '',
+                        'end_date': None,
                         'state': 'running',
                         'execution_date': self.now.isoformat(),
                         'external_trigger': True,
@@ -138,7 +138,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     {
                         'dag_id': 'TEST_DAG_ID',
                         'dag_run_id': 'TEST_DAG_RUN_ID_2',
-                        'end_date': '',
+                        'end_date': None,
                         'state': 'running',
                         'execution_date': (self.now + timedelta(minutes=1)).isoformat(),
                         'external_trigger': True,
@@ -181,7 +181,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     {
                         'dag_id': 'TEST_DAG_ID',
                         'dag_run_id': 'TEST_DAG_RUN_ID_1',
-                        'end_date': '',
+                        'end_date': None,
                         'state': 'running',
                         'execution_date': self.now.isoformat(),
                         'external_trigger': True,
@@ -191,7 +191,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     {
                         'dag_id': 'TEST_DAG_ID',
                         'dag_run_id': 'TEST_DAG_RUN_ID_2',
-                        'end_date': '',
+                        'end_date': None,
                         'state': 'running',
                         'execution_date': (self.now + timedelta(minutes=1)).isoformat(),
                         'external_trigger': True,
@@ -232,7 +232,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     {
                         'dag_id': 'TEST_DAG_ID',
                         'dag_run_id': 'TEST_DAG_RUN_ID0',
-                        'end_date': '',
+                        'end_date': None,
                         'state': 'running',
                         'execution_date': (self.now + timedelta(minutes=0)).isoformat(),
                         'external_trigger': True,

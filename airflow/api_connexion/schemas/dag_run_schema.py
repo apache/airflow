@@ -28,8 +28,6 @@ class DAGRunSchema(BaseSchema):
     Schema for DAGRun
     """
     COLLECTION_NAME = 'dag_runs'
-    FIELDS_FROM_NONE_TO_EMPTY_STRING = ['dag_run_id', 'dag_id', 'execution_date',
-                                        'start_date', 'end_date']
 
     class Meta:
         """ Meta """
