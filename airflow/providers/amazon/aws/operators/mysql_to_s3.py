@@ -53,7 +53,6 @@ class MySQLToS3Operator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
         You can specify this argument if you want to use a different
         CA cert bundle than the one used by botocore.
-
     :type verify: bool or str
     :param pd_csv_kwargs: arguments to include in pd.to_csv (header, index, columns...)
     :type pd_csv_kwargs: dict
