@@ -49,48 +49,48 @@ class ECSSystemTest(AmazonSystemTest):
     awslogs_group = "/ecs/hello-world"
     awslogs_stream_prefix = "prefix_b"  # only prefix without container name
 
-    def setUp(self):
-        super().setUp()
-        self.create_connection(
-            aws_conn_id=self.aws_conn_id,
-            region=self._region_name(),
+    @classmethod
+    def setup_class(cls):
+        cls.create_connection(
+            aws_conn_id=cls.aws_conn_id,
+            region=cls._region_name(),
         )
 
         # create ecs cluster if it does not exist
-        self.create_ecs_cluster(
-            aws_conn_id=self.aws_conn_id,
-            cluster_name=self.cluster,
+        cls.create_ecs_cluster(
+            aws_conn_id=cls.aws_conn_id,
+            cluster_name=cls.cluster,
         )
 
         # create task_definition if it does not exist
-        task_definition_exists = self.is_ecs_task_definition_exists(
-            aws_conn_id=self.aws_conn_id,
-            task_definition=self.task_definition,
+        task_definition_exists = cls.is_ecs_task_definition_exists(
+            aws_conn_id=cls.aws_conn_id,
+            task_definition=cls.task_definition,
         )
         if not task_definition_exists:
-            self.create_ecs_task_definition(
-                aws_conn_id=self.aws_conn_id,
-                task_definition=self.task_definition,
-                container=self.container,
-                image=self._image(),
-                execution_role_arn=self._execution_role_arn(),
-                awslogs_group=self.awslogs_group,
-                awslogs_region=self._region_name(),
-                awslogs_stream_prefix=self.awslogs_stream_prefix,
+            cls.create_ecs_task_definition(
+                aws_conn_id=cls.aws_conn_id,
+                task_definition=cls.task_definition,
+                container=cls.container,
+                image=cls._image(),
+                execution_role_arn=cls._execution_role_arn(),
+                awslogs_group=cls.awslogs_group,
+                awslogs_region=cls._region_name(),
+                awslogs_stream_prefix=cls.awslogs_stream_prefix,
             )
 
-    def tearDown(self):
+    @classmethod
+    def teardown_class(cls):
         # remove all created/existing resources in tear down
-        if self._remove_resources():
-            self.delete_ecs_cluster(
-                aws_conn_id=self.aws_conn_id,
-                cluster_name=self.cluster,
+        if cls._remove_resources():
+            cls.delete_ecs_cluster(
+                aws_conn_id=cls.aws_conn_id,
+                cluster_name=cls.cluster,
             )
-            self.delete_ecs_task_definition(
-                aws_conn_id=self.aws_conn_id,
-                task_definition=self.task_definition,
+            cls.delete_ecs_task_definition(
+                aws_conn_id=cls.aws_conn_id,
+                task_definition=cls.task_definition,
             )
-        super().tearDown()
 
     def test_run_example_dag_ecs_fargate_dag(self):
         self.run_dag("ecs_fargate_dag", AWS_DAG_FOLDER)
