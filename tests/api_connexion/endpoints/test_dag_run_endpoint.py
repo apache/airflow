@@ -151,7 +151,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
         )
 
     @provide_session
-    def test_should_return_all_with_approx_char_as_dag_id(self, session):
+    def test_should_return_all_with_tilde_as_dag_id(self, session):
         dagrun_model_1 = DagRun(
             dag_id='TEST_DAG_ID',
             run_id='TEST_DAG_RUN_ID_1',
@@ -202,8 +202,95 @@ class TestGetDagRuns(TestDagRunEndpoint):
                 "total_entries": 2
             }
         )
-        #  TODO: add tests for pagination and filters
-        #  TODO: Handle repeated model add codes
+
+    @provide_session
+    def test_handle_limit_in_query(self, session):
+
+        dagrun_models = [DagRun(
+            dag_id='TEST_DAG_ID',
+            run_id='TEST_DAG_RUN_ID' + str(i),
+            run_type=DagRunType.MANUAL.value,
+            execution_date=self.now + timedelta(minutes=i),
+            start_date=self.now,
+            external_trigger=True,
+        ) for i in range(100)]
+
+        session.add_all(dagrun_models)
+        session.commit()
+        result = session.query(DagRun).all()
+        assert len(result) == 100
+
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns?limit=1"
+        )
+        assert response.status_code == 200
+        self.assertEqual(response.json.get('total_entries'), 1)
+        self.assertEqual(
+            response.json,
+            {
+                "dag_runs": [
+                    {
+                        'dag_id': 'TEST_DAG_ID',
+                        'dag_run_id': 'TEST_DAG_RUN_ID0',
+                        'end_date': '',
+                        'state': 'running',
+                        'execution_date': (self.now + timedelta(minutes=0)).isoformat(),
+                        'external_trigger': True,
+                        'start_date': self.now.isoformat(),
+                        'conf': {},
+                    }
+                ],
+                "total_entries": 1
+            }
+        )
+
+    @provide_session
+    def test_handle_offset_in_query(self, session):
+
+        dagrun_models = [DagRun(
+            dag_id='TEST_DAG_ID',
+            run_id='TEST_DAG_RUN_ID' + str(i),
+            run_type=DagRunType.MANUAL.value,
+            execution_date=self.now + timedelta(minutes=i),
+            start_date=self.now,
+            external_trigger=True,
+        ) for i in range(4)]
+
+        session.add_all(dagrun_models)
+        session.commit()
+        result = session.query(DagRun).all()
+        assert len(result) == 4
+
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns?offset=1"
+        )
+        assert response.status_code == 200
+        self.assertEqual(response.json.get('total_entries'), 3)
+
+    @provide_session
+    def test_handle_limit_and_offset_in_query(self, session):
+
+        dagrun_models = [DagRun(
+            dag_id='TEST_DAG_ID',
+            run_id='TEST_DAG_RUN_ID' + str(i),
+            run_type=DagRunType.MANUAL.value,
+            execution_date=self.now + timedelta(minutes=i),
+            start_date=self.now,
+            external_trigger=True,
+        ) for i in range(10)]
+
+        session.add_all(dagrun_models)
+        session.commit()
+        result = session.query(DagRun).all()
+        assert len(result) == 10
+
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns?limit=6&offset=5"
+        )
+        assert response.status_code == 200
+        self.assertEqual(response.json.get('total_entries'), 5)
+
+    #  TODO: add tests for filters
 
 
 class TestPatchDagRun(TestDagRunEndpoint):
