@@ -119,6 +119,7 @@ function populate_taskinstance_properties(node) {
     task_instance.task_id = node.name;
     task_instance.operator = node.operator;
     task_instance.execution_date = dr_instance.execution_date;
+    task_instance.following_execution_date = dr_instance.following_execution_date;
     task_instance.external_trigger = dr_instance.external_trigger;
 
     // compute start_date and end_date if applicable

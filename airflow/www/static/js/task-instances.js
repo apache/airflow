@@ -75,7 +75,8 @@ export default function tiTooltip(ti, {includeTryNumber = false} = {}) {
   if (ti.task_id !== undefined) {
     tt += `Task_id: ${escapeHtml(ti.task_id)}<br>`;
   }
-  tt += `Run: ${formatDateTime(ti.execution_date)}<br>`;
+  tt += `Execution Date: ${formatDateTime(ti.execution_date)}<br>`;
+  tt += `Following Execution Date: ${formatDateTime(ti.following_execution_date)}<br>`;
   if (ti.run_id !== undefined) {
     tt += `Run Id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;
   }
@@ -103,4 +104,4 @@ export default function tiTooltip(ti, {includeTryNumber = false} = {}) {
   return tt;
 }
 
-window.tiTooltip = tiTooltip
+window.tiTooltip = tiTooltip;

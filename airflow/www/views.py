@@ -1395,6 +1395,12 @@ class Airflow(AirflowBaseView):  # noqa: D101
         dag_runs = {
             dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs
         }
+        for execution_date, dag_run in dag_runs.items():
+            # following_execution_date is None when schedule_interval is None
+            following_execution_date = dag.following_schedule(execution_date)
+            if not following_execution_date or dag_run['run_id'].startswith('manual__'):
+                following_execution_date = execution_date
+            dag_run['following_execution_date'] = following_execution_date.isoformat()
 
         dates = sorted(list(dag_runs.keys()))
         max_date = max(dates) if dates else None
