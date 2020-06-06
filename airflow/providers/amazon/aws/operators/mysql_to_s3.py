@@ -49,10 +49,10 @@ class MySQLToS3Operator(BaseOperator):
         You can provide the following values:
 
         - ``False``: do not validate SSL certificates. SSL will still be used
-        (unless use_ssl is False), but SSL certificates will not be verified.
+                (unless use_ssl is False), but SSL certificates will not be verified.
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
-        You can specify this argument if you want to use a different
-        CA cert bundle than the one used by botocore.
+                You can specify this argument if you want to use a different
+                CA cert bundle than the one used by botocore.
     :type verify: bool or str
     :param pd_csv_kwargs: arguments to include in pd.to_csv (header, index, columns...)
     :type pd_csv_kwargs: dict
