@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from marshmallow import fields
+from marshmallow import ValidationError, fields
+from marshmallow.schema import Schema
 from marshmallow_sqlalchemy import auto_field
 
 from airflow.api_connexion.schemas.base_schema import BaseSchema
@@ -38,7 +39,7 @@ class DAGRunSchema(BaseSchema):
     execution_date = auto_field()
     start_date = auto_field(dump_only=True)
     end_date = auto_field(dump_only=True)
-    state = fields.Str(DagState())
+    state = fields.Method('get_state', deserialize='load_state')
     external_trigger = auto_field(default=True, dump_only=True)
     conf = fields.Method('get_conf')
 
@@ -50,6 +51,41 @@ class DAGRunSchema(BaseSchema):
             return {}
         return obj.conf
 
+    @staticmethod
+    def get_state(obj: DagRun):
+        """ Return a DagState value of state field """
+        if obj.state:
+            return DagState().dump(dict(state=obj.state)).data['state']
+        return obj.state
+
+    @classmethod
+    def load_state(cls, value):
+        """ Validate state field and return None if it fails """
+        try:
+            DagState(strict=True).load(dict(state=value))
+        except ValidationError:
+            return None
+        return value
+
+
+class ListDagRunsFormSchema(Schema):
+    """ Schema for ListDagRunsForm """
+
+    class Meta:
+        """ Meta """
+        dateformat = 'iso'
+
+    page_offset = fields.Int(min=0)
+    page_limit = fields.Int(min=1, max=100)
+    dag_ids = fields.List(fields.Str())
+    execution_date_gte = fields.DateTime()
+    execution_date_lte = fields.DateTime()
+    start_date_gte = fields.DateTime()
+    start_date_lte = fields.DateTime()
+    end_date_gte = fields.DateTime()
+    end_date_lte = fields.DateTime()
+
 
 dagrun_schema = DAGRunSchema()
 dagrun_collection_schema = DAGRunSchema(many=True)
+list_dag_runs_form_schema = ListDagRunsFormSchema(strict=True)

@@ -20,5 +20,5 @@ from marshmallow.schema import Schema
 
 
 class DagState(Schema):
-    """DagState schemagit"""
+    """DagState schemag"""
     state = fields.Str(validate=validate.OneOf(["success", "running", "failed"]))

@@ -287,9 +287,6 @@ class TestGetDagRuns(TestDagRunEndpoint):
         assert response.status_code == 200
         self.assertEqual(response.json.get('total_entries'), 5)
 
-
-class TestGetDagRunsStartDateFilter(TestDagRunEndpoint):
-
     @provide_session
     def test_start_date_gte_and_lte(self, session):
         dagrun_model_1 = DagRun(
@@ -387,9 +384,6 @@ class TestGetDagRunsStartDateFilter(TestDagRunEndpoint):
         self.assertEqual(response.json.get('total_entries'), 1)
         self.assertEqual(response.json.get('dag_runs')[0].get('start_date'),
                          self.now.isoformat())  # today
-
-
-class TestGetDagRunsExecutionDateFilter(TestDagRunEndpoint):
 
     @provide_session
     def test_execution_date_gte_and_lte(self, session):
@@ -489,7 +483,24 @@ class TestGetDagRunsExecutionDateFilter(TestDagRunEndpoint):
                          self.now.isoformat())  # today
 
 
-#  TODO: add tests for filters
+#  TODO: add tests for end_date filters
+
+class TestGetDagRunsBatch(TestDagRunEndpoint):
+    def test_should_response_200(self):
+        data = dict(
+            page_offset=2,
+            page_limit=5,
+            dag_ids=['my-id'],
+            start_date_gte=self.now.isoformat(),
+            start_date_lte=(self.now+timedelta(days=1)).isoformat(),
+            execution_date_gte=self.now.isoformat(),
+            execution_date_lte=(self.now + timedelta(days=1)).isoformat(),
+            end_date_gte=(self.now+timedelta(days=3)).isoformat(),
+            end_date_lte=(self.now+timedelta(days=1)).isoformat()
+        )
+        response = self.client.post("api/v1/dags/~/dagRuns/list", data=data)
+        # Todo: fix view can't be accessed due to csrf? 400
+        assert response.status_code == 200
 
 
 class TestPatchDagRun(TestDagRunEndpoint):

@@ -16,8 +16,13 @@
 # under the License.
 
 import unittest
+from datetime import timedelta
 
-from airflow.api_connexion.schemas.dag_run_schema import dagrun_collection_schema, dagrun_schema
+from marshmallow.exceptions import ValidationError
+
+from airflow.api_connexion.schemas.dag_run_schema import (
+    dagrun_collection_schema, dagrun_schema, list_dag_runs_form_schema,
+)
 from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -39,7 +44,6 @@ class TestDAGRunSchema(TestDAGRunBase):
 
     @provide_session
     def test_serialzie(self, session):
-
         dagrun_model = DagRun(run_id='my-dag-run',
                               run_type=DagRunType.MANUAL.value,
                               execution_date=self.now,
@@ -87,6 +91,32 @@ class TestDAGRunSchema(TestDAGRunBase):
                 'run_id': 'my-dag-run',
                 'execution_date': self.now,
                 'state': 'failed',
+                'conf': '{"start": "stop"}'
+            }
+        )
+
+    def test_deserialize_2(self):
+        # Only dag_run_id, execution_date, state,
+        # and conf are loaded.
+        # dag_run_id should be loaded as run_id
+        serialized_dagrun = {
+            'dag_id': None,
+            'dag_run_id': 'my-dag-run',
+            'end_date': None,
+            'state': 'faileds',
+            'execution_date': str(self.now.isoformat()),
+            'external_trigger': True,
+            'start_date': str(self.now.isoformat()),
+            'conf': '{"start": "stop"}'
+        }
+
+        result = dagrun_schema.load(serialized_dagrun)
+        self.assertEqual(
+            result.data,
+            {
+                'run_id': 'my-dag-run',
+                'execution_date': self.now,
+                'state': None,
                 'conf': '{"start": "stop"}'
             }
         )
@@ -141,3 +171,50 @@ class TestDagRunCollection(TestDAGRunBase):
                 'total_entries': 2
             }
         )
+
+
+class TestListDagRunsFormSchema(TestDAGRunBase):
+    def test_deserialize(self):
+        form = dict(
+            page_offset=2,
+            page_limit=5,
+            dag_ids=['my-id'],
+            start_date_gte=self.now.isoformat(),
+            start_date_lte=(self.now + timedelta(days=1)).isoformat(),
+            execution_date_gte=self.now.isoformat(),
+            execution_date_lte=(self.now + timedelta(days=1)).isoformat(),
+            end_date_gte=(self.now + timedelta(days=3)).isoformat(),
+            end_date_lte=(self.now + timedelta(days=1)).isoformat()
+        )
+
+        result = list_dag_runs_form_schema.load(form)
+        self.assertEqual(
+            result.data,
+            dict(
+                page_offset=2,
+                page_limit=5,
+                dag_ids=['my-id'],
+                start_date_gte=self.now,
+                start_date_lte=(self.now + timedelta(days=1)),
+                execution_date_gte=self.now,
+                execution_date_lte=(self.now + timedelta(days=1)),
+                end_date_gte=(self.now + timedelta(days=3)),
+                end_date_lte=(self.now + timedelta(days=1))
+            )
+        )
+
+    def test_deserialize_raises(self):
+        form = dict(
+            page_offset=2,
+            page_limit=5,
+            dag_ids=[1, 2, 3],  # Items must be strings
+            start_date_gte=self.now,  # Not iso
+            start_date_lte=(self.now + timedelta(days=1)).isoformat(),
+            execution_date_gte=self.now.isoformat(),
+            execution_date_lte=(self.now + timedelta(days=1)).isoformat(),
+            end_date_gte=(self.now + timedelta(days=3)),
+            end_date_lte=(self.now + timedelta(days=1))
+        )
+
+        with self.assertRaises(ValidationError):
+            list_dag_runs_form_schema.load(form)
