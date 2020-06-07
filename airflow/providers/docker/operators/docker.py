@@ -228,7 +228,7 @@ class DockerOperator(BaseOperator):
                 name=self.container_name,
                 environment={**self.environment, **self._private_environment},
                 host_config=self.cli.create_host_config(
-                    auto_remove=self.auto_remove,
+                    auto_remove=False,
                     binds=self.volumes,
                     network_mode=self.network_mode,
                     shm_size=self.shm_size,
@@ -262,11 +262,15 @@ class DockerOperator(BaseOperator):
                 raise AirflowException('docker container failed: ' + repr(result))
 
             # duplicated conditional logic because of expensive operation
+            ret = None
             if self.do_xcom_push:
-                return self.cli.logs(container=self.container['Id']) \
+                ret = self.cli.logs(container=self.container['Id']) \
                     if self.xcom_all else line.encode('utf-8')
-            else:
-                return None
+
+            if self.auto_remove:
+                self.cli.remove_container(self.container['Id'])
+
+            return ret
 
     def execute(self, context):
         self.cli = self._get_cli()
