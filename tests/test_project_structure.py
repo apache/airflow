@@ -136,25 +136,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'mssql_to_gcs'),
     }
 
-    MISSING_DOC_GUIDES = {
-        'adls_to_gcs',
-        'bigquery_to_bigquery',
-        'bigquery_to_gcs',
-        'bigquery_to_mysql',
-        'cassandra_to_gcs',
-        'dataflow',
-        'datastore',
-        'dlp',
-        'gcs_to_bigquery',
-        'mlengine',
-        'mssql_to_gcs',
-        'mysql_to_gcs',
-        'postgres_to_gcs',
-        's3_to_gcs',
-        'sql_to_gcs',
-        'tasks',
-    }
-
     def test_example_dags(self):
         operators_modules = self.find_resource_files(resource_type="operators")
         example_dags_files = self.find_resource_files(resource_type="example_dags")
@@ -191,32 +172,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
                     "\n"
                     "Thank you very much.\n"
                     "Can you remove it from the list of missing example, please?"
-                )
-
-    def test_documentation(self):
-        doc_files = glob.glob(f"{ROOT_FOLDER}/docs/howto/operator/gcp/*.rst")
-        operators_modules = self.find_resource_files(resource_type="operators")
-        operator_names = {f.split("/")[-1].rsplit(".")[0] for f in operators_modules}
-        doc_names = {
-            f.split("/")[-1].rsplit(".")[0] for f in doc_files
-        }
-
-        with self.subTest("Detect missing example dags"):
-            missing_guide = operator_names - doc_names
-            missing_guide -= self.MISSING_DOC_GUIDES
-
-            self.assertEqual(missing_guide, set())
-
-        with self.subTest("Keep update missing missing guide list"):
-            new_guides = set(doc_names).intersection(set(self.MISSING_DOC_GUIDES))
-            if new_guides:
-                new_guides_text = '\n'.join(new_guides)
-                self.fail(
-                    "You've added a guide currently listed as missing:\n"
-                    f"{new_guides_text}"
-                    "\n"
-                    "Thank you very much.\n"
-                    "Can you remove it from the list of missing guide, please?"
                 )
 
     @staticmethod

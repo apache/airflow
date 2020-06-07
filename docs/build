@@ -247,6 +247,61 @@ def check_exampleinclude_for_example_dags():
         )
 
 
+MISSING_GCP_DOC_GUIDES = {
+    'adls_to_gcs',
+    'bigquery_to_bigquery',
+    'bigquery_to_gcs',
+    'bigquery_to_mysql',
+    'cassandra_to_gcs',
+    'dataflow',
+    'datastore',
+    'dlp',
+    'gcs_to_bigquery',
+    'mlengine',
+    'mssql_to_gcs',
+    'mysql_to_gcs',
+    'postgres_to_gcs',
+    's3_to_gcs',
+    'sql_to_gcs',
+    'tasks',
+}
+
+
+def check_gcp_guides():
+    doc_files = glob(f"{ROOT_PROJECT_DIR}/docs/howto/operator/gcp/*.rst")
+    doc_names = {f.split("/")[-1].rsplit(".")[0] for f in doc_files}
+
+    operators_files = glob(f"{ROOT_PROJECT_DIR}/airflow/providers/google/*/operators/*.py")
+    operators_files = (f for f in operators_files if not f.endswith("__init__.py"))
+    operator_names = {f.split("/")[-1].rsplit(".")[0] for f in operators_files}
+
+    # Detect missing docs:
+    missing_guide = operator_names - doc_names
+    missing_guide -= MISSING_GCP_DOC_GUIDES
+    if missing_guide:
+        missing_guide_text = " * " + "\n* ".join(missing_guide)
+        message = (
+            "You've added a new operators, but it looks like you haven't added the guide.\n"
+            f"{missing_guide_text}"
+            "\n"
+            "Could you add it?\n"
+        )
+        build_errors.append(DocBuildError(file_path=None, line_no=None, message=message))
+
+    # Keep update missing missing guide list
+    new_guides = set(doc_names).intersection(set(MISSING_GCP_DOC_GUIDES))
+    if new_guides:
+        new_guides_text = " * " + "\n* ".join(new_guides)
+        message = (
+            "You've added a guide currently listed as missing:\n"
+            f"{new_guides_text}"
+            "\n"
+            "Thank you very much.\n"
+            "Can you remove it from the list of missing guide, please?"
+        )
+        build_errors.append(DocBuildError(file_path=__file__, line_no=None, message=message))
+
+
 def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int=5) -> str:
     def guess_lexer_for_filename(filename):
         from pygments.util import ClassNotFound
@@ -348,6 +403,7 @@ clean_files()
 check_class_links_in_operators_and_hooks_ref()
 check_guide_links_in_operators_and_hooks_ref()
 check_exampleinclude_for_example_dags()
+check_gcp_guides()
 
 if build_errors:
     display_errors_summary()
