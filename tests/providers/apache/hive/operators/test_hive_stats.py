@@ -59,9 +59,9 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
             (col, 'non_null'): 'COUNT({})'.format(col)
         })
 
-    def test_get_default_exprs_blacklist(self):
-        col = 'blacklisted_col'
-        self.kwargs.update(dict(col_blacklist=[col]))
+    def test_get_default_exprs_excluded_cols(self):
+        col = 'excluded_col'
+        self.kwargs.update(dict(excluded_columns=[col]))
 
         default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, None)
 

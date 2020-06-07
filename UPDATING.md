@@ -2293,7 +2293,7 @@ dags_are_paused_at_creation = False
 
 If you specify a hive conf to the run_cli command of the HiveHook, Airflow add some
 convenience variables to the config. In case you run a secure Hadoop setup it might be
-required to whitelist these variables by adding the following to your configuration:
+required to allow these variables by adding the following to your configuration:
 
 ```
 <property>
