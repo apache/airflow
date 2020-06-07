@@ -35,9 +35,11 @@ from airflow.models import TaskInstance as TI, DAG, DagRun
 from airflow.models.taskinstance import clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.operators.python_operator import PythonVirtualenvOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.settings import Session
 from airflow.utils import timezone
+from tests.test_utils.db import clear_db_runs, clear_db_dags
 from airflow.utils.db import create_session
 from airflow.utils.state import State
 
@@ -338,6 +340,75 @@ class TestPythonOperator(TestPythonBase):
                            dag=self.dag,
                            python_callable=self._env_var_check_callback
                            )
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+
+class TestPythonVirtualenvOperator(TestPythonBase):
+    @classmethod
+    def setUpClass(cls):
+        super(TestPythonVirtualenvOperator, cls).setUpClass()
+        clear_db_runs()
+
+    def setUp(self):
+        super(TestPythonVirtualenvOperator, self).setUp()
+
+        def del_env(key):
+            try:
+                del os.environ[key]
+            except KeyError:
+                pass
+
+        del_env('AIRFLOW_CTX_DAG_ID')
+        del_env('AIRFLOW_CTX_TASK_ID')
+        del_env('AIRFLOW_CTX_EXECUTION_DATE')
+        del_env('AIRFLOW_CTX_DAG_RUN_ID')
+        self.dag = DAG(
+            'test_dag',
+            default_args={
+                'owner': 'airflow',
+                'start_date': DEFAULT_DATE})
+        self.addCleanup(self.dag.clear)
+        self.clear_run()
+        self.addCleanup(self.clear_run)
+
+    def tearDown(self):
+        super(TestPythonVirtualenvOperator, self).tearDown()
+        clear_db_runs()
+        clear_db_dags()
+
+        for var in TI_CONTEXT_ENV_VARS:
+            if var in os.environ:
+                del os.environ[var]
+
+    def clear_run(self):
+        self.run = False
+
+    def do_run(self):
+        self.run = True
+
+    def is_run(self):
+        return self.run
+
+    def test_config_context(self):
+        """
+        This test ensures we can use dag_run from the context
+        to access the configuration at run time that's being
+        passed from the UI, CLI, and REST API.
+        """
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def pass_function(**kwargs):
+            kwargs['dag_run'].conf
+
+        t = PythonVirtualenvOperator(task_id='config_dag_run', dag=self.dag,
+                                     provide_context=True,
+                                     python_callable=pass_function)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
 
