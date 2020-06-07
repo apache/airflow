@@ -344,12 +344,12 @@ Note that the secret ``Key`` is ``value``, and secret ``Value`` is ``world`` and
 ``mount_point`` is ``airflow``.
 
 
-.. _secrets_manager_backend:
+.. _secret_manager_backend:
 
-GCP Secrets Manager Backend
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+GCP Secret Manager Backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To enable GCP Secrets Manager to retrieve connection/variables, specify :py:class:`~airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend`
+To enable GCP Secrets Manager to retrieve connection/variables, specify :py:class:`~airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Available parameters to ``backend_kwargs``:
@@ -367,7 +367,7 @@ Here is a sample configuration if you want to just retrieve connections:
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend
+    backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
     backend_kwargs = {"connections_prefix": "airflow-connections", "sep": "-"}
 
 Here is a sample configuration if you want to just retrieve variables:
@@ -375,7 +375,7 @@ Here is a sample configuration if you want to just retrieve variables:
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend
+    backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
     backend_kwargs = {"variables_prefix": "airflow-variables", "sep": "-"}
 
 and if you want to retrieve both Variables and connections use the following sample config:
@@ -383,7 +383,7 @@ and if you want to retrieve both Variables and connections use the following sam
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend
+    backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
     backend_kwargs = {"connections_prefix": "airflow-connections", "variables_prefix": "airflow-variables", "sep": "-"}
 
 

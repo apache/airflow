@@ -1361,7 +1361,7 @@ SECRETS = [
         "airflow.contrib.secrets.aws_systems_manager.SystemsManagerParameterStoreBackend",
     ),
     (
-        "airflow.providers.google.cloud.secrets.secrets_manager.CloudSecretsManagerBackend",
+        "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend",
         "airflow.contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend",
     ),
     (

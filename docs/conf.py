@@ -203,8 +203,10 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/cncf/index.rst",
     # Utils for internal use
     '_api/airflow/providers/google/cloud/utils',
-    # Internal client for hashicorp
+    # Internal client for Hashicorp Vault
     '_api/airflow/providers/hashicorp/_internal_client',
+    # Internal client for GCP Secret Manager
+    '_api/airflow/providers/google/cloud/_internal_client',
     # Templates or partials
     'autoapi_templates',
     'howto/operator/gcp/_partials',

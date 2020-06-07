@@ -758,6 +758,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.pubsub`
      - :mod:`airflow.providers.google.cloud.sensors.pubsub`
 
+   * - `Cloud Secret Manager <https://cloud.google.com/secret-manager/>`__
+     -
+     - :mod:`airflow.providers.google.cloud.hooks.secret_manager`
+     -
+     -
+
    * - `Cloud Spanner <https://cloud.google.com/spanner/>`__
      - :doc:`How to use <howto/operator/gcp/spanner>`
      - :mod:`airflow.providers.google.cloud.hooks.spanner`
