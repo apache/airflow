@@ -314,26 +314,7 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         pip install ${ADDITIONAL_PYTHON_DEPS}; \
     fi
 
-RUN \
-    AWSCLI_IMAGE="amazon/aws-cli:latest" && \
-    AZURECLI_IMAGE="mcr.microsoft.com/azure-cli:latest" && \
-    GCLOUD_IMAGE="gcr.io/google.com/cloudsdktool/cloud-sdk:latest" && \
-    echo "docker run --rm -it -v \${HOST_HOME}/.aws:/root/.aws ${AWSCLI_IMAGE} \"\$@\"" \
-        > /usr/bin/aws && \
-    echo "docker pull ${AWSCLI_IMAGE}" > /usr/bin/aws-update && \
-    echo "docker run --rm -it -v \${HOST_HOME}/.azure:/root/.azure ${AZURECLI_IMAGE} \"\$@\"" \
-        > /usr/bin/az && \
-    echo "docker pull ${AZURECLI_IMAGE}" > /usr/bin/az-update && \
-    echo "docker run --rm -it -v \${HOST_HOME}/.config:/root/.config ${GCLOUD_IMAGE} bq \"\$@\"" \
-        > /usr/bin/bq && \
-    echo "docker pull ${GCLOUD_IMAGE}" > /usr/bin/bq-update && \
-    echo "docker run --rm -it -v \${HOST_HOME}/.config:/root/.config ${GCLOUD_IMAGE} gcloud \"\$@\"" \
-        > /usr/bin/gcloud && \
-    echo "docker pull ${GCLOUD_IMAGE}" > /usr/bin/gcloud-update && \
-    echo "docker run --rm -it -v \${HOST_HOME}/.config:/root/.config ${GCLOUD_IMAGE} gsutil \"\$@\"" \
-        > /usr/bin/gsutil && \
-    echo "docker pull ${GCLOUD_IMAGE}" > /usr/bin/gsutil-update && \
-    chmod a+x /usr/bin/aws /usr/bin/az /usr/bin/bq /usr/bin/gcloud /usr/bin/gsutil
+RUN scripts/ci/prepare_tool_scripts.sh
 
 WORKDIR ${AIRFLOW_SOURCES}
 

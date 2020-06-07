@@ -40,4 +40,5 @@ export HOST_GROUP_ID
 docker-compose \
     -f "${MY_DIR}/docker-compose/base.yml" \
     -f "${MY_DIR}/docker-compose/local.yml" \
+    -f "${MY_DIR}/docker-compose/forward-credentials.yml" \
     run airflow /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh
