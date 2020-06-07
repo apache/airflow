@@ -858,11 +858,13 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
+  # TODO: /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
+  # For more ref: https://lists.apache.org/thread.html/rd4be3829627dcef8b40314c62c041f460992786f3bfcc634d25a6664%40%3Cdev.airflow.apache.org%3E
+  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/xcomEntries/{xcom_key}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
       - $ref: '#/components/parameters/TaskID'
+      - $ref: '#/components/parameters/ExecutionDate'
       - $ref: '#/components/parameters/XComKey'
 
     get:
@@ -2192,6 +2194,17 @@ components:
         type: string
       required: true
       description: The Variable Key.
+
+    ExecutionDate:
+      in: path
+      name: execution_date
+      schema:
+        type: string
+        format: date-time
+      required: true
+      description: The date-time notation as defined by
+        [RFC 3339, section 5.6](https://tools.ietf.org/html/rfc3339#section-5.6),
+        E.G. `2017-07-21T17:32:28Z`
 
     # Logs
     FullContent:

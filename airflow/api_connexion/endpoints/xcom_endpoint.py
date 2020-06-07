@@ -15,8 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: sshttps://github.com/apache/airflow/issues/8134
+from sqlalchemy import and_
+from airflow.api_connexion.schemas.xcom_schema import xcom_collection_item_schema
+from airflow.models import XCom
+from airflow.utils.session import provide_session
+from airflow.utils.dates import parse_execution_date
 
 
 def delete_xcom_entry():
@@ -33,11 +36,21 @@ def get_xcom_entries():
     raise NotImplementedError("Not implemented yet.")
 
 
-def get_xcom_entry():
+@provide_session
+def get_xcom_entry(dag_id, task_id, execution_date, xcom_key, session):
     """
     Get an XCom entry
     """
-    raise NotImplementedError("Not implemented yet.")
+    execution_date = parse_execution_date(execution_date)
+    query = session.query(XCom)
+    query = query.filter(and_(XCom.dag_id == dag_id,
+                              XCom.execution_date == execution_date,
+                              XCom.task_id == task_id,
+                              XCom.key == xcom_key))
+    q_object = query.one_or_none()
+    if not q_object:
+        raise Exception("Object Not found")
+    return xcom_collection_item_schema.dump(q_object)
 
 
 def patch_xcom_entry():
