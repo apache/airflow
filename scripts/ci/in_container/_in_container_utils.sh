@@ -99,7 +99,7 @@ function in_container_fix_ownership() {
         sudo find "${AIRFLOW_SOURCES}" -print0 -user root \
         | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
         sudo find "/root/.aws" "/root/.azure" "/root/.config" "/root/.docker" -print0 -user root \
-        | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
+        | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
         set -o pipefail
     fi
 }
