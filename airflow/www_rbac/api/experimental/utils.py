@@ -76,18 +76,25 @@ def get_curve_params(bolt_number, measure_result):
         return Variable.get_fuzzy_active(
             curve_name,
             deserialize_json=True,
+            default_var={}
         )[1]
     except Exception as e:
-        _logger.error("cannot get curve params :{0} ".format(str(e)))
+        _logger.error("cannot get curve params :{0} ".format(repr(e)))
         return {}
 
 
 def get_task_params(task_instance, entity_id):
+    # todo: parse verify_error from error_tag
+    verify_error = 0
     task = {
         "dag_id": task_instance.dag_id,
         "task_id": task_instance.task_id,
         "real_task_id": entity_id,
-        "exec_date": '{}'.format(task_instance.execution_date)
+        "exec_date": '{}'.format(task_instance.execution_date),
+        "final_state": '{}'.format(task_instance.final_state),
+        "error_tag": verify_error,
+        "error_code": '{}'.format(task_instance.error_code),
+        "verify_error": '{}'.format(task_instance.verify_error)
     }
     return {'task': task}
 
@@ -112,5 +119,3 @@ def get_curve_args():
         "secret_key": Variable.get('oss_secret', 'minio123'),
         "secure": False
     }
-
-

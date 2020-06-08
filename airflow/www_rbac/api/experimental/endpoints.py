@@ -66,11 +66,9 @@ def put_anaylysis_result():
         real_task_id = data.get('real_task_id')
         execution_date = data.get('exec_date')
         entity_id = data.get('entity_id')
-        result = int(data.get('result'))  # OK, NOK
-        if result is 0:
-            rresult = 'OK'
-        else:
-            rresult = 'NOK'
+        curve_mode = int(data.get('result'))  # OK, NOK
+        verify_error = int(data.get('verify_error'))  # OK, NOK
+        rresult = 'OK' if curve_mode is 0 else 'NOK'
         with create_session() as session:
             ti = session.query(TiModel).filter(
                 TiModel.entity_id == real_task_id).first()
@@ -91,7 +89,8 @@ def put_anaylysis_result():
                 return response
             ti.result = rresult
             ti.entity_id = entity_id
-            ti.error_code = result
+            ti.error_code = curve_mode
+            ti.verify_error = verify_error
             session.commit()
         if PUSH_TRAINING_NOK == 'True' and rresult == 'NOK':
             training_result = {
@@ -332,6 +331,11 @@ def double_confirm_task(dag_id, task_id, execution_date):
     try:
         params = request.get_json(force=True)  # success failed
         final_state = params.get('final_state', None)
+        set_dag_run_final_state(
+            task_id=task_id,
+            dag_id=dag_id,
+            execution_date=execution_date,
+            final_state=final_state)
         task = get_task_instance(dag_id, task_id, execution_date)
         if not task.result:
             raise AirflowException(u"分析结果还没有生成，请等待分析结果生成后再进行二次确认")
@@ -347,11 +351,6 @@ def double_confirm_task(dag_id, task_id, execution_date):
         response.status_code = err.status_code
         return response
 
-    set_dag_run_final_state(
-        task_id=task_id,
-        dag_id=dag_id,
-        execution_date=execution_date,
-        final_state=final_state)
     return jsonify({'response': 'ok'})
 
 
