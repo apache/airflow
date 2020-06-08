@@ -2302,13 +2302,13 @@ class TestTaskInstanceView(TestBase):
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
         with create_session() as session:
             self.ti = TaskInstance(
-                task=DummyOperator(task_id='task_instance_1', tags=['test_tag_1'], dag=dag),
+                task=DummyOperator(task_id='task_instance_1', task_tags=['test_tag_1'], dag=dag),
                 execution_date=self.DEFAULT_DATE
             )
             self.ti.try_number = 1
             session.merge(self.ti)
             self.ti2 = TaskInstance(
-                task=DummyOperator(task_id='task_instance_2', tags=['test_tag_2'], dag=dag),
+                task=DummyOperator(task_id='task_instance_2', task_tags=['test_tag_2'], dag=dag),
                 execution_date=self.DEFAULT_DATE
             )
             self.ti2.try_number = 1
