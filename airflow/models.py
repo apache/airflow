@@ -22,8 +22,9 @@ install_aliases()
 from builtins import str
 from builtins import object, bytes
 import copy
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from datetime import datetime, timedelta
+
 import dill
 import functools
 import getpass
@@ -63,7 +64,9 @@ import six
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
+from airflow.exceptions import (
+    AirflowDagCycleException, AirflowException, AirflowSkipException, AirflowTaskTimeout
+)
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -159,6 +162,12 @@ class DagBag(BaseDagBag, LoggingMixin):
         by the scheduler job only
     :type sync_to_db: bool
     """
+
+    # static class variables to detetct dag cycle
+    CYCLE_NEW = 0
+    CYCLE_IN_PROGRESS = 1
+    CYCLE_DONE = 2
+
     def __init__(
             self,
             dag_folder=None,
@@ -225,8 +234,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         found_dags = []
 
+        # if the source file no longer exists in the DB or in the filesystem,
+        # return an empty list
         # todo: raise exception?
-        if not os.path.isfile(filepath):
+        if filepath is None or not os.path.isfile(filepath):
             return found_dags
 
         try:
@@ -311,10 +322,19 @@ class DagBag(BaseDagBag, LoggingMixin):
                 if isinstance(dag, DAG):
                     if not dag.full_filepath:
                         dag.full_filepath = filepath
-                    dag.is_subdag = False
-                    self.bag_dag(dag, parent_dag=dag, root_dag=dag)
-                    found_dags.append(dag)
-                    found_dags += dag.subdags
+                        if dag.fileloc != filepath:
+                            dag.fileloc = filepath
+                    try:
+                        dag.is_subdag = False
+                        self.bag_dag(dag, parent_dag=dag, root_dag=dag)
+                        found_dags.append(dag)
+                        found_dags += dag.subdags
+                    except AirflowDagCycleException as cycle_exception:
+                        self.logger.exception("Failed to bag_dag: %s", dag.full_filepath)
+                        self.import_errors[dag.full_filepath] = str(cycle_exception)
+                        self.file_last_changed[dag.full_filepath] = \
+                            file_last_changed_on_disk
+
 
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
@@ -360,20 +380,39 @@ class DagBag(BaseDagBag, LoggingMixin):
     def bag_dag(self, dag, parent_dag, root_dag):
         """
         Adds the DAG into the bag, recurses into sub dags.
+        Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
-        self.dags[dag.dag_id] = dag
+
+        dag.test_cycle()  # throws if a task cycle is found
+
         dag.resolve_template_files()
         dag.last_loaded = datetime.now()
 
         for task in dag.tasks:  # type: BaseOperator
             settings.policy(task)
 
-        for subdag in dag.subdags:
-            subdag.full_filepath = dag.full_filepath
-            subdag.parent_dag = dag
-            subdag.is_subdag = True
-            self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
-        self.logger.debug('Loaded DAG {dag}'.format(**locals()))
+        subdags = dag.subdags
+
+        try:
+            for subdag in subdags:
+                subdag.full_filepath = dag.full_filepath
+                subdag.parent_dag = dag
+                subdag.is_subdag = True
+                self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
+
+            self.dags[dag.dag_id] = dag
+            self.logger.debug('Loaded DAG {dag}'.format(**locals()))
+        except AirflowDagCycleException as cycle_exception:
+            # There was an error in bagging the dag. Remove it from the list of dags
+            self.logger.exception('Exception bagging dag: {dag.dag_id}'.format(**locals()))
+            # Only necessary at the root level since DAG.subdags automatically
+            # performs DFS to search through all subdags
+            if dag == root_dag:
+                for subdag in subdags:
+                    if subdag.dag_id in self.dags:
+                        del self.dags[subdag.dag_id]
+            raise cycle_exception
+
 
     def collect_dags(
             self,
@@ -2505,33 +2544,30 @@ class BaseOperator(object):
             TI.execution_date <= end_date,
         ).order_by(TI.execution_date).all()
 
-    def get_flat_relatives(self, upstream=False, l=None):
+    def get_flat_relative_ids(self, upstream=False, found_descendants=None):
+        """
+        Get a flat list of relatives' ids, either upstream or downstream.
+        """
+
+        if not found_descendants:
+            found_descendants = set()
+        relative_ids = self.get_direct_relative_ids(upstream)
+
+        for relative_id in relative_ids:
+            if relative_id not in found_descendants:
+                found_descendants.add(relative_id)
+                relative_task = self._dag.task_dict[relative_id]
+                relative_task.get_flat_relative_ids(upstream,
+                                                    found_descendants)
+
+        return found_descendants
+
+    def get_flat_relatives(self, upstream=False):
         """
         Get a flat list of relatives, either upstream or downstream.
         """
-        if not l:
-            l = []
-        for t in self.get_direct_relatives(upstream):
-            if not is_in(t, l):
-                l.append(t)
-                t.get_flat_relatives(upstream, l)
-        return l
-
-    def detect_downstream_cycle(self, task=None):
-        """
-        When invoked, this routine will raise an exception if a cycle is
-        detected downstream from self. It is invoked when tasks are added to
-        the DAG to detect cycles.
-        """
-        if not task:
-            task = self
-        for t in self.get_direct_relatives():
-            if task is t:
-                msg = "Cycle detected in DAG. Faulty task: {0}".format(task)
-                raise AirflowException(msg)
-            else:
-                t.detect_downstream_cycle(task=task)
-        return False
+        return list(map(lambda task_id: self._dag.task_dict[task_id],
+                        self.get_flat_relative_ids(upstream)))
 
     def run(
             self,
@@ -2560,6 +2596,16 @@ class BaseOperator(object):
             if content and isinstance(content, six.string_types):
                 logging.info('Rendering template for {0}'.format(attr))
                 logging.info(content)
+
+    def get_direct_relative_ids(self, upstream=False):
+        """
+        Get the direct relative ids to the current task, upstream or
+        downstream.
+        """
+        if upstream:
+            return self._upstream_task_ids
+        else:
+            return self._downstream_task_ids
 
     def get_direct_relatives(self, upstream=False):
         """
@@ -2627,8 +2673,6 @@ class BaseOperator(object):
             else:
                 self.append_only_new(self._downstream_task_ids, task.task_id)
                 task.append_only_new(task._upstream_task_ids, self.task_id)
-
-        self.detect_downstream_cycle()
 
     def set_downstream(self, task_or_task_list):
         """
@@ -3795,6 +3839,42 @@ class DAG(BaseDag, LoggingMixin):
             else:
                 qry = qry.filter(TaskInstance.state.in_(states))
         return qry.scalar()
+
+    def test_cycle(self):
+        '''
+        Check to see if there are any cycles in the DAG. Returns False if no cycle found,
+        otherwise raises exception.
+        '''
+
+        # default of int is 0 which corresponds to CYCLE_NEW
+        visit_map = defaultdict(int)
+        for task_id in self.task_dict.keys():
+            # print('starting %s' % task_id)
+            if visit_map[task_id] == DagBag.CYCLE_NEW:
+                self._test_cycle_helper(visit_map, task_id)
+        return False
+
+    def _test_cycle_helper(self, visit_map, task_id):
+        '''
+        Checks if a cycle exists from the input task using DFS traversal
+        '''
+
+        # print('Inspecting %s' % task_id)
+        if visit_map[task_id] == DagBag.CYCLE_DONE:
+            return False
+
+        visit_map[task_id] = DagBag.CYCLE_IN_PROGRESS
+
+        task = self.task_dict[task_id]
+        for descendant_id in task.get_direct_relative_ids():
+            if visit_map[descendant_id] == DagBag.CYCLE_IN_PROGRESS:
+                msg = "Cycle detected in DAG. Faulty task: {0} to {1}".format(
+                    task_id, descendant_id)
+                raise AirflowDagCycleException(msg)
+            else:
+                self._test_cycle_helper(visit_map, descendant_id)
+
+        visit_map[task_id] = DagBag.CYCLE_DONE
 
 
 class Chart(Base):
