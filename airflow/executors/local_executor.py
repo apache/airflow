@@ -225,6 +225,8 @@ class LocalExecutor(BaseExecutor):
         self.impl.start()
 
     def execute_async(self, key, command, queue=None, executor_config=None):
+        if command[0:2] != ["airflow", "run"]:
+            raise ValueError('The command must start with ["airflow", "run"].')
         self.impl.execute_async(key=key, command=command)
 
     def sync(self):
