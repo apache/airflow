@@ -249,6 +249,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
       - id: language-matters
         language: pygrep
         name: Check for language that we do not accept as community
+        description: Please use "deny_list" or "allow_list"  instead.
         entry: "(?i)(black|white)[_-]?list"
         pass_filenames: true
         exclude: >
