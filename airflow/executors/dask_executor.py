@@ -64,6 +64,9 @@ class DaskExecutor(BaseExecutor):
                 'All tasks will be run in the same cluster'
             )
 
+        if command[0:2] != ["airflow", "run"]:
+            raise ValueError('The command must start with ["airflow", "run"].')
+
         def airflow_run():
             return subprocess.check_call(command, close_fds=True)
 

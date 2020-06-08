@@ -21,7 +21,9 @@ import unittest
 from multiprocessing import Pool
 
 import mock
+import pytest
 from celery.contrib.testing.worker import start_worker
+from parameterized import parameterized
 
 from airflow.executors import celery_executor
 from airflow.executors.celery_executor import (CeleryExecutor, celery_configuration,
@@ -44,8 +46,8 @@ class CeleryExecutorTest(unittest.TestCase):
         executor = CeleryExecutor()
         executor.start()
         with start_worker(app=app, logfile=sys.stdout, loglevel='debug'):
-            success_command = ['true', 'some_parameter']
-            fail_command = ['false', 'some_parameter']
+            success_command = ['airflow', 'run', 'true', 'some_parameter']
+            fail_command = ['airflow', 'run', 'false']
 
             cached_celery_backend = execute_command.backend
             task_tuples_to_send = [('success', 'fake_simple_ti', success_command,
@@ -135,6 +137,24 @@ class CeleryExecutorTest(unittest.TestCase):
                  mock.call('executor.queued_tasks', mock.ANY),
                  mock.call('executor.running_tasks', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)
+
+    @parameterized.expand((
+        [['true'], ValueError],
+        [['airflow', 'version'], ValueError],
+        [['airflow', 'run'], None]
+    ))
+    @mock.patch('subprocess.check_call')
+    def test_command_validation(self, command, expected_exception, mock_check_call):
+        # Check that we validate _on the receiving_ side, not just sending side
+        if expected_exception:
+            with pytest.raises(expected_exception):
+                celery_executor.execute_command(command)
+            mock_check_call.assert_not_called()
+        else:
+            celery_executor.execute_command(command)
+            mock_check_call.assert_called_once_with(
+                command, stderr=mock.ANY, close_fds=mock.ANY, env=mock.ANY,
+            )
 
 
 if __name__ == '__main__':
