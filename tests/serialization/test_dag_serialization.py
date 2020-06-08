@@ -735,7 +735,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                           '_log': base_operator.log,
                           '_outlets': [],
                           '_upstream_task_ids': set(),
-                          '_task_tags': [],
+                          '_tags': [],
                           'depends_on_past': False,
                           'do_xcom_push': True,
                           'email': None,
@@ -769,8 +769,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                           'task_id': '10',
                           'trigger_rule': 'all_success',
                           'wait_for_downstream': False,
-                          'weight_rule': 'downstream',
-                          'tags': []}, fields,
+                          'weight_rule': 'downstream'}, fields,
                          """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
