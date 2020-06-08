@@ -55,7 +55,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         :param project_id: The project ID for this request.
         :type project_id: str
         :param deployment_filter: A filter expression which limits resources returned in the response.
-        :type filter: str
+        :type deployment_filter: str
         :param max_results: The maximum number of results to return
         :type max_results: Optional[int]
         :param order_by: A field name to order by, ex: "creationTimestamp desc"

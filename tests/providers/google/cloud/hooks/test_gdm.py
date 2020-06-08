@@ -31,6 +31,7 @@ TEST_DEPLOYMENT = 'my-deployment'
 FILTER = 'staging-'
 MAX_RESULTS = 10
 ORDER_BY = 'name'
+TEST_LIST_RESPONSE = {'deployments': [{'id': '38763452', 'name': 'test-deploy'}]}
 
 
 class TestDeploymentManagerHook(unittest.TestCase):
@@ -44,7 +45,8 @@ class TestDeploymentManagerHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
     def test_list_deployments(self, mock_get_conn):
-        _ = self.gdm_hook.list_deployments(project_id=TEST_PROJECT)
+        mock_get_conn.return_value.deployments().list.return_value.execute.return_value = TEST_LIST_RESPONSE
+        deployments = self.gdm_hook.list_deployments(project_id=TEST_PROJECT)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.deployments().list.assert_called_once_with(
             project=TEST_PROJECT,
@@ -53,11 +55,13 @@ class TestDeploymentManagerHook(unittest.TestCase):
             orderBy=None,
             pageToken=None,
         )
+        self.assertEqual(deployments, [{'id': '38763452', 'name': 'test-deploy'}])
 
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
     def test_list_deployments_with_params(self, mock_get_conn):
-        _ = self.gdm_hook.list_deployments(project_id=TEST_PROJECT, deployment_filter=FILTER,
-                                           max_results=MAX_RESULTS, order_by=ORDER_BY)
+        mock_get_conn.return_value.deployments().list.return_value.execute.return_value = TEST_LIST_RESPONSE
+        deployments = self.gdm_hook.list_deployments(project_id=TEST_PROJECT, deployment_filter=FILTER,
+                                                     max_results=MAX_RESULTS, order_by=ORDER_BY)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.deployments().list.assert_called_once_with(
             project=TEST_PROJECT,
@@ -66,6 +70,7 @@ class TestDeploymentManagerHook(unittest.TestCase):
             orderBy=ORDER_BY,
             pageToken=None,
         )
+        self.assertEqual(deployments, [{'id': '38763452', 'name': 'test-deploy'}])
 
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
     def test_delete_deployment(self, mock_get_conn):
