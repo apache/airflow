@@ -665,7 +665,7 @@ Contribution Workflow Example
 Typically, you start your first contribution by reviewing open tickets
 at `GitHub issues <https://github.com/apache/airflow/issues>`__.
 
-If you create pull-request, you don't have to create an issue first, but if you want, you can do it. 
+If you create pull-request, you don't have to create an issue first, but if you want, you can do it.
 Creating an issue will allow you to collect feedback or share plans with other people.
 
 For example, you want to have the following sample ticket assigned to you:
