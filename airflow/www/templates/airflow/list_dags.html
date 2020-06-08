@@ -216,8 +216,8 @@
             {% if filter_groups %}
                 var filter = new AdminFilters(
                     '#filter_form', '.field-filters',
-                    {{ filter_groups|tojson|safe }},
-                    {{ active_filters|tojson|safe }}
+                    {{ filter_groups|tojson }},
+                    {{ active_filters|tojson }}
                 );
             {% endif %}
         })(jQuery);

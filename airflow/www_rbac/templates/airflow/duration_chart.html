@@ -48,8 +48,8 @@
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     </form>
 </div>
-<div id="dur_chart" style="clear: both;">{{ chart |safe }}</div>
-<div id="cum_dur_chart" style="clear: both;">{{ cum_chart | safe}}</div>
+<div id="dur_chart" style="clear: both;">{{ chart }}</div>
+<div id="cum_dur_chart" style="clear: both;">{{ cum_chart }}</div>
 <hr/>
 {% endblock %}
 

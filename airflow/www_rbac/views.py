@@ -31,7 +31,6 @@ from datetime import timedelta
 
 from six.moves.urllib.parse import quote
 
-import markdown
 import pendulum
 import sqlalchemy as sqla
 from flask import (
@@ -422,10 +421,10 @@ class Airflow(AirflowBaseView):
         try:
             with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
                 code = f.read()
-            html_code = highlight(
-                code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+            html_code = Markup(highlight(
+                code, lexers.PythonLexer(), HtmlFormatter(linenos=True)))
         except IOError as e:
-            html_code = str(e)
+            html_code = Markup(str(e))
 
         return self.render_template(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
@@ -503,11 +502,9 @@ class Airflow(AirflowBaseView):
         for template_field in task.__class__.template_fields:
             content = getattr(task, template_field)
             if template_field in wwwutils.get_attr_renderer():
-                html_dict[template_field] = \
-                    wwwutils.get_attr_renderer()[template_field](content)
+                html_dict[template_field] = wwwutils.get_attr_renderer()[template_field](content)
             else:
-                html_dict[template_field] = (
-                    "<pre><code>" + str(content) + "</pre></code>")
+                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(str(content))
 
         return self.render_template(
             'airflow/ti_code.html',
@@ -1408,8 +1405,7 @@ class Airflow(AirflowBaseView):
         if not tasks:
             flash("No tasks found", "error")
         session.commit()
-        doc_md = markdown.markdown(dag.doc_md) \
-            if hasattr(dag, 'doc_md') and dag.doc_md else ''
+        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
         external_logs = conf.get('elasticsearch', 'frontend')
         return self.render_template(
@@ -1541,8 +1537,8 @@ class Airflow(AirflowBaseView):
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
-            chart=chart.htmlcontent,
-            cum_chart=cum_chart.htmlcontent
+            chart=Markup(chart.htmlcontent),
+            cum_chart=Markup(cum_chart.htmlcontent),
         )
 
     @expose('/tries')
@@ -1608,7 +1604,7 @@ class Airflow(AirflowBaseView):
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
-            chart=chart.htmlcontent
+            chart=Markup(chart.htmlcontent),
         )
 
     @expose('/landing_times')

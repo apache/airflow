@@ -230,6 +230,10 @@ div.square {
   /* box-shadow: inset 0 6px 6px rgba(0, 0, 0, 0.4); */
 }
 
+.dag-doc {
+  margin-bottom: 15px;
+}
+
 .hll { background-color: #ffffcc }
 .c { color: #408080; font-style: italic } /* Comment */
 .err { border: 1px solid #FF0000 } /* Error */

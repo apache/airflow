@@ -171,6 +171,13 @@ repos:
         language: system
         entry: ./scripts/ci/ci_lint_dockerfile.sh
         files: ^Dockerfile.*$
+      - id: dont-use-safe-filter
+        language: pygrep
+        name: Don't use safe in templates
+        description: the Safe filter is error-prone, use Markup() in code instead
+        entry: "\\|\\s*safe"
+        files: \.html$
+        pass_filenames: true
       - id: mypy
         name: Run mypy
         language: system
