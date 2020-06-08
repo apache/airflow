@@ -62,6 +62,14 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Not-nullable conn_type collumn in connection table
+
+The `conn_type` column in the `connection` table must contain content. Previously, this rule was enforced
+by application logic, but was not enforced by the database schema.
+
+If you made any modifications to the table directly, make sure you don't have
+null in the conn_type column.
+
 ### DAG.create_dagrun accepts run_type and does not require run_id
 This change is caused by adding `run_type` column to `DagRun`.
 
