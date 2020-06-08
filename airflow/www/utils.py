@@ -386,7 +386,7 @@ class TagContainsFilter(fab_sqlafilters.BaseFilter):
 
     def apply(self, query, value):
         return query.filter(
-            TaskInstance.tags.any(
+            TaskInstance.task_tags.any(
                 TaskTag.name.ilike('%' + value + '%')
             )
         )
@@ -398,7 +398,7 @@ class TagNotContainsFilter(fab_sqlafilters.BaseFilter):
 
     def apply(self, query, value):
         return query.filter(
-            ~TaskInstance.tags.any(
+            ~TaskInstance.task_tags.any(
                 TaskTag.name.ilike('%' + value + '%')
             )
         )

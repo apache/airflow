@@ -849,7 +849,7 @@ class DAG(BaseDag, LoggingMixin):
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
 
-        tis = session.query(TaskInstance).options(joinedload(TaskInstance.tags)).filter(
+        tis = session.query(TaskInstance).options(joinedload(TaskInstance.task_tags)).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.execution_date >= start_date,
             TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
