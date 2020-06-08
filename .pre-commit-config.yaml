@@ -251,6 +251,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         name: Don't use safe in templates
         description: the Safe filter is error-prone, use Markup() in code instead
         entry: "\\|\\s*safe"
+        files: \.html$
         pass_filenames: true
       - id: language-matters
         language: pygrep
