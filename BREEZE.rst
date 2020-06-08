@@ -1307,9 +1307,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-executables-have-shebangs check-hooks-apply check-integrations
                  check-merge-conflict check-xml debug-statements detect-private-key doctoc
                  end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs insert-license
-                 lint-dockerfile mixed-line-ending mypy pydevd python2-compile python2-fastcheck
-                 python-no-log-warn rst-backticks setup-order shellcheck trailing-whitespace
-                 update-breeze-file update-extras update-local-yml-file yamllint
+                 language-matters lint-dockerfile mixed-line-ending mypy pydevd python2-compile
+                 python2-fastcheck python-no-log-warn rst-backticks setup-order shellcheck
+                 trailing-whitespace update-breeze-file update-extras update-local-yml-file yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -1337,9 +1337,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-executables-have-shebangs check-hooks-apply check-integrations
                  check-merge-conflict check-xml debug-statements detect-private-key doctoc
                  end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs insert-license
-                 lint-dockerfile mixed-line-ending mypy pydevd python2-compile python2-fastcheck
-                 python-no-log-warn rst-backticks setup-order shellcheck trailing-whitespace
-                 update-breeze-file update-extras update-local-yml-file yamllint
+                 language-matters lint-dockerfile mixed-line-ending mypy pydevd python2-compile
+                 python2-fastcheck python-no-log-warn rst-backticks setup-order shellcheck
+                 trailing-whitespace update-breeze-file update-extras update-local-yml-file yamllint
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:

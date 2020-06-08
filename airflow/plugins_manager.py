@@ -114,7 +114,7 @@ def register_inbuilt_operator_links():
     Register all the Operators Links that are already defined for the operators
     in the "airflow" project. Example: QDSLink (Operator Link for Qubole Operator)
 
-    This is required to populate the "whitelist" of allowed classes when deserializing operator links
+    This is required to populate the "allowed list" of allowed classes when deserializing operator links
     """
     inbuilt_operator_links = set()  # type: Set[Type]
 

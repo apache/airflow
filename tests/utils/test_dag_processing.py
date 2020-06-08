@@ -246,9 +246,9 @@ class TestDagFileProcessorManager(unittest.TestCase):
             class FakeDagFIleProcessor(DagFileProcessor):
                 # This fake processor will return the zombies it received in constructor
                 # as its processing result w/o actually parsing anything.
-                def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
+                def __init__(self, file_path, pickle_dags, dag_ids, zombies):
                     super(FakeDagFIleProcessor, self).__init__(
-                        file_path, pickle_dags, dag_id_white_list, zombies
+                        file_path, pickle_dags, dag_ids, zombies
                     )
 
                     self._result = zombies, 0
