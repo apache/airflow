@@ -233,7 +233,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     tags = relationship('TaskTag',
                         primaryjoin=and_(TaskTag.dag_id == dag_id,
                                          TaskTag.task_id == task_id,
-                                         TaskTag.execution_date == execution_date), backref=backref('task_instance'), lazy='joined')
+                                         TaskTag.execution_date == execution_date),
+                        backref=backref('task_instance'), lazy='joined')
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
 

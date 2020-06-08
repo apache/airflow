@@ -2329,12 +2329,12 @@ class TestTaskInstanceView(TestBase):
         self.check_content_in_response('List Task Instance', resp)
 
     def test_tag_filter_contains(self):
-        resp = self.client.get(self.TI_ENDPOINT_DATE.format(0, 'test_tag_1'))
+        resp = self.client.get(self.TI_ENDPOINT_TAG.format(0, 'test_tag_1'))
         self.check_content_in_response('task_instance_1', resp)
         self.check_content_not_in_response('task_instance_2', resp)
 
     def test_tag_filter_not_contains(self):
-        resp = self.client.get(self.TI_ENDPOINT_DATE.format(1, 'test_tag_1'))
+        resp = self.client.get(self.TI_ENDPOINT_TAG.format(1, 'test_tag_1'))
         self.check_content_in_response('task_instance_2', resp)
         self.check_content_not_in_response('task_instance_1', resp)
 
