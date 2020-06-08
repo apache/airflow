@@ -263,7 +263,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "api/v1/dags/TEST_DAG_ID/dagRuns?offset=1"
         )
         assert response.status_code == 200
-        self.assertEqual(response.json.get('total_entries'), 3)
+        self.assertEqual(response.json.get('total_entries'), 4)
 
     @provide_session
     def test_handle_limit_and_offset_in_query(self, session):
