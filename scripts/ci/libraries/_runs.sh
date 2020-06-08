@@ -25,6 +25,9 @@ function run_docs() {
             --env VERBOSE_COMMANDS \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --env HOST_OS="$(uname -s)" \
+            --env HOST_HOME="${HOME}" \
+            --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/docs/build" \
@@ -40,6 +43,9 @@ function run_generate_requirements() {
         --env VERBOSE_COMMANDS \
         --env HOST_USER_ID="$(id -ur)" \
         --env HOST_GROUP_ID="$(id -gr)" \
+        --env HOST_OS="$(uname -s)" \
+        --env HOST_HOME="${HOME}" \
+        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
         --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
         --env PYTHON_MAJOR_MINOR_VERSION \
         --env CHECK_REQUIREMENTS_ONLY \
@@ -58,6 +64,9 @@ function run_prepare_backport_packages() {
         --env VERBOSE_COMMANDS \
         --env HOST_USER_ID="$(id -ur)" \
         --env HOST_GROUP_ID="$(id -gr)" \
+        --env HOST_OS="$(uname -s)" \
+        --env HOST_HOME="${HOME}" \
+        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
         --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
         --env PYTHON_MAJOR_MINOR_VERSION \
         --env CHECK_REQUIREMENTS_ONLY \
@@ -80,6 +89,9 @@ function run_prepare_backport_readme() {
         --env VERBOSE_COMMANDS \
         --env HOST_USER_ID="$(id -ur)" \
         --env HOST_GROUP_ID="$(id -gr)" \
+        --env HOST_OS="$(uname -s)" \
+        --env HOST_HOME="${HOME}" \
+        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
         --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
         --env PYTHON_MAJOR_MINOR_VERSION \
         --env CHECK_REQUIREMENTS_ONLY \

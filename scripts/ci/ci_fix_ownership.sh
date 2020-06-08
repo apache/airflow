@@ -33,9 +33,11 @@ export AIRFLOW_IMAGE=${AIRFLOW_CI_IMAGE}
 export WEBSERVER_HOST_PORT=28080
 HOST_USER_ID="$(id -ur)"
 HOST_GROUP_ID="$(id -gr)"
+HOST_OS="$(uname -s)"
 
 export HOST_USER_ID
 export HOST_GROUP_ID
+export HOST_OS
 
 docker-compose \
     -f "${MY_DIR}/docker-compose/base.yml" \

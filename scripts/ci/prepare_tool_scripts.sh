@@ -36,12 +36,14 @@ docker run --rm -it \
     -v "\${HOST_HOME}/${VOLUME}:/root/${VOLUME}" \
     "${IMAGE}" ${COMMAND} "\$@"
 RES=\$?
-docker run --rm \
-    -v "\${HOST_AIRFLOW_SOURCES}/tmp:/tmp" \
-    -v "\${HOST_AIRFLOW_SOURCES}/files:/files" \
-    -v "\${HOST_HOME}/${VOLUME}:/root/${VOLUME}" \
-    "\${AIRFLOW_CI_IMAGE}" bash -c \
-    "find '/tmp/' '/files/' '/root/${VOLUME}' -user root -print0 | xargs --null chown '\${HOST_USER_ID}.\${HOST_GROUP_ID}' --no-dereference" >/dev/null 2>&1
+if [[ \${HOST_OS} == "Linux" ]]; then
+    docker run --rm \
+        -v "\${HOST_AIRFLOW_SOURCES}/tmp:/tmp" \
+        -v "\${HOST_AIRFLOW_SOURCES}/files:/files" \
+        -v "\${HOST_HOME}/${VOLUME}:/root/${VOLUME}" \
+        "\${AIRFLOW_CI_IMAGE}" bash -c \
+        "find '/tmp/' '/files/' '/root/${VOLUME}' -user root -print0 | xargs --null chown '\${HOST_USER_ID}.\${HOST_GROUP_ID}' --no-dereference" >/dev/null 2>&1
+fi
 exit \${RES}
 EOF
 
