@@ -1436,7 +1436,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
                 ti.try_number,
                 None,  # start_ts
                 None,  # duration
-                [tag.name for tag in ti.tags]  # tags
+                [tag.name for tag in ti.task_tags]  # tags
             ]
 
             if ti.start_date:
@@ -1464,7 +1464,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
                 'retries': task.retries,
                 'owner': task.owner,
                 'ui_color': task.ui_color,
-                'tags': task.tags
+                'tags': task.task_tags
             }
 
             if task.downstream_list:

@@ -239,7 +239,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
-    tags = relationship('TaskTag', backref=backref('task_instance'), lazy='joined')
+    task_tags = relationship('TaskTag', backref=backref('task_instance'), lazy='joined')
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
 
@@ -540,7 +540,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """
         self.log.debug("Refreshing TaskInstance %s from DB", self)
 
-        qry = session.query(TaskInstance).options(joinedload(TaskInstance.tags)).filter(
+        qry = session.query(TaskInstance).options(joinedload(TaskInstance.task_tags)).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.execution_date == self.execution_date)
@@ -592,9 +592,9 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.executor_config = task.executor_config
         self.operator = task.__class__.__name__
         # Mocks tags attribute is not iterable
-        if isinstance(task.tags, coll.Iterable):
-            for tag in task.tags:
-                self.tags.append(
+        if isinstance(task.task_tags, coll.Iterable):
+            for tag in task.task_tags:
+                self.task_tags.append(
                     TaskTag(name=tag, dag_id=self.dag_id, task_id=self.task_id, execution_date=self.execution_date)
                 )
 
