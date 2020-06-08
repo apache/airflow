@@ -19,7 +19,9 @@ from flask import request
 
 from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
-from airflow.api_connexion.schemas.dag_run_schema import dagrun_collection_schema, dagrun_schema
+from airflow.api_connexion.schemas.dag_run_schema import (
+    DAGRunCollection, dagrun_collection_schema, dagrun_schema,
+)
 from airflow.api_connexion.utils import parse_datetime_in_query
 from airflow.models import DagRun
 from airflow.utils.session import provide_session
@@ -80,7 +82,10 @@ def get_dag_runs(dag_id, session):
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
     if dag_id == '~':
         dag_run = query.all()
-        return dagrun_collection_schema.dump(dag_run)
+        return dagrun_collection_schema.dump(DAGRunCollection(
+            dag_runs=dag_run,
+            total_entries=len(dag_run))
+        )
 
     query = query.filter(DagRun.dag_id == dag_id)
 
@@ -119,8 +124,10 @@ def get_dag_runs(dag_id, session):
 
     # apply offset and limit
     dag_run = query.offset(offset).limit(limit)
+    total_entries = session.query(DagRun).all()
 
-    return dagrun_collection_schema.dump(dag_run)
+    return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run,
+                                                          total_entries=len(total_entries)))
 
 
 def get_dag_runs_batch():

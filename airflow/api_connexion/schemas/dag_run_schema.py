@@ -15,20 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from typing import List, NamedTuple
+
 from marshmallow import ValidationError, fields
 from marshmallow.schema import Schema
-from marshmallow_sqlalchemy import auto_field
+from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.api_connexion.schemas.base_schema import BaseSchema
 from airflow.api_connexion.schemas.enum_schemas import DagState
 from airflow.models.dagrun import DagRun
 
 
-class DAGRunSchema(BaseSchema):
+class DAGRunSchema(SQLAlchemySchema):
     """
     Schema for DAGRun
     """
-    COLLECTION_NAME = 'dag_runs'
 
     class Meta:
         """ Meta """
@@ -68,5 +69,19 @@ class DAGRunSchema(BaseSchema):
         return value
 
 
+class DAGRunCollection(NamedTuple):
+    """List of DAGRuns with metadata"""
+
+    dag_runs: List[DagRun]
+    total_entries: int
+
+
+class DAGRunCollectionSchema(Schema):
+    """DAGRun Collection schema"""
+
+    dag_runs = fields.List(fields.Nested(DAGRunSchema))
+    total_entries = fields.Int()
+
+
 dagrun_schema = DAGRunSchema()
-dagrun_collection_schema = DAGRunSchema(many=True)
+dagrun_collection_schema = DAGRunCollectionSchema()

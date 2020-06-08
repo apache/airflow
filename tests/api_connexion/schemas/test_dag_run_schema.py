@@ -16,11 +16,10 @@
 # under the License.
 
 import unittest
-from datetime import timedelta
 
-from marshmallow.exceptions import ValidationError
-
-from airflow.api_connexion.schemas.dag_run_schema import dagrun_collection_schema, dagrun_schema
+from airflow.api_connexion.schemas.dag_run_schema import (
+    DAGRunCollection, dagrun_collection_schema, dagrun_schema,
+)
 from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -139,7 +138,9 @@ class TestDagRunCollection(TestDAGRunBase):
         dagruns = [dagrun_model_1, dagrun_model_2]
         session.add_all(dagruns)
         session.commit()
-        deserialized_dagruns = dagrun_collection_schema.dump(dagruns)
+        instance = DAGRunCollection(dag_runs=dagruns,
+                                    total_entries=2)
+        deserialized_dagruns = dagrun_collection_schema.dump(instance)
         self.assertEqual(
             deserialized_dagruns.data,
             {
