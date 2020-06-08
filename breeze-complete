@@ -67,6 +67,7 @@ forbid-tabs
 incorrect-use-of-LoggingMixin
 insert-license
 isort
+language-matters
 lint-dockerfile
 mixed-line-ending
 mypy
