@@ -16,13 +16,10 @@
 # under the License.
 
 from flask import request
-from marshmallow.exceptions import ValidationError
 
 from airflow.api_connexion import parameters
-from airflow.api_connexion.exceptions import BadRequest, NotFound
-from airflow.api_connexion.schemas.dag_run_schema import (
-    dagrun_collection_schema, dagrun_schema, list_dag_runs_form_schema,
-)
+from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.schemas.dag_run_schema import dagrun_collection_schema, dagrun_schema
 from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -112,65 +109,11 @@ def get_dag_runs(dag_id, session):
     return dagrun_collection_schema.dump(dag_run)
 
 
-@provide_session
-def get_dag_runs_batch(session):
+def get_dag_runs_batch():
     """
     Get list of DAG Runs
     """
-    body = request.get_json()
-    try:
-        data = list_dag_runs_form_schema.load(body)
-    except ValidationError as err:
-        raise BadRequest(detail=err.messages)
-
-    offset = data.get("page_offset")
-    limit = data.get('page_limit')
-    start_date_gte = data.get('start_date_gte', None)
-    start_date_lte = data.get('start_date_lte', None)
-    execution_date_gte = data.get("execution_date_gte", None)
-    execution_date_lte = data.get("execution_date_lte", None)
-    end_date_gte = data.get("end_date_gte", None)
-    end_date_lte = data.get("end_date_lte", None)
-
-    query = session.query(DagRun)
-
-    # filter start date
-    if start_date_gte and start_date_lte:
-        query = query.filter(DagRun.start_date <= timezone.parse(start_date_lte),
-                             DagRun.start_date >= timezone.parse(start_date_gte))
-
-    elif start_date_gte and not start_date_lte:
-        query = query.filter(DagRun.start_date >= timezone.parse(start_date_gte))
-
-    elif start_date_lte and not start_date_gte:
-        query = query.filter(DagRun.start_date <= timezone.parse(start_date_lte))
-
-    # filter execution date
-    if execution_date_gte and execution_date_lte:
-        query = query.filter(DagRun.execution_date <= timezone.parse(execution_date_lte),
-                             DagRun.execution_date >= timezone.parse(execution_date_gte))
-
-    elif execution_date_gte and not execution_date_lte:
-        query = query.filter(DagRun.execution_date >= timezone.parse(execution_date_gte))
-
-    elif execution_date_lte and not execution_date_gte:
-        query = query.filter(DagRun.execution_date <= timezone.parse(execution_date_lte))
-
-    # filter end date
-    if end_date_gte and end_date_lte:
-        query = query.filter(DagRun.end_date <= timezone.parse(end_date_lte),
-                             DagRun.end_date >= timezone.parse(end_date_gte))
-
-    elif end_date_gte and not end_date_lte:
-        query = query.filter(DagRun.end_date >= timezone.parse(end_date_gte))
-
-    elif end_date_lte and not end_date_gte:
-        query = query.filter(DagRun.end_date <= timezone.parse(end_date_lte))
-
-    # apply offset and limit
-    dag_run = query.offset(offset).limit(limit)
-
-    return dagrun_collection_schema.dump(dag_run)
+    raise NotImplementedError("Not implemented yet.")
 
 
 def patch_dag_run():

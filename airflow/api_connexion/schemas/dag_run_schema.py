@@ -68,24 +68,5 @@ class DAGRunSchema(BaseSchema):
         return value
 
 
-class ListDagRunsFormSchema(Schema):
-    """ Schema for ListDagRunsForm """
-
-    class Meta:
-        """ Meta """
-        dateformat = 'iso'
-
-    page_offset = fields.Int(min=0)
-    page_limit = fields.Int(min=1, max=100)
-    dag_ids = fields.List(fields.Str())
-    execution_date_gte = fields.DateTime()
-    execution_date_lte = fields.DateTime()
-    start_date_gte = fields.DateTime()
-    start_date_lte = fields.DateTime()
-    end_date_gte = fields.DateTime()
-    end_date_lte = fields.DateTime()
-
-
 dagrun_schema = DAGRunSchema()
 dagrun_collection_schema = DAGRunSchema(many=True)
-list_dag_runs_form_schema = ListDagRunsFormSchema(strict=True)

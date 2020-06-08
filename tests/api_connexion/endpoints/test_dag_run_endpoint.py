@@ -482,25 +482,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
         self.assertEqual(response.json.get('dag_runs')[0].get('execution_date'),
                          self.now.isoformat())  # today
 
-
 #  TODO: add tests for end_date filters
-
-class TestGetDagRunsBatch(TestDagRunEndpoint):
-    def test_should_response_200(self):
-        data = dict(
-            page_offset=2,
-            page_limit=5,
-            dag_ids=['my-id'],
-            start_date_gte=self.now.isoformat(),
-            start_date_lte=(self.now+timedelta(days=1)).isoformat(),
-            execution_date_gte=self.now.isoformat(),
-            execution_date_lte=(self.now + timedelta(days=1)).isoformat(),
-            end_date_gte=(self.now+timedelta(days=3)).isoformat(),
-            end_date_lte=(self.now+timedelta(days=1)).isoformat()
-        )
-        response = self.client.post("api/v1/dags/~/dagRuns/list", data=data)
-        # Todo: fix view can't be accessed due to csrf? 400
-        assert response.status_code == 200
 
 
 class TestPatchDagRun(TestDagRunEndpoint):
