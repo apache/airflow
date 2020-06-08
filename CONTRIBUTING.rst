@@ -668,6 +668,9 @@ at `Apache JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
 If you create pull-request, you don't have to create an issue first, but if you want, you can do it.
 Creating an issue will allow you to collect feedback or share plans with other people.
 
+If you create pull-request, you don't have to create an issue first, but if you want, you can do it.
+Creating an issue will allow you to collect feedback or share plans with other people.
+
 For example, you want to have the following sample ticket assigned to you:
 `AIRFLOW-5934: Add extra CC: to the emails sent by Aiflow <https://issues.apache.org/jira/browse/AIRFLOW-5934>`_.
 
