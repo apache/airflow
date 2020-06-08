@@ -24,6 +24,7 @@ import os
 import signal
 import time
 import warnings
+import collections.abc as coll
 from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
@@ -33,7 +34,8 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import Column, Float, ForeignKey, Index, Integer, PickleType, String, and_, func, or_
-from sqlalchemy.orm import backref, joinedload, reconstructor, relationship
+from sqlalchemy.orm import backref, foreign, joinedload, reconstructor, relationship
+from sqlalchemy.schema import ForeignKeyConstraint, PrimaryKeyConstraint
 from sqlalchemy.orm.session import Session
 from sqlalchemy.schema import ForeignKeyConstraint, PrimaryKeyConstraint
 from sqlalchemy.sql.elements import BooleanClauseList
@@ -96,10 +98,17 @@ class TaskTag(Base):
     Model for task tags, connected to task instances by dag_id and task_id
     """
     __tablename__ = 'task_tag'
-    name = Column('name', String(length=100), primary_key=True)
-    dag_id = Column('dag_id', String(length=ID_LEN), ForeignKey('task_instance.dag_id'), primary_key=True)
-    task_id = Column('task_id', String(length=ID_LEN), ForeignKey('task_instance.task_id'), primary_key=True)
-    execution_date = Column('execution_date', UtcDateTime, ForeignKey('task_instance.execution_date'), primary_key=True)
+    __table_args__ = (
+        PrimaryKeyConstraint('name', 'dag_id', 'task_id', 'execution_date'),
+        ForeignKeyConstraint(('dag_id', 'task_id', 'execution_date'),
+                             ('task_instance.dag_id', 'task_instance.task_id', 'task_instance.execution_date'),
+                             ondelete='CASCADE'),
+    )
+
+    name = Column('name', String(length=100), nullable=False)
+    dag_id = Column('dag_id', String(length=ID_LEN), nullable=False)
+    task_id = Column('task_id', String(length=ID_LEN), nullable=False)
+    execution_date = Column('execution_date', UtcDateTime, nullable=False)
 
 
 def clear_task_instances(tis,
@@ -231,11 +240,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
-    tags = relationship('TaskTag',
-                        primaryjoin=and_(TaskTag.dag_id == dag_id,
-                                         TaskTag.task_id == task_id,
-                                         TaskTag.execution_date == execution_date),
-                        backref=backref('task_instance'), lazy='joined')
+    tags = relationship('TaskTag', backref=backref('task_instance'), lazy='joined')
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
 
@@ -587,10 +592,12 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.max_tries = task.retries
         self.executor_config = task.executor_config
         self.operator = task.__class__.__name__
-        for tag in task.tags:
-            self.tags.append(
-                TaskTag(name=tag, dag_id=self.dag_id, task_id=self.task_id, execution_date=self.execution_date)
-            )
+        # Mocks tags attribute is not iterable
+        if isinstance(task.tags, coll.Iterable):
+            for tag in task.tags:
+                self.tags.append(
+                    TaskTag(name=tag, dag_id=self.dag_id, task_id=self.task_id, execution_date=self.execution_date)
+                )
 
     @provide_session
     def clear_xcom_data(self, session=None):
