@@ -167,6 +167,7 @@ class TaskInstance(Base, LoggingMixin):
     error_tag = Column(String(1000))
     result = Column(String(20))  # 分析结果, OK/NOK
     error_code = Column(Integer)
+    verify_error = Column(Integer)
     final_state = Column(String(20))  # 最终状态牵涉2次检验
 
     # If adding new fields here then remember to add them to

@@ -145,17 +145,18 @@ class Variable(Base, LoggingMixin):
         cls,
         key,  # type: str
         deserialize_json=False,  # type: bool
-        session=None
+        session=None,
+        default_var=__NO_DEFAULT_SENTINEL
     ):
         key_p = "%{}%".format(key)
         obj = session.query(cls).filter(cls.key.like(key_p), cls.active).first()
         if obj is None:
+            if default_var is not cls.__NO_DEFAULT_SENTINEL:
+                return key, default_var
             raise KeyError('Variable {} does not exist'.format(key))
-        else:
-            if deserialize_json:
-                return obj.key, json.loads(obj.val)
-            else:
-                return obj.key, obj.val
+        if deserialize_json:
+            return obj.key, json.loads(obj.val)
+        return obj.key, obj.val
 
     @classmethod
     @provide_session
