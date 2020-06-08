@@ -31,7 +31,6 @@ import getpass
 import imp
 import importlib
 import itertools
-import inspect
 import zipfile
 import jinja2
 import json
@@ -2889,7 +2888,8 @@ class DAG(BaseDag, LoggingMixin):
 
         self._description = description
         # set file location to caller source path
-        self.fileloc = inspect.getsourcefile(inspect.stack()[1][0])
+        back = sys._getframe().f_back
+        self.fileloc = back.f_code.co_filename if back else ""
         self.task_dict = dict()
         self.start_date = start_date
         self.end_date = end_date
