@@ -290,24 +290,25 @@ def pygment_html_render(s, lexer=lexers.TextLexer):
 def render(obj, lexer):
     out = ""
     if isinstance(obj, str):
-        out += pygment_html_render(obj, lexer)
+        out = Markup(pygment_html_render(obj, lexer))
     elif isinstance(obj, (tuple, list)):
         for i, s in enumerate(obj):
-            out += "<div>List item #{}</div>".format(i)
-            out += "<div>" + pygment_html_render(s, lexer) + "</div>"
+            out += Markup("<div>List item #{}</div>").format(i)
+            out += Markup("<div>" + pygment_html_render(s, lexer) + "</div>")
     elif isinstance(obj, dict):
         for k, v in obj.items():
-            out += '<div>Dict item "{}"</div>'.format(k)
-            out += "<div>" + pygment_html_render(v, lexer) + "</div>"
+            out += Markup('<div>Dict item "{}"</div>').format(k)
+            out += Markup("<div>" + pygment_html_render(v, lexer) + "</div>")
     return out
 
 
-def wrapped_markdown(s):
-    return (
-        '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
-        if s is not None
-        else None
-    )
+def wrapped_markdown(s, css_class=None):
+    if s is None:
+        return None
+
+    return Markup(
+        '<div class="rich_doc {css_class}" >' + markdown.markdown(s) + "</div>"
+    ).format(css_class=css_class)
 
 
 def get_attr_renderer():

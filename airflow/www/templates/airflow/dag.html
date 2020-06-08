@@ -427,8 +427,8 @@ function updateQueryStringParameter(uri, key, value) {
       });
       subdag_id = sd;
       execution_date = d;
-      $('#task_id').html(t);
-      $('#execution_date').html(d);
+      $('#task_id').text(t);
+      $('#execution_date').text(d);
       $('#myModal').modal({});
       $("#myModal").css("margin-top","0px");
       $('#extra_links').prev('hr').hide();
@@ -527,7 +527,7 @@ function updateQueryStringParameter(uri, key, value) {
     function call_modal_dag(dag) {
       id = dag && dag.id;
       execution_date = dag && dag.execution_date;
-      $('#dag_id').html(dag_id);
+      $('#dag_id').text(dag_id);
       $('#dagModal').modal({});
       $("#dagModal").css("margin-top","0px");
     }

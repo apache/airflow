@@ -246,6 +246,12 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: dont-use-safe-filter
+        language: pygrep
+        name: Don't use safe in templates
+        description: the Safe filter is error-prone, use Markup() in code instead
+        entry: "\\|\\s*safe"
+        pass_filenames: true
       - id: language-matters
         language: pygrep
         name: Check for language that we do not accept as community

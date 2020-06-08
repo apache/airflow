@@ -23,7 +23,7 @@ from datetime import datetime
 from typing import List
 
 import pandas as pd
-from flask import Blueprint, request
+from flask import Blueprint, Markup, request
 from flask_appbuilder import BaseView, expose
 
 from airflow.plugins_manager import AirflowPlugin
@@ -76,7 +76,7 @@ class MetastoreBrowserView(BaseView):
             escape=False,
             na_rep='',)
         return self.render_template(
-            "metastore_browser/dbs.html", table=table)
+            "metastore_browser/dbs.html", table=Markup(table))
 
     @expose('/table/')
     def table(self):
