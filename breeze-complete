@@ -60,6 +60,7 @@ fix-encoding-pragma
 flake8
 forbid-tabs
 insert-license
+language-matters
 lint-dockerfile
 mixed-line-ending
 mypy

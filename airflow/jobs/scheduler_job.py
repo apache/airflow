@@ -68,8 +68,8 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     :type file_path: unicode
     :param pickle_dags: whether to serialize the DAG objects to the DB
     :type pickle_dags: bool
-    :param dag_id_white_list: If specified, only look at these DAG ID's
-    :type dag_id_white_list: list[unicode]
+    :param dag_ids: If specified, only look at these DAG ID's
+    :type dag_ids: list[unicode]
     :param zombies: zombie task instances to kill
     :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
     """
@@ -77,12 +77,12 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     # Counter that increments every time an instance of this class is created
     class_creation_counter = 0
 
-    def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
+    def __init__(self, file_path, pickle_dags, dag_ids, zombies):
         self._file_path = file_path
 
         # The process that was launched to process the given .
         self._process = None
-        self._dag_id_white_list = dag_id_white_list
+        self._dag_ids = dag_ids
         self._pickle_dags = pickle_dags
         self._zombies = zombies
         # The result of Scheduler.process_file(file_path).
@@ -104,7 +104,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     def _run_file_processor(result_channel,
                             file_path,
                             pickle_dags,
-                            dag_id_white_list,
+                            dag_ids,
                             thread_name,
                             zombies):
         """
@@ -117,9 +117,9 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :param pickle_dags: whether to pickle the DAGs found in the file and
             save them to the DB
         :type pickle_dags: bool
-        :param dag_id_white_list: if specified, only examine DAG ID's that are
+        :param dag_ids: if specified, only examine DAG ID's that are
             in this list
-        :type dag_id_white_list: list[unicode]
+        :type dag_ids: list[unicode]
         :param thread_name: the name to use for the process that is launched
         :type thread_name: unicode
         :param zombies: zombie task instances to kill
@@ -152,7 +152,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
 
             log.info("Started process (PID=%s) to work on %s",
                      os.getpid(), file_path)
-            scheduler_job = SchedulerJob(dag_ids=dag_id_white_list, log=log)
+            scheduler_job = SchedulerJob(dag_ids=dag_ids, log=log)
             result = scheduler_job.process_file(file_path,
                                                 zombies,
                                                 pickle_dags)
@@ -184,7 +184,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
                 _child_channel,
                 self.file_path,
                 self._pickle_dags,
-                self._dag_id_white_list,
+                self._dag_ids,
                 "DagFileProcessor{}".format(self._instance_id),
                 self._zombies
             ),

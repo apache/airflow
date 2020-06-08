@@ -322,7 +322,7 @@ GitHub Enterprise (GHE) Authentication
 
 The GitHub Enterprise authentication backend can be used to authenticate users
 against an installation of GitHub Enterprise using OAuth2. You can optionally
-specify a team whitelist (composed of slug cased team names) to restrict login
+specify a team allowed list (composed of slug cased team names) to restrict login
 to only members of those teams.
 
 .. code-block:: bash
@@ -338,7 +338,7 @@ to only members of those teams.
     oauth_callback_route = /example/ghe_oauth/callback
     allowed_teams = 1, 345, 23
 
-.. note:: If you do not specify a team whitelist, anyone with a valid account on
+.. note:: If you do not specify a team allowed list, anyone with a valid account on
    your GHE installation will be able to login to Airflow.
 
 To use GHE authentication, you must install Airflow with the ``github_enterprise`` extras group:

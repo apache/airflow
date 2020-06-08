@@ -35,8 +35,8 @@ METASTORE_MYSQL_CONN_ID = 'metastore_mysql'
 PRESTO_CONN_ID = 'presto_default'
 HIVE_CLI_CONN_ID = 'hive_default'
 DEFAULT_DB = 'default'
-DB_WHITELIST = None
-DB_BLACKLIST = ['tmp']
+DB_ALLOW_LIST = None
+DB_DENY_LIST = ['tmp']
 TABLE_SELECTOR_LIMIT = 2000
 
 # Keeping pandas from truncating long strings
@@ -118,11 +118,11 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
     @expose('/objects/')
     def objects(self):
         where_clause = ''
-        if DB_WHITELIST:
-            dbs = ",".join(["'" + db + "'" for db in DB_WHITELIST])
+        if DB_ALLOW_LIST:
+            dbs = ",".join(["'" + db + "'" for db in DB_ALLOW_LIST])
             where_clause = "AND b.name IN ({})".format(dbs)
-        if DB_BLACKLIST:
-            dbs = ",".join(["'" + db + "'" for db in DB_BLACKLIST])
+        if DB_DENY_LIST:
+            dbs = ",".join(["'" + db + "'" for db in DB_DENY_LIST])
             where_clause = "AND b.name NOT IN ({})".format(dbs)
         sql = """
         SELECT CONCAT(b.NAME, '.', a.TBL_NAME), TBL_TYPE
