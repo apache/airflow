@@ -25,6 +25,6 @@
     <h4>{{ title }}</h4>
     {% for k, v in html_dict.items() %}
         <h5>{{ k }}</h5>
-        {{ v|safe }}
+        {{ v }}
     {% endfor %}
 {% endblock %}

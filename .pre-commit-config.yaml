@@ -228,6 +228,13 @@ repos:
         files: ^setup.py$|^INSTALL$|^CONTRIBUTING.rst$
         pass_filenames: false
         require_serial: true
+      - id: dont-use-safe-filter
+        language: pygrep
+        name: Don't use safe in templates
+        description: the Safe filter is error-prone, use Markup() in code instead
+        entry: "\\|\\s*safe"
+        files: \.html$
+        pass_filenames: true
       - id: python2-fastcheck
         language: pygrep
         name: Find common Python 3 vs. 2.7 compatibility problems
