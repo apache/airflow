@@ -33,7 +33,6 @@ from urllib.parse import unquote
 import six
 from six.moves.urllib.parse import quote
 
-import markdown
 import pendulum
 import sqlalchemy as sqla
 from flask import (
@@ -540,15 +539,15 @@ class Airflow(AirflowBaseView):
             dag_id = request.args.get('dag_id')
             dag_orm = DagModel.get_dagmodel(dag_id, session=session)
             code = DagCode.get_code_by_fileloc(dag_orm.fileloc)
-            html_code = highlight(
-                code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+            html_code = Markup(highlight(
+                code, lexers.PythonLexer(), HtmlFormatter(linenos=True)))
 
         except Exception as e:
             all_errors += (
                 "Exception encountered during " +
                 "dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{}\n".format(e)
             )
-            html_code = '<p>Failed to load file.</p><p>Details: {}</p>'.format(
+            html_code = Markup('<p>Failed to load file.</p><p>Details: {}</p>').format(
                 escape(all_errors))
 
         return self.render_template(
@@ -635,11 +634,9 @@ class Airflow(AirflowBaseView):
         for template_field in task.template_fields:
             content = getattr(task, template_field)
             if template_field in wwwutils.get_attr_renderer():
-                html_dict[template_field] = \
-                    wwwutils.get_attr_renderer()[template_field](content)
+                html_dict[template_field] = wwwutils.get_attr_renderer()[template_field](content)
             else:
-                html_dict[template_field] = (
-                    "<pre><code>" + str(content) + "</pre></code>")
+                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(str(content))
 
         return self.render_template(
             'airflow/ti_code.html',
@@ -1618,8 +1615,7 @@ class Airflow(AirflowBaseView):
         if not tasks:
             flash("No tasks found", "error")
         session.commit()
-        doc_md = markdown.markdown(dag.doc_md) \
-            if hasattr(dag, 'doc_md') and dag.doc_md else ''
+        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
         external_logs = conf.get('elasticsearch', 'frontend')
         return self.render_template(
@@ -1751,8 +1747,8 @@ class Airflow(AirflowBaseView):
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
-            chart=chart.htmlcontent,
-            cum_chart=cum_chart.htmlcontent
+            chart=Markup(chart.htmlcontent),
+            cum_chart=Markup(cum_chart.htmlcontent),
         )
 
     @expose('/tries')
@@ -1819,7 +1815,7 @@ class Airflow(AirflowBaseView):
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
-            chart=chart.htmlcontent
+            chart=Markup(chart.htmlcontent),
         )
 
     @expose('/landing_times')

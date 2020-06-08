@@ -20,7 +20,7 @@
 from datetime import datetime
 import json
 
-from flask import Blueprint, request
+from flask import Blueprint, Markup, request
 from flask_admin import BaseView, expose
 import pandas as pd
 
@@ -67,7 +67,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
             escape=False,
             na_rep='',)
         return self.render(
-            "metastore_browser/dbs.html", table=table)
+            "metastore_browser/dbs.html", table=Markup(table))
 
     @expose('/table/')
     def table(self):
