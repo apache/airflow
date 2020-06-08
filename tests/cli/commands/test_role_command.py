@@ -36,7 +36,8 @@ class TestCliRoles(unittest.TestCase):
 
     def setUp(self):
         from airflow.www import app as application
-        self.app, self.appbuilder = application.create_app(testing=True)
+        self.app = application.create_app(testing=True)
+        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
         self.clear_roles_and_roles()
 
     def tearDown(self):

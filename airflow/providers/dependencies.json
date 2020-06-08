@@ -64,5 +64,8 @@
   ],
   "slack": [
     "http"
+  ],
+  "snowflake": [
+    "slack"
   ]
 }

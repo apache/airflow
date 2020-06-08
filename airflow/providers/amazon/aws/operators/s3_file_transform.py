@@ -154,7 +154,7 @@ class S3FileTransformOperator(BaseOperator):
 
                 process.wait()
 
-                if process.returncode > 0:
+                if process.returncode:
                     raise AirflowException(
                         "Transform script failed: {0}".format(process.returncode)
                     )

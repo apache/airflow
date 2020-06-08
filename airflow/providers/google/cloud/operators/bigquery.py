@@ -23,10 +23,12 @@ This module contains Google BigQuery operators.
 import enum
 import json
 import warnings
+from time import sleep
 from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 import attr
 from google.api_core.exceptions import Conflict
+from google.api_core.retry import exponential_sleep_generator
 from google.cloud.bigquery import TableReference
 
 from airflow.exceptions import AirflowException
@@ -545,6 +547,11 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 "The bigquery_conn_id parameter has been deprecated. You should pass "
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
             gcp_conn_id = bigquery_conn_id
+
+        warnings.warn(
+            "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
+            DeprecationWarning, stacklevel=3,
+        )
 
         self.sql = sql
         self.destination_dataset_table = destination_dataset_table
@@ -1570,3 +1577,78 @@ class BigQueryUpsertTableOperator(BaseOperator):
             table_resource=self.table_resource,
             project_id=self.project_id,
         )
+
+
+class BigQueryInsertJobOperator(BaseOperator):
+    """
+    Executes a BigQuery job. Waits for the job to complete and returns job id.
+    See here:
+
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+    :param configuration: The configuration parameter maps directly to BigQuery's
+        configuration field in the job  object. For more details see
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+    :type configuration: Dict[str, Any]
+    :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
+        numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
+        characters. If not provided then uuid will be generated.
+    :type job_id: str
+    :param project_id: Google Cloud Project where the job is running
+    :type project_id: str
+    :param location: location the job is running
+    :type location: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+
+    template_fields = ("configuration", "job_id")
+    ui_color = BigQueryUIColors.QUERY.value
+
+    def __init__(
+        self,
+        configuration: Dict[str, Any],
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+        job_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.configuration = configuration
+        self.location = location
+        self.job_id = job_id
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context: Any):
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+        )
+
+        try:
+            job = hook.insert_job(
+                configuration=self.configuration,
+                project_id=self.project_id,
+                location=self.location,
+                job_id=self.job_id,
+            )
+            # Start the job and wait for it to complete and get the result.
+            job.result()
+        except Conflict:
+            job = hook.get_job(
+                project_id=self.project_id,
+                location=self.location,
+                job_id=self.job_id,
+            )
+            # Get existing job and wait for it to be ready
+            for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
+                sleep(time_to_wait)
+                job.reload()
+                if job.done():
+                    break
+        return job.job_id

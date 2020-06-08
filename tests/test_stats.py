@@ -81,7 +81,7 @@ class TestStats(unittest.TestCase):
         self.stats.incr('X' * 300)
         self.statsd_client.assert_not_called()
 
-    def test_stat_name_must_only_include_whitelisted_characters(self):
+    def test_stat_name_must_only_include_allowed_characters(self):
         self.stats.incr('test/$tats')
         self.statsd_client.assert_not_called()
 
@@ -159,7 +159,7 @@ class TestDogStats(unittest.TestCase):
         self.dogstatsd.incr('X' * 300)
         self.dogstatsd_client.assert_not_called()
 
-    def test_stat_name_must_only_include_whitelisted_characters_with_dogstatsd(self):
+    def test_stat_name_must_only_include_allowed_characters_with_dogstatsd(self):
         self.dogstatsd.incr('test/$tats')
         self.dogstatsd_client.assert_not_called()
 

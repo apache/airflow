@@ -17,4 +17,6 @@
 
 AIRFLOW_SOURCES=$(pwd)
 export AIRFLOW_SOURCES
-source scripts/ci/_utils.sh
+export SCRIPTS_CI_DIR=${AIRFLOW_SOURCES}/scripts/ci
+# shellcheck source=scripts/ci/_all_libs.sh
+source "${SCRIPTS_CI_DIR}/_all_libs.sh"

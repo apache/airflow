@@ -76,6 +76,9 @@ Fundamentals
    * - :mod:`airflow.operators.subdag_operator`
      -
 
+   * - :mod:`airflow.operators.sql_branch_operator`
+     -
+
 **Sensors:**
 
 .. list-table::
@@ -697,7 +700,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Dataproc <https://cloud.google.com/dataproc/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/dataproc>`
      - :mod:`airflow.providers.google.cloud.hooks.dataproc`
      - :mod:`airflow.providers.google.cloud.operators.dataproc`
      -
@@ -732,7 +735,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Kubernetes Engine <https://cloud.google.com/kubernetes_engine/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/kubernetes_engine>`
      - :mod:`airflow.providers.google.cloud.hooks.kubernetes_engine`
      - :mod:`airflow.providers.google.cloud.operators.kubernetes_engine`
      -
@@ -1215,7 +1218,8 @@ These integrations allow you to perform various operations within various servic
    * - `Snowflake <https://www.snowflake.com/>`__
      -
      - :mod:`airflow.providers.snowflake.hooks.snowflake`
-     - :mod:`airflow.providers.snowflake.operators.snowflake`
+     - :mod:`airflow.providers.snowflake.operators.snowflake`,
+       :mod:`airflow.providers.snowflake.operators.snowflake_to_slack`
      -
 
    * - `Vertica <https://www.vertica.com/>`__

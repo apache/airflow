@@ -93,8 +93,8 @@ function in_container_cleanup_pycache() {
 #
 function in_container_fix_ownership() {
     set +o pipefail
-    sudo find "${AIRFLOW_SOURCES}" -user root \
-    | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
+    sudo find "${AIRFLOW_SOURCES}" -print0 -user root \
+    | sudo xargs --null chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
     set -o pipefail
 }
 
@@ -126,7 +126,6 @@ function in_container_refresh_pylint_todo() {
     find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/www_rbac/node_modules" -prune -o \
-        -path "./airflow/_vendor" -prune -o \
         -path "./airflow/migrations/versions" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
@@ -221,34 +220,6 @@ function setup_kerberos() {
     fi
 }
 
-
-function dump_container_logs() {
-    echo "###########################################################################################"
-    echo "                   Dumping logs from all the containers"
-    echo "###########################################################################################"
-    echo "  Docker processes:"
-    echo "###########################################################################################"
-    docker ps --no-trunc
-    echo "###########################################################################################"
-    for CONTAINER in $(docker ps -qa)
-    do
-        CONTAINER_NAME=$(docker inspect --format "{{.Name}}" "${CONTAINER}")
-        echo "-------------------------------------------------------------------------------------------"
-        echo " Docker inspect: ${CONTAINER_NAME}"
-        echo "-------------------------------------------------------------------------------------------"
-        echo
-        docker inspect "${CONTAINER}"
-        echo
-        echo "-------------------------------------------------------------------------------------------"
-        echo " Docker logs: ${CONTAINER_NAME}"
-        echo "-------------------------------------------------------------------------------------------"
-        echo
-        docker logs "${CONTAINER}"
-        echo
-        echo "###########################################################################################"
-    done
-}
-
 function dump_airflow_logs() {
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
@@ -259,21 +230,6 @@ function dump_airflow_logs() {
     echo "###########################################################################################"
 }
 
-
-function send_docker_logs_to_file_io() {
-    echo "##############################################################################"
-    echo
-    echo "   DUMPING LOG FILES FROM CONTAINERS AND SENDING THEM TO file.io"
-    echo
-    echo "##############################################################################"
-    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_docker_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}.log.gz
-    dump_container_logs 2>&1 | gzip >"${DUMP_FILE}"
-    echo
-    echo "   Logs saved to ${DUMP_FILE}"
-    echo
-    echo "##############################################################################"
-    curl -F "file=@${DUMP_FILE}" https://file.io
-}
 
 function send_airflow_logs_to_file_io() {
     echo "##############################################################################"
@@ -288,34 +244,6 @@ function send_airflow_logs_to_file_io() {
     echo
     echo "##############################################################################"
     curl -F "file=@${DUMP_FILE}" https://file.io
-}
-
-
-function dump_kind_logs() {
-    echo "###########################################################################################"
-    echo "                   Dumping logs from KIND"
-    echo "###########################################################################################"
-
-    FILE_NAME="${1}"
-    kind --name "${CLUSTER_NAME}" export logs "${FILE_NAME}"
-}
-
-
-function send_kubernetes_logs_to_file_io() {
-    echo "##############################################################################"
-    echo
-    echo "   DUMPING LOG FILES FROM KIND AND SENDING THEM TO file.io"
-    echo
-    echo "##############################################################################"
-    DUMP_DIR_NAME=$(date "+%Y-%m-%d")_kind_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
-    DUMP_DIR=/tmp/${DUMP_DIR_NAME}
-    dump_kind_logs "${DUMP_DIR}"
-    tar -cvzf "${DUMP_DIR}.tar.gz" -C /tmp "${DUMP_DIR_NAME}"
-    echo
-    echo "   Logs saved to ${DUMP_DIR}.tar.gz"
-    echo
-    echo "##############################################################################"
-    curl -F "file=@${DUMP_DIR}.tar.gz" https://file.io
 }
 
 function install_released_airflow_version() {

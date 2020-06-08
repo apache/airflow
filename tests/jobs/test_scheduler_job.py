@@ -44,6 +44,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.dag_processing import FailureCallbackRequest, SimpleDag, SimpleDagBag
 from airflow.utils.dates import days_ago
@@ -122,7 +123,11 @@ class TestDagFileProcessor(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = DagBag()
+        # Ensure the DAGs we are looking at from the DB are up-to-date
+        non_serialized_dagbag = DagBag(store_serialized_dags=False, include_examples=False)
+        non_serialized_dagbag.store_serialized_dags = True
+        non_serialized_dagbag.sync_to_db()
+        cls.dagbag = DagBag(store_serialized_dags=True)
 
     def test_dag_file_processor_sla_miss_callback(self):
         """
@@ -415,6 +420,7 @@ class TestDagFileProcessor(unittest.TestCase):
             schedule_interval="@once")
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dag.clear()
         dr = dag_file_processor.create_dag_run(dag)
         self.assertIsNotNone(dr)
@@ -491,6 +497,8 @@ class TestDagFileProcessor(unittest.TestCase):
             orm_dag = DagModel(dag_id=dag.dag_id)
             session.merge(orm_dag)
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
         dr = dag_file_processor.create_dag_run(dag)
@@ -536,6 +544,8 @@ class TestDagFileProcessor(unittest.TestCase):
         with create_session() as session:
             orm_dag = DagModel(dag_id=dag.dag_id)
             session.merge(orm_dag)
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
@@ -587,6 +597,8 @@ class TestDagFileProcessor(unittest.TestCase):
             orm_dag = DagModel(dag_id=dag.dag_id)
             session.merge(orm_dag)
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
         dr = dag_file_processor.create_dag_run(dag)
@@ -621,6 +633,8 @@ class TestDagFileProcessor(unittest.TestCase):
         session.commit()
         session.close()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
 
@@ -628,9 +642,11 @@ class TestDagFileProcessor(unittest.TestCase):
         self.assertIsNotNone(dr)
 
         dr = DagRun.find(run_id=dr.run_id)[0]
+        # Re-create the DAG, but remove the task
         dag = DAG(
             dag_id='test_scheduler_do_not_schedule_removed_task',
             start_date=DEFAULT_DATE)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         mock_list = dag_file_processor._process_task_instances(dag, dag_runs=[dr])
 
@@ -651,6 +667,8 @@ class TestDagFileProcessor(unittest.TestCase):
         session.commit()
         session.close()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
 
@@ -668,6 +686,8 @@ class TestDagFileProcessor(unittest.TestCase):
         with create_session() as session:
             orm_dag = DagModel(dag_id=dag.dag_id)
             session.merge(orm_dag)
+
+            dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
             dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
             dag.clear(session=session)
             dag.start_date = None
@@ -687,6 +707,8 @@ class TestDagFileProcessor(unittest.TestCase):
         orm_dag = DagModel(dag_id=dag.dag_id)
         session.merge(orm_dag)
         session.commit()
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
@@ -724,6 +746,8 @@ class TestDagFileProcessor(unittest.TestCase):
         session.commit()
         session.close()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
 
@@ -737,6 +761,7 @@ class TestDagFileProcessor(unittest.TestCase):
             task_id='dummy2',
             dag=dag,
             owner='airflow')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor._process_task_instances(dag, dag_runs=[dr])
 
@@ -763,6 +788,7 @@ class TestDagFileProcessor(unittest.TestCase):
         session.commit()
         session.close()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
 
@@ -790,6 +816,8 @@ class TestDagFileProcessor(unittest.TestCase):
         orm_dag = DagModel(dag_id=dag.dag_id)
         session.merge(orm_dag)
         session.commit()
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
@@ -831,6 +859,8 @@ class TestDagFileProcessor(unittest.TestCase):
         session.commit()
         session.close()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
 
@@ -868,6 +898,7 @@ class TestDagFileProcessor(unittest.TestCase):
         session.merge(orm_dag)
         session.commit()
         session.close()
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.clear()
@@ -892,8 +923,6 @@ class TestDagFileProcessor(unittest.TestCase):
 
     def test_find_dags_to_run_includes_subdags(self):
         dag = self.dagbag.get_dag('test_subdag_operator')
-        print(self.dagbag.dag_ids)
-        print(self.dagbag.dag_folder)
         self.assertGreater(len(dag.subdags), 0)
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dags = dag_file_processor._find_dags_to_process(self.dagbag.dags.values())
@@ -931,7 +960,7 @@ class TestDagFileProcessor(unittest.TestCase):
             session.commit()
             session.close()
 
-            return dag
+            return SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         now = timezone.utcnow()
         six_hours_ago_to_the_hour = (now - datetime.timedelta(hours=6)).replace(
@@ -1002,6 +1031,8 @@ class TestDagFileProcessor(unittest.TestCase):
         session.merge(orm_dag)
         session.commit()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
 
         dr = dag_file_processor.create_dag_run(dag)
@@ -1022,6 +1053,7 @@ class TestDagFileProcessor(unittest.TestCase):
         orm_dag = DagModel(dag_id=dag.dag_id)
         session.merge(orm_dag)
         session.commit()
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag.clear()
 
@@ -1201,6 +1233,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 self.assertIsNone(duration)
 
 
+@pytest.mark.quarantined
 class TestDagFileProcessorQueriesCount(unittest.TestCase):
     """
     These tests are designed to detect changes in the number of queries for different DAG files.
@@ -1223,40 +1256,40 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             # pylint: disable=bad-whitespace
             # expected, dag_count, task_count, start_ago, schedule_interval, shape
             # One DAG with one task per DAG file
-            ( 1,  1,  1, "1d",  "None",  "no_structure"),  # noqa
-            ( 1,  1,  1, "1d",  "None",        "linear"),  # noqa
-            ( 9,  1,  1, "1d", "@once",  "no_structure"),  # noqa
-            ( 9,  1,  1, "1d", "@once",        "linear"),  # noqa
-            ( 9,  1,  1, "1d",   "30m",  "no_structure"),  # noqa
-            ( 9,  1,  1, "1d",   "30m",        "linear"),  # noqa
-            ( 9,  1,  1, "1d",   "30m",   "binary_tree"),  # noqa
-            ( 9,  1,  1, "1d",   "30m",          "star"),  # noqa
-            ( 9,  1,  1, "1d",   "30m",          "grid"),  # noqa
+            ([ 1,   1,   1,  1],  1,  1, "1d",  "None",  "no_structure"),  # noqa
+            ([ 1,   1,   1,  1],  1,  1, "1d",  "None",        "linear"),  # noqa
+            ([ 9,   5,   5,  5],  1,  1, "1d", "@once",  "no_structure"),  # noqa
+            ([ 9,   5,   5,  5],  1,  1, "1d", "@once",        "linear"),  # noqa
+            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",  "no_structure"),  # noqa
+            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",        "linear"),  # noqa
+            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",   "binary_tree"),  # noqa
+            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",          "star"),  # noqa
+            ([ 9,  12,  15, 18],  1,  1, "1d",   "30m",          "grid"),  # noqa
             # One DAG with five tasks per DAG  file
-            ( 1,  1,  5, "1d",  "None",  "no_structure"),  # noqa
-            ( 1,  1,  5, "1d",  "None",        "linear"),  # noqa
-            ( 9,  1,  5, "1d", "@once",  "no_structure"),  # noqa
-            (10,  1,  5, "1d", "@once",        "linear"),  # noqa
-            ( 9,  1,  5, "1d",   "30m",  "no_structure"),  # noqa
-            (10,  1,  5, "1d",   "30m",        "linear"),  # noqa
-            (10,  1,  5, "1d",   "30m",   "binary_tree"),  # noqa
-            (10,  1,  5, "1d",   "30m",          "star"),  # noqa
-            (10,  1,  5, "1d",   "30m",          "grid"),  # noqa
+            ([ 1,   1,   1,  1],  1,  5, "1d",  "None",  "no_structure"),  # noqa
+            ([ 1,   1,   1,  1],  1,  5, "1d",  "None",        "linear"),  # noqa
+            ([ 9,   5,   5,  5],  1,  5, "1d", "@once",  "no_structure"),  # noqa
+            ([10,   6,   6,  6],  1,  5, "1d", "@once",        "linear"),  # noqa
+            ([ 9,  12,  15, 18],  1,  5, "1d",   "30m",  "no_structure"),  # noqa
+            ([10,  14,  18, 22],  1,  5, "1d",   "30m",        "linear"),  # noqa
+            ([10,  14,  18, 22],  1,  5, "1d",   "30m",   "binary_tree"),  # noqa
+            ([10,  14,  18, 22],  1,  5, "1d",   "30m",          "star"),  # noqa
+            ([10,  14,  18, 22],  1,  5, "1d",   "30m",          "grid"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
-            ( 1, 10, 10, "1d",  "None",  "no_structure"),  # noqa
-            ( 1, 10, 10, "1d",  "None",        "linear"),  # noqa
-            (81, 10, 10, "1d", "@once",  "no_structure"),  # noqa
-            (91, 10, 10, "1d", "@once",        "linear"),  # noqa
-            (81, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
-            (91, 10, 10, "1d",   "30m",        "linear"),  # noqa
-            (91, 10, 10, "1d",   "30m",   "binary_tree"),  # noqa
-            (91, 10, 10, "1d",   "30m",          "star"),  # noqa
-            (91, 10, 10, "1d",   "30m",          "grid"),  # noqa
+            ([ 1,   1,   1,   1], 10, 10, "1d",  "None",  "no_structure"),  # noqa
+            ([ 1,   1,   1,   1], 10, 10, "1d",  "None",        "linear"),  # noqa
+            ([81,  41,  41,  41], 10, 10, "1d", "@once",  "no_structure"),  # noqa
+            ([91,  51,  51,  51], 10, 10, "1d", "@once",        "linear"),  # noqa
+            ([81, 111, 111, 111], 10, 10, "1d",   "30m",  "no_structure"),  # noqa
+            ([91, 131, 131, 131], 10, 10, "1d",   "30m",        "linear"),  # noqa
+            ([91, 131, 131, 131], 10, 10, "1d",   "30m",   "binary_tree"),  # noqa
+            ([91, 131, 131, 131], 10, 10, "1d",   "30m",          "star"),  # noqa
+            ([91, 131, 131, 131], 10, 10, "1d",   "30m",          "grid"),  # noqa
             # pylint: enable=bad-whitespace
         ]
     )
     def test_process_dags_queries_count(
-        self, expected_query_count, dag_count, task_count, start_ago, schedule_interval, shape
+        self, expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape
     ):
         with mock.patch.dict("os.environ", {
             "PERF_DAGS_COUNT": str(dag_count),
@@ -1268,42 +1301,43 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             ('scheduler', 'use_job_schedule'): 'True',
         }):
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
-            with assert_queries_count(expected_query_count):
-                processor = DagFileProcessor([], mock.MagicMock())
-                processor._process_dags(dagbag.dags.values())
+            processor = DagFileProcessor([], mock.MagicMock())
+            for expected_query_count in expected_query_counts:
+                with assert_queries_count(expected_query_count):
+                    processor._process_dags(dagbag.dags.values())
 
     @parameterized.expand(
         [
             # pylint: disable=bad-whitespace
             # expected, dag_count, task_count, start_ago, schedule_interval, shape
             # One DAG with two tasks per DAG file
-            ( 5,  1,  1, "1d",   "None", "no_structure"),  # noqa
-            ( 5,  1,  1, "1d",   "None",       "linear"),  # noqa
-            (15,  1,  1, "1d",  "@once", "no_structure"),  # noqa
-            (15,  1,  1, "1d",  "@once",       "linear"),  # noqa
-            (15,  1,  1, "1d",    "30m", "no_structure"),  # noqa
-            (15,  1,  1, "1d",    "30m",       "linear"),  # noqa
+            ([ 5,   5,   5,   5],  1,  1, "1d",   "None", "no_structure"),  # noqa
+            ([ 5,   5,   5,   5],  1,  1, "1d",   "None",       "linear"),  # noqa
+            ([15,   9,   9,   9],  1,  1, "1d",  "@once", "no_structure"),  # noqa
+            ([15,   9,   9,   9],  1,  1, "1d",  "@once",       "linear"),  # noqa
+            ([15,  18,  21,  24],  1,  1, "1d",    "30m", "no_structure"),  # noqa
+            ([15,  18,  21,  24],  1,  1, "1d",    "30m",       "linear"),  # noqa
             # One DAG with five tasks per DAG file
-            ( 5,  1,  5, "1d",   "None", "no_structure"),  # noqa
-            ( 5,  1,  5, "1d",   "None",       "linear"),  # noqa
-            (15,  1,  5, "1d",  "@once", "no_structure"),  # noqa
-            (16,  1,  5, "1d",  "@once",       "linear"),  # noqa
-            (15,  1,  5, "1d",    "30m", "no_structure"),  # noqa
-            (16,  1,  5, "1d",    "30m",       "linear"),  # noqa
+            ([ 5,   5,   5,   5],  1,  5, "1d",   "None", "no_structure"),  # noqa
+            ([ 5,   5,   5,   5],  1,  5, "1d",   "None",       "linear"),  # noqa
+            ([15,   9,   9,   9],  1,  5, "1d",  "@once", "no_structure"),  # noqa
+            ([16,  10,  10,  10],  1,  5, "1d",  "@once",       "linear"),  # noqa
+            ([15,  18,  21,  24],  1,  5, "1d",    "30m", "no_structure"),  # noqa
+            ([16,  20,  24,  28],  1,  5, "1d",    "30m",       "linear"),  # noqa
             # 10 DAGs with 10 tasks per DAG file
-            ( 5, 10, 10, "1d",  "None",  "no_structure"),  # noqa
-            ( 5, 10, 10, "1d",  "None",        "linear"),  # noqa
-            (87, 10, 10, "1d", "@once",  "no_structure"),  # noqa
-            (97, 10, 10, "1d", "@once",        "linear"),  # noqa
-            (87, 10, 10, "1d",   "30m",  "no_structure"),  # noqa
-            (97, 10, 10, "1d",   "30m",        "linear"),  # noqa
+            ([ 5,   5,   5,   5], 10, 10, "1d",  "None",  "no_structure"),  # noqa
+            ([ 5,   5,   5,   5], 10, 10, "1d",  "None",        "linear"),  # noqa
+            ([87,  45,  45,  45], 10, 10, "1d", "@once",  "no_structure"),  # noqa
+            ([97,  55,  55,  55], 10, 10, "1d", "@once",        "linear"),  # noqa
+            ([87, 117, 117, 117], 10, 10, "1d",   "30m",  "no_structure"),  # noqa
+            ([97, 137, 137, 137], 10, 10, "1d",   "30m",        "linear"),  # noqa
             # pylint: enable=bad-whitespace
         ]
     )
     def test_process_file_queries_count(
-        self, expected_query_count, dag_count, task_count, start_ago, schedule_interval, shape
+        self, expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape
     ):
-        with assert_queries_count(expected_query_count), mock.patch.dict("os.environ", {
+        with mock.patch.dict("os.environ", {
             "PERF_DAGS_COUNT": str(dag_count),
             "PERF_TASKS_COUNT": str(task_count),
             "PERF_START_AGO": start_ago,
@@ -1313,7 +1347,9 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
             ('scheduler', 'use_job_schedule'): 'True'
         }):
             processor = DagFileProcessor([], mock.MagicMock())
-            processor.process_file(ELASTIC_DAG_FILE, [])
+            for expected_query_count in expected_query_counts:
+                with assert_queries_count(expected_query_count):
+                    processor.process_file(ELASTIC_DAG_FILE, [])
 
 
 @pytest.mark.usefixtures("disable_load_example")
@@ -1332,7 +1368,11 @@ class TestSchedulerJob(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = DagBag()
+        # Ensure the DAGs we are looking at from the DB are up-to-date
+        non_serialized_dagbag = DagBag(store_serialized_dags=False, include_examples=False)
+        non_serialized_dagbag.store_serialized_dags = True
+        non_serialized_dagbag.sync_to_db()
+        cls.dagbag = DagBag(store_serialized_dags=True)
 
     def test_is_alive(self):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
@@ -1454,6 +1494,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1485,6 +1526,8 @@ class TestSchedulerJob(unittest.TestCase):
 
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1511,6 +1554,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1518,7 +1562,7 @@ class TestSchedulerJob(unittest.TestCase):
         session = settings.Session()
 
         dr1 = dag_file_processor.create_dag_run(dag)
-        dr1.run_id = f"{DagRunType.BACKFILL_JOB.value}__blah"
+        dr1.run_type = DagRunType.BACKFILL_JOB.value
         ti1 = TaskInstance(task1, dr1.execution_date)
         ti1.refresh_from_db()
         ti1.state = State.SCHEDULED
@@ -1537,6 +1581,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1545,7 +1590,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         dr1 = dag_file_processor.create_dag_run(dag)
         dr2 = dag_file_processor.create_dag_run(dag)
-        dr2.run_id = f"{DagRunType.BACKFILL_JOB.value}__asdf"
+        dr2.run_type = DagRunType.BACKFILL_JOB.value
 
         ti_no_dagrun = TaskInstance(task1, DEFAULT_DATE - datetime.timedelta(days=1))
         ti_backfill = TaskInstance(task1, dr2.execution_date)
@@ -1577,6 +1622,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task1 = DummyOperator(dag=dag, task_id=task_id_1, pool='a')
         task2 = DummyOperator(dag=dag, task_id=task_id_2, pool='b')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1620,6 +1666,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         op1 = DummyOperator(dag=dag, task_id='dummy1')
         op2 = DummyOperator(dag=dag, task_id='dummy2')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         executor = MockExecutor(do_update=True)
@@ -1661,6 +1708,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id = 'dummy_wrong_pool'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task = DummyOperator(dag=dag, task_id=task_id, pool="this_pool_doesnt_exist")
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1685,6 +1733,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1703,6 +1752,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1749,6 +1799,7 @@ class TestSchedulerJob(unittest.TestCase):
         task1 = DummyOperator(dag=dag, task_id='dummy1')
         task2 = DummyOperator(dag=dag, task_id='dummy2')
         task3 = DummyOperator(dag=dag, task_id='dummy3')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1783,6 +1834,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task1 = DummyOperator(dag=dag, task_id=task_id_1, task_concurrency=2)
         task2 = DummyOperator(dag=dag, task_id=task_id_2)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         executor = MockExecutor(do_update=True)
@@ -1877,6 +1929,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         self._make_simple_dag_bag([dag])
 
         scheduler = SchedulerJob()
@@ -1909,6 +1962,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1931,6 +1985,7 @@ class TestSchedulerJob(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = SimpleDagBag([])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -1956,6 +2011,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=3)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         task2 = DummyOperator(dag=dag, task_id=task_id_2)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -2026,6 +2082,7 @@ class TestSchedulerJob(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         task2 = DummyOperator(dag=dag, task_id=task_id_2)
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dagbag = self._make_simple_dag_bag([dag])
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
@@ -2062,23 +2119,28 @@ class TestSchedulerJob(unittest.TestCase):
         DummyOperator(task_id='dummy', dag=dag1, owner='airflow')
 
         DummyOperator(task_id='dummy_b', dag=dag1, owner='airflow')
+        dag1 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag1))
 
         dag2 = DAG(dag_id='test_change_state_for_tis_without_dagrun_dont_change', start_date=DEFAULT_DATE)
 
         DummyOperator(task_id='dummy', dag=dag2, owner='airflow')
 
+        dag2 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag2))
+
         dag3 = DAG(dag_id='test_change_state_for_tis_without_dagrun_no_dagrun', start_date=DEFAULT_DATE)
 
         DummyOperator(task_id='dummy', dag=dag3, owner='airflow')
 
+        dag3 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag3))
+
         session = settings.Session()
-        dr1 = dag1.create_dagrun(run_id=DagRunType.SCHEDULED.value,
+        dr1 = dag1.create_dagrun(run_type=DagRunType.SCHEDULED,
                                  state=State.RUNNING,
                                  execution_date=DEFAULT_DATE,
                                  start_date=DEFAULT_DATE,
                                  session=session)
 
-        dr2 = dag2.create_dagrun(run_id=DagRunType.SCHEDULED.value,
+        dr2 = dag2.create_dagrun(run_type=DagRunType.SCHEDULED,
                                  state=State.RUNNING,
                                  execution_date=DEFAULT_DATE,
                                  start_date=DEFAULT_DATE,
@@ -2154,6 +2216,7 @@ class TestSchedulerJob(unittest.TestCase):
             task_id='task_id',
             dag=dag,
             owner='airflow')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         # If there's no left over task in executor.queued_tasks, nothing happens
         session = settings.Session()
@@ -2202,14 +2265,15 @@ class TestSchedulerJob(unittest.TestCase):
 
         with dag:
             op1 = DummyOperator(task_id='op1')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag.clear()
-        dr = dag.create_dagrun(run_id=f"{DagRunType.SCHEDULED.value}__",
+        dr = dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                                state=State.RUNNING,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,
                                session=session)
-        dr2 = dag.create_dagrun(run_id=f"{DagRunType.BACKFILL_JOB.value}__",
+        dr2 = dag.create_dagrun(run_type=DagRunType.BACKFILL_JOB,
                                 state=State.RUNNING,
                                 execution_date=DEFAULT_DATE + datetime.timedelta(1),
                                 start_date=DEFAULT_DATE,
@@ -2250,10 +2314,11 @@ class TestSchedulerJob(unittest.TestCase):
 
         with dag:
             op1 = DummyOperator(task_id='op1')
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         # Create DAG run with FAILED state
         dag.clear()
-        dr = dag.create_dagrun(run_id=DagRunType.SCHEDULED.value,
+        dr = dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                                state=State.FAILED,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,
@@ -2311,6 +2376,7 @@ class TestSchedulerJob(unittest.TestCase):
             self.null_exec.mock_task_fail(dag_id, tid, ex_date)
 
         try:
+            # This needs a _REAL_ dag, not the serialized version
             dag.run(start_date=ex_date, end_date=ex_date, executor=self.null_exec, **run_kwargs)
         except AirflowException:
             pass
@@ -2452,7 +2518,7 @@ class TestSchedulerJob(unittest.TestCase):
             dag_id = 'test_start_date_scheduling'
             dag = self.dagbag.get_dag(dag_id)
             dag.clear()
-            self.assertTrue(dag.start_date > datetime.datetime.utcnow())
+            self.assertGreater(dag.start_date, datetime.datetime.utcnow())
 
             scheduler = SchedulerJob(dag_id,
                                      executor=self.null_exec,
@@ -2592,6 +2658,8 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(orm_dag)
         session.commit()
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         scheduler = SchedulerJob(executor=self.null_exec)
 
@@ -2643,6 +2711,7 @@ class TestSchedulerJob(unittest.TestCase):
             bash_command='echo 1',
         )
 
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dag.clear()
         dag.is_subdag = False
 
@@ -3089,7 +3158,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = State.SCHEDULED
         dr1.state = State.RUNNING
-        dr1.run_id = f"{DagRunType.BACKFILL_JOB.value}__sdfsfdfsd"
+        dr1.run_type = DagRunType.BACKFILL_JOB.value
         session.merge(ti)
         session.merge(dr1)
         session.commit()
@@ -3287,7 +3356,7 @@ def test_task_with_upstream_skip_process_task_instances():
 
     dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
     dag.clear()
-    dr = dag.create_dagrun(run_id=f"manual__{DEFAULT_DATE.isoformat()}",
+    dr = dag.create_dagrun(run_type=DagRunType.MANUAL,
                            state=State.RUNNING,
                            execution_date=DEFAULT_DATE)
     assert dr is not None
@@ -3308,3 +3377,99 @@ def test_task_with_upstream_skip_process_task_instances():
         assert tis[dummy2.task_id].state == State.SUCCESS
         # dummy3 should be skipped because dummy1 is skipped.
         assert tis[dummy3.task_id].state == State.SKIPPED
+
+
+class TestSchedulerJobQueriesCount(unittest.TestCase):
+    """
+    These tests are designed to detect changes in the number of queries for
+    different DAG files. These tests allow easy detection when a change is
+    made that affects the performance of the SchedulerJob.
+    """
+    def setUp(self) -> None:
+        clear_db_runs()
+        clear_db_pools()
+        clear_db_dags()
+        clear_db_sla_miss()
+        clear_db_errors()
+
+    @parameterized.expand(
+        [
+            # pylint: disable=bad-whitespace
+            # expected, dag_count, task_count
+            # One DAG with one task per DAG file
+            ( 13,  1,  1),  # noqa
+            # One DAG with five tasks per DAG  file
+            ( 25,  1,  5),  # noqa
+            # 10 DAGs with 10 tasks per DAG file
+            (108, 10, 10),  # noqa
+        ]
+    )
+    def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
+        with mock.patch.dict("os.environ", {
+            "PERF_DAGS_COUNT": str(dag_count),
+            "PERF_TASKS_COUNT": str(task_count),
+            "PERF_START_AGO": "1d",
+            "PERF_SCHEDULE_INTERVAL": "30m",
+            "PERF_SHAPE": "no_structure",
+        }), conf_vars({
+            ('scheduler', 'use_job_schedule'): 'True',
+            ('core', 'load_examples'): 'False',
+        }):
+
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            for i, dag in enumerate(dagbag.dags.values()):
+                dr = dag.create_dagrun(state=State.RUNNING, run_id=f"{DagRunType.MANUAL.value}__{i}")
+                for ti in dr.get_task_instances():
+                    ti.set_state(state=State.SCHEDULED)
+
+            mock_agent = mock.MagicMock()
+            mock_agent.harvest_simple_dags.return_value = [SimpleDag(d) for d in dagbag.dags.values()]
+
+            job = SchedulerJob(subdir=PERF_DAGS_FOLDER)
+            job.executor = MockExecutor()
+            job.heartbeat = mock.MagicMock()
+            job.processor_agent = mock_agent
+
+            with assert_queries_count(expected_query_count):
+                job._run_scheduler_loop()
+
+    @parameterized.expand(
+        [
+            # pylint: disable=bad-whitespace
+            # expected, dag_count, task_count
+            # One DAG with one task per DAG file
+            (2,  1,  1),  # noqa
+            # One DAG with five tasks per DAG  file
+            (2,  1,  5),  # noqa
+            # 10 DAGs with 10 tasks per DAG file
+            (2, 10, 10),  # noqa
+        ]
+    )
+    def test_execute_queries_count_no_harvested_dags(self, expected_query_count, dag_count, task_count):
+        with mock.patch.dict("os.environ", {
+            "PERF_DAGS_COUNT": str(dag_count),
+            "PERF_TASKS_COUNT": str(task_count),
+            "PERF_START_AGO": "1d",
+            "PERF_SCHEDULE_INTERVAL": "30m",
+            "PERF_SHAPE": "no_structure",
+        }), conf_vars({
+            ('scheduler', 'use_job_schedule'): 'True',
+            ('core', 'load_examples'): 'False',
+        }):
+
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            for i, dag in enumerate(dagbag.dags.values()):
+                dr = dag.create_dagrun(state=State.RUNNING, run_id=f"{DagRunType.MANUAL.value}__{i}")
+                for ti in dr.get_task_instances():
+                    ti.set_state(state=State.SCHEDULED)
+
+            mock_agent = mock.MagicMock()
+            mock_agent.harvest_simple_dags.return_value = []
+
+            job = SchedulerJob(subdir=PERF_DAGS_FOLDER)
+            job.executor = MockExecutor()
+            job.heartbeat = mock.MagicMock()
+            job.processor_agent = mock_agent
+
+            with assert_queries_count(expected_query_count):
+                job._run_scheduler_loop()
