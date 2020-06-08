@@ -2291,7 +2291,7 @@ class TestDagACLView(TestBase):
 class TestTaskInstanceView(TestBase):
     DAG_ID = 'dag_for_testing_task_instance'
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
-    TI_ENDPOINT_TAG = '/taskinstance/list/?_flt_{}_tags={}'
+    TI_ENDPOINT_TAG = '/taskinstance/list/?_flt_{}_task_tags={}'
     TI_ENDPOINT_DATE = '/taskinstance/list/?_flt_0_execution_date={}'
 
     def setUp(self):
