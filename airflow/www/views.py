@@ -1597,7 +1597,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
         task_instances = {}
         for ti in dag.get_task_instances(dttm, dttm):
             task_instances[ti.task_id] = alchemy_to_dict(ti)
-            task_instances[ti.task_id]['tags'] = [tag.name for tag in ti.tags]
+            task_instances[ti.task_id]['tags'] = [tag.name for tag in ti.task_tags]
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
