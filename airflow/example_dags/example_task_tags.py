@@ -43,19 +43,19 @@ extract = []
 for i in range(3):
     extract.append(DummyOperator(
         task_id='extract_account_' + str(i),
-        tags=['extract'],
+        task_tags=['extract'],
         dag=dag
     ))
 
 transform = DummyOperator(
     task_id='transform',
-    tags=['transform'],
+    task_tags=['transform'],
     dag=dag
 )
 
 load = DummyOperator(
     task_id='load',
-    tags=['load'],
+    task_tags=['load'],
     dag=dag
 )
 
