@@ -36,6 +36,7 @@ dag = DAG(
 
 init = DummyOperator(
     task_id='initialize',
+    task_tags=['prepare'],
     dag=dag
 )
 
@@ -43,19 +44,19 @@ extract = []
 for i in range(3):
     extract.append(DummyOperator(
         task_id='extract_account_' + str(i),
-        task_tags=['extract'],
+        task_tags=['extract', 'etl'],
         dag=dag
     ))
 
 transform = DummyOperator(
     task_id='transform',
-    task_tags=['transform'],
+    task_tags=['transform', 'etl'],
     dag=dag
 )
 
 load = DummyOperator(
     task_id='load',
-    task_tags=['load'],
+    task_tags=['load', 'etl'],
     dag=dag
 )
 

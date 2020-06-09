@@ -2094,7 +2094,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
         task_instances = {}
         for ti in dag.get_task_instances(dttm, dttm):
             task_instances[ti.task_id] = alchemy_to_dict(ti)
-            task_instances[ti.task_id]['tags'] = [tag.name for tag in ti.tags]
+            task_instances[ti.task_id]['tags'] = [tag.name for tag in ti.task_tags]
 
         return json.dumps(task_instances)
 
@@ -2195,6 +2195,11 @@ class AirflowModelView(ModelView):  # noqa: D101
 
 class TaskTagModelView(AirflowModelView):
     def _init_forms(self):
+        """
+        Currently it isn't possible to specify which converter to use when creating
+        default forms so we need to override this function and manually use
+        TaskTagModelConverter
+        """
         conv = wwwutils.TaskTagModelConverter(self.datamodel)
         if not self.search_form:
             self.search_form = conv.create_form(
