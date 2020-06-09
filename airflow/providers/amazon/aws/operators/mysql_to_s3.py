@@ -74,7 +74,7 @@ class MySQLToS3Operator(BaseOperator):
             mysql_conn_id: str = 'mysql_default',
             aws_conn_id: str = 'aws_default',
             verify: Optional[Union[bool, str]] = None,
-            pd_csv_kwargs: dict = None,
+            pd_csv_kwargs: Optional[dict] = None,
             index: Optional[bool] = False,
             header: Optional[bool] = False,
             *args, **kwargs) -> None:
