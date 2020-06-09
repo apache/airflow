@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
-
 from typing import List, NamedTuple
 
 from marshmallow import fields
@@ -28,10 +27,16 @@ from airflow.models.dagrun import DagRun
 
 
 class ConfObject(fields.Field):
+    """ The conf field"""
     def _serialize(self, value, attr, obj):
         if not value:
             return {}
-        return json.loads(value)
+        return json.loads(value) if isinstance(value, str) else value
+
+    def _deserialize(self, value, attr, data):
+        if isinstance(value, str):
+            return json.loads(value)
+        return value
 
 
 class DAGRunSchema(SQLAlchemySchema):

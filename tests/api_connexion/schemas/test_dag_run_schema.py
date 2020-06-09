@@ -16,14 +16,14 @@
 # under the License.
 
 import unittest
-from datetime import datetime
+
+from dateutil.parser import parse
 
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection, dagrun_collection_schema, dagrun_schema,
 )
 from airflow.models import DagRun
 from airflow.utils import timezone
-from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
@@ -32,7 +32,6 @@ from tests.test_utils.db import clear_db_runs
 class TestDAGRunBase(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.maxDiff = None
         clear_db_runs()
         self.now = "2020-06-09T13:59:56.336000+00:00"
 
@@ -81,7 +80,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             'execution_date': self.now,
             'external_trigger': True,
             'start_date': self.now,
-            'conf': {"start": "stop"}
+            'conf': '{"start": "stop"}'
         }
 
         result = dagrun_schema.load(serialized_dagrun)
@@ -89,7 +88,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             result.data,
             {
                 'run_id': 'my-dag-run',
-                'execution_date': self.now,
+                'execution_date': parse(self.now),
                 'state': 'failed',
                 'conf': {"start": "stop"}
             }
@@ -113,8 +112,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             result.data,
             {
                 'run_id': 'my-dag-run',
-                'execution_date': self.now,
-                'state': None,
+                'execution_date': parse(self.now),
                 'conf': {"start": "stop"}
             }
         )

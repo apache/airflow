@@ -18,6 +18,7 @@ import unittest
 from datetime import timedelta
 
 import pytest
+from parameterized import parameterized
 
 from airflow.models import DagRun
 from airflow.utils import timezone
@@ -31,15 +32,37 @@ class TestDagRunEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
+
         cls.app = app.create_app(testing=True)  # type:ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
-        self.now = timezone.utcnow()
+        self.now = '2020-06-11T18:12:50.773601+00:00'
+        self.now2 = '2020-06-12T18:12:50.773601+00:00'
         clear_db_runs()
 
     def tearDown(self) -> None:
         clear_db_runs()
+
+    def _create_test_dag_run(self, state='running'):
+        dagrun_model_1 = DagRun(
+            dag_id='TEST_DAG_ID',
+            run_id='TEST_DAG_RUN_ID_1',
+            run_type=DagRunType.MANUAL.value,
+            execution_date=timezone.parse(self.now),
+            start_date=timezone.parse(self.now),
+            external_trigger=True,
+            state=state
+        )
+        dagrun_model_2 = DagRun(
+            dag_id='TEST_DAG_ID',
+            run_id='TEST_DAG_RUN_ID_2',
+            run_type=DagRunType.MANUAL.value,
+            execution_date=timezone.parse(self.now2),
+            start_date=timezone.parse(self.now),
+            external_trigger=True,
+        )
+        return [dagrun_model_1, dagrun_model_2]
 
 
 class TestDeleteDagRun(TestDagRunEndpoint):
@@ -57,8 +80,8 @@ class TestGetDagRun(TestDagRunEndpoint):
             dag_id='TEST_DAG_ID',
             run_id='TEST_DAG_RUN_ID',
             run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,
-            start_date=self.now,
+            execution_date=timezone.parse(self.now),
+            start_date=timezone.parse(self.now),
             external_trigger=True,
         )
         session.add(dagrun_model)
@@ -74,9 +97,9 @@ class TestGetDagRun(TestDagRunEndpoint):
                 'dag_run_id': 'TEST_DAG_RUN_ID',
                 'end_date': None,
                 'state': 'running',
-                'execution_date': self.now.isoformat(),
+                'execution_date': self.now,
                 'external_trigger': True,
-                'start_date': self.now.isoformat(),
+                'start_date': self.now,
                 'conf': {},
             }
         )
@@ -99,23 +122,8 @@ class TestGetDagRuns(TestDagRunEndpoint):
 
     @provide_session
     def test_should_response_200(self, session):
-        dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,
-            start_date=self.now,
-            external_trigger=True,
-        )
-        dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now + timedelta(minutes=1),
-            start_date=self.now,
-            external_trigger=True,
-        )
-        session.add_all([dagrun_model_1, dagrun_model_2])
+        dagruns = self._create_test_dag_run()
+        session.add_all(dagruns)
         session.commit()
         result = session.query(DagRun).all()
         assert len(result) == 2
@@ -130,9 +138,9 @@ class TestGetDagRuns(TestDagRunEndpoint):
                         'dag_run_id': 'TEST_DAG_RUN_ID_1',
                         'end_date': None,
                         'state': 'running',
-                        'execution_date': self.now.isoformat(),
+                        'execution_date': self.now,
                         'external_trigger': True,
-                        'start_date': self.now.isoformat(),
+                        'start_date': self.now,
                         'conf': {},
                     },
                     {
@@ -140,9 +148,9 @@ class TestGetDagRuns(TestDagRunEndpoint):
                         'dag_run_id': 'TEST_DAG_RUN_ID_2',
                         'end_date': None,
                         'state': 'running',
-                        'execution_date': (self.now + timedelta(minutes=1)).isoformat(),
+                        'execution_date': self.now2,
                         'external_trigger': True,
-                        'start_date': self.now.isoformat(),
+                        'start_date': self.now,
                         'conf': {},
                     }
                 ],
@@ -152,23 +160,8 @@ class TestGetDagRuns(TestDagRunEndpoint):
 
     @provide_session
     def test_should_return_all_with_tilde_as_dag_id(self, session):
-        dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,
-            start_date=self.now,
-            external_trigger=True,
-        )
-        dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now + timedelta(minutes=1),
-            start_date=self.now,
-            external_trigger=True,
-        )
-        session.add_all([dagrun_model_1, dagrun_model_2])
+        dagruns = self._create_test_dag_run()
+        session.add_all(dagruns)
         session.commit()
         result = session.query(DagRun).all()
         assert len(result) == 2
@@ -183,9 +176,9 @@ class TestGetDagRuns(TestDagRunEndpoint):
                         'dag_run_id': 'TEST_DAG_RUN_ID_1',
                         'end_date': None,
                         'state': 'running',
-                        'execution_date': self.now.isoformat(),
+                        'execution_date': self.now,
                         'external_trigger': True,
-                        'start_date': self.now.isoformat(),
+                        'start_date': self.now,
                         'conf': {},
                     },
                     {
@@ -193,15 +186,16 @@ class TestGetDagRuns(TestDagRunEndpoint):
                         'dag_run_id': 'TEST_DAG_RUN_ID_2',
                         'end_date': None,
                         'state': 'running',
-                        'execution_date': (self.now + timedelta(minutes=1)).isoformat(),
+                        'execution_date': self.now2,
                         'external_trigger': True,
-                        'start_date': self.now.isoformat(),
+                        'start_date': self.now,
                         'conf': {},
                     }
                 ],
                 "total_entries": 2
             }
         )
+
 
 class TestGetDagRunsPagination(TestDagRunEndpoint):
     @parameterized.expand(
@@ -264,7 +258,7 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
         assert response.status_code == 200
 
         self.assertEqual(response.json["total_entries"], 200)
-        self.assertEqual(len(response.json["dag_run"]), 100)
+        self.assertEqual(len(response.json["dag_runs"]), 100)
 
     def _create_dag_runs(self, count):
         return [
@@ -272,8 +266,8 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
                 dag_id="TEST_DAG_ID",
                 run_id="TEST_DAG_RUN_ID" + str(i),
                 run_type=DagRunType.MANUAL.value,
-                execution_date=self.now + timedelta(minutes=i),
-                start_date=self.now,
+                execution_date=timezone.parse(self.now) + timedelta(minutes=i),
+                start_date=timezone.parse(self.now),
                 external_trigger=True,
             )
             for i in range(1, count + 1)
@@ -282,302 +276,86 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
 
 class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
 
+    @parameterized.expand(
+        [
+            ("api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18:12:50.773888+00:00",
+             ["TEST_DAG_RUN_ID8", "TEST_DAG_RUN_ID9"]
+             ),
+            ("api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-11T18:12:50.773601+00:00",
+             ["TEST_DAG_RUN_ID0"]
+             ),
+            ("api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-15T18:12:50.773777+00:00"
+             "&start_date_gte=2020-06-12T18:12:50.773654+00:00",
+             ["TEST_DAG_RUN_ID2", "TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"]
+             ),
+            ("api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte=2020-06-13T18:12:50.773696+00:00",
+             ["TEST_DAG_RUN_ID0", "TEST_DAG_RUN_ID1", "TEST_DAG_RUN_ID2"]
+             ),
+            ("api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-16T18:12:50.773812+00:00",
+             ["TEST_DAG_RUN_ID6", "TEST_DAG_RUN_ID7", "TEST_DAG_RUN_ID8",
+              "TEST_DAG_RUN_ID9"]
+             ),
+
+        ]
+    )
     @provide_session
-    def test_start_date_gte_and_lte(self, session):
-        dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,
-            start_date=self.now,  # today
-            external_trigger=True,
-        )
-        dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now + timedelta(minutes=1),
-            start_date=self.now + timedelta(days=3),  # next 3 days
-            external_trigger=True,
-        )
-        session.add_all([dagrun_model_1, dagrun_model_2])
+    def test_date_filters_gte_and_lte(self, url, expected_dag_run_ids, session):
+        dagrun_models = self._create_dag_runs()
+        session.add_all(dagrun_models)
         session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
-        start_date_gte = (self.now + timedelta(days=1)).isoformat()  # gte tomorrow
-        start_date_lte = (self.now + timedelta(days=10)).isoformat()  # lte next 10 days
 
-        response = self.client.get(
-            f"api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte={start_date_gte}"
-            f"&start_date_lte={start_date_lte}"
-        )
+        response = self.client.get(url)
         assert response.status_code == 200
-        self.assertEqual(response.json.get('total_entries'), 2)
-        self.assertEqual(response.json.get('dag_runs')[0].get('start_date'),
-                         (self.now + timedelta(days=3)).isoformat())
+        self.assertEqual(response.json["total_entries"], 10)
+        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
+        self.assertEqual(dag_run_ids, expected_dag_run_ids)
 
+    def _create_dag_runs(self):
+        dates = ['2020-06-10T18:12:50.773491+00:00', '2020-06-11T18:12:50.773601+00:00',
+                 '2020-06-12T18:12:50.773654+00:00', '2020-06-13T18:12:50.773696+00:00',
+                 '2020-06-14T18:12:50.773735+00:00', '2020-06-15T18:12:50.773777+00:00',
+                 '2020-06-16T18:12:50.773812+00:00', '2020-06-17T18:12:50.773849+00:00',
+                 '2020-06-18T18:12:50.773888+00:00', '2020-06-19T18:12:50.773931+00:00']
+
+        return [
+            DagRun(
+                dag_id="TEST_DAG_ID",
+                run_id="TEST_DAG_RUN_ID" + str(i),
+                run_type=DagRunType.MANUAL.value,
+                execution_date=timezone.parse(dates[i]),
+                start_date=timezone.parse(dates[i]),
+                external_trigger=True,
+                state='success'
+            )
+            for i in range(len(dates))
+        ]
+
+
+class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
+
+    @parameterized.expand(
+        [(f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
+          f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
+          []
+          ),
+         (f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
+          f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
+          ["TEST_DAG_RUN_ID_1"]
+          ),
+
+         ]
+    )
     @provide_session
-    def test_only_start_date_gte_provided(self, session):
-        dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,
-            start_date=self.now,  # today
-            external_trigger=True,
-        )
-        dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now + timedelta(minutes=1),
-            start_date=self.now + timedelta(days=3),  # next 3 days
-            external_trigger=True,
-        )
-        session.add_all([dagrun_model_1, dagrun_model_2])
+    def test_end_date_gte_lte(self, url, expected_dag_run_ids, session):
+        dagruns = self._create_test_dag_run('success')  # state==success, then end date is today
+        session.add_all(dagruns)
         session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
-        start_date_gte = (self.now + timedelta(days=1)).isoformat()  # gte tomorrow
-        response = self.client.get(
-            f"api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte={start_date_gte}"
-        )
+
+        response = self.client.get(url)
         assert response.status_code == 200
-        self.assertEqual(response.json.get('total_entries'), 2)
-        self.assertEqual(response.json.get('dag_runs')[0].get('start_date'),
-                         (self.now + timedelta(days=3)).isoformat())
-
-    @provide_session
-    def test_only_start_date_lte_provided(self, session):
-        dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,
-            start_date=self.now,  # today
-            external_trigger=True,
-        )
-        dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now + timedelta(minutes=1),
-            start_date=self.now + timedelta(days=3),  # next 3 days
-            external_trigger=True,
-        )
-        session.add_all([dagrun_model_1, dagrun_model_2])
-        session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
-        assert result[0].start_date == self.now
-        start_date_lte = (self.now + timedelta(days=1)).isoformat()  # lte tomorrow
-        response = self.client.get(
-            f"api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte={start_date_lte}"
-        )
-        assert response.status_code == 200
-
-        self.assertEqual(response.json.get('total_entries'), 2)
-        self.assertEqual(response.json.get('dag_runs')[0].get('start_date'),
-                         self.now.isoformat())  # today
-
-    @provide_session
-    def test_execution_date_gte_and_lte(self, session):
-        dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,  # today
-            start_date=self.now,
-            external_trigger=True,
-        )
-        dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now + timedelta(days=3),  # next 3 days,
-            start_date=self.now,
-            external_trigger=True,
-        )
-        session.add_all([dagrun_model_1, dagrun_model_2])
-        session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
-        execution_date_gte = (self.now + timedelta(days=1)).isoformat()  # gte tomorrow
-        execution_date_lte = (self.now + timedelta(days=10)).isoformat()  # lte next 10 days
-
-        response = self.client.get(
-            f"api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte={execution_date_gte}"
-            f"&execution_date_lte={execution_date_lte}"
-        )
-        assert response.status_code == 200
-        self.assertEqual(response.json.get('total_entries'), 2)
-        self.assertEqual(response.json.get('dag_runs')[0].get('execution_date'),
-                         (self.now + timedelta(days=3)).isoformat())
-
-    @provide_session
-    def test_only_execution_date_gte_provided(self, session):
-        dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,  # today
-            start_date=self.now,
-            external_trigger=True,
-        )
-        dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now + timedelta(days=3),  # next 3 days
-            start_date=self.now,
-            external_trigger=True,
-        )
-        session.add_all([dagrun_model_1, dagrun_model_2])
-        session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
-        execution_date_gte = (self.now + timedelta(days=1)).isoformat()  # gte tomorrow
-        response = self.client.get(
-            f"api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte={execution_date_gte}"
-        )
-        assert response.status_code == 200
-        self.assertEqual(response.json.get('total_entries'), 2)
-        self.assertEqual(response.json.get('dag_runs')[0].get('execution_date'),
-                         (self.now + timedelta(days=3)).isoformat())
-
-    @provide_session
-    def test_only_execution_date_lte_provided(self, session):
-        dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,  # today
-            start_date=self.now,
-            external_trigger=True,
-        )
-        dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now + timedelta(days=3),  # next 3 days
-            start_date=self.now,
-            external_trigger=True,
-        )
-        session.add_all([dagrun_model_1, dagrun_model_2])
-        session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
-        execution_date_lte = (self.now + timedelta(days=1)).isoformat()  # lte tomorrow
-        response = self.client.get(
-            f"api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte={execution_date_lte}"
-        )
-        assert response.status_code == 200
-
-        self.assertEqual(response.json.get('total_entries'), 2)
-        self.assertEqual(response.json.get('dag_runs')[0].get('execution_date'),
-                         self.now.isoformat())  # today
-
-    @provide_session
-    def test_end_date_gte_and_lte_in_query(self, session):
-        dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,
-            start_date=self.now,
-            external_trigger=True,
-            state='success'  # today. The end date will be today
-        )
-        dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now + timedelta(minutes=1),
-            start_date=self.now + timedelta(days=3),
-            external_trigger=True,
-        )  # state is running so no end date yet
-        session.add_all([dagrun_model_1, dagrun_model_2])
-        session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
-
-        end_date_gte = self.now.isoformat()  # gte today
-        end_date_lte = (self.now + timedelta(days=1)).isoformat()  # lte tomorrow
-
-        response = self.client.get(
-            f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte={end_date_gte}"
-            f"&end_date_lte={end_date_lte}"
-        )
-        assert response.status_code == 200
-
-        self.assertEqual(response.json.get('total_entries'), 2)
-        self.assertEqual(response.json.get('dag_runs')[0].get('dag_run_id'),
-                         "TEST_DAG_RUN_ID_1")
-
-    @provide_session
-    def test_only_end_date_gte_provided(self, session):
-        dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,
-            start_date=self.now,
-            external_trigger=True,
-            state='success'  # today. End date is today
-        )
-        dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now + timedelta(days=3),
-            start_date=self.now,
-            external_trigger=True,
-        )  # state is running so no end yet
-        session.add_all([dagrun_model_1, dagrun_model_2])
-        session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
-        end_date_gte = (self.now + timedelta(days=1)).isoformat()  # gte tomorrow
-        response = self.client.get(
-            f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte={end_date_gte}"
-        )
-        assert response.status_code == 200
-        self.assertEqual(response.json['total_entries'], 2)
-
-    @provide_session
-    def test_only_end_date_lte_provided(self, session):
-        dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now,
-            start_date=self.now,
-            external_trigger=True,
-            state='failed'  # today. End date is today
-        )
-        dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=self.now + timedelta(days=3),
-            start_date=self.now,
-            external_trigger=True,
-        )  # state is running so no end date yet
-        session.add_all([dagrun_model_1, dagrun_model_2])
-        session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
-        end_date_lte = (self.now + timedelta(days=1)).isoformat()  # lte tomorrow
-        response = self.client.get(
-            f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte={end_date_lte}"
-        )
-        assert response.status_code == 200
-
-        self.assertEqual(response.json['total_entries'], 2)
-        self.assertEqual(response.json['dag_runs'][0].get('state'),
-                         'failed')  # today
-        self.assertEqual(response.json.get('dag_runs')[0].get('dag_run_id'),
-                         'TEST_DAG_RUN_ID_1')
+        self.assertEqual(response.json["total_entries"], 2)
+        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
+        self.assertEqual(dag_run_ids, expected_dag_run_ids)
 
 
 class TestPatchDagRun(TestDagRunEndpoint):
