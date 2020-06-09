@@ -28,7 +28,8 @@ Authenticating to AWS
 
 Authentication may be performed using any of the `boto3 options <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#configuring-credentials>`_. Alternatively, one can pass credentials in as a Connection initialisation parameter.
 
-To use IAM instance profile, create an "empty" connection (i.e. one with no Login or Password specified).
+To use IAM instance profile, create an "empty" connection (i.e. one with no Login or Password specified, or
+``aws://``).
 
 Default Connection IDs
 -----------------------
@@ -49,7 +50,9 @@ Password (optional)
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
-    connection. The following parameters are supported:
+    connection. The following parameters are all optional:
+
+    * ``aws_session_token``: AWS session token used for the initial connection if you use external credentials. You are responsible for renewing these.
 
     * ``aws_account_id``: AWS account ID for the connection
     * ``aws_iam_role``: AWS IAM role for the connection
@@ -59,7 +62,51 @@ Extra (optional)
     * ``role_arn``: AWS role ARN for the connection
     * ``aws_session_token``: AWS session token if you use external credentials. You are responsible for renewing these.
 
-    Example "extras" field:
+    * ``host``: Endpoint URL for the connection.
+    * ``region_name``: AWS region for the connection.
+    * ``external_id``: AWS external ID for the connection (deprecated, rather use ``assume_role_kwargs``).
+
+    * ``config_kwargs``: Additional ``kwargs`` used to construct a ``botocore.config.Config`` passed to *boto3.client* and *boto3.resource*.
+    * ``session_kwargs``: Additional ``kwargs`` passed to *boto3.session.Session*.
+
+If you are configuing the connection via a URI, ensure that all components of the URI are URL-encoded.
+
+Examples
+--------
+
+**Using instance profile**:
+  .. code-block:: bash
+
+    export AIRFLOW_CONN_AWS_DEFAULT=aws://
+
+  This will use boto's default credential look-up chain (the profile named "default" from the ~/.boto/ config files, and instance profile when running inside AWS)
+
+**With a AWS IAM key pair**:
+  .. code-block:: bash
+
+    export AIRFLOW_CONN_AWS_DEFAULT=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@
+
+  Note here, that the secret access key has been URL-encoded (changing ``/`` to ``%2F``), and also the
+  trailing ``@`` (without which, it is treated as ``<host>:<port>`` and will not work)
+
+
+Examples for the **Extra** field
+--------------------------------
+
+1. Using *~/.aws/credentials* and *~/.aws/config* file, with a profile.
+
+This assumes all other Connection fields eg **Login** are empty.
+
+.. code-block:: json
+
+    {
+      "session_kwargs": {
+        "profile_name": "my_profile"
+      }
+    }
+
+
+2. Specifying a role_arn to assume and a region_name
 
     .. code-block:: json
 
