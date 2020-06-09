@@ -16,6 +16,8 @@
 # under the License.
 import unittest
 
+from parameterized import parameterized
+
 from airflow.models import Connection
 from airflow.utils.session import create_session, provide_session
 from airflow.www import app
@@ -92,8 +94,10 @@ class TestGetConnections(TestConnectionEndpoint):
 
     @provide_session
     def test_should_response_200(self, session):
-        connection_model_1 = Connection(conn_id='test-connection-id-1')
-        connection_model_2 = Connection(conn_id='test-connection-id-2')
+        connection_model_1 = Connection(conn_id='test-connection-id-1',
+                                        conn_type='test_type')
+        connection_model_2 = Connection(conn_id='test-connection-id-2',
+                                        conn_type='test_type')
         connections = [connection_model_1, connection_model_2]
         session.add_all(connections)
         session.commit()
@@ -107,7 +111,7 @@ class TestGetConnections(TestConnectionEndpoint):
                 'connections': [
                     {
                         "connection_id": "test-connection-id-1",
-                        "conn_type": None,
+                        "conn_type": 'test_type',
                         "host": None,
                         "login": None,
                         'schema': None,
@@ -115,7 +119,7 @@ class TestGetConnections(TestConnectionEndpoint):
                     },
                     {
                         "connection_id": "test-connection-id-2",
-                        "conn_type": None,
+                        "conn_type": 'test_type',
                         "host": None,
                         "login": None,
                         'schema': None,
@@ -126,38 +130,61 @@ class TestGetConnections(TestConnectionEndpoint):
             }
         )
 
-    @provide_session
-    def test_handle_limit(self, session):
-        connections = [Connection(conn_id='mycon-id' + str(i)) for i in range(100)]
-        session.add_all(connections)
-        session.commit()
-        result = session.query(Connection).all()
-        assert len(result) == 100
-        response = self.client.get("/api/v1/connections?limit=10")
-        assert response.status_code == 200
-        self.assertEqual(response.json.get('total_entries'), 10)
 
+class TestGetConnectionsPagination(TestConnectionEndpoint):
+    @parameterized.expand(
+        [
+            ("/api/v1/connections?limit=1", ['TEST_CONN_ID1']),
+            ("/api/v1/connections?limit=2", ['TEST_CONN_ID1', "TEST_CONN_ID2"]),
+            (
+                "/api/v1/connections?offset=5",
+                [
+                    "TEST_CONN_ID6",
+                    "TEST_CONN_ID7",
+                    "TEST_CONN_ID8",
+                    "TEST_CONN_ID9",
+                    "TEST_CONN_ID10",
+                ],
+            ),
+            (
+                "/api/v1/connections?offset=0",
+                [
+                    "TEST_CONN_ID1",
+                    "TEST_CONN_ID2",
+                    "TEST_CONN_ID3",
+                    "TEST_CONN_ID4",
+                    "TEST_CONN_ID5",
+                    "TEST_CONN_ID6",
+                    "TEST_CONN_ID7",
+                    "TEST_CONN_ID8",
+                    "TEST_CONN_ID9",
+                    "TEST_CONN_ID10",
+                ],
+            ),
+            ("/api/v1/connections?limit=1&offset=5", ["TEST_CONN_ID6"]),
+            ("/api/v1/connections?limit=1&offset=1", ["TEST_CONN_ID2"]),
+            (
+                "/api/v1/connections?limit=2&offset=2",
+                ["TEST_CONN_ID3", "TEST_CONN_ID4"],
+            ),
+        ]
+    )
     @provide_session
-    def test_handle_offset(self, session):
-        connections = [Connection(conn_id='mycon-id' + str(i)) for i in range(100)]
+    def test_handle_limit_offset(self, url, expected_conn_ids, session):
+        connections = self._create_connections(10)
         session.add_all(connections)
         session.commit()
-        result = session.query(Connection).all()
-        assert len(result) == 100
-        response = self.client.get("/api/v1/connections?offset=50")
+        response = self.client.get(url)
         assert response.status_code == 200
-        self.assertEqual(response.json.get('total_entries'), 50)
+        self.assertEqual(response.json["total_entries"], 10)
+        conn_ids = [conn["connection_id"] for conn in response.json["connections"] if conn]
+        self.assertEqual(conn_ids, expected_conn_ids)
 
-    @provide_session
-    def test_handle_limit_and_offset(self, session):
-        connections = [Connection(conn_id='mycon-id' + str(i)) for i in range(100)]
-        session.add_all(connections)
-        session.commit()
-        result = session.query(Connection).all()
-        assert len(result) == 100
-        response = self.client.get("/api/v1/connections?offset=91&limit=10")
-        assert response.status_code == 200
-        self.assertEqual(response.json.get('total_entries'), 9)
+    def _create_connections(self, count):
+        return [Connection(
+            conn_id='TEST_CONN_ID' + str(i),
+            conn_type='TEST_CONN_TYPE' + str(i)
+        ) for i in range(1, count + 1)]
 
 
 class TestPatchConnection(TestConnectionEndpoint):

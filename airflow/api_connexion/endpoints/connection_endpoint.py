@@ -20,7 +20,7 @@ from flask import request
 from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.connection_schema import (
-    connection_collection_item_schema, connection_collection_schema,
+    ConnectionCollection, connection_collection_item_schema, connection_collection_schema,
 )
 from airflow.models import Connection
 from airflow.utils.session import provide_session
@@ -55,10 +55,12 @@ def get_connections(session):
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
     query = session.query(Connection)
+    total_entries = query.count()
     query = query.offset(offset).limit(limit)
 
     connections = query.all()
-    return connection_collection_schema.dump(connections)
+    return connection_collection_schema.dump(ConnectionCollection(connections=connections,
+                                                                  total_entries=total_entries))
 
 
 def patch_connection():

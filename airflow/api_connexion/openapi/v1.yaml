@@ -1146,7 +1146,6 @@ components:
           type: string
         conn_type:
           type: string
-          nullable: true
         host:
           type: string
           nullable: true

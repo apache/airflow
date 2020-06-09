@@ -15,22 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import List, NamedTuple
 
-from marshmallow_sqlalchemy import auto_field
+from marshmallow import Schema, fields
+from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.api_connexion.schemas.base_schema import BaseSchema
 from airflow.models.connection import Connection
 
 
-class ConnectionCollectionItemSchema(BaseSchema):
+class ConnectionCollectionItemSchema(SQLAlchemySchema):
     """
     Schema for a connection item
     """
+
     class Meta:
         """ Meta """
         model = Connection
-
-    COLLECTION_NAME = 'connections'
 
     conn_id = auto_field(dump_to='connection_id', load_from='connection_id')
     conn_type = auto_field()
@@ -49,6 +49,18 @@ class ConnectionSchema(ConnectionCollectionItemSchema):  # pylint: disable=too-m
     extra = auto_field()
 
 
+class ConnectionCollection(NamedTuple):
+    """ List of Connections with meta"""
+    connections: List[Connection]
+    total_entries: int
+
+
+class ConnectionCollectionSchema(Schema):
+    """ Connection Collection Schema"""
+    connections = fields.List(fields.Nested(ConnectionCollectionItemSchema))
+    total_entries = fields.Int()
+
+
 connection_schema = ConnectionSchema()
 connection_collection_item_schema = ConnectionCollectionItemSchema()
-connection_collection_schema = ConnectionCollectionItemSchema(many=True)
+connection_collection_schema = ConnectionCollectionSchema()

@@ -18,7 +18,7 @@
 import unittest
 
 from airflow.api_connexion.schemas.connection_schema import (
-    connection_collection_item_schema, connection_collection_schema, connection_schema,
+    ConnectionCollection, connection_collection_item_schema, connection_collection_schema, connection_schema,
 )
 from airflow.models import Connection
 from airflow.utils.session import create_session, provide_session
@@ -106,22 +106,28 @@ class TestConnectionCollectionSchema(unittest.TestCase):
     @provide_session
     def test_serialzie(self, session):
         connection_model_1 = Connection(
-            conn_id='mysql_default_1'
+            conn_id='mysql_default_1',
+            conn_type='test-type'
         )
         connection_model_2 = Connection(
             conn_id='mysql_default_2',
+            conn_type='test-type2'
         )
         connections = [connection_model_1, connection_model_2]
         session.add_all(connections)
         session.commit()
-        deserialized_connections = connection_collection_schema.dump(connections)
+        instance = ConnectionCollection(
+            connections=connections,
+            total_entries=2
+        )
+        deserialized_connections = connection_collection_schema.dump(instance)
         self.assertEqual(
             deserialized_connections[0],
             {
                 'connections': [
                     {
                         "connection_id": "mysql_default_1",
-                        "conn_type": None,
+                        "conn_type": "test-type",
                         "host": None,
                         "login": None,
                         'schema': None,
@@ -129,7 +135,7 @@ class TestConnectionCollectionSchema(unittest.TestCase):
                     },
                     {
                         "connection_id": "mysql_default_2",
-                        "conn_type": None,
+                        "conn_type": "test-type2",
                         "host": None,
                         "login": None,
                         'schema': None,
