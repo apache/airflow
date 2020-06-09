@@ -27,9 +27,9 @@ from flask_appbuilder.forms import GeneralModelConverter, FieldConverter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
-from wtforms.fields import StringField
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
+from wtforms.fields import StringField
 
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance, TaskTag
