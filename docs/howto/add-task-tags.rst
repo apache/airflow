@@ -31,7 +31,7 @@ Multiple tags can be added for every task. Duplicate tags are automatically remo
 
 
 Filtering by tags
-===================================================
+^^^^^^^^^^^^^^^^^
 In addition to filtering tasks by task ids in graph view, you can also filter by tags.
 
 .. image:: ../img/add_task_tags_filter_graph.png
