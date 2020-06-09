@@ -355,7 +355,7 @@ function get_ci_environment() {
                 export CI_SOURCE_REPO="${GITHUB_ACTOR}/${SOURCE_AIRFLOW_REPO}"
                 export CI_SOURCE_BRANCH="${GITHUB_HEAD_REF}"
                 BRANCH_EXISTS=$(git ls-remote --heads \
-                    "https://github.com/${CI_SOURCE_REPO}.git" "${CI_SOURCE_BRANCH}")
+                    "https://github.com/${CI_SOURCE_REPO}.git" "${CI_SOURCE_BRANCH}" || true)
                 if [[ ${BRANCH_EXISTS} == "" ]]; then
                     echo
                     echo "https://github.com/${CI_SOURCE_REPO}.git Branch ${CI_SOURCE_BRANCH} does not exist"
