@@ -79,8 +79,8 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ARG ADDITONAL_DEV_DEPS=""
-ENV ADDITONAL_DEV_DEPS=${ADDITONAL_DEV_DEPS}
+ARG ADDITIONAL_DEV_DEPS=""
+ENV ADDITIONAL_DEV_DEPS=${ADDITIONAL_DEV_DEPS}
 
 # Install basic and additional apt dependencies
 RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
@@ -123,7 +123,7 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            unixodbc \
            unixodbc-dev \
            yarn \
-           ${ADDITONAL_DEV_DEPS} \
+           ${ADDITIONAL_DEV_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -245,8 +245,8 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 ARG AIRFLOW_VERSION
 ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 
-ARG ADDITONAL_RUNTIME_DEPS=""
-ENV ADDITONAL_RUNTIME_DEPS=${ADDITONAL_RUNTIME_DEPS}
+ARG ADDITIONAL_RUNTIME_DEPS=""
+ENV ADDITIONAL_RUNTIME_DEPS=${ADDITIONAL_RUNTIME_DEPS}
 
 # Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
@@ -283,7 +283,7 @@ RUN mkdir -pv /usr/share/man/man1 \
            sqlite3 \
            sudo \
            unixodbc \
-           ${ADDITONAL_RUNTIME_DEPS} \
+           ${ADDITIONAL_RUNTIME_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
