@@ -32,8 +32,8 @@ import dill
 import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
-from sqlalchemy import Column, Float, ForeignKey, Index, Integer, PickleType, String, and_, func, or_
-from sqlalchemy.orm import backref, foreign, joinedload, reconstructor, relationship
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
+from sqlalchemy.orm import backref, joinedload, reconstructor, relationship
 from sqlalchemy.orm.session import Session
 from sqlalchemy.schema import ForeignKeyConstraint, PrimaryKeyConstraint
 from sqlalchemy.sql.elements import BooleanClauseList
@@ -99,7 +99,9 @@ class TaskTag(Base):
     __table_args__ = (
         PrimaryKeyConstraint('name', 'dag_id', 'task_id', 'execution_date'),
         ForeignKeyConstraint(('dag_id', 'task_id', 'execution_date'),
-                             ('task_instance.dag_id', 'task_instance.task_id', 'task_instance.execution_date'),
+                             ('task_instance.dag_id',
+                              'task_instance.task_id',
+                              'task_instance.execution_date'),
                              ondelete='CASCADE'),
     )
 
@@ -594,7 +596,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         if isinstance(task.task_tags, coll.Iterable):
             for tag in task.task_tags:
                 self.task_tags.append(
-                    TaskTag(name=tag, dag_id=self.dag_id, task_id=self.task_id, execution_date=self.execution_date)
+                    TaskTag(name=tag, dag_id=self.dag_id,
+                            task_id=self.task_id, execution_date=self.execution_date)
                 )
 
     @provide_session

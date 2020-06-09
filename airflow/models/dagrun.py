@@ -27,7 +27,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
-from airflow.models.taskinstance import TaskInstance as TI, TaskTag
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
