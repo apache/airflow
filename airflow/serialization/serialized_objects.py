@@ -297,7 +297,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     _decorated_fields = {'executor_config'}
 
     _CONSTRUCTOR_PARAMS = {
-        k: v.default for k, v in signature(BaseOperator).parameters.items()
+        k: v.default for k, v in signature(BaseOperator.__init__).parameters.items()
         if v.default is not v.empty
     }
 
@@ -535,7 +535,7 @@ class SerializedDAG(DAG, BaseSerialization):
             'access_control': '_access_control',
         }
         return {
-            param_to_attr.get(k, k): v.default for k, v in signature(DAG).parameters.items()
+            param_to_attr.get(k, k): v.default for k, v in signature(DAG.__init__).parameters.items()
             if v.default is not v.empty
         }
     _CONSTRUCTOR_PARAMS = __get_constructor_defaults.__func__()  # type: ignore

@@ -1293,7 +1293,8 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         if not cls.__serialized_fields:
             cls.__serialized_fields = frozenset(
                 vars(BaseOperator(task_id='test')).keys() - {
-                    'inlets', 'outlets', '_upstream_task_ids', 'default_args', 'dag', '_dag'
+                    'inlets', 'outlets', '_upstream_task_ids', 'default_args', 'dag', '_dag',
+                    '_BaseOperator__instantiated',
                 } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'})
 
         return cls.__serialized_fields
