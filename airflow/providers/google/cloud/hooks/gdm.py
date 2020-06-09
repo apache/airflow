@@ -46,9 +46,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
     @GoogleBaseHook.fallback_to_default_project_id
     def list_deployments(self, project_id: Optional[str] = None,  # pylint: disable=too-many-arguments
                          deployment_filter: Optional[str] = None,
-                         max_results: Optional[int] = None,
-                         order_by: Optional[str] = None,
-                         page_token: Optional[str] = None) -> List[Dict[str, Any]]:
+                         order_by: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Lists deployments in a google cloud project.
 
@@ -56,32 +54,30 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         :type project_id: str
         :param deployment_filter: A filter expression which limits resources returned in the response.
         :type deployment_filter: str
-        :param max_results: The maximum number of results to return
-        :type max_results: Optional[int]
         :param order_by: A field name to order by, ex: "creationTimestamp desc"
         :type order_by: Optional[str]
-        :param page_token: specifies a page_token to use
-        :type page_token: str
-
         :rtype: list
         """
-        client = self.get_conn()
-        request = client.deployments().list(project=project_id,    # pylint: disable=no-member
-                                            filter=deployment_filter,
-                                            maxResults=max_results,
-                                            orderBy=order_by,
-                                            pageToken=page_token)
-        try:
-            deployments = request.execute()['deployments']
-        except KeyError:
-            return []
+        deployments = []  # type: List[Dict]
+        conn = self.get_conn()
+        request = conn.deployments().list(project=project_id,    # pylint: disable=no-member
+                                          filter=deployment_filter,
+                                          orderBy=order_by)
+
+        while request is not None:
+            response = request.execute(num_retries=self.num_retries)
+            deployments.extend(response.get("deployments", []))
+            request = conn.deployments().list_next(  # pylint: disable=no-member
+                previous_request=request, previous_response=response
+            )
+
         return deployments
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_deployment(self,
                           project_id: Optional[str],
                           deployment: Optional[str] = None,
-                          delete_policy: Optional[str] = "DELETE"):
+                          delete_policy: Optional[str] = None):
         """
         Deletes a deployment and all associated resources in a google cloud project.
 
@@ -94,10 +90,10 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
 
         :rtype: None
         """
-        client = self.get_conn()
-        request = client.deployments().delete(project=project_id,  # pylint: disable=no-member
-                                              deployment=deployment,
-                                              deletePolicy=delete_policy)
+        conn = self.get_conn()
+        request = conn.deployments().delete(project=project_id,  # pylint: disable=no-member
+                                            deployment=deployment,
+                                            deletePolicy=delete_policy)
         resp = request.execute()
         if 'error' in resp.keys():
             raise AirflowException('Errors deleting deployment: ', ', '.join(resp['error']['errors']))
