@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import contextlib
+
+import collections.abc as coll
 import getpass
 import hashlib
 import logging
@@ -24,7 +26,6 @@ import os
 import signal
 import time
 import warnings
-import collections.abc as coll
 from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
@@ -35,7 +36,6 @@ import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import Column, Float, ForeignKey, Index, Integer, PickleType, String, and_, func, or_
 from sqlalchemy.orm import backref, foreign, joinedload, reconstructor, relationship
-from sqlalchemy.schema import ForeignKeyConstraint, PrimaryKeyConstraint
 from sqlalchemy.orm.session import Session
 from sqlalchemy.schema import ForeignKeyConstraint, PrimaryKeyConstraint
 from sqlalchemy.sql.elements import BooleanClauseList

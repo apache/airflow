@@ -23,13 +23,11 @@ import markdown
 import sqlalchemy as sqla
 from flask import Markup, Response, request, url_for
 from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
-from flask_appbuilder.forms import GeneralModelConverter, FieldConverter
+from flask_appbuilder.forms import FieldConverter, GeneralModelConverter
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
-from wtforms.fields import StringField
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy.orm import joinedload
 from wtforms.fields import StringField
 
 from airflow.configuration import conf
