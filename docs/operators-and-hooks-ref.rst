@@ -539,7 +539,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/s3_to_redshift>`
      - :mod:`airflow.providers.amazon.aws.operators.s3_to_redshift`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
