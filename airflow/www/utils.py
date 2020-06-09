@@ -461,6 +461,11 @@ class CustomSQLAInterface(SQLAInterface):
 
 
 class TaskTagModelConverter(GeneralModelConverter):
+    """
+    GeneralModelConverter currently checks if the specified column is a relation
+    before doing a simple conversion. The default behavior does not take into
+    account explicitly specified field and widget for task tags.
+    """
 
     def _convert_col(
         self,
@@ -471,6 +476,11 @@ class TaskTagModelConverter(GeneralModelConverter):
         filter_rel_fields,
         form_props,
     ):
+        """
+        Checks first if the specified column is a task tag relation before
+        continuing to GeneralModelConverter._convert_col
+        """
+
         if self.datamodel.is_tasktag(col_name):
             return self._convert_simple(
                 col_name, label, description, lst_validators, form_props

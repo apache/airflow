@@ -16,34 +16,20 @@
     under the License.
 
 
+Add tags to tasks
+===================================================
+Tags can be added to tasks simply by adding a ``task_tags`` parameter when constructing an operator.
+Multiple tags can be added for every task. Duplicate tags are automatically removed.
 
-How-to Guides
-=============
+.. code-block:: python
 
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
+  operator = DummyOperator(
+    task_id='example_task',
+    task_tags=['example', 'dummy'],
+    dag=dag
+  )
 
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
 
-.. toctree::
-    :maxdepth: 2
+Filtering by tags
+===================================================
 
-    add-new-role
-    add-task-tags
-    set-config
-    initialize-database
-    operator/index
-    customize-state-colors-ui
-    custom-operator
-    connection/index
-    write-logs
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    check-health
-    define_extra_link
-    tracking-user-activity
-    email-config
-    use-alternative-secrets-backend
