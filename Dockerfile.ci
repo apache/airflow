@@ -57,7 +57,7 @@ RUN apt-get update \
 ARG ADDITONAL_DEV_DEPS=""
 ENV ADDITONAL_DEV_DEPS=${ADDITONAL_DEV_DEPS}
 
-# Install basic apt dependencies
+# Install basic and additional apt dependencies
 RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
     && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
     && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
