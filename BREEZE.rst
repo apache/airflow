@@ -243,6 +243,9 @@ it is downloaded, it will stay until you remove the downloaded images from your 
 For each of those CLI credentials are taken (automatically) from the credentials you have defined in
 your ${HOME} directory on host.
 
+Those tools also have host Airflow source directory mounted in /opt/airflow path
+so you can directly transfer files to/from your airflow host sources.
+
 Those are currently installed CLIs (they are available as aliases to the docker commands):
 
 +-----------------------+----------+-------------------------------------------------+-------------------+
