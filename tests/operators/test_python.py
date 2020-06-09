@@ -378,10 +378,38 @@ class TestAirflowTaskDecorator(unittest.TestCase):
             add_number()
         add_number('test')
 
+    def test_fail_method(self):
+        """Tests that @task will fail if signature is not binding."""
+
+        with pytest.raises(AirflowException):
+            class Test:
+                num = 2
+                @task_decorator
+                def add_number(self, num: int) -> int:
+                    return self.num + num
+            Test().add_number(2)
+
     def test_fail_multiple_outputs_key_type(self):
         @task_decorator(multiple_outputs=True)
         def add_number(num: int):
             return {2: num}
+        with self.dag:
+            ret = add_number(2)
+        self.dag.create_dagrun(
+            run_id=DagRunType.MANUAL.value,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        with pytest.raises(AirflowException):
+            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+
+    def test_fail_multiple_outputs_no_dict(self):
+        @task_decorator(multiple_outputs=True)
+        def add_number(num: int):
+            return num
+
         with self.dag:
             ret = add_number(2)
         self.dag.create_dagrun(
