@@ -26,7 +26,7 @@ echo
 # Init and upgrade the database to latest heads
 cd "${AIRFLOW_SOURCES}"/airflow || exit 1
 
-airflow db init
+airflow initdb
 alembic upgrade heads
 
 echo

@@ -28,7 +28,7 @@ echo
 echo "Save minimised web files"
 echo
 
-mv "$(python -m site | grep ^USER_SITE | awk '{print $2}' | tr -d "'")/airflow/www/static/dist/" \
+mv "$(python -m site | grep ^USER_SITE | awk '{print $2}' | tr -d "'")/airflow/www_rbac/static/dist/" \
     "/tmp"
 
 echo
