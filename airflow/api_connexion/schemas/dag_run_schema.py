@@ -15,15 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
 
 from typing import List, NamedTuple
 
-from marshmallow import ValidationError, fields
+from marshmallow import fields
 from marshmallow.schema import Schema
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.api_connexion.schemas.enum_schemas import DagState
+from airflow.api_connexion.schemas.enum_schemas import DagStateField
 from airflow.models.dagrun import DagRun
+
+
+class ConfObject(fields.Field):
+    def _serialize(self, value, attr, obj):
+        if not value:
+            return {}
+        return json.loads(value)
 
 
 class DAGRunSchema(SQLAlchemySchema):
@@ -34,39 +42,16 @@ class DAGRunSchema(SQLAlchemySchema):
     class Meta:
         """ Meta """
         model = DagRun
+        dateformat = 'iso'
 
     run_id = auto_field(dump_to='dag_run_id', load_from='dag_run_id')
     dag_id = auto_field(dump_only=True)
     execution_date = auto_field()
     start_date = auto_field(dump_only=True)
     end_date = auto_field(dump_only=True)
-    state = fields.Method('get_state', deserialize='load_state')
+    state = DagStateField()
     external_trigger = auto_field(default=True, dump_only=True)
-    conf = fields.Method('get_conf')
-
-    @staticmethod
-    def get_conf(obj: DagRun):
-        """Convert conf to object if None after serialization"""
-
-        if obj.conf is None:
-            return {}
-        return obj.conf
-
-    @staticmethod
-    def get_state(obj: DagRun):
-        """ Return a DagState value of state field """
-        if obj.state:
-            return DagState().dump(dict(state=obj.state)).data['state']
-        return obj.state
-
-    @classmethod
-    def load_state(cls, value):
-        """ Validate state field and return None if it fails """
-        try:
-            DagState(strict=True).load(dict(state=value))
-        except ValidationError:
-            return None
-        return value
+    conf = ConfObject()
 
 
 class DAGRunCollection(NamedTuple):

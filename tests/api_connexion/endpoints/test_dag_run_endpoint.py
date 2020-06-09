@@ -547,7 +547,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
             f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte={end_date_gte}"
         )
         assert response.status_code == 200
-        self.assertEqual(response.json.get('total_entries'), 2)
+        self.assertEqual(response.json['total_entries'], 2)
 
     @provide_session
     def test_only_end_date_lte_provided(self, session):
@@ -578,8 +578,8 @@ class TestGetDagRuns(TestDagRunEndpoint):
         )
         assert response.status_code == 200
 
-        self.assertEqual(response.json.get('total_entries'), 2)
-        self.assertEqual(response.json.get('dag_runs')[0].get('state'),
+        self.assertEqual(response.json['total_entries'], 2)
+        self.assertEqual(response.json['dag_runs'][0].get('state'),
                          'failed')  # today
         self.assertEqual(response.json.get('dag_runs')[0].get('dag_run_id'),
                          'TEST_DAG_RUN_ID_1')

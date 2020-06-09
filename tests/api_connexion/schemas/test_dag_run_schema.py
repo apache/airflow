@@ -16,12 +16,14 @@
 # under the License.
 
 import unittest
+from datetime import datetime
 
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection, dagrun_collection_schema, dagrun_schema,
 )
 from airflow.models import DagRun
 from airflow.utils import timezone
+from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
@@ -30,8 +32,9 @@ from tests.test_utils.db import clear_db_runs
 class TestDAGRunBase(unittest.TestCase):
 
     def setUp(self) -> None:
+        self.maxDiff = None
         clear_db_runs()
-        self.now = timezone.utcnow()
+        self.now = "2020-06-09T13:59:56.336000+00:00"
 
     def tearDown(self) -> None:
         clear_db_runs()
@@ -40,11 +43,11 @@ class TestDAGRunBase(unittest.TestCase):
 class TestDAGRunSchema(TestDAGRunBase):
 
     @provide_session
-    def test_serialzie(self, session):
+    def test_serialze(self, session):
         dagrun_model = DagRun(run_id='my-dag-run',
                               run_type=DagRunType.MANUAL.value,
-                              execution_date=self.now,
-                              start_date=self.now,
+                              execution_date=timezone.parse(self.now),
+                              start_date=timezone.parse(self.now),
                               conf='{"start": "stop"}'
                               )
         session.add(dagrun_model)
@@ -59,10 +62,10 @@ class TestDAGRunSchema(TestDAGRunBase):
                 'dag_run_id': 'my-dag-run',
                 'end_date': None,
                 'state': 'running',
-                'execution_date': str(self.now.isoformat()),
+                'execution_date': self.now,
                 'external_trigger': True,
-                'start_date': str(self.now.isoformat()),
-                'conf': '{"start": "stop"}'
+                'start_date': self.now,
+                'conf': {"start": "stop"}
             }
         )
 
@@ -75,10 +78,10 @@ class TestDAGRunSchema(TestDAGRunBase):
             'dag_run_id': 'my-dag-run',
             'end_date': None,
             'state': 'failed',
-            'execution_date': str(self.now.isoformat()),
+            'execution_date': self.now,
             'external_trigger': True,
-            'start_date': str(self.now.isoformat()),
-            'conf': '{"start": "stop"}'
+            'start_date': self.now,
+            'conf': {"start": "stop"}
         }
 
         result = dagrun_schema.load(serialized_dagrun)
@@ -88,7 +91,7 @@ class TestDAGRunSchema(TestDAGRunBase):
                 'run_id': 'my-dag-run',
                 'execution_date': self.now,
                 'state': 'failed',
-                'conf': '{"start": "stop"}'
+                'conf': {"start": "stop"}
             }
         )
 
@@ -99,10 +102,10 @@ class TestDAGRunSchema(TestDAGRunBase):
             'dag_run_id': 'my-dag-run',
             'end_date': None,
             'state': 'faileds',
-            'execution_date': str(self.now.isoformat()),
+            'execution_date': self.now,
             'external_trigger': True,
-            'start_date': str(self.now.isoformat()),
-            'conf': '{"start": "stop"}'
+            'start_date': self.now,
+            'conf': {"start": "stop"}
         }
 
         result = dagrun_schema.load(serialized_dagrun)
@@ -112,7 +115,7 @@ class TestDAGRunSchema(TestDAGRunBase):
                 'run_id': 'my-dag-run',
                 'execution_date': self.now,
                 'state': None,
-                'conf': '{"start": "stop"}'
+                'conf': {"start": "stop"}
             }
         )
 
@@ -121,18 +124,17 @@ class TestDagRunCollection(TestDAGRunBase):
 
     @provide_session
     def test_serialize(self, session):
-
         dagrun_model_1 = DagRun(
             run_id='my-dag-run',
-            execution_date=self.now,
+            execution_date=timezone.parse(self.now),
             run_type=DagRunType.MANUAL.value,
-            start_date=self.now,
+            start_date=timezone.parse(self.now),
             conf='{"start": "stop"}'
         )
         dagrun_model_2 = DagRun(
             run_id='my-dag-run-2',
-            execution_date=self.now,
-            start_date=self.now,
+            execution_date=timezone.parse(self.now),
+            start_date=timezone.parse(self.now),
             run_type=DagRunType.MANUAL.value,
         )
         dagruns = [dagrun_model_1, dagrun_model_2]
@@ -149,20 +151,20 @@ class TestDagRunCollection(TestDAGRunBase):
                         'dag_id': None,
                         'dag_run_id': 'my-dag-run',
                         'end_date': None,
-                        'execution_date': str(self.now.isoformat()),
+                        'execution_date': self.now,
                         'external_trigger': True,
                         'state': 'running',
-                        'start_date': str(self.now.isoformat()),
-                        'conf': '{"start": "stop"}'
+                        'start_date': self.now,
+                        'conf': {"start": "stop"}
                     },
                     {
                         'dag_id': None,
                         'dag_run_id': 'my-dag-run-2',
                         'end_date': None,
                         'state': 'running',
-                        'execution_date': str(self.now.isoformat()),
+                        'execution_date': self.now,
                         'external_trigger': True,
-                        'start_date': str(self.now.isoformat()),
+                        'start_date': self.now,
                         'conf': {}
                     }
                 ],

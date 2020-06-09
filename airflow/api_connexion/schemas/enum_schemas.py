@@ -16,9 +16,14 @@
 # under the License.
 
 from marshmallow import fields, validate
-from marshmallow.schema import Schema
+
+from airflow.utils.state import State
 
 
-class DagState(Schema):
-    """DagState schemag"""
-    state = fields.Str(validate=validate.OneOf(["success", "running", "failed"]))
+class DagStateField(fields.String):
+
+    def __init__(self, **metadata):
+        super().__init__(**metadata)
+        self.validators = (
+            [validate.OneOf(State.dag_states)] + list(self.validators)
+        )
