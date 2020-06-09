@@ -39,8 +39,12 @@ class CloudBuildExampleDagsSystemTest(GoogleSystemTest):
         self.helper.create_repository_and_bucket()
 
     @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
-    def test_run_example_dag(self):
+    def test_run_example_gcp_cloud_build_dag(self):
         self.run_dag("example_gcp_cloud_build", CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
+    def test_run_example_gcp_cloud_build_trigger_dag(self):
+        self.run_dag("example_gcp_cloud_build_trigger", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_CLOUD_BUILD_KEY, project_id=GoogleSystemTest._project_id())
     def tearDown(self):
