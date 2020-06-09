@@ -20,6 +20,7 @@ Sensor for detecting the completion of DV360 reports.
 """
 from typing import Dict, Optional
 
+from airflow import AirflowException
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
@@ -38,7 +39,7 @@ class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
+    :param delegate_to: The account to impersonate, if any. For this to work, the service account making the
         request must have  domain-wide delegation enabled.
     :type delegate_to: str
     """
@@ -70,5 +71,61 @@ class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):
 
         response = hook.get_query(query_id=self.report_id)
         if response and not response.get("metadata", {}).get("running"):
+            return True
+        return False
+
+
+class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
+    """
+    Sensor for detecting the completion of SDF operation.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleDisplayVideo360GetSDFDownloadOperationSensor`
+
+    :param name: The name of the operation resource
+    :type name: Dict[str, Any]
+    :param api_version: The version of the api that will be requested for example 'v1'.
+    :type api_version: str
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any. For this to work, the service account making the
+        request must have  domain-wide delegation enabled.
+    :type delegate_to: str
+
+    """
+
+    template_fields = ("operation_name", )
+
+    def __init__(
+        self,
+        operation_name: str,
+        api_version: str = "v1",
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        mode: str = "reschedule",
+        poke_interval: int = 60 * 5,
+        *args,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.mode = mode
+        self.poke_interval = poke_interval
+        self.operation_name = operation_name
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def poke(self, context: Dict) -> bool:
+        hook = GoogleDisplayVideo360Hook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version=self.api_version,
+        )
+        operation = hook.get_sdf_download_operation(operation_name=self.operation_name)
+
+        if "error" in operation:
+            raise AirflowException(f'The operation finished in error with {operation["error"]}')
+        if operation and operation.get("done"):
             return True
         return False

@@ -75,7 +75,7 @@ class CloudBuildHook(GoogleBaseHook):
         Starts a build with the specified configuration.
 
         :param body: The request body.
-            See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
+            See: https://cloud.google.com/cloud-build/docs/api/reference/rest/v1/projects.builds
         :type body: dict
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.

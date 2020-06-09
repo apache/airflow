@@ -278,7 +278,7 @@ Airflow provides operators for many common tasks, including:
 In addition to these basic building blocks, there are many more specific
 operators: :class:`~airflow.providers.docker.operators.docker.DockerOperator`,
 :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`, :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`,
-:class:`~airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransfer`,
+:class:`~airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransferOperator`,
 :class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`... you get the idea!
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
@@ -649,6 +649,15 @@ of what this may look like:
 Note that XComs are similar to `Variables`_, but are specifically designed
 for inter-task communication rather than global settings.
 
+Custom XCom backend
+-------------------
+
+It is possible to change ``XCom`` behaviour os serialization and deserialization of tasks' result.
+To do this one have to change ``xcom_backend`` parameter in Airflow config. Provided value should point
+to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter the serialaization /
+deserialization mechanism the custom class should override ``serialize_value`` and ``deserialize_value``
+methods.
+
 .. _concepts:variables:
 
 Variables
@@ -696,7 +705,7 @@ Storing Variables in Environment Variables
 .. versionadded:: 1.10.10
 
 Airflow Variables can also be created and managed using Environment Variables. The environment variable
-naming convention is ``AIRFLOW_VAR_<variable_name>``, all uppercase.
+naming convention is :envvar:`AIRFLOW_VAR_{VARIABLE_NAME}`, all uppercase.
 So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VAR_FOO``.
 
 For example,
@@ -1057,6 +1066,13 @@ may look like inside your ``airflow_local_settings.py``:
         if task.timeout > timedelta(hours=48):
             task.timeout = timedelta(hours=48)
 
+To define policy, add a ``airflow_local_settings`` module to your :envvar:`PYTHONPATH`
+or to AIRFLOW_HOME/config folder that defines this ``policy`` function. It receives a ``TaskInstance``
+object and can alter it where needed.
+
+Please note, cluster policy currently applies to task only though you can access DAG via ``task.dag`` property.
+Also, cluster policy will have precedence over task attributes defined in DAG
+meaning if ``task.sla`` is defined in dag and also mutated via cluster policy then later will have precedence.
 
 Documentation & Notes
 =====================
@@ -1199,6 +1215,51 @@ template string:
 
 See `Jinja documentation <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
 to find all available options.
+
+.. _exceptions:
+
+Exceptions
+==========
+
+Airflow defines a number of exceptions; most of these are used internally, but a few
+are relevant to authors of custom operators or python callables called from ``PythonOperator``
+tasks. Normally any exception raised from an ``execute`` method or python callable will either
+cause a task instance to fail if it is not configured to retry or has reached its limit on
+retry attempts, or to be marked as "up for retry". A few exceptions can be used when different
+behavior is desired:
+
+* ``AirflowSkipException`` can be raised to set the state of the current task instance to "skipped"
+* ``AirflowFailException`` can be raised to set the state of the current task to "failed" regardless
+  of whether there are any retry attempts remaining.
+
+This example illustrates some possibilities
+
+.. code:: python
+
+  from airflow.exceptions import AirflowFailException, AirflowSkipException
+
+  def fetch_data():
+      try:
+          data = get_some_data(get_api_key())
+          if not data:
+              # Set state to skipped and do not retry
+              # Downstream task behavior will be determined by trigger rules
+              raise AirflowSkipException("No data available.")
+      except Unauthorized:
+          # If we retry, our api key will still be bad, so don't waste time retrying!
+          # Set state to failed and move on
+          raise AirflowFailException("Our api key is bad!")
+      except TransientError:
+          print("Looks like there was a blip.")
+          # Raise the exception and let the task retry unless max attempts were reached
+          raise
+      handle(data)
+
+  task = PythonOperator(task_id="fetch_data", python_callable=fetch_data, retries=10)
+
+.. seealso::
+    - :ref:`List of Airflow exceptions <pythonapi:exceptions>`
+
 
 Packaged DAGs
 '''''''''''''

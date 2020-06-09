@@ -19,7 +19,6 @@
 Implements Docker operator
 """
 import ast
-import json
 from tempfile import TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Union
 
@@ -124,6 +123,8 @@ class DockerOperator(BaseOperator):
     :param tty: Allocate pseudo-TTY to the container
         This needs to be set see logs of the Docker container.
     :type tty: bool
+    :param cap_add: Include container capabilities
+    :type cap_add: list[str]
     """
     template_fields = ('command', 'environment', 'container_name')
     template_ext = ('.sh', '.bash',)
@@ -160,6 +161,7 @@ class DockerOperator(BaseOperator):
             auto_remove: bool = False,
             shm_size: Optional[int] = None,
             tty: Optional[bool] = False,
+            cap_add: Optional[Iterable[str]] = None,
             *args,
             **kwargs) -> None:
 
@@ -192,6 +194,7 @@ class DockerOperator(BaseOperator):
         self.docker_conn_id = docker_conn_id
         self.shm_size = shm_size
         self.tty = tty
+        self.cap_add = cap_add
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
@@ -225,14 +228,15 @@ class DockerOperator(BaseOperator):
                 name=self.container_name,
                 environment={**self.environment, **self._private_environment},
                 host_config=self.cli.create_host_config(
-                    auto_remove=self.auto_remove,
+                    auto_remove=False,
                     binds=self.volumes,
                     network_mode=self.network_mode,
                     shm_size=self.shm_size,
                     dns=self.dns,
                     dns_search=self.dns_search,
                     cpu_shares=int(round(self.cpus * 1024)),
-                    mem_limit=self.mem_limit),
+                    mem_limit=self.mem_limit,
+                    cap_add=self.cap_add),
                 image=self.image,
                 user=self.user,
                 working_dir=self.working_dir,
@@ -258,36 +262,42 @@ class DockerOperator(BaseOperator):
                 raise AirflowException('docker container failed: ' + repr(result))
 
             # duplicated conditional logic because of expensive operation
+            ret = None
             if self.do_xcom_push:
-                return self.cli.logs(container=self.container['Id']) \
+                ret = self.cli.logs(container=self.container['Id']) \
                     if self.xcom_all else line.encode('utf-8')
-            else:
-                return None
+
+            if self.auto_remove:
+                self.cli.remove_container(self.container['Id'])
+
+            return ret
 
     def execute(self, context):
-
-        tls_config = self.__get_tls_config()
-
-        if self.docker_conn_id:
-            self.cli = self.get_hook().get_conn()
-        else:
-            self.cli = APIClient(
-                base_url=self.docker_url,
-                version=self.api_version,
-                tls=tls_config
-            )
+        self.cli = self._get_cli()
 
         # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or not self.cli.images(name=self.image):
             self.log.info('Pulling docker image %s', self.image)
-            for line in self.cli.pull(self.image, stream=True, decode=True):
-                output = json.loads(line.decode('utf-8').strip())
-                if 'status' in output:
+            for output in self.cli.pull(self.image, stream=True, decode=True):
+                if isinstance(output, str):
+                    self.log.info("%s", output)
+                if isinstance(output, dict) and 'status' in output:
                     self.log.info("%s", output['status'])
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
 
         return self._run_image()
+
+    def _get_cli(self):
+        if self.docker_conn_id:
+            return self.get_hook().get_conn()
+        else:
+            tls_config = self.__get_tls_config()
+            return APIClient(
+                base_url=self.docker_url,
+                version=self.api_version,
+                tls=tls_config
+            )
 
     def get_command(self):
         """

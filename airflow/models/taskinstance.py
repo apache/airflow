@@ -41,7 +41,8 @@ from sqlalchemy.sql.elements import BooleanClauseList
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
-    AirflowException, AirflowRescheduleException, AirflowSkipException, AirflowTaskTimeout,
+    AirflowException, AirflowFailException, AirflowRescheduleException, AirflowSkipException,
+    AirflowTaskTimeout,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.log import Log
@@ -64,6 +65,8 @@ from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+
+TR = TaskReschedule
 
 
 def clear_task_instances(tis,
@@ -102,7 +105,6 @@ def clear_task_instances(tis,
             ti.state = State.NONE
             session.merge(ti)
         # Clear all reschedules related to the ti to clear
-        TR = TaskReschedule
         session.query(TR).filter(
             TR.dag_id == ti.dag_id,
             TR.task_id == ti.task_id,
@@ -540,7 +542,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def are_dependents_done(self, session=None):
         """
-        Checks whether the dependents of this task instance have all succeeded.
+        Checks whether the immediate dependents of this task instance have succeeded or have been skipped.
         This is meant to be used by wait_for_downstream.
 
         This is useful when you do not want to start processing the next
@@ -556,7 +558,7 @@ class TaskInstance(Base, LoggingMixin):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.execution_date == self.execution_date,
-            TaskInstance.state == State.SUCCESS,
+            TaskInstance.state.in_([State.SKIPPED, State.SUCCESS]),
         )
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
@@ -638,7 +640,7 @@ class TaskInstance(Base, LoggingMixin):
         self,
         state: Optional[str] = None,
         session: Session = None,
-    ) -> Optional[pendulum.datetime]:
+    ) -> Optional[pendulum.DateTime]:
         """
         The execution date from property previous_ti_success.
 
@@ -653,7 +655,7 @@ class TaskInstance(Base, LoggingMixin):
         self,
         state: Optional[str] = None,
         session: Session = None
-    ) -> Optional[pendulum.datetime]:
+    ) -> Optional[pendulum.DateTime]:
         """
         The start date from property previous_ti_success.
 
@@ -664,7 +666,7 @@ class TaskInstance(Base, LoggingMixin):
         return prev_ti and prev_ti.start_date
 
     @property
-    def previous_start_date_success(self) -> Optional[pendulum.datetime]:
+    def previous_start_date_success(self) -> Optional[pendulum.DateTime]:
         """
         This attribute is deprecated.
         Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
@@ -873,9 +875,10 @@ class TaskInstance(Base, LoggingMixin):
             # Set the task start date. In case it was re-scheduled use the initial
             # start date that is recorded in task_reschedule table
             self.start_date = timezone.utcnow()
-            task_reschedules = TaskReschedule.find_for_task_instance(self, session)
-            if task_reschedules:
-                self.start_date = task_reschedules[0].start_date
+            if self.state == State.UP_FOR_RESCHEDULE:
+                task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
+                if task_reschedule:
+                    self.start_date = task_reschedule.start_date
 
             # Secondly we find non-runnable but requeueable tis. We reset its state.
             # This is because we might have hit concurrency limits,
@@ -962,6 +965,7 @@ class TaskInstance(Base, LoggingMixin):
 
         context = {}  # type: Dict
         actual_start_date = timezone.utcnow()
+        Stats.incr('ti.start.{}.{}'.format(task.dag_id, task.task_id))
         try:
             if not mark_success:
                 context = self.get_template_context()
@@ -1067,6 +1071,10 @@ class TaskInstance(Base, LoggingMixin):
             self.refresh_from_db()
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, context)
             return
+        except AirflowFailException as e:
+            self.refresh_from_db()
+            self.handle_failure(e, test_mode, context, force_fail=True)
+            raise
         except AirflowException as e:
             self.refresh_from_db()
             # for case when task is marked as success/failed externally
@@ -1079,6 +1087,8 @@ class TaskInstance(Base, LoggingMixin):
         except (Exception, KeyboardInterrupt) as e:
             self.handle_failure(e, test_mode, context)
             raise
+        finally:
+            Stats.incr('ti.finish.{}.{}.{}'.format(task.dag_id, task.task_id, self.state))
 
         # Success callback
         try:
@@ -1177,7 +1187,7 @@ class TaskInstance(Base, LoggingMixin):
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
     @provide_session
-    def handle_failure(self, error, test_mode=None, context=None, session=None):
+    def handle_failure(self, error, test_mode=None, context=None, force_fail=False, session=None):
         if test_mode is None:
             test_mode = self.test_mode
         if context is None:
@@ -1198,64 +1208,51 @@ class TaskInstance(Base, LoggingMixin):
         if context is not None:
             context['exception'] = error
 
-        # Let's go deeper
-        try:
-            # Since this function is called only when the TaskInstance state is running,
-            # try_number contains the current try_number (not the next). We
-            # only mark task instance as FAILED if the next task instance
-            # try_number exceeds the max_tries.
-            if self.is_eligible_to_retry():
-                self.state = State.UP_FOR_RETRY
-                self.log.info('Marking task as UP_FOR_RETRY')
-                if task.email_on_retry and task.email:
-                    self.email_alert(error)
+        # Set state correctly and figure out how to log it,
+        # what callback to call if any, and how to decide whether to email
+
+        # Since this function is called only when the TaskInstance state is running,
+        # try_number contains the current try_number (not the next). We
+        # only mark task instance as FAILED if the next task instance
+        # try_number exceeds the max_tries ... or if force_fail is truthy
+
+        if force_fail or not self.is_eligible_to_retry():
+            self.state = State.FAILED
+            if force_fail:
+                log_message = "Immediate failure requested. Marking task as FAILED."
             else:
-                self.state = State.FAILED
-                if task.retries:
-                    self.log.info(
-                        'All retries failed; marking task as FAILED.'
-                        'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
-                        self.dag_id,
-                        self.task_id,
-                        self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'execution_date') and self.execution_date else '',
-                        self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'start_date') and self.start_date else '',
-                        self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'end_date') and self.end_date else '')
-                else:
-                    self.log.info(
-                        'Marking task as FAILED.'
-                        'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
-                        self.dag_id,
-                        self.task_id,
-                        self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'execution_date') and self.execution_date else '',
-                        self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'start_date') and self.start_date else '',
-                        self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'end_date') and self.end_date else '')
-                if task.email_on_failure and task.email:
-                    self.email_alert(error)
-        except Exception as e2:
-            self.log.error('Failed to send email to: %s', task.email)
-            self.log.exception(e2)
+                log_message = "Marking task as FAILED."
+            email_for_state = task.email_on_failure
+            callback = task.on_failure_callback
+        else:
+            self.state = State.UP_FOR_RETRY
+            log_message = "Marking task as UP_FOR_RETRY."
+            email_for_state = task.email_on_retry
+            callback = task.on_retry_callback
+
+        self.log.info(
+            '%s dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+            log_message,
+            self.dag_id,
+            self.task_id,
+            self._safe_date('execution_date', '%Y%m%dT%H%M%S'),
+            self._safe_date('start_date', '%Y%m%dT%H%M%S'),
+            self._safe_date('end_date', '%Y%m%dT%H%M%S')
+        )
+        if email_for_state and task.email:
+            try:
+                self.email_alert(error)
+            except Exception as e2:
+                self.log.error('Failed to send email to: %s', task.email)
+                self.log.exception(e2)
 
         # Handling callbacks pessimistically
-        try:
-            if self.state == State.UP_FOR_RETRY and task.on_retry_callback:
-                task.on_retry_callback(context)
-            if self.state == State.FAILED and task.on_failure_callback:
-                task.on_failure_callback(context)
-        except Exception as e3:
-            self.log.error("Failed at executing callback")
-            self.log.exception(e3)
+        if callback:
+            try:
+                callback(context)
+            except Exception as e3:
+                self.log.error("Failed at executing callback")
+                self.log.exception(e3)
 
         if not test_mode:
             session.merge(self)
@@ -1264,6 +1261,12 @@ class TaskInstance(Base, LoggingMixin):
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""
         return self.task.retries and self.try_number <= self.max_tries
+
+    def _safe_date(self, date_attr, fmt):
+        result = getattr(self, date_attr, None)
+        if result is not None:
+            return result.strftime(fmt)
+        return ''
 
     @provide_session
     def get_template_context(self, session=None) -> Dict[str, Any]:

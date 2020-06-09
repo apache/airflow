@@ -19,10 +19,11 @@
 # Details: https://github.com/kaxil/boring-cyborg
 
 labelPRBasedOnFilePath:
-  provider:GCP:
-    - airflow/providers/google/cloud/**/*
-    - tests/providers/google/cloud/**/*
-    - tests/providers/google/cloud/*
+  provider:Google:
+    - airflow/providers/google/*
+    - airflow/providers/google/**/*
+    - tests/providers/google/*
+    - tests/providers/google/**/*
     - docs/howto/connection/gcp.rst
     - docs/howto/connection/gcp_sql.rst
     - docs/howto/operator/gcp/*
@@ -49,6 +50,12 @@ labelPRBasedOnFilePath:
     - airflow/kubernetes/**/*
     - tests/runtime/kubernetes/*
     - docs/kubernetes.rst
+
+  area:API:
+    - airflow/api_connexion/*
+    - airflow/api_connexion/**/*
+    - tests/api_connexion/*
+    - tests/api_connexion/**/*
 
   area:dev:
     - scripts/**/*
@@ -82,8 +89,10 @@ labelPRBasedOnFilePath:
     - docs/*
 
   area:Webserver:
+    - airflow/cli/commands/webserver_command.py
     - airflow/www/**/*
     - airflow/www_rbac/**/*
+    - tests/cli/commands/test_webserver_command.py
     - tests/www/**/*
     - tests/www/*
     - tests/www_rbac/**/*
@@ -106,7 +115,9 @@ labelPRBasedOnFilePath:
     - docs/lineage.rst
 
   area:Plugins:
+    - airflow/cli/commands/plugins_command.py
     - airflow/plugins_manager.py
+    - tests/cli/commands/test_plugins_command.py
     - tests/plugins/*
     - docs/plugins.rst
 

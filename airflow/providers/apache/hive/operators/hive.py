@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import re
 from typing import Dict, Optional
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
+from airflow.utils import operator_helpers
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
@@ -95,8 +97,9 @@ class HiveOperator(BaseOperator):
         self.mapred_queue = mapred_queue
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
-        self.mapred_job_name_template = conf.get('hive',
-                                                 'mapred_job_name_template')
+        self.mapred_job_name_template = conf.get(
+            'hive', 'mapred_job_name_template',
+            fallback="Airflow HiveOperator task for {hostname}.{dag_id}.{task_id}.{execution_date}")
 
         # assigned lazily - just for consistency we can create the attribute with a
         # `None` initial value, later it will be populated by the execute method.
@@ -143,9 +146,21 @@ class HiveOperator(BaseOperator):
         self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
 
     def dry_run(self):
+        # Reset airflow environment variables to prevent
+        # existing env vars from impacting behavior.
+        self.clear_airflow_vars()
+
         self.hook = self.get_hook()
         self.hook.test_hql(hql=self.hql)
 
     def on_kill(self):
         if self.hook:
             self.hook.kill()
+
+    def clear_airflow_vars(self):
+        """
+        Reset airflow environment variables to prevent existing ones from impacting behavior.
+        """
+        blank_env_vars = {value['env_var_format']: '' for value in
+                          operator_helpers.AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()}
+        os.environ.update(blank_env_vars)

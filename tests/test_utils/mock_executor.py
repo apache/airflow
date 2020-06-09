@@ -36,9 +36,16 @@ class MockExecutor(BaseExecutor):
         self.history = []
         # All the tasks, in a stable sort order
         self.sorted_tasks = []
-        self.mock_task_results = defaultdict(lambda: State.SUCCESS)
+
+        # If multiprocessing runs in spawn mode,
+        # arguments are to be pickled but lambda is not picclable.
+        # So we should pass self.success instead of lambda.
+        self.mock_task_results = defaultdict(self.success)
 
         super().__init__(*args, **kwargs)
+
+    def success(self):
+        return State.SUCCESS
 
     def heartbeat(self):
         if not self.do_update:
@@ -72,11 +79,11 @@ class MockExecutor(BaseExecutor):
     def end(self):
         self.sync()
 
-    def change_state(self, key, state):
-        super().change_state(key, state)
+    def change_state(self, key, state, info=None):
+        super().change_state(key, state, info=info)
         # The normal event buffer is cleared after reading, we want to keep
         # a list of all events for testing
-        self.sorted_tasks.append((key, state))
+        self.sorted_tasks.append((key, (state, info)))
 
     def mock_task_fail(self, dag_id, task_id, date, try_number=1):
         """

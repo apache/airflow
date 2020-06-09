@@ -23,7 +23,7 @@ from airflow.providers.presto.hooks.presto import PrestoHook
 from airflow.utils.decorators import apply_defaults
 
 
-class PrestoToMySqlTransfer(BaseOperator):
+class PrestoToMySqlTransferOperator(BaseOperator):
     """
     Moves data from Presto to MySQL, note that for now the data is loaded
     into memory before being pushed to MySQL, so this operator should

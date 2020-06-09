@@ -19,7 +19,13 @@
 
 import warnings
 
-from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
+# pylint: disable=unused-import
+from airflow.providers.google.cloud.operators.bigquery import (  # noqa; noqa; noqa; noqa; noqa
+    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator, BigQueryExecuteQueryOperator, BigQueryGetDatasetOperator,
+    BigQueryGetDatasetTablesOperator, BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
+    BigQueryUpsertTableOperator,
+)
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigquery`.",

@@ -30,6 +30,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -89,21 +90,21 @@ class TestLatestOnlyOperator(unittest.TestCase):
         downstream_task3.set_upstream(downstream_task)
 
         self.dag.create_dagrun(
-            run_id="scheduled__1",
+            run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
 
         self.dag.create_dagrun(
-            run_id="scheduled__2",
+            run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
             execution_date=timezone.datetime(2016, 1, 1, 12),
             state=State.RUNNING,
         )
 
         self.dag.create_dagrun(
-            run_id="scheduled__3",
+            run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
             execution_date=END_DATE,
             state=State.RUNNING,
@@ -165,7 +166,7 @@ class TestLatestOnlyOperator(unittest.TestCase):
         downstream_task2.set_upstream(downstream_task)
 
         self.dag.create_dagrun(
-            run_id="manual__1",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -173,7 +174,7 @@ class TestLatestOnlyOperator(unittest.TestCase):
         )
 
         self.dag.create_dagrun(
-            run_id="manual__2",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=timezone.datetime(2016, 1, 1, 12),
             state=State.RUNNING,
@@ -181,7 +182,7 @@ class TestLatestOnlyOperator(unittest.TestCase):
         )
 
         self.dag.create_dagrun(
-            run_id="manual__3",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=END_DATE,
             state=State.RUNNING,

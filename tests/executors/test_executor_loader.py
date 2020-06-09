@@ -71,7 +71,7 @@ class TestExecutorLoader(unittest.TestCase):
 
     def test_should_support_custom_path(self):
         with conf_vars({
-            ("core", "executor"): f"tests.executors.test_executor_loader.FakeExecutor"
+            ("core", "executor"): "tests.executors.test_executor_loader.FakeExecutor"
         }):
             executor = ExecutorLoader.get_default_executor()
             self.assertIsNotNone(executor)

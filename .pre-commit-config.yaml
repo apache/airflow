@@ -25,11 +25,11 @@ repos:
     rev: v1.1.7
     hooks:
       - id: forbid-tabs
-        exclude: ^airflow/_vendor/.*$|^docs/Makefile$
+        exclude: ^docs/Makefile$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "/*||*/"
@@ -38,7 +38,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all other files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "|#|"
@@ -49,7 +49,7 @@ repos:
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
       - id: insert-license
         name: Add license for all rst files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "||"
@@ -60,7 +60,7 @@ repos:
       - id: insert-license
         name: Add license for all JS/CSS files
         files: \.(js|css)$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "/**| *| */"
@@ -69,8 +69,9 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all JINJA template files
-        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$  # yamllint disable-line rule:line-length
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        files: "^airflow/www/templates/.*\\.html$|^docs/templates/.*\\.html$|^airflow/contrib/plugins/\
+metastore_browser/templates/.*\\.html$|.*\\.jinja2"
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "{#||#}"
@@ -79,7 +80,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all shell files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
         args:
           - --comment-style
@@ -89,7 +90,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all python files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [python]
         args:
           - --comment-style
@@ -99,7 +100,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all XML files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [xml]
         args:
           - --comment-style
@@ -109,7 +110,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all yaml files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [yaml]
         args:
           - --comment-style
@@ -120,7 +121,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$|PROVIDERS_CHANGES.*\.md
         args:
           - --comment-style
           - "<!--|| -->"
@@ -132,16 +133,10 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$
+        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.md$|^dev/README\.md$|^dev/BACKPORT_PACKAGES.md$
         args:
           - "--maxlevel"
           - "2"
-  - repo: https://github.com/thlorenz/doctoc.git
-    rev: v1.4.0
-    hooks:
-      - id: doctoc
-        name: Add TOC for backport readme files
-        files: BACKPORT_README\.md$
   - repo: meta
     hooks:
       - id: check-hooks-apply
@@ -159,7 +154,6 @@ repos:
       - id: fix-encoding-pragma
         args:
           - --remove
-        exclude: ^airflow/_vendor/.*$
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.5.1
     hooks:
@@ -179,7 +173,17 @@ repos:
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
-        exclude: ^airflow/_vendor/.*$
+      - id: lint-openapi
+        name: Lint OpenAPI using speccy
+        language: docker_image
+        entry: wework/speccy lint
+        files: ^airflow/api_connexion/openapi/
+      - id: lint-openapi
+        name: Lint OpenAPI using openapi-spec-validator
+        entry: openapi-spec-validator --schema 3.0.0
+        language: python
+        additional_dependencies: ['openapi-spec-validator']
+        files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system
@@ -192,7 +196,7 @@ repos:
         entry: isort
         files: \.py$
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^airflow/_vendor/.*$|^build/.*$|^.tox/.*$|^venv/.*$
+        exclude: ^build/.*$|^.tox/.*$|^venv/.*$
         additional_dependencies: ['isort']
       - id: setup-order
         name: Checks for an order of dependencies in setup.py
@@ -200,7 +204,7 @@ repos:
         files: ^setup.py$
         pass_filenames: false
         require_serial: true
-        entry: tests/test_order_setup.py
+        entry: ./scripts/ci/pre_commit_check_order_setup.py
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
         entry: "./scripts/ci/pre_commit_breeze_cmd_line.sh"
@@ -212,7 +216,7 @@ repos:
         name: Update mounts in the local yml file
         entry: "./scripts/ci/pre_commit_local_yml_mounts.sh"
         language: system
-        files: ^scripts/ci/_utils.sh$|s^scripts/ci/docker_compose/local.yml"
+        files: ^scripts/ci/libraries/_local_mounts.sh$|s^scripts/ci/docker_compose/local.yml"
         pass_filenames: false
         require_serial: true
       - id: update-setup-cfg-file
@@ -242,6 +246,24 @@ repos:
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: dont-use-safe-filter
+        language: pygrep
+        name: Don't use safe in templates
+        description: the Safe filter is error-prone, use Markup() in code instead
+        entry: "\\|\\s*safe"
+        files: \.html$
+        pass_filenames: true
+      - id: language-matters
+        language: pygrep
+        name: Check for language that we do not accept as community
+        description: Please use "deny_list" or "allow_list"  instead.
+        entry: "(?i)(black|white)[_-]?list"
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
+          ^airflow/providers/apache/hive/operators/hive_stats.py$|
+          ^tests/providers/apache/cassandra/hooks/test_cassandra.py
       - id: consistent-pylint
         language: pygrep
         name: Check for inconsitent pylint disable/enable without space
@@ -261,7 +283,8 @@ repos:
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
-          ^airflow/contrib/.*$
+          ^airflow/contrib/.*$|
+          ^backport_packages/.*$
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
@@ -277,7 +300,8 @@ repos:
           ^airflow/contrib/.*\.py$
       - id: provide-create-sessions
         language: pygrep
-        name: To avoid import cycles make sure provide_session and create_session are imported from airflow.utils.session  # yamllint disable-line rule:line-length
+        name: To avoid import cycles make sure provide_session and create_session are imported from
+              airflow.utils.session
         entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
         files: \.py$
         pass_filenames: true
@@ -318,21 +342,21 @@ repos:
         files: "config.yml$|default_airflow.cfg$|default.cfg$"
         pass_filenames: false
         require_serial: false
-        entry: scripts/ci/pre_commit_yaml_to_cfg.py
+        entry: ./scripts/ci/pre_commit_yaml_to_cfg.py
         additional_dependencies: ['pyyaml']
       - id: mypy
         name: Run mypy
         language: system
         entry: "./scripts/ci/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^airflow/_vendor/.*$|^dev|^backport_packages
+        exclude: ^dev|^backport_packages
         require_serial: true
       - id: pylint
         name: Run pylint for main sources
         language: system
         entry: "./scripts/ci/pre_commit_pylint_main.sh"
         files: \.py$
-        exclude: ^tests/.*\.py$|^airflow/_vendor/.*|^scripts/.*\.py$|^dev|^backport_packages
+        exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
         pass_filenames: true
         require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
       - id: pylint-tests

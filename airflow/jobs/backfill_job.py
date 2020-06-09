@@ -30,8 +30,7 @@ from airflow.exceptions import (
     AirflowException, BackfillUnfinished, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
 )
-from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
@@ -255,7 +254,8 @@ class BackfillJob(BaseJob):
         executor = self.executor
 
         # TODO: query all instead of refresh from db
-        for key, state in list(executor.get_event_buffer().items()):
+        for key, value in list(executor.get_event_buffer().items()):
+            state, info = value
             if key not in running:
                 self.log.warning(
                     "%s state %s not in running=%s",
@@ -272,7 +272,7 @@ class BackfillJob(BaseJob):
                 if ti.state == State.RUNNING or ti.state == State.QUEUED:
                     msg = ("Executor reports task instance {} finished ({}) "
                            "although the task says its {}. Was the task "
-                           "killed externally?".format(ti, state, ti.state))
+                           "killed externally? Info: {}".format(ti, state, ti.state, info))
                     self.log.error(msg)
                     ti.handle_failure(msg)
 
@@ -288,8 +288,6 @@ class BackfillJob(BaseJob):
         :param session: the database session object
         :return: a DagRun in state RUNNING or None
         """
-        run_id = f"{DagRunType.BACKFILL_JOB.value}__{run_date.isoformat()}"
-
         # consider max_active_runs but ignore when running subdags
         respect_dag_max_active_limit = bool(dag.schedule_interval and not dag.is_subdag)
 
@@ -315,13 +313,13 @@ class BackfillJob(BaseJob):
             return None
 
         run = run or dag.create_dagrun(
-            run_id=run_id,
             execution_date=run_date,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             external_trigger=False,
             session=session,
             conf=self.conf,
+            run_type=DagRunType.BACKFILL_JOB,
         )
 
         # set required transient field
@@ -329,7 +327,8 @@ class BackfillJob(BaseJob):
 
         # explicitly mark as backfill and running
         run.state = State.RUNNING
-        run.run_id = run_id
+        run.run_id = run.generate_run_id(DagRunType.BACKFILL_JOB, run_date)
+        run.run_type = DagRunType.BACKFILL_JOB.value
         run.verify_integrity(session=session)
         return run
 
@@ -502,7 +501,9 @@ class BackfillJob(BaseJob):
                         session.merge(ti)
 
                         cfg_path = None
-                        if executor.__class__ in (LocalExecutor, SequentialExecutor):
+                        if self.executor_class in (
+                            ExecutorLoader.LOCAL_EXECUTOR, ExecutorLoader.SEQUENTIAL_EXECUTOR
+                        ):
                             cfg_path = tmp_configuration_copy()
 
                         executor.queue_task_instance(
@@ -773,13 +774,9 @@ class BackfillJob(BaseJob):
         # picklin'
         pickle_id = None
 
-        try:
-            from airflow.executors.dask_executor import DaskExecutor
-        except ImportError:
-            DaskExecutor = None
-
-        if not self.donot_pickle and \
-                self.executor.__class__ not in (LocalExecutor, SequentialExecutor, DaskExecutor):
+        if not self.donot_pickle and self.executor_class not in (
+            ExecutorLoader.LOCAL_EXECUTOR, ExecutorLoader.SEQUENTIAL_EXECUTOR, ExecutorLoader.DASK_EXECUTOR,
+        ):
             pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()

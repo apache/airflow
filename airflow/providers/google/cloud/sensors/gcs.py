@@ -21,11 +21,11 @@ This module contains Google Cloud Storage sensors.
 
 import os
 from datetime import datetime
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Set
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator, poke_mode_only
 from airflow.utils.decorators import apply_defaults
 
 
@@ -189,12 +189,14 @@ def get_time():
     return datetime.now()
 
 
+@poke_mode_only
 class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     """
     Checks for changes in the number of objects at prefix in Google Cloud Storage
     bucket and returns True if the inactivity period has passed with no
-    increase in the number of objects. Note, it is recommended to use reschedule
-    mode if you expect this sensor to run for hours.
+    increase in the number of objects. Note, this sensor will no behave correctly
+    in reschedule mode, as the state of the listed objects in the GCS bucket will
+    be lost between rescheduled invocations.
 
     :param bucket: The Google Cloud Storage bucket where the objects are.
         expected.
@@ -209,8 +211,8 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     :param min_objects: The minimum number of objects needed for upload session
         to be considered valid.
     :type min_objects: int
-    :param previous_num_objects: The number of objects found during the last poke.
-    :type previous_num_objects: int
+    :param previous_objects: The set of object ids found during the last poke.
+    :type previous_objects: set[str]
     :param allow_delete: Should this sensor consider objects being deleted
         between pokes valid behavior. If true a warning message will be logged
         when this happens. If false an error will be raised.
@@ -233,7 +235,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
                  prefix: str,
                  inactivity_period: float = 60 * 60,
                  min_objects: int = 1,
-                 previous_num_objects: int = 0,
+                 previous_objects: Optional[Set[str]] = None,
                  allow_delete: bool = True,
                  google_cloud_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
@@ -243,45 +245,56 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
 
         self.bucket = bucket
         self.prefix = prefix
+        if inactivity_period < 0:
+            raise ValueError("inactivity_period must be non-negative")
         self.inactivity_period = inactivity_period
         self.min_objects = min_objects
-        self.previous_num_objects = previous_num_objects
+        self.previous_objects = previous_objects if previous_objects else set()
         self.inactivity_seconds = 0
         self.allow_delete = allow_delete
         self.google_cloud_conn_id = google_cloud_conn_id
         self.delegate_to = delegate_to
         self.last_activity_time = None
+        self.hook = None
 
-    def is_bucket_updated(self, current_num_objects: int) -> bool:
+    def _get_gcs_hook(self):
+        if not self.hook:
+            self.hook = GCSHook()
+        return self.hook
+
+    def is_bucket_updated(self, current_objects: Set[str]) -> bool:
         """
         Checks whether new objects have been uploaded and the inactivity_period
         has passed and updates the state of the sensor accordingly.
 
-        :param current_num_objects: number of objects in bucket during last poke.
-        :type current_num_objects: int
+        :param current_objects: set of object ids in bucket during last poke.
+        :type current_objects: set[str]
         """
-
-        if current_num_objects > self.previous_num_objects:
+        current_num_objects = len(current_objects)
+        if current_objects > self.previous_objects:
             # When new objects arrived, reset the inactivity_seconds
-            # previous_num_objects for the next poke.
+            # and update previous_objects for the next poke.
             self.log.info("New objects found at %s resetting last_activity_time.",
                           os.path.join(self.bucket, self.prefix))
+            self.log.debug("New objects: %s",
+                           "\n".join(current_objects - self.previous_objects))
             self.last_activity_time = get_time()
             self.inactivity_seconds = 0
-            self.previous_num_objects = current_num_objects
+            self.previous_objects = current_objects
             return False
 
-        if current_num_objects < self.previous_num_objects:
+        if self.previous_objects - current_objects:
             # During the last poke interval objects were deleted.
             if self.allow_delete:
-                self.previous_num_objects = current_num_objects
+                self.previous_objects = current_objects
                 self.last_activity_time = get_time()
                 self.log.warning(
                     """
                     Objects were deleted during the last
                     poke interval. Updating the file counter and
                     resetting last_activity_time.
-                    """
+                    %s
+                    """, self.previous_objects - current_objects
                 )
                 return False
 
@@ -314,5 +327,4 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         return False
 
     def poke(self, context):
-        hook = GCSHook()
-        return self.is_bucket_updated(len(hook.list(self.bucket, prefix=self.prefix)))
+        return self.is_bucket_updated(set(self._get_gcs_hook().list(self.bucket, prefix=self.prefix)))

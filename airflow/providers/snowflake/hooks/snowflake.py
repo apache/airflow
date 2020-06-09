@@ -41,6 +41,7 @@ class SnowflakeHook(DbApiHook):
         self.region = kwargs.pop("region", None)
         self.role = kwargs.pop("role", None)
         self.schema = kwargs.pop("schema", None)
+        self.authenticator = kwargs.pop("authenticator", None)
 
     def _get_conn_params(self):
         """
@@ -54,6 +55,7 @@ class SnowflakeHook(DbApiHook):
         region = conn.extra_dejson.get("region", '')
         role = conn.extra_dejson.get('role', '')
         schema = conn.schema or ''
+        authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
 
         conn_config = {
             "user": conn.login,
@@ -63,8 +65,8 @@ class SnowflakeHook(DbApiHook):
             "account": self.account or account,
             "warehouse": self.warehouse or warehouse,
             "region": self.region or region,
-            "role": self.role or role
-
+            "role": self.role or role,
+            "authenticator": self.authenticator or authenticator
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
@@ -100,7 +102,7 @@ class SnowflakeHook(DbApiHook):
         """
         conn_config = self._get_conn_params()
         uri = 'snowflake://{user}:{password}@{account}/{database}/{schema}' \
-              '?warehouse={warehouse}&role={role}'
+              '?warehouse={warehouse}&role={role}&authenticator={authenticator}'
         return uri.format(**conn_config)
 
     def get_conn(self):

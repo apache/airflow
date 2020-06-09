@@ -29,6 +29,44 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
+.. _howto/operator:SpannerDeployInstanceOperator:
+
+SpannerDeployInstanceOperator
+-----------------------------
+
+Creates a new Cloud Spanner instance, or if an instance with the same instance id
+exists in the specified project, updates the Cloud Spanner instance.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.spanner.SpannerDeployInstanceOperator`.
+
+Using the operator
+""""""""""""""""""
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spanner_deploy]
+    :end-before: [END howto_operator_spanner_deploy]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/spanner.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcp_spanner_deploy_template_fields]
+    :end-before: [END gcp_spanner_deploy_template_fields]
+
+More information
+""""""""""""""""
+
+See Google Cloud Spanner API documentation `to create a new instance
+<https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/create>`_.
+
+
 .. _howto/operator:SpannerDeleteDatabaseInstanceOperator:
 
 SpannerDeleteDatabaseInstanceOperator

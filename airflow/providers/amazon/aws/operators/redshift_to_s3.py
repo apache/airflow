@@ -26,7 +26,7 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.decorators import apply_defaults
 
 
-class RedshiftToS3Transfer(BaseOperator):
+class RedshiftToS3TransferOperator(BaseOperator):
     """
     Executes an UNLOAD command to s3 as a CSV with headers
 

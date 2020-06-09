@@ -103,7 +103,11 @@ if [[ -n ${AIRFLOW__CELERY__BROKER_URL} ]] && \
 fi
 
 if [[ ${AIRFLOW_COMMAND} == "bash" ]]; then
-   exec "/bin/bash"
+   shift
+   exec "/bin/bash" "${@}"
+elif [[ ${AIRFLOW_COMMAND} == "python" ]]; then
+   shift
+   exec "python" "${@}"
 fi
 
 # Run the command

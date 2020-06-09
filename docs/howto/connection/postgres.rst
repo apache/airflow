@@ -70,7 +70,7 @@ Extra (optional)
           "sslkey": "/tmp/client-key.pem"
        }
 
-    When specifying the connection as URI (in ``AIRFLOW_CONN_*`` variable) you should specify it
+    When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
     following the standard syntax of DB connections, where extras are passed as parameters
     of the URI (note that all components of the URI should be URL-encoded).
 

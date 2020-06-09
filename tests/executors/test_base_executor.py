@@ -34,9 +34,9 @@ class TestBaseExecutor(unittest.TestCase):
         key2 = ("my_dag2", "my_task1", date, try_number)
         key3 = ("my_dag2", "my_task2", date, try_number)
         state = State.SUCCESS
-        executor.event_buffer[key1] = state
-        executor.event_buffer[key2] = state
-        executor.event_buffer[key3] = state
+        executor.event_buffer[key1] = state, None
+        executor.event_buffer[key2] = state, None
+        executor.event_buffer[key3] = state, None
 
         self.assertEqual(len(executor.get_event_buffer(("my_dag1",))), 1)
         self.assertEqual(len(executor.get_event_buffer()), 2)

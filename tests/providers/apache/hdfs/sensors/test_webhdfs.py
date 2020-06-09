@@ -17,9 +17,11 @@
 # under the License.
 import os
 import unittest
+from unittest import mock
 
 from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
 from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
+from tests.test_utils.mock_hooks import MockDBConnection
 
 
 @unittest.skipIf(
@@ -27,7 +29,9 @@ from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
     "Skipped because AIRFLOW_RUNALL_TESTS is not set")
 class TestWebHdfsSensor(TestHiveEnvironment):
 
-    def test_webhdfs_sensor(self):
+    @mock.patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook._find_valid_server')
+    def test_webhdfs_sensor(self, mock_find_valid_server):
+        mock_find_valid_server.return_value = MockDBConnection()
         op = WebHdfsSensor(
             task_id='webhdfs_sensor_check',
             filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',

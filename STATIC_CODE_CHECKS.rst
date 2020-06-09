@@ -78,6 +78,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``isort``                             Sorts imports in python files.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``language-matters``                  Check for language that we do not accept as community
+----------------------------------- ---------------------------------------------------------------- ------------
 ``lint-dockerfile``                   Lints a dockerfile.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``mixed-line-ending``                 Detects if mixed line ending is used (\r vs. \r\n).

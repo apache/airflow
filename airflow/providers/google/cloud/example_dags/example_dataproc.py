@@ -42,6 +42,8 @@ SPARKR_MAIN = os.environ.get("SPARKR_MAIN", "hello_world.R")
 SPARKR_URI = "gs://{}/{}".format(BUCKET, SPARKR_MAIN)
 
 # Cluster definition
+# [START how_to_cloud_dataproc_create_cluster]
+
 CLUSTER = {
     "project_id": PROJECT_ID,
     "cluster_name": CLUSTER_NAME,
@@ -59,8 +61,10 @@ CLUSTER = {
     },
 }
 
+# [END how_to_cloud_dataproc_create_cluster]
 
 # Update options
+# [START how_to_cloud_dataproc_updatemask_cluster_operator]
 CLUSTER_UPDATE = {
     "config": {
         "worker_config": {"num_instances": 3},
@@ -73,23 +77,28 @@ UPDATE_MASK = {
         "config.secondary_worker_config.num_instances",
     ]
 }
+# [END how_to_cloud_dataproc_updatemask_cluster_operator]
 
 TIMEOUT = {"seconds": 1 * 24 * 60 * 60}
 
-
 # Jobs definitions
+# [START how_to_cloud_dataproc_pig_config]
 PIG_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
     "pig_job": {"query_list": {"queries": ["define sin HiveUDF('sin');"]}},
 }
+# [END how_to_cloud_dataproc_pig_config]
 
+# [START how_to_cloud_dataproc_sparksql_config]
 SPARK_SQL_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
     "spark_sql_job": {"query_list": {"queries": ["SHOW DATABASES;"]}},
 }
+# [END how_to_cloud_dataproc_sparksql_config]
 
+# [START how_to_cloud_dataproc_spark_config]
 SPARK_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
@@ -98,25 +107,33 @@ SPARK_JOB = {
         "main_class": "org.apache.spark.examples.SparkPi",
     },
 }
+# [END how_to_cloud_dataproc_spark_config]
 
+# [START how_to_cloud_dataproc_pyspark_config]
 PYSPARK_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
     "pyspark_job": {"main_python_file_uri": PYSPARK_URI},
 }
+# [END how_to_cloud_dataproc_pyspark_config]
 
+# [START how_to_cloud_dataproc_sparkr_config]
 SPARKR_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
     "spark_r_job": {"main_r_file_uri": SPARKR_URI},
 }
+# [END how_to_cloud_dataproc_sparkr_config]
 
+# [START how_to_cloud_dataproc_hive_config]
 HIVE_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
     "hive_job": {"query_list": {"queries": ["SHOW DATABASES;"]}},
 }
+# [END how_to_cloud_dataproc_hive_config]
 
+# [START how_to_cloud_dataproc_hadoop_config]
 HADOOP_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
@@ -125,16 +142,20 @@ HADOOP_JOB = {
         "args": ["wordcount", "gs://pub/shakespeare/rose.txt", OUTPUT_PATH],
     },
 }
+# [END how_to_cloud_dataproc_hadoop_config]
 
 with models.DAG(
     "example_gcp_dataproc",
     default_args={"start_date": days_ago(1)},
     schedule_interval=None,
 ) as dag:
+    # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster", project_id=PROJECT_ID, cluster=CLUSTER, region=REGION
     )
+    # [END how_to_cloud_dataproc_create_cluster_operator]
 
+    # [START how_to_cloud_dataproc_update_cluster_operator]
     scale_cluster = DataprocUpdateClusterOperator(
         task_id="scale_cluster",
         cluster_name=CLUSTER_NAME,
@@ -144,11 +165,11 @@ with models.DAG(
         project_id=PROJECT_ID,
         location=REGION,
     )
+    # [END how_to_cloud_dataproc_update_cluster_operator]
 
     pig_task = DataprocSubmitJobOperator(
         task_id="pig_task", job=PIG_JOB, location=REGION, project_id=PROJECT_ID
     )
-
     spark_sql_task = DataprocSubmitJobOperator(
         task_id="spark_sql_task",
         job=SPARK_SQL_JOB,
@@ -160,9 +181,11 @@ with models.DAG(
         task_id="spark_task", job=SPARK_JOB, location=REGION, project_id=PROJECT_ID
     )
 
+    # [START how_to_cloud_dataproc_submit_job_to_cluster_operator]
     pyspark_task = DataprocSubmitJobOperator(
         task_id="pyspark_task", job=PYSPARK_JOB, location=REGION, project_id=PROJECT_ID
     )
+    # [END how_to_cloud_dataproc_submit_job_to_cluster_operator]
 
     sparkr_task = DataprocSubmitJobOperator(
         task_id="sparkr_task", job=SPARKR_JOB, location=REGION, project_id=PROJECT_ID
@@ -176,12 +199,14 @@ with models.DAG(
         task_id="hadoop_task", job=HADOOP_JOB, location=REGION, project_id=PROJECT_ID
     )
 
+    # [START how_to_cloud_dataproc_delete_cluster_operator]
     delete_cluster = DataprocDeleteClusterOperator(
         task_id="delete_cluster",
         project_id=PROJECT_ID,
         cluster_name=CLUSTER_NAME,
         region=REGION,
     )
+    # [END how_to_cloud_dataproc_delete_cluster_operator]
 
     create_cluster >> scale_cluster
     scale_cluster >> hive_task >> delete_cluster

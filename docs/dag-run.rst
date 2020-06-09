@@ -138,7 +138,7 @@ Run the below command
 
 .. code:: bash
 
-    airflow backfill -s START_DATE -e END_DATE dag_id
+    airflow dags backfill -s START_DATE -e END_DATE dag_id
 
 The `backfill command <cli-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
 

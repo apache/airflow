@@ -74,10 +74,6 @@ class FacebookAdsReportingHook(BaseHook):
     def _get_service(self) -> FacebookAdsApi:
         """ Returns Facebook Ads Client using a service account"""
         config = self.facebook_ads_config
-        missings = [_each for _each in self.client_required_fields if _each not in config]
-        if missings:
-            message = "{missings} fields are missing".format(missings=missings)
-            raise AirflowException(message)
         return FacebookAdsApi.init(app_id=config["app_id"],
                                    app_secret=config["app_secret"],
                                    access_token=config["access_token"],
@@ -85,16 +81,19 @@ class FacebookAdsReportingHook(BaseHook):
                                    api_version=self.api_version)
 
     @cached_property
-    def facebook_ads_config(self) -> None:
+    def facebook_ads_config(self) -> Dict:
         """
         Gets Facebook ads connection from meta db and sets
         facebook_ads_config attribute with returned config file
         """
         self.log.info("Fetching fb connection: %s", self.facebook_conn_id)
         conn = self.get_connection(self.facebook_conn_id)
-        if "facebook_ads_client" not in conn.extra_dejson:
-            raise AirflowException("facebook_ads_client not found")
-        return conn.extra_dejson["facebook_ads_client"]
+        config = conn.extra_dejson
+        missings_keys = self.client_required_fields - config.keys()
+        if missings_keys:
+            message = "{missings_keys} fields are missing".format(missings_keys=missings_keys)
+            raise AirflowException(message)
+        return config
 
     def bulk_facebook_report(
         self,

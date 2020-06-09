@@ -36,7 +36,7 @@ class ExasolOperator(BaseOperator):
         (default value: False)
     :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping
+    :type parameters: dict
     :param schema: (optional) name of the schema which overwrite defined one in connection
     :type schema: string
     """

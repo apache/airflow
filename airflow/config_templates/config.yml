@@ -359,6 +359,13 @@
       type: string
       example: ~
       default: "True"
+    - name: xcom_backend
+      description: |
+        Path to custom XCom class that will be used to store and resolve operators results
+      version_added: 2.0.0
+      type: string
+      example: "path.to.CustomXCom"
+      default: "airflow.models.xcom.BaseXCom"
 
 - name: logging
   description: ~
@@ -665,7 +672,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "Airflow HiveOperator task for {{hostname}}.{{dag_id}}.{{task_id}}.{{execution_date}}"
+      default: ~
 - name: webserver
   description: ~
   options:
@@ -1122,6 +1129,19 @@
       version_added: ~
       type: string
       example: 16,12
+      default: ~
+    - name: worker_prefetch_multiplier
+      description: |
+        Used to increase the number of tasks that a worker prefetches which can improve performance.
+        The number of processes multiplied by worker_prefetch_multiplier is the number of tasks
+        that are prefetched by a worker.  A value greater than 1 can result in tasks being unnecessarily
+        blocked if there are multiple workers and one worker prefetches tasks that sit behind long
+        running tasks while another worker has unutilized processes that are unable to process the already
+        claimed blocked tasks.
+        https://docs.celeryproject.org/en/stable/userguide/optimizing.html#prefetch-limits
+      version_added: ~
+      type: int
+      example: "1"
       default: ~
     - name: worker_log_server_port
       description: |
@@ -1925,6 +1945,14 @@
       type: string
       example: ~
       default: ""
+    - name: git_sync_depth
+      description: |
+        Use a shallow clone with a history truncated to the specified number of commits.
+        0 - do not use shallow clone.
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: "1"
     - name: git_subpath
       description: |
         Subpath of git repo to be pulled for DAGs. This allows users to maintain multiple DAG
