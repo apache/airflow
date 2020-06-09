@@ -389,8 +389,8 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
-        self._task_tags: List[str] = []
-        self.task_tags = task_tags
+        self._task_tags: Optional[List[str]] = []
+        self.task_tags = task_tags or []
 
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
@@ -453,15 +453,15 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         self.do_xcom_push = do_xcom_push
 
         # Private attributes
+        from airflow.models.dag import DAG
         self._upstream_task_ids: Set[str] = set()
         self._downstream_task_ids: Set[str] = set()
-        self._dag = None
+        self._dag: Optional[DAG] = None
 
         self.dag = dag or DagContext.get_current_dag()
 
         # subdag parameter is only set for SubDagOperator.
         # Setting it to None by default as other Operators do not have that field
-        from airflow.models.dag import DAG
         self.subdag: Optional[DAG] = None
 
         self._log = logging.getLogger("airflow.task.operators")
