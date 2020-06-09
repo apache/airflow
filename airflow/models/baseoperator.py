@@ -389,8 +389,8 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
-        self._task_tags: List[str] = []
-        self.task_tags = task_tags
+        self._task_tags: Optional[List[str]] = []
+        self.task_tags = task_tags or []
 
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
