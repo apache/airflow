@@ -282,7 +282,6 @@ google = [
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
-    'httplib2~=0.15',  # not sure we're ready for 1.0 here; test before updating
     'pandas-gbq',
 ]
 grpc = [
