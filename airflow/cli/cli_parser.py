@@ -1284,6 +1284,12 @@ airflow_commands: List[CLICommand] = [
         func=lazy_load_command('airflow.cli.commands.info_command.show_info'),
         args=(ARG_ANONYMIZE, ARG_FILE_IO, ),
     ),
+    ActionCommand(
+        name='plugins',
+        help='Dump information about loaded plugins',
+        func=lazy_load_command('airflow.cli.commands.plugins_command.dump_plugins'),
+        args=(),
+    ),
     GroupCommand(
         name="celery",
         help='Start celery components',

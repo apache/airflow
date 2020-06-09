@@ -62,6 +62,8 @@ services:
       - HOST_USER_ID
       - HOST_GROUP_ID
       - HOST_HOME=${HOME}
+      - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+      - HOST_OS
       - PYTHONDONTWRITEBYTECODE
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"

@@ -36,6 +36,7 @@ from kombu.asynchronous import set_event_loop
 from parameterized import parameterized
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.executors import celery_executor
 from airflow.executors.celery_executor import BulkStateFetcher
 from airflow.models import TaskInstance
@@ -101,13 +102,18 @@ class TestCeleryExecutor(unittest.TestCase):
     @pytest.mark.integration("rabbitmq")
     @pytest.mark.backend("mysql", "postgres")
     def test_celery_integration(self, broker_url):
-        with _prepare_app(broker_url) as app:
+        success_command = ['airflow', 'tasks', 'run', 'true', 'some_parameter']
+        fail_command = ['airflow', 'version']
+
+        def fake_execute_command(command):
+            if command != success_command:
+                raise AirflowException("fail")
+
+        with _prepare_app(broker_url, execute=fake_execute_command) as app:
             executor = celery_executor.CeleryExecutor()
             executor.start()
 
             with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
-                success_command = ['true', 'some_parameter']
-                fail_command = ['false', 'some_parameter']
                 execute_date = datetime.datetime.now()
 
                 cached_celery_backend = celery_executor.execute_command.backend
@@ -201,6 +207,24 @@ class TestCeleryExecutor(unittest.TestCase):
                  mock.call('executor.queued_tasks', mock.ANY),
                  mock.call('executor.running_tasks', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)
+
+    @parameterized.expand((
+        [['true'], ValueError],
+        [['airflow', 'version'], ValueError],
+        [['airflow', 'tasks', 'run'], None]
+    ))
+    @mock.patch('subprocess.check_call')
+    def test_command_validation(self, command, expected_exception, mock_check_call):
+        # Check that we validate _on the receiving_ side, not just sending side
+        if expected_exception:
+            with pytest.raises(expected_exception):
+                celery_executor.execute_command(command)
+            mock_check_call.assert_not_called()
+        else:
+            celery_executor.execute_command(command)
+            mock_check_call.assert_called_once_with(
+                command, stderr=mock.ANY, close_fds=mock.ANY, env=mock.ANY,
+            )
 
 
 def test_operation_timeout_config():

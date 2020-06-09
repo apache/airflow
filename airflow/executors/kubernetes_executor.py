@@ -459,6 +459,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
         if isinstance(command, str):
             command = [command]
 
+        if command[0] != "airflow":
+            raise ValueError('The first element of command must be equal to "airflow".')
+
         pod = PodGenerator.construct_pod(
             namespace=self.namespace,
             worker_uuid=self.worker_uuid,

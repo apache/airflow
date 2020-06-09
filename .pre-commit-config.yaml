@@ -246,6 +246,24 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: dont-use-safe-filter
+        language: pygrep
+        name: Don't use safe in templates
+        description: the Safe filter is error-prone, use Markup() in code instead
+        entry: "\\|\\s*safe"
+        files: \.html$
+        pass_filenames: true
+      - id: language-matters
+        language: pygrep
+        name: Check for language that we do not accept as community
+        description: Please use "deny_list" or "allow_list"  instead.
+        entry: "(?i)(black|white)[_-]?list"
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
+          ^airflow/providers/apache/hive/operators/hive_stats.py$|
+          ^tests/providers/apache/cassandra/hooks/test_cassandra.py
       - id: consistent-pylint
         language: pygrep
         name: Check for inconsitent pylint disable/enable without space

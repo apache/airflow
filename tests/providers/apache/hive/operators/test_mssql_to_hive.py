@@ -16,11 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 import unittest
 from collections import OrderedDict
 from unittest.mock import Mock, PropertyMock, patch
 
-from airflow.providers.apache.hive.operators.mssql_to_hive import MsSqlToHiveTransferOperator
+from airflow import PY38
+
+if PY38:
+    MsSqlToHiveTransferOperator = None
+else:
+    from airflow.providers.apache.hive.operators.mssql_to_hive import MsSqlToHiveTransferOperator
 
 try:
     import pymssql
@@ -28,6 +34,7 @@ except ImportError:
     pymssql = None
 
 
+@unittest.skipIf(PY38, "Mssql package not avaible when Python >= 3.8.")
 @unittest.skipIf(pymssql is None, 'pymssql package not present')
 class TestMsSqlToHiveTransfer(unittest.TestCase):
 

@@ -243,6 +243,9 @@ it is downloaded, it will stay until you remove the downloaded images from your 
 For each of those CLI credentials are taken (automatically) from the credentials you have defined in
 your ${HOME} directory on host.
 
+Those tools also have host Airflow source directory mounted in /opt/airflow path
+so you can directly transfer files to/from your airflow host sources.
+
 Those are currently installed CLIs (they are available as aliases to the docker commands):
 
 +-----------------------+----------+-------------------------------------------------+-------------------+
@@ -796,7 +799,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -a, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
           If specified, installs Airflow directly from PIP released version. This happens at
@@ -886,7 +889,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -931,7 +934,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -v, --verbose
           Show verbose information about executed commands (enabled by default for running test).
@@ -1094,7 +1097,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
 
   ####################################################################################################
@@ -1120,7 +1123,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -1242,7 +1245,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -b, --backend <BACKEND>
           Backend to use for tests - it determines which database is used.
@@ -1290,7 +1293,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -b, --backend <BACKEND>
           Backend to use for tests - it determines which database is used.
@@ -1339,7 +1342,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -1392,11 +1395,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-hooks-apply check-integrations check-merge-conflict check-xml
                  consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
                  end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
-                 incorrect-use-of-LoggingMixin insert-license isort lint-dockerfile mixed-line-ending
-                 mypy provide-create-sessions pydevd pylint pylint-tests python-no-log-warn
-                 rst-backticks setup-order shellcheck stylelint trailing-whitespace
-                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 yamllint
+                 incorrect-use-of-LoggingMixin insert-license isort language-matters lint-dockerfile
+                 mixed-line-ending mypy provide-create-sessions pydevd pylint pylint-tests
+                 python-no-log-warn rst-backticks setup-order shellcheck stylelint
+                 trailing-whitespace update-breeze-file update-extras update-local-yml-file
+                 update-setup-cfg-file yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -1425,11 +1428,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-hooks-apply check-integrations check-merge-conflict check-xml
                  consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
                  end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
-                 incorrect-use-of-LoggingMixin insert-license isort lint-dockerfile mixed-line-ending
-                 mypy provide-create-sessions pydevd pylint pylint-tests python-no-log-warn
-                 rst-backticks setup-order shellcheck stylelint trailing-whitespace
-                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 yamllint
+                 incorrect-use-of-LoggingMixin insert-license isort language-matters lint-dockerfile
+                 mixed-line-ending mypy provide-create-sessions pydevd pylint pylint-tests
+                 python-no-log-warn rst-backticks setup-order shellcheck stylelint
+                 trailing-whitespace update-breeze-file update-extras update-local-yml-file
+                 update-setup-cfg-file yamllint
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -1506,7 +1509,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of:
 
-                 3.6 3.7
+                 3.6 3.7 3.8
 
   ****************************************************************************************************
    Choose backend to run for Airflow

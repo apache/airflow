@@ -114,6 +114,13 @@ function initialize_common_environment {
     HOST_GROUP_ID="$(id -gr)"
     export HOST_GROUP_ID
 
+    # Set host OS. This is used to set the ownership properly when exiting
+    # The container on Linux - all files created inside docker are created with root user
+    # but they should be restored back to the host user
+    HOST_OS="$(uname -s)"
+    export HOST_OS
+
+
     # Add the right volume mount for sources, depending which mount strategy is used
     if [[ ${MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
         print_info

@@ -2293,14 +2293,11 @@ dags_are_paused_at_creation = False
 
 If you specify a hive conf to the run_cli command of the HiveHook, Airflow add some
 convenience variables to the config. In case you run a secure Hadoop setup it might be
-required to whitelist these variables by adding the following to your configuration:
+required to allow these variables by adjusting you hive configuration to add `airflow\.ctx\..*` to the regex
+of user-editable configuration properties. See
+[the Hive docs on Configuration Properties][hive.security.authorization.sqlstd] for more info.
 
-```
-<property>
-     <name>hive.security.authorization.sqlstd.confwhitelist.append</name>
-     <value>airflow\.ctx\..*</value>
-</property>
-```
+[hive.security.authorization.sqlstd]: https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82903061#ConfigurationProperties-SQLStandardBasedAuthorization.1
 
 ### Google Cloud Operator and Hook alignment
 
