@@ -60,7 +60,7 @@ repos:
       - id: insert-license
         name: Add license for all JS/CSS files
         files: \.(js|css)$
-        exclude: ^\.github/.*$
+        exclude: ^\.github/.*$|^airflow/www/static/.*|^airflow/www_rbac/static/.*$
         args:
           - --comment-style
           - "/**| *| */"
