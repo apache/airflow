@@ -1983,7 +1983,7 @@ class TestDagACLView(TestBase):
             past="false",
         )
         resp = self.client.post('failed', data=form)
-        self.check_content_in_response('Redirecting', resp, 302)
+        self.check_content_in_response('example_bash_operator', resp)
 
     def test_duration_success(self):
         url = 'duration?days=30&dag_id=example_bash_operator'
