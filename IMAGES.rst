@@ -203,6 +203,12 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_PYTHON_DEPS``               | \```\`                                   | additional python dependencies to        |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_DEV_DEPS``                  | ````                                     | additional apt dev dependencies to       |
+|                                          |                                          | install                                  |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_RUNTIME_DEPS``              | ````                                     | additional apt runtime dependencies to   |
+|                                          |                                          | install                                  |
++------------------------------------------+------------------------------------------+------------------------------------------+
 
 Here are some examples of how CI images can built manually. CI is always built from local sources.
 
@@ -235,6 +241,20 @@ This builds the CI image in version 3.6 with "mssql" additional package added.
 
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.6 --build-arg ADDITIONAL_PYTHON_DEPS="mssql"
+
+This builds the CI image in version 3.6 with "gcc" and "g++" additional apt dev dependencies added.
+
+.. code-block::
+
+  docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.6 --build-arg ADDITIONAL_DEV_DEPS="gcc g++"
+
+This builds the CI image in version 3.6 with "jdbc" extra and "default-jre-headless" additional apt runtime dependencies added.
+
+.. code-block::
+
+  docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.6 --build-arg AIRFLOW_EXTRAS=jdbc --build-arg ADDITIONAL_RUNTIME_DEPS="default-jre-headless"
 
 
 
@@ -276,6 +296,12 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_PYTHON_DEPS``               | ````                                     | Optional python packages to extend       |
 |                                          |                                          | the image with some extra dependencies   |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_DEV_DEPS``                  | ````                                     | additional apt dev dependencies to       |
+|                                          |                                          | install                                  |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``ADDITIONAL_RUNTIME_DEPS``              | ````                                     | additional apt runtime dependencies to   |
+|                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and    |
 |                                          |                                          | sqlite databases are stored)             |
@@ -401,6 +427,24 @@ additional python dependencies.
     --build-arg AIRFLOW_SOURCES_TO="/entrypoint" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs"
     --build-arg ADDITIONAL_PYTHON_DEPS="sshtunnel oauth2client"
+
+This builds the production image in version 3.7 with additional airflow extras from 1.10.10 Pypi package and
+additional apt dev and runtime dependencies.
+
+.. code-block::
+
+  docker build . \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
+    --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.10" \
+    --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt" \
+    --build-arg ENTRYPOINT_FILE="https://raw.githubusercontent.com/apache/airflow/1.10.10/entrypoint.sh" \
+    --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
+    --build-arg AIRFLOW_SOURCES_TO="/entrypoint" \
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
+    --build-arg ADDITIONAL_DEV_DEPS="gcc g++"
+    --build-arg ADDITIONAL_RUNTIME_DEPS="default-jre-headless"
 
 Image manifests
 ---------------
