@@ -858,13 +858,11 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  # TODO: /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
-  # For more ref: https://lists.apache.org/thread.html/rd4be3829627dcef8b40314c62c041f460992786f3bfcc634d25a6664%40%3Cdev.airflow.apache.org%3E
-  /dags/{dag_id}/taskInstances/{task_id}/{execution_date}/xcomEntries/{xcom_key}:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
       - $ref: '#/components/parameters/TaskID'
-      - $ref: '#/components/parameters/ExecutionDate'
       - $ref: '#/components/parameters/XComKey'
 
     get:

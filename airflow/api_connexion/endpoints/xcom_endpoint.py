@@ -16,10 +16,10 @@
 # under the License.
 
 from sqlalchemy import and_
+
 from airflow.api_connexion.schemas.xcom_schema import xcom_collection_item_schema
-from airflow.models import XCom
+from airflow.models import DagRun as DR, XCom
 from airflow.utils.session import provide_session
-from airflow.utils.dates import parse_execution_date
 
 
 def delete_xcom_entry():
@@ -37,16 +37,17 @@ def get_xcom_entries():
 
 
 @provide_session
-def get_xcom_entry(dag_id, task_id, execution_date, xcom_key, session):
+def get_xcom_entry(dag_id, task_id, dag_run_id, xcom_key, session):
     """
     Get an XCom entry
     """
-    execution_date = parse_execution_date(execution_date)
     query = session.query(XCom)
     query = query.filter(and_(XCom.dag_id == dag_id,
-                              XCom.execution_date == execution_date,
                               XCom.task_id == task_id,
                               XCom.key == xcom_key))
+    query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
+    query = query.filter(DR.run_id == dag_run_id)
+
     q_object = query.one_or_none()
     if not q_object:
         raise Exception("Object Not found")

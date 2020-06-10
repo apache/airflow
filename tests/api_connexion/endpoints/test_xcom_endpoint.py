@@ -18,10 +18,11 @@ import unittest
 
 import pytest
 
-from airflow.www import app
-from airflow.utils.session import provide_session, create_session
-from airflow.models import XCom
+from airflow.models import DagRun as DR, XCom
 from airflow.utils.dates import parse_execution_date
+from airflow.utils.session import create_session, provide_session
+from airflow.utils.types import DagRunType
+from airflow.www import app
 
 
 class TestXComEndpoint(unittest.TestCase):
@@ -35,6 +36,7 @@ class TestXComEndpoint(unittest.TestCase):
         # clear existing xcoms
         with create_session() as session:
             session.query(XCom).delete()
+            session.query(DR).delete()
 
 
 class TestDeleteXComEntry(TestXComEndpoint):
@@ -51,32 +53,42 @@ class TestGetXComEntry(TestXComEndpoint):
     @provide_session
     def test_should_response_200(self, session):
         # WIP datetime spece
-        dag_id = 'A'
-        task_id = 'A'
-        execution_date = '2005-04-02T21:37:42Z'
-        xcom_key = 'A'
+        dag_id = 'test-dag-id'
+        task_id = 'test-task-id'
+        execution_date = '2005-04-02T21:37:42+00:00'
+        xcom_key = 'test-xcom-key'
+        execution_date_parsed = parse_execution_date(execution_date)
         xcom_model = XCom(
             key=xcom_key,
-            execution_date=parse_execution_date(execution_date),
+            execution_date=execution_date_parsed,
             task_id=task_id,
             dag_id=dag_id,
-            timestamp=parse_execution_date(execution_date),
+            timestamp=execution_date_parsed,
+        )
+        dag_run_id = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+        dagrun = DR(
+            dag_id=dag_id,
+            run_id=dag_run_id,
+            execution_date=execution_date_parsed,
+            start_date=execution_date_parsed,
+            run_type=DagRunType.MANUAL.value,
         )
         session.add(xcom_model)
+        session.add(dagrun)
         session.commit()
         response = self.client.get(
-            f"/api/v1/dags/{dag_id}/taskInstances/{task_id}/{execution_date}/xcomEntries/{xcom_key}"
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}"
         )
-        assert response.status_code == 200
+        self.assertEqual(200, response.status_code)
         print(response.json)
         self.assertEqual(
             response.json,
             {
-                'key': xcom_key,
-                'execution_date': execution_date,
-                'task_id': task_id,
                 'dag_id': dag_id,
-                'timestamp': execution_date,
+                'execution_date': execution_date,
+                'key': xcom_key,
+                'task_id': task_id,
+                'timestamp': execution_date
             }
         )
 
