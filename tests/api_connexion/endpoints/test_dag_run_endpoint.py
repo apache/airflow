@@ -44,7 +44,7 @@ class TestDagRunEndpoint(unittest.TestCase):
     def tearDown(self) -> None:
         clear_db_runs()
 
-    def _create_test_dag_run(self, state='running'):
+    def _create_test_dag_run(self, state='running', extra_dag=False):
         dagrun_model_1 = DagRun(
             dag_id='TEST_DAG_ID',
             run_id='TEST_DAG_RUN_ID_1',
@@ -62,6 +62,16 @@ class TestDagRunEndpoint(unittest.TestCase):
             start_date=timezone.parse(self.now),
             external_trigger=True,
         )
+        if extra_dag:
+            dagrun_extra = [DagRun(
+                dag_id='TEST_DAG_ID_' + str(i),
+                run_id='TEST_DAG_RUN_ID_' + str(i),
+                run_type=DagRunType.MANUAL.value,
+                execution_date=timezone.parse(self.now2),
+                start_date=timezone.parse(self.now),
+                external_trigger=True,
+            ) for i in range(3, 5)]
+            return [dagrun_model_1, dagrun_model_2] + dagrun_extra
         return [dagrun_model_1, dagrun_model_2]
 
 
@@ -152,42 +162,17 @@ class TestGetDagRuns(TestDagRunEndpoint):
 
     @provide_session
     def test_should_return_all_with_tilde_as_dag_id(self, session):
-        dagruns = self._create_test_dag_run()
+        dagruns = self._create_test_dag_run(extra_dag=True)
+        expected_dag_run_ids = ['TEST_DAG_ID', 'TEST_DAG_ID',
+                                "TEST_DAG_ID_3", "TEST_DAG_ID_4"]
         session.add_all(dagruns)
         session.commit()
         result = session.query(DagRun).all()
-        assert len(result) == 2
-        assert result[0].dag_id == result[1].dag_id == 'TEST_DAG_ID'
+        assert len(result) == 4
         response = self.client.get("api/v1/dags/~/dagRuns")
         assert response.status_code == 200
-        self.assertEqual(
-            response.json,
-            {
-                "dag_runs": [
-                    {
-                        'dag_id': 'TEST_DAG_ID',
-                        'dag_run_id': 'TEST_DAG_RUN_ID_1',
-                        'end_date': None,
-                        'state': 'running',
-                        'execution_date': self.now,
-                        'external_trigger': True,
-                        'start_date': self.now,
-                        'conf': {},
-                    },
-                    {
-                        'dag_id': 'TEST_DAG_ID',
-                        'dag_run_id': 'TEST_DAG_RUN_ID_2',
-                        'end_date': None,
-                        'state': 'running',
-                        'execution_date': self.now2,
-                        'external_trigger': True,
-                        'start_date': self.now,
-                        'conf': {},
-                    },
-                ],
-                "total_entries": 2,
-            },
-        )
+        dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
+        self.assertEqual(dag_run_ids, expected_dag_run_ids)
 
 
 class TestGetDagRunsPagination(TestDagRunEndpoint):
