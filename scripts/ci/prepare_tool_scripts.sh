@@ -29,7 +29,14 @@ function prepare_tool_script() {
 
     cat >"${TARGET_TOOL_PATH}" <<EOF
 #!/usr/bin/env bash
-docker run --rm -it \
+
+if [ -t 0 ] ; then
+    DOCKER_FLAGS="-it"
+else
+    DOCKER_FLAGS="-i"
+fi
+
+docker run --rm \${DOCKER_FLAGS} \
     -v "\${HOST_AIRFLOW_SOURCES}/tmp:/tmp" \
     -v "\${HOST_AIRFLOW_SOURCES}/files:/files" \
     -v "\${HOST_AIRFLOW_SOURCES}:/opt/airflow" \
