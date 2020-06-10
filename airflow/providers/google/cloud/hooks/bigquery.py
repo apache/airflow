@@ -1426,9 +1426,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job
 
     @staticmethod
-    def _generate_job_id(task_id: Optional[str] = None) -> str:
-        task_id = f"{task_id}_" or ""
-        return f"airflow_{task_id}{int(time.time())}_{uuid.uuid4()}"
+    def _generate_job_id(task_id: str) -> str:
+        return f"airflow_{task_id}_{int(time.time())}"
 
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_job(
