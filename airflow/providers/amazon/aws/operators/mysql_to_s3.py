@@ -86,10 +86,7 @@ class MySQLToS3Operator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
-        if not pd_csv_kwargs:
-            self.pd_csv_kwargs = {}
-        else:
-            self.pd_csv_kwargs = pd_csv_kwargs
+        self.pd_csv_kwargs = pd_csv_kwargs or {}
         if "index" not in self.pd_csv_kwargs:
             self.pd_csv_kwargs["index"] = index
         if "header" not in self.pd_csv_kwargs:
