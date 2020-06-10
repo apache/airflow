@@ -182,16 +182,28 @@ reference documentation for more information
 The Airflow CLI has been organized so that related commands are grouped together as subcommands,
 which means that if you use these commands in your scripts, you have to make changes to them.
 
+
 This section describes the changes that have been made, and what you need to do to update your script.
+
+
+### BaseOperator uses metaclass
+
 
 The ability to manipulate users from the command line has been changed. ``airflow create_user``,  ``airflow delete_user``
  and ``airflow list_users`` has been grouped to a single command `airflow users` with optional flags `create`, `list` and `delete`.
 
 The `airflow list_dags` command is now `airflow dags list`, `airflow pause` is `airflow dags pause`, etc.
 
+
 In Airflow 1.10 and 2.0 there is an `airflow config` command but there is a difference in behavior. In Airflow 1.10,
 it prints all config options while in Airflow 2.0, it's a command group. `airflow config` is now `airflow config list`.
 You can check other options by running the command `airflow config --help`
+
+
+
+The `conn_type` column in the `connection` table must contain content. Previously, this rule was enforced
+by application logic, but was not enforced by the database schema.
+
 
 For a complete list of updated CLI commands, see https://airflow.apache.org/cli.html.
 
