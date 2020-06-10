@@ -110,10 +110,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         # Only used by read_dags_from_db=True
         self.dags_last_fetched: Dict[str, datetime] = {}
 
-        # self.collect_dags(
-        #     dag_folder=dag_folder,
-        #     include_examples=include_examples,
-        #     safe_mode=safe_mode)
+        self.collect_dags(
+            dag_folder=dag_folder,
+            include_examples=include_examples,
+            safe_mode=safe_mode)
 
     def size(self) -> int:
         """
@@ -355,49 +355,48 @@ class DagBag(BaseDagBag, LoggingMixin):
         Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
 
-        test_cycle(dag)  # throws if a task cycle is found
-
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
 
         for task in dag.tasks:
             settings.policy(task)
 
-        # subdags = dag.subdags
-
         try:
             from airflow.operators.subdag_operator import SubDagOperator
             from airflow.models.baseoperator import cross_downstream
-            for task in dag.tasks:
+            for task_id, task in dag.task_dict.copy().items():
                 if not isinstance(task, SubDagOperator):
                     continue
                 else:
                     subdag = task.subdag
+                    
+                    for subdag_task in subdag.tasks:
+                        del subdag_task._dag
+                        root_dag.add_task(subdag_task)
+                        subdag_task.parent_group = parent_dag.dag_id
+                        subdag_task.current_group = dag.dag_id
 
+                    
                     upstream_tasks = task.upstream_list
+                    for upstream_task in upstream_tasks:
+                        upstream_task._remove_direct_relative_id(task_id, upstream=False)
+
                     downstream_tasks = task.downstream_list
+                    for downstream_task in downstream_tasks:
+                        downstream_task._remove_direct_relative_id(task_id, upstream=True)
 
                     cross_downstream(from_tasks=upstream_tasks, to_tasks=subdag.roots)
                     cross_downstream(from_tasks=subdag.leaves, to_tasks=downstream_tasks)
-
-                    for subdag_task in subdag.tasks:
-                        subdag_task.dag_id = root_dag.dag_id
-                        subdag_task.parent_group = parent_dag.dag_id
-                        subdag_task.current_group = task.task_id  # dag.dag_id
-
+                    
+                    del dag.task_dict[task_id]
                     self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
 
-            self.dags[dag.dag_id] = dag
-            self.log.debug('Loaded DAG %s', dag)
+            if dag is root_dag:
+                test_cycle(root_dag)
+                self.dags[dag.dag_id] = dag
+                self.log.debug('Loaded DAG %s', dag)
         except AirflowDagCycleException as cycle_exception:
-            # There was an error in bagging the dag. Remove it from the list of dags
             self.log.exception('Exception bagging dag: %s', dag.dag_id)
-            # Only necessary at the root level since DAG.subdags automatically
-            # performs DFS to search through all subdags
-            if dag == root_dag:
-                for subdag in subdags:
-                    if subdag.dag_id in self.dags:
-                        del self.dags[subdag.dag_id]
             raise cycle_exception
 
     def collect_dags(

@@ -1112,6 +1112,13 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
                 self.log.info('Rendering template for %s', field)
                 self.log.info(content)
 
+    def _remove_direct_relative_id(self, task_id: str, upstream: bool = False) -> None:
+        """Remove a task id from the direct relative upstream/downstream task ids"""
+        if upstream:
+            self._upstream_task_ids.remove(task_id)
+        else:
+            self._downstream_task_ids.remove(task_id)
+
     def get_direct_relative_ids(self, upstream: bool = False) -> Set[str]:
         """
         Get set of the direct relative ids to the current task, upstream or
