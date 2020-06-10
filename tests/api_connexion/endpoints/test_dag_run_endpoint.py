@@ -37,8 +37,8 @@ class TestDagRunEndpoint(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
-        self.now = '2020-06-11T18:12:50.773601+00:00'
-        self.now2 = '2020-06-12T18:12:50.773601+00:00'
+        self.now = '2020-06-11T18:00:00+00:00'
+        self.now2 = '2020-06-12T18:00:00+00:00'
         clear_db_runs()
 
     def tearDown(self) -> None:
@@ -52,7 +52,7 @@ class TestDagRunEndpoint(unittest.TestCase):
             execution_date=timezone.parse(self.now),
             start_date=timezone.parse(self.now),
             external_trigger=True,
-            state=state
+            state=state,
         )
         dagrun_model_2 = DagRun(
             dag_id='TEST_DAG_ID',
@@ -73,7 +73,6 @@ class TestDeleteDagRun(TestDagRunEndpoint):
 
 
 class TestGetDagRun(TestDagRunEndpoint):
-
     @provide_session
     def test_should_response_200(self, session):
         dagrun_model = DagRun(
@@ -101,25 +100,18 @@ class TestGetDagRun(TestDagRunEndpoint):
                 'external_trigger': True,
                 'start_date': self.now,
                 'conf': {},
-            }
+            },
         )
 
     def test_should_response_404(self):
         response = self.client.get("api/v1/dags/invalid-id/dagRuns/invalid-id")
         assert response.status_code == 404
         self.assertEqual(
-            {
-                'detail': None,
-                'status': 404,
-                'title': 'DAGRun not found',
-                'type': 'about:blank'
-            },
-            response.json
+            {'detail': None, 'status': 404, 'title': 'DAGRun not found', 'type': 'about:blank'}, response.json
         )
 
 
 class TestGetDagRuns(TestDagRunEndpoint):
-
     @provide_session
     def test_should_response_200(self, session):
         dagruns = self._create_test_dag_run()
@@ -152,10 +144,10 @@ class TestGetDagRuns(TestDagRunEndpoint):
                         'external_trigger': True,
                         'start_date': self.now,
                         'conf': {},
-                    }
+                    },
                 ],
-                "total_entries": 2
-            }
+                "total_entries": 2,
+            },
         )
 
     @provide_session
@@ -190,10 +182,10 @@ class TestGetDagRuns(TestDagRunEndpoint):
                         'external_trigger': True,
                         'start_date': self.now,
                         'conf': {},
-                    }
+                    },
                 ],
-                "total_entries": 2
-            }
+                "total_entries": 2,
+            },
         )
 
 
@@ -229,10 +221,7 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
             ),
             ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=1&offset=5", ["TEST_DAG_RUN_ID6"]),
             ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=1&offset=1", ["TEST_DAG_RUN_ID2"]),
-            (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?limit=2&offset=2",
-                ["TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],
-            ),
+            ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=2&offset=2", ["TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],),
         ]
     )
     @provide_session
@@ -275,27 +264,29 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
 
 
 class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
-
     @parameterized.expand(
         [
-            ("api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18:12:50.773888+00:00",
-             ["TEST_DAG_RUN_ID8", "TEST_DAG_RUN_ID9"]
-             ),
-            ("api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-11T18:12:50.773601+00:00",
-             ["TEST_DAG_RUN_ID0"]
-             ),
-            ("api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-15T18:12:50.773777+00:00"
-             "&start_date_gte=2020-06-12T18:12:50.773654+00:00",
-             ["TEST_DAG_RUN_ID2", "TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"]
-             ),
-            ("api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte=2020-06-13T18:12:50.773696+00:00",
-             ["TEST_DAG_RUN_ID0", "TEST_DAG_RUN_ID1", "TEST_DAG_RUN_ID2"]
-             ),
-            ("api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-16T18:12:50.773812+00:00",
-             ["TEST_DAG_RUN_ID6", "TEST_DAG_RUN_ID7", "TEST_DAG_RUN_ID8",
-              "TEST_DAG_RUN_ID9"]
-             ),
-
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18:00:00+00:00",
+                ["TEST_DAG_RUN_ID8", "TEST_DAG_RUN_ID9"],
+            ),
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-11T18:00:00+00:00",
+                ["TEST_DAG_RUN_ID0"],
+            ),
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-15T18:00:00+00:00"
+                "&start_date_gte=2020-06-12T18:00:00+00:00",
+                ["TEST_DAG_RUN_ID2", "TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],
+            ),
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte=2020-06-13T18:00:00+00:00",
+                ["TEST_DAG_RUN_ID0", "TEST_DAG_RUN_ID1", "TEST_DAG_RUN_ID2"],
+            ),
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-16T18:00:00+00:00",
+                ["TEST_DAG_RUN_ID6", "TEST_DAG_RUN_ID7", "TEST_DAG_RUN_ID8", "TEST_DAG_RUN_ID9"],
+            ),
         ]
     )
     @provide_session
@@ -311,11 +302,18 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
         self.assertEqual(dag_run_ids, expected_dag_run_ids)
 
     def _create_dag_runs(self):
-        dates = ['2020-06-10T18:12:50.773491+00:00', '2020-06-11T18:12:50.773601+00:00',
-                 '2020-06-12T18:12:50.773654+00:00', '2020-06-13T18:12:50.773696+00:00',
-                 '2020-06-14T18:12:50.773735+00:00', '2020-06-15T18:12:50.773777+00:00',
-                 '2020-06-16T18:12:50.773812+00:00', '2020-06-17T18:12:50.773849+00:00',
-                 '2020-06-18T18:12:50.773888+00:00', '2020-06-19T18:12:50.773931+00:00']
+        dates = [
+            '2020-06-10T18:00:00+00:00',
+            '2020-06-11T18:00:00+00:00',
+            '2020-06-12T18:00:00+00:00',
+            '2020-06-13T18:00:00+00:00',
+            '2020-06-14T18:00:00+00:00',
+            '2020-06-15T18:00:00+00:00',
+            '2020-06-16T18:00:00+00:00',
+            '2020-06-17T18:00:00+00:00',
+            '2020-06-18T18:00:00+00:00',
+            '2020-06-19T18:00:00+00:00',
+        ]
 
         return [
             DagRun(
@@ -325,25 +323,26 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
                 execution_date=timezone.parse(dates[i]),
                 start_date=timezone.parse(dates[i]),
                 external_trigger=True,
-                state='success'
+                state='success',
             )
             for i in range(len(dates))
         ]
 
 
 class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
-
     @parameterized.expand(
-        [(f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
-          f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
-          []
-          ),
-         (f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
-          f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
-          ["TEST_DAG_RUN_ID_1"]
-          ),
-
-         ]
+        [
+            (
+                f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
+                f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
+                [],
+            ),
+            (
+                f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
+                f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
+                ["TEST_DAG_RUN_ID_1"],
+            ),
+        ]
     )
     @provide_session
     def test_end_date_gte_lte(self, url, expected_dag_run_ids, session):

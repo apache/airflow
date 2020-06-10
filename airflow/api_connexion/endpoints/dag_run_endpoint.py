@@ -55,19 +55,12 @@ def get_dag_runs(dag_id, session):
     """
     offset = request.args.get(parameters.page_offset, 0)
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
-
     start_date_gte = request.args.get(parameters.filter_start_date_gte, None)
-
     start_date_lte = request.args.get(parameters.filter_start_date_lte, None)
-
     execution_date_gte = request.args.get(parameters.filter_execution_date_gte, None)
-
     execution_date_lte = request.args.get(parameters.filter_execution_date_lte, None)
-
     end_date_gte = request.args.get(parameters.filter_end_date_gte, None)
-
     end_date_lte = request.args.get(parameters.filter_end_date_lte, None)
-
     query = session.query(DagRun)
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
@@ -75,7 +68,6 @@ def get_dag_runs(dag_id, session):
         query = query.filter(DagRun.dag_id == dag_id)
 
     # filter start date
-
     if start_date_gte:
         query = query.filter(DagRun.start_date >= timezone.parse(start_date_gte))
 
