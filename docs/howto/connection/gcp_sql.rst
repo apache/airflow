@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,27 +6,29 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
 
+
+
 Google Cloud SQL Connection
 ===========================
 
-The gcpcloudsql:// connection is used by
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator` to perform query
+The ``gcpcloudsql://`` connection is used by
+:class:`airflow.providers.google.cloud.operators.cloud_sql.CloudSQLExecuteQueryOperator` to perform query
 on a Google Cloud SQL database. Google Cloud SQL database can be either
 Postgres or MySQL, so this is a "meta" connection type. It introduces common schema
 for both MySQL and Postgres, including what kind of connectivity should be used.
 Google Cloud SQL supports connecting via public IP or via Cloud SQL Proxy.
 In the latter case the
-:class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook` uses
-:class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlProxyRunner` to automatically prepare
+:class:`~airflow.providers.google.cloud.operators.hooks.cloud_sql.CloudSQLHook` uses
+:class:`~airflow.providers.google.cloud.operators.hooks.CloudSqlProxyRunner` to automatically prepare
 and use temporary Postgres or MySQL connection that will use the proxy to connect
 (either via TCP or UNIX socket.
 
@@ -50,7 +52,7 @@ Extra (optional)
     connection.
 
     Details of all the parameters supported in extra field can be found in
-    :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook`
+    :class:`~airflow.providers.google.cloud.operators.hooks.cloud_sql.CloudSQLHook`.
 
     Example "extras" field:
 
@@ -65,7 +67,7 @@ Extra (optional)
           "sql_proxy_use_tcp": false
        }
 
-    When specifying the connection as URI (in AIRFLOW_CONN_* variable), you should specify
+    When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable), you should specify
     it following the standard syntax of DB connection, where extras are passed as
     parameters of the URI. Note that all components of the URI should be URL-encoded.
 
@@ -73,4 +75,4 @@ Extra (optional)
 
     .. code-block:: bash
 
-        gcpcloudsql://user:XXXXXXXXX@1.1.1.1:3306/mydb?database_type=mysql&project_id=example-project&location=europe-west1&instance=testinstance&use_proxy=True&sql_proxy_use_tcp=False
+        export AIRFLOW_CONN_GOOGLE_CLOUD_SQL_DEFAULT='gcpcloudsql://user:XXXXXXXXX@1.1.1.1:3306/mydb?database_type=mysql&project_id=example-project&location=europe-west1&instance=testinstance&use_proxy=True&sql_proxy_use_tcp=False'

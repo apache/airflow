@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,18 +17,16 @@
 # under the License.
 
 """Example DAG demonstrating the usage of XComs."""
-
-import airflow
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
+from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': airflow.utils.dates.days_ago(2),
-    'provide_context': True,
+    'start_date': days_ago(2),
 }
 
-dag = DAG('example_xcom', schedule_interval="@once", default_args=args)
+dag = DAG('example_xcom', schedule_interval="@once", default_args=args, tags=['example'])
 
 value_1 = [1, 2, 3]
 value_2 = {'a': 'b'}
@@ -40,7 +37,7 @@ def push(**kwargs):
     kwargs['ti'].xcom_push(key='value from pusher 1', value=value_1)
 
 
-def push_by_returning():
+def push_by_returning(**kwargs):
     """Pushes an XCom without a specific target, just by returning it"""
     return value_2
 
@@ -51,15 +48,20 @@ def puller(**kwargs):
 
     # get value_1
     pulled_value_1 = ti.xcom_pull(key=None, task_ids='push')
-    assert pulled_value_1 == value_1
+    if pulled_value_1 != value_1:
+        raise ValueError(f'The two values differ {pulled_value_1} and {value_1}')
 
     # get value_2
     pulled_value_2 = ti.xcom_pull(task_ids='push_by_returning')
-    assert pulled_value_2 == value_2
+    if pulled_value_2 != value_2:
+        raise ValueError(f'The two values differ {pulled_value_2} and {value_2}')
 
     # get both value_1 and value_2
     pulled_value_1, pulled_value_2 = ti.xcom_pull(key=None, task_ids=['push', 'push_by_returning'])
-    assert (pulled_value_1, pulled_value_2) == (value_1, value_2)
+    if pulled_value_1 != value_1:
+        raise ValueError(f'The two values differ {pulled_value_1} and {value_1}')
+    if pulled_value_2 != value_2:
+        raise ValueError(f'The two values differ {pulled_value_2} and {value_2}')
 
 
 push1 = PythonOperator(

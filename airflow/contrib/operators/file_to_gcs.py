@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,67 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+"""
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.local_to_gcs`.
+"""
 
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+import warnings
+
+from airflow.providers.google.cloud.operators.local_to_gcs import LocalFilesystemToGCSOperator
+
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.local_to_gcs`,",
+    DeprecationWarning, stacklevel=2
+)
 
 
-class FileToGoogleCloudStorageOperator(BaseOperator):
+class FileToGoogleCloudStorageOperator(LocalFilesystemToGCSOperator):
     """
-    Uploads a file to Google Cloud Storage.
-    Optionally can compress the file for upload.
-
-    :param src: Path to the local file. (templated)
-    :type src: str
-    :param dst: Destination path within the specified bucket. (templated)
-    :type dst: str
-    :param bucket: The bucket to upload to. (templated)
-    :type bucket: str
-    :param google_cloud_storage_conn_id: The Airflow connection ID to upload with
-    :type google_cloud_storage_conn_id: str
-    :param mime_type: The mime-type string
-    :type mime_type: str
-    :param delegate_to: The account to impersonate, if any
-    :type delegate_to: str
-    :param gzip: Allows for file to be compressed and uploaded as gzip
-    :type gzip: bool
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.local_to_gcs.LocalFilesystemToGCSOperator`.
     """
-    template_fields = ('src', 'dst', 'bucket')
 
-    @apply_defaults
-    def __init__(self,
-                 src,
-                 dst,
-                 bucket,
-                 google_cloud_storage_conn_id='google_cloud_default',
-                 mime_type='application/octet-stream',
-                 delegate_to=None,
-                 gzip=False,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        self.src = src
-        self.dst = dst
-        self.bucket = bucket
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
-        self.mime_type = mime_type
-        self.delegate_to = delegate_to
-        self.gzip = gzip
-
-    def execute(self, context):
-        """
-        Uploads the file to Google cloud storage
-        """
-        hook = GoogleCloudStorageHook(
-            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-            delegate_to=self.delegate_to)
-
-        hook.upload(
-            bucket_name=self.bucket,
-            object_name=self.dst,
-            mime_type=self.mime_type,
-            filename=self.src,
-            gzip=self.gzip,
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.google.cloud.operators.local_to_gcs.LocalFilesystemToGCSOperator`.""",
+            DeprecationWarning, stacklevel=2
         )
+        super().__init__(*args, **kwargs)

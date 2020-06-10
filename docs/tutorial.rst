@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 
 Tutorial
@@ -28,63 +30,10 @@ Example Pipeline definition
 Here is an example of a basic pipeline definition. Do not worry if this looks
 complicated, a line by line explanation follows below.
 
-.. code:: python
-
-    """
-    Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
-    """
-    from airflow import DAG
-    from airflow.operators.bash_operator import BashOperator
-    from datetime import datetime, timedelta
-
-
-    default_args = {
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
-        # 'queue': 'bash_queue',
-        # 'pool': 'backfill',
-        # 'priority_weight': 10,
-        # 'end_date': datetime(2016, 1, 1),
-    }
-
-    dag = DAG('tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
-
-    # t1, t2 and t3 are examples of tasks created by instantiating operators
-    t1 = BashOperator(
-        task_id='print_date',
-        bash_command='date',
-        dag=dag)
-
-    t2 = BashOperator(
-        task_id='sleep',
-        bash_command='sleep 5',
-        retries=3,
-        dag=dag)
-
-    templated_command = """
-        {% for i in range(5) %}
-            echo "{{ ds }}"
-            echo "{{ macros.ds_add(ds, 7)}}"
-            echo "{{ params.my_param }}"
-        {% endfor %}
-    """
-
-    t3 = BashOperator(
-        task_id='templated',
-        bash_command=templated_command,
-        params={'my_param': 'Parameter I passed in'},
-        dag=dag)
-
-    t2.set_upstream(t1)
-    t3.set_upstream(t1)
-
+.. exampleinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :start-after: [START tutorial]
+    :end-before: [END tutorial]
 
 It's a DAG definition file
 --------------------------
@@ -111,13 +60,10 @@ Importing Modules
 An Airflow pipeline is just a Python script that happens to define an
 Airflow DAG object. Let's start by importing the libraries we will need.
 
-.. code:: python
-
-    # The DAG object; we'll need this to instantiate a DAG
-    from airflow import DAG
-
-    # Operators; we need this to operate!
-    from airflow.operators.bash_operator import BashOperator
+.. exampleinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :start-after: [START import_module]
+    :end-before: [END import_module]
 
 Default Arguments
 -----------------
@@ -126,24 +72,10 @@ explicitly pass a set of arguments to each task's constructor
 (which would become redundant), or (better!) we can define a dictionary
 of default parameters that we can use when creating tasks.
 
-.. code:: python
-
-    from datetime import datetime, timedelta
-
-    default_args = {
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
-        # 'queue': 'bash_queue',
-        # 'pool': 'backfill',
-        # 'priority_weight': 10,
-        # 'end_date': datetime(2016, 1, 1),
-    }
+.. exampleinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :start-after: [START default_args]
+    :end-before: [END default_args]
 
 For more information about the BaseOperator's parameters and what they do,
 refer to the :py:class:`airflow.models.BaseOperator` documentation.
@@ -161,10 +93,10 @@ that defines the ``dag_id``, which serves as a unique identifier for your DAG.
 We also pass the default argument dictionary that we just defined and
 define a ``schedule_interval`` of 1 day for the DAG.
 
-.. code:: python
-
-    dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
+.. exampleinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :start-after: [START instantiate_dag]
+    :end-before: [END instantiate_dag]
 
 Tasks
 -----
@@ -172,18 +104,10 @@ Tasks are generated when instantiating operator objects. An object
 instantiated from an operator is called a constructor. The first argument
 ``task_id`` acts as a unique identifier for the task.
 
-.. code:: python
-
-    t1 = BashOperator(
-        task_id='print_date',
-        bash_command='date',
-        dag=dag)
-
-    t2 = BashOperator(
-        task_id='sleep',
-        bash_command='sleep 5',
-        retries=3,
-        dag=dag)
+.. exampleinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :start-after: [START basic_task]
+    :end-before: [END basic_task]
 
 Notice how we pass a mix of operator specific arguments (``bash_command``) and
 an argument common to all operators (``retries``) inherited
@@ -215,21 +139,10 @@ this feature exists, get you familiar with double curly brackets, and
 point to the most common template variable: ``{{ ds }}`` (today's "date
 stamp").
 
-.. code:: python
-
-    templated_command = """
-        {% for i in range(5) %}
-            echo "{{ ds }}"
-            echo "{{ macros.ds_add(ds, 7) }}"
-            echo "{{ params.my_param }}"
-        {% endfor %}
-    """
-
-    t3 = BashOperator(
-        task_id='templated',
-        bash_command=templated_command,
-        params={'my_param': 'Parameter I passed in'},
-        dag=dag)
+.. exampleinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :start-after: [START jinja_template]
+    :end-before: [END jinja_template]
 
 Notice that the ``templated_command`` contains code logic in ``{% %}`` blocks,
 references parameters like ``{{ ds }}``, calls a function as in
@@ -260,11 +173,22 @@ regarding custom filters have a look at the
 `Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
 
 For more information on the variables and macros that can be referenced
-in templates, make sure to read through the :doc:`macros`
+in templates, make sure to read through the :doc:`macros-ref`
+
+Adding DAG and Tasks documentation
+----------------------------------
+We can add documentation for DAG or each single task. DAG documentation only support
+markdown so far and task documentation support plain text, markdown, reStructuredText,
+json, yaml
+
+.. exampleinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :start-after: [START documentation]
+    :end-before: [END documentation]
 
 Setting up Dependencies
 -----------------------
-We have tasks `t1`, `t2` and `t3` that do not depend on each other. Here's a few ways
+We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
 you can define dependencies between them:
 
 .. code:: python
@@ -304,63 +228,12 @@ Recap
 Alright, so we have a pretty basic DAG. At this point your code should look
 something like this:
 
-.. code:: python
+.. exampleinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :start-after: [START tutorial]
+    :end-before: [END tutorial]
 
-    """
-    Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
-    """
-    from airflow import DAG
-    from airflow.operators.bash_operator import BashOperator
-    from datetime import datetime, timedelta
-
-
-    default_args = {
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
-        # 'queue': 'bash_queue',
-        # 'pool': 'backfill',
-        # 'priority_weight': 10,
-        # 'end_date': datetime(2016, 1, 1),
-    }
-
-    dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
-
-    # t1, t2 and t3 are examples of tasks created by instantiating operators
-    t1 = BashOperator(
-        task_id='print_date',
-        bash_command='date',
-        dag=dag)
-
-    t2 = BashOperator(
-        task_id='sleep',
-        bash_command='sleep 5',
-        retries=3,
-        dag=dag)
-
-    templated_command = """
-        {% for i in range(5) %}
-            echo "{{ ds }}"
-            echo "{{ macros.ds_add(ds, 7)}}"
-            echo "{{ params.my_param }}"
-        {% endfor %}
-    """
-
-    t3 = BashOperator(
-        task_id='templated',
-        bash_command=templated_command,
-        params={'my_param': 'Parameter I passed in'},
-        dag=dag)
-
-    t2.set_upstream(t1)
-    t3.set_upstream(t1)
+.. _testing:
 
 Testing
 --------
@@ -389,31 +262,36 @@ Let's run a few commands to validate this script further.
 
 .. code-block:: bash
 
+    # initialize the database tables
+    airflow db init
+
     # print the list of active DAGs
-    airflow list_dags
+    airflow dags list
 
     # prints the list of tasks in the "tutorial" DAG
-    airflow list_tasks tutorial
+    airflow tasks list tutorial
 
     # prints the hierarchy of tasks in the "tutorial" DAG
-    airflow list_tasks tutorial --tree
+    airflow tasks list tutorial --tree
 
 
 Testing
 '''''''
-Let's test by running the actual task instances on a specific date. The
-date specified in this context is an ``execution_date``, which simulates the
-scheduler running your task or dag at a specific date + time:
+Let's test by running the actual task instances for a specific date. The
+date specified in this context is called ``execution_date``. This is the
+*logical* date, which simulates the scheduler running your task or dag at
+a specific date and time, even though it *physically* will run now (
+or as soon as its dependencies are met).
 
 .. code-block:: bash
 
     # command layout: command subcommand dag_id task_id date
 
     # testing print_date
-    airflow test tutorial print_date 2015-06-01
+    airflow tasks test tutorial print_date 2015-06-01
 
     # testing sleep
-    airflow test tutorial sleep 2015-06-01
+    airflow tasks test tutorial sleep 2015-06-01
 
 Now remember what we did with templating earlier? See how this template
 gets rendered and executed by running this command:
@@ -421,15 +299,20 @@ gets rendered and executed by running this command:
 .. code-block:: bash
 
     # testing templated
-    airflow test tutorial templated 2015-06-01
+    airflow tasks test tutorial templated 2015-06-01
 
 This should result in displaying a verbose log of events and ultimately
 running your bash command and printing the result.
 
-Note that the ``airflow test`` command runs task instances locally, outputs
+Note that the ``airflow tasks test`` command runs task instances locally, outputs
 their log to stdout (on screen), doesn't bother with dependencies, and
 doesn't communicate state (running, success, failed, ...) to the database.
 It simply allows testing a single task instance.
+
+The same applies to ``airflow dags test [dag_id] [execution_date]``, but on a DAG level. It performs a single
+DAG run of the given DAG id. While it does take task dependencies into account, no state is registered in the
+database. It is convenient for locally testing a full run of your DAG, given that e.g. if one of your tasks
+expects data at some location, it is available.
 
 Backfill
 ''''''''
@@ -440,8 +323,16 @@ to track the progress. ``airflow webserver`` will start a web server if you
 are interested in tracking the progress visually as your backfill progresses.
 
 Note that if you use ``depends_on_past=True``, individual task instances
-will depend on the success of the preceding task instance, except for the
-start_date specified itself, for which this dependency is disregarded.
+will depend on the success of their previous task instance (that is, previous
+according to ``execution_date``). Task instances with ``execution_date==start_date``
+will disregard this dependency because there would be no
+past task instances created for them.
+
+You may also want to consider ``wait_for_downstream=True`` when using ``depends_on_past=True``.
+While ``depends_on_past=True`` causes a task instance to depend on the success
+of its previous task_instance, ``wait_for_downstream=True`` will cause a task instance
+to also wait for all task instances *immediately downstream* of the previous
+task instance to succeed.
 
 The date range in this context is a ``start_date`` and optionally an ``end_date``,
 which are used to populate the run schedule with task instances from this dag.
@@ -452,7 +343,7 @@ which are used to populate the run schedule with task instances from this dag.
     # airflow webserver --debug &
 
     # start your backfill on a date range
-    airflow backfill tutorial -s 2015-06-01 -e 2015-06-07
+    airflow dags backfill tutorial -s 2015-06-01 -e 2015-06-07
 
 What's Next?
 -------------
@@ -462,11 +353,14 @@ running against it should get it to get triggered and run every day.
 
 Here's a few things you might want to do next:
 
-* Take an in-depth tour of the UI - click all the things!
-* Keep reading the docs! Especially the sections on:
+.. seealso::
+    - Read the :ref:`Concepts page<concepts>` for detailed explanation
+      of Airflow concepts such as DAGs, Tasks, Operators, etc.
+    - Take an in-depth tour of the UI - click all the things!
+    - Keep reading the docs!
 
-    * Command line interface
-    * Operators
-    * Macros
-
-* Write your first pipeline!
+      - Review the :doc:`how-to guides<howto/index>`, which include a guide to writing your own operator
+      - Review the :ref:`Command Line Interface Reference<cli>`
+      - Review the :ref:`List of operators <pythonapi:operators>`
+      - Review the :ref:`Macros reference<macros>`
+    - Write your first pipeline!

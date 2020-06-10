@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,9 +17,13 @@
 # under the License.
 """Authentication backend that denies all requests"""
 from functools import wraps
+from typing import Optional
+
 from flask import Response
 
-CLIENT_AUTH = None
+from airflow.api.auth.backend.default import ClientAuthProtocol
+
+CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
 
 
 def init_app(_):

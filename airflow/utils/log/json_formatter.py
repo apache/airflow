@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,17 +20,10 @@
 json_formatter module stores all related to ElasticSearch specific logger classes
 """
 
-import logging
 import json
+import logging
 
-
-def merge_dicts(dict1, dict2):
-    """
-    Merge two dicts
-    """
-    merged = dict1.copy()
-    merged.update(dict2)
-    return merged
+from airflow.utils.helpers import merge_dicts
 
 
 class JSONFormatter(logging.Formatter):
@@ -40,7 +32,7 @@ class JSONFormatter(logging.Formatter):
     """
     # pylint: disable=too-many-arguments
     def __init__(self, fmt=None, datefmt=None, style='%', json_fields=None, extras=None):
-        super(JSONFormatter, self).__init__(fmt, datefmt, style)
+        super().__init__(fmt, datefmt, style)
         if extras is None:
             extras = {}
         if json_fields is None:
@@ -49,7 +41,7 @@ class JSONFormatter(logging.Formatter):
         self.extras = extras
 
     def format(self, record):
-        super(JSONFormatter, self).format(record)
+        super().format(record)
         record_dict = {label: getattr(record, label, None)
                        for label in self.json_fields}
         merged_record = merge_dicts(record_dict, self.extras)

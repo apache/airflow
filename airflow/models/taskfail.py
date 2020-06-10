@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Taskfail tracks the failed run durations of each task instance"""
 from sqlalchemy import Column, Index, Integer, String
 
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -31,8 +30,8 @@ class TaskFail(Base):
     __tablename__ = "task_fail"
 
     id = Column(Integer, primary_key=True)
-    task_id = Column(String(ID_LEN), nullable=False)
-    dag_id = Column(String(ID_LEN), nullable=False)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     execution_date = Column(UtcDateTime, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
@@ -50,6 +49,6 @@ class TaskFail(Base):
         self.start_date = start_date
         self.end_date = end_date
         if self.end_date and self.start_date:
-            self.duration = (self.end_date - self.start_date).total_seconds()
+            self.duration = int((self.end_date - self.start_date).total_seconds())
         else:
             self.duration = None

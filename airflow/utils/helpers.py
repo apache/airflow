@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,32 +16,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import errno
-
-import psutil
-
+import re
+import warnings
 from datetime import datetime
 from functools import reduce
-from collections import Iterable
-import os
-import re
-import signal
+from itertools import filterfalse, tee
+from typing import Any, Callable, Dict, Iterable, Optional
 
 from jinja2 import Template
 
-from airflow import configuration
 from airflow.exceptions import AirflowException
+from airflow.utils.module_loading import import_string
 
-# When killing processes, time to wait after issuing a SIGTERM before issuing a
-# SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
-    'core', 'KILLED_TASK_CLEANUP_TIME'
-)
-
-KEY_REGEX = re.compile(r'^[\w\-\.]+$')
+KEY_REGEX = re.compile(r'^[\w.-]+$')
 
 
 def validate_key(k, max_length=250):
+    """
+    Validates value used as a key.
+    """
     if not isinstance(k, str):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
@@ -56,24 +48,27 @@ def validate_key(k, max_length=250):
         return True
 
 
-def alchemy_to_dict(obj):
+def alchemy_to_dict(obj: Any) -> Optional[Dict]:
     """
     Transforms a SQLAlchemy model instance into a dictionary
     """
     if not obj:
         return None
-    d = {}
-    for c in obj.__table__.columns:
-        value = getattr(obj, c.name)
-        if type(value) == datetime:
+    output = {}
+    for col in obj.__table__.columns:
+        value = getattr(obj, col.name)
+        if isinstance(value, datetime):
             value = value.isoformat()
-        d[c.name] = value
-    return d
+        output[col.name] = value
+    return output
 
 
 def ask_yesno(question):
+    """
+    Helper to get yes / no answer from user.
+    """
     yes = {'yes', 'y'}
-    no = {'no', 'n'}
+    no = {'no', 'n'}  # pylint: disable=invalid-name
 
     done = False
     print(question)
@@ -85,18 +80,6 @@ def ask_yesno(question):
             return False
         else:
             print("Please respond by yes or no.")
-
-
-def is_in(obj, l):
-    """
-    Checks whether an object is one of the item in the list.
-    This is different from ``in`` because ``in`` uses __cmp__ when
-    present. Here we change based on the object itself
-    """
-    for item in l:
-        if item is obj:
-            return True
-    return False
 
 
 def is_container(obj):
@@ -149,177 +132,10 @@ def as_flattened_list(iterable):
     return [e for i in iterable for e in i]
 
 
-def chain(*tasks):
-    r"""
-    Given a number of tasks, builds a dependency chain.
-    Support mix airflow.models.BaseOperator and List[airflow.models.BaseOperator].
-    If you want to chain between two List[airflow.models.BaseOperator], have to
-    make sure they have same length.
-
-    chain(t1, [t2, t3], [t4, t5], t6)
-
-    is equivalent to
-
-      / -> t2 -> t4 \
-    t1               -> t6
-      \ -> t3 -> t5 /
-
-    t1.set_downstream(t2)
-    t1.set_downstream(t3)
-    t2.set_downstream(t4)
-    t3.set_downstream(t5)
-    t4.set_downstream(t6)
-    t5.set_downstream(t6)
-
-    :param tasks: List of tasks or List[airflow.models.BaseOperator] to set dependencies
-    :type tasks: List[airflow.models.BaseOperator] or airflow.models.BaseOperator
-    """
-    from airflow.models import BaseOperator
-
-    for index, up_task in enumerate(tasks[:-1]):
-        down_task = tasks[index + 1]
-        if isinstance(up_task, BaseOperator):
-            up_task.set_downstream(down_task)
-        elif isinstance(down_task, BaseOperator):
-            down_task.set_upstream(up_task)
-        else:
-            if not isinstance(up_task, Iterable) or not isinstance(down_task, Iterable):
-                raise TypeError(
-                    'Chain not supported between instances of {up_type} and {down_type}'.format(
-                        up_type=type(up_task), down_type=type(down_task)))
-            elif len(up_task) != len(down_task):
-                raise AirflowException(
-                    'Chain not supported different length Iterable but get {up_len} and {down_len}'.format(
-                        up_len=len(up_task), down_len=len(down_task)))
-            else:
-                for up, down in zip(up_task, down_task):
-                    up.set_downstream(down)
-
-
-def cross_downstream(from_tasks, to_tasks):
-    r"""
-    Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
-    E.g.: cross_downstream(from_tasks=[t1, t2, t3], to_tasks=[t4, t5, t6])
-    Is equivalent to:
-
-    t1 --> t4
-       \ /
-    t2 -X> t5
-       / \
-    t3 --> t6
-
-    t1.set_downstream(t4)
-    t1.set_downstream(t5)
-    t1.set_downstream(t6)
-    t2.set_downstream(t4)
-    t2.set_downstream(t5)
-    t2.set_downstream(t6)
-    t3.set_downstream(t4)
-    t3.set_downstream(t5)
-    t3.set_downstream(t6)
-
-    :param from_tasks: List of tasks to start from.
-    :type from_tasks: List[airflow.models.BaseOperator]
-    :param to_tasks: List of tasks to set as downstream dependencies.
-    :type to_tasks: List[airflow.models.BaseOperator]
-    """
-    for task in from_tasks:
-        task.set_downstream(to_tasks)
-
-
-def pprinttable(rows):
-    """Returns a pretty ascii table from tuples
-
-    If namedtuple are used, the table will have headers
-    """
-    if not rows:
-        return
-    if hasattr(rows[0], '_fields'):  # if namedtuple
-        headers = rows[0]._fields
-    else:
-        headers = ["col{}".format(i) for i in range(len(rows[0]))]
-    lens = [len(s) for s in headers]
-
-    for row in rows:
-        for i in range(len(rows[0])):
-            slenght = len("{}".format(row[i]))
-            if slenght > lens[i]:
-                lens[i] = slenght
-    formats = []
-    hformats = []
-    for i in range(len(rows[0])):
-        if isinstance(rows[0][i], int):
-            formats.append("%%%dd" % lens[i])
-        else:
-            formats.append("%%-%ds" % lens[i])
-        hformats.append("%%-%ds" % lens[i])
-    pattern = " | ".join(formats)
-    hpattern = " | ".join(hformats)
-    separator = "-+-".join(['-' * n for n in lens])
-    s = ""
-    s += separator + '\n'
-    s += (hpattern % tuple(headers)) + '\n'
-    s += separator + '\n'
-
-    def f(t):
-        return "{}".format(t) if isinstance(t, str) else t
-
-    for line in rows:
-        s += pattern % tuple(f(t) for t in line) + '\n'
-    s += separator + '\n'
-    return s
-
-
-def reap_process_group(pid, log, sig=signal.SIGTERM,
-                       timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
-    """
-    Tries really hard to terminate all children (including grandchildren). Will send
-    sig (SIGTERM) to the process group of pid. If any process is alive after timeout
-    a SIGKILL will be send.
-
-    :param log: log handler
-    :param pid: pid to kill
-    :param sig: signal type
-    :param timeout: how much time a process has to terminate
-    """
-
-    def on_terminate(p):
-        log.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
-
-    if pid == os.getpid():
-        raise RuntimeError("I refuse to kill myself")
-
-    parent = psutil.Process(pid)
-
-    children = parent.children(recursive=True)
-    children.append(parent)
-
-    try:
-        pg = os.getpgid(pid)
-    except OSError as err:
-        # Skip if not such process - we experience a race and it just terminated
-        if err.errno == errno.ESRCH:
-            return
-        raise
-
-    log.info("Sending %s to GPID %s", sig, pg)
-    os.killpg(os.getpgid(pid), sig)
-
-    gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
-
-    if alive:
-        for p in alive:
-            log.warn("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
-
-        os.killpg(os.getpgid(pid), signal.SIGKILL)
-
-        gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
-        if alive:
-            for p in alive:
-                log.error("Process %s (%s) could not be killed. Giving up.", p, p.pid)
-
-
 def parse_template_string(template_string):
+    """
+    Parses Jinja template string.
+    """
     if "{{" in template_string:  # jinja mode
         return None, Template(template_string)
     else:
@@ -346,3 +162,51 @@ def render_log_filename(ti, try_number, filename_template):
                                     task_id=ti.task_id,
                                     execution_date=ti.execution_date.isoformat(),
                                     try_number=try_number)
+
+
+def convert_camel_to_snake(camel_str):
+    """
+    Converts CamelCase to snake_case.
+    """
+    return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()
+
+
+def merge_dicts(dict1, dict2):
+    """
+    Merge two dicts recursively, returning new dict (input dict is not mutated).
+
+    Lists are not concatenated. Items in dict2 overwrite those also found in dict1.
+    """
+    merged = dict1.copy()
+    for k, v in dict2.items():
+        if k in merged and isinstance(v, dict):
+            merged[k] = merge_dicts(merged.get(k, {}), v)
+        else:
+            merged[k] = v
+    return merged
+
+
+def partition(pred: Callable, iterable: Iterable):
+    """
+    Use a predicate to partition entries into false entries and true entries
+    """
+    iter_1, iter_2 = tee(iterable)
+    return filterfalse(pred, iter_1), filter(pred, iter_2)
+
+
+def chain(*args, **kwargs):
+    """This module is deprecated. Please use `airflow.models.baseoperator.chain`."""
+    warnings.warn(
+        "This module is deprecated. Please use `airflow.models.baseoperator.chain`.",
+        DeprecationWarning, stacklevel=2
+    )
+    return import_string('airflow.models.baseoperator.chain')(*args, **kwargs)
+
+
+def cross_downstream(*args, **kwargs):
+    """This module is deprecated. Please use `airflow.models.baseoperator.cross_downstream`."""
+    warnings.warn(
+        "This module is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
+        DeprecationWarning, stacklevel=2
+    )
+    return import_string('airflow.models.baseoperator.cross_downstream')(*args, **kwargs)

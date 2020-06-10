@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,14 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import airflow
-from airflow.operators.bash_operator import BashOperator
-from airflow.models import DAG
+"""
+This dag tests performance of simple bash commands executed with Airflow.
+"""
 from datetime import timedelta
+
+from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
+from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': airflow.utils.dates.days_ago(3),
+    'start_date': days_ago(3),
 }
 
 dag = DAG(

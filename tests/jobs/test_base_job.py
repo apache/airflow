@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,83 +18,142 @@
 #
 
 import datetime
-import unittest
 
-from airflow import configuration
-from airflow.jobs import BaseJob
+from mock import ANY, Mock, patch
+from pytest import raises
+from sqlalchemy.exc import OperationalError
+
+from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.jobs.base_job import BaseJob
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.db import create_session
-
-configuration.load_test_config()
+from tests.test_utils.config import conf_vars
 
 
-class BaseJobTest(unittest.TestCase):
-    class TestJob(BaseJob):
-        __mapper_args__ = {
-            'polymorphic_identity': 'TestJob'
-        }
+class MockJob(BaseJob):
+    __mapper_args__ = {
+        'polymorphic_identity': 'MockJob'
+    }
 
-        def __init__(self, cb, **kwargs):
-            self.cb = cb
-            super().__init__(**kwargs)
+    def __init__(self, func, **kwargs):
+        self.func = func
+        super().__init__(**kwargs)
 
-        def _execute(self):
-            return self.cb()
+    def _execute(self):
+        return self.func()
 
+
+class TestBaseJob:
     def test_state_success(self):
-        job = self.TestJob(lambda: True)
+        job = MockJob(lambda: True)
         job.run()
 
-        self.assertEqual(job.state, State.SUCCESS)
-        self.assertIsNotNone(job.end_date)
+        assert job.state == State.SUCCESS
+        assert job.end_date is not None
 
     def test_state_sysexit(self):
         import sys
-        job = self.TestJob(lambda: sys.exit(0))
+        job = MockJob(lambda: sys.exit(0))
         job.run()
 
-        self.assertEqual(job.state, State.SUCCESS)
-        self.assertIsNotNone(job.end_date)
+        assert job.state == State.SUCCESS
+        assert job.end_date is not None
 
     def test_state_failed(self):
         def abort():
             raise RuntimeError("fail")
 
-        job = self.TestJob(abort)
-        with self.assertRaises(RuntimeError):
+        job = MockJob(abort)
+        with raises(RuntimeError):
             job.run()
 
-        self.assertEqual(job.state, State.FAILED)
-        self.assertIsNotNone(job.end_date)
+        assert job.state == State.FAILED
+        assert job.end_date is not None
 
     def test_most_recent_job(self):
-
         with create_session() as session:
-            old_job = self.TestJob(None, heartrate=10)
+            old_job = MockJob(None, heartrate=10)
             old_job.latest_heartbeat = old_job.latest_heartbeat - datetime.timedelta(seconds=20)
-            job = self.TestJob(None, heartrate=10)
+            job = MockJob(None, heartrate=10)
             session.add(job)
             session.add(old_job)
             session.flush()
 
-            self.assertEqual(
-                self.TestJob.most_recent_job(session=session),
-                job
-            )
+            assert MockJob.most_recent_job(session=session) == job
 
             session.rollback()
 
     def test_is_alive(self):
-        job = self.TestJob(None, heartrate=10, state=State.RUNNING)
-        self.assertTrue(job.is_alive())
+        job = MockJob(None, heartrate=10, state=State.RUNNING)
+        assert job.is_alive() is True
 
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=20)
-        self.assertTrue(job.is_alive())
+        assert job.is_alive() is True
 
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=21)
-        self.assertFalse(job.is_alive())
+        assert job.is_alive() is False
+
+        # test because .seconds was used before instead of total_seconds
+        # internal repr of datetime is (days, seconds)
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(days=1)
+        assert job.is_alive() is False
 
         job.state = State.SUCCESS
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
-        self.assertFalse(job.is_alive(), "Completed jobs even with recent heartbeat should not be alive")
+        assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
+
+    @patch('airflow.jobs.base_job.create_session')
+    def test_heartbeat_failed(self, mock_create_session):
+        when = timezone.utcnow() - datetime.timedelta(seconds=60)
+        with create_session() as session:
+            mock_session = Mock(spec_set=session, name="MockSession")
+            mock_create_session.return_value.__enter__.return_value = mock_session
+
+            job = MockJob(None, heartrate=10, state=State.RUNNING)
+            job.latest_heartbeat = when
+
+            mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
+
+            job.heartbeat()
+
+            assert job.latest_heartbeat == when, "attribute not updated when heartbeat fails"
+
+    @conf_vars({('scheduler', 'max_tis_per_query'): '100'})
+    @patch('airflow.jobs.base_job.ExecutorLoader.get_default_executor')
+    @patch('airflow.jobs.base_job.get_hostname')
+    @patch('airflow.jobs.base_job.getpass.getuser')
+    def test_essential_attr(self, mock_getuser, mock_hostname, mock_default_executor):
+        mock_sequential_executor = SequentialExecutor()
+        mock_hostname.return_value = "test_hostname"
+        mock_getuser.return_value = "testuser"
+        mock_default_executor.return_value = mock_sequential_executor
+
+        test_job = MockJob(None, heartrate=10, dag_id="example_dag", state=State.RUNNING)
+        assert test_job.executor_class == "SequentialExecutor"
+        assert test_job.heartrate == 10
+        assert test_job.dag_id == "example_dag"
+        assert test_job.hostname == "test_hostname"
+        assert test_job.max_tis_per_query == 100
+        assert test_job.unixname == "testuser"
+        assert test_job.state == "running"
+        assert test_job.executor == mock_sequential_executor
+
+    def test_heartbeat(self, frozen_sleep, monkeypatch):
+        monkeypatch.setattr('airflow.jobs.base_job.sleep', frozen_sleep)
+        with create_session() as session:
+            job = MockJob(None, heartrate=10)
+            job.latest_heartbeat = timezone.utcnow()
+            session.add(job)
+            session.commit()
+
+            hb_callback = Mock()
+            job.heartbeat_callback = hb_callback
+
+            job.heartbeat()
+
+            hb_callback.assert_called_once_with(session=ANY)
+
+            hb_callback.reset_mock()
+            job.heartbeat(only_if_necessary=True)
+            assert hb_callback.called is False

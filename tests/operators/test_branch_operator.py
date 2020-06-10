@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,15 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import datetime
+import unittest
 
-from airflow.models import TaskInstance as TI, DAG, DagRun
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.branch_operator import BaseBranchOperator
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
@@ -41,10 +41,10 @@ class ChooseBranchOneTwo(BaseBranchOperator):
         return ['branch_1', 'branch_2']
 
 
-class BranchOperatorTest(unittest.TestCase):
+class TestBranchOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(BranchOperatorTest, cls).setUpClass()
+        super().setUpClass()
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -132,7 +132,7 @@ class BranchOperatorTest(unittest.TestCase):
         self.dag.clear()
 
         dagrun = self.dag.create_dagrun(
-            run_id="manual__",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -158,7 +158,7 @@ class BranchOperatorTest(unittest.TestCase):
         self.dag.clear()
 
         dagrun = self.dag.create_dagrun(
-            run_id="manual__",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING

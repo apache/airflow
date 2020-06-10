@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,6 +28,7 @@ manifest = dict()  # type: Dict[str, str]
 def configure_manifest_files(app):
     """
     Loads the manifest file and register the `url_for_asset_` template tag.
+
     :param app:
     :return:
     """
@@ -55,7 +55,7 @@ def configure_manifest_files(app):
     parse_manifest_json()
 
     @app.context_processor
-    def get_url_for_asset():
+    def get_url_for_asset():  # pylint: disable=unused-variable
         """
         Template tag to return the asset URL.
         WebPack renders the assets after minification and modification

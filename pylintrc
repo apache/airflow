@@ -15,16 +15,11 @@
 
 [MASTER]
 
-# A comma-separated list of package or module names from where C extensions may
-# be loaded. Extensions are loading into the active Python interpreter and may
-# run arbitrary code.
-extension-pkg-whitelist=
-
-# Add files or directories to the blacklist. They should be base names, not
+# Add files or directories to the ignore list. They should be base names, not
 # paths.
 ignore=CVS
 
-# Add files or directories matching the regex patterns to the blacklist. The
+# Add files or directories matching the regex patterns to the ignore list. The
 # regex matches against base names, not paths.
 ignore-patterns=
 
@@ -43,7 +38,7 @@ limit-inference-results=100
 
 # List of plugins (as comma separated values of python modules names) to load,
 # usually to register additional checkers.
-load-plugins=
+load-plugins=tests.airflow_pylint.do_not_use_asserts
 
 # Pickle collected data for later comparisons.
 persistent=yes
@@ -91,7 +86,6 @@ disable=print-statement,
         file-ignored,
         suppressed-message,
         useless-suppression,
-        deprecated-pragma,
         use-symbolic-message-instead,
         apply-builtin,
         basestring-builtin,
@@ -140,18 +134,8 @@ disable=print-statement,
         invalid-str-codec,
         sys-max-int,
         bad-python3-import,
-        deprecated-string-function,
-        deprecated-str-translate-call,
-        deprecated-itertools-function,
-        deprecated-types-field,
         next-method-defined,
-        dict-items-not-iterating,
-        dict-keys-not-iterating,
-        dict-values-not-iterating,
-        deprecated-operator-function,
-        deprecated-urllib-function,
         xreadlines-attribute,
-        deprecated-sys-function,
         exception-escape,
         comprehension-escape,
         bad-continuation,  # Throws incorrect errors, see https://github.com/ambv/black/issues/48
@@ -162,12 +146,15 @@ disable=print-statement,
         no-else-return,  # deemed unnecessary
         no-else-raise,  # deemed unnecessary
         too-many-format-args,  # Pylint fails on multiline string format
+        too-many-lines,  # Pylint fails on too many lines and we have several cases of those
         cell-var-from-loop,  # Raises spurious errors
-        super-init-not-called,  # BasPH: ignored for now but should be fixed somewhere in the future
         arguments-differ,  # Doesn't always raise valid messages
         import-error,  # Requires installing Airflow environment in CI task which takes long, therefore ignored. Tests should fail anyways if deps are missing. Possibly un-ignore in the future if we ever use pre-built Docker images for CI.
         fixme,  # There should be a good reason for adding a TODO
-        pointless-statement  # Is raised on the bitshift operator. Could be disabled only on /example_dags after https://github.com/PyCQA/pylint/projects/1.
+        pointless-statement,  # Is raised on the bitshift operator. Could be disabled only on /example_dags after https://github.com/PyCQA/pylint/projects/1.
+        ungrouped-imports,  # Disabled to avoid conflict with isort import order rules, which is enabled in the project.
+        missing-module-docstring,
+        import-outside-toplevel,    # We import outside toplevel to avoid cyclic imports
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
@@ -283,13 +270,13 @@ ignore-on-opaque-inference=yes
 # List of class names for which member attributes should not be checked (useful
 # for classes with dynamically set attributes). This supports the use of
 # qualified names.
-ignored-classes=optparse.Values,thread._local,_thread._local
+ignored-classes=optparse.Values,thread._local,_thread._local,sqlalchemy.orm.scoping.scoped_session
 
 # List of module names for which member attributes should not be checked
 # (useful for modules/projects where namespaces are manipulated during runtime
 # and thus existing member attributes cannot be deduced by static analysis. It
 # supports qualified module names, as well as Unix pattern matching.
-ignored-modules=
+ignored-modules=alembic.op
 
 # Show a hint with possible names when a member name was not found. The aspect
 # of finding the hint is based on edit distance.
@@ -324,7 +311,7 @@ dummy-variables-rgx=_+$|(_[a-zA-Z0-9_]*[a-zA-Z0-9]+?$)|dummy|^ignored_|^unused_|
 
 # Argument names that match this expression will be ignored. Default to name
 # with leading underscore.
-ignored-argument-names=_.*|^ignored_|^unused_
+ignored-argument-names=_.*|^ignored_|^unused_|^kwargs|^args|^mock_.+
 
 # Tells whether we should check for unused import in __init__ files.
 init-import=no
@@ -446,8 +433,18 @@ good-names=e,
            i,
            j,
            k,
+           v, # Commonly used when iterating dict.items()
            _,
-           ti  # Commonly used in Airflow as shorthand for taskinstance
+           ti,  # Commonly used in Airflow as shorthand for taskinstance
+           op,  # Commonly used in Airflow as shorthand for operator
+           dr,  # Commonly used in Airflow as shorthand for dag run
+           f,   # Commonly used as shorthand for file
+           db,  # Commonly used as shorthand for database
+           df,  # Commonly used as shorthand for DataFrame
+           cm,  # Commonly used as shorthand for context manager
+           ds,  # Used in Airflow templates
+           ts,  # Used in Airflow templates
+           id   # Commonly used as shorthand for identifier
 
 # Include a hint for the correct naming format with invalid-name.
 include-naming-hint=no

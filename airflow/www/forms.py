@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,32 +16,79 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import Connection
-from airflow.utils import timezone
+import json
+from datetime import datetime as dt
+from operator import itemgetter
 
+import pendulum
+from flask_appbuilder.fieldwidgets import (
+    BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget,
+)
 from flask_appbuilder.forms import DynamicForm
-from flask_appbuilder.fieldwidgets import (BS3TextFieldWidget, BS3TextAreaFieldWidget,
-                                           BS3PasswordFieldWidget, Select2Widget,
-                                           DateTimePickerWidget)
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
+from wtforms import validators, widgets
+from wtforms.fields import (
+    BooleanField, Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
+)
 
-from wtforms import validators
-from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
-                            StringField, DateTimeField, BooleanField)
+from airflow.configuration import conf
+from airflow.models import Connection
+from airflow.utils import timezone
+from airflow.utils.types import DagRunType
+from airflow.www.validators import ValidJson
+from airflow.www.widgets import AirflowDateTimePickerWidget
+
+
+class DateTimeWithTimezoneField(Field):
+    """
+    A text field which stores a `datetime.datetime` matching a format.
+    """
+    widget = widgets.TextInput()
+
+    def __init__(self, label=None, validators=None, format='%Y-%m-%d %H:%M:%S%Z', **kwargs):
+        super(DateTimeWithTimezoneField, self).__init__(label, validators, **kwargs)
+        self.format = format
+
+    def _value(self):
+        if self.raw_data:
+            return ' '.join(self.raw_data)
+        else:
+            return self.data and self.data.strftime(self.format) or ''
+
+    def process_formdata(self, valuelist):
+        if valuelist:
+            date_str = ' '.join(valuelist)
+            try:
+                # Check if the datetime string is in the format without timezone, if so convert it to the
+                # default timezone
+                if len(date_str) == 19:
+                    parsed_datetime = dt.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+                    defualt_timezone = pendulum.timezone('UTC')
+                    tz = conf.get("core", "default_timezone")
+                    if tz == "system":
+                        defualt_timezone = pendulum.local_timezone()
+                    else:
+                        defualt_timezone = pendulum.timezone(tz)
+                    self.data = defualt_timezone.convert(parsed_datetime)
+                else:
+                    self.data = pendulum.parse(date_str)
+            except ValueError:
+                self.data = None
+                raise ValueError(self.gettext('Not a valid datetime value'))
 
 
 class DateTimeForm(FlaskForm):
     # Date filter form needed for task views
-    execution_date = DateTimeField(
-        "Execution date", widget=DateTimePickerWidget())
+    execution_date = DateTimeWithTimezoneField(
+        "Execution date", widget=AirflowDateTimePickerWidget())
 
 
 class DateTimeWithNumRunsForm(FlaskForm):
     # Date time and number of runs form for tree view, task duration
     # and landing times
-    base_date = DateTimeField(
-        "Anchor date", widget=DateTimePickerWidget(), default=timezone.utcnow())
+    base_date = DateTimeWithTimezoneField(
+        "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow())
     num_runs = SelectField("Number of runs", default=25, choices=(
         (5, "5"),
         (25, "25"),
@@ -62,24 +108,35 @@ class DagRunForm(DynamicForm):
         lazy_gettext('Dag Id'),
         validators=[validators.DataRequired()],
         widget=BS3TextFieldWidget())
-    start_date = DateTimeField(
+    start_date = DateTimeWithTimezoneField(
         lazy_gettext('Start Date'),
-        widget=DateTimePickerWidget())
-    end_date = DateTimeField(
+        widget=AirflowDateTimePickerWidget())
+    end_date = DateTimeWithTimezoneField(
         lazy_gettext('End Date'),
-        widget=DateTimePickerWidget())
+        widget=AirflowDateTimePickerWidget())
     run_id = StringField(
         lazy_gettext('Run Id'),
+        validators=[validators.DataRequired()],
         widget=BS3TextFieldWidget())
     state = SelectField(
         lazy_gettext('State'),
         choices=(('success', 'success'), ('running', 'running'), ('failed', 'failed'),),
         widget=Select2Widget())
-    execution_date = DateTimeField(
+    execution_date = DateTimeWithTimezoneField(
         lazy_gettext('Execution Date'),
-        widget=DateTimePickerWidget())
+        widget=AirflowDateTimePickerWidget())
     external_trigger = BooleanField(
         lazy_gettext('External Trigger'))
+    conf = TextAreaField(
+        lazy_gettext('Conf'),
+        validators=[ValidJson(), validators.Optional()],
+        widget=BS3TextAreaFieldWidget())
+
+    def populate_obj(self, item):
+        super().populate_obj(item)
+        item.run_type = DagRunType.from_run_id(item.run_id).value
+        if item.conf:
+            item.conf = json.loads(item.conf)
 
 
 class ConnectionForm(DynamicForm):
@@ -88,7 +145,7 @@ class ConnectionForm(DynamicForm):
         widget=BS3TextFieldWidget())
     conn_type = SelectField(
         lazy_gettext('Conn Type'),
-        choices=Connection._types,
+        choices=sorted(Connection._types, key=itemgetter(1)),
         widget=Select2Widget())
     host = StringField(
         lazy_gettext('Host'),
@@ -146,4 +203,42 @@ class ConnectionForm(DynamicForm):
         widget=BS3TextFieldWidget())
     extra__grpc__scopes = StringField(
         lazy_gettext('Scopes (comma separated)'),
+        widget=BS3TextFieldWidget())
+    extra__yandexcloud__service_account_json = PasswordField(
+        lazy_gettext('Service account auth JSON'),
+        widget=BS3PasswordFieldWidget(),
+        description='Service account auth JSON. Looks like '
+                    '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+                    'Will be used instead of OAuth token and SA JSON file path field if specified.',
+    )
+    extra__yandexcloud__service_account_json_path = StringField(
+        lazy_gettext('Service account auth JSON file path'),
+        widget=BS3TextFieldWidget(),
+        description='Service account auth JSON file path. File content looks like '
+                    '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+                    'Will be used instead of OAuth token if specified.',
+    )
+    extra__yandexcloud__oauth = PasswordField(
+        lazy_gettext('OAuth Token'),
+        widget=BS3PasswordFieldWidget(),
+        description='User account OAuth token. Either this or service account JSON must be specified.',
+    )
+    extra__yandexcloud__folder_id = StringField(
+        lazy_gettext('Default folder ID'),
+        widget=BS3TextFieldWidget(),
+        description='Optional. This folder will be used to create all new clusters and nodes by default',
+    )
+    extra__yandexcloud__public_ssh_key = StringField(
+        lazy_gettext('Public SSH key'),
+        widget=BS3TextFieldWidget(),
+        description='Optional. This key will be placed to all created Compute nodes'
+        'to let you have a root shell there',
+    )
+    extra__kubernetes__in_cluster = BooleanField(
+        lazy_gettext('In cluster configuration'))
+    extra__kubernetes__kube_config = StringField(
+        lazy_gettext('Kube config (JSON format)'),
+        widget=BS3TextFieldWidget())
+    extra__kubernetes__namespace = StringField(
+        lazy_gettext('Namespace'),
         widget=BS3TextFieldWidget())

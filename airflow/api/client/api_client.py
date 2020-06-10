@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -68,5 +67,14 @@ class Client:
         """Delete pool.
 
         :param name: pool name
+        """
+        raise NotImplementedError()
+
+    def get_lineage(self, dag_id: str, execution_date: str):
+        """
+        Return the lineage information for the dag on this execution date
+        :param dag_id:
+        :param execution_date:
+        :return:
         """
         raise NotImplementedError()

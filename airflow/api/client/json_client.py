@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -44,7 +43,7 @@ class Client(api_client.Client):
                 data = resp.json()
             except Exception:  # pylint: disable=broad-except
                 data = {}
-            raise IOError(data.get('error', 'Server error'))
+            raise OSError(data.get('error', 'Server error'))
 
         return resp.json()
 
@@ -93,3 +92,9 @@ class Client(api_client.Client):
         url = urljoin(self._api_base_url, endpoint)
         pool = self._request(url, method='DELETE')
         return pool['pool'], pool['slots'], pool['description']
+
+    def get_lineage(self, dag_id: str, execution_date: str):
+        endpoint = f"/api/experimental/lineage/{dag_id}/{execution_date}"
+        url = urljoin(self._api_base_url, endpoint)
+        data = self._request(url, method='GET')
+        return data['message']

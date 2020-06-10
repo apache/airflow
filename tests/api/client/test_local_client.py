@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,18 +18,18 @@
 
 import json
 import unittest
-
-from freezegun import freeze_time
 from unittest.mock import patch
 
-from airflow import AirflowException
-from airflow import models
+from freezegun import freeze_time
+
 from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
-from airflow.models import DagModel, DagBag
+from airflow.exceptions import AirflowException
+from airflow.models import DAG, DagBag, DagModel, DagRun, Pool
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_pools
 
 EXECDATE = timezone.utcnow()
@@ -42,7 +41,7 @@ class TestLocalClient(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestLocalClient, cls).setUpClass()
+        super().setUpClass()
         DagBag(example_bash_operator.__file__).get_dag("example_bash_operator").sync_to_db()
 
     def setUp(self):
@@ -54,10 +53,12 @@ class TestLocalClient(unittest.TestCase):
         clear_db_pools()
         super().tearDown()
 
-    @patch.object(models.DAG, 'create_dagrun')
+    @patch.object(DAG, 'create_dagrun')
     def test_trigger_dag(self, mock):
         test_dag_id = "example_bash_operator"
-        models.DagBag(include_examples=True)
+        run_id = DagRun.generate_run_id(DagRunType.MANUAL, EXECDATE_NOFRACTIONS)
+
+        DagBag(include_examples=True)
 
         # non existent
         with self.assertRaises(AirflowException):
@@ -66,7 +67,7 @@ class TestLocalClient(unittest.TestCase):
         with freeze_time(EXECDATE):
             # no execution date, execution date should be set automatically
             self.client.trigger_dag(dag_id=test_dag_id)
-            mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
+            mock.assert_called_once_with(run_id=run_id,
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=None,
@@ -75,7 +76,7 @@ class TestLocalClient(unittest.TestCase):
 
             # execution date with microseconds cutoff
             self.client.trigger_dag(dag_id=test_dag_id, execution_date=EXECDATE)
-            mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
+            mock.assert_called_once_with(run_id=run_id,
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=None,
@@ -83,9 +84,9 @@ class TestLocalClient(unittest.TestCase):
             mock.reset_mock()
 
             # run id
-            run_id = "my_run_id"
-            self.client.trigger_dag(dag_id=test_dag_id, run_id=run_id)
-            mock.assert_called_once_with(run_id=run_id,
+            custom_run_id = "my_run_id"
+            self.client.trigger_dag(dag_id=test_dag_id, run_id=custom_run_id)
+            mock.assert_called_once_with(run_id=custom_run_id,
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=None,
@@ -95,7 +96,7 @@ class TestLocalClient(unittest.TestCase):
             # test conf
             conf = '{"name": "John"}'
             self.client.trigger_dag(dag_id=test_dag_id, conf=conf)
-            mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
+            mock.assert_called_once_with(run_id=run_id,
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
                                          conf=json.loads(conf),
@@ -131,12 +132,12 @@ class TestLocalClient(unittest.TestCase):
         pool = self.client.create_pool(name='foo', slots=1, description='')
         self.assertEqual(pool, ('foo', 1, ''))
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 2)
+            self.assertEqual(session.query(Pool).count(), 2)
 
     def test_delete_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 2)
+            self.assertEqual(session.query(Pool).count(), 2)
         self.client.delete_pool(name='foo')
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 1)
+            self.assertEqual(session.query(Pool).count(), 1)

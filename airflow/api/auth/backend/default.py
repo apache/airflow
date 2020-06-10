@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,8 +17,23 @@
 # under the License.
 """Default authentication backend - everything is allowed"""
 from functools import wraps
+from typing import Optional
 
-CLIENT_AUTH = None
+from airflow.typing_compat import Protocol
+
+
+class ClientAuthProtocol(Protocol):
+    """
+    Protocol type for CLIENT_AUTH
+    """
+    def handle_response(self, _):
+        """
+        CLIENT_AUTH.handle_response method
+        """
+        ...
+
+
+CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
 
 
 def init_app(_):

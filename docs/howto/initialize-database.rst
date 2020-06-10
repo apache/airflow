@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Initializing a Database Backend
 ===============================
@@ -26,12 +28,21 @@ library, you should be able to use any database backend supported as a
 SqlAlchemy backend. We recommend using **MySQL** or **Postgres**.
 
 .. note:: We rely on more strict ANSI SQL settings for MySQL in order to have
-   sane defaults. Make sure to have specified `explicit_defaults_for_timestamp=1`
-   in your my.cnf under `[mysqld]`
+   sane defaults. Make sure to have specified ``explicit_defaults_for_timestamp=1``
+   in your my.cnf under ``[mysqld]``
+
+.. note:: If you decide to use **MySQL**, we recommend using the ``mysqlclient``
+   driver and specifying it in your SqlAlchemy connection string. (I.e.,
+   ``mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>``.)
+   But we also support the ``mysql-connector-python`` driver (I.e.,
+   ``mysql+mysqlconnector://<user>:<password>@<host>[:<port>]/<dbname>``.) which lets you connect through SSL
+   without any cert options provided. However if you want to use other drivers visit the
+   `SqlAlchemy docs <https://docs.sqlalchemy.org/en/13/dialects/mysql.html>`_ for more information regarding download
+   and setup of the SqlAlchemy connection.
 
 .. note:: If you decide to use **Postgres**, we recommend using the ``psycopg2``
    driver and specifying it in your SqlAlchemy connection string. (I.e.,
-   ``postgresql+psycopg2://<user>:<password>@<host>/<db>``.) 
+   ``postgresql+psycopg2://<user>:<password>@<host>/<db>``.)
    Also note that since SqlAlchemy does not expose a way to target a
    specific schema in the Postgres connection URI, you may
    want to set a default schema for your role with a
@@ -46,4 +57,4 @@ instances locally.
 .. code-block:: bash
 
     # initialize the database
-    airflow initdb
+    airflow db init

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,25 +15,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from unittest import mock
+import os
 import unittest
+from unittest import mock
 
-from airflow import DAG
-from airflow import configuration
+import pytest
+
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DAG
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.timezone import datetime
-
-configuration.load_test_config()
+from tests.providers.apache.hive import TestHiveEnvironment
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_sql_dag'
 
 
-class SqlSensorTests(unittest.TestCase):
+class TestSqlSensor(TestHiveEnvironment):
 
     def setUp(self):
-        configuration.load_test_config()
+        super().setUp()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -42,7 +42,7 @@ class SqlSensorTests(unittest.TestCase):
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
     def test_unsupported_conn_type(self):
-        t = SqlSensor(
+        op = SqlSensor(
             task_id='sql_sensor_check',
             conn_id='redis_default',
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
@@ -50,51 +50,49 @@ class SqlSensorTests(unittest.TestCase):
         )
 
         with self.assertRaises(AirflowException):
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless(
-        'mysql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a mysql test")
+    @pytest.mark.backend("mysql")
     def test_sql_sensor_mysql(self):
-        t1 = SqlSensor(
-            task_id='sql_sensor_check',
+        op1 = SqlSensor(
+            task_id='sql_sensor_check_1',
             conn_id='mysql_default',
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
             dag=self.dag
         )
-        t1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        t2 = SqlSensor(
-            task_id='sql_sensor_check',
+        op2 = SqlSensor(
+            task_id='sql_sensor_check_2',
             conn_id='mysql_default',
             sql="SELECT count(%s) FROM INFORMATION_SCHEMA.TABLES",
             parameters=["table_name"],
             dag=self.dag
         )
-        t2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless(
-        'postgresql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a postgres test")
+    @pytest.mark.backend("postgres")
     def test_sql_sensor_postgres(self):
-        t1 = SqlSensor(
-            task_id='sql_sensor_check',
+        op1 = SqlSensor(
+            task_id='sql_sensor_check_1',
             conn_id='postgres_default',
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
             dag=self.dag
         )
-        t1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        t2 = SqlSensor(
-            task_id='sql_sensor_check',
+        op2 = SqlSensor(
+            task_id='sql_sensor_check_2',
             conn_id='postgres_default',
             sql="SELECT count(%s) FROM INFORMATION_SCHEMA.TABLES",
             parameters=["table_name"],
             dag=self.dag
         )
-        t2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @mock.patch('airflow.sensors.sql_sensor.BaseHook')
     def test_sql_sensor_postgres_poke(self, mock_hook):
-        t = SqlSensor(
+        op = SqlSensor(
             task_id='sql_sensor_check',
             conn_id='postgres_default',
             sql="SELECT 1",
@@ -104,7 +102,159 @@ class SqlSensorTests(unittest.TestCase):
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
-        self.assertFalse(t.poke(None))
+        self.assertFalse(op.poke(None))
+
+        mock_get_records.return_value = [[None]]
+        self.assertFalse(op.poke(None))
+
+        mock_get_records.return_value = [['None']]
+        self.assertTrue(op.poke(None))
+
+        mock_get_records.return_value = [[0.0]]
+        self.assertFalse(op.poke(None))
+
+        mock_get_records.return_value = [[0]]
+        self.assertFalse(op.poke(None))
+
+        mock_get_records.return_value = [['0']]
+        self.assertTrue(op.poke(None))
 
         mock_get_records.return_value = [['1']]
-        self.assertTrue(t.poke(None))
+        self.assertTrue(op.poke(None))
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_fail_on_empty(self, mock_hook):
+        op = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            fail_on_empty=True
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = []
+        self.assertRaises(AirflowException, op.poke, None)
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_success(self, mock_hook):
+        op = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            success=lambda x: x in [1]
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = []
+        self.assertFalse(op.poke(None))
+
+        mock_get_records.return_value = [[1]]
+        self.assertTrue(op.poke(None))
+
+        mock_get_records.return_value = [['1']]
+        self.assertFalse(op.poke(None))
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_failure(self, mock_hook):
+        op = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            failure=lambda x: x in [1]
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = []
+        self.assertFalse(op.poke(None))
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, op.poke, None)
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_failure_success(self, mock_hook):
+        op = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            failure=lambda x: x in [1],
+            success=lambda x: x in [2]
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = []
+        self.assertFalse(op.poke(None))
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, op.poke, None)
+
+        mock_get_records.return_value = [[2]]
+        self.assertTrue(op.poke(None))
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_failure_success_same(self, mock_hook):
+        op = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            failure=lambda x: x in [1],
+            success=lambda x: x in [1]
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = []
+        self.assertFalse(op.poke(None))
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, op.poke, None)
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_invalid_failure(self, mock_hook):
+        op = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            failure=[1],
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, op.poke, None)
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke_invalid_success(self, mock_hook):
+        op = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            success=[1],
+        )
+
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = [[1]]
+        self.assertRaises(AirflowException, op.poke, None)
+
+    @unittest.skipIf(
+        'AIRFLOW_RUNALL_TESTS' not in os.environ,
+        "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+    def test_sql_sensor_presto(self):
+        op = SqlSensor(
+            task_id='hdfs_sensor_check',
+            conn_id='presto_default',
+            sql="SELECT 'x' FROM airflow.static_babynames LIMIT 1;",
+            dag=self.dag)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,56 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google BigQuery table delete operator.
-"""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigquery`."""
 
-from airflow.contrib.hooks.bigquery_hook import BigQueryHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+import warnings
+
+from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteTableOperator
+
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigquery`.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
-class BigQueryTableDeleteOperator(BaseOperator):
+class BigQueryTableDeleteOperator(BigQueryDeleteTableOperator):
     """
-    Deletes BigQuery tables
-
-    :param deletion_dataset_table: A dotted
-        ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
-        will be deleted. (templated)
-    :type deletion_dataset_table: str
-    :param bigquery_conn_id: reference to a specific BigQuery hook.
-    :type bigquery_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
-    :type delegate_to: str
-    :param ignore_if_missing: if True, then return success even if the
-        requested table does not exist.
-    :type ignore_if_missing: bool
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator`.
     """
-    template_fields = ('deletion_dataset_table',)
-    ui_color = '#ffd1dc'
 
-    @apply_defaults
-    def __init__(self,
-                 deletion_dataset_table,
-                 bigquery_conn_id='google_cloud_default',
-                 delegate_to=None,
-                 ignore_if_missing=False,
-                 *args,
-                 **kwargs):
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(*args, **kwargs)
-        self.deletion_dataset_table = deletion_dataset_table
-        self.bigquery_conn_id = bigquery_conn_id
-        self.delegate_to = delegate_to
-        self.ignore_if_missing = ignore_if_missing
-
-    def execute(self, context):
-        self.log.info('Deleting: %s', self.deletion_dataset_table)
-        hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                            delegate_to=self.delegate_to)
-        conn = hook.get_conn()
-        cursor = conn.cursor()
-        cursor.run_table_delete(
-            deletion_dataset_table=self.deletion_dataset_table,
-            ignore_if_missing=self.ignore_if_missing)

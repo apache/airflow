@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,38 +22,52 @@ Authentication is implemented using flask_login and different environments can
 implement their own login mechanisms by providing an `airflow_login` module
 in their PYTHONPATH. airflow_login should be based off the
 `airflow.www.login`
+
+isort:skip_file
 """
 
+# flake8: noqa: F401
+# pylint: disable=wrong-import-position
+import sys
+from typing import Callable, Optional
+
+from airflow import settings
 from airflow import version
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 __version__ = version.version
 
-import sys
-
-# flake8: noqa: F401
-from airflow import settings, configuration as conf
-from airflow.models import DAG
-from airflow.exceptions import AirflowException
+__all__ = ['__version__', 'login', 'DAG']
 
 settings.initialize()
 
-login = None
+login: Optional[Callable] = None
+
+PY37 = sys.version_info >= (3, 7)
+PY38 = sys.version_info >= (3, 8)
 
 
-class AirflowMacroPlugin:
-    def __init__(self, namespace):
-        self.namespace = namespace
+def __getattr__(name):
+    # PEP-562: Lazy loaded attributes on python modules
+    if name == "DAG":
+        from airflow.models.dag import DAG  # pylint: disable=redefined-outer-name
+        return DAG
+    if name == "AirflowException":
+        from airflow.exceptions import AirflowException  # pylint: disable=redefined-outer-name
+        return AirflowException
+    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
-from airflow import operators  # noqa: E402
-from airflow import sensors  # noqa: E402
-from airflow import hooks  # noqa: E402
-from airflow import executors  # noqa: E402
-from airflow import macros  # noqa: E402
+# This is never executed, but tricks static analyzers (PyDev, PyCharm,
+# pylint, etc.) into knowing the types of these symbols, and what
+# they contain.
+STATICA_HACK = True
+globals()['kcah_acitats'[::-1].upper()] = False
+if STATICA_HACK:  # pragma: no cover
+    from airflow.models.dag import DAG
+    from airflow.exceptions import AirflowException
 
-operators._integrate_plugins()
-sensors._integrate_plugins()  # noqa: E402
-hooks._integrate_plugins()
-executors._integrate_plugins()
-macros._integrate_plugins()
+
+if not PY37:
+    from pep562 import Pep562
+
+    Pep562(__name__)

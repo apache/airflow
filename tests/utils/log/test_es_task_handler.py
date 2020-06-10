@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,21 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 import os
 import shutil
 import unittest
+from unittest import mock
 
 import elasticsearch
-from unittest import mock
 import pendulum
 
-from airflow import configuration
-from airflow.models import TaskInstance, DAG
+from airflow.configuration import conf
+from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.log.es_task_handler import ElasticsearchTaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+
 from .elasticmock import elasticmock
 
 
@@ -61,7 +62,9 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.json_fields
         )
 
-        self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}])
+        self.es = elasticsearch.Elasticsearch(  # pylint: disable=invalid-name
+            hosts=[{'host': 'localhost', 'port': 9200}]
+        )
         self.index_name = 'test_index'
         self.doc_type = 'log'
         self.test_message = 'some random stuff'
@@ -71,7 +74,6 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es.index(index=self.index_name, doc_type=self.doc_type,
                       body=self.body, id=1)
 
-        configuration.load_test_config()
         self.dag = DAG(self.DAG_ID, start_date=self.EXECUTION_DATE)
         task = DummyOperator(task_id=self.TASK_ID, dag=self.dag)
         self.ti = TaskInstance(task=task, execution_date=self.EXECUTION_DATE)
@@ -84,6 +86,25 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
 
     def test_client(self):
         self.assertIsInstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
+
+    def test_client_with_config(self):
+        es_conf = dict(conf.getsection("elasticsearch_configs"))
+        expected_dict = {
+            "use_ssl": False,
+            "verify_certs": True,
+        }
+        self.assertDictEqual(es_conf, expected_dict)
+        # ensure creating with configs does not fail
+        ElasticsearchTaskHandler(
+            self.local_log_location,
+            self.filename_template,
+            self.log_id_template,
+            self.end_of_log_mark,
+            self.write_stdout,
+            self.json_format,
+            self.json_fields,
+            es_conf
+        )
 
     def test_read(self):
         ts = pendulum.now()
@@ -232,13 +253,28 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.set_context(self.ti)
         self.assertTrue(self.es_task_handler.mark_end_on_close)
 
+    def test_set_context_w_json_format_and_write_stdout(self):
+        self.es_task_handler.formatter = mock.MagicMock()
+        self.es_task_handler.formatter._fmt = mock.MagicMock()
+        self.es_task_handler.formatter._fmt.find = mock.MagicMock(return_value=1)
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+        self.es_task_handler.set_context(self.ti)
+
     def test_close(self):
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.es_task_handler.formatter = formatter
+
         self.es_task_handler.set_context(self.ti)
         self.es_task_handler.close()
         with open(os.path.join(self.local_log_location,
                                self.filename_template.format(try_number=1)),
                   'r') as log_file:
-            self.assertIn(self.end_of_log_mark, log_file.read())
+            # end_of_log_mark may contain characters like '\n' which is needed to
+            # have the log uploaded but will not be stored in elasticsearch.
+            # so apply the strip() to log_file.read()
+            log_line = log_file.read().strip()
+            self.assertEqual(self.end_of_log_mark.strip(), log_line)
         self.assertTrue(self.es_task_handler.closed)
 
     def test_close_no_mark_end(self):
@@ -309,5 +345,5 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertEqual(expected_log_id, log_id)
 
     def test_clean_execution_date(self):
-        clean_execution_date = self.es_task_handler._clean_execution_date(self.EXECUTION_DATE)
-        self.assertEqual('2016_01_01T00_12_00_000000', clean_execution_date)
+        clean_execution_date = self.es_task_handler._clean_execution_date(datetime(2016, 7, 8, 9, 10, 11, 12))
+        self.assertEqual('2016_07_08T09_10_11_000012', clean_execution_date)

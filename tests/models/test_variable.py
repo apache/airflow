@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,66 +19,141 @@
 import unittest
 
 from cryptography.fernet import Fernet
-from unittest.mock import patch
+from parameterized import parameterized
 
 from airflow import settings
-from airflow.models import crypto, Variable
+from airflow.models import Variable, crypto
+from tests.test_utils.config import conf_vars
 
 
-class VariableTest(unittest.TestCase):
+class TestVariable(unittest.TestCase):
     def setUp(self):
         crypto._fernet = None
 
     def tearDown(self):
         crypto._fernet = None
 
-    @patch('airflow.configuration.conf.get')
-    def test_variable_no_encryption(self, mock_get):
+    @conf_vars({('core', 'fernet_key'): ''})
+    def test_variable_no_encryption(self):
         """
         Test variables without encryption
         """
-        mock_get.return_value = ''
         Variable.set('key', 'value')
         session = settings.Session()
         test_var = session.query(Variable).filter(Variable.key == 'key').one()
         self.assertFalse(test_var.is_encrypted)
         self.assertEqual(test_var.val, 'value')
 
-    @patch('airflow.configuration.conf.get')
-    def test_variable_with_encryption(self, mock_get):
+    @conf_vars({('core', 'fernet_key'): Fernet.generate_key().decode()})
+    def test_variable_with_encryption(self):
         """
         Test variables with encryption
         """
-        mock_get.return_value = Fernet.generate_key().decode()
         Variable.set('key', 'value')
         session = settings.Session()
         test_var = session.query(Variable).filter(Variable.key == 'key').one()
         self.assertTrue(test_var.is_encrypted)
         self.assertEqual(test_var.val, 'value')
 
-    @patch('airflow.configuration.conf.get')
-    def test_var_with_encryption_rotate_fernet_key(self, mock_get):
+    @parameterized.expand([
+        'value',
+        ''
+    ])
+    def test_var_with_encryption_rotate_fernet_key(self, test_value):
         """
         Tests rotating encrypted variables.
         """
         key1 = Fernet.generate_key()
         key2 = Fernet.generate_key()
 
-        mock_get.return_value = key1.decode()
-        Variable.set('key', 'value')
-        session = settings.Session()
-        test_var = session.query(Variable).filter(Variable.key == 'key').one()
-        self.assertTrue(test_var.is_encrypted)
-        self.assertEqual(test_var.val, 'value')
-        self.assertEqual(Fernet(key1).decrypt(test_var._val.encode()), b'value')
+        with conf_vars({('core', 'fernet_key'): key1.decode()}):
+            Variable.set('key', test_value)
+            session = settings.Session()
+            test_var = session.query(Variable).filter(Variable.key == 'key').one()
+            self.assertTrue(test_var.is_encrypted)
+            self.assertEqual(test_var.val, test_value)
+            self.assertEqual(Fernet(key1).decrypt(test_var._val.encode()), test_value.encode())
 
         # Test decrypt of old value with new key
-        mock_get.return_value = ','.join([key2.decode(), key1.decode()])
-        crypto._fernet = None
-        self.assertEqual(test_var.val, 'value')
+        with conf_vars({('core', 'fernet_key'): ','.join([key2.decode(), key1.decode()])}):
+            crypto._fernet = None
+            self.assertEqual(test_var.val, test_value)
 
-        # Test decrypt of new value with new key
-        test_var.rotate_fernet_key()
-        self.assertTrue(test_var.is_encrypted)
-        self.assertEqual(test_var.val, 'value')
-        self.assertEqual(Fernet(key2).decrypt(test_var._val.encode()), b'value')
+            # Test decrypt of new value with new key
+            test_var.rotate_fernet_key()
+            self.assertTrue(test_var.is_encrypted)
+            self.assertEqual(test_var.val, test_value)
+            self.assertEqual(Fernet(key2).decrypt(test_var._val.encode()), test_value.encode())
+
+    def test_variable_set_get_round_trip(self):
+        Variable.set("tested_var_set_id", "Monday morning breakfast")
+        self.assertEqual("Monday morning breakfast", Variable.get("tested_var_set_id"))
+
+    def test_variable_set_get_round_trip_json(self):
+        value = {"a": 17, "b": 47}
+        Variable.set("tested_var_set_id", value, serialize_json=True)
+        self.assertEqual(value, Variable.get("tested_var_set_id", deserialize_json=True))
+
+    def test_variable_set_existing_value_to_blank(self):
+        test_value = 'Some value'
+        test_key = 'test_key'
+        Variable.set(test_key, test_value)
+        Variable.set(test_key, '')
+        self.assertEqual('', Variable.get('test_key'))
+
+    def test_get_non_existing_var_should_return_default(self):
+        default_value = "some default val"
+        self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
+                                                     default_var=default_value))
+
+    def test_get_non_existing_var_should_raise_key_error(self):
+        with self.assertRaises(KeyError):
+            Variable.get("thisIdDoesNotExist")
+
+    def test_get_non_existing_var_with_none_default_should_return_none(self):
+        self.assertIsNone(Variable.get("thisIdDoesNotExist", default_var=None))
+
+    def test_get_non_existing_var_should_not_deserialize_json_default(self):
+        default_value = "}{ this is a non JSON default }{"
+        self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
+                                                     default_var=default_value,
+                                                     deserialize_json=True))
+
+    def test_variable_setdefault_round_trip(self):
+        key = "tested_var_setdefault_1_id"
+        value = "Monday morning breakfast in Paris"
+        Variable.setdefault(key, value)
+        self.assertEqual(value, Variable.get(key))
+
+    def test_variable_setdefault_round_trip_json(self):
+        key = "tested_var_setdefault_2_id"
+        value = {"city": 'Paris', "Happiness": True}
+        Variable.setdefault(key, value, deserialize_json=True)
+        self.assertEqual(value, Variable.get(key, deserialize_json=True))
+
+    def test_variable_setdefault_existing_json(self):
+        key = "tested_var_setdefault_2_id"
+        value = {"city": 'Paris', "Happiness": True}
+        Variable.set(key, value, serialize_json=True)
+        val = Variable.setdefault(key, value, deserialize_json=True)
+        # Check the returned value, and the stored value are handled correctly.
+        self.assertEqual(value, val)
+        self.assertEqual(value, Variable.get(key, deserialize_json=True))
+
+    def test_variable_delete(self):
+        key = "tested_var_delete"
+        value = "to be deleted"
+
+        # No-op if the variable doesn't exist
+        Variable.delete(key)
+        with self.assertRaises(KeyError):
+            Variable.get(key)
+
+        # Set the variable
+        Variable.set(key, value)
+        self.assertEqual(value, Variable.get(key))
+
+        # Delete the variable
+        Variable.delete(key)
+        with self.assertRaises(KeyError):
+            Variable.get(key)

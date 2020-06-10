@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,13 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
 import unittest
 import warnings
+from unittest import mock
 
-from airflow.operators.bash_operator import BashOperator
-from airflow.utils.log.logging_mixin import set_context, StreamLogWriter
-from tests.test_utils.reset_warning_registry import reset_warning_registry
+from airflow.utils.log.logging_mixin import StreamLogWriter, set_context
 
 
 class TestLoggingMixin(unittest.TestCase):
@@ -31,27 +28,6 @@ class TestLoggingMixin(unittest.TestCase):
         warnings.filterwarnings(
             action='always'
         )
-
-    def test_log(self):
-        op = BashOperator(
-            task_id='task-1',
-            bash_command='exit 0'
-        )
-        with reset_warning_registry():
-            with warnings.catch_warnings(record=True) as w:
-                # Set to always, because the warning may have been thrown before
-                # Trigger the warning
-                op.logger.info('Some arbitrary line')
-
-                self.assertEqual(len(w), 1)
-
-                warning = w[0]
-                self.assertTrue(issubclass(warning.category, DeprecationWarning))
-                self.assertEqual(
-                    'Initializing logger for airflow.operators.bash_operator.BashOperator'
-                    ' using logger(), which will be replaced by .log in Airflow 2.0',
-                    str(warning.message)
-                )
 
     def test_set_context(self):
         handler1 = mock.MagicMock()
@@ -67,8 +43,8 @@ class TestLoggingMixin(unittest.TestCase):
         value = "test"
         set_context(log, value)
 
-        handler1.set_context.assert_called_with(value)
-        handler2.set_context.assert_called_with(value)
+        handler1.set_context.assert_called_once_with(value)
+        handler2.set_context.assert_called_once_with(value)
 
     def tearDown(self):
         warnings.resetwarnings()
@@ -119,4 +95,4 @@ class TestStreamLogWriter(unittest.TestCase):
         logger.log = mock.MagicMock()
 
         log = StreamLogWriter(logger, 1)
-        self.assertFalse(log.encoding)
+        self.assertIsNone(log.encoding)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,11 +17,13 @@
 # under the License.
 
 import logging
-import pandas as pd
 import sys
 
-from airflow import configuration, settings
-from airflow.jobs import SchedulerJob
+import pandas as pd
+
+from airflow import settings
+from airflow.configuration import conf
+from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -61,6 +62,10 @@ class SchedulerMetricsJob(SchedulerJob):
     __mapper_args__ = {
         'polymorphic_identity': 'SchedulerMetricsJob'
     }
+
+    def __init__(self, dag_ids, subdir, max_runtime_secs):
+        self.max_runtime_secs = max_runtime_secs
+        super().__init__(dag_ids=dag_ids, subdir=subdir)
 
     def print_stats(self):
         """
@@ -104,7 +109,7 @@ class SchedulerMetricsJob(SchedulerJob):
         """
         Override the scheduler heartbeat to determine when the test is complete
         """
-        super(SchedulerMetricsJob, self).heartbeat()
+        super().heartbeat()
         session = settings.Session()
         # Get all the relevant task instances
         TI = TaskInstance
@@ -125,7 +130,7 @@ class SchedulerMetricsJob(SchedulerJob):
 
         if (len(successful_tis) == num_task_instances or
                 (timezone.utcnow() - self.start_date).total_seconds() >
-                MAX_RUNTIME_SECS):
+                self.max_runtime_secs):
             if len(successful_tis) == num_task_instances:
                 self.log.info("All tasks processed! Printing stats.")
             else:
@@ -144,7 +149,7 @@ def clear_dag_runs():
         DagRun.dag_id.in_(DAG_IDS),
     ).all()
     for dr in drs:
-        logging.info('Deleting DagRun :: {}'.format(dr))
+        logging.info('Deleting DagRun :: %s', dr)
         session.delete(dr)
 
 
@@ -161,7 +166,7 @@ def clear_dag_task_instances():
         .all()
     )
     for ti in tis:
-        logging.info('Deleting TaskInstance :: {}'.format(ti))
+        logging.info('Deleting TaskInstance :: %s', ti)
         session.delete(ti)
     session.commit()
 
@@ -171,33 +176,40 @@ def set_dags_paused_state(is_paused):
     Toggle the pause state of the DAGs in the test.
     """
     session = settings.Session()
-    dms = session.query(DagModel).filter(
+    dag_models = session.query(DagModel).filter(
         DagModel.dag_id.in_(DAG_IDS))
-    for dm in dms:
-        logging.info('Setting DAG :: {} is_paused={}'.format(dm, is_paused))
-        dm.is_paused = is_paused
+    for dag_model in dag_models:
+        logging.info('Setting DAG :: %s is_paused=%s', dag_model, is_paused)
+        dag_model.is_paused = is_paused
     session.commit()
 
 
 def main():
-    global MAX_RUNTIME_SECS
+    '''
+    Run the scheduler metrics jobs after loading the test configuration and
+    clearing old instances of dags and tasks
+    '''
+    max_runtime_secs = MAX_RUNTIME_SECS
     if len(sys.argv) > 1:
         try:
             max_runtime_secs = int(sys.argv[1])
             if max_runtime_secs < 1:
                 raise ValueError
-            MAX_RUNTIME_SECS = max_runtime_secs
         except ValueError:
             logging.error('Specify a positive integer for timeout.')
             sys.exit(1)
 
-    configuration.load_test_config()
+    conf.load_test_config()
 
     set_dags_paused_state(False)
     clear_dag_runs()
     clear_dag_task_instances()
 
-    job = SchedulerMetricsJob(dag_ids=DAG_IDS, subdir=SUBDIR)
+    job = SchedulerMetricsJob(
+        dag_ids=DAG_IDS,
+        subdir=SUBDIR,
+        max_runtime_secs=max_runtime_secs)
+
     job.run()
 
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,7 +17,7 @@
 # under the License.
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
@@ -57,15 +56,15 @@ class PrevDagrunDep(BaseTIDep):
                     reason="This task instance was the first task instance for its task.")
                 return
         else:
-            dr = ti.get_dagrun()
-            last_dagrun = dr.get_previous_dagrun() if dr else None
+            dr = ti.get_dagrun(session=session)
+            last_dagrun = dr.get_previous_dagrun(session=session) if dr else None
 
             if not last_dagrun:
                 yield self._passing_status(
                     reason="This task instance was the first task instance for its task.")
                 return
 
-        previous_ti = ti.previous_ti
+        previous_ti = ti.get_previous_ti(session=session)
         if not previous_ti:
             yield self._failing_status(
                 reason="depends_on_past is true for this task's DAG, but the previous "
@@ -83,4 +82,4 @@ class PrevDagrunDep(BaseTIDep):
                 not previous_ti.are_dependents_done(session=session)):
             yield self._failing_status(
                 reason="The tasks downstream of the previous task instance {0} haven't "
-                       "completed.".format(previous_ti))
+                       "completed (and wait_for_downstream is True).".format(previous_ti))

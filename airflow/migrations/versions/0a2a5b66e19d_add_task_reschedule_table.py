@@ -22,11 +22,13 @@ Revises: 9635ae0956e7
 Create Date: 2018-06-17 22:50:00.053620
 
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
+from airflow.models.base import COLLATION_ARGS
+
 revision = '0a2a5b66e19d'
 down_revision = '9635ae0956e7'
 branch_labels = None
@@ -64,8 +66,8 @@ def upgrade():
     op.create_table(
         TABLE_NAME,
         sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('task_id', sa.String(length=250), nullable=False),
-        sa.Column('dag_id', sa.String(length=250), nullable=False),
+        sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+        sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
         # use explicit server_default=None otherwise mysql implies defaults for first timestamp column
         sa.Column('execution_date', timestamp(), nullable=False, server_default=None),
         sa.Column('try_number', sa.Integer(), nullable=False),

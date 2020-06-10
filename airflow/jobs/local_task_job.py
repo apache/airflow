@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,21 +19,24 @@
 
 import os
 import signal
-import time
+from typing import Optional
 
-from sqlalchemy.exc import OperationalError
-
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.jobs.base_job import BaseJob
+from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
-from airflow.utils.db import provide_session
+from airflow.utils import timezone
 from airflow.utils.net import get_hostname
-from airflow.jobs.base_job import BaseJob
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
 class LocalTaskJob(BaseJob):
+    """
+    LocalTaskJob runs a single task instance.
+    """
 
     __mapper_args__ = {
         'polymorphic_identity': 'LocalTaskJob'
@@ -42,14 +44,14 @@ class LocalTaskJob(BaseJob):
 
     def __init__(
             self,
-            task_instance,
-            ignore_all_deps=False,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            mark_success=False,
-            pickle_id=None,
-            pool=None,
+            task_instance: TaskInstance,
+            ignore_all_deps: bool = False,
+            ignore_depends_on_past: bool = False,
+            ignore_task_deps: bool = False,
+            ignore_ti_state: bool = False,
+            mark_success: bool = False,
+            pickle_id: Optional[str] = None,
+            pool: Optional[str] = None,
             *args, **kwargs):
         self.task_instance = task_instance
         self.dag_id = task_instance.dag_id
@@ -60,6 +62,7 @@ class LocalTaskJob(BaseJob):
         self.pool = pool
         self.pickle_id = pickle_id
         self.mark_success = mark_success
+        self.task_runner = None
 
         # terminating state is used so that a job don't try to
         # terminate multiple times
@@ -77,7 +80,7 @@ class LocalTaskJob(BaseJob):
             raise AirflowException("LocalTaskJob received SIGTERM signal")
         signal.signal(signal.SIGTERM, signal_handler)
 
-        if not self.task_instance._check_and_change_state_before_execution(
+        if not self.task_instance.check_and_change_state_before_execution(
                 mark_success=self.mark_success,
                 ignore_all_deps=self.ignore_all_deps,
                 ignore_depends_on_past=self.ignore_depends_on_past,
@@ -91,7 +94,6 @@ class LocalTaskJob(BaseJob):
         try:
             self.task_runner.start()
 
-            last_heartbeat_time = time.time()
             heartbeat_time_limit = conf.getint('scheduler',
                                                'scheduler_zombie_task_threshold')
             while True:
@@ -101,25 +103,15 @@ class LocalTaskJob(BaseJob):
                     self.log.info("Task exited with return code %s", return_code)
                     return
 
-                # Periodically heartbeat so that the scheduler doesn't think this
-                # is a zombie
-                try:
-                    self.heartbeat()
-                    last_heartbeat_time = time.time()
-                except OperationalError:
-                    Stats.incr('local_task_job_heartbeat_failure', 1, 1)
-                    self.log.exception(
-                        "Exception while trying to heartbeat! Sleeping for %s seconds",
-                        self.heartrate
-                    )
-                    time.sleep(self.heartrate)
+                self.heartbeat()
 
                 # If it's been too long since we've heartbeat, then it's possible that
                 # the scheduler rescheduled this task, so kill launched processes.
-                time_since_last_heartbeat = time.time() - last_heartbeat_time
+                # This can only really happen if the worker can't read the DB for a long time
+                time_since_last_heartbeat = (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                 if time_since_last_heartbeat > heartbeat_time_limit:
                     Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
-                    self.log.error("Heartbeat time limited exceeded!")
+                    self.log.error("Heartbeat time limit exceeded!")
                     raise AirflowException("Time since last heartbeat({:.2f}s) "
                                            "exceeded limit ({}s)."
                                            .format(time_since_last_heartbeat,
@@ -143,18 +135,18 @@ class LocalTaskJob(BaseJob):
         self.task_instance.refresh_from_db()
         ti = self.task_instance
 
-        fqdn = get_hostname()
-        same_hostname = fqdn == ti.hostname
-        same_process = ti.pid == os.getpid()
-
         if ti.state == State.RUNNING:
+            fqdn = get_hostname()
+            same_hostname = fqdn == ti.hostname
             if not same_hostname:
                 self.log.warning("The recorded hostname %s "
                                  "does not match this instance's hostname "
                                  "%s", ti.hostname, fqdn)
                 raise AirflowException("Hostname of job runner does not match")
-            elif not same_process:
-                current_pid = os.getpid()
+
+            current_pid = os.getpid()
+            same_process = ti.pid == current_pid
+            if not same_process:
                 self.log.warning("Recorded pid %s does not match "
                                  "the current pid %s", ti.pid, current_pid)
                 raise AirflowException("PID of job runner does not match")
@@ -167,5 +159,11 @@ class LocalTaskJob(BaseJob):
                 "Taking the poison pill.",
                 ti.state
             )
+            if ti.state == State.FAILED and ti.task.on_failure_callback:
+                context = ti.get_template_context()
+                ti.task.on_failure_callback(context)
+            if ti.state == State.SUCCESS and ti.task.on_success_callback:
+                context = ti.get_template_context()
+                ti.task.on_success_callback(context)
             self.task_runner.terminate()
             self.terminating = True

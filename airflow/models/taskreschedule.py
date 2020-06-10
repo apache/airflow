@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""TaskReschedule tracks rescheduled task instances."""
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc
-
-from airflow.models.base import Base, ID_LEN
-from airflow.utils.db import provide_session
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -32,8 +31,8 @@ class TaskReschedule(Base):
     __tablename__ = "task_reschedule"
 
     id = Column(Integer, primary_key=True)
-    task_id = Column(String(ID_LEN), nullable=False)
-    dag_id = Column(String(ID_LEN), nullable=False)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     execution_date = Column(UtcDateTime, nullable=False)
     try_number = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime, nullable=False)
@@ -64,22 +63,41 @@ class TaskReschedule(Base):
 
     @staticmethod
     @provide_session
-    def find_for_task_instance(task_instance, session):
+    def query_for_task_instance(task_instance, descending=False, session=None):
         """
-        Returns all task reschedules for the task instance and try number,
-        in ascending order.
+        Returns query for task reschedules for a given the task instance.
 
+        :param session: the database session object
+        :type session: sqlalchemy.orm.session.Session
         :param task_instance: the task instance to find task reschedules for
         :type task_instance: airflow.models.TaskInstance
+        :param descending: If True then records are returned in descending order
+        :type descending: bool
         """
         TR = TaskReschedule
-        return (
+        qry = (
             session
             .query(TR)
             .filter(TR.dag_id == task_instance.dag_id,
                     TR.task_id == task_instance.task_id,
                     TR.execution_date == task_instance.execution_date,
                     TR.try_number == task_instance.try_number)
-            .order_by(asc(TR.id))
-            .all()
         )
+        if descending:
+            return qry.order_by(desc(TR.id))
+        else:
+            return qry.order_by(asc(TR.id))
+
+    @staticmethod
+    @provide_session
+    def find_for_task_instance(task_instance, session=None):
+        """
+        Returns all task reschedules for the task instance and try number,
+        in ascending order.
+
+        :param session: the database session object
+        :type session: sqlalchemy.orm.session.Session
+        :param task_instance: the task instance to find task reschedules for
+        :type task_instance: airflow.models.TaskInstance
+        """
+        return TaskReschedule.query_for_task_instance(task_instance, session=session).all()
