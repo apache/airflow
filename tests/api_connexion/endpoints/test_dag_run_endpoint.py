@@ -157,6 +157,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
         session.commit()
         result = session.query(DagRun).all()
         assert len(result) == 2
+        assert result[0].dag_id == result[1].dag_id == 'TEST_DAG_ID'
         response = self.client.get("api/v1/dags/~/dagRuns")
         assert response.status_code == 200
         self.assertEqual(
