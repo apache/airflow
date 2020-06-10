@@ -514,6 +514,7 @@ class S3Hook(AwsBaseHook):
         bytes_data = string_data.encode(encoding)
         file_obj = io.BytesIO(bytes_data)
         self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
+        file_obj.close()
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -548,6 +549,7 @@ class S3Hook(AwsBaseHook):
         """
         file_obj = io.BytesIO(bytes_data)
         self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
+        file_obj.close()
 
     @provide_bucket_name
     @unify_bucket_name_and_key
