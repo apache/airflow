@@ -25,14 +25,14 @@ from airflow.utils.decorators import apply_defaults
 
 class MsSqlToOracleTransfer(BaseOperator):
     """
-    Moves data from Oracle to Oracle.
+    Moves data from MSSql to Oracle.
     :param oracle_destination_conn_id: destination Oracle connection.
     :type oracle_destination_conn_id: str
     :param destination_table: destination table to insert rows.
     :type destination_table: str
-    :param mssql_source_conn_id: source Oracle connection.
+    :param mssql_source_conn_id: source MSSql connection.
     :type mssql_source_conn_id: str
-    :param source_sql: SQL query to execute against the source Oracle
+    :param source_sql: SQL query to execute against the source MSSql
         database. (templated)
     :type source_sql: str
     :param source_sql_params: Parameters to use in sql query. (templated)
