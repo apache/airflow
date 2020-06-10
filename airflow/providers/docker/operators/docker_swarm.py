@@ -132,8 +132,27 @@ class DockerSwarmOperator(DockerOperator):
     def _run_service(self):
         self.log.info('Starting docker service %s from image %s',
                       self._get_service_name(), self.image)
+        self.service = self._create_service()
+        self.log.info('Service started: %s', str(self.service))
 
-        self.service = self.cli.create_service(
+        # wait for the service to start the task
+        while not self.cli.tasks(filters={'service': self.service['ID']}):
+            continue
+
+        if self.enable_logging:
+            self._stream_logs_to_output()
+
+        self._block_until_service_terminated()
+        self.log.info('Service status before exiting: %s',
+                      self._service_status())
+
+        if self.auto_remove:
+            self.cli.remove_service(self.service['ID'])
+        if self._service_status() == 'failed':
+            raise AirflowException('Service failed: ' + repr(self.service))
+
+    def _create_service(self):
+        return self.cli.create_service(
             types.TaskTemplate(
                 container_spec=types.ContainerSpec(
                     image=self.image,
@@ -152,25 +171,9 @@ class DockerSwarmOperator(DockerOperator):
             labels={'name': 'airflow__%s__%s' % (self.dag_id, self.task_id)}
         )
 
-        self.log.info('Service started: %s', str(self.service))
-
-        # wait for the service to start the task
-        while not self.cli.tasks(filters={'service': self.service['ID']}):
-            continue
-
-        if self.enable_logging:
-            self._stream_logs_to_output()
-
-        while True:
-            if self._has_service_terminated():
-                self.log.info('Service status before exiting: %s', self._service_status())
-                break
+    def _block_until_service_terminated(self):
+        while not self._has_service_terminated():
             sleep(0.05)
-
-        if self.auto_remove:
-            self.cli.remove_service(self.service['ID'])
-        if self._service_status() == 'failed':
-            raise AirflowException('Service failed: ' + repr(self.service))
 
     def _get_configs(self):
         if self.configs is None:

@@ -69,7 +69,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         operator = DockerSwarmOperator(
             api_version='1.19', command='env', environment={'UNIT': 'TEST'}, image='ubuntu:latest',
             mem_limit='128m', user='unittest', task_id='unittest', auto_remove=True, tty=True,
-            networks=['net1','net2'], configs=configs, secrets=secrets
+            networks=['net1', 'net2'], configs=configs, secrets=secrets
         )
         operator.execute(None)
 
@@ -87,7 +87,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
 
         types_mock.ContainerSpec.assert_called_once_with(
             image='ubuntu:latest', command='env', user='unittest', tty=True,
-            env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'}, 
+            env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'},
             configs=[mock_obj], secrets=[mock_obj]
         )
         types_mock.RestartPolicy.assert_called_once_with(condition='none')
