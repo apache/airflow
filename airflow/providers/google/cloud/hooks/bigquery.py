@@ -1425,6 +1425,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
         return job
 
+    @staticmethod
+    def _generate_job_id(task_id: Optional[str] = None) -> str:
+        task_id = f"{task_id}_" or ""
+        return f"airflow_{task_id}{int(time.time())}_{uuid.uuid4()}"
+
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_job(
         self,
@@ -1432,6 +1437,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id: Optional[str] = None,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
+        _task_id: Optional[str] = None,
     ) -> Union[CopyJob, QueryJob, LoadJob, ExtractJob]:
         """
         Executes a BigQuery job. Waits for the job to complete and returns job id.
@@ -1452,8 +1458,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type project_id: str
         :param location: location the job is running
         :type location: str
+        :param _task_id: This parameter is only used when ``job_id`` is not provided
+        :type _task_id: str
         """
-        job_id = job_id or str(uuid.uuid4())
+        job_id = job_id or self._generate_job_id(_task_id)
         location = location or self.location
         client = self.get_client(project_id=project_id, location=location)
         job_data = {

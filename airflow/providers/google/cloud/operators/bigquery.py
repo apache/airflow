@@ -1636,6 +1636,7 @@ class BigQueryInsertJobOperator(BaseOperator):
                 project_id=self.project_id,
                 location=self.location,
                 job_id=self.job_id,
+                _task_id=self.task_id
             )
             # Start the job and wait for it to complete and get the result.
             job.result()
