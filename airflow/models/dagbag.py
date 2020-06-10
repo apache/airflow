@@ -110,10 +110,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         # Only used by read_dags_from_db=True
         self.dags_last_fetched: Dict[str, datetime] = {}
 
-        self.collect_dags(
-            dag_folder=dag_folder,
-            include_examples=include_examples,
-            safe_mode=safe_mode)
+        # self.collect_dags(
+        #     dag_folder=dag_folder,
+        #     include_examples=include_examples,
+        #     safe_mode=safe_mode)
 
     def size(self) -> int:
         """
@@ -363,14 +363,29 @@ class DagBag(BaseDagBag, LoggingMixin):
         for task in dag.tasks:
             settings.policy(task)
 
-        subdags = dag.subdags
+        # subdags = dag.subdags
 
         try:
-            for subdag in subdags:
-                subdag.full_filepath = dag.full_filepath
-                subdag.parent_dag = dag
-                subdag.is_subdag = True
-                self.bag_dag(dag=subdag, root_dag=root_dag)
+            from airflow.operators.subdag_operator import SubDagOperator
+            from airflow.models.baseoperator import cross_downstream
+            for task in dag.tasks:
+                if not isinstance(task, SubDagOperator):
+                    continue
+                else:
+                    subdag = task.subdag
+
+                    upstream_tasks = task.upstream_list
+                    downstream_tasks = task.downstream_list
+
+                    cross_downstream(from_tasks=upstream_tasks, to_tasks=subdag.roots)
+                    cross_downstream(from_tasks=subdag.leaves, to_tasks=downstream_tasks)
+
+                    for subdag_task in subdag.tasks:
+                        subdag_task.dag_id = root_dag.dag_id
+                        subdag_task.parent_group = parent_dag.dag_id
+                        subdag_task.current_group = task.task_id  # dag.dag_id
+
+                    self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
 
             self.dags[dag.dag_id] = dag
             self.log.debug('Loaded DAG %s', dag)
