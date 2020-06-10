@@ -19,8 +19,8 @@
 import os
 
 from airflow import models
-from airflow.providers.google.cloud.operators.sheets_to_gcs import GoogleSheetsToGCSOperator
-from airflow.providers.google.suite.operators.gcs_to_sheets import GCSToGoogleSheetsOperator
+from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
+from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
 from airflow.utils.dates import days_ago
 
 BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-test-bucket3")

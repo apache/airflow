@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.file_to_wasb`."""
+"""This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.file_to_wasb`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.microsoft.azure.operators.file_to_wasb import FileToWasbOperator  # noqa
+from airflow.providers.microsoft.azure.transfers.file_to_wasb import FileToWasbOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.file_to_wasb`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.file_to_wasb`.",
     DeprecationWarning, stacklevel=2
 )

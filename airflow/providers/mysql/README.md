@@ -31,8 +31,10 @@ Release: 2020.5.20
 - [Cross provider package dependencies](#cross-provider-package-dependencies)
 - [Provider class summary](#provider-class-summary)
     - [Operators](#operators)
-        - [New operators](#new-operators)
         - [Moved operators](#moved-operators)
+    - [Transfer operators](#transfers)
+        - [New transfer operators](#new-transfers)
+        - [Moved transfer operators](#moved-transfers)
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
@@ -92,21 +94,32 @@ All classes in Airflow 2.0 are in `airflow.providers.mysql` package.
 ## Operators
 
 
-### New operators
-
-| New Airflow 2.0 operators: `airflow.providers.mysql` package                                                                                      |
-|:--------------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.s3_to_mysql.S3ToMySqlTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/operators/s3_to_mysql.py) |
-
 
 
 ### Moved operators
 
-| Airflow 2.0 operators: `airflow.providers.mysql` package                                                                                                         | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                   |
-|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.mysql.MySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/operators/mysql.py)                                        | [operators.mysql_operator.MySqlOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/mysql_operator.py)                              |
-| [operators.presto_to_mysql.PrestoToMySqlTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/operators/presto_to_mysql.py)    | [operators.presto_to_mysql.PrestoToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/presto_to_mysql.py)                    |
-| [operators.vertica_to_mysql.VerticaToMySqlTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/operators/vertica_to_mysql.py) | [contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/vertica_to_mysql.py) |
+| Airflow 2.0 operators: `airflow.providers.mysql` package                                                                  | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                      |
+|:--------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------|
+| [operators.mysql.MySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/operators/mysql.py) | [operators.mysql_operator.MySqlOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/mysql_operator.py) |
+
+
+
+
+
+    ### New transfer operators
+
+    | New Airflow 2.0 transfers: `airflow.providers.mysql` package                                                                              |
+|:------------------------------------------------------------------------------------------------------------------------------------------|
+| [transfers.s3_to_mysql.S3ToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/s3_to_mysql.py) |
+
+
+
+    ### Moved transfer operators
+
+    | Airflow 2.0 transfers: `airflow.providers.mysql` package                                                                                                 | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                   |
+|:---------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [transfers.presto_to_mysql.PrestoToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/presto_to_mysql.py)    | [operators.presto_to_mysql.PrestoToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/presto_to_mysql.py)                    |
+| [transfers.vertica_to_mysql.VerticaToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/vertica_to_mysql.py) | [contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/vertica_to_mysql.py) |
 
 
 
@@ -133,6 +146,7 @@ All classes in Airflow 2.0 are in `airflow.providers.mysql` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                                     |
 |:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------------------------|
+| [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                                               |
 | [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)                                 |
 | [1d36b0303](https://github.com/apache/airflow/commit/1d36b0303b8632fce6de78ca4e782ae26ee06fea) | 2020-05-23  | Fix references in docs (#8984)                                                              |
 | [375d1ca22](https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f) | 2020-05-19  | Release candidate 2 for backport packages 2020.05.20 (#8898)                                |

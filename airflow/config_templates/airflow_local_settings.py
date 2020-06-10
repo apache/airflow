@@ -134,7 +134,7 @@ DEFAULT_DAG_PARSING_LOGGING_CONFIG: Dict[str, Dict[str, Dict[str, Any]]] = {
 }
 
 # Only update the handlers and loggers when CONFIG_PROCESSOR_MANAGER_LOGGER is set.
-# This is to avoid exceptions when initializing RotatingFileHandler multiple times
+# This is to avoid false_positive_class_names when initializing RotatingFileHandler multiple times
 # in multiple processes.
 if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
     DEFAULT_LOGGING_CONFIG['handlers'] \

@@ -15,28 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.apache.hive.operators.s3_to_hive`."""
+"""This module is deprecated. Please use `airflow.providers.apache.hive.transfers.s3_to_hive`."""
 
 import warnings
 
-from airflow.providers.apache.hive.operators.s3_to_hive import S3ToHiveTransferOperator
+from airflow.providers.apache.hive.transfers.s3_to_hive import S3ToHiveOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.apache.hive.operators.s3_to_hive`.",
+    "This module is deprecated. Please use `airflow.providers.apache.hive.transfers.s3_to_hive`.",
     DeprecationWarning, stacklevel=2
 )
 
 
-class S3ToHiveTransfer(S3ToHiveTransferOperator):
+class S3ToHiveTransfer(S3ToHiveOperator):
     """
     This class is deprecated.
-    Please use `airflow.providers.apache.hive.operators.s3_to_hive.S3ToHiveTransferOperator`.
+    Please use `airflow.providers.apache.hive.transfers.s3_to_hive.S3ToHiveOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-           Please use `airflow.providers.apache.hive.operators.s3_to_hive.S3ToHiveTransferOperator`.""",
+           Please use `airflow.providers.apache.hive.transfers.s3_to_hive.S3ToHiveOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

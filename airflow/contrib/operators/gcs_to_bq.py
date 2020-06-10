@@ -16,15 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.providers.google.cloud.operators.gcs_to_bigquery`.
+This module is deprecated. Please use `airflow.providers.google.cloud.transfers.gcs_to_bigquery`.
 """
 
 import warnings
 
-from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
+from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.gcs_to_bigquery`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.gcs_to_bigquery`.",
     DeprecationWarning, stacklevel=2
 )
 
@@ -32,13 +32,13 @@ warnings.warn(
 class GoogleCloudStorageToBigQueryOperator(GCSToBigQueryOperator):
     """
     This class is deprecated.
-    Please use `airflow.providers.google.cloud.operators.gcs_to_bq.GCSToBigQueryOperator`.
+    Please use `airflow.providers.google.cloud.transfers.gcs_to_bq.GCSToBigQueryOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.providers.google.cloud.operators.gcs_to_bq.GCSToBigQueryOperator`.""",
+            Please use `airflow.providers.google.cloud.transfers.gcs_to_bq.GCSToBigQueryOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

@@ -19,25 +19,25 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.s3_to_redshift import S3ToRedshiftTransferOperator
+from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3_to_redshift`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.s3_to_redshift`.",
     DeprecationWarning, stacklevel=2
 )
 
 
-class S3ToRedshiftTransfer(S3ToRedshiftTransferOperator):
+class S3ToRedshiftTransfer(S3ToRedshiftOperator):
     """
     This class is deprecated.
     Please use:
-    `airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransferOperator`."""
+    `airflow.providers.amazon.aws.transfers.s3_to_redshift.S3ToRedshiftOperator`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
-            `airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransferOperator`.""",
+            `airflow.providers.amazon.aws.transfers.s3_to_redshift.S3ToRedshiftOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

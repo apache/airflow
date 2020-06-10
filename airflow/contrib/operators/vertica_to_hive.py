@@ -15,29 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.apache.hive.operators.vertica_to_hive`."""
+"""This module is deprecated. Please use `airflow.providers.apache.hive.transfers.vertica_to_hive`."""
 
 import warnings
 
-from airflow.providers.apache.hive.operators.vertica_to_hive import VerticaToHiveTransferOperator
+from airflow.providers.apache.hive.transfers.vertica_to_hive import VerticaToHiveOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.apache.hive.operators.vertica_to_hive`.",
+    "This module is deprecated. Please use `airflow.providers.apache.hive.transfers.vertica_to_hive`.",
     DeprecationWarning, stacklevel=2
 )
 
 
-class VerticaToHiveTransfer(VerticaToHiveTransferOperator):
+class VerticaToHiveTransfer(VerticaToHiveOperator):
     """
     This class is deprecated.
     Please use:
-    `airflow.providers.apache.hive.operators.vertica_to_hive.VerticaToHiveTransferOperator`."""
+    `airflow.providers.apache.hive.transfers.vertica_to_hive.VerticaToHiveOperator`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
-            `airflow.providers.apache.hive.operators.vertica_to_hive.VerticaToHiveTransferOperator`.""",
+            `airflow.providers.apache.hive.transfers.vertica_to_hive.VerticaToHiveOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

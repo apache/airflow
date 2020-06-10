@@ -15,30 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.oracle.operators.oracle_to_oracle_transfer`."""
+"""This module is deprecated. Please use `airflow.providers.oracle.transfers.oracle_to_oracle`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.oracle.operators.oracle_to_oracle_transfer import OracleToOracleTransferOperator
+from airflow.providers.oracle.transfers.oracle_to_oracle import OracleToOracleOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.oracle.operators.oracle_to_oracle_transfer`.",
+    "This module is deprecated. Please use `airflow.providers.oracle.transfers.oracle_to_oracle`.",
     DeprecationWarning, stacklevel=2
 )
 
 
-class OracleToOracleTransfer(OracleToOracleTransferOperator):
+class OracleToOracleTransfer(OracleToOracleOperator):
     """
     This class is deprecated.
     Please use:
-    `airflow.providers.oracle.operators.oracle_to_oracle_transfer.OracleToOracleTransferOperator`."""
+    `airflow.providers.oracle.transfers.oracle_to_oracle.OracleToOracleOperator`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
-            `airflow.providers.oracle.operators.oracle_to_oracle_transfer.OracleToOracleTransferOperator`.""",
+            `airflow.providers.oracle.transfers.oracle_to_oracle.OracleToOracleOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

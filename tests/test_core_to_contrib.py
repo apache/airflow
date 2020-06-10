@@ -24,7 +24,7 @@ from unittest import TestCase, mock
 
 from parameterized import parameterized
 
-HOOK = [
+HOOKS = [
     (
         "airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook",
         "airflow.contrib.hooks.cassandra_hook.CassandraHook",
@@ -424,11 +424,7 @@ HOOK = [
     ),
 ]
 
-OPERATOR = [
-    (
-        "airflow.providers.google.cloud.operators.adls_to_gcs.ADLSToGCSOperator",
-        "airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator",
-    ),
+OPERATORS = [
     (
         "airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator",
         "airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator",
@@ -448,10 +444,6 @@ OPERATOR = [
     (
         "airflow.providers.google.cloud.operators.datastore.CloudDatastoreImportEntitiesOperator",
         "airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator",
-    ),
-    (
-        "airflow.providers.google.cloud.operators.local_to_gcs.LocalFilesystemToGCSOperator",
-        "airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.bigtable.BigtableUpdateClusterOperator",
@@ -691,14 +683,6 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator",
-        "airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator",
-    ),
-    (
-        "airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator",
-        "airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator",
-    ),
-    (
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service"
         ".CloudDataTransferServiceCreateJobOperator",
         "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobCreateOperator",
@@ -744,12 +728,6 @@ OPERATOR = [
         "GcpTransferServiceOperationsListOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-        "CloudDataTransferServiceGCSToGCSOperator",
-        "airflow.contrib.operators.gcp_transfer_operator."
-        "GoogleCloudStorageToGoogleCloudStorageTransferOperator",
-    ),
-    (
         "airflow.providers.google.cloud.operators.translate.CloudTranslateTextOperator",
         "airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator",
     ),
@@ -774,10 +752,6 @@ OPERATOR = [
         "CloudVideoIntelligenceDetectVideoShotsOperator",
         "airflow.contrib.operators.gcp_video_intelligence_operator."
         "CloudVideoIntelligenceDetectVideoShotsOperator",
-    ),
-    (
-        "airflow.providers.google.cloud.operators.vision.CloudVisionAddProductToProductSetOperator",
-        "airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator",
@@ -841,18 +815,6 @@ OPERATOR = [
         "CloudVisionRemoveProductFromProductSetOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.gcs_to_bigquery.GCSToBigQueryOperator",
-        "airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator",
-    ),
-    (
-        "airflow.providers.google.cloud.operators.gcs_to_gcs.GCSToGCSOperator",
-        "airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Operator",
-        "airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator",
-    ),
-    (
         "airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator",
         "airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator",
     ),
@@ -867,19 +829,6 @@ OPERATOR = [
     (
         "airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator",
         "airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator",
-    ),
-    (
-        "airflow.providers.google.cloud.operators.mssql_to_gcs.MSSQLToGCSOperator",
-        "airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator",
-    ),
-    (
-        "airflow.providers.google.cloud.operators.mysql_to_gcs.MySQLToGCSOperator",
-        "airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator",
-    ),
-    (
-        "airflow.providers.google.cloud.operators.postgres_to_gcs.PostgresToGCSOperator",
-        "airflow.contrib.operators.postgres_to_gcs_operator."
-        "PostgresToGoogleCloudStorageOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.pubsub.PubSubPublishMessageOperator",
@@ -900,10 +849,6 @@ OPERATOR = [
     (
         "airflow.providers.google.cloud.operators.pubsub.PubSubDeleteTopicOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator",
-    ),
-    (
-        "airflow.providers.google.cloud.operators.sql_to_gcs.BaseSQLToGCSOperator",
-        "airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
     ),
     (
         "airflow.providers.google.cloud."
@@ -1028,18 +973,6 @@ OPERATOR = [
         "airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator",
-        "airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator",
-    ),
-    (
-        "airflow.providers.google.cloud.operators.bigquery_to_gcs.BigQueryToGCSOperator",
-        "airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator",
-    ),
-    (
-        "airflow.providers.google.cloud.operators.bigquery_to_mysql.BigQueryToMySqlOperator",
-        "airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator",
-    ),
-    (
         "airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator",
         "airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator",
     ),
@@ -1050,10 +983,6 @@ OPERATOR = [
     (
         "airflow.providers.google.cloud.operators.gcs.GCSDeleteObjectsOperator",
         "airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator",
-    ),
-    (
-        "airflow.providers.google.cloud.operators.gcs.GCSToLocalOperator",
-        "airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator",
     ),
     (
         "airflow.providers.google.cloud.operators.gcs.GCSListObjectsOperator",
@@ -1110,14 +1039,6 @@ OPERATOR = [
     (
         'airflow.providers.apache.hive.operators.hive.HiveOperator',
         'airflow.operators.hive_operator.HiveOperator',
-    ),
-    (
-        'airflow.providers.apache.hive.operators.mysql_to_hive.MySqlToHiveTransferOperator',
-        'airflow.operators.mysql_to_hive.MySqlToHiveTransfer',
-    ),
-    (
-        'airflow.providers.apache.hive.operators.s3_to_hive.S3ToHiveTransferOperator',
-        'airflow.operators.s3_to_hive_operator.S3ToHiveTransfer',
     ),
     (
         'airflow.providers.apache.hive.operators.hive_stats.HiveStatsCollectionOperator',
@@ -1353,95 +1274,6 @@ OPERATOR = [
         'airflow.contrib.operators.sftp_operator.SFTPOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.dynamodb_to_s3.DynamoDBToS3Operator',
-        'airflow.contrib.operators.dynamodb_to_s3.DynamoDBToS3Operator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator',
-        'airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.imap_attachment_to_s3.ImapAttachmentToS3Operator',
-        'airflow.contrib.operators.imap_attachment_to_s3_operator.ImapAttachmentToS3Operator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.mongo_to_s3.MongoToS3Operator',
-        'airflow.contrib.operators.mongo_to_s3.MongoToS3Operator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.s3_to_sftp.S3ToSFTPOperator',
-        'airflow.contrib.operators.s3_to_sftp_operator.S3ToSFTPOperator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.sftp_to_s3.SFTPToS3Operator',
-        'airflow.contrib.operators.sftp_to_s3_operator.SFTPToS3Operator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Operator',
-        'airflow.operators.gcs_to_s3.GCSToS3Operator',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.google_api_to_s3_transfer.GoogleApiToS3TransferOperator',
-        'airflow.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.redshift_to_s3.RedshiftToS3TransferOperator',
-        'airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer',
-    ),
-    (
-        'airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransferOperator',
-        'airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer',
-    ),
-    (
-        'airflow.providers.apache.hive.operators.vertica_to_hive.VerticaToHiveTransferOperator',
-        'airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer',
-    ),
-    (
-        'airflow.providers.apache.druid.operators.hive_to_druid.HiveToDruidTransferOperator',
-        'airflow.operators.hive_to_druid.HiveToDruidTransfer',
-    ),
-    (
-        'airflow.providers.apache.hive.operators.hive_to_mysql.HiveToMySqlTransferOperator',
-        'airflow.operators.hive_to_mysql.HiveToMySqlTransfer',
-    ),
-    (
-        'airflow.providers.apache.hive.operators.hive_to_samba.Hive2SambaOperator',
-        'airflow.operators.hive_to_samba_operator.Hive2SambaOperator',
-    ),
-    (
-        'airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlToHiveTransferOperator',
-        'airflow.operators.mssql_to_hive.MsSqlToHiveTransfer',
-    ),
-    (
-        'airflow.providers.microsoft.azure.operators.file_to_wasb.FileToWasbOperator',
-        'airflow.contrib.operators.file_to_wasb.FileToWasbOperator',
-    ),
-    (
-        'airflow.providers.google.suite.operators.gcs_to_gdrive.GCSToGoogleDriveOperator',
-        'airflow.contrib.operators.gcs_to_gdrive_operator.GCSToGoogleDriveOperator',
-    ),
-    (
-        'airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer'
-        '.OracleToAzureDataLakeTransferOperator',
-        'airflow.contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeTransferOperator',
-    ),
-    (
-        'airflow.providers.oracle.operators.oracle_to_oracle_transfer.OracleToOracleTransferOperator',
-        'airflow.contrib.operators.oracle_to_oracle_transfer.OracleToOracleTransfer',
-    ),
-    (
-        'airflow.providers.google.cloud.operators.s3_to_gcs.S3ToGCSOperator',
-        'airflow.contrib.operators.s3_to_gcs_operator.S3ToGCSOperator',
-    ),
-    (
-        'airflow.providers.mysql.operators.vertica_to_mysql.VerticaToMySqlTransferOperator',
-        'airflow.contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer',
-    ),
-    (
-        'airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransferOperator',
-        'airflow.operators.presto_to_mysql.PrestoToMySqlTransfer',
-    ),
-    (
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator',
         'airflow.contrib.operators.gcp_sql_operator.CloudSqlBaseOperator'
     ),
@@ -1482,11 +1314,6 @@ OPERATOR = [
         'airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator'
     ),
     (
-        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
-        '.CloudDataTransferServiceS3ToGCSOperator',
-        'airflow.contrib.operators.s3_to_gcs_transfer_operator.CloudDataTransferServiceS3ToGCSOperator'
-    ),
-    (
         'airflow.providers.jira.operators.jira.JiraOperator',
         'airflow.contrib.operators.jira_operator.JiraOperator',
     ),
@@ -1495,8 +1322,12 @@ OPERATOR = [
         'airflow.operators.postgres_operator.PostgresOperator',
     ),
     (
-        'airflow.providers.google.cloud.operators.cassandra_to_gcs.CassandraToGCSOperator',
-        'airflow.contrib.operators.cassandra_to_gcs.CassandraToGoogleCloudStorageOperator',
+        "airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator",
+        "airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator",
+        "airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator",
     ),
 ]
 
@@ -1519,7 +1350,7 @@ SECRETS = [
     ),
 ]
 
-SENSOR = [
+SENSORS = [
     (
         "airflow.providers.apache.cassandra.sensors.record.CassandraRecordSensor",
         "airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor",
@@ -1733,22 +1564,179 @@ SENSOR = [
     )
 ]
 
-PROTOCOLS = [
+TRANSFERS = [
     (
-        "airflow.providers.amazon.aws.hooks.batch_client.AwsBatchProtocol",
-        "airflow.contrib.operators.awsbatch_operator.BatchProtocol",
+        "airflow.providers.google.cloud.transfers.local_to_gcs.LocalFilesystemToGCSOperator",
+        "airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator",
     ),
     (
-        'airflow.providers.amazon.aws.operators.ecs.ECSProtocol',
-        'airflow.contrib.operators.ecs_operator.ECSProtocol',
+        "airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator",
+        "airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceGCSToGCSOperator",
+        "airflow.contrib.operators.gcp_transfer_operator."
+        "GoogleCloudStorageToGoogleCloudStorageTransferOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.operators.vision.CloudVisionAddProductToProductSetOperator",
+        "airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.transfers.gcs_to_bigquery.GCSToBigQueryOperator",
+        "airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSToGCSOperator",
+        "airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator",
+        "airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator",
+    ),
+    (
+        "airflow.providers.google.cloud.transfers.mssql_to_gcs.MSSQLToGCSOperator",
+        "airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.transfers.mysql_to_gcs.MySQLToGCSOperator",
+        "airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.transfers.postgres_to_gcs.PostgresToGCSOperator",
+        "airflow.contrib.operators.postgres_to_gcs_operator."
+        "PostgresToGoogleCloudStorageOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.transfers.bigquery_to_bigquery.BigQueryToBigQueryOperator",
+        "airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryToGCSOperator",
+        "airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryToMySqlOperator",
+        "airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator",
+    ),
+    (
+        "airflow.providers.google.cloud.transfers.sql_to_gcs.BaseSQLToGCSOperator",
+        "airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
+    ),
+    (
+        'airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBToS3Operator',
+        'airflow.contrib.operators.dynamodb_to_s3.DynamoDBToS3Operator',
+    ),
+    (
+        'airflow.providers.amazon.aws.transfers.hive_to_dynamodb.HiveToDynamoDBOperator',
+        'airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.transfers.imap_attachment_to_s3.ImapAttachmentToS3Operator',
+        'airflow.contrib.operators.imap_attachment_to_s3_operator.ImapAttachmentToS3Operator',
+    ),
+    (
+        'airflow.providers.amazon.aws.transfers.mongo_to_s3.MongoToS3Operator',
+        'airflow.contrib.operators.mongo_to_s3.MongoToS3Operator',
+    ),
+    (
+        'airflow.providers.amazon.aws.transfers.s3_to_sftp.S3ToSFTPOperator',
+        'airflow.contrib.operators.s3_to_sftp_operator.S3ToSFTPOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.transfers.sftp_to_s3.SFTPToS3Operator',
+        'airflow.contrib.operators.sftp_to_s3_operator.SFTPToS3Operator',
+    ),
+    (
+        'airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator',
+        'airflow.operators.gcs_to_s3.GCSToS3Operator',
+    ),
+    (
+        'airflow.providers.amazon.aws.transfers.google_api_to_s3_transfer.GoogleApiToS3Operator',
+        'airflow.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer',
+    ),
+    (
+        'airflow.providers.amazon.aws.transfers.redshift_to_s3.RedshiftToS3Operator',
+        'airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer',
+    ),
+    (
+        'airflow.providers.amazon.aws.transfers.s3_to_redshift.S3ToRedshiftOperator',
+        'airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer',
+    ),
+    (
+        'airflow.providers.apache.hive.transfers.vertica_to_hive.VerticaToHiveOperator',
+        'airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer',
+    ),
+    (
+        'airflow.providers.apache.druid.transfers.hive_to_druid.HiveToDruidOperator',
+        'airflow.operators.hive_to_druid.HiveToDruidTransfer',
+    ),
+    (
+        'airflow.providers.apache.hive.transfers.hive_to_mysql.HiveToMySqlOperator',
+        'airflow.operators.hive_to_mysql.HiveToMySqlTransfer',
+    ),
+    (
+        'airflow.providers.apache.hive.transfers.mysql_to_hive.MySqlToHiveOperator',
+        'airflow.operators.mysql_to_hive.MySqlToHiveTransfer',
+    ),
+    (
+        'airflow.providers.apache.hive.transfers.s3_to_hive.S3ToHiveOperator',
+        'airflow.operators.s3_to_hive_operator.S3ToHiveTransfer',
+    ),
+    (
+        'airflow.providers.apache.hive.transfers.hive_to_samba.HiveToSambaOperator',
+        'airflow.operators.hive_to_samba_operator.HiveToSambaOperator',
+    ),
+    (
+        'airflow.providers.apache.hive.transfers.mssql_to_hive.MsSqlToHiveOperator',
+        'airflow.operators.mssql_to_hive.MsSqlToHiveTransfer',
+    ),
+    (
+        'airflow.providers.microsoft.azure.transfers.file_to_wasb.FileToWasbOperator',
+        'airflow.contrib.operators.file_to_wasb.FileToWasbOperator',
+    ),
+    (
+        'airflow.providers.google.suite.transfers.gcs_to_gdrive.GCSToGoogleDriveOperator',
+        'airflow.contrib.operators.gcs_to_gdrive_operator.GCSToGoogleDriveOperator',
+    ),
+    (
+        'airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake'
+        '.OracleToAzureDataLakeOperator',
+        'airflow.contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeOperator',
+    ),
+    (
+        'airflow.providers.oracle.transfers.oracle_to_oracle.OracleToOracleOperator',
+        'airflow.contrib.operators.oracle_to_oracle_transfer.OracleToOracleTransfer',
+    ),
+    (
+        'airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator',
+        'airflow.contrib.operators.s3_to_gcs_operator.S3ToGCSOperator',
+    ),
+    (
+        'airflow.providers.mysql.transfers.vertica_to_mysql.VerticaToMySqlOperator',
+        'airflow.contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer',
+    ),
+    (
+        'airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator',
+        'airflow.operators.presto_to_mysql.PrestoToMySqlTransfer',
+    ),
+    (
+        'airflow.providers.google.cloud.operators.cloud_storage_transfer_service'
+        '.CloudDataTransferServiceS3ToGCSOperator',
+        'airflow.contrib.operators.s3_to_gcs_transfer_operator.CloudDataTransferServiceS3ToGCSOperator'
+    ),
+    (
+        'airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator',
+        'airflow.contrib.operators.cassandra_to_gcs.CassandraToGoogleCloudStorageOperator',
     ),
 ]
 
-ALL = HOOK + OPERATOR + SECRETS + SENSOR + PROTOCOLS
+ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS
 
 RENAMED_HOOKS = [
     (old_class, new_class)
-    for old_class, new_class in HOOK + OPERATOR + SECRETS + SENSOR
+    for old_class, new_class in HOOKS + OPERATORS + SECRETS + SENSORS
     if old_class.rpartition(".")[2] != new_class.rpartition(".")[2]
 ]
 
@@ -1798,14 +1786,6 @@ class TestMovingCoreToContrib(TestCase):
             new_class = type(class_name, (class_,), attributes)
             return new_class
         return class_
-
-    @parameterized.expand(PROTOCOLS)
-    def test_is_protocol_deprecated(self, _, old_module):
-        deprecation_warning_msg = "This class is deprecated."
-        old_module_class = self.get_class_from_path(old_module)
-        with self.assertWarnsRegex(DeprecationWarning, deprecation_warning_msg) as wrn:
-            self.assertTrue(deprecation_warning_msg, wrn)
-            old_module_class()
 
     @parameterized.expand(RENAMED_HOOKS)
     def test_is_class_deprecated(self, new_module, old_module):

@@ -75,7 +75,7 @@ class BigtableHook(GoogleBaseHook):
     def delete_instance(self, instance_id: str, project_id: str) -> None:
         """
         Deletes the specified Cloud Bigtable instance.
-        Raises google.api_core.exceptions.NotFound if the Cloud Bigtable instance does
+        Raises google.api_core.false_positive_class_names.NotFound if the Cloud Bigtable instance does
         not exist.
 
         :param project_id: Optional, Google Cloud Platform project ID where the
@@ -184,7 +184,7 @@ class BigtableHook(GoogleBaseHook):
     ) -> None:
         """
         Creates the specified Cloud Bigtable table.
-        Raises ``google.api_core.exceptions.AlreadyExists`` if the table exists.
+        Raises ``google.api_core.false_positive_class_names.AlreadyExists`` if the table exists.
 
         :type instance: Instance
         :param instance: The Cloud Bigtable instance that owns the table.
@@ -209,7 +209,7 @@ class BigtableHook(GoogleBaseHook):
     def delete_table(self, instance_id: str, table_id: str, project_id: str) -> None:
         """
         Deletes the specified table in Cloud Bigtable.
-        Raises google.api_core.exceptions.NotFound if the table does not exist.
+        Raises google.api_core.false_positive_class_names.NotFound if the table does not exist.
 
         :type instance_id: str
         :param instance_id: The ID of the Cloud Bigtable instance.
@@ -227,7 +227,7 @@ class BigtableHook(GoogleBaseHook):
     def update_cluster(instance: Instance, cluster_id: str, nodes: int) -> None:
         """
         Updates number of nodes in the specified Cloud Bigtable cluster.
-        Raises google.api_core.exceptions.NotFound if the cluster does not exist.
+        Raises google.api_core.false_positive_class_names.NotFound if the cluster does not exist.
 
         :type instance: Instance
         :param instance: The Cloud Bigtable instance that owns the cluster.
@@ -259,7 +259,7 @@ class BigtableHook(GoogleBaseHook):
     def get_cluster_states_for_table(instance: Instance, table_id: str) -> Dict[str, ClusterState]:
         """
         Fetches Cluster States for the specified table in Cloud Bigtable.
-        Raises google.api_core.exceptions.NotFound if the table does not exist.
+        Raises google.api_core.false_positive_class_names.NotFound if the table does not exist.
 
         :type instance: Instance
         :param instance: The Cloud Bigtable instance that owns the table.

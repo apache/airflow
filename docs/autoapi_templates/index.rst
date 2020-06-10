@@ -70,15 +70,21 @@ All operators are in the following packages:
 
   airflow/providers/amazon/aws/sensors/index
 
+  airflow/providers/amazon/aws/transfers/index
+
   airflow/providers/apache/cassandra/sensors/index
 
   airflow/providers/apache/druid/operators/index
+
+  airflow/providers/apache/druid/transfers/index
 
   airflow/providers/apache/hdfs/sensors/index
 
   airflow/providers/apache/hive/operators/index
 
   airflow/providers/apache/hive/sensors/index
+
+  airflow/providers/apache/hive/transfers/index
 
   airflow/providers/apache/livy/operators/index
 
@@ -114,9 +120,13 @@ All operators are in the following packages:
 
   airflow/providers/google/ads/operators/index
 
+  airflow/providers/google/ads/transfers/index
+
   airflow/providers/google/cloud/operators/index
 
   airflow/providers/google/cloud/sensors/index
+
+  airflow/providers/google/cloud/transfers/index
 
   airflow/providers/google/firebase/operators/index
 
@@ -125,6 +135,8 @@ All operators are in the following packages:
   airflow/providers/google/marketing_platform/sensors/index
 
   airflow/providers/google/suite/operators/index
+
+  airflow/providers/google/suite/transfers/index
 
   airflow/providers/grpc/operators/index
 
@@ -146,6 +158,8 @@ All operators are in the following packages:
 
   airflow/providers/microsoft/azure/sensors/index
 
+  airflow/providers/microsoft/azure/transfers/index
+
   airflow/providers/microsoft/mssql/operators/index
 
   airflow/providers/microsoft/winrm/operators/index
@@ -154,9 +168,13 @@ All operators are in the following packages:
 
   airflow/providers/mysql/operators/index
 
+  airflow/providers/mysql/transfers/index
+
   airflow/providers/opsgenie/operators/index
 
   airflow/providers/oracle/operators/index
+
+  airflow/providers/oracle/transfers/index
 
   airflow/providers/papermill/operators/index
 
@@ -185,6 +203,8 @@ All operators are in the following packages:
   airflow/providers/slack/operators/index
 
   airflow/providers/snowflake/operators/index
+
+  airflow/providers/snowflake/transfers/index
 
   airflow/providers/sqlite/operators/index
 

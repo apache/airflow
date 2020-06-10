@@ -37,6 +37,20 @@ All classes in Airflow 2.0 are in `{{FULL_PACKAGE_NAME}}` package.
 {% endif %}
 {% endif %}
 
+{% if NEW_TRANSFERS or MOVED_TRANSFERS %}
+{% if NEW_TRANSFERS %}
+    ### New transfer operators
+
+    {{NEW_TRANSFERS_TABLE}}
+{% endif %}
+
+{% if MOVED_TRANSFERS %}
+    ### Moved transfer operators
+
+    {{MOVED_TRANSFERS_TABLE}}
+{% endif %}
+{% endif %}
+
 {% if NEW_SENSORS or MOVED_SENSORS %}
 ## Sensors
 
@@ -65,20 +79,7 @@ All classes in Airflow 2.0 are in `{{FULL_PACKAGE_NAME}}` package.
 {{MOVED_HOOKS_TABLE}}
 {% endif %}
 {% endif %}
-{% if NEW_PROTOCOLS or MOVED_PROTOCOLS %}
-## Protocols
 
-{% if NEW_PROTOCOLS %}
-### New protocols
-
-{{NEW_PROTOCOLS_TABLE}}
-{% endif %}
-{% if MOVED_PROTOCOLS %}
-### Moved protocols
-
-{{MOVED_PROTOCOLS_TABLE}}
-{% endif %}
-{% endif %}
 {% if NEW_SECRETS or MOVED_SECRETS %}
 ## Secrets
 

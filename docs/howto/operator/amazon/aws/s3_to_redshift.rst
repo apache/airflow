@@ -16,7 +16,7 @@
     under the License.
 
 
-.. _howto/operator:S3ToRedshiftTransferOperator:
+.. _howto/operator:S3ToRedshiftOperator:
 
 S3 To Redshift Transfer Operator
 ================================
@@ -28,10 +28,10 @@ S3 To Redshift Transfer Operator
 Overview
 --------
 
-The ``S3ToRedshiftTransferOperator`` copies data from a S3 Bucket into a Redshift table.
+The ``S3ToRedshiftOperator`` copies data from a S3 Bucket into a Redshift table.
 
 The example dag provided showcases the
-:class:`~airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransferOperator`
+:class:`~airflow.providers.amazon.aws.transfers.s3_to_redshift.S3ToRedshiftOperator`
 in action.
 
  - example_s3_to_redshift.py
@@ -42,7 +42,7 @@ example_s3_to_redshift.py
 Purpose
 """""""
 
-This is a basic example dag for using ``S3ToRedshiftTransferOperator`` to copies data from a S3 Bucket into a Redshift table.
+This is a basic example dag for using ``S3ToRedshiftOperator`` to copies data from a S3 Bucket into a Redshift table.
 
 Environment variables
 """""""""""""""""""""

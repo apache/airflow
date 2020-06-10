@@ -16,7 +16,7 @@
 # under the License.
 from unittest import mock
 
-from airflow.providers.google.ads.operators.ads import GoogleAdsListAccountsOperator, GoogleAdsToGcsOperator
+from airflow.providers.google.ads.operators.ads import GoogleAdsListAccountsOperator
 
 CLIENT_IDS = ["1111111111", "2222222222"]
 BUCKET = "gs://test-google-ads-bucket"
@@ -36,33 +36,6 @@ FIELDS_TO_EXTRACT = ["segments.date.value", "customer.id.value"]
 
 gcp_conn_id = "gcp_conn_id"
 google_ads_conn_id = "google_ads_conn_id"
-
-
-class TestGoogleAdsToGcsOperator:
-    @mock.patch("airflow.providers.google.ads.operators.ads.GoogleAdsHook")
-    @mock.patch("airflow.providers.google.ads.operators.ads.GCSHook")
-    def test_execute(self, mock_gcs_hook, mock_ads_hook):
-        op = GoogleAdsToGcsOperator(
-            gcp_conn_id=gcp_conn_id,
-            google_ads_conn_id=google_ads_conn_id,
-            client_ids=CLIENT_IDS,
-            query=QUERY,
-            attributes=FIELDS_TO_EXTRACT,
-            obj=GCS_OBJ_PATH,
-            bucket=BUCKET,
-            task_id="run_operator",
-        )
-        op.execute({})
-        mock_ads_hook.assert_called_once_with(
-            gcp_conn_id=gcp_conn_id, google_ads_conn_id=google_ads_conn_id
-        )
-        mock_ads_hook.return_value.search.assert_called_once_with(
-            client_ids=CLIENT_IDS, query=QUERY, page_size=10000
-        )
-        mock_gcs_hook.assert_called_once_with(gcp_conn_id=gcp_conn_id)
-        mock_gcs_hook.return_value.upload.assert_called_once_with(
-            bucket_name=BUCKET, object_name=GCS_OBJ_PATH, filename=mock.ANY, gzip=False
-        )
 
 
 class TestGoogleAdsListAccountsOperator:

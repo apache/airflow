@@ -15,30 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.apache.druid.operators.hive_to_druid`."""
+"""This module is deprecated. Please use `airflow.providers.apache.druid.transfers.hive_to_druid`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.apache.druid.operators.hive_to_druid import HiveToDruidTransferOperator
+from airflow.providers.apache.druid.transfers.hive_to_druid import HiveToDruidOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.apache.druid.operators.hive_to_druid`.",
+    "This module is deprecated. Please use `airflow.providers.apache.druid.transfers.hive_to_druid`.",
     DeprecationWarning, stacklevel=2
 )
 
 
-class HiveToDruidTransfer(HiveToDruidTransferOperator):
+class HiveToDruidTransfer(HiveToDruidOperator):
     """
     This class is deprecated.
     Please use:
-    `airflow.providers.apache.druid.operators.hive_to_druid.HiveToDruidTransferOperator`."""
+    `airflow.providers.apache.druid.transfers.hive_to_druid.HiveToDruidOperator`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
-            `airflow.providers.apache.druid.operators.hive_to_druid.HiveToDruidTransferOperator`.""",
+            `airflow.providers.apache.druid.transfers.hive_to_druid.HiveToDruidOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

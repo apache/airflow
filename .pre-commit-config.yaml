@@ -264,6 +264,8 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           (?x)
           ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^airflow/providers/apache/hive/operators/hive_stats.py$|
+          ^airflow/providers/apache/hive/PROVIDERS_CHANGES_*|
+          ^airflow/providers/apache/hive/README.md$|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py
       - id: consistent-pylint
         language: pygrep

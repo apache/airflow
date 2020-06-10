@@ -64,7 +64,7 @@ def get_fernet():
     or because the Fernet key is invalid.
 
     :return: Fernet object
-    :raises: airflow.exceptions.AirflowException if there's a problem trying to load Fernet
+    :raises: airflow.false_positive_class_names.AirflowException if there's a problem trying to load Fernet
     """
     global _fernet
 

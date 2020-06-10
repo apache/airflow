@@ -72,7 +72,7 @@ class TestBaseDask(unittest.TestCase):
         self.assertTrue(success_future.done())
         self.assertTrue(fail_future.done())
 
-        # check task exceptions
+        # check task false_positive_class_names
         self.assertTrue(success_future.exception() is None)
         self.assertTrue(fail_future.exception() is not None)
 

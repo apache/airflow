@@ -15,30 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.mysql.operators.vertica_to_mysql`."""
+"""This module is deprecated. Please use `airflow.providers.mysql.transfers.vertica_to_mysql`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.mysql.operators.vertica_to_mysql import VerticaToMySqlTransferOperator
+from airflow.providers.mysql.transfers.vertica_to_mysql import VerticaToMySqlOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.mysql.operators.vertica_to_mysql`.",
+    "This module is deprecated. Please use `airflow.providers.mysql.transfers.vertica_to_mysql`.",
     DeprecationWarning, stacklevel=2
 )
 
 
-class VerticaToMySqlTransfer(VerticaToMySqlTransferOperator):
+class VerticaToMySqlTransfer(VerticaToMySqlOperator):
     """
     This class is deprecated.
     Please use:
-    `airflow.providers.mysql.operators.vertica_to_mysql.VerticaToMySqlTransferOperator`."""
+    `airflow.providers.mysql.transfers.vertica_to_mysql.VerticaToMySqlOperator`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
-            `airflow.providers.mysql.operators.vertica_to_mysql.VerticaToMySqlTransferOperator`.""",
+            `airflow.providers.mysql.transfers.vertica_to_mysql.VerticaToMySqlOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

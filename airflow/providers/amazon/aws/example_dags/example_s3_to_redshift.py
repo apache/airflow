@@ -16,7 +16,7 @@
 # under the License.
 
 """
-This is an example dag for using `S3ToRedshiftTransferOperator` to copy a S3 key into a Redshift table.
+This is an example dag for using `S3ToRedshiftOperator` to copy a S3 key into a Redshift table.
 """
 
 from os import getenv
@@ -24,7 +24,7 @@ from os import getenv
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.operators.s3_to_redshift import S3ToRedshiftTransferOperator
+from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.utils.dates import days_ago
 
@@ -64,7 +64,7 @@ with DAG(
         task_id='setup__create_table'
     )
     # [START howto_operator_s3_to_redshift_task_1]
-    task_transfer_s3_to_redshift = S3ToRedshiftTransferOperator(
+    task_transfer_s3_to_redshift = S3ToRedshiftOperator(
         s3_bucket=S3_BUCKET,
         s3_key=S3_KEY,
         schema="PUBLIC",

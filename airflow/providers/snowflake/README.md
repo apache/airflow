@@ -28,9 +28,12 @@ Release: 2020.5.20
 - [Installation](#installation)
 - [Compatibility](#compatibility)
 - [PIP requirements](#pip-requirements)
+- [Cross provider package dependencies](#cross-provider-package-dependencies)
 - [Provider class summary](#provider-class-summary)
     - [Operators](#operators)
         - [New operators](#new-operators)
+    - [Transfer operators](#transfers)
+        - [New transfer operators](#new-transfers)
     - [Hooks](#hooks)
         - [New hooks](#new-hooks)
 - [Releases](#releases)
@@ -65,6 +68,21 @@ For full compatibility and test status of the backport packages check
 | snowflake-connector-python | &gt;=1.5.2            |
 | snowflake-sqlalchemy       | &gt;=1.1.0            |
 
+## Cross provider package dependencies
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified backport providers package in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+```bash
+pip install apache-airflow-backport-providers-snowflake[slack]
+```
+
+| Dependent package                                                                                                | Extra   |
+|:-----------------------------------------------------------------------------------------------------------------|:--------|
+| [apache-airflow-backport-providers-slack](https://github.com/apache/airflow/tree/master/airflow/providers/slack) | slack   |
+
 # Provider class summary
 
 All classes in Airflow 2.0 are in `airflow.providers.snowflake` package.
@@ -75,10 +93,22 @@ All classes in Airflow 2.0 are in `airflow.providers.snowflake` package.
 
 ### New operators
 
-| New Airflow 2.0 operators: `airflow.providers.snowflake` package                                                                                                  |
-|:------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.s3_to_snowflake.S3ToSnowflakeTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/operators/s3_to_snowflake.py) |
-| [operators.snowflake.SnowflakeOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/operators/snowflake.py)                         |
+| New Airflow 2.0 operators: `airflow.providers.snowflake` package                                                                          |
+|:------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.snowflake.SnowflakeOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/operators/snowflake.py) |
+
+
+
+
+
+
+
+    ### New transfer operators
+
+    | New Airflow 2.0 transfers: `airflow.providers.snowflake` package                                                                                                   |
+|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [transfers.s3_to_snowflake.S3ToSnowflakeOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/transfers/s3_to_snowflake.py)          |
+| [transfers.snowflake_to_slack.SnowflakeToSlackOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/transfers/snowflake_to_slack.py) |
 
 
 
@@ -107,6 +137,8 @@ All classes in Airflow 2.0 are in `airflow.providers.snowflake` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                 |
 |:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------------------------------|
+| [1c9374d25](https://github.com/apache/airflow/commit/1c9374d2573483dd66f5c35032e24140864e72c0) | 2020-06-03  | Add snowflake to slack operator (#9023)                                 |
+| [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                           |
 | [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)             |
 | [1d36b0303](https://github.com/apache/airflow/commit/1d36b0303b8632fce6de78ca4e782ae26ee06fea) | 2020-05-23  | Fix references in docs (#8984)                                          |
 | [375d1ca22](https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f) | 2020-05-19  | Release candidate 2 for backport packages 2020.05.20 (#8898)            |

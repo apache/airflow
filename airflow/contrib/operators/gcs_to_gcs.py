@@ -16,15 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.providers.google.cloud.operators.gcs_to_gcs`.
+This module is deprecated. Please use `airflow.providers.google.cloud.transfers.gcs_to_gcs`.
 """
 
 import warnings
 
-from airflow.providers.google.cloud.operators.gcs_to_gcs import GCSToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.gcs_to_gcs`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.gcs_to_gcs`.",
     DeprecationWarning, stacklevel=2
 )
 
@@ -32,13 +32,13 @@ warnings.warn(
 class GoogleCloudStorageToGoogleCloudStorageOperator(GCSToGCSOperator):
     """
     This class is deprecated.
-    Please use `airflow.providers.google.cloud.operators.gcs_to_gcs.GCSToGCSOperator`.
+    Please use `airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSToGCSOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.providers.google.cloud.operators.gcs_to_gcs.GCSToGCSOperator`.""",
+            Please use `airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSToGCSOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

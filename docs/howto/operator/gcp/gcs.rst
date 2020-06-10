@@ -35,7 +35,7 @@ GCSToBigQueryOperator
 ---------------------
 
 Use the
-:class:`~airflow.providers.google.cloud.operators.gcs_to_bigquery.GCSToBigQueryOperator`
+:class:`~airflow.providers.google.cloud.transfers.gcs_to_bigquery.GCSToBigQueryOperator`
 to execute a BigQuery load job.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_bigquery.py

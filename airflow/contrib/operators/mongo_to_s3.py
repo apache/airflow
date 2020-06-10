@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.amazon.aws.operators.mongo_to_s3`."""
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.mongo_to_s3`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.amazon.aws.operators.mongo_to_s3 import MongoToS3Operator  # noqa
+from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.mongo_to_s3`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.transfers.mongo_to_s3`.",
     DeprecationWarning, stacklevel=2
 )

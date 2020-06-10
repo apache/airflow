@@ -32,6 +32,8 @@ Release: 2020.5.20
 - [Provider class summary](#provider-class-summary)
     - [Operators](#operators)
         - [Moved operators](#moved-operators)
+    - [Transfer operators](#transfers)
+        - [Moved transfer operators](#moved-transfers)
     - [Sensors](#sensors)
         - [Moved sensors](#moved-sensors)
     - [Hooks](#hooks)
@@ -66,7 +68,7 @@ For full compatibility and test status of the backport packages check
 | PIP package   | Version required   |
 |:--------------|:-------------------|
 | hmsclient     | &gt;=0.1.0            |
-| pyhive        | &gt;=0.6.0            |
+| pyhive[hive]  | &gt;=0.6.0            |
 
 ## Cross provider package dependencies
 
@@ -100,16 +102,27 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.hive` package.
 
 ### Moved operators
 
-| Airflow 2.0 operators: `airflow.providers.apache.hive` package                                                                                                      | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                |
-|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.hive.HiveOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/hive.py)                                        | [operators.hive_operator.HiveOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_operator.py)                              |
-| [operators.hive_stats.HiveStatsCollectionOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/hive_stats.py)             | [operators.hive_stats_operator.HiveStatsCollectionOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_stats_operator.py)   |
-| [operators.hive_to_mysql.HiveToMySqlTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/hive_to_mysql.py)       | [operators.hive_to_mysql.HiveToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_mysql.py)                       |
-| [operators.hive_to_samba.Hive2SambaOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/hive_to_samba.py)                | [operators.hive_to_samba_operator.Hive2SambaOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_samba_operator.py)      |
-| [operators.mssql_to_hive.MsSqlToHiveTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/mssql_to_hive.py)       | [operators.mssql_to_hive.MsSqlToHiveTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/mssql_to_hive.py)                       |
-| [operators.mysql_to_hive.MySqlToHiveTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/mysql_to_hive.py)       | [operators.mysql_to_hive.MySqlToHiveTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/mysql_to_hive.py)                       |
-| [operators.s3_to_hive.S3ToHiveTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/s3_to_hive.py)                | [operators.s3_to_hive_operator.S3ToHiveTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/s3_to_hive_operator.py)              |
-| [operators.vertica_to_hive.VerticaToHiveTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/vertica_to_hive.py) | [contrib.operators.vertica_to_hive.VerticaToHiveTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/vertica_to_hive.py) |
+| Airflow 2.0 operators: `airflow.providers.apache.hive` package                                                                                          | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                              |
+|:--------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.hive.HiveOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/hive.py)                            | [operators.hive_operator.HiveOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_operator.py)                            |
+| [operators.hive_stats.HiveStatsCollectionOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/operators/hive_stats.py) | [operators.hive_stats_operator.HiveStatsCollectionOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_stats_operator.py) |
+
+
+
+
+
+
+
+    ### Moved transfer operators
+
+    | Airflow 2.0 transfers: `airflow.providers.apache.hive` package                                                                                              | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                |
+|:------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [transfers.hive_to_mysql.HiveToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/transfers/hive_to_mysql.py)       | [operators.hive_to_mysql.HiveToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_mysql.py)                       |
+| [transfers.hive_to_samba.HiveToSambaOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/transfers/hive_to_samba.py)       | [operators.hive_to_samba_operator.HiveToSambaOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_samba_operator.py)     |
+| [transfers.mssql_to_hive.MsSqlToHiveOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/transfers/mssql_to_hive.py)       | [operators.mssql_to_hive.MsSqlToHiveTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/mssql_to_hive.py)                       |
+| [transfers.mysql_to_hive.MySqlToHiveOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/transfers/mysql_to_hive.py)       | [operators.mysql_to_hive.MySqlToHiveTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/mysql_to_hive.py)                       |
+| [transfers.s3_to_hive.S3ToHiveOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/transfers/s3_to_hive.py)                | [operators.s3_to_hive_operator.S3ToHiveTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/s3_to_hive_operator.py)              |
+| [transfers.vertica_to_hive.VerticaToHiveOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/transfers/vertica_to_hive.py) | [contrib.operators.vertica_to_hive.VerticaToHiveTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/vertica_to_hive.py) |
 
 
 
@@ -151,6 +164,9 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.hive` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [6350fd6eb](https://github.com/apache/airflow/commit/6350fd6ebb9958982cb3fa1d466168fc31708035) | 2020-06-08  | Don&#39;t use the term &#34;whitelist&#34; - language matters (#9174)                                                                                                          |
+| [10796cb7c](https://github.com/apache/airflow/commit/10796cb7ce52c8ac2f68024e531fdda779547bdf) | 2020-06-03  | Remove Hive/Hadoop/Java dependency from unit tests (#9029)                                                                                                         |
+| [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                                                                                                                      |
 | [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)                                                                                                        |
 | [cdb3f2545](https://github.com/apache/airflow/commit/cdb3f25456e49d0199cd7ccd680626dac01c9be6) | 2020-05-26  | All classes in backport providers are now importable in Airflow 1.10 (#8991)                                                                                       |
 | [375d1ca22](https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f) | 2020-05-19  | Release candidate 2 for backport packages 2020.05.20 (#8898)                                                                                                       |

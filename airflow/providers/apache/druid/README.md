@@ -32,6 +32,8 @@ Release: 2020.5.20
 - [Provider class summary](#provider-class-summary)
     - [Operators](#operators)
         - [Moved operators](#moved-operators)
+    - [Transfer operators](#transfers)
+        - [Moved transfer operators](#moved-transfers)
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
@@ -92,11 +94,22 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.druid` package.
 
 ### Moved operators
 
-| Airflow 2.0 operators: `airflow.providers.apache.druid` package                                                                                                | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                       |
-|:---------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.druid.DruidOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid.py)                               | [contrib.operators.druid_operator.DruidOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/druid_operator.py)  |
-| [operators.druid_check.DruidCheckOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid_check.py)              | [operators.druid_check_operator.DruidCheckOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/druid_check_operator.py) |
-| [operators.hive_to_druid.HiveToDruidTransferOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/hive_to_druid.py) | [operators.hive_to_druid.HiveToDruidTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_druid.py)              |
+| Airflow 2.0 operators: `airflow.providers.apache.druid` package                                                                                   | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                       |
+|:--------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.druid.DruidOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid.py)                  | [contrib.operators.druid_operator.DruidOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/druid_operator.py)  |
+| [operators.druid_check.DruidCheckOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/operators/druid_check.py) | [operators.druid_check_operator.DruidCheckOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/druid_check_operator.py) |
+
+
+
+
+
+
+
+    ### Moved transfer operators
+
+    | Airflow 2.0 transfers: `airflow.providers.apache.druid` package                                                                                        | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                          |
+|:-------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------|
+| [transfers.hive_to_druid.HiveToDruidOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/transfers/hive_to_druid.py) | [operators.hive_to_druid.HiveToDruidTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_druid.py) |
 
 
 
@@ -124,6 +137,7 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.druid` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                                     |
 |:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------------------------|
+| [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                                               |
 | [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)                                 |
 | [375d1ca22](https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f) | 2020-05-19  | Release candidate 2 for backport packages 2020.05.20 (#8898)                                |
 | [12c5e5d8a](https://github.com/apache/airflow/commit/12c5e5d8ae25fa633efe63ccf4db389e2b796d79) | 2020-05-17  | Prepare release candidate for backport packages (#8891)                                     |

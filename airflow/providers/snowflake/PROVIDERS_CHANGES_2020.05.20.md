@@ -4,6 +4,8 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                 |
 |:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------------------------------|
+| [1c9374d25](https://github.com/apache/airflow/commit/1c9374d2573483dd66f5c35032e24140864e72c0) | 2020-06-03  | Add snowflake to slack operator (#9023)                                 |
+| [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                           |
 | [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)             |
 | [1d36b0303](https://github.com/apache/airflow/commit/1d36b0303b8632fce6de78ca4e782ae26ee06fea) | 2020-05-23  | Fix references in docs (#8984)                                          |
 | [375d1ca22](https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f) | 2020-05-19  | Release candidate 2 for backport packages 2020.05.20 (#8898)            |

@@ -161,7 +161,7 @@ definitions in Airflow.
     from airflow.hooks.base_hook import BaseHook
     from airflow.models import BaseOperator
     from airflow.models.baseoperator import BaseOperatorLink
-    from airflow.providers.amazon.aws.operators.gcs_to_s3 import GCSToS3Operator
+    from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
     # Will show up under airflow.hooks.test_plugin.PluginHook

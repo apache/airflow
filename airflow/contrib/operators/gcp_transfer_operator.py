@@ -180,8 +180,8 @@ class GcpTransferServiceOperationsListOperator(CloudDataTransferServiceListOpera
 class GoogleCloudStorageToGoogleCloudStorageTransferOperator(CloudDataTransferServiceGCSToGCSOperator):
     """
     This class is deprecated.
-    Please use `airflow.providers.google.cloud.operators.data_transfe
-    r.CloudDataTransferServiceGCSToGCSOperator`.
+    Please use `airflow.providers.google.cloud.operators.data_transfer
+    .CloudDataTransferServiceGCSToGCSOperator`.
     """
 
     def __init__(self, *args, **kwargs):

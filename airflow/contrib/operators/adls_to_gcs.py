@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.adls_to_gcs`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.transfers.adls_to_gcs`."""
 
 import warnings
 
-from airflow.providers.google.cloud.operators.adls_to_gcs import ADLSToGCSOperator
+from airflow.providers.google.cloud.transfers.adls_to_gcs import ADLSToGCSOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.adls_to_gcs`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.adls_to_gcs`.",
     DeprecationWarning, stacklevel=2
 )
 
@@ -30,13 +30,13 @@ warnings.warn(
 class AdlsToGoogleCloudStorageOperator(ADLSToGCSOperator):
     """
     This class is deprecated.
-    Please use `airflow.providers.google.cloud.operators.adls_to_gcs.ADLSToGCSOperator`.
+    Please use `airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.providers.google.cloud.operators.adls_to_gcs.ADLSToGCSOperator`.""",
+            Please use `airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

@@ -97,7 +97,7 @@ class HttpHook(BaseHook):
         :param headers: additional headers to be passed through as a dictionary
         :type headers: dict
         :param extra_options: additional options to be used when executing the request
-            i.e. {'check_response': False} to avoid checking raising exceptions on non
+            i.e. {'check_response': False} to avoid checking raising false_positive_class_names on non
             2XX or 3XX status codes
         :type extra_options: dict
         :param  \**request_kwargs: Additional kwargs to pass when creating a request.
@@ -164,7 +164,7 @@ class HttpHook(BaseHook):
         :param prepped_request: the prepared request generated in run()
         :type prepped_request: session.prepare_request
         :param extra_options: additional options to be used when executing the request
-            i.e. {'check_response': False} to avoid checking raising exceptions on non 2XX
+            i.e. {'check_response': False} to avoid checking raising false_positive_class_names on non 2XX
             or 3XX status codes
         :type extra_options: dict
         """
@@ -205,7 +205,7 @@ class HttpHook(BaseHook):
             retry_args = dict(
                  wait=tenacity.wait_exponential(),
                  stop=tenacity.stop_after_attempt(10),
-                 retry=requests.exceptions.ConnectionError
+                 retry=requests.false_positive_class_names.ConnectionError
              )
              hook.run_with_advanced_retry(
                      endpoint='v1/test',

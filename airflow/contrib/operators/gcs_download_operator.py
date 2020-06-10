@@ -21,7 +21,7 @@ This module is deprecated. Please use `airflow.providers.google.cloud.operators.
 
 import warnings
 
-from airflow.providers.google.cloud.operators.gcs import GCSToLocalOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.gcs`.",

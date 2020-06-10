@@ -42,6 +42,15 @@ Release: {{ RELEASE_NO_LEADING_ZEROS }}
         - [Moved operators](#moved-operators)
     {%- endif %}
 {%- endif %}
+{%- if NEW_TRANSFERS or MOVED_TRANSFERS %}
+    - [Transfer operators](#transfers)
+    {%- if NEW_TRANSFERS %}
+        - [New transfer operators](#new-transfers)
+    {%- endif %}
+    {%- if MOVED_TRANSFERS %}
+        - [Moved transfer operators](#moved-transfers)
+    {%- endif %}
+{%- endif %}
 {%- if NEW_SENSORS or MOVED_SENSORS %}
     - [Sensors](#sensors)
     {%- if NEW_SENSORS %}
@@ -58,15 +67,6 @@ Release: {{ RELEASE_NO_LEADING_ZEROS }}
     {%- endif %}
     {%- if MOVED_HOOKS %}
         - [Moved hooks](#moved-hooks)
-    {%- endif %}
-{%- endif %}
-{%- if NEW_PROTOCOLS or MOVED_PROTOCOLS %}
-    - [Protocols](#protocols)
-    {%- if NEW_PROTOCOLS %}
-        - [New protocols](#new-protocols)
-    {%- endif %}
-    {%- if MOVED_PROTOCOLS %}
-        - [Moved protocols](#moved-protocols)
     {%- endif %}
 {%- endif %}
 {%- if NEW_SECRETS or MOVED_SECRETS %}

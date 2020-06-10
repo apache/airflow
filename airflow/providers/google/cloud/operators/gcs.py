@@ -28,7 +28,6 @@ from google.api_core.exceptions import Conflict
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils.decorators import apply_defaults
 
@@ -225,102 +224,6 @@ class GCSListObjectsOperator(BaseOperator):
         return hook.list(bucket_name=self.bucket,
                          prefix=self.prefix,
                          delimiter=self.delimiter)
-
-
-class GCSToLocalOperator(BaseOperator):
-    """
-    Downloads a file from Google Cloud Storage.
-
-    If a filename is supplied, it writes the file to the specified location, alternatively one can
-    set the ``store_to_xcom_key`` parameter to True push the file content into xcom. When the file size
-    exceeds the maximum size for xcom it is recommended to write to a file.
-
-    :param bucket: The Google Cloud Storage bucket where the object is.
-        Must not contain 'gs://' prefix. (templated)
-    :type bucket: str
-    :param object: The name of the object to download in the Google cloud
-        storage bucket. (templated)
-    :type object: str
-    :param filename: The file path, including filename,  on the local file system (where the
-        operator is being executed) that the file should be downloaded to. (templated)
-        If no filename passed, the downloaded data will not be stored on the local file
-        system.
-    :type filename: str
-    :param store_to_xcom_key: If this param is set, the operator will push
-        the contents of the downloaded file to XCom with the key set in this
-        parameter. If not set, the downloaded data will not be pushed to XCom. (templated)
-    :type store_to_xcom_key: str
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: str
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
-        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
-        domain-wide delegation enabled.
-    :type delegate_to: str
-    """
-    template_fields = ('bucket', 'object', 'filename', 'store_to_xcom_key',)
-    ui_color = '#f0eee4'
-
-    @apply_defaults
-    def __init__(self,
-                 bucket: str,
-                 object_name: Optional[str] = None,
-                 filename: Optional[str] = None,
-                 store_to_xcom_key: Optional[str] = None,
-                 gcp_conn_id: str = 'google_cloud_default',
-                 google_cloud_storage_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
-                 *args,
-                 **kwargs) -> None:
-        # To preserve backward compatibility
-        # TODO: Remove one day
-        if object_name is None:
-            if 'object' in kwargs:
-                object_name = kwargs['object']
-                DeprecationWarning("Use 'object_name' instead of 'object'.")
-            else:
-                TypeError("__init__() missing 1 required positional argument: 'object_name'")
-
-        if filename is not None and store_to_xcom_key is not None:
-            raise ValueError("Either filename or store_to_xcom_key can be set")
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
-            gcp_conn_id = google_cloud_storage_conn_id
-
-        super().__init__(*args, **kwargs)
-        self.bucket = bucket
-        self.object = object_name
-        self.filename = filename
-        self.store_to_xcom_key = store_to_xcom_key
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
-
-    def execute(self, context):
-        self.log.info('Executing download: %s, %s, %s', self.bucket,
-                      self.object, self.filename)
-        hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
-        )
-
-        if self.store_to_xcom_key:
-            file_bytes = hook.download(bucket_name=self.bucket,
-                                       object_name=self.object)
-            if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
-                context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
-            else:
-                raise AirflowException(
-                    'The size of the downloaded file is too large to push to XCom!'
-                )
-        else:
-            hook.download(bucket_name=self.bucket,
-                          object_name=self.object,
-                          filename=self.filename)
 
 
 class GCSDeleteObjectsOperator(BaseOperator):
@@ -663,3 +566,94 @@ class GCSDeleteBucketOperator(BaseOperator):
     def execute(self, context):
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
         hook.delete_bucket(bucket_name=self.bucket_name, force=self.force)
+
+
+class GCSSynchronizeBucketsOperator(BaseOperator):
+    """
+    Synchronizes the contents of the buckets or bucket's directories in the Google Cloud Services.
+
+    Parameters ``source_object`` and ``destination_object`` describe the root sync directory. If they are
+    not passed, the entire bucket will be synchronized. They should point to directories.
+
+    .. note::
+        The synchronization of individual files is not supported. Only entire directories can be
+        synchronized.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GCSSynchronizeBuckets`
+
+    :param source_bucket: The name of the bucket containing the source objects.
+    :type source_bucket: str
+    :param destination_bucket: The name of the bucket containing the destination objects.
+    :type destination_bucket: str
+    :param source_object: The root sync directory in the source bucket.
+    :type source_object: Optional[str]
+    :param destination_object: The root sync directory in the destination bucket.
+    :type destination_object: Optional[str]
+    :param recursive: If True, subdirectories will be considered
+    :type recursive: bool
+    :param allow_overwrite: if True, the files will be overwritten if a mismatched file is found.
+        By default, overwriting files is not allowed
+    :type allow_overwrite: bool
+    :param delete_extra_files: if True, deletes additional files from the source that not found in the
+        destination. By default extra files are not deleted.
+
+        .. note::
+            This option can delete data quickly if you specify the wrong source/destination combination.
+
+    :type delete_extra_files: bool
+    """
+
+    template_fields = (
+        'source_bucket',
+        'destination_bucket',
+        'source_object',
+        'destination_object',
+        'recursive',
+        'delete_extra_files',
+        'allow_overwrite',
+        'gcp_conn_id',
+        'delegate_to',
+    )
+
+    @apply_defaults
+    def __init__(
+        self,
+        source_bucket: str,
+        destination_bucket: str,
+        source_object: Optional[str] = None,
+        destination_object: Optional[str] = None,
+        recursive: bool = True,
+        delete_extra_files: bool = False,
+        allow_overwrite: bool = False,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.source_bucket = source_bucket
+        self.destination_bucket = destination_bucket
+        self.source_object = source_object
+        self.destination_object = destination_object
+        self.recursive = recursive
+        self.delete_extra_files = delete_extra_files
+        self.allow_overwrite = allow_overwrite
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = GCSHook(
+            google_cloud_storage_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to
+        )
+        hook.sync(
+            source_bucket=self.source_bucket,
+            destination_bucket=self.destination_bucket,
+            source_object=self.source_object,
+            destination_object=self.destination_object,
+            recursive=self.recursive,
+            delete_extra_files=self.delete_extra_files,
+            allow_overwrite=self.allow_overwrite
+        )

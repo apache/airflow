@@ -173,7 +173,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
                     "Processing %s took %.3f seconds", file_path, end_time - start_time
                 )
         except Exception:  # pylint: disable=broad-except
-            # Log exceptions through the logging framework.
+            # Log false_positive_class_names through the logging framework.
             log.exception("Got an exception! Propagating...")
             raise
         finally:

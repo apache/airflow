@@ -17,32 +17,32 @@
 # under the License.
 """
 This module is deprecated.
-Please use `airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`.
+Please use `airflow.providers.amazon.aws.transfers.google_api_to_s3_transfer`.
 """
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.google_api_to_s3_transfer import GoogleApiToS3TransferOperator
+from airflow.providers.amazon.aws.transfers.google_api_to_s3_transfer import GoogleApiToS3Operator
 
 warnings.warn(
     "This module is deprecated. "
-    "Please use `airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`.",
+    "Please use `airflow.providers.amazon.aws.transfers.google_api_to_s3_transfer`.",
     DeprecationWarning, stacklevel=2
 )
 
 
-class GoogleApiToS3Transfer(GoogleApiToS3TransferOperator):
+class GoogleApiToS3Transfer(GoogleApiToS3Operator):
     """
     This class is deprecated.
     Please use:
-    `airflow.providers.amazon.aws.operators.google_api_to_s3_transfer.GoogleApiToS3TransferOperator`."""
+    `airflow.providers.amazon.aws.transfers.google_api_to_s3_transfer.GoogleApiToS3Operator`."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
             `airflow.providers.amazon.aws.operators.""" +
-            "google_api_to_s3_transfer.GoogleApiToS3TransferOperator`.",
+            "google_api_to_s3_transfer.GoogleApiToS3Operator`.",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
