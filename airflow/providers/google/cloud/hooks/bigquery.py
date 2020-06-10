@@ -22,7 +22,6 @@ implementation for BigQuery.
 """
 import logging
 import time
-import uuid
 import warnings
 from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
@@ -1426,7 +1425,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job
 
     @staticmethod
-    def _generate_job_id(task_id: str) -> str:
+    def _generate_job_id(task_id: Optional[str] = None) -> str:
+        task_id = task_id or "task"
         return f"airflow_{task_id}_{int(time.time())}"
 
     @GoogleBaseHook.fallback_to_default_project_id
