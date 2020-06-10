@@ -373,10 +373,10 @@ class TestAirflowTaskDecorator(unittest.TestCase):
         def add_number(num: int) -> int:
             return num + 2
         with pytest.raises(TypeError):
-            add_number(2, 3)
+            add_number(2, 3)  # pylint: disable=too-many-function-args
         with pytest.raises(TypeError):
-            add_number()
-        add_number('test')
+            add_number()  # pylint: disable=no-value-for-parameter
+        add_number('test')  # pylint: disable=no-value-for-parameter
 
     def test_fail_method(self):
         """Tests that @task will fail if signature is not binding."""
@@ -384,6 +384,7 @@ class TestAirflowTaskDecorator(unittest.TestCase):
         with pytest.raises(AirflowException):
             class Test:
                 num = 2
+
                 @task_decorator
                 def add_number(self, num: int) -> int:
                     return self.num + num
@@ -403,7 +404,8 @@ class TestAirflowTaskDecorator(unittest.TestCase):
         )
 
         with pytest.raises(AirflowException):
-            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+            # pylint: disable=maybe-no-member
+            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_fail_multiple_outputs_no_dict(self):
         @task_decorator(multiple_outputs=True)
@@ -420,7 +422,8 @@ class TestAirflowTaskDecorator(unittest.TestCase):
         )
 
         with pytest.raises(AirflowException):
-            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+            # pylint: disable=maybe-no-member
+            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_python_callable_arguments_are_templatized(self):
         """Test @task op_args are templatized"""
