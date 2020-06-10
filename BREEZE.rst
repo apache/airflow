@@ -1745,7 +1745,7 @@ On Linux, there is a problem with propagating ownership of created files (a know
 files and directories created in the container are not owned by the host user (but by the root user in our
 case). This may prevent you from switching branches, for example, if files owned by the root user are
 created within your sources. In case you are on a Linux host and have some files in your sources created
-y the root user, you can fix the ownership of those files by running this script:
+by the root user, you can fix the ownership of those files by running this script:
 
 .. code-block::
 

@@ -66,6 +66,8 @@ from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
+TR = TaskReschedule
+
 
 def clear_task_instances(tis,
                          session,
@@ -103,7 +105,6 @@ def clear_task_instances(tis,
             ti.state = State.NONE
             session.merge(ti)
         # Clear all reschedules related to the ti to clear
-        TR = TaskReschedule
         session.query(TR).filter(
             TR.dag_id == ti.dag_id,
             TR.task_id == ti.task_id,
@@ -874,9 +875,10 @@ class TaskInstance(Base, LoggingMixin):
             # Set the task start date. In case it was re-scheduled use the initial
             # start date that is recorded in task_reschedule table
             self.start_date = timezone.utcnow()
-            task_reschedules = TaskReschedule.find_for_task_instance(self, session)
-            if task_reschedules:
-                self.start_date = task_reschedules[0].start_date
+            if self.state == State.UP_FOR_RESCHEDULE:
+                task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
+                if task_reschedule:
+                    self.start_date = task_reschedule.start_date
 
             # Secondly we find non-runnable but requeueable tis. We reset its state.
             # This is because we might have hit concurrency limits,
