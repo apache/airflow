@@ -85,6 +85,11 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :type gcp_key_path: str
     :param gcp_scopes: Comma-separated string containing GCP scopes (for ``gcp`` auth_type)
     :type gcp_scopes: str
+    :param namespace: Optional Vault Namespace.
+    :type namespace: str
+    :param verify: Either a boolean to indicate whether TLS verification should be performed when sending requests to Vault,
+            or a string pointing at the CA bundle to use for verification. See http://docs.python-requests.org/en/master/user/advanced/#ssl-cert-verification.
+    :type verify: Union[bool,str]
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -103,6 +108,8 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         secret_id: Optional[str] = None,
         gcp_key_path: Optional[str] = None,
         gcp_scopes: Optional[str] = None,
+        namespace: Optional[str] = None
+        verify: Optional[Union[str, bool]] = None
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -122,6 +129,8 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         self.kv_engine_version = kv_engine_version
         self.gcp_key_path = gcp_key_path
         self.gcp_scopes = gcp_scopes
+        self.namespace = namespace
+        self.verify = verify
 
     @cached_property
     def client(self) -> hvac.Client:
@@ -130,6 +139,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         """
 
         _client = hvac.Client(url=self.url, **self.kwargs)
+        if self.verify == False:
+            _client.verify = self.verify
+        if self.namespace:
+            _client.namespace = self.namespace
         if self.auth_type == "token":
             if not self.token:
                 raise VaultError("token cannot be None for auth_type='token'")
