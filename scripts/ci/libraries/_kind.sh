@@ -192,6 +192,7 @@ function perform_kind_cluster_operation() {
             echo "Creating cluster"
             echo
             create_cluster
+
         elif [[ ${OPERATION} == "stop" || ${OEPRATON} == "deploy" || ${OPERATION} == "test" ]]; then
             echo
             echo "Cluster ${KIND_CLUSTER_NAME} does not exist. It should exist for ${OPERATION} operation"
@@ -378,19 +379,12 @@ function apply_kubernetes_resources() {
 function dump_kubernetes_logs() {
     POD=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' \
         --cluster "${KUBECTL_CLUSTER_NAME}" | grep airflow | head -1)
+    kubectl get all
+    kubectl get all --namespace kube-system
     echo "------- pod description -------"
     kubectl describe pod "${POD}" --cluster "${KUBECTL_CLUSTER_NAME}"
-    echo "------- webserver init container logs - init -------"
-    kubectl logs "${POD}" -c init --cluster "${KUBECTL_CLUSTER_NAME}" || true
-    if [[ "${KUBERNETES_MODE}" == "git" ]]; then
-        echo "------- webserver init container logs - git-sync-clone -------"
-        kubectl logs "${POD}" -c git-sync-clone --cluster "${KUBECTL_CLUSTER_NAME}" || true
-    fi
-    echo "------- webserver logs -------"
-    kubectl logs "${POD}" -c webserver --cluster "${KUBECTL_CLUSTER_NAME}" || true
-    echo "------- scheduler logs -------"
-    kubectl logs "${POD}" -c scheduler --cluster "${KUBECTL_CLUSTER_NAME}" || true
-    echo "--------------"
+    echo "------- airflow pod logs -------"
+    kubectl logs "${POD}" --all-containers=true || true
 }
 
 function wait_for_airflow_pods_up_and_running() {
