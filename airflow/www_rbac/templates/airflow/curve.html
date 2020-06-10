@@ -24,11 +24,11 @@
         {% else %}
         <button id="btn_double_check_success" class="button-double-check btn btn-primary margin">
           <span class="glyphicon glyphicon-ok" style="color:red" aria-hidden="true" onclick=""></span>
-          成功
+          OK
         </button>
         <button id="btn_double_check_failed" class="button-double-check btn btn-primary margin">
           <span class="glyphicon glyphicon-remove" style="color:red" aria-hidden="true"></span>
-          失败
+          NOK
         </button>
         {% endif %}
       </div>
@@ -94,6 +94,7 @@
   const result = JSON.parse('{{ result|tojson|safe }}');
   const curve = JSON.parse('{{ curve|tojson|safe }}');
   const analysisErrs = JSON.parse('{{ analysisErrorMessageMapping|tojson|safe }}');
+  const verifyErrorMap = JSON.parse('{{ verify_error_map|tojson|safe }}');
   const resultErrs = JSON.parse('{{ resultErrorMessageMapping|tojson|safe }}');
   const resultKeys = JSON.parse('{{ resultKeysTranslationMapping|tojson|safe }}');
 
@@ -254,6 +255,13 @@
       content: '{{task_instance.result}}',
       css: {
         color: '{{task_instance.result}}' === 'NOK' ? '#ee3333' : '#33ee33',
+      },
+    },
+    {
+      title: '分析返回',
+      content: verifyErrorMap['{{task_instance.verify_error}}'] || '{{task_instance.verify_error}}',
+      css: {
+        color: '{{task_instance.verify_error}}' !== '0' ? '#ee3333' : '#33ee33',
       },
     },
   ];

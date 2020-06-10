@@ -405,6 +405,9 @@ class Airflow(AirflowBaseView):
         analysis_error_message_mapping = Variable.get('analysis_error_message_mapping', deserialize_json=True,
                                                       default_var={})
 
+        verify_error_map = Variable.get('verify_error_map', deserialize_json=True,
+                                                      default_var={})
+
         result_error_message_mapping = Variable.get('result_error_message_mapping', deserialize_json=True,
                                                     default_var={})
         result_keys_translation_mapping = Variable.get('result_keys_translation_mapping', deserialize_json=True,
@@ -414,6 +417,7 @@ class Airflow(AirflowBaseView):
                                     curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
                                     resultErrorMessageMapping=result_error_message_mapping,
                                     resultKeysTranslationMapping=result_keys_translation_mapping,
+                                    verify_error_map=verify_error_map,
                                     errorTags=error_tags)
 
     @expose('/task_stats', methods=['POST'])

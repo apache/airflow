@@ -286,21 +286,20 @@ def ensure_int(num):
         return num
 
 
-def get_curve_mode(final_state, error_code, error_tag):
+def get_curve_mode(final_state, error_tag):
+    print(final_state, error_tag)
     if error_tag is not None:
         return ensure_int(error_tag)
     if final_state is not None:
         state = 0 if final_state == 'OK' else 1
         return state
-    if error_code is not None:
-        return ensure_int(error_code)
 
 
 def updateConfirmData(task_data, verify_error, curve_mode):
     data = task_data.get('task', {})
     data.update({
-        "curve_mode": '{}'.format(curve_mode),
-        "verify_error": '{}'.format(verify_error)
+        "curve_mode": curve_mode,
+        "verify_error": verify_error
     })
     return {
         'task': data
@@ -315,7 +314,7 @@ def docasInvaild(task_instance, final_state):
     result = get_result(entity_id)
     curve = get_curve(entity_id)
     task_data = get_task_params(task_instance, entity_id)
-    curve_mode = get_curve_mode(final_state, task_instance.error_code, task_instance.error_tag)
+    curve_mode = get_curve_mode(final_state, task_instance.error_tag)
     task_param = updateConfirmData(task_data,
                                    task_instance.verify_error,
                                    curve_mode
