@@ -103,7 +103,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         ssm_path = self.build_path(path_prefix, secret_id)
         try:
             response = self.client.get_parameter(
-                Name=ssm_path, WithDecryption=False
+                Name=ssm_path, WithDecryption=True
             )
             value = response["Parameter"]["Value"]
             return value
