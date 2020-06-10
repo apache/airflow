@@ -45,7 +45,7 @@ apispec==1.3.3
 appdirs==1.4.4
 argcomplete==1.11.1
 asn1crypto==1.3.0
-astroid==2.4.2
+astroid==2.3.3
 async-generator==1.10
 async-timeout==3.0.1
 atlasclient==1.0.0
@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.13.26
+boto3==1.14.0
 boto==2.49.0
-botocore==1.16.26
+botocore==1.17.0
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
@@ -100,7 +100,7 @@ croniter==0.3.32
 cryptography==2.9.2
 curlify==2.2.1
 cx-Oracle==7.3.0
-dask==2.18.0
+dask==2.18.1
 datadog==0.36.0
 decorator==4.4.2
 defusedxml==0.6.0
@@ -138,8 +138,8 @@ gcsfs==0.6.2
 gevent==20.6.0
 gitdb==4.0.5
 google-ads==4.0.0
-google-api-core==1.19.1
-google-api-python-client==1.9.1
+google-api-core==1.20.0
+google-api-python-client==1.9.2
 google-auth-httplib2==0.0.3
 google-auth-oauthlib==0.4.1
 google-auth==1.16.1
@@ -151,12 +151,12 @@ google-cloud-container==0.5.0
 google-cloud-core==1.3.0
 google-cloud-datacatalog==0.7.0
 google-cloud-dataproc==0.8.1
-google-cloud-dlp==0.15.0
+google-cloud-dlp==1.0.0
 google-cloud-kms==1.4.0
 google-cloud-language==1.3.0
 google-cloud-logging==1.15.0
 google-cloud-monitoring==1.0.0
-google-cloud-pubsub==1.5.0
+google-cloud-pubsub==1.6.0
 google-cloud-redis==1.0.0
 google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.17.0
@@ -165,7 +165,7 @@ google-cloud-storage==1.28.1
 google-cloud-tasks==1.5.0
 google-cloud-texttospeech==1.0.1
 google-cloud-translate==2.0.1
-google-cloud-videointelligence==1.14.0
+google-cloud-videointelligence==1.15.0
 google-cloud-vision==1.0.0
 google-resumable-media==0.5.1
 googleapis-common-protos==1.52.0
@@ -187,7 +187,7 @@ ijson==2.6.1
 imagesize==1.2.0
 immutables==0.14
 importlib-metadata==1.6.1
-importlib-resources==1.5.0
+importlib-resources==2.0.0
 inflection==0.5.0
 ipdb==0.13.2
 ipython-genutils==0.2.0
@@ -232,7 +232,7 @@ mypy==0.770
 mysql-connector-python==8.0.18
 mysqlclient==1.3.14
 natsort==7.0.1
-nbclient==0.3.1
+nbclient==0.4.0
 nbformat==5.0.7
 nest-asyncio==1.3.3
 networkx==2.4
@@ -259,7 +259,7 @@ pickleshare==0.7.5
 pinotdb==0.1.1
 pipdeptree==0.13.2
 pluggy==0.13.1
-pre-commit==2.5.0
+pre-commit==2.5.1
 presto-python-client==0.7.0
 prison==0.1.3
 prompt-toolkit==3.0.5
@@ -361,7 +361,6 @@ tableauserverclient==0.9
 tabulate==0.8.7
 tblib==1.6.0
 tenacity==4.12.0
-termcolor==1.1.0
 text-unidecode==1.3
 textwrap3==0.9.2
 thrift-sasl==0.4.2
@@ -384,7 +383,7 @@ virtualenv==20.0.21
 watchtower==0.7.3
 wcwidth==0.2.4
 websocket-client==0.57.0
-wrapt==1.12.1
+wrapt==1.11.2
 xmltodict==0.12.0
 yamllint==1.23.0
 yandexcloud==0.41.0
