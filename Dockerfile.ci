@@ -322,7 +322,7 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         pip install ${ADDITIONAL_PYTHON_DEPS}; \
     fi
 
-RUN scripts/ci/prepare_tool_scripts.sh
+RUN source <(bash scripts/ci/run_cli_tool.sh)
 
 WORKDIR ${AIRFLOW_SOURCES}
 

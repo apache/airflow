@@ -56,7 +56,7 @@ services:
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
       - ../../../kubernetes_tests:/opt/airflow/kubernetes_tests:cached
-      - ../../../tmp:/opt/airflow/tmp:cached
+      - ../../../tmp:/tmp:cached
       # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
     environment:
       - HOST_USER_ID

@@ -54,7 +54,7 @@ function generate_local_mounts_list {
         "$prefix"setup.py:/opt/airflow/setup.py:cached
         "$prefix"tests:/opt/airflow/tests:cached
         "$prefix"kubernetes_tests:/opt/airflow/kubernetes_tests:cached
-        "$prefix"tmp:/opt/airflow/tmp:cached
+        "$prefix"tmp:/tmp:cached
     )
 }
 
