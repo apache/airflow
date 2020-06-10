@@ -22,7 +22,7 @@ import json
 import os
 from time import monotonic, sleep
 from typing import Any, Dict, List, Optional, Union
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import google.auth
 from google.api_core.retry import exponential_sleep_generator
@@ -136,6 +136,12 @@ class DataFusionHook(GoogleBaseHook):
     @staticmethod
     def _parent(project_id: str, location: str) -> str:
         return f"projects/{project_id}/locations/{location}"
+
+    @staticmethod
+    def _base_url(instance_url: str, namespace: str) -> str:
+        return os.path.join(
+            instance_url, "v3", "namespaces", quote(namespace), "apps"
+        )
 
     def _cdap_request(
         self, url: str, method: str, body: Optional[Union[List, Dict]] = None
@@ -340,9 +346,7 @@ class DataFusionHook(GoogleBaseHook):
             can create a namespace.
         :type namespace: str
         """
-        url = os.path.join(
-            instance_url, "v3", "namespaces", namespace, "apps", pipeline_name
-        )
+        url = os.path.join(self._base_url(instance_url, namespace), quote(pipeline_name))
         response = self._cdap_request(url=url, method="PUT", body=pipeline)
         if response.status != 200:
             raise AirflowException(
@@ -370,9 +374,7 @@ class DataFusionHook(GoogleBaseHook):
             can create a namespace.
         :type namespace: str
         """
-        url = os.path.join(
-            instance_url, "v3", "namespaces", namespace, "apps", pipeline_name
-        )
+        url = os.path.join(self._base_url(instance_url, namespace), quote(pipeline_name))
         if version_id:
             url = os.path.join(url, "versions", version_id)
 
@@ -403,7 +405,7 @@ class DataFusionHook(GoogleBaseHook):
             can create a namespace.
         :type namespace: str
         """
-        url = os.path.join(instance_url, "v3", "namespaces", namespace, "apps")
+        url = self._base_url(instance_url, namespace)
         query: Dict[str, str] = {}
         if artifact_name:
             query = {"artifactName": artifact_name}
@@ -427,16 +429,12 @@ class DataFusionHook(GoogleBaseHook):
         namespace: str = "default",
     ) -> str:
         url = os.path.join(
-            instance_url,
-            "v3",
-            "namespaces",
-            namespace,
-            "apps",
-            pipeline_name,
+            self._base_url(instance_url, namespace),
+            quote(pipeline_name),
             "workflows",
             "DataPipelineWorkflow",
             "runs",
-            pipeline_id,
+            quote(pipeline_id),
         )
         response = self._cdap_request(url=url, method="GET")
         if response.status != 200:
@@ -471,7 +469,7 @@ class DataFusionHook(GoogleBaseHook):
             instance_url,
             "v3",
             "namespaces",
-            namespace,
+            quote(namespace),
             "start",
         )
         runtime_args = runtime_args or {}
@@ -514,12 +512,8 @@ class DataFusionHook(GoogleBaseHook):
         :type namespace: str
         """
         url = os.path.join(
-            instance_url,
-            "v3",
-            "namespaces",
-            namespace,
-            "apps",
-            pipeline_name,
+            self._base_url(instance_url, namespace),
+            quote(pipeline_name),
             "workflows",
             "DataPipelineWorkflow",
             "stop",
