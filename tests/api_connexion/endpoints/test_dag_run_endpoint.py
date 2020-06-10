@@ -269,24 +269,27 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
         [
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18:00:00+00:00",
-                ["TEST_DAG_RUN_ID8", "TEST_DAG_RUN_ID9"],
+                ["TEST_START_EXEC_DAY_18", "TEST_START_EXEC_DAY_19"],
             ),
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-11T18:00:00+00:00",
-                ["TEST_DAG_RUN_ID0"],
+                ["TEST_START_EXEC_DAY_10"],
             ),
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-15T18:00:00+00:00"
                 "&start_date_gte=2020-06-12T18:00:00+00:00",
-                ["TEST_DAG_RUN_ID2", "TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],
+                ["TEST_START_EXEC_DAY_12", "TEST_START_EXEC_DAY_13",
+                 "TEST_START_EXEC_DAY_14"],
             ),
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte=2020-06-13T18:00:00+00:00",
-                ["TEST_DAG_RUN_ID0", "TEST_DAG_RUN_ID1", "TEST_DAG_RUN_ID2"],
+                ["TEST_START_EXEC_DAY_10", "TEST_START_EXEC_DAY_11",
+                 "TEST_START_EXEC_DAY_12"],
             ),
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-16T18:00:00+00:00",
-                ["TEST_DAG_RUN_ID6", "TEST_DAG_RUN_ID7", "TEST_DAG_RUN_ID8", "TEST_DAG_RUN_ID9"],
+                ["TEST_START_EXEC_DAY_16", "TEST_START_EXEC_DAY_17",
+                 "TEST_START_EXEC_DAY_18", "TEST_START_EXEC_DAY_19"],
             ),
         ]
     )
@@ -319,7 +322,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
         return [
             DagRun(
                 dag_id="TEST_DAG_ID",
-                run_id="TEST_DAG_RUN_ID" + str(i),
+                run_id="TEST_START_EXEC_DAY_1" + str(i),
                 run_type=DagRunType.MANUAL.value,
                 execution_date=timezone.parse(dates[i]),
                 start_date=timezone.parse(dates[i]),
