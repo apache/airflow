@@ -16,6 +16,8 @@
 # under the License.
 """Run ephemeral Docker Swarm services"""
 
+from time import sleep
+
 import requests
 from docker import types
 
@@ -163,6 +165,7 @@ class DockerSwarmOperator(DockerOperator):
             if self._has_service_terminated():
                 self.log.info('Service status before exiting: %s', self._service_status())
                 break
+            sleep(0.05)
 
         if self.auto_remove:
             self.cli.remove_service(self.service['ID'])
