@@ -128,7 +128,8 @@ class DockerSwarmOperator(DockerOperator):
         return self._run_service()
 
     def _run_service(self):
-        self.log.info('Starting docker service from image %s', self.image)
+        self.log.info('Starting docker service %s from image %s',
+                      self._get_service_name(), self.image)
 
         self.service = self.cli.create_service(
             types.TaskTemplate(
@@ -145,7 +146,7 @@ class DockerSwarmOperator(DockerOperator):
                 resources=types.Resources(mem_limit=self.mem_limit),
                 networks=self.networks,
             ),
-            name='airflow-%s' % get_random_string(),
+            name=self._get_service_name(),
             labels={'name': 'airflow__%s__%s' % (self.dag_id, self.task_id)}
         )
 
@@ -237,6 +238,9 @@ class DockerSwarmOperator(DockerOperator):
         # flush any remaining log stream
         if line:
             self.log.info(line)
+
+    def _get_service_name(self):
+        return '%s__af_%s' % (self.task_id, get_random_string())
 
     def on_kill(self):
         if self.cli is not None:
