@@ -279,26 +279,60 @@ def get_curve(entity_id):
     return st.query_curve()
 
 
-def docasInvaild(task_instance, entity_id):
+def ensure_int(num):
+    try:
+        return int(num)
+    except Exception as e:
+        return num
+
+
+def get_curve_mode(final_state, error_code, error_tag):
+    if error_tag is not None:
+        return ensure_int(error_tag)
+    if final_state is not None:
+        state = 0 if final_state == 'OK' else 1
+        return state
+    if error_code is not None:
+        return ensure_int(error_code)
+
+
+def updateConfirmData(task_data, verify_error, curve_mode):
+    data = task_data.get('task', {})
+    data.update({
+        "curve_mode": '{}'.format(curve_mode),
+        "verify_error": '{}'.format(verify_error)
+    })
+    return {
+        'task': data
+    }
+
+
+def docasInvaild(task_instance, final_state):
     """二次确认结果不同"""
+    entity_id = task_instance.entity_id
     cas_base_url = get_cas_base_url()
     url = "{}/cas/invalid-curve".format(cas_base_url)
     result = get_result(entity_id)
     curve = get_curve(entity_id)
-    task = get_task_params(task_instance, entity_id)
+    task_data = get_task_params(task_instance, entity_id)
+    curve_mode = get_curve_mode(final_state, task_instance.error_code, task_instance.error_tag)
+    task_param = updateConfirmData(task_data,
+                                   task_instance.verify_error,
+                                   curve_mode
+                                   )
     measure_result = result.get('measure_result', None)
     controller_name = result.get('controller_name', None)
     job = result.get('job', None)
     batch_count = result.get('batch_count', None)
     bolt_number = generate_bolt_number(controller_name, job, batch_count)
-    curve_params = get_curve_params(bolt_number, measure_result)
+    curve_params = get_curve_params(bolt_number)
     data = {
         'entity_id': entity_id,
         'result': result,
         'curve': curve,
         'craft_type': get_craft_type()
     }
-    data.update(task)
+    data.update(task_param)
     data.update(curve_params)
     json_data = {
         'conf': data
@@ -331,20 +365,20 @@ def double_confirm_task(dag_id, task_id, execution_date):
     try:
         params = request.get_json(force=True)  # success failed
         final_state = params.get('final_state', None)
-        set_dag_run_final_state(
-            task_id=task_id,
-            dag_id=dag_id,
-            execution_date=execution_date,
-            final_state=final_state)
+
         task = get_task_instance(dag_id, task_id, execution_date)
         if not task.result:
             raise AirflowException(u"分析结果还没有生成，请等待分析结果生成后再进行二次确认")
         if not final_state or final_state not in ['OK', 'NOK']:
             raise AirflowException("二次确认参数未定义或数值不正确!")
-        if task.result != final_state:
-            # 分析结果与二次确认结果不同
-            docasInvaild(task, task.entity_id)
-
+        # if task.result != final_state:
+        # 分析结果与二次确认结果不同
+        docasInvaild(task, final_state)
+        set_dag_run_final_state(
+            task_id=task_id,
+            dag_id=dag_id,
+            execution_date=execution_date,
+            final_state=final_state)
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))

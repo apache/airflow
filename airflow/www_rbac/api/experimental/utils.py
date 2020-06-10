@@ -66,12 +66,12 @@ def generate_bolt_number(controller_name, program, batch_count=None):
     return '-'.join([controller_name, program, str(batch_count)])
 
 
-def generate_curve_name(nut_no, measure_result):
-    return '/'.join([nut_no, measure_result, str(get_craft_type())])
+def generate_curve_name(nut_no):
+    return '/'.join([nut_no, str(get_craft_type())])
 
 
-def get_curve_params(bolt_number, measure_result):
-    curve_name = generate_curve_name(bolt_number, measure_result)
+def get_curve_params(bolt_number):
+    curve_name = generate_curve_name(bolt_number)
     try:
         return Variable.get_fuzzy_active(
             curve_name,
@@ -84,17 +84,11 @@ def get_curve_params(bolt_number, measure_result):
 
 
 def get_task_params(task_instance, entity_id):
-    # todo: parse verify_error from error_tag
-    verify_error = 0
     task = {
         "dag_id": task_instance.dag_id,
         "task_id": task_instance.task_id,
         "real_task_id": entity_id,
-        "exec_date": '{}'.format(task_instance.execution_date),
-        "final_state": '{}'.format(task_instance.final_state),
-        "error_tag": verify_error,
-        "error_code": '{}'.format(task_instance.error_code),
-        "verify_error": '{}'.format(task_instance.verify_error)
+        "exec_date": '{}'.format(task_instance.execution_date)
     }
     return {'task': task}
 
