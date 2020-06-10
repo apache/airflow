@@ -36,7 +36,7 @@ import tenacity
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk
-from google.auth.environment_vars import CREDENTIALS
+from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 
@@ -420,7 +420,7 @@ class GoogleBaseHook(BaseHook):
 
         with self.provide_gcp_credential_file_as_context(), \
                 tempfile.TemporaryDirectory() as gcloud_config_tmp, \
-                patch_environ({'CLOUDSDK_CONFIG': gcloud_config_tmp}):
+                patch_environ({CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}):
 
             if project_id:
                 # Don't display stdout/stderr for security reason

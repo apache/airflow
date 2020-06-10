@@ -22,6 +22,7 @@ import functools
 import json
 import re
 import select
+import shlex
 import subprocess
 import time
 import uuid
@@ -319,7 +320,7 @@ class _DataflowRunner(LoggingMixin):
         on_new_job_id_callback: Optional[Callable[[str], None]] = None
     ) -> None:
         super().__init__()
-        self.log.info("Running command: %s", ' '.join(cmd))
+        self.log.info("Running command: %s", ' '.join([shlex.quote(arg) for arg in cmd]))
         self.on_new_job_id_callback = on_new_job_id_callback
         self._proc = subprocess.Popen(
             cmd,
@@ -394,6 +395,9 @@ class _DataflowRunner(LoggingMixin):
             if self._proc.poll() is not None:
                 # Mark process completion but allows its outputs to be consumed.
                 process_ends = True
+
+        self.log.info(f"Dataflow executable exited with code: {self._proc.returncode}")
+
         if self._proc.returncode != 0:
             raise Exception("DataFlow failed with return code {}".format(
                 self._proc.returncode))
