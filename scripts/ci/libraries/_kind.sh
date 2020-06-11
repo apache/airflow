@@ -23,8 +23,9 @@ function dump_kind_logs() {
 
     echo "EXIT_CODE is ${EXIT_CODE:=}"
 
-    local DUMP_DIR_NAME=kind_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
-    local DUMP_DIR=/tmp/${DUMP_DIR_NAME}
+    local DUMP_DIR_NAME DUMP_DIR
+    DUMP_DIR_NAME=kind_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
+    DUMP_DIR="/tmp/${DUMP_DIR_NAME}"
     kind --name "${KIND_CLUSTER_NAME}" export logs "${DUMP_DIR}"
     tar -cvzf "${DUMP_DIR}.tar.gz" -C /tmp "${DUMP_DIR_NAME}"
 }
