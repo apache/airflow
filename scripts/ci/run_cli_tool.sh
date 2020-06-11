@@ -19,7 +19,7 @@
 set -euo pipefail
 
 if [ -z "${AIRFLOW_CI_IMAGE}" ]; then
-    echo "Missing environment variable AIRFLOW_CI_IMAGE"
+    >&2 echo "Missing environment variable AIRFLOW_CI_IMAGE"
     exit 1
 fi
 if [ -z "${HOST_AIRFLOW_SOURCES}" ]; then
