@@ -33,7 +33,7 @@ class TestDAGRunBase(unittest.TestCase):
 
     def setUp(self) -> None:
         clear_db_runs()
-        self.now = "2020-06-09T13:59:56.336000+00:00"
+        self.default_time = "2020-06-09T13:59:56.336000+00:00"
 
     def tearDown(self) -> None:
         clear_db_runs()
@@ -45,8 +45,8 @@ class TestDAGRunSchema(TestDAGRunBase):
     def test_serialze(self, session):
         dagrun_model = DagRun(run_id='my-dag-run',
                               run_type=DagRunType.MANUAL.value,
-                              execution_date=timezone.parse(self.now),
-                              start_date=timezone.parse(self.now),
+                              execution_date=timezone.parse(self.default_time),
+                              start_date=timezone.parse(self.default_time),
                               conf='{"start": "stop"}'
                               )
         session.add(dagrun_model)
@@ -61,9 +61,9 @@ class TestDAGRunSchema(TestDAGRunBase):
                 'dag_run_id': 'my-dag-run',
                 'end_date': None,
                 'state': 'running',
-                'execution_date': self.now,
+                'execution_date': self.default_time,
                 'external_trigger': True,
-                'start_date': self.now,
+                'start_date': self.default_time,
                 'conf': {"start": "stop"}
             }
         )
@@ -77,9 +77,9 @@ class TestDAGRunSchema(TestDAGRunBase):
             'dag_run_id': 'my-dag-run',
             'end_date': None,
             'state': 'failed',
-            'execution_date': self.now,
+            'execution_date': self.default_time,
             'external_trigger': True,
-            'start_date': self.now,
+            'start_date': self.default_time,
             'conf': '{"start": "stop"}'
         }
 
@@ -88,7 +88,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             result.data,
             {
                 'run_id': 'my-dag-run',
-                'execution_date': parse(self.now),
+                'execution_date': parse(self.default_time),
                 'state': 'failed',
                 'conf': {"start": "stop"}
             }
@@ -101,9 +101,9 @@ class TestDAGRunSchema(TestDAGRunBase):
             'dag_run_id': 'my-dag-run',
             'end_date': None,
             'state': 'faileds',
-            'execution_date': self.now,
+            'execution_date': self.default_time,
             'external_trigger': True,
-            'start_date': self.now,
+            'start_date': self.default_time,
             'conf': {"start": "stop"}
         }
 
@@ -112,7 +112,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             result.data,
             {
                 'run_id': 'my-dag-run',
-                'execution_date': parse(self.now),
+                'execution_date': parse(self.default_time),
                 'conf': {"start": "stop"}
             }
         )
@@ -124,15 +124,15 @@ class TestDagRunCollection(TestDAGRunBase):
     def test_serialize(self, session):
         dagrun_model_1 = DagRun(
             run_id='my-dag-run',
-            execution_date=timezone.parse(self.now),
+            execution_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
-            start_date=timezone.parse(self.now),
+            start_date=timezone.parse(self.default_time),
             conf='{"start": "stop"}'
         )
         dagrun_model_2 = DagRun(
             run_id='my-dag-run-2',
-            execution_date=timezone.parse(self.now),
-            start_date=timezone.parse(self.now),
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
         )
         dagruns = [dagrun_model_1, dagrun_model_2]
@@ -149,10 +149,10 @@ class TestDagRunCollection(TestDAGRunBase):
                         'dag_id': None,
                         'dag_run_id': 'my-dag-run',
                         'end_date': None,
-                        'execution_date': self.now,
+                        'execution_date': self.default_time,
                         'external_trigger': True,
                         'state': 'running',
-                        'start_date': self.now,
+                        'start_date': self.default_time,
                         'conf': {"start": "stop"}
                     },
                     {
@@ -160,9 +160,9 @@ class TestDagRunCollection(TestDAGRunBase):
                         'dag_run_id': 'my-dag-run-2',
                         'end_date': None,
                         'state': 'running',
-                        'execution_date': self.now,
+                        'execution_date': self.default_time,
                         'external_trigger': True,
-                        'start_date': self.now,
+                        'start_date': self.default_time,
                         'conf': {}
                     }
                 ],

@@ -37,8 +37,8 @@ class TestDagRunEndpoint(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
-        self.now = '2020-06-11T18:00:00+00:00'
-        self.now2 = '2020-06-12T18:00:00+00:00'
+        self.default_time = '2020-06-11T18:00:00+00:00'
+        self.default_time_2 = '2020-06-12T18:00:00+00:00'
         clear_db_runs()
 
     def tearDown(self) -> None:
@@ -49,8 +49,8 @@ class TestDagRunEndpoint(unittest.TestCase):
             dag_id='TEST_DAG_ID',
             run_id='TEST_DAG_RUN_ID_1',
             run_type=DagRunType.MANUAL.value,
-            execution_date=timezone.parse(self.now),
-            start_date=timezone.parse(self.now),
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state=state,
         )
@@ -58,8 +58,8 @@ class TestDagRunEndpoint(unittest.TestCase):
             dag_id='TEST_DAG_ID',
             run_id='TEST_DAG_RUN_ID_2',
             run_type=DagRunType.MANUAL.value,
-            execution_date=timezone.parse(self.now2),
-            start_date=timezone.parse(self.now),
+            execution_date=timezone.parse(self.default_time_2),
+            start_date=timezone.parse(self.default_time),
             external_trigger=True,
         )
         if extra_dag:
@@ -67,8 +67,8 @@ class TestDagRunEndpoint(unittest.TestCase):
                 dag_id='TEST_DAG_ID_' + str(i),
                 run_id='TEST_DAG_RUN_ID_' + str(i),
                 run_type=DagRunType.MANUAL.value,
-                execution_date=timezone.parse(self.now2),
-                start_date=timezone.parse(self.now),
+                execution_date=timezone.parse(self.default_time_2),
+                start_date=timezone.parse(self.default_time),
                 external_trigger=True,
             ) for i in range(3, 5)]
             return [dagrun_model_1, dagrun_model_2] + dagrun_extra
@@ -89,8 +89,8 @@ class TestGetDagRun(TestDagRunEndpoint):
             dag_id='TEST_DAG_ID',
             run_id='TEST_DAG_RUN_ID',
             run_type=DagRunType.MANUAL.value,
-            execution_date=timezone.parse(self.now),
-            start_date=timezone.parse(self.now),
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
             external_trigger=True,
         )
         session.add(dagrun_model)
@@ -106,9 +106,9 @@ class TestGetDagRun(TestDagRunEndpoint):
                 'dag_run_id': 'TEST_DAG_RUN_ID',
                 'end_date': None,
                 'state': 'running',
-                'execution_date': self.now,
+                'execution_date': self.default_time,
                 'external_trigger': True,
-                'start_date': self.now,
+                'start_date': self.default_time,
                 'conf': {},
             },
         )
@@ -140,9 +140,9 @@ class TestGetDagRuns(TestDagRunEndpoint):
                         'dag_run_id': 'TEST_DAG_RUN_ID_1',
                         'end_date': None,
                         'state': 'running',
-                        'execution_date': self.now,
+                        'execution_date': self.default_time,
                         'external_trigger': True,
-                        'start_date': self.now,
+                        'start_date': self.default_time,
                         'conf': {},
                     },
                     {
@@ -150,9 +150,9 @@ class TestGetDagRuns(TestDagRunEndpoint):
                         'dag_run_id': 'TEST_DAG_RUN_ID_2',
                         'end_date': None,
                         'state': 'running',
-                        'execution_date': self.now2,
+                        'execution_date': self.default_time_2,
                         'external_trigger': True,
-                        'start_date': self.now,
+                        'start_date': self.default_time,
                         'conf': {},
                     },
                 ],
@@ -241,8 +241,8 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
                 dag_id="TEST_DAG_ID",
                 run_id="TEST_DAG_RUN_ID" + str(i),
                 run_type=DagRunType.MANUAL.value,
-                execution_date=timezone.parse(self.now) + timedelta(minutes=i),
-                start_date=timezone.parse(self.now),
+                execution_date=timezone.parse(self.default_time) + timedelta(minutes=i),
+                start_date=timezone.parse(self.default_time),
                 external_trigger=True,
             )
             for i in range(1, count + 1)
