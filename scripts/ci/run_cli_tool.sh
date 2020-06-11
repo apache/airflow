@@ -92,9 +92,11 @@ case "${TOOL_NAME}" in
         COMMAND=("$TOOL_NAME" "${@}")
         ;;
     terraform )
-        COMMON_DOCKER_ARGS+=("${GOOGLE_CREDENTIALS_DOCKER_ARGS[@]}")
-        COMMON_DOCKER_ARGS+=("${AZURE_CREDENTIALS_DOCKER_ARGS[@]}")
-        COMMON_DOCKER_ARGS+=("${AWS_CREDENTIALS_DOCKER_ARGS[@]}")
+        COMMON_DOCKER_ARGS+=(
+            "${GOOGLE_CREDENTIALS_DOCKER_ARGS[@]}"
+            "${AZURE_CREDENTIALS_DOCKER_ARGS[@]}"
+            "${AWS_CREDENTIALS_DOCKER_ARGS[@]}"
+        )
         DIRECTORIES_TO_FIX+=(
             "${HOST_HOME}/.config/gcloud"
             "${HOST_HOME}/.aws"
