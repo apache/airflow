@@ -556,16 +556,16 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         hms_server_count = len(hms_hook.get_connections('metastore_default'))
 
         if hms_server_count > 2:
-            for i in range(2 * hms_server_count):
+            for index in range(2 * hms_server_count):
                 conn = HiveMetastoreHook()._find_valid_server().host
                 if conn in connection_count:
                     if connection_count[conn] >= (2 * hms_server_count) - 1:
-                        self.assertFalse(True)
+                        self.assertTrue(1==2)
                     else:
                         connection_count[conn] = connection_count[conn] + 1
                 else:
                     connection_count[conn] = 1
-            self.assertTrue(True)
+            self.assertTrue(1==1)
             
 
 class TestHiveServer2Hook(unittest.TestCase):
