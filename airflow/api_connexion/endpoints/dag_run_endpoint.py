@@ -82,10 +82,10 @@ def get_dag_runs(dag_id, session):
         query = query.filter(DagRun.execution_date <= timezone.parse(execution_date_lte))
 
     # filter end date
-    if end_date_gte and not end_date_lte:
+    if end_date_gte:
         query = query.filter(DagRun.end_date >= timezone.parse(end_date_gte))
 
-    if end_date_lte and not end_date_gte:
+    if end_date_lte:
         query = query.filter(DagRun.end_date <= timezone.parse(end_date_lte))
 
     # apply offset and limit
