@@ -49,7 +49,15 @@ then
     exit 0
 fi
 
+CONTAINER_ID="$(head -n 1 < /proc/self/cgroup | cut -d ":" -f 3 | cut -d "/" -f 3)"
+
 COMMON_DOCKER_ARGS=(
+    # Share namespaces between all containers.
+    # This way we are even closer to run those tools like if they were installed.
+    # More information: https://docs.docker.com/get-started/overview/#namespaces
+    --ipc "container:${CONTAINER_ID}"
+    --pid "container:${CONTAINER_ID}"
+    --network "container:${CONTAINER_ID}"
     -v "${HOST_AIRFLOW_SOURCES}/tmp:/tmp"
     -v "${HOST_AIRFLOW_SOURCES}/files:/files"
     -v "${HOST_AIRFLOW_SOURCES}:/opt/airflow"
