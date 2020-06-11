@@ -22,6 +22,18 @@ if [ -z "${AIRFLOW_CI_IMAGE}" ]; then
     echo "Missing environment variable AIRFLOW_CI_IMAGE"
     exit 1
 fi
+if [ -z "${HOST_AIRFLOW_SOURCES}" ]; then
+    echo "Missing environment variable HOST_AIRFLOW_SOURCES"
+    exit 1
+fi
+if [ -z "${HOST_USER_ID}" ]; then
+    echo "Missing environment variable HOST_USER_ID"
+    exit 1
+fi
+if [ -z "${HOST_GROUP_ID}" ]; then
+    echo "Missing environment variable HOST_GROUP_ID"
+    exit 1
+fi
 
 SCRIPT_NAME="$( basename "${BASH_SOURCE[0]}")"
 # Drop "-update" suffix, if exists
