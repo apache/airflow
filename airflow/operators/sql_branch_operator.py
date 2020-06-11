@@ -17,12 +17,19 @@
 """This module is deprecated. Please use `airflow.operators.sql`."""
 import warnings
 
-# pylint: disable=unused-import
-# flake8: noqa F401
-from airflow.operators.sql import BranchSQLOperator as BranchSqlOperator
+from airflow.operators.sql import BranchSQLOperator
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.sql`.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+
+class BranchSqlOperator(BranchSQLOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.sql.BranchSQLOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.operators.sql.BranchSQLOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

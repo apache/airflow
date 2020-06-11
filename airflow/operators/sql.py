@@ -39,7 +39,7 @@ ALLOWED_CONN_TYPE = {
 
 class SQLCheckOperator(BaseOperator):
     """
-    Performs checks against a db. The ``CheckOperator`` expects
+    Performs checks against a db. The ``SQLCheckOperator`` expects
     a sql query that will return a single row. Each value on that
     first row is evaluated using python ``bool`` casting. If any of the
     values return ``False`` the check is failed and errors out.
