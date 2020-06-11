@@ -180,7 +180,6 @@ jobs:
         python-version: [3.6, 3.7]
         kube-mode:
           - image
-          - git
         kubernetes-version:
           - "v1.15.3"
       fail-fast: false
