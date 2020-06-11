@@ -90,6 +90,8 @@ def put_anaylysis_result():
             ti.result = rresult
             ti.entity_id = entity_id
             ti.error_code = curve_mode
+            if curve_mode is not 0:
+                ti.error_tag = json.dumps([curve_mode])
             ti.verify_error = verify_error
             session.commit()
         if PUSH_TRAINING_NOK == 'True' and rresult == 'NOK':

@@ -258,7 +258,7 @@
       },
     },
     {
-      title: '分析返回',
+      title: '异常信息',
       content: verifyErrorMap['{{task_instance.verify_error}}'] || '{{task_instance.verify_error}}',
       css: {
         color: '{{task_instance.verify_error}}' !== '0' ? '#ee3333' : '#33ee33',
@@ -267,15 +267,15 @@
   ];
   const errorCode = '{{task_instance.error_code}}';
 
-  if (!Number.isNaN(+errorCode) && +errorCode !== 0) {
-    info.push({
-      title: '错误信息',
-      content: analysisErrs[+'{{task_instance.error_code}}'] || '{{task_instance.error_code}}',
-      css: {
-        color: '#ee3333',
-      },
-    });
-  }
+  // if (!Number.isNaN(+errorCode) && +errorCode !== 0) {
+  //   info.push({
+  //     title: '异常类型',
+  //     content: analysisErrs[+'{{task_instance.error_code}}'] || '{{task_instance.error_code}}',
+  //     css: {
+  //       color: '#ee3333',
+  //     },
+  //   });
+  // }
 
   info.reverse().forEach((i) => {
     const $info = $('<fieldset class="base-info-item card flex-column justify-center">');
