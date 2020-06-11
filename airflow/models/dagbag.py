@@ -355,15 +355,14 @@ class DagBag(BaseDagBag, LoggingMixin):
         Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
 
-        root_dag.resolve_template_files()
-        root_dag.last_loaded = timezone.utcnow()
+        dag.resolve_template_files()
 
         for task in dag.tasks:
             settings.policy(task)
 
         from airflow.operators.subdag_operator import SubDagOperator
         from airflow.models.baseoperator import cross_downstream
-        for task_id, task in root_dag.task_dict.copy().items():
+        for task_id, task in dag.task_dict.copy().items():
             if not isinstance(task, SubDagOperator):
                 continue
             else:
@@ -390,7 +389,8 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         try:
             if dag is root_dag:
-                test_cycle(root_dag)
+                dag.last_loaded = timezone.utcnow()
+                test_cycle(dag)
                 self.dags[dag.dag_id] = dag
                 self.log.debug('Loaded DAG %s', dag)
         except AirflowDagCycleException as cycle_exception:
