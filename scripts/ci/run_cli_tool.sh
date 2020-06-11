@@ -23,15 +23,15 @@ if [ -z "${AIRFLOW_CI_IMAGE}" ]; then
     exit 1
 fi
 if [ -z "${HOST_AIRFLOW_SOURCES}" ]; then
-    echo "Missing environment variable HOST_AIRFLOW_SOURCES"
+    >&2 echo "Missing environment variable HOST_AIRFLOW_SOURCES"
     exit 1
 fi
 if [ -z "${HOST_USER_ID}" ]; then
-    echo "Missing environment variable HOST_USER_ID"
+    >&2 echo "Missing environment variable HOST_USER_ID"
     exit 1
 fi
 if [ -z "${HOST_GROUP_ID}" ]; then
-    echo "Missing environment variable HOST_GROUP_ID"
+    >&2 echo "Missing environment variable HOST_GROUP_ID"
     exit 1
 fi
 
