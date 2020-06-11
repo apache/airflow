@@ -218,7 +218,7 @@ function initialize_common_environment {
     export VERSION_SUFFIX_FOR_SVN=""
 
     # Version of Kubernetes to run
-    export KUBERNETES_VERSION="${KUBERNETES_VERSION:="v1.15.3"}"
+    export KUBERNETES_VERSION="${KUBERNETES_VERSION:="v1.15.11"}"
 
     # Name of the KinD cluster to connect to
     export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}

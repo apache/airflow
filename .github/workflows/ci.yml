@@ -181,7 +181,7 @@ jobs:
         kube-mode:
           - image
         kubernetes-version:
-          - "v1.15.3"
+          - "v1.15.11"
       fail-fast: false
     env:
       BACKEND: postgres
