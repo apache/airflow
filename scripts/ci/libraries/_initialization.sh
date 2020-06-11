@@ -227,3 +227,85 @@ function initialize_common_environment {
     export KUBECTL_CLUSTER_NAME=kind-${KIND_CLUSTER_NAME}
 
 }
+
+# Retrieves CI environment variables needed - depending on the CI system we run it in.
+# We try to be CI - agnostic and our scripts should run the same way on different CI systems
+# (This makes it easy to move between different CI systems)
+# This function maps CI-specific variables into a generic ones (prefixed with CI_) that
+# we used in other scripts
+function get_ci_environment() {
+    export CI_EVENT_TYPE="manual"
+    export CI_TARGET_REPO="apache/airflow"
+    export CI_TARGET_BRANCH="master"
+    export CI_SOURCE_REPO="apache/airflow"
+    export CI_SOURCE_BRANCH="master"
+    export CI_BUILD_ID="default-build-id"
+    export CI_JOB_ID="default-job-id"
+    if [[ ${CI:=} != "true" ]]; then
+        echo
+        echo "This is not a CI environment!. Staying with the defaults"
+        echo
+    else
+        if [[ ${TRAVIS:=} == "true" ]]; then
+            export CI_TARGET_REPO="${TRAVIS_REPO_SLUG}"
+            export CI_TARGET_BRANCH="${TRAVIS_BRANCH}"
+            export CI_BUILD_ID="${TRAVIS_BUILD_ID}"
+            export CI_JOB_ID="${TRAVIS_JOB_ID}"
+            if [[ "${TRAVIS_PULL_REQUEST:=}" == "true" ]]; then
+                export CI_EVENT_TYPE="pull_request"
+                export CI_SOURCE_REPO="${TRAVIS_PULL_REQUEST_SLUG}"
+                export CI_SOURCE_BRANCH="${TRAVIS_PULL_REQUEST_BRANCH}"
+            elif [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
+                export CI_EVENT_TYPE="schedule"
+            else
+                export CI_EVENT_TYPE="push"
+            fi
+        elif [[ ${GITHUB_ACTIONS:=} == "true" ]]; then
+            export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
+            export CI_TARGET_BRANCH="${GITHUB_BASE_REF}"
+            export CI_BUILD_ID="${GITHUB_RUN_ID}"
+            export CI_JOB_ID="${GITHUB_JOB}"
+            if [[ ${GITHUB_EVENT_NAME:=} == "pull_request" ]]; then
+                export CI_EVENT_TYPE="pull_request"
+                # default name of the source repo (assuming it's forked without rename)
+                export SOURCE_AIRFLOW_REPO=${SOURCE_AIRFLOW_REPO:="airflow"}
+                # For Pull Requests it's ambiguous to find the PR and we need to
+                # assume that name of repo is airflow but it could be overridden in case it's not
+                export CI_SOURCE_REPO="${GITHUB_ACTOR}/${SOURCE_AIRFLOW_REPO}"
+                export CI_SOURCE_BRANCH="${GITHUB_HEAD_REF}"
+                BRANCH_EXISTS=$(git ls-remote --heads \
+                    "https://github.com/${CI_SOURCE_REPO}.git" "${CI_SOURCE_BRANCH}" || true)
+                if [[ ${BRANCH_EXISTS} == "" ]]; then
+                    echo
+                    echo "https://github.com/${CI_SOURCE_REPO}.git Branch ${CI_SOURCE_BRANCH} does not exist"
+                    echo
+                    echo
+                    echo "Fallback to https://github.com/${CI_TARGET_REPO}.git Branch ${CI_TARGET_BRANCH}"
+                    echo
+                    # Fallback to the target repository if the repo does not exist
+                    export CI_SOURCE_REPO="${CI_TARGET_REPO}"
+                    export CI_SOURCE_BRANCH="${CI_TARGET_BRANCH}"
+                fi
+            elif [[ ${GITHUB_EVENT_TYPE:=} == "schedule" ]]; then
+                export CI_EVENT_TYPE="schedule"
+            else
+                export CI_EVENT_TYPE="push"
+            fi
+        else
+            echo
+            echo "ERROR! Unknown CI environment. Exiting"
+            exit 1
+        fi
+    fi
+    echo
+    echo "Detected CI build environment"
+    echo
+    echo "CI_EVENT_TYPE=${CI_EVENT_TYPE}"
+    echo "CI_TARGET_REPO=${CI_TARGET_REPO}"
+    echo "CI_TARGET_BRANCH=${CI_TARGET_BRANCH}"
+    echo "CI_SOURCE_REPO=${CI_SOURCE_REPO}"
+    echo "CI_SOURCE_BRANCH=${CI_SOURCE_BRANCH}"
+    echo "CI_BUILD_ID=${CI_BUILD_ID}"
+    echo "CI_JOB_ID=${CI_JOB_ID}"
+    echo
+}
