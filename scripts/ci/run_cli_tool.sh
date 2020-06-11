@@ -54,6 +54,7 @@ COMMON_DOCKER_ARGS=(
     -v "${HOST_AIRFLOW_SOURCES}/files:/files"
     -v "${HOST_AIRFLOW_SOURCES}:/opt/airflow"
     --env-file <(env)
+    -w "${PWD}"
 )
 
 AWS_CREDENTIALS_DOCKER_ARGS=(-v "${HOST_HOME}/.aws:/root/.aws")
@@ -86,7 +87,6 @@ case "${TOOL_NAME}" in
         COMMON_DOCKER_ARGS+=("${GOOGLE_CREDENTIALS_DOCKER_ARGS[@]}")
         COMMON_DOCKER_ARGS+=("${AZURE_CREDENTIALS_DOCKER_ARGS[@]}")
         COMMON_DOCKER_ARGS+=("${AWS_CREDENTIALS_DOCKER_ARGS[@]}")
-        COMMON_DOCKER_ARGS+=(-w /opt/airflow)
         DIRECTORIES_TO_FIX+=(
             "${HOST_HOME}/.config/gcloud"
             "${HOST_HOME}/.aws"
