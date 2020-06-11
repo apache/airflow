@@ -23,6 +23,7 @@ from typing import Optional, Union
 import numpy as np
 import pandas as pd
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
