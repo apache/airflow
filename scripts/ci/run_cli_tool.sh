@@ -77,17 +77,17 @@ COMMAND=("${@}")
 case "${TOOL_NAME}" in
     aws )
         COMMON_DOCKER_ARGS+=("${AWS_CREDENTIALS_DOCKER_ARGS[@]}")
-        DIRECTORIES_TO_FIX+=("${HOST_HOME}/.aws")
+        DIRECTORIES_TO_FIX+=("/root/.aws")
         IMAGE_NAME="amazon/aws-cli:latest"
         ;;
     az )
         COMMON_DOCKER_ARGS+=("${AZURE_CREDENTIALS_DOCKER_ARGS[@]}")
-        DIRECTORIES_TO_FIX+=("${HOST_HOME}/.azure")
+        DIRECTORIES_TO_FIX+=("/root/.azure")
         IMAGE_NAME="mcr.microsoft.com/azure-cli:latest"
         ;;
     gcloud | bq | gsutil )
         COMMON_DOCKER_ARGS+=("${GOOGLE_CREDENTIALS_DOCKER_ARGS[@]}")
-        DIRECTORIES_TO_FIX+=("${HOST_HOME}/.config/gcloud")
+        DIRECTORIES_TO_FIX+=("/root/.config/gcloud")
         IMAGE_NAME="gcr.io/google.com/cloudsdktool/cloud-sdk:latest"
         COMMAND=("$TOOL_NAME" "${@}")
         ;;
@@ -105,7 +105,7 @@ case "${TOOL_NAME}" in
     java )
         # TODO: Should we add other credentials?
         COMMON_DOCKER_ARGS+=("${GOOGLE_CREDENTIALS_DOCKER_ARGS[@]}")
-        DIRECTORIES_TO_FIX+=("${HOST_HOME}/.config/gcloud")
+        DIRECTORIES_TO_FIX+=("/root/.config/gcloud")
         IMAGE_NAME="openjdk:8-jre-slim"
         COMMAND=("/usr/local/openjdk-8/bin/java" "${@}")
         ;;
