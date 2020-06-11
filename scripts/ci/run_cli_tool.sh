@@ -111,9 +111,9 @@ case "${TOOL_NAME}" in
             "${AWS_CREDENTIALS_DOCKER_ARGS[@]}"
         )
         DIRECTORIES_TO_FIX+=(
-            "${HOST_HOME}/.config/gcloud"
-            "${HOST_HOME}/.aws"
-            "${HOST_HOME}/.azure"
+            "/root/.config/gcloud"
+            "/root/.aws"
+            "/root/.azure"
         )
         IMAGE_NAME="hashicorp/terraform:latest"
         ;;
