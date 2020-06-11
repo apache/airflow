@@ -87,6 +87,8 @@ class MySQLToS3Operator(BaseOperator):
         self.verify = verify
 
         self.pd_csv_kwargs = pd_csv_kwargs or {}
+        if "path_or_buf" in self.pd_csv_kwargs:
+            raise AirflowException('The argument path_or_buf is not allowed to be in pd_csv_kwargs, please remove it')
         if "index" not in self.pd_csv_kwargs:
             self.pd_csv_kwargs["index"] = index
         if "header" not in self.pd_csv_kwargs:
@@ -112,8 +114,7 @@ class MySQLToS3Operator(BaseOperator):
 
         self._fix_int_dtypes(data_df)
         with tempfile.NamedTemporaryFile(mode='r+', suffix='.csv') as tmp_csv:
-            tmp_csv.file.write(data_df.to_csv(**self.pd_csv_kwargs))
-            tmp_csv.file.seek(0)
+            data_df.to_csv(tmp_csv.name, **self.pd_csv_kwargs)
             s3_conn.load_file(filename=tmp_csv.name,
                               key=self.s3_key,
                               bucket_name=self.s3_bucket)
