@@ -151,6 +151,12 @@ jobs:
 ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') }}"
       - name: "Tests"
         run: ./scripts/ci/ci_run_kubernetes_tests.sh
+      - uses: actions/upload-artifact@v2
+        # Always run this, even if one of th previous steps failed.
+        if: always()
+        with:
+          name: 'kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}'
+          path: '/tmp/kind_logs_*'
 
   pyfiles:
     timeout-minutes: 10
