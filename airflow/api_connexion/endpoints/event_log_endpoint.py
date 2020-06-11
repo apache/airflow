@@ -35,7 +35,7 @@ def get_event_log(event_log_id, session):
     query = query.filter(Log.id == event_log_id)
     event_log = query.one_or_none()
     if event_log is None:
-        raise NotFound("EventLog not found")
+        raise NotFound("Event Log not found")
     return event_log_schema.dump(event_log)
 
 

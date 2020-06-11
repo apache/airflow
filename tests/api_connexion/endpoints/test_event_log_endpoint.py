@@ -81,6 +81,14 @@ class TestGetEventLog(TestEventLogEndpoint):
             }
         )
 
+    def test_should_response_404(self):
+        response = self.client.get("/api/v1/eventLogs/1")
+        assert response.status_code == 404
+        self.assertEqual(
+            {'detail': None, 'status': 404, 'title': 'Event Log not found', 'type': 'about:blank'},
+            response.json
+        )
+
 
 class TestGetEventLogs(TestEventLogEndpoint):
 
