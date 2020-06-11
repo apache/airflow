@@ -35,7 +35,7 @@ services:
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
-      - ../../../tmp:/opt/airflow/tmp:cached
+      - ../../../tmp:/tmp:cached
     environment:
       - HOST_USER_ID
       - HOST_GROUP_ID
