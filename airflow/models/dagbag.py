@@ -361,36 +361,34 @@ class DagBag(BaseDagBag, LoggingMixin):
         for task in dag.tasks:
             settings.policy(task)
 
+        from airflow.operators.subdag_operator import SubDagOperator
+        from airflow.models.baseoperator import cross_downstream
+        for task_id, task in dag.task_dict.copy().items():
+            if not isinstance(task, SubDagOperator):
+                continue
+            else:
+                del root_dag.task_dict[task_id]
+
+                subdag = task.subdag
+                for subdag_task in subdag.tasks:
+                    del subdag_task._dag
+                    root_dag.add_task(subdag_task)
+                    subdag_task.parent_group = parent_dag.dag_id
+                    subdag_task.current_group = dag.dag_id
+                
+                upstream_tasks = task.upstream_list
+                for upstream_task in upstream_tasks:
+                    upstream_task._remove_direct_relative_id(task_id, upstream=False)
+                cross_downstream(from_tasks=upstream_tasks, to_tasks=subdag.roots)
+
+                downstream_tasks = task.downstream_list
+                for downstream_task in downstream_tasks:
+                    downstream_task._remove_direct_relative_id(task_id, upstream=True)
+                cross_downstream(from_tasks=subdag.leaves, to_tasks=downstream_tasks)
+                
+                self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
+
         try:
-            from airflow.operators.subdag_operator import SubDagOperator
-            from airflow.models.baseoperator import cross_downstream
-            for task_id, task in dag.task_dict.copy().items():
-                if not isinstance(task, SubDagOperator):
-                    continue
-                else:
-                    subdag = task.subdag
-                    
-                    for subdag_task in subdag.tasks:
-                        del subdag_task._dag
-                        root_dag.add_task(subdag_task)
-                        subdag_task.parent_group = parent_dag.dag_id
-                        subdag_task.current_group = dag.dag_id
-
-                    
-                    upstream_tasks = task.upstream_list
-                    for upstream_task in upstream_tasks:
-                        upstream_task._remove_direct_relative_id(task_id, upstream=False)
-
-                    downstream_tasks = task.downstream_list
-                    for downstream_task in downstream_tasks:
-                        downstream_task._remove_direct_relative_id(task_id, upstream=True)
-
-                    cross_downstream(from_tasks=upstream_tasks, to_tasks=subdag.roots)
-                    cross_downstream(from_tasks=subdag.leaves, to_tasks=downstream_tasks)
-                    
-                    del dag.task_dict[task_id]
-                    self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
-
             if dag is root_dag:
                 test_cycle(root_dag)
                 self.dags[dag.dag_id] = dag
