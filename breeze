@@ -723,6 +723,14 @@ function parse_arguments() {
           export ADDITIONAL_PYTHON_DEPS="${2}"
           echo "Additional python dependencies: ${ADDITIONAL_PYTHON_DEPS}"
           shift 2 ;;
+        --additional-dev-deps)
+          export ADDITIONAL_DEV_DEPS="${2}"
+          echo "Additional apt dev dependencies: ${ADDITIONAL_DEV_DEPS}"
+          shift 2 ;;
+        --additional-runtime-deps)
+          export ADDITIONAL_RUNTIME_DEPS="${2}"
+          echo "Additional apt runtime dependencies: ${ADDITIONAL_RUNTIME_DEPS}"
+          shift 2 ;;
         -D|--dockerhub-user)
           export DOCKERHUB_USER="${2}"
           echo "Dockerhub user ${DOCKERHUB_USER}"
@@ -1671,6 +1679,12 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
 
 --additional-python-deps
         Additional python dependencies to use when building the images.
+
+--additional-dev-deps
+        Additional apt dev dependencies to use when building the images.
+
+--additional-runtime-deps
+        Additional apt runtime dependencies to use when building the images.
 
 -C, --force-clean-images
         Force build images with cache disabled. This will remove the pulled or build images

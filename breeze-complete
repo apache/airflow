@@ -113,7 +113,7 @@ force-build-images force-pull-images production-image extras: force-clean-images
 dockerhub-user: dockerhub-repo: registry-cache github-organisation: github-repo:
 postgres-version: mysql-version:
 version-suffix-for-pypi: version-suffix-for-svn:
-additional-extras: additional-python-deps:
+additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps:
 "
 
 export BREEZE_COMMANDS="

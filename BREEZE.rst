@@ -840,6 +840,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --additional-python-deps
           Additional python dependencies to use when building the images.
 
+  --additional-dev-deps
+          Additional apt dev dependencies to use when building the images.
+
+  --additional-runtime-deps
+          Additional apt runtime dependencies to use when building the images.
+
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
@@ -1151,6 +1157,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --additional-python-deps
           Additional python dependencies to use when building the images.
 
+  --additional-dev-deps
+          Additional apt dev dependencies to use when building the images.
+
+  --additional-runtime-deps
+          Additional apt runtime dependencies to use when building the images.
+
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
@@ -1369,6 +1381,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --additional-python-deps
           Additional python dependencies to use when building the images.
+
+  --additional-dev-deps
+          Additional apt dev dependencies to use when building the images.
+
+  --additional-runtime-deps
+          Additional apt runtime dependencies to use when building the images.
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
@@ -1645,6 +1663,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --additional-python-deps
           Additional python dependencies to use when building the images.
+
+  --additional-dev-deps
+          Additional apt dev dependencies to use when building the images.
+
+  --additional-runtime-deps
+          Additional apt runtime dependencies to use when building the images.
 
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
