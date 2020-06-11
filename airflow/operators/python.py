@@ -273,11 +273,11 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: bool = Fa
         Used for Airflow functional interface
         """
         _PythonFunctionalOperator.validate_python_callable(f)
+        kwargs['task_id'] = kwargs.get('task_id', None) or f.__name__
 
         @functools.wraps(f)
         def factory(*args, **f_kwargs):
-            op = _PythonFunctionalOperator(python_callable=f, task_id=f.__name__,
-                                           op_args=args, op_kwargs=f_kwargs,
+            op = _PythonFunctionalOperator(python_callable=f, op_args=args, op_kwargs=f_kwargs,
                                            multiple_outputs=multiple_outputs, **kwargs)
             return XComArg(op)
         return factory

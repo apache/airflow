@@ -487,6 +487,16 @@ class TestAirflowTaskDecorator(unittest.TestCase):
                      self.dag.dag_id, DEFAULT_DATE.date().isoformat()))
         )
 
+    def test_manual_task_id(self):
+        """Test manually seting task_id"""
+
+        @task_decorator(task_id='some_name')
+        def do_run():
+            return 4
+        with self.dag:
+            do_run()
+            assert ['some_name'] == self.dag.task_ids
+
     def test_multiple_calls(self):
         """Test calling task multiple times in a DAG"""
 
