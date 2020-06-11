@@ -89,7 +89,7 @@ class MySQLToS3Operator(BaseOperator):
 
         self.pd_csv_kwargs = pd_csv_kwargs or {}
         if "path_or_buf" in self.pd_csv_kwargs:
-            raise AirflowException('The argument path_or_buf is not allowed to be in pd_csv_kwargs, please remove it')
+            raise AirflowException('The argument path_or_buf is not allowed, please remove it')
         if "index" not in self.pd_csv_kwargs:
             self.pd_csv_kwargs["index"] = index
         if "header" not in self.pd_csv_kwargs:
