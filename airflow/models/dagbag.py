@@ -372,8 +372,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                 for subdag_task in subdag.tasks:
                     del subdag_task._dag
                     root_dag.add_task(subdag_task)
-                    subdag_task.parent_group = parent_dag.dag_id
-                    subdag_task.current_group = dag.dag_id
+                    subdag_task.parent_group = dag.dag_id
+                    subdag_task.current_group = subdag.dag_id
 
                 upstream_tasks = task.upstream_list
                 for upstream_task in upstream_tasks:
