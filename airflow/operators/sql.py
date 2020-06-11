@@ -141,7 +141,7 @@ class SQLValueCheckOperator(BaseOperator):
     :type sql: str
     """
 
-    __mapper_args__ = {"polymorphic_identity": "ValueCheckOperator"}
+    __mapper_args__ = {"polymorphic_identity": "SQLValueCheckOperator"}
     template_fields = (
         "sql",
         "pass_value",
@@ -262,7 +262,7 @@ class SQLIntervalCheckOperator(BaseOperator):
     :type metrics_threshold: dict
     """
 
-    __mapper_args__ = {"polymorphic_identity": "IntervalCheckOperator"}
+    __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
     template_fields = ("sql1", "sql2")  # type: Iterable[str]
     template_ext = (
         ".hql",
