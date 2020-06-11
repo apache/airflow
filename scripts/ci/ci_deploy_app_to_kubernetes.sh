@@ -28,7 +28,7 @@ export KUBERNETES_MODE=${KUBERNETES_MODE:="image"}
 # adding trap to exiting trap
 HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
 # shellcheck disable=SC2064
-trap "${HANDLERS}${HANDLERS:+;}send_kubernetes_logs_to_file_io" EXIT
+trap "${HANDLERS}${HANDLERS:+;}dump_kind_logs" EXIT
 
 get_ci_environment
 check_kind_and_kubectl_are_installed
