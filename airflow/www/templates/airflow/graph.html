@@ -29,7 +29,7 @@
 {% block content %}
 {{ super() }}
 {% if doc_md %}
-<div class="rich_doc" style="margin-bottom: 15px;">{{ doc_md|safe }}</div>
+{{ doc_md }}
 {% endif %}
 <div class="form-inline">
   <form method="get" style="float:left;">
@@ -37,9 +37,9 @@
     Base date: {{ form.base_date(class_="form-control") }}
     Number of runs: {{ form.num_runs(class_="form-control") }}
     Run:
-    {{ form.execution_date(class_="form-control") | safe }}
+    {{ form.execution_date(class_="form-control") }}
     Layout:
-    {{ form.arrange(class_="form-control") | safe }}
+    {{ form.arrange(class_="form-control") }}
     <input type="hidden" name="root" value="{{ root }}">
     <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
@@ -107,14 +107,14 @@
     var initialStrokeWidth = '3px';
     var highlightStrokeWidth = '5px';
 
-    var nodes = {{ nodes|tojson|safe }};
-    var edges = {{ edges|tojson|safe }};
+    var nodes = {{ nodes|tojson }};
+    var edges = {{ edges|tojson }};
     var execution_date = "{{ execution_date }}";
     var arrange = "{{ arrange }}";
 
     // Below variables are being used in dag.js
-    var tasks = {{ tasks|tojson|safe }};
-    var task_instances = {{ task_instances|tojson|safe }};
+    var tasks = {{ tasks|tojson }};
+    var task_instances = {{ task_instances|tojson }};
     var getTaskInstanceURL = "{{ url_for('Airflow.task_instances') }}" +
       "?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" +
       encodeURIComponent(execution_date);

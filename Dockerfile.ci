@@ -41,7 +41,7 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="3"
+ARG DEPENDENCIES_EPOCH_NUMBER="4"
 # Increase the value below to force renstalling of all dependencies
 ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
 
@@ -54,7 +54,10 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install basic apt dependencies
+ARG ADDITIONAL_DEV_DEPS=""
+ENV ADDITIONAL_DEV_DEPS=${ADDITIONAL_DEV_DEPS}
+
+# Install basic and additional apt dependencies
 RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
     && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
     && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
@@ -85,6 +88,7 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            unixodbc \
            unixodbc-dev \
            yarn \
+           ${ADDITIONAL_DEV_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -117,18 +121,17 @@ RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
+ARG ADDITIONAL_RUNTIME_DEPS=""
+ENV ADDITIONAL_RUNTIME_DEPS=${ADDITIONAL_RUNTIME_DEPS}
+
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
-    && curl -fsSL https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add - \
-    && echo 'deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ buster main' > \
-        /etc/apt/sources.list.d/adoptopenjdk.list \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
       gnupg \
       libgcc-8-dev \
-      adoptopenjdk-8-hotspot-jre \
       apt-transport-https \
       bash-completion \
       ca-certificates \
@@ -148,75 +151,16 @@ RUN mkdir -pv /usr/share/man/man1 \
       tmux \
       unzip \
       vim \
+      ${ADDITIONAL_RUNTIME_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_HOME=/usr/lib/jvm/adoptopenjdk-8-hotspot-jre-amd64
+ARG DOCKER_CLI_VERSION=19.03.9
+ENV DOCKER_CLI_VERSION=${DOCKER_CLI_VERSION}
 
-# Install Hadoop and Hive
-# It is done in one step to share variables.
-ENV HADOOP_HOME="/opt/hadoop-cdh" HIVE_HOME="/opt/hive"
-
-RUN HADOOP_DISTRO="cdh" \
-    && HADOOP_MAJOR="5" \
-    && HADOOP_DISTRO_VERSION="5.11.0" \
-    && HADOOP_VERSION="2.6.0" \
-    && HADOOP_URL="https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/"\
-    && HADOOP_DOWNLOAD_URL="${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
-    && HADOOP_TMP_FILE="/tmp/hadoop.tar.gz" \
-    && mkdir -pv "${HADOOP_HOME}" \
-    && curl --fail --location "${HADOOP_DOWNLOAD_URL}" --output "${HADOOP_TMP_FILE}" \
-    && tar xzf "${HADOOP_TMP_FILE}" --absolute-names --strip-components 1 -C "${HADOOP_HOME}" \
-    && rm "${HADOOP_TMP_FILE}" \
-    && echo "Installing Hive" \
-    && HIVE_VERSION="1.1.0" \
-    && HIVE_URL="${HADOOP_URL}hive-${HIVE_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
-    && HIVE_VERSION="1.1.0" \
-    && HIVE_TMP_FILE="/tmp/hive.tar.gz" \
-    && mkdir -pv "${HIVE_HOME}" \
-    && mkdir -pv "/user/hive/warehouse" \
-    && chmod -R 777 "${HIVE_HOME}" \
-    && chmod -R 777 "/user/" \
-    && curl --fail --location  "${HIVE_URL}" --output "${HIVE_TMP_FILE}" \
-    && tar xzf "${HIVE_TMP_FILE}" --strip-components 1 -C "${HIVE_HOME}" \
-    && rm "${HIVE_TMP_FILE}"
-
-ENV PATH "${PATH}:/opt/hive/bin"
-
-# Install Minicluster
-ENV MINICLUSTER_HOME="/opt/minicluster"
-
-RUN MINICLUSTER_BASE="https://github.com/bolkedebruin/minicluster/releases/download/" \
-    && MINICLUSTER_VER="1.1" \
-    && MINICLUSTER_URL="${MINICLUSTER_BASE}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip" \
-    && MINICLUSTER_TMP_FILE="/tmp/minicluster.zip" \
-    && mkdir -pv "${MINICLUSTER_HOME}" \
-    && curl --fail --location "${MINICLUSTER_URL}" --output "${MINICLUSTER_TMP_FILE}" \
-    && unzip "${MINICLUSTER_TMP_FILE}" -d "/opt" \
-    && rm "${MINICLUSTER_TMP_FILE}"
-
-# Install Docker
-RUN curl --fail --location https://download.docker.com/linux/debian/gpg | apt-key add - \
-    && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable" \
-    && apt-get update \
-    && apt-get -y install --no-install-recommends docker-ce \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install kubectl
-ARG KUBECTL_VERSION="v1.15.3"
-
-RUN KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
-  && curl --fail --location  "${KUBECTL_URL}" --output "/usr/local/bin/kubectl" \
-  && chmod +x /usr/local/bin/kubectl
-
-# Install Kind
-ARG KIND_VERSION="v0.6.1"
-
-RUN KIND_URL="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
-   && curl --fail --location "${KIND_URL}" --output "/usr/local/bin/kind" \
-   && chmod +x /usr/local/bin/kind
+RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz \
+    |  tar -C /usr/bin --strip-components=1 -xvzf - docker/docker
 
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -231,36 +175,6 @@ RUN echo "Pip version: ${PIP_VERSION}"
 
 RUN pip install --upgrade pip==${PIP_VERSION}
 
-# Install Google SDK
-ENV GCLOUD_HOME="/opt/gcloud" CLOUDSDK_PYTHON=python${PYTHON_MAJOR_MINOR_VERSION}
-
-RUN GCLOUD_VERSION="274.0.1" \
-    && GCOUD_URL="https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${GCLOUD_VERSION}-linux-x86_64.tar.gz" \
-    && GCLOUD_TMP_FILE="/tmp/gcloud.tar.gz" \
-    && export CLOUDSDK_CORE_DISABLE_PROMPTS=1 \
-    && mkdir -p /opt/gcloud \
-    && curl "${GCOUD_URL}" -o "${GCLOUD_TMP_FILE}"\
-    && tar xzf "${GCLOUD_TMP_FILE}" --strip-components 1 -C "${GCLOUD_HOME}" \
-    && rm -rf "${GCLOUD_TMP_FILE}" \
-    && ${GCLOUD_HOME}/bin/gcloud components install beta \
-    && echo '. /opt/gcloud/completion.bash.inc' >> /etc/bash.bashrc
-
-ENV PATH="$PATH:${GCLOUD_HOME}/bin"
-
-# Install AWS CLI
-# Unfortunately, AWS does not provide a versioned bundle
-ENV AWS_HOME="/opt/aws"
-
-RUN AWS_TMP_DIR="/tmp/awscli/" \
-    && AWS_TMP_BUNDLE="${AWS_TMP_DIR}/awscli-bundle.zip" \
-    && AWS_URL="https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" \
-    && mkdir -pv "${AWS_TMP_DIR}" \
-    && curl "${AWS_URL}" -o "${AWS_TMP_BUNDLE}" \
-    && unzip "${AWS_TMP_BUNDLE}" -d "${AWS_TMP_DIR}" \
-    && "${AWS_TMP_DIR}/awscli-bundle/install" -i "${AWS_HOME}" -b /usr/local/bin/aws \
-    && echo "complete -C '${AWS_HOME}/bin/aws_completer' aws" >> /etc/bash.bashrc \
-    && rm -rf "${AWS_TMP_DIR}"
-
 ARG HOME=/root
 ENV HOME=${HOME}
 
@@ -272,8 +186,8 @@ ENV AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
 
 WORKDIR ${AIRFLOW_SOURCES}
 
-RUN mkdir -pv ${AIRFLOW_HOME} \
-    mkdir -pv ${AIRFLOW_HOME}/dags \
+RUN mkdir -pv ${AIRFLOW_HOME} && \
+    mkdir -pv ${AIRFLOW_HOME}/dags && \
     mkdir -pv ${AIRFLOW_HOME}/logs
 
 # Increase the value here to force reinstalling Apache Airflow pip dependencies
@@ -314,11 +228,17 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 # We do not have to always reinstall it from the scratch.
 # This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
 # And is automatically reinstalled from the scratch every month
+
+ARG AIRFLOW_PY_VERSION_REQ_FILE="https://raw.githubusercontent.com/${AIRFLOW_REPO}/${AIRFLOW_BRANCH}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ENV AIRFLOW_PY_VERSION_REQ_FILE_STATUS="$(curl -s --head -w %{http_code} ${AIRFLOW_PY_VERSION_REQ_FILE} -o /dev/null)"
+RUN echo $AIRFLOW_PY_VERSION_REQ_FILE_STATUS;
+
 RUN \
-    if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" ]]; then \
-        pip install \
+    if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" && "${AIRFLOW_PY_VERSION_REQ_FILE_STATUS}" == "200" ]]; then \
+        echo "Using optimized build." \
+        && pip install \
         "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-            --constraint "https://raw.githubusercontent.com/${AIRFLOW_REPO}/${AIRFLOW_BRANCH}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt" \
+            --constraint ${AIRFLOW_PY_VERSION_REQ_FILE} \
         && pip uninstall --yes apache-airflow; \
     fi
 
@@ -391,8 +311,7 @@ COPY Dockerfile.ci ${AIRFLOW_SOURCES}/Dockerfile.ci
 RUN register-python-argcomplete airflow >> ~/.bashrc
 
 # Install autocomplete for Kubeclt
-RUN echo "source /etc/bash_completion" >> ~/.bashrc \
-    && kubectl completion bash >> ~/.bashrc
+RUN echo "source /etc/bash_completion" >> ~/.bashrc
 
 WORKDIR ${AIRFLOW_SOURCES}
 
@@ -402,6 +321,8 @@ ARG ADDITIONAL_PYTHON_DEPS=""
 RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         pip install ${ADDITIONAL_PYTHON_DEPS}; \
     fi
+
+RUN source <(bash scripts/ci/run_cli_tool.sh)
 
 WORKDIR ${AIRFLOW_SOURCES}
 

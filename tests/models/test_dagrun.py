@@ -54,11 +54,11 @@ class TestDagRun(unittest.TestCase):
         if execution_date is None:
             execution_date = now
         if is_backfill:
-            run_id = f"{DagRunType.BACKFILL_JOB.value}__{now.isoformat()}"
+            run_type = DagRunType.BACKFILL_JOB
         else:
-            run_id = 'manual__' + now.isoformat()
+            run_type = DagRunType.MANUAL
         dag_run = dag.create_dagrun(
-            run_id=run_id,
+            run_type=run_type,
             execution_date=execution_date,
             start_date=now,
             state=state,
@@ -103,7 +103,7 @@ class TestDagRun(unittest.TestCase):
         dag_id1 = "test_dagrun_find_externally_triggered"
         dag_run = models.DagRun(
             dag_id=dag_id1,
-            run_id='manual__' + now.isoformat(),
+            run_type=DagRunType.MANUAL.value,
             execution_date=now,
             start_date=now,
             state=State.RUNNING,
@@ -114,7 +114,7 @@ class TestDagRun(unittest.TestCase):
         dag_id2 = "test_dagrun_find_not_externally_triggered"
         dag_run = models.DagRun(
             dag_id=dag_id2,
-            run_id='manual__' + now.isoformat(),
+            run_type=DagRunType.MANUAL.value,
             execution_date=now,
             start_date=now,
             state=State.RUNNING,
@@ -498,7 +498,7 @@ class TestDagRun(unittest.TestCase):
         # don't want
         dag_run = models.DagRun(
             dag_id=dag.dag_id,
-            run_id='manual__' + now.isoformat(),
+            run_type=DagRunType.MANUAL.value,
             execution_date=now,
             start_date=now,
             state=State.RUNNING,
@@ -527,7 +527,7 @@ class TestDagRun(unittest.TestCase):
         dag = DAG(dag_id='test_is_backfill', start_date=DEFAULT_DATE)
 
         dagrun = self.create_dag_run(dag, execution_date=DEFAULT_DATE)
-        dagrun.run_id = f"{DagRunType.BACKFILL_JOB.value}__sfddsffds"
+        dagrun.run_type = DagRunType.BACKFILL_JOB.value
 
         dagrun2 = self.create_dag_run(
             dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))

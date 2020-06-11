@@ -1233,6 +1233,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 self.assertIsNone(duration)
 
 
+@pytest.mark.quarantined
 class TestDagFileProcessorQueriesCount(unittest.TestCase):
     """
     These tests are designed to detect changes in the number of queries for different DAG files.
@@ -1243,6 +1244,7 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
     These tests allow easy detection when a change is made that affects the performance of the
     DagFileProcessor.
     """
+
     def setUp(self) -> None:
         clear_db_runs()
         clear_db_pools()
@@ -1561,7 +1563,7 @@ class TestSchedulerJob(unittest.TestCase):
         session = settings.Session()
 
         dr1 = dag_file_processor.create_dag_run(dag)
-        dr1.run_id = f"{DagRunType.BACKFILL_JOB.value}__blah"
+        dr1.run_type = DagRunType.BACKFILL_JOB.value
         ti1 = TaskInstance(task1, dr1.execution_date)
         ti1.refresh_from_db()
         ti1.state = State.SCHEDULED
@@ -1589,7 +1591,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         dr1 = dag_file_processor.create_dag_run(dag)
         dr2 = dag_file_processor.create_dag_run(dag)
-        dr2.run_id = f"{DagRunType.BACKFILL_JOB.value}__asdf"
+        dr2.run_type = DagRunType.BACKFILL_JOB.value
 
         ti_no_dagrun = TaskInstance(task1, DEFAULT_DATE - datetime.timedelta(days=1))
         ti_backfill = TaskInstance(task1, dr2.execution_date)
@@ -2133,13 +2135,13 @@ class TestSchedulerJob(unittest.TestCase):
         dag3 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag3))
 
         session = settings.Session()
-        dr1 = dag1.create_dagrun(run_id=DagRunType.SCHEDULED.value,
+        dr1 = dag1.create_dagrun(run_type=DagRunType.SCHEDULED,
                                  state=State.RUNNING,
                                  execution_date=DEFAULT_DATE,
                                  start_date=DEFAULT_DATE,
                                  session=session)
 
-        dr2 = dag2.create_dagrun(run_id=DagRunType.SCHEDULED.value,
+        dr2 = dag2.create_dagrun(run_type=DagRunType.SCHEDULED,
                                  state=State.RUNNING,
                                  execution_date=DEFAULT_DATE,
                                  start_date=DEFAULT_DATE,
@@ -2267,12 +2269,12 @@ class TestSchedulerJob(unittest.TestCase):
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         dag.clear()
-        dr = dag.create_dagrun(run_id=f"{DagRunType.SCHEDULED.value}__",
+        dr = dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                                state=State.RUNNING,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,
                                session=session)
-        dr2 = dag.create_dagrun(run_id=f"{DagRunType.BACKFILL_JOB.value}__",
+        dr2 = dag.create_dagrun(run_type=DagRunType.BACKFILL_JOB,
                                 state=State.RUNNING,
                                 execution_date=DEFAULT_DATE + datetime.timedelta(1),
                                 start_date=DEFAULT_DATE,
@@ -2317,7 +2319,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         # Create DAG run with FAILED state
         dag.clear()
-        dr = dag.create_dagrun(run_id=DagRunType.SCHEDULED.value,
+        dr = dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                                state=State.FAILED,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,
@@ -2352,6 +2354,7 @@ class TestSchedulerJob(unittest.TestCase):
             run_kwargs=None,
             advance_execution_date=False,
             session=None):  # pylint: disable=unused-argument
+
         """
         Helper for testing DagRun states with simple two-task DAGS.
         This is hackish: a dag run is created but its tasks are
@@ -2517,7 +2520,7 @@ class TestSchedulerJob(unittest.TestCase):
             dag_id = 'test_start_date_scheduling'
             dag = self.dagbag.get_dag(dag_id)
             dag.clear()
-            self.assertGreater(dag.start_date, datetime.datetime.utcnow())
+            self.assertGreater(dag.start_date, datetime.datetime.now(timezone.utc))
 
             scheduler = SchedulerJob(dag_id,
                                      executor=self.null_exec,
@@ -3157,7 +3160,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = State.SCHEDULED
         dr1.state = State.RUNNING
-        dr1.run_id = f"{DagRunType.BACKFILL_JOB.value}__sdfsfdfsd"
+        dr1.run_type = DagRunType.BACKFILL_JOB.value
         session.merge(ti)
         session.merge(dr1)
         session.commit()
@@ -3355,7 +3358,7 @@ def test_task_with_upstream_skip_process_task_instances():
 
     dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
     dag.clear()
-    dr = dag.create_dagrun(run_id=f"manual__{DEFAULT_DATE.isoformat()}",
+    dr = dag.create_dagrun(run_type=DagRunType.MANUAL,
                            state=State.RUNNING,
                            execution_date=DEFAULT_DATE)
     assert dr is not None
@@ -3376,3 +3379,100 @@ def test_task_with_upstream_skip_process_task_instances():
         assert tis[dummy2.task_id].state == State.SUCCESS
         # dummy3 should be skipped because dummy1 is skipped.
         assert tis[dummy3.task_id].state == State.SKIPPED
+
+
+class TestSchedulerJobQueriesCount(unittest.TestCase):
+    """
+    These tests are designed to detect changes in the number of queries for
+    different DAG files. These tests allow easy detection when a change is
+    made that affects the performance of the SchedulerJob.
+    """
+
+    def setUp(self) -> None:
+        clear_db_runs()
+        clear_db_pools()
+        clear_db_dags()
+        clear_db_sla_miss()
+        clear_db_errors()
+
+    @parameterized.expand(
+        [
+            # pylint: disable=bad-whitespace
+            # expected, dag_count, task_count
+            # One DAG with one task per DAG file
+            (13, 1, 1),  # noqa
+            # One DAG with five tasks per DAG  file
+            (25, 1, 5),  # noqa
+            # 10 DAGs with 10 tasks per DAG file
+            (108, 10, 10),  # noqa
+        ]
+    )
+    def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
+        with mock.patch.dict("os.environ", {
+            "PERF_DAGS_COUNT": str(dag_count),
+            "PERF_TASKS_COUNT": str(task_count),
+            "PERF_START_AGO": "1d",
+            "PERF_SCHEDULE_INTERVAL": "30m",
+            "PERF_SHAPE": "no_structure",
+        }), conf_vars({
+            ('scheduler', 'use_job_schedule'): 'True',
+            ('core', 'load_examples'): 'False',
+        }):
+
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            for i, dag in enumerate(dagbag.dags.values()):
+                dr = dag.create_dagrun(state=State.RUNNING, run_id=f"{DagRunType.MANUAL.value}__{i}")
+                for ti in dr.get_task_instances():
+                    ti.set_state(state=State.SCHEDULED)
+
+            mock_agent = mock.MagicMock()
+            mock_agent.harvest_simple_dags.return_value = [SimpleDag(d) for d in dagbag.dags.values()]
+
+            job = SchedulerJob(subdir=PERF_DAGS_FOLDER)
+            job.executor = MockExecutor()
+            job.heartbeat = mock.MagicMock()
+            job.processor_agent = mock_agent
+
+            with assert_queries_count(expected_query_count):
+                job._run_scheduler_loop()
+
+    @parameterized.expand(
+        [
+            # pylint: disable=bad-whitespace
+            # expected, dag_count, task_count
+            # One DAG with one task per DAG file
+            (2, 1, 1),  # noqa
+            # One DAG with five tasks per DAG  file
+            (2, 1, 5),  # noqa
+            # 10 DAGs with 10 tasks per DAG file
+            (2, 10, 10),  # noqa
+        ]
+    )
+    def test_execute_queries_count_no_harvested_dags(self, expected_query_count, dag_count, task_count):
+        with mock.patch.dict("os.environ", {
+            "PERF_DAGS_COUNT": str(dag_count),
+            "PERF_TASKS_COUNT": str(task_count),
+            "PERF_START_AGO": "1d",
+            "PERF_SCHEDULE_INTERVAL": "30m",
+            "PERF_SHAPE": "no_structure",
+        }), conf_vars({
+            ('scheduler', 'use_job_schedule'): 'True',
+            ('core', 'load_examples'): 'False',
+        }):
+
+            dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
+            for i, dag in enumerate(dagbag.dags.values()):
+                dr = dag.create_dagrun(state=State.RUNNING, run_id=f"{DagRunType.MANUAL.value}__{i}")
+                for ti in dr.get_task_instances():
+                    ti.set_state(state=State.SCHEDULED)
+
+            mock_agent = mock.MagicMock()
+            mock_agent.harvest_simple_dags.return_value = []
+
+            job = SchedulerJob(subdir=PERF_DAGS_FOLDER)
+            job.executor = MockExecutor()
+            job.heartbeat = mock.MagicMock()
+            job.processor_agent = mock_agent
+
+            with assert_queries_count(expected_query_count):
+                job._run_scheduler_loop()

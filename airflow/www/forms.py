@@ -35,6 +35,7 @@ from wtforms.fields import (
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 from airflow.www.validators import ValidJson
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
@@ -133,6 +134,7 @@ class DagRunForm(DynamicForm):
 
     def populate_obj(self, item):
         super().populate_obj(item)
+        item.run_type = DagRunType.from_run_id(item.run_id).value
         if item.conf:
             item.conf = json.loads(item.conf)
 

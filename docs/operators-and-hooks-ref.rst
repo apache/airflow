@@ -539,7 +539,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/s3_to_redshift>`
      - :mod:`airflow.providers.amazon.aws.operators.s3_to_redshift`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
@@ -735,7 +735,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Kubernetes Engine <https://cloud.google.com/kubernetes_engine/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/kubernetes_engine>`
      - :mod:`airflow.providers.google.cloud.hooks.kubernetes_engine`
      - :mod:`airflow.providers.google.cloud.operators.kubernetes_engine`
      -
@@ -1218,7 +1218,8 @@ These integrations allow you to perform various operations within various servic
    * - `Snowflake <https://www.snowflake.com/>`__
      -
      - :mod:`airflow.providers.snowflake.hooks.snowflake`
-     - :mod:`airflow.providers.snowflake.operators.snowflake`
+     - :mod:`airflow.providers.snowflake.operators.snowflake`,
+       :mod:`airflow.providers.snowflake.operators.snowflake_to_slack`
      -
 
    * - `Vertica <https://www.vertica.com/>`__

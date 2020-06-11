@@ -20,12 +20,15 @@ import datetime
 import logging
 import socket
 from datetime import timedelta
-from typing import Any, Optional
+from os import path
+from typing import Optional
 from urllib.parse import urlparse
 
+import connexion
 import flask
 import flask_login
 import pendulum
+from connexion import ProblemException
 from flask import Flask, session as flask_session
 from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
@@ -39,15 +42,20 @@ from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
 
-app = None  # type: Any
-appbuilder = None  # type: Optional[AppBuilder]
+app: Optional[Flask] = None
 csrf = CSRFProtect()
 
+# airflow/www/app.py => airflow/
+ROOT_APP_DIR = path.abspath(path.join(path.dirname(__file__), path.pardir))
 log = logging.getLogger(__name__)
 
 
+def root_app(env, resp):
+    resp(b'404 Not Found', [('Content-Type', 'text/plain')])
+    return [b'Apache Airflow is not at this location']
+
+
 def create_app(config=None, testing=False, app_name="Airflow"):
-    global app, appbuilder
     app = Flask(__name__)
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
@@ -70,6 +78,31 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     app.json_encoder = AirflowJsonEncoder
 
     csrf.init_app(app)
+
+    def apply_middlewares(flask_app: Flask):
+        # Apply DispatcherMiddleware
+        base_url = urlparse(conf.get('webserver', 'base_url'))[2]
+        if not base_url or base_url == '/':
+            base_url = ""
+        if base_url:
+            flask_app.wsgi_app = DispatcherMiddleware(  # type: ignore
+                root_app,
+                mounts={base_url: flask_app.wsgi_app}
+            )
+
+        # Apply ProxyFix middleware
+        if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+            flask_app.wsgi_app = ProxyFix(  # type: ignore
+                flask_app.wsgi_app,
+                x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
+                x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+                x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
+                x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
+                x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
+            )
+
+    apply_middlewares(app)
+
     db = SQLA()
     db.session = settings.Session
     db.init_app(app)
@@ -168,6 +201,9 @@ def create_app(config=None, testing=False, app_name="Airflow"):
             appbuilder.add_link("GitHub",
                                 href='https://github.com/apache/airflow',
                                 category="Docs")
+            appbuilder.add_link("REST API Reference",
+                                href='/api/v1./api/v1_swagger_ui_index',
+                                category="Docs")
             appbuilder.add_view(views.VersionView,
                                 'Version',
                                 category='About',
@@ -209,9 +245,22 @@ def create_app(config=None, testing=False, app_name="Airflow"):
             app.register_error_handler(500, views.show_traceback)
             app.register_error_handler(404, views.circles)
 
+        def init_api_connexion(app: Flask):
+            spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
+            connexion_app = connexion.App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
+            connexion_app.app = app
+            connexion_app.add_api(
+                specification='v1.yaml',
+                base_path='/api/v1',
+                validate_responses=True,
+                strict_validation=False
+            )
+            app.register_error_handler(ProblemException, connexion_app.common_error_handler)
+
         init_views(appbuilder)
         init_plugin_blueprints(app)
         init_error_handlers(app)
+        init_api_connexion(app)
 
         if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
             security_manager = appbuilder.sm
@@ -286,36 +335,11 @@ def create_app(config=None, testing=False, app_name="Airflow"):
         def make_session_permanent():
             flask_session.permanent = True
 
-    return app, appbuilder
-
-
-def root_app(env, resp):
-    resp(b'404 Not Found', [('Content-Type', 'text/plain')])
-    return [b'Apache Airflow is not at this location']
-
-
-def cached_app(config=None, testing=False):
-    global app, appbuilder
-    if not app or not appbuilder:
-        base_url = urlparse(conf.get('webserver', 'base_url'))[2]
-        if not base_url or base_url == '/':
-            base_url = ""
-
-        app, _ = create_app(config=config, testing=testing)
-        app = DispatcherMiddleware(root_app, {base_url: app})
-        if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-            app = ProxyFix(
-                app,
-                x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
-                x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
-                x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
-                x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
-                x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
-            )
     return app
 
 
-def cached_appbuilder(config=None, testing=False):
-    global appbuilder
-    cached_app(config=config, testing=testing)
-    return appbuilder
+def cached_app(config=None, testing=False):
+    global app
+    if not app:
+        app = create_app(config=config, testing=testing)
+    return app

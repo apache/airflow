@@ -56,6 +56,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 log = logging.getLogger(__name__)
 
@@ -411,7 +412,7 @@ class DAG(BaseDag, LoggingMixin):
             if not self.is_fixed_time_schedule():
                 # relative offset (eg. every 5 minutes)
                 delta = cron.get_next(datetime) - naive
-                following = dttm.in_timezone(self.timezone).add_timedelta(delta)
+                following = dttm.in_timezone(self.timezone) + delta
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_next(datetime)
@@ -419,7 +420,7 @@ class DAG(BaseDag, LoggingMixin):
                 following = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(following)
         elif self.normalized_schedule_interval is not None:
-            return dttm + self.normalized_schedule_interval
+            return timezone.convert_to_utc(dttm + self.normalized_schedule_interval)
 
     def previous_schedule(self, dttm):
         """
@@ -439,7 +440,7 @@ class DAG(BaseDag, LoggingMixin):
             if not self.is_fixed_time_schedule():
                 # relative offset (eg. every 5 minutes)
                 delta = naive - cron.get_prev(datetime)
-                previous = dttm.in_timezone(self.timezone).subtract_timedelta(delta)
+                previous = dttm.in_timezone(self.timezone) - delta
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_prev(datetime)
@@ -447,7 +448,7 @@ class DAG(BaseDag, LoggingMixin):
                 previous = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(previous)
         elif self.normalized_schedule_interval is not None:
-            return dttm - self.normalized_schedule_interval
+            return timezone.convert_to_utc(dttm - self.normalized_schedule_interval)
 
     def get_run_dates(self, start_date, end_date=None):
         """
@@ -1444,12 +1445,13 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def create_dagrun(self,
-                      run_id,
                       state,
                       execution_date=None,
+                      run_id=None,
                       start_date=None,
                       external_trigger=False,
                       conf=None,
+                      run_type=None,
                       session=None):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
@@ -1457,6 +1459,8 @@ class DAG(BaseDag, LoggingMixin):
 
         :param run_id: defines the run id for this dag run
         :type run_id: str
+        :param run_type: type of DagRun
+        :type run_type: airflow.utils.types.DagRunType
         :param execution_date: the execution date of this dag run
         :type execution_date: datetime.datetime
         :param state: the state of the dag run
@@ -1468,6 +1472,19 @@ class DAG(BaseDag, LoggingMixin):
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
+        if run_id and not run_type:
+            if not isinstance(run_id, str):
+                raise ValueError(f"`run_id` expected to be a str is {type(run_id)}")
+            run_type: DagRunType = DagRunType.from_run_id(run_id)
+        elif run_type and execution_date:
+            if not isinstance(run_type, DagRunType):
+                raise ValueError(f"`run_type` expected to be a DagRunType is {type(run_type)}")
+            run_id = DagRun.generate_run_id(run_type, execution_date)
+        elif not run_id:
+            raise AirflowException(
+                "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
+            )
+
         run = DagRun(
             dag_id=self.dag_id,
             run_id=run_id,
@@ -1475,7 +1492,8 @@ class DAG(BaseDag, LoggingMixin):
             start_date=start_date,
             external_trigger=external_trigger,
             conf=conf,
-            state=state
+            state=state,
+            run_type=run_type.value,
         )
         session.add(run)
 

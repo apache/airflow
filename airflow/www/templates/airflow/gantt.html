@@ -34,7 +34,7 @@
     Base date: {{ form.base_date(class_="form-control") }}
     Number of runs: {{ form.num_runs(class_="form-control") }}
     Run:<input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
-    {{ form.execution_date(class_="form-control") | safe }}
+    {{ form.execution_date(class_="form-control") }}
     <input type="submit" value="Go" class="btn btn-default" action="" method="get">
     <input type="hidden" name="root" value="{{ root if root else '' }}">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
@@ -57,7 +57,7 @@
     var dag_id = '{{ dag.dag_id }}';
     var task_id = '';
     var execution_date = '';
-    data = {{ data |tojson|safe }};
+    data = {{ data |tojson }};
     var gantt = d3.gantt()
       .taskTypes(data.taskNames)
       .height(data.height)

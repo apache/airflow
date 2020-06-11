@@ -67,7 +67,6 @@ AUTH_TYPE = AUTH_DB
 # Google OAuth example:
 # OAUTH_PROVIDERS = [{
 #   'name':'google',
-#     'whitelist': ['@YOU_COMPANY_DOMAIN'],  # optional
 #     'token_key':'access_token',
 #     'icon':'fa-google',
 #         'remote_app': {

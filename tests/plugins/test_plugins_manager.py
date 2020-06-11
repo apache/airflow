@@ -26,7 +26,8 @@ from airflow.www import app as application
 
 class TestPluginsRBAC(unittest.TestCase):
     def setUp(self):
-        self.app, self.appbuilder = application.create_app(testing=True)
+        self.app = application.create_app(testing=True)
+        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
 
     def test_flaskappbuilder_views(self):
         from tests.plugins.test_plugin import v_appbuilder_package

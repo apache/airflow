@@ -39,7 +39,7 @@ class TestApiKerberos(unittest.TestCase):
         ("kerberos", "keytab"): KRB5_KTNAME,
     })
     def setUp(self):
-        self.app, _ = application.create_app(testing=True)
+        self.app = application.create_app(testing=True)
 
     def test_trigger_dag(self):
         with self.app.test_client() as client:

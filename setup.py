@@ -41,6 +41,7 @@ spec.loader.exec_module(mod)  # type: ignore
 version = mod.version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
+PY38 = PY3 and sys.version_info[1] >= 8
 
 my_dir = dirname(__file__)
 
@@ -192,11 +193,11 @@ azure = [
     'azure-batch>=8.0.0',
     'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
-    'azure-kusto-data>=0.0.43',
+    'azure-kusto-data>=0.0.43,<0.1',
     'azure-mgmt-containerinstance>=1.5.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage>=0.34.0,<0.37.0',
+    'azure-storage>=0.34.0, <0.37.0',
     'azure-storage-blob<12.0',
 ]
 cassandra = [
@@ -276,12 +277,11 @@ google = [
     'google-cloud-speech>=0.36.3',
     'google-cloud-storage>=1.16',
     'google-cloud-tasks>=1.2.1',
-    'google-cloud-texttospeech>=0.4.0',
+    'google-cloud-texttospeech>=0.4.0,<2',
     'google-cloud-translate>=1.5.0',
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
-    'httplib2~=0.15',  # not sure we're ready for 1.0 here; test before updating
     'pandas-gbq',
 ]
 grpc = [
@@ -634,9 +634,13 @@ PACKAGES_EXCLUDED_FOR_ALL = [
 ]
 
 if PY3:
-    # Snakebite is not Python 3 compatible :'(
     PACKAGES_EXCLUDED_FOR_ALL.extend([
         'snakebite',
+    ])
+
+if PY38:
+    PACKAGES_EXCLUDED_FOR_ALL.extend([
+        'pymssql',
     ])
 
 # Those packages are excluded because they break tests (downgrading mock) and they are
@@ -684,6 +688,7 @@ INSTALL_REQUIREMENTS = [
     'cached_property~=1.5',
     'cattrs~=1.0',
     'colorlog==4.0.2',
+    'connexion[swagger-ui,flask]>=2.6.0,<3',
     'croniter>=0.3.17, <0.4',
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
@@ -704,20 +709,20 @@ INSTALL_REQUIREMENTS = [
     'lockfile>=0.12.2',
     'markdown>=2.5.2, <3.0',
     'pandas>=0.17.1, <2.0',
-    'pendulum==1.4.4',
+    'pendulum~=2.0',
     'pep562~=1.0;python_version<"3.7"',
     'psutil>=4.2.0, <6.0.0',
     'pygments>=2.0.1, <3.0',
     'python-daemon>=2.1.1, <2.2',
     'python-dateutil>=2.3, <3',
+    'python-nvd3~=0.15.0',
+    'python-slugify>=3.0.0,<5.0',
     'requests>=2.20.0, <3',
     'setproctitle>=1.1.8, <2',
     'sqlalchemy~=1.3',
     'sqlalchemy_jsonfield~=0.9',
     'tabulate>=0.7.5, <0.9',
     'tenacity==4.12.0',
-    'termcolor==1.1.0',
-    'text-unidecode==1.2',
     'thrift>=0.9.2',
     'typing;python_version<"3.6"',
     'typing-extensions>=3.7.4;python_version<"3.8"',
@@ -741,6 +746,7 @@ def do_setup():
         package_data={
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
                  "airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
+            'airflow.api_connexion.openapi': ['*.yaml'],
             'airflow.serialization': ["*.json"],
         },
         include_package_data=True,
@@ -768,6 +774,7 @@ def do_setup():
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',

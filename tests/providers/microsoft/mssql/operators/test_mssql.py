@@ -16,27 +16,31 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
-from parameterized import parameterized
+import unittest
 
+import mock
+
+from airflow import PY38
 from airflow.models import Connection
-from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator
 from airflow.providers.odbc.hooks.odbc import OdbcHook
+
+if not PY38:
+    from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+    from airflow.providers.microsoft.mssql.operators.mssql import MsSqlOperator
 
 ODBC_CONN = Connection(conn_id='test-odbc', conn_type='odbc', )
 PYMSSQL_CONN = Connection(conn_id='test-pymssql', conn_type='anything', )
 
 
 class TestMsSqlOperator:
-    @parameterized.expand([(ODBC_CONN, OdbcHook), (PYMSSQL_CONN, MsSqlHook)])
+    @unittest.skipIf(PY38, "Mssql package not avaible when Python >= 3.8.")
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    def test_get_hook(self, conn, hook_class, get_connection):
+    def test_get_hook(self, get_connection):
         """
         Operator should use odbc hook if conn type is ``odbc`` and pymssql-based hook otherwise.
         """
-
-        get_connection.return_value = conn
-        op = MsSqlOperator(task_id='test', sql='', mssql_conn_id=conn.conn_id)
-        hook = op.get_hook()
-        assert hook.__class__ == hook_class
+        for conn, hook_class in [(ODBC_CONN, OdbcHook), (PYMSSQL_CONN, MsSqlHook)]:
+            get_connection.return_value = conn
+            op = MsSqlOperator(task_id='test', sql='', mssql_conn_id=conn.conn_id)
+            hook = op.get_hook()
+            assert hook.__class__ == hook_class

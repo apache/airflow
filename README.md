@@ -61,10 +61,11 @@ Apache Airflow is tested with:
 
 ### Master version (2.0.0dev)
 
-* Python versions: 3.6, 3.7
+* Python versions: 3.6, 3.7, 3.8
 * Postgres DB: 9.6, 10
 * MySQL DB: 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
+* Kubernetes - 1.16.2, 1.17.0
 
 ### Stable version (1.10.9)
 
@@ -72,6 +73,7 @@ Apache Airflow is tested with:
 * Postgres DB: 9.6, 10
 * MySQL DB: 5.6, 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
+* Kubernetes - 1.16.2, 1.17.0
 
 ### Additional notes on Python version requirements
 
@@ -99,7 +101,7 @@ produce unusable Airflow installation.
 
 In order to have repeatable installation, however, starting from **Airflow 1.10.10** we also keep a set of
 "known-to-be-working" requirement files in the `requirements` folder. Those "known-to-be-working"
-requirements are per major/minor python version (3.6/3.7). You can use them as constraint files
+requirements are per major/minor python version (3.6/3.7/3.8). You can use them as constraint files
 when installing Airflow from PyPI. Note that you have to specify correct Airflow version and python versions
 in the URL.
 
@@ -305,6 +307,7 @@ Currently **officially** using Airflow:
 1. [DataCamp](https://datacamp.com/) [[@dgrtwo](https://github.com/dgrtwo)]
 1. [DataFox](https://www.datafox.com/) [[@sudowork](https://github.com/sudowork)]
 1. [Dentsu Inc.](http://www.dentsu.com/) [[@bryan831](https://github.com/bryan831) & [@loozhengyuan](https://github.com/loozhengyuan)]
+1. [Deseret Digital Media](http://deseretdigital.com/) [[@formigone](https://github.com/formigone)
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
 1. [DigitalOcean](https://digitalocean.com/) [[@ajbosco](https://github.com/ajbosco)]
 1. [Digitas Pixelpark](https://www.digitaspixelpark.com/) [[@feluelle](https://github.com/feluelle)]
@@ -427,6 +430,7 @@ Currently **officially** using Airflow:
 1. [OneFineStay](https://www.onefinestay.com) [[@slangwald](https://github.com/slangwald)]
 1. [Open Knowledge International](https://okfn.org) [@vitorbaptista](https://github.com/vitorbaptista)
 1. [Optum](https://www.optum.com/) - [UnitedHealthGroup](https://www.unitedhealthgroup.com/) [[@fhoda](https://github.com/fhoda), [@ianstanton](https://github.com/ianstanton), [@nilaybhatt](https://github.com/NilayBhatt),[@hiteshrd](https://github.com/hiteshrd)]
+1. [OrangeBank](https://www.orangebank.fr/) [[@HamzaBoukraa](https://github.com/HamzaBoukraa)]
 1. [Outcome Health](https://www.outcomehealth.com/) [[@mikethoun](https://github.com/mikethoun), [@rolandotribo](https://github.com/rolandotribo)]
 1. [Overstock](https://www.github.com/overstock) [[@mhousley](https://github.com/mhousley) & [@mct0006](https://github.com/mct0006)]
 1. [OVH](https://www.ovh.com) [[@ncrocfer](https://github.com/ncrocfer) & [@anthonyolea](https://github.com/anthonyolea)]
