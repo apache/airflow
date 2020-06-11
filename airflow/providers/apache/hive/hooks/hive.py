@@ -18,11 +18,11 @@
 
 import contextlib
 import os
+import random
 import re
 import socket
 import subprocess
 import time
-import random
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 
