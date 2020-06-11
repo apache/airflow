@@ -1320,6 +1320,7 @@ components:
         extra:
           type: string
           readOnly: true
+          nullable: true
 
     EventLogCollection:
       type: object

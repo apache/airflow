@@ -16,8 +16,13 @@
 # under the License.
 import unittest
 
-import pytest
+from parameterized import parameterized
 
+from airflow import DAG
+from airflow.models import Log, TaskInstance
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils import timezone
+from airflow.utils.session import create_session, provide_session
 from airflow.www import app
 
 
@@ -29,17 +34,169 @@ class TestEventLogEndpoint(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
+        with create_session() as session:
+            session.query(Log).delete()
+        self.default_time = "2020-06-10T20:36:40.186116+00:00"
+        self.default_time = '2020-06-11T07:04:57.501393+00:00'
+
+    def tearDown(self) -> None:
+        with create_session() as session:
+            session.query(Log).delete()
+
+    def _create_task_instance(self):
+        dag = DAG('TEST_DAG_ID', start_date=timezone.parse(self.default_time),
+                  end_date=timezone.parse(self.default_time))
+        op1 = DummyOperator(task_id="TEST_TASK_ID", owner="airflow",
+                            )
+        dag.add_task(op1)
+        ti = TaskInstance(task=op1, execution_date=timezone.parse(self.default_time))
+        return ti
 
 
 class TestGetEventLog(TestEventLogEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.get("/api/v1/eventLogs/1")
+
+    @provide_session
+    def test_should_response_200(self, session):
+        log_model = Log(
+            event='TEST_EVENT',
+            task_instance=self._create_task_instance(),
+        )
+        log_model.dttm = timezone.parse(self.default_time)
+        session.add(log_model)
+        session.commit()
+        event_log_id = log_model.id
+        response = self.client.get(f"/api/v1/eventLogs/{event_log_id}")
         assert response.status_code == 200
+        self.assertEqual(
+            response.json,
+            {
+                "event_log_id": event_log_id,
+                "event": "TEST_EVENT",
+                "dag_id": "TEST_DAG_ID",
+                "task_id": "TEST_TASK_ID",
+                "execution_date": self.default_time,
+                "owner": 'airflow',
+                "when": self.default_time,
+                "extra": None
+            }
+        )
 
 
 class TestGetEventLogs(TestEventLogEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
+
+    @provide_session
+    def test_should_response_200(self, session):
+        log_model_1 = Log(
+            event='TEST_EVENT_1',
+            task_instance=self._create_task_instance(),
+        )
+        log_model_2 = Log(
+            event='TEST_EVENT_2',
+            task_instance=self._create_task_instance(),
+        )
+        log_model_1.dttm = timezone.parse(self.default_time)
+        log_model_2.dttm = timezone.parse(self.default_time)
+        session.add_all([log_model_1, log_model_2])
+        session.commit()
         response = self.client.get("/api/v1/eventLogs")
         assert response.status_code == 200
+        self.assertEqual(
+            response.json,
+            {
+                "event_logs": [
+                    {
+
+                        "event_log_id": log_model_1.id,
+                        "event": "TEST_EVENT_1",
+                        "dag_id": "TEST_DAG_ID",
+                        "task_id": "TEST_TASK_ID",
+                        "execution_date": self.default_time,
+                        "owner": 'airflow',
+                        "when": self.default_time,
+                        "extra": None
+
+                    },
+                    {
+                        "event_log_id": log_model_2.id,
+                        "event": "TEST_EVENT_2",
+                        "dag_id": "TEST_DAG_ID",
+                        "task_id": "TEST_TASK_ID",
+                        "execution_date": self.default_time,
+                        "owner": 'airflow',
+                        "when": self.default_time,
+                        "extra": None
+                    }
+                ],
+                "total_entries": 2
+            }
+        )
+
+
+class TestGetEventLogPagination(TestEventLogEndpoint):
+    @parameterized.expand(
+        [
+            ("api/v1/eventLogs?limit=1", ["TEST_EVENT_1"]),
+            ("api/v1/eventLogs?limit=2", ["TEST_EVENT_1", "TEST_EVENT_2"]),
+            (
+                "api/v1/eventLogs?offset=5",
+                [
+                    "TEST_EVENT_6",
+                    "TEST_EVENT_7",
+                    "TEST_EVENT_8",
+                    "TEST_EVENT_9",
+                    "TEST_EVENT_10",
+                ],
+            ),
+            (
+                "api/v1/eventLogs?offset=0",
+                [
+                    "TEST_EVENT_1",
+                    "TEST_EVENT_2",
+                    "TEST_EVENT_3",
+                    "TEST_EVENT_4",
+                    "TEST_EVENT_5",
+                    "TEST_EVENT_6",
+                    "TEST_EVENT_7",
+                    "TEST_EVENT_8",
+                    "TEST_EVENT_9",
+                    "TEST_EVENT_10",
+                ],
+            ),
+            ("api/v1/eventLogs?limit=1&offset=5", ["TEST_EVENT_6"]),
+            ("api/v1/eventLogs?limit=1&offset=1", ["TEST_EVENT_2"]),
+            ("api/v1/eventLogs?limit=2&offset=2", ["TEST_EVENT_3", "TEST_EVENT_4"],),
+        ]
+    )
+    @provide_session
+    def test_handle_limit_and_offset(self, url, expected_events, session):
+        log_models = self._create_event_logs(10)
+        session.add_all(log_models)
+        session.commit()
+
+        response = self.client.get(url)
+        assert response.status_code == 200
+
+        self.assertEqual(response.json["total_entries"], 10)
+        events = [event_log["event"] for event_log in response.json["event_logs"]]
+        self.assertEqual(events, expected_events)
+
+    @provide_session
+    def test_should_respect_page_size_limit(self, session):
+        log_models = self._create_event_logs(200)
+        session.add_all(log_models)
+        session.commit()
+
+        response = self.client.get("/api/v1/eventLogs?limit=150")
+        assert response.status_code == 200
+
+        self.assertEqual(response.json["total_entries"], 200)
+        self.assertEqual(len(response.json["event_logs"]), 100)
+
+    def _create_event_logs(self, count):
+        return [
+            Log(
+                event="TEST_EVENT_" + str(i),
+                task_instance=self._create_task_instance()
+            )
+            for i in range(1, count + 1)
+        ]

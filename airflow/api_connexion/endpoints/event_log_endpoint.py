@@ -15,19 +15,42 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8135
+from flask import request
+
+from airflow.api_connexion import parameters
+from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.schemas.event_log_schema import (
+    EventLogCollection, event_log_collection_schema, event_log_schema,
+)
+from airflow.models import Log
+from airflow.utils.session import provide_session
 
 
-def get_event_log():
+@provide_session
+def get_event_log(event_log_id, session):
     """
     Get a log entry
     """
-    raise NotImplementedError("Not implemented yet.")
+    query = session.query(Log)
+    query = query.filter(Log.id == event_log_id)
+    event_log = query.one_or_none()
+    if event_log is None:
+        raise NotFound("EventLog not found")
+    return event_log_schema.dump(event_log)
 
 
-def get_event_logs():
+@provide_session
+def get_event_logs(session):
     """
     Get all log entries from event log
     """
-    raise NotImplementedError("Not implemented yet.")
+    offset = request.args.get(parameters.page_offset, 0)
+    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
+
+    query = session.query(Log)
+    total_entries = query.count()
+    query = query.offset(offset).limit(limit)
+
+    event_logs = query.all()
+    return event_log_collection_schema.dump(EventLogCollection(event_logs=event_logs,
+                                                               total_entries=total_entries))
