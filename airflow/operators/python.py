@@ -156,11 +156,11 @@ class _PythonFunctionalOperator(BaseOperator):
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
-        in your function
-    :type op_kwargs: dict (templated)
+        in your function (templated)
+    :type op_kwargs: dict
     :param op_args: a list of positional arguments that will get unpacked when
-        calling your callable
-    :type op_args: list (templated)
+        calling your callable (templated)
+    :type op_args: list
     :param multiple_outputs: if set, function return value will be
         unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
@@ -168,7 +168,7 @@ class _PythonFunctionalOperator(BaseOperator):
     """
 
     template_fields = ('op_args', 'op_kwargs')
-    ui_color = PythonOperator. ui_color
+    ui_color = PythonOperator.ui_color
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
