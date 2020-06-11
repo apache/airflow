@@ -41,11 +41,9 @@ TOOL_NAME="$(echo "${SCRIPT_NAME}" | cut -d "-" -f 1)"
 
 SUPPORTED_TOOL_NAMES=("aws" "az" "gcloud" "bq" "gsutil" "terraform" "java")
 
-SCRIPT_PATH=$(readlink -e "${BASH_SOURCE[0]}")
-if [ -L "$SCRIPT_PATH" ]
+if [ ! -L "${BASH_SOURCE[0]}" ]
 then
     # Direct execution - return installation script
-    SCRIPT_PATH=$(readlink -e "${BASH_SOURCE[0]}")
     >&2 echo "# CLI tool wrappers"
     >&2 echo "#"
     >&2 echo "# To install, run the following command:"
