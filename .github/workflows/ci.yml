@@ -210,11 +210,6 @@ jobs:
         run: ./scripts/ci/ci_perform_kind_cluster_operation.sh start
       - name: "Deploy app to cluster"
         run: ./scripts/ci/ci_deploy_app_to_kubernetes.sh
-      - uses: actions/upload-artifact@v2
-        if: failure()
-        with:
-          name: 'Kind logs'
-          path: '/tmp/kind_logs_*.tar.gz'
       - name: Cache virtualenv for kubernetes testing
         uses: actions/cache@v2
         env:
@@ -225,6 +220,12 @@ jobs:
 ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') }}"
       - name: "Tests"
         run: ./scripts/ci/ci_run_kubernetes_tests.sh
+      - uses: actions/upload-artifact@v2
+        # Always run this, even if one of th previous steps failed.
+        if: always()
+        with:
+          name: 'Kind logs'
+          path: '/tmp/kind_logs_*.tar.gz'
 
   tests-postgres:
     timeout-minutes: 80
