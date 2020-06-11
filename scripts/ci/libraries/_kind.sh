@@ -27,7 +27,6 @@ function dump_kind_logs() {
     DUMP_DIR_NAME=kind_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
     DUMP_DIR="/tmp/${DUMP_DIR_NAME}"
     kind --name "${KIND_CLUSTER_NAME}" export logs "${DUMP_DIR}"
-    tar -cvzf "${DUMP_DIR}.tar.gz" -C /tmp "${DUMP_DIR_NAME}"
 }
 
 function check_kind_and_kubectl_are_installed() {

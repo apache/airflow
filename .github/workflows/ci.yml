@@ -224,8 +224,8 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
         # Always run this, even if one of th previous steps failed.
         if: always()
         with:
-          name: 'Kind logs'
-          path: '/tmp/kind_logs_*.tar.gz'
+          name: 'kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}'
+          path: '/tmp/kind_logs_*'
 
   tests-postgres:
     timeout-minutes: 80
