@@ -59,6 +59,12 @@ then
     done
     exit 0
 fi
+ENV_TMP_FILE=$(mktemp)
+env > "${ENV_TMP_FILE}"
+cleanup() {
+    rm "${ENV_TMP_FILE}"
+}
+trap cleanup EXIT
 
 CONTAINER_ID="$(head -n 1 < /proc/self/cgroup | cut -d ":" -f 3 | cut -d "/" -f 3)"
 
@@ -72,7 +78,7 @@ COMMON_DOCKER_ARGS=(
     -v "${HOST_AIRFLOW_SOURCES}/tmp:/tmp"
     -v "${HOST_AIRFLOW_SOURCES}/files:/files"
     -v "${HOST_AIRFLOW_SOURCES}:/opt/airflow"
-    --env-file <(env)
+    --env-file "${ENV_TMP_FILE}"
     -w "${PWD}"
 )
 
