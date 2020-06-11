@@ -33,7 +33,10 @@ export PYTHONPATH="${AIRFLOW_SOURCES}"
 echo
 echo "Installing remaining packages from 'all' extras"
 echo
-pip install ".[all]" >>"${OUT_FILE}" 2>&1
+echo "OUT_FILE: ${OUT_FILE}"
+echo find /tmp
+find /tmp
+pip install -e ".[all]" >>"${OUT_FILE}" 2>&1
 
 echo > "${OUT_FILE}"
 
