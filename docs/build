@@ -21,12 +21,12 @@ import re
 import shlex
 import shutil
 import sys
-from functools import total_ordering
-from subprocess import run
 from contextlib import suppress
+from functools import total_ordering
 from glob import glob
+from subprocess import run
 from tempfile import NamedTemporaryFile
-from typing import NamedTuple, List, Iterable, Set, Optional
+from typing import Iterable, List, NamedTuple, Optional, Set
 
 if __name__ != "__main__":
     raise Exception(

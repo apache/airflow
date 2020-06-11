@@ -141,7 +141,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
     hooks:
       - id: check-hooks-apply
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.5.0
+    rev: v3.1.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -159,15 +159,24 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
     hooks:
       - id: rst-backticks
       - id: python-no-log-warn
-  - repo: local
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.23.0
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
         entry: yamllint -c yamllint-config.yml
-        language: python
-        additional_dependencies: ['yamllint']
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$
+  - repo: https://github.com/timothycrosley/isort
+    rev: 4.3.21-2
+    hooks:
+      - id: isort
+        name: Run isort to sort imports
+        types: [python]
+        # To keep consistent with the global isort skip config defined in setup.cfg
+        exclude: ^build/.*$|^.tox/.*$|^venv/.*$
+  - repo: local
+    hooks:
       - id: shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
@@ -190,14 +199,6 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         entry: "./scripts/ci/pre_commit_lint_dockerfile.sh"
         files: ^Dockerfile.*$
         pass_filenames: true
-      - id: isort
-        name: Run isort to sort imports
-        language: python
-        entry: isort
-        files: \.py$
-        # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^.tox/.*$|^venv/.*$
-        additional_dependencies: ['isort']
       - id: setup-order
         name: Checks for an order of dependencies in setup.py
         language: python
