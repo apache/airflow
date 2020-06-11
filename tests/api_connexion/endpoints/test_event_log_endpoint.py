@@ -37,7 +37,7 @@ class TestEventLogEndpoint(unittest.TestCase):
         with create_session() as session:
             session.query(Log).delete()
         self.default_time = "2020-06-10T20:36:40.186116+00:00"
-        self.default_time = '2020-06-11T07:04:57.501393+00:00'
+        self.default_time_2 = '2020-06-11T07:04:57.501393+00:00'
 
     def tearDown(self) -> None:
         with create_session() as session:
@@ -103,7 +103,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
             task_instance=self._create_task_instance(),
         )
         log_model_1.dttm = timezone.parse(self.default_time)
-        log_model_2.dttm = timezone.parse(self.default_time)
+        log_model_2.dttm = timezone.parse(self.default_time_2)
         session.add_all([log_model_1, log_model_2])
         session.commit()
         response = self.client.get("/api/v1/eventLogs")
@@ -131,7 +131,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                         "task_id": "TEST_TASK_ID",
                         "execution_date": self.default_time,
                         "owner": 'airflow',
-                        "when": self.default_time,
+                        "when": self.default_time_2,
                         "extra": None
                     }
                 ],
