@@ -178,12 +178,13 @@ class _PythonFunctionalOperator(BaseOperator):
     def __init__(
         self,
         python_callable: Callable,
+        task_id: str,
         op_args: Tuple[Any],
         op_kwargs: Dict[str, Any],
         multiple_outputs: bool = False,
         **kwargs
     ) -> None:
-        kwargs['task_id'] = self._get_unique_task_id(kwargs['task_id'], kwargs.get('dag', None))
+        kwargs['task_id'] = self._get_unique_task_id(task_id, kwargs.get('dag', None))
         super().__init__(**kwargs)
         self.python_callable = python_callable
 
