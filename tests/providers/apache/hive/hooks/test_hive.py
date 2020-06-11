@@ -331,6 +331,25 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
                                           missing_partition)
         )
 
+    def test_check_hms_clients_load_balance(self):
+        # checks if when HMS Hook is instantiated, it gets to
+        # different HMS server most of the time and not to the same HMS server all the time.
+        connection_count = {}
+        hms_hook = HiveMetastoreHook()
+        hms_server_count = len(hms_hook.get_connections('metastore_default'))
+
+        if hms_server_count > 2:
+            for i in range(2 * hms_server_count):
+                conn = HiveMetastoreHook()._find_valid_server().host
+                if conn in connection_count:
+                    if connection_count[conn] >= (2 * hms_server_count) - 1:
+                        self.assertFalse(True)
+                    else:
+                        connection_count[conn] = connection_count[conn] + 1
+                else:
+                    connection_count[conn] = 1
+            self.assertTrue(True)
+
     def test_check_for_named_partition(self):
         partition = "{p_by}={date}".format(date=DEFAULT_DATE_DS,
                                            p_by=self.partition_by)
