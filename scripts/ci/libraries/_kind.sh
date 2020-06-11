@@ -104,6 +104,12 @@ function create_cluster() {
     echo
     echo "Restarted CoreDNS"
     echo
+    set -x
+    cat /var/lib/kubelet/kubeadm-flags.env  || true
+    cat /etc/default/kubelet || true
+    cat /etc/resolv.conf || true
+    cat /run/systemd/resolve/resolv.conf || true
+    set +x
 }
 
 function delete_cluster() {
