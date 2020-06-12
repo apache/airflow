@@ -1047,10 +1047,18 @@ state.
 Cluster Policy
 ==============
 
-Your local Airflow settings file can define a ``policy`` function that
-has the ability to mutate task attributes based on other task or DAG
-attributes. It receives a single argument as a reference to task objects,
-and is expected to alter its attributes.
+In case you want to apply cluster-wide mutations to the Airflow tasks,
+you can either mutate the task right after the DAG is loaded or
+mutate the task instance before task execution.
+
+Mutate tasks after DAG loaded
+-----------------------------
+
+To mutate the task right after the DAG is parsed, you can define
+a ``policy`` function in ``airflow_local_settings.py`` that mutates the
+task based on other task or DAG attributes (through ``task.dag``).
+It receives a single argument as a reference to the task object and you can alter
+its attributes.
 
 For example, this function could apply a specific queue property when
 using a specific operator, or enforce a task timeout policy, making sure
@@ -1066,13 +1074,35 @@ may look like inside your ``airflow_local_settings.py``:
         if task.timeout > timedelta(hours=48):
             task.timeout = timedelta(hours=48)
 
-To define policy, add a ``airflow_local_settings`` module to your :envvar:`PYTHONPATH`
-or to AIRFLOW_HOME/config folder that defines this ``policy`` function. It receives a ``TaskInstance``
-object and can alter it where needed.
 
-Please note, cluster policy currently applies to task only though you can access DAG via ``task.dag`` property.
-Also, cluster policy will have precedence over task attributes defined in DAG
-meaning if ``task.sla`` is defined in dag and also mutated via cluster policy then later will have precedence.
+Please note, cluster policy will have precedence over task
+attributes defined in DAG meaning if ``task.sla`` is defined
+in dag and also mutated via cluster policy then later will have precedence.
+
+
+Mutate task instances before task execution
+-------------------------------------------
+
+To mutate the task instance before the task execution, you can define a
+``task_instance_mutation_hook`` function in ``airflow_local_settings.py``
+that mutates the task instance.
+
+For example, this function re-routes the task to execute in a different
+queue during retries:
+
+.. code:: python
+
+    def task_instance_mutation_hook(ti):
+        if ti.try_number >= 1:
+            ti.queue = 'retry_queue'
+
+
+Where to put ``airflow_local_settings.py``?
+-------------------------------------------
+
+Add a ``airflow_local_settings.py`` file to your ``$PYTHONPATH``
+or to ``$AIRFLOW_HOME/config`` folder.
+
 
 Documentation & Notes
 =====================
