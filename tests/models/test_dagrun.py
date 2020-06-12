@@ -565,8 +565,9 @@ class TestDagRun(unittest.TestCase):
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
 
+    @parameterized.expand([(state,) for state in State.task_states])
     @mock.patch('airflow.models.dagrun.task_instance_mutation_hook')
-    def test_task_instance_mutation_hook(self, mock_hook):
+    def test_task_instance_mutation_hook(self,  state, mock_hook):
         def mutate_task_instance(task_instance):
             if task_instance.queue == 'queue1':
                 task_instance.queue = 'queue2'
@@ -580,6 +581,7 @@ class TestDagRun(unittest.TestCase):
 
         dagrun = self.create_dag_run(dag)
         task = dagrun.get_task_instances()[0]
+        task.state = state
         assert task.queue == 'queue2'
 
         dagrun.verify_integrity()
