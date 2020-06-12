@@ -62,6 +62,14 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Not-nullable conn_type collumn in connection table
+
+The `conn_type` column in the `connection` table must contain content. Previously, this rule was enforced
+by application logic, but was not enforced by the database schema.
+
+If you made any modifications to the table directly, make sure you don't have
+null in the conn_type column.
+
 ### DAG.create_dagrun accepts run_type and does not require run_id
 This change is caused by adding `run_type` column to `DagRun`.
 
@@ -2293,14 +2301,11 @@ dags_are_paused_at_creation = False
 
 If you specify a hive conf to the run_cli command of the HiveHook, Airflow add some
 convenience variables to the config. In case you run a secure Hadoop setup it might be
-required to whitelist these variables by adding the following to your configuration:
+required to allow these variables by adjusting you hive configuration to add `airflow\.ctx\..*` to the regex
+of user-editable configuration properties. See
+[the Hive docs on Configuration Properties][hive.security.authorization.sqlstd] for more info.
 
-```
-<property>
-     <name>hive.security.authorization.sqlstd.confwhitelist.append</name>
-     <value>airflow\.ctx\..*</value>
-</property>
-```
+[hive.security.authorization.sqlstd]: https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82903061#ConfigurationProperties-SQLStandardBasedAuthorization.1
 
 ### Google Cloud Operator and Hook alignment
 

@@ -171,6 +171,7 @@ ARG_OUTPUT = Arg(
         "Output table format. The specified value is passed to "
         "the tabulate module (https://pypi.org/project/tabulate/). "
     ),
+    metavar="FORMAT",
     choices=tabulate_formats,
     default="plain")
 ARG_COLOR = Arg(
@@ -1314,7 +1315,13 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
     """
     def _format_action(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
+
             parts = []
+            action_header = self._format_action_invocation(action)
+            action_header = '%*s%s\n' % (self._current_indent, '', action_header)
+            parts.append(action_header)
+
+            self._indent()
             subactions = action._get_subactions()  # pylint: disable=protected-access
             action_subcommnads, group_subcommnands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
@@ -1333,6 +1340,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
             for subaction in action_subcommnads:
                 parts.append(self._format_action(subaction))
             self._dedent()
+            self._dedent()
 
             # return a single string
             return self._join_parts(parts)
@@ -1343,7 +1351,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser"""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
-    subparsers = parser.add_subparsers(dest='subcommand')
+    subparsers = parser.add_subparsers(dest='subcommand', metavar="GROUP_OR_COMMAND")
     subparsers.required = True
 
     subparser_list = DAG_CLI_COMMANDS if dag_parser else ALL_COMMANDS_DICT.keys()
@@ -1393,7 +1401,7 @@ def _add_action_command(sub: ActionCommand, sub_proc: argparse.ArgumentParser) -
 
 def _add_group_command(sub: GroupCommand, sub_proc: argparse.ArgumentParser) -> None:
     subcommands = sub.subcommands
-    sub_subparsers = sub_proc.add_subparsers(dest="subcommand")
+    sub_subparsers = sub_proc.add_subparsers(dest="subcommand", metavar="COMMAND")
     sub_subparsers.required = True
 
     for command in sorted(subcommands, key=lambda x: x.name):

@@ -180,7 +180,6 @@ jobs:
         python-version: [3.6, 3.7]
         kube-mode:
           - image
-          - git
         kubernetes-version:
           - "v1.15.3"
       fail-fast: false
@@ -220,6 +219,12 @@ jobs:
 ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') }}"
       - name: "Tests"
         run: ./scripts/ci/ci_run_kubernetes_tests.sh
+      - uses: actions/upload-artifact@v2
+        # Always run this, even if one of th previous steps failed.
+        if: always()
+        with:
+          name: 'kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}'
+          path: '/tmp/kind_logs_*'
 
   tests-postgres:
     timeout-minutes: 80

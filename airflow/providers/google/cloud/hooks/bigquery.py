@@ -22,7 +22,6 @@ implementation for BigQuery.
 """
 import logging
 import time
-import uuid
 import warnings
 from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
@@ -1453,8 +1452,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param location: location the job is running
         :type location: str
         """
-        job_id = job_id or str(uuid.uuid4())
         location = location or self.location
+        job_id = job_id or f"airflow_{int(time.time())}"
+
         client = self.get_client(project_id=project_id, location=location)
         job_data = {
             "configuration": configuration,

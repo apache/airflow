@@ -187,3 +187,13 @@ dmypy.json
 /.inputrc
 log.txt*
 /backport_packages/CHANGELOG.txt
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Terraform variables
+*.tfvars

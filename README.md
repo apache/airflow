@@ -307,6 +307,7 @@ Currently **officially** using Airflow:
 1. [DataCamp](https://datacamp.com/) [[@dgrtwo](https://github.com/dgrtwo)]
 1. [DataFox](https://www.datafox.com/) [[@sudowork](https://github.com/sudowork)]
 1. [Dentsu Inc.](http://www.dentsu.com/) [[@bryan831](https://github.com/bryan831) & [@loozhengyuan](https://github.com/loozhengyuan)]
+1. [Deseret Digital Media](http://deseretdigital.com/) [[@formigone](https://github.com/formigone)
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
 1. [DigitalOcean](https://digitalocean.com/) [[@ajbosco](https://github.com/ajbosco)]
 1. [Digitas Pixelpark](https://www.digitaspixelpark.com/) [[@feluelle](https://github.com/feluelle)]
@@ -429,6 +430,7 @@ Currently **officially** using Airflow:
 1. [OneFineStay](https://www.onefinestay.com) [[@slangwald](https://github.com/slangwald)]
 1. [Open Knowledge International](https://okfn.org) [@vitorbaptista](https://github.com/vitorbaptista)
 1. [Optum](https://www.optum.com/) - [UnitedHealthGroup](https://www.unitedhealthgroup.com/) [[@fhoda](https://github.com/fhoda), [@ianstanton](https://github.com/ianstanton), [@nilaybhatt](https://github.com/NilayBhatt),[@hiteshrd](https://github.com/hiteshrd)]
+1. [OrangeBank](https://www.orangebank.fr/) [[@HamzaBoukraa](https://github.com/HamzaBoukraa)]
 1. [Outcome Health](https://www.outcomehealth.com/) [[@mikethoun](https://github.com/mikethoun), [@rolandotribo](https://github.com/rolandotribo)]
 1. [Overstock](https://www.github.com/overstock) [[@mhousley](https://github.com/mhousley) & [@mct0006](https://github.com/mct0006)]
 1. [OVH](https://www.ovh.com) [[@ncrocfer](https://github.com/ncrocfer) & [@anthonyolea](https://github.com/anthonyolea)]

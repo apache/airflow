@@ -1,3 +1,4 @@
+# pylint: disable=no-name-in-module
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -70,8 +71,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
     :type file_path: str
     :param pickle_dags: whether to serialize the DAG objects to the DB
     :type pickle_dags: bool
-    :param dag_id_white_list: If specified, only look at these DAG ID's
-    :type dag_id_white_list: List[str]
+    :param dag_ids: If specified, only look at these DAG ID's
+    :type dag_ids: List[str]
     :param failure_callback_requests: failure callback to execute
     :type failure_callback_requests: List[airflow.utils.dag_processing.FailureCallbackRequest]
     """
@@ -83,13 +84,13 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         self,
         file_path: str,
         pickle_dags: bool,
-        dag_id_white_list: Optional[List[str]],
+        dag_ids: Optional[List[str]],
         failure_callback_requests: List[FailureCallbackRequest]
     ):
         super().__init__()
         self._file_path = file_path
         self._pickle_dags = pickle_dags
-        self._dag_id_white_list = dag_id_white_list
+        self._dag_ids = dag_ids
         self._failure_callback_requests = failure_callback_requests
 
         # The process that was launched to process the given .
@@ -116,7 +117,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
     def _run_file_processor(result_channel,
                             file_path,
                             pickle_dags,
-                            dag_id_white_list,
+                            dag_ids,
                             thread_name,
                             failure_callback_requests):
         """
@@ -129,9 +130,9 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         :param pickle_dags: whether to pickle the DAGs found in the file and
             save them to the DB
         :type pickle_dags: bool
-        :param dag_id_white_list: if specified, only examine DAG ID's that are
+        :param dag_ids: if specified, only examine DAG ID's that are
             in this list
-        :type dag_id_white_list: list[str]
+        :type dag_ids: list[str]
         :param thread_name: the name to use for the process that is launched
         :type thread_name: str
         :param failure_callback_requests: failure callback to execute
@@ -160,7 +161,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
                 start_time = time.time()
 
                 log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
-                dag_file_processor = DagFileProcessor(dag_ids=dag_id_white_list, log=log)
+                dag_file_processor = DagFileProcessor(dag_ids=dag_ids, log=log)
                 result = dag_file_processor.process_file(
                     file_path=file_path,
                     pickle_dags=pickle_dags,
@@ -195,7 +196,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
                 _child_channel,
                 self.file_path,
                 self._pickle_dags,
-                self._dag_id_white_list,
+                self._dag_ids,
                 "DagFileProcessor{}".format(self._instance_id),
                 self._failure_callback_requests
             ),
@@ -1583,7 +1584,7 @@ class SchedulerJob(BaseJob):
         return DagFileProcessorProcess(
             file_path=file_path,
             pickle_dags=pickle_dags,
-            dag_id_white_list=dag_ids,
+            dag_ids=dag_ids,
             failure_callback_requests=failure_callback_requests
         )
 

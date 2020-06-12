@@ -1148,12 +1148,16 @@ components:
           type: string
         host:
           type: string
+          nullable: true
         login:
           type: string
+          nullable: true
         schema:
           type: string
+          nullable: true
         port:
           type: integer
+          nullable: true
 
     ConnectionCollection:
       type: object
@@ -1174,6 +1178,7 @@ components:
               writeOnly: true
             extra:
               type: string
+              nullable: true
 
     DAG:
       type: object
@@ -2106,7 +2111,7 @@ components:
       in: path
       name: connection_id
       schema:
-        type: integer
+        type: string
       required: true
       description: The Connection ID.
 

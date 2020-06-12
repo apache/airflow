@@ -89,13 +89,19 @@ function in_container_cleanup_pycache() {
 
 #
 # Fixes ownership of files generated in container - if they are owned by root, they will be owned by
-# The host user.
+# The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
+# changed to the Host user via osxfs filesystem
 #
 function in_container_fix_ownership() {
-    set +o pipefail
-    sudo find "${AIRFLOW_SOURCES}" -print0 -user root \
-    | sudo xargs --null chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
-    set -o pipefail
+    if [[ ${HOST_OS:=} == "Linux" ]]; then
+        set +o pipefail
+        echo "Fixing ownership of mounted files"
+        sudo find "${AIRFLOW_SOURCES}" -print0 -user root \
+        | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
+        sudo find "/root/.aws" "/root/.azure" "/root/.config" "/root/.docker" -print0 -user root \
+        | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
+        set -o pipefail
+    fi
 }
 
 function in_container_go_to_airflow_sources() {

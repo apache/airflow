@@ -243,6 +243,9 @@ it is downloaded, it will stay until you remove the downloaded images from your 
 For each of those CLI credentials are taken (automatically) from the credentials you have defined in
 your ${HOME} directory on host.
 
+Those tools also have host Airflow source directory mounted in /opt/airflow path
+so you can directly transfer files to/from your airflow host sources.
+
 Those are currently installed CLIs (they are available as aliases to the docker commands):
 
 +-----------------------+----------+-------------------------------------------------+-------------------+
@@ -837,6 +840,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --additional-python-deps
           Additional python dependencies to use when building the images.
 
+  --additional-dev-deps
+          Additional apt dev dependencies to use when building the images.
+
+  --additional-runtime-deps
+          Additional apt runtime dependencies to use when building the images.
+
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
@@ -1148,6 +1157,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --additional-python-deps
           Additional python dependencies to use when building the images.
 
+  --additional-dev-deps
+          Additional apt dev dependencies to use when building the images.
+
+  --additional-runtime-deps
+          Additional apt runtime dependencies to use when building the images.
+
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
@@ -1367,6 +1382,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --additional-python-deps
           Additional python dependencies to use when building the images.
 
+  --additional-dev-deps
+          Additional apt dev dependencies to use when building the images.
+
+  --additional-runtime-deps
+          Additional apt runtime dependencies to use when building the images.
+
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
@@ -1392,11 +1413,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-hooks-apply check-integrations check-merge-conflict check-xml
                  consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
                  end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
-                 incorrect-use-of-LoggingMixin insert-license isort lint-dockerfile mixed-line-ending
-                 mypy provide-create-sessions pydevd pylint pylint-tests python-no-log-warn
-                 rst-backticks setup-order shellcheck stylelint trailing-whitespace
-                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 yamllint
+                 incorrect-use-of-LoggingMixin insert-license isort language-matters lint-dockerfile
+                 mixed-line-ending mypy provide-create-sessions pydevd pylint pylint-tests
+                 python-no-log-warn rst-backticks setup-order shellcheck stylelint
+                 trailing-whitespace update-breeze-file update-extras update-local-yml-file
+                 update-setup-cfg-file yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -1425,11 +1446,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-hooks-apply check-integrations check-merge-conflict check-xml
                  consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
                  end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
-                 incorrect-use-of-LoggingMixin insert-license isort lint-dockerfile mixed-line-ending
-                 mypy provide-create-sessions pydevd pylint pylint-tests python-no-log-warn
-                 rst-backticks setup-order shellcheck stylelint trailing-whitespace
-                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 yamllint
+                 incorrect-use-of-LoggingMixin insert-license isort language-matters lint-dockerfile
+                 mixed-line-ending mypy provide-create-sessions pydevd pylint pylint-tests
+                 python-no-log-warn rst-backticks setup-order shellcheck stylelint
+                 trailing-whitespace update-breeze-file update-extras update-local-yml-file
+                 update-setup-cfg-file yamllint
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -1643,6 +1664,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --additional-python-deps
           Additional python dependencies to use when building the images.
 
+  --additional-dev-deps
+          Additional apt dev dependencies to use when building the images.
+
+  --additional-runtime-deps
+          Additional apt runtime dependencies to use when building the images.
+
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
@@ -1742,7 +1769,7 @@ On Linux, there is a problem with propagating ownership of created files (a know
 files and directories created in the container are not owned by the host user (but by the root user in our
 case). This may prevent you from switching branches, for example, if files owned by the root user are
 created within your sources. In case you are on a Linux host and have some files in your sources created
-y the root user, you can fix the ownership of those files by running this script:
+by the root user, you can fix the ownership of those files by running this script:
 
 .. code-block::
 

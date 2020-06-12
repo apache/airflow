@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest import TestCase, mock
 
 import pendulum
@@ -85,7 +85,7 @@ class TestTsFunction(TestCase):
             'execution_date': datetime(2019, 2, 14, 0, 0)
         }
         result = ts_function(context)
-        self.assertEqual(datetime(2019, 2, 19, 0, 0), result)
+        self.assertEqual(datetime(2019, 2, 19, 0, 0, tzinfo=timezone.utc), result)
 
     def test_should_support_cron(self):
         dag = DAG(

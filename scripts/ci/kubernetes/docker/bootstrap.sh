@@ -35,7 +35,7 @@ echo
 echo "Uninstalling pre-installed airflow"
 echo
 
-# Uninstall preinstalled Apache Airlfow
+# Uninstall preinstalled Apache Airflow
 pip uninstall -y apache-airflow
 
 

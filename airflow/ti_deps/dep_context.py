@@ -83,7 +83,7 @@ class DepContext:
         self.ignore_ti_state = ignore_ti_state
         self.finished_tasks = finished_tasks
 
-    def ensure_finished_tasks(self, dag, execution_date: pendulum.datetime, session: Session):
+    def ensure_finished_tasks(self, dag, execution_date: pendulum.DateTime, session: Session):
         """
         This method makes sure finished_tasks is populated if it's currently None.
         This is for the strange feature of running tasks without dag_run.

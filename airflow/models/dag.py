@@ -412,7 +412,7 @@ class DAG(BaseDag, LoggingMixin):
             if not self.is_fixed_time_schedule():
                 # relative offset (eg. every 5 minutes)
                 delta = cron.get_next(datetime) - naive
-                following = dttm.in_timezone(self.timezone).add_timedelta(delta)
+                following = dttm.in_timezone(self.timezone) + delta
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_next(datetime)
@@ -420,7 +420,7 @@ class DAG(BaseDag, LoggingMixin):
                 following = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(following)
         elif self.normalized_schedule_interval is not None:
-            return dttm + self.normalized_schedule_interval
+            return timezone.convert_to_utc(dttm + self.normalized_schedule_interval)
 
     def previous_schedule(self, dttm):
         """
@@ -440,7 +440,7 @@ class DAG(BaseDag, LoggingMixin):
             if not self.is_fixed_time_schedule():
                 # relative offset (eg. every 5 minutes)
                 delta = naive - cron.get_prev(datetime)
-                previous = dttm.in_timezone(self.timezone).subtract_timedelta(delta)
+                previous = dttm.in_timezone(self.timezone) - delta
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_prev(datetime)
@@ -448,7 +448,7 @@ class DAG(BaseDag, LoggingMixin):
                 previous = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(previous)
         elif self.normalized_schedule_interval is not None:
-            return dttm - self.normalized_schedule_interval
+            return timezone.convert_to_utc(dttm - self.normalized_schedule_interval)
 
     def get_run_dates(self, start_date, end_date=None):
         """

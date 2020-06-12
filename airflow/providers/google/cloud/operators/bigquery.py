@@ -23,7 +23,7 @@ This module contains Google BigQuery operators.
 import enum
 import json
 import warnings
-from time import sleep
+from time import sleep, time
 from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 import attr
@@ -1630,12 +1630,13 @@ class BigQueryInsertJobOperator(BaseOperator):
             delegate_to=self.delegate_to,
         )
 
+        job_id = self.job_id or f"airflow_{self.task_id}_{int(time())}"
         try:
             job = hook.insert_job(
                 configuration=self.configuration,
                 project_id=self.project_id,
                 location=self.location,
-                job_id=self.job_id,
+                job_id=job_id,
             )
             # Start the job and wait for it to complete and get the result.
             job.result()
@@ -1643,7 +1644,7 @@ class BigQueryInsertJobOperator(BaseOperator):
             job = hook.get_job(
                 project_id=self.project_id,
                 location=self.location,
-                job_id=self.job_id,
+                job_id=job_id,
             )
             # Get existing job and wait for it to be ready
             for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):

@@ -56,12 +56,14 @@ services:
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
       - ../../../kubernetes_tests:/opt/airflow/kubernetes_tests:cached
-      - ../../../tmp:/opt/airflow/tmp:cached
+      - ../../../tmp:/tmp:cached
       # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
     environment:
       - HOST_USER_ID
       - HOST_GROUP_ID
       - HOST_HOME=${HOME}
+      - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+      - HOST_OS
       - PYTHONDONTWRITEBYTECODE
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"

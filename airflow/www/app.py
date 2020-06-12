@@ -28,6 +28,7 @@ import connexion
 import flask
 import flask_login
 import pendulum
+from connexion import ProblemException
 from flask import Flask, session as flask_session
 from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
@@ -254,6 +255,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
                 validate_responses=True,
                 strict_validation=False
             )
+            app.register_error_handler(ProblemException, connexion_app.common_error_handler)
 
         init_views(appbuilder)
         init_plugin_blueprints(app)

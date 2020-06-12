@@ -1244,6 +1244,7 @@ class TestDagFileProcessorQueriesCount(unittest.TestCase):
     These tests allow easy detection when a change is made that affects the performance of the
     DagFileProcessor.
     """
+
     def setUp(self) -> None:
         clear_db_runs()
         clear_db_pools()
@@ -2353,6 +2354,7 @@ class TestSchedulerJob(unittest.TestCase):
             run_kwargs=None,
             advance_execution_date=False,
             session=None):  # pylint: disable=unused-argument
+
         """
         Helper for testing DagRun states with simple two-task DAGS.
         This is hackish: a dag run is created but its tasks are
@@ -2518,7 +2520,7 @@ class TestSchedulerJob(unittest.TestCase):
             dag_id = 'test_start_date_scheduling'
             dag = self.dagbag.get_dag(dag_id)
             dag.clear()
-            self.assertGreater(dag.start_date, datetime.datetime.utcnow())
+            self.assertGreater(dag.start_date, datetime.datetime.now(timezone.utc))
 
             scheduler = SchedulerJob(dag_id,
                                      executor=self.null_exec,
@@ -3385,6 +3387,7 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
     different DAG files. These tests allow easy detection when a change is
     made that affects the performance of the SchedulerJob.
     """
+
     def setUp(self) -> None:
         clear_db_runs()
         clear_db_pools()
@@ -3397,9 +3400,9 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             # pylint: disable=bad-whitespace
             # expected, dag_count, task_count
             # One DAG with one task per DAG file
-            ( 13,  1,  1),  # noqa
+            (13, 1, 1),  # noqa
             # One DAG with five tasks per DAG  file
-            ( 25,  1,  5),  # noqa
+            (25, 1, 5),  # noqa
             # 10 DAGs with 10 tasks per DAG file
             (108, 10, 10),  # noqa
         ]
@@ -3438,9 +3441,9 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             # pylint: disable=bad-whitespace
             # expected, dag_count, task_count
             # One DAG with one task per DAG file
-            (2,  1,  1),  # noqa
+            (2, 1, 1),  # noqa
             # One DAG with five tasks per DAG  file
-            (2,  1,  5),  # noqa
+            (2, 1, 5),  # noqa
             # 10 DAGs with 10 tasks per DAG file
             (2, 10, 10),  # noqa
         ]

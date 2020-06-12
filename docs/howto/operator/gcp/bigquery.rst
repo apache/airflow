@@ -198,7 +198,7 @@ that row.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_operator_bigquery_get_data]
     :end-before: [END howto_operator_bigquery_get_data]
 
@@ -260,7 +260,7 @@ proper query job configuration.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_operator_bigquery_insert_job]
     :end-before: [END howto_operator_bigquery_insert_job]
 
@@ -290,7 +290,7 @@ return ``False`` the check is failed and errors out.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_operator_bigquery_check]
     :end-before: [END howto_operator_bigquery_check]
 
@@ -308,7 +308,7 @@ or numeric value. If numeric, you can also specify ``tolerance``.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_operator_bigquery_value_check]
     :end-before: [END howto_operator_bigquery_value_check]
 
@@ -323,7 +323,7 @@ tolerance of the ones from ``days_back`` before you can use
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_operator_bigquery_interval_check]
     :end-before: [END howto_operator_bigquery_interval_check]
 

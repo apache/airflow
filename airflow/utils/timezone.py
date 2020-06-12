@@ -23,7 +23,7 @@ import pendulum
 from airflow.settings import TIMEZONE
 
 # UTC time zone as a tzinfo instance.
-utc = pendulum.timezone('UTC')
+utc = pendulum.tz.timezone('UTC')
 
 
 def is_localized(value):
@@ -176,4 +176,4 @@ def parse(string, timezone=None):
 
     :param string: time string
     """
-    return pendulum.parse(string, tz=timezone or TIMEZONE)
+    return pendulum.parse(string, tz=timezone or TIMEZONE, strict=False)

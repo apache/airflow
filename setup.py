@@ -282,7 +282,6 @@ google = [
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
-    'httplib2~=0.15',  # not sure we're ready for 1.0 here; test before updating
     'pandas-gbq',
 ]
 grpc = [
@@ -710,7 +709,7 @@ INSTALL_REQUIREMENTS = [
     'lockfile>=0.12.2',
     'markdown>=2.5.2, <3.0',
     'pandas>=0.17.1, <2.0',
-    'pendulum==1.4.4',
+    'pendulum~=2.0',
     'pep562~=1.0;python_version<"3.7"',
     'psutil>=4.2.0, <6.0.0',
     'pygments>=2.0.1, <3.0',
@@ -724,7 +723,6 @@ INSTALL_REQUIREMENTS = [
     'sqlalchemy_jsonfield~=0.9',
     'tabulate>=0.7.5, <0.9',
     'tenacity==4.12.0',
-    'termcolor==1.1.0',
     'thrift>=0.9.2',
     'typing;python_version<"3.6"',
     'typing-extensions>=3.7.4;python_version<"3.8"',

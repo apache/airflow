@@ -21,25 +21,12 @@ function dump_kind_logs() {
     echo "                   Dumping logs from KIND"
     echo "###########################################################################################"
 
-    FILE_NAME="${1}"
-    kind --name "${KIND_CLUSTER_NAME}" export logs "${FILE_NAME}"
-}
+    echo "EXIT_CODE is ${EXIT_CODE:=}"
 
-function send_kubernetes_logs_to_file_io() {
-    echo "##############################################################################"
-    echo
-    echo "   DUMPING LOG FILES FROM KIND AND SENDING THEM TO file.io"
-    echo
-    echo "##############################################################################"
-    DUMP_DIR_NAME=$(date "+%Y-%m-%d")_kind_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
-    DUMP_DIR=/tmp/${DUMP_DIR_NAME}
-    dump_kind_logs "${DUMP_DIR}"
-    tar -cvzf "${DUMP_DIR}.tar.gz" -C /tmp "${DUMP_DIR_NAME}"
-    echo
-    echo "   Logs saved to ${DUMP_DIR}.tar.gz"
-    echo
-    echo "##############################################################################"
-    curl -F "file=@${DUMP_DIR}.tar.gz" https://file.io
+    local DUMP_DIR_NAME DUMP_DIR
+    DUMP_DIR_NAME=kind_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
+    DUMP_DIR="/tmp/${DUMP_DIR_NAME}"
+    kind --name "${KIND_CLUSTER_NAME}" export logs "${DUMP_DIR}"
 }
 
 function check_kind_and_kubectl_are_installed() {
@@ -91,6 +78,31 @@ function create_cluster() {
     echo "Created cluster ${KIND_CLUSTER_NAME}"
     echo
 
+    echo
+    echo "Patching CoreDNS to avoid loop and to use 8.8.8.8 DNS as forward address."
+    echo
+    echo "============================================================================"
+    echo "      Original coredns configmap:"
+    echo "============================================================================"
+    kubectl --cluster "${KUBECTL_CLUSTER_NAME}" get configmaps --namespace=kube-system coredns -o yaml
+    kubectl --cluster "${KUBECTL_CLUSTER_NAME}" get configmaps --namespace=kube-system coredns -o yaml | \
+        sed 's/forward \. .*$/forward . 8.8.8.8/' | kubectl --cluster "${KUBECTL_CLUSTER_NAME}" apply -f -
+
+    echo
+    echo "============================================================================"
+    echo "      Updated coredns configmap with new forward directive:"
+    echo "============================================================================"
+    kubectl --cluster "${KUBECTL_CLUSTER_NAME}" get configmaps --namespace=kube-system coredns -o yaml
+
+
+    echo
+    echo "Restarting CoreDNS"
+    echo
+    kubectl --cluster "${KUBECTL_CLUSTER_NAME}" scale deployment --namespace=kube-system coredns --replicas=0
+    kubectl --cluster "${KUBECTL_CLUSTER_NAME}" scale deployment --namespace=kube-system coredns --replicas=2
+    echo
+    echo "Restarted CoreDNS"
+    echo
 }
 
 function delete_cluster() {

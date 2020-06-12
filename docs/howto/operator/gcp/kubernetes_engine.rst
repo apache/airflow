@@ -97,8 +97,23 @@ There are two operators available in order to run a pod on a GKE cluster:
 
 ``GKEStartPodOperator`` extends ``KubernetesPodOperator`` to provide authorization using Google Cloud credentials.
 There is no need to manage the ``kube_config`` file, as it will be generated automatically.
-All Kubernetes  parameters (except ``config_file``) are also valid for the ``GKEStartPodOperator``.
+All Kubernetes parameters (except ``config_file``) are also valid for the ``GKEStartPodOperator``.
 For more information on ``KubernetesPodOperator``, please look at: :ref:`howto/operator:KubernetesPodOperator` guide.
+
+Using with Private cluster
+'''''''''''''''''''''''''''
+
+All clusters have a canonical endpoint. The endpoint is the IP address of the Kubernetes API server that
+Airflow use to communicate with your cluster master. The endpoint is displayed in Cloud Console under the **Endpoints** field of the cluster's Details tab, and in the
+output of ``gcloud container clusters describe`` in the endpoint field.
+
+Private clusters have two unique endpoint values: ``privateEndpoint``, which is an internal IP address, and
+``publicEndpoint``, which is an external one. Running ``GKEStartPodOperator`` against a private cluster
+sets the external IP address as the endpoint by default. If you prefer to use the internal IP as the
+endpoint, you need to set ``use_private`` parameter to ``True``.
+
+Use of XCom
+'''''''''''
 
 We can enable the usage of :ref:`XCom <concepts:xcom>` on the operator. This works by launching a sidecar container
 with the pod specified. The sidecar is automatically mounted when the XCom usage is specified and it's mount point
@@ -128,3 +143,4 @@ For further information, look at:
 * `GKE API Documentation <https://cloud.google.com/kubernetes-engine/docs/reference/rest>`__
 * `Product Documentation <https://cloud.google.com/kubernetes-engine/docs/>`__
 * `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
+* `Configuring GKE cluster access for kubectl <https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl>`__

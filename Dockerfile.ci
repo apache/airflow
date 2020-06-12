@@ -54,7 +54,10 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install basic apt dependencies
+ARG ADDITIONAL_DEV_DEPS=""
+ENV ADDITIONAL_DEV_DEPS=${ADDITIONAL_DEV_DEPS}
+
+# Install basic and additional apt dependencies
 RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
     && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
     && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
@@ -85,6 +88,7 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            unixodbc \
            unixodbc-dev \
            yarn \
+           ${ADDITIONAL_DEV_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -117,6 +121,9 @@ RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
+ARG ADDITIONAL_RUNTIME_DEPS=""
+ENV ADDITIONAL_RUNTIME_DEPS=${ADDITIONAL_RUNTIME_DEPS}
+
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 RUN mkdir -pv /usr/share/man/man1 \
@@ -144,6 +151,7 @@ RUN mkdir -pv /usr/share/man/man1 \
       tmux \
       unzip \
       vim \
+      ${ADDITIONAL_RUNTIME_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -314,26 +322,7 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         pip install ${ADDITIONAL_PYTHON_DEPS}; \
     fi
 
-RUN \
-    AWSCLI_IMAGE="amazon/aws-cli:latest" && \
-    AZURECLI_IMAGE="mcr.microsoft.com/azure-cli:latest" && \
-    GCLOUD_IMAGE="gcr.io/google.com/cloudsdktool/cloud-sdk:latest" && \
-    echo "docker run --rm -it -v \${HOST_HOME}/.aws:/root/.aws ${AWSCLI_IMAGE} \"\$@\"" \
-        > /usr/bin/aws && \
-    echo "docker pull ${AWSCLI_IMAGE}" > /usr/bin/aws-update && \
-    echo "docker run --rm -it -v \${HOST_HOME}/.azure:/root/.azure ${AZURECLI_IMAGE} \"\$@\"" \
-        > /usr/bin/az && \
-    echo "docker pull ${AZURECLI_IMAGE}" > /usr/bin/az-update && \
-    echo "docker run --rm -it -v \${HOST_HOME}/.config:/root/.config ${GCLOUD_IMAGE} bq \"\$@\"" \
-        > /usr/bin/bq && \
-    echo "docker pull ${GCLOUD_IMAGE}" > /usr/bin/bq-update && \
-    echo "docker run --rm -it -v \${HOST_HOME}/.config:/root/.config ${GCLOUD_IMAGE} gcloud \"\$@\"" \
-        > /usr/bin/gcloud && \
-    echo "docker pull ${GCLOUD_IMAGE}" > /usr/bin/gcloud-update && \
-    echo "docker run --rm -it -v \${HOST_HOME}/.config:/root/.config ${GCLOUD_IMAGE} gsutil \"\$@\"" \
-        > /usr/bin/gsutil && \
-    echo "docker pull ${GCLOUD_IMAGE}" > /usr/bin/gsutil-update && \
-    chmod a+x /usr/bin/aws /usr/bin/az /usr/bin/bq /usr/bin/gcloud /usr/bin/gsutil
+RUN source <(bash scripts/ci/run_cli_tool.sh)
 
 WORKDIR ${AIRFLOW_SOURCES}
 

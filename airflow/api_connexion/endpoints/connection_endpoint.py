@@ -15,8 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8127
+from flask import request
+
+from airflow.api_connexion import parameters
+from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.schemas.connection_schema import (
+    ConnectionCollection, connection_collection_item_schema, connection_collection_schema,
+)
+from airflow.models import Connection
+from airflow.utils.session import provide_session
 
 
 def delete_connection():
@@ -26,18 +33,34 @@ def delete_connection():
     raise NotImplementedError("Not implemented yet.")
 
 
-def get_connection():
+@provide_session
+def get_connection(connection_id, session):
     """
     Get a connection entry
     """
-    raise NotImplementedError("Not implemented yet.")
+    query = session.query(Connection)
+    query = query.filter(Connection.conn_id == connection_id)
+    connection = query.one_or_none()
+    if connection is None:
+        raise NotFound("Connection not found")
+    return connection_collection_item_schema.dump(connection)
 
 
-def get_connections():
+@provide_session
+def get_connections(session):
     """
     Get all connection entries
     """
-    raise NotImplementedError("Not implemented yet.")
+    offset = request.args.get(parameters.page_offset, 0)
+    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
+
+    query = session.query(Connection)
+    total_entries = query.count()
+    query = query.offset(offset).limit(limit)
+
+    connections = query.all()
+    return connection_collection_schema.dump(ConnectionCollection(connections=connections,
+                                                                  total_entries=total_entries))
 
 
 def patch_connection():
