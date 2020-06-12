@@ -31,7 +31,7 @@ following CLI commands to create an account:
 .. code-block:: bash
 
     # create an admin user
-    airflow users create --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
+    airflow create_user --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
 
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
