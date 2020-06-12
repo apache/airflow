@@ -86,6 +86,29 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         )
         return session.client(service_name="secretsmanager", **self.kwargs)
 
+    def _get_user_and_password(self, secret):
+        for user_denomination in ['user', 'username', 'login']:
+            if user_denomination in secret:
+                user = secret[user_denomination]
+            else:
+                user = None
+        for password_denomination in ['pass', 'password', 'key']:
+            if password_denomination in secret:
+                password = secret[password_denomination]
+            else:
+                password = None
+
+        return user, password
+
+    def _get_host(self, secret):
+        for host_denomination in ['host', 'remote_host', 'server']:
+            if host_denomination in secret:
+                host = secret[host_denomination]
+            else:
+                host = None
+
+        return host
+
     def get_conn_uri(self, conn_id: str):
         """
         Get Connection Value
@@ -101,19 +124,12 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             secret = ast.literal_eval(secret_string)
         except ValueError:  # 'malformed node or string: ' error, for empty conns
             connection = None
+            secret = None
 
         # These lines will check if we have with some denomination stored an username, password and host
         if secret:
-            for user_denomination in ['user', 'username', 'login']:
-                if user_denomination in secret:
-                    user = secret[user_denomination]
-            for password_denomination in ['pass', 'password', 'key']:
-                if password_denomination in secret:
-                    password = secret[password_denomination]
-            for host_denomination in ['host', 'remote_host', 'server']:
-                if host_denomination in secret:
-                    host = secret[host_denomination]
-
+            user, password = self.get_user_and_password(secret)
+            host = self.get_host(secret)
             try:
                 for type_word in ['conn_type', 'conn_id', 'connection_type', 'engine']:
                     if type_word in secret:
