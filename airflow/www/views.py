@@ -1869,7 +1869,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             'airflow/chart.html',
             dag=dag,
-            chart=chart.htmlcontent,
+            chart=Markup(chart.htmlcontent),
             height=str(chart_height + 100) + "px",
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
