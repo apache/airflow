@@ -428,7 +428,7 @@ class TestAirflowBaseViews(TestBase):
             state=State.RUNNING)
 
     def test_index(self):
-        with assert_queries_count(37):
+        with assert_queries_count(38):
             resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
