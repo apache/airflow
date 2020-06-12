@@ -34,14 +34,16 @@ SAMPLE_GET_RESPONSE = {'id': BATCH_ID, 'state': BatchState.SUCCESS.value}
 class TestLivyHook(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        db.merge_conn(Connection(conn_id='livy_default', host='host', schema='http', port='8998'))
-        db.merge_conn(Connection(conn_id='default_port', host='http://host'))
-        db.merge_conn(Connection(conn_id='default_protocol', host='host'))
-        db.merge_conn(Connection(conn_id='port_set', host='host', port=1234))
-        db.merge_conn(Connection(conn_id='schema_set', host='host', schema='zzz'))
-        db.merge_conn(Connection(conn_id='dont_override_schema', host='http://host', schema='zzz'))
-        db.merge_conn(Connection(conn_id='missing_host', port=1234))
-        db.merge_conn(Connection(conn_id='invalid_uri', uri='http://invalid_uri:4321'))
+        db.merge_conn(
+            Connection(conn_id='livy_default', conn_type='http', host='host', schema='http', port='8998'))
+        db.merge_conn(Connection(conn_id='default_port', conn_type='http', host='http://host'))
+        db.merge_conn(Connection(conn_id='default_protocol', conn_type='http', host='host'))
+        db.merge_conn(Connection(conn_id='port_set', host='host', conn_type='http', port=1234))
+        db.merge_conn(Connection(conn_id='schema_set', host='host', conn_type='http', schema='zzz'))
+        db.merge_conn(
+            Connection(conn_id='dont_override_schema', conn_type='http', host='http://host', schema='zzz'))
+        db.merge_conn(Connection(conn_id='missing_host', conn_type='http', port=1234))
+        db.merge_conn(Connection(conn_id='invalid_uri', conn_type='http', uri='http://invalid_uri:4321'))
 
     def test_build_get_hook(self):
 
