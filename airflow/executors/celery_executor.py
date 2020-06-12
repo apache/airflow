@@ -42,6 +42,7 @@ from airflow.executors.base_executor import BaseExecutor, CommandType, EventBuff
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
 log = logging.getLogger(__name__)
@@ -188,14 +189,13 @@ class CeleryExecutor(BaseExecutor):
         self.log.debug('Sent all tasks.')
 
         for key, _, result in key_and_async_results:
+            self.queued_tasks.pop(key)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error(  # pylint: disable=logging-not-lazy
                     CELERY_SEND_ERR_MSG_HEADER + ":%s\n%s\n", result.exception, result.traceback
                 )
+                self.event_buffer[key] = (State.FAILED, None)
             elif result is not None:
-                # Only pops when enqueued successfully, otherwise keep it
-                # and expect scheduler loop to deal with it.
-                self.queued_tasks.pop(key)
                 result.backend = cached_celery_backend
                 self.running.add(key)
                 self.tasks[key] = result
