@@ -64,6 +64,7 @@ CONN_TYPE_TO_HOOK = {
     "grpc": ("airflow.providers.grpc.hooks.grpc.GrpcHook", "grpc_conn_id"),
     "hive_cli": ("airflow.providers.apache.hive.hooks.hive.HiveCliHook", "hive_cli_conn_id"),
     "hiveserver2": ("airflow.providers.apache.hive.hooks.hive.HiveServer2Hook", "hiveserver2_conn_id"),
+    "imap": ("airflow.providers.imap.hooks.imap.ImapHook", "imap_conn_id"),
     "jdbc": ("airflow.providers.jdbc.hooks.jdbc.JdbcHook", "jdbc_conn_id"),
     "jira": ("airflow.providers.jira.hooks.jira.JiraHook", "jira_conn_id"),
     "kubernetes": ("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook", "kubernetes_conn_id"),
@@ -172,6 +173,7 @@ class Connection(Base, LoggingMixin):
         ('tableau', 'Tableau'),
         ('kubernetes', 'Kubernetes cluster Connection'),
         ('spark', 'Spark'),
+        ('imap', 'IMAP')
     ]
 
     def __init__(
