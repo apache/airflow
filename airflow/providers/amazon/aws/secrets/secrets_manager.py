@@ -109,6 +109,27 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return host
 
+    def _get_conn_type(self, secret):
+        for type_word in ['conn_type', 'conn_id', 'connection_type', 'engine']:
+            if type_word in secret:
+                conn_type = secret[type_word]
+                conn_type = 'postgresql' if conn_type == 'redshift' else conn_type
+            else:
+                conn_type = 'connection'
+        return conn_type
+
+    def _get_port_and_database(self, secret):
+        if 'port' in secret:
+            port = secret['port']
+        else:
+            port = 5432
+        if 'database' in secret:
+            database = secret['database']
+        else:
+            database = ''
+
+        return port, database
+
     def get_conn_uri(self, conn_id: str):
         """
         Get Connection Value
@@ -128,24 +149,11 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         # These lines will check if we have with some denomination stored an username, password and host
         if secret:
-            user, password = self.get_user_and_password(secret)
-            host = self.get_host(secret)
+            user, password = self._get_user_and_password(secret)
+            host = self._get_host(secret)
             try:
-                for type_word in ['conn_type', 'conn_id', 'connection_type', 'engine']:
-                    if type_word in secret:
-                        conn_type = secret[type_word]
-                        conn_type = 'postgresql' if conn_type == 'redshift' else conn_type
-                    else:
-                        conn_type = 'connection'
-
-                if 'port' in secret:
-                    port = secret['port']
-                else:
-                    port = 5432
-                if 'database' in secret:
-                    database = secret['database']
-                else:
-                    database = ''
+                conn_type = self._get_conn_type(secret)
+                port, database = self._get_port_and_database(secret)
 
                 conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
                 print(conn_string)
