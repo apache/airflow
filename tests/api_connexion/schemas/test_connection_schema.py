@@ -35,7 +35,7 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
         clear_db_connections()
 
     @provide_session
-    def test_serialzie(self, session):
+    def test_serialize(self, session):
         connection_model = Connection(
             conn_id='mysql_default',
             conn_type='mysql',
@@ -104,7 +104,7 @@ class TestConnectionCollectionSchema(unittest.TestCase):
         clear_db_connections()
 
     @provide_session
-    def test_serialzie(self, session):
+    def test_serialize(self, session):
         connection_model_1 = Connection(
             conn_id='mysql_default_1',
             conn_type='test-type'
