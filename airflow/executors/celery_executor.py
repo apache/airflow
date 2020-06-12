@@ -199,11 +199,10 @@ class CeleryExecutor(BaseExecutor):
                     self.last_state[key] = celery_states.PENDING
 
     def _send_tasks_to_celery(self, task_tuples_to_send):
-        if len(task_tuples_to_send) == 1:
-            # One tuple, so send it in the main thread.
-            return [
-                send_task_to_executor(task_tuples_to_send[0])
-            ]
+        if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
+            # One tuple, or max one process -> send it in the main thread.
+            return list(map(send_task_to_executor, task_tuples_to_send))
+
         # Use chunks instead of a work queue to reduce context switching
         # since tasks are roughly uniform in size
         chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
