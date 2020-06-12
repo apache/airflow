@@ -456,7 +456,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         # subdag parameter is only set for SubDagOperator.
         # Setting it to None by default as other Operators do not have that field
         from airflow.models.dag import DAG
-        self.subdag: Optional[DAG] = None
+        self._subdag: Optional[DAG] = None
 
         self._log = logging.getLogger("airflow.task.operators")
 
