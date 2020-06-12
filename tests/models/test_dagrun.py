@@ -581,7 +581,10 @@ class TestDagRun(unittest.TestCase):
 
         dagrun = self.create_dag_run(dag)
         task = dagrun.get_task_instances()[0]
+        session = settings.Session()
         task.state = state
+        session.merge(task)
+        session.commit()
         assert task.queue == 'queue2'
 
         dagrun.verify_integrity()
