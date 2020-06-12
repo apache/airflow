@@ -35,6 +35,7 @@ class TestGoogleApiToS3Transfer(unittest.TestCase):
             models.Connection(
                 conn_id='google_test',
                 host='google',
+                conn_type="google_cloud_platform",
                 schema='refresh_token',
                 login='client_id',
                 password='client_secret'
