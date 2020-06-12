@@ -41,10 +41,33 @@ class TestConnectionEndpoint(unittest.TestCase):
 
 
 class TestDeleteConnection(TestConnectionEndpoint):
-    @unittest.skip("Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.delete("/api/v1/connections/1")
-        assert response.status_code == 200
+
+    @provide_session
+    def test_delete_should_response_204(self, session):
+        connection_model = Connection(conn_id='test-connection',
+                                      conn_type='test_type')
+
+        session.add(connection_model)
+        session.commit()
+        conn = session.query(Connection).all()
+        assert len(conn) == 1
+        response = self.client.delete("/api/v1/connections/test-connection")
+        assert response.status_code == 204
+        connection = session.query(Connection).all()
+        assert len(connection) == 0
+
+    def test_delete_should_response_404(self):
+        response = self.client.delete("/api/v1/connections/test-connection")
+        assert response.status_code == 404
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 404,
+                'title': 'Connection not found',
+                'type': 'about:blank'
+            }
+        )
 
 
 class TestGetConnection(TestConnectionEndpoint):
@@ -207,7 +230,32 @@ class TestPatchConnection(TestConnectionEndpoint):
 
 
 class TestPostConnection(TestConnectionEndpoint):
-    @unittest.skip("Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.post("/api/v1/connections/")
+
+    @provide_session
+    def test_post_should_response_200(self, session):
+        payload = {
+            "connection_id": "test-connection-id",
+            "conn_type": 'test_type'
+        }
+        response = self.client.post("/api/v1/connections", json=payload)
         assert response.status_code == 200
+        connection = session.query(Connection).all()
+        assert len(connection) == 1
+        self.assertEqual(connection[0].conn_id, 'test-connection-id')
+
+    def test_post_should_response_400_for_invalid_payload(self):
+        payload = {
+            "connection_id": "test-connection-id",
+        }  # conn_type missing
+        response = self.client.post("/api/v1/connections", json=payload)
+        assert response.status_code == 400
+        self.assertEqual(response.json,
+                         {'detail': "'conn_type' is a required property",
+                          'status': 400,
+                          'title': 'Bad Request',
+                          'type': 'about:blank'}
+                         )
+
+    @unittest.skip('not implemented yet')
+    def test_delete_should_response_409_already_exist(self):
+        pass
