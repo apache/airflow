@@ -264,6 +264,10 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
     :type do_xcom_push: bool
+    :param current_group: the current group of the task
+    :type current_group: str
+    :param parent_group: the parent group of the task
+    :type parent_group: str
     """
     # For derived classes to define which fields will get jinjaified
     template_fields: Iterable[str] = ()
@@ -359,6 +363,9 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         do_xcom_push: bool = True,
         inlets: Optional[Any] = None,
         outlets: Optional[Any] = None,
+        current_group: Optional[str] = None,
+        parent_group: Optional[str] = None,
+        *args,
         **kwargs
     ):
         from airflow.models.dag import DagContext
@@ -472,6 +479,9 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
 
         if outlets:
             self._outlets = outlets if isinstance(outlets, list) else [outlets, ]
+
+        self.current_group = current_group
+        self.parent_group = parent_group
 
     def __eq__(self, other):
         if type(self) is type(other) and self.task_id == other.task_id:
