@@ -1480,21 +1480,12 @@ class SchedulerJob(BaseJob):
         for key, value in self.executor.get_event_buffer(simple_dag_bag.dag_ids).items():
             state, info = value
             dag_id, task_id, execution_date, try_number = key
-            self.log.info(
-                "Executor reports execution of %s.%s execution_date=%s "
-                "exited with status %s for try_number %s",
-                dag_id, task_id, execution_date, state, try_number
-            )
-            if state not in (State.FAILED, State.SUCCESS):
-                continue
 
-            # Process finished tasks
-            qry = session.query(TI).filter(
-                TI.dag_id == dag_id,
-                TI.task_id == task_id,
-                TI.execution_date == execution_date
-            )
-            ti = qry.first()
+            if state not in (State.FAILED, State.SUCCESS):
+                raise RuntimeError(f"Executor reported state of {state!r}, expected only FAILED or SUCCESS")
+
+            ti = session.query(TI).get((task_id, dag_id, execution_date))
+
             if not ti:
                 self.log.warning("TaskInstance %s went missing from the database", ti)
                 continue
@@ -1513,6 +1504,12 @@ class SchedulerJob(BaseJob):
                     task_instance=ti,
                     msg=f"Executor reports task instance finished ({state}) although the "
                         f"task says its {ti.state}. (Info: {info}) Was the task killed externally?"
+                )
+            else:
+                self.log.info(
+                    "Executor reports execution of %s.%s execution_date=%s "
+                    "exited with status %s for try_number %s",
+                    dag_id, task_id, execution_date, state, try_number
                 )
 
     def _execute(self):
