@@ -567,7 +567,7 @@ class TestDagRun(unittest.TestCase):
 
     @parameterized.expand([(state,) for state in State.task_states])
     @mock.patch('airflow.models.dagrun.task_instance_mutation_hook')
-    def test_task_instance_mutation_hook(self,  state, mock_hook):
+    def test_task_instance_mutation_hook(self, state, mock_hook):
         def mutate_task_instance(task_instance):
             if task_instance.queue == 'queue1':
                 task_instance.queue = 'queue2'
