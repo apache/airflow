@@ -127,16 +127,4 @@ do
     fi
     exit ${EXIT_CODE}
 done
-
-# shellcheck disable=SC2016
-docker-compose --log-level INFO \
-  -f "${MY_DIR}/docker-compose/base.yml" \
-  -f "${MY_DIR}/docker-compose/backend-${BACKEND}.yml" \
-  "${INTEGRATIONS[@]}" \
-  "${DOCKER_COMPOSE_LOCAL[@]}" \
-     run airflow \
-       '/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"' \
-       /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"
-     # Note the command is there twice (!) because it is passed via bash -c
-     # and bash -c starts passing parameters from $0. TODO: fixme
 set -u
