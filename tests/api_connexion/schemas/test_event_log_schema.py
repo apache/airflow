@@ -32,8 +32,8 @@ class TestEventLogSchemaBase(unittest.TestCase):
     def setUp(self) -> None:
         with create_session() as session:
             session.query(Log).delete()
-        self.default_time = "2020-06-09T13:59:56.336000+00:00"
-        self.default_time2 = '2020-06-11T07:04:57.501393+00:00'
+        self.default_time = "2020-06-09T13:00:00+00:00"
+        self.default_time2 = '2020-06-11T07:00:00+00:00'
 
     def tearDown(self) -> None:
         with create_session() as session:

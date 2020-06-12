@@ -36,8 +36,8 @@ class TestEventLogEndpoint(unittest.TestCase):
         self.client = self.app.test_client()  # type:ignore
         with create_session() as session:
             session.query(Log).delete()
-        self.default_time = "2020-06-10T20:36:40.186116+00:00"
-        self.default_time_2 = '2020-06-11T07:04:57.501393+00:00'
+        self.default_time = "2020-06-10T20:00:00+00:00"
+        self.default_time_2 = '2020-06-11T07:00:00+00:00'
 
     def tearDown(self) -> None:
         with create_session() as session:
