@@ -2719,7 +2719,7 @@ class TestDagRunModelView(TestBase):
         self.assertEqual(dr.conf, {"include": "me"})
 
         resp = self.client.get('/dagrun/list', follow_redirects=True)
-        self.check_content_in_response("{'include': 'me'}", resp)
+        self.check_content_in_response("{&#39;include&#39;: &#39;me&#39;}", resp)
 
 
 class TestDecorators(TestBase):
