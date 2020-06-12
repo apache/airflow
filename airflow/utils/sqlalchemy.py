@@ -19,9 +19,11 @@
 import datetime
 import json
 import logging
+from typing import Any, Dict
 
 import pendulum
 from dateutil import relativedelta
+from sqlalchemy.orm.session import Session
 from sqlalchemy.types import DateTime, Text, TypeDecorator
 
 from airflow.configuration import conf
@@ -118,3 +120,23 @@ class Interval(TypeDecorator):
             type_map = {key.__name__: key for key in self.attr_keys}
             return type_map[data['type']](**data['attrs'])
         return data
+
+
+def skip_locked(session: Session) -> Dict[str, Any]:
+    """
+    Return kargs for passing to `with_for_update()` suitable for the current DB engine version.
+
+    We do this as we document the fact that on DB engines that don't support this construct, we do not
+    support/recommend running HA scheduler. If a user ignores this and tries anyway everything will still
+    work, just slightly slower in some circumstances.
+
+    Specifically don't emit SKIP LOCKED for MySQL < 8, or MariaDB, neither of which support this construct
+
+    See https://jira.mariadb.org/browse/MDEV-13115
+    """
+    dialect = session.bind.dialect
+
+    if dialect.name != "mysql" or dialect.supports_for_update_of:
+        return {'skip_locked': True}
+    else:
+        return {}

@@ -2302,7 +2302,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(State.RUNNING, ti.state)
 
-    def test_reset_state_for_orphaned_tasks(self):
+    def test_adopt_or_reset_orphaned_tasks(self):
         session = settings.Session()
         dag = DAG(
             'test_execute_helper_reset_orphaned_tasks',
@@ -2335,7 +2335,7 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler = SchedulerJob(num_runs=0)
         scheduler.processor_agent = processor
 
-        scheduler.reset_state_for_orphaned_tasks()
+        scheduler.adopt_or_reset_orphaned_tasks()
 
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti.state, State.NONE)
@@ -3316,13 +3316,13 @@ class TestSchedulerJob(unittest.TestCase):
             detected_files.add(file_path)
         self.assertEqual(detected_files, expected_files)
 
-    def test_reset_orphaned_tasks_nothing(self):
+    def test_adopt_or_reset_orphaned_tasks_nothing(self):
         """Try with nothing. """
         scheduler = SchedulerJob()
         session = settings.Session()
-        self.assertEqual(0, scheduler.reset_state_for_orphaned_tasks(session=session))
+        self.assertEqual(0, scheduler.adopt_or_reset_orphaned_tasks(session=session))
 
-    def test_reset_orphaned_tasks_external_triggered_dag(self):
+    def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self):
         dag_id = 'test_reset_orphaned_tasks_external_triggered_dag'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
         task_id = dag_id + '_task'
@@ -3341,11 +3341,11 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(dr1)
         session.commit()
 
-        num_reset_tis = scheduler.reset_state_for_orphaned_tasks(session=session)
+        num_reset_tis = scheduler.adopt_or_reset_orphaned_tasks(session=session)
         self.assertEqual(1, num_reset_tis)
 
-    def test_reset_orphaned_tasks_backfill_dag(self):
-        dag_id = 'test_reset_orphaned_tasks_backfill_dag'
+    def test_adopt_or_reset_orphaned_tasks_backfill_dag(self):
+        dag_id = 'test_adopt_or_reset_orphaned_tasks_backfill_dag'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
         task_id = dag_id + '_task'
         DummyOperator(task_id=task_id, dag=dag)
@@ -3366,7 +3366,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.flush()
 
         self.assertTrue(dr1.is_backfill)
-        self.assertEqual(0, scheduler.reset_state_for_orphaned_tasks(session=session))
+        self.assertEqual(0, scheduler.adopt_or_reset_orphaned_tasks(session=session))
         session.rollback()
 
     def test_reset_orphaned_tasks_nonexistent_dagrun(self):
@@ -3388,7 +3388,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(ti)
         session.flush()
 
-        self.assertEqual(0, scheduler.reset_state_for_orphaned_tasks(session=session))
+        self.assertEqual(0, scheduler.adopt_or_reset_orphaned_tasks(session=session))
         session.rollback()
 
     def test_reset_orphaned_tasks_no_orphans(self):
@@ -3412,7 +3412,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(tis[0])
         session.flush()
 
-        self.assertEqual(0, scheduler.reset_state_for_orphaned_tasks(session=session))
+        self.assertEqual(0, scheduler.adopt_or_reset_orphaned_tasks(session=session))
         tis[0].refresh_from_db()
         self.assertEqual(State.RUNNING, tis[0].state)
 
@@ -3439,21 +3439,21 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(tis[0])
         session.flush()
 
-        self.assertEqual(0, scheduler.reset_state_for_orphaned_tasks(session=session))
+        self.assertEqual(0, scheduler.adopt_or_reset_orphaned_tasks(session=session))
         session.rollback()
 
-    def test_reset_orphaned_tasks_stale_scheduler_jobs(self):
-        dag_id = 'test_reset_orphaned_tasks_external_triggered_dag'
+    def test_adopt_or_reset_orphaned_tasks_stale_scheduler_jobs(self):
+        dag_id = 'test_adopt_or_reset_orphaned_tasks_stale_scheduler_jobs'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
         DummyOperator(task_id='task1', dag=dag)
         DummyOperator(task_id='task2', dag=dag)
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        scheduler = SchedulerJob()
+        scheduler_job = SchedulerJob()
         session = settings.Session()
-        scheduler.state = State.RUNNING
-        scheduler.latest_heartbeat = timezone.utcnow()
-        session.add(scheduler)
+        scheduler_job.state = State.RUNNING
+        scheduler_job.latest_heartbeat = timezone.utcnow()
+        session.add(scheduler_job)
 
         old_job = SchedulerJob()
         old_job.state = State.RUNNING
@@ -3470,11 +3470,12 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(ti1)
 
         ti2.state = State.SCHEDULED
-        ti2.queued_by_job_id = scheduler.id
+        ti2.queued_by_job_id = scheduler_job.id
         session.merge(ti2)
         session.flush()
 
-        num_reset_tis = scheduler.reset_state_for_orphaned_tasks(session=session)
+        num_reset_tis = scheduler_job.adopt_or_reset_orphaned_tasks(session=session)
+        session.flush()
         self.assertEqual(1, num_reset_tis)
 
         session.refresh(ti1)

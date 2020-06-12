@@ -21,14 +21,17 @@
     For more information on how the CeleryExecutor works, take a look at the guide:
     :ref:`executor:CeleryExecutor`
 """
+import datetime
 import logging
 import math
+import operator
 import os
 import subprocess
 import time
 import traceback
+from collections import OrderedDict
 from multiprocessing import Pool, cpu_count
-from typing import Any, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
@@ -39,11 +42,12 @@ from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from airflow.utils.timezone import utcnow
 
 log = logging.getLogger(__name__)
 
@@ -142,7 +146,11 @@ class CeleryExecutor(BaseExecutor):
             self._sync_parallelism = max(1, cpu_count() - 1)
         self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
         self.tasks = {}
-        self.last_state = {}
+        # Mapping of tasks we've adopted, ordered by the earliest date they timeout
+        self.adopted_task_timeouts: Dict[TaskInstanceKey, datetime.datetime] = OrderedDict()
+        self.task_adoption_timeout = datetime.timedelta(
+            seconds=conf.getint('celery', 'task_adoption_timeout', fallback=600)
+        )
 
     def start(self) -> None:
         self.log.debug(
@@ -199,7 +207,14 @@ class CeleryExecutor(BaseExecutor):
                 result.backend = cached_celery_backend
                 self.running.add(key)
                 self.tasks[key] = result
-                self.last_state[key] = celery_states.PENDING
+
+                # Store the Celery task_id in the event buffer. This will get "overwritten" if the task
+                # has another event, but that is fine, because the only other events are success/failed at
+                # which point we dont need the ID anymore anyway
+                self.event_buffer[key] = (State.QUEUED, result.task_id)
+
+                # If the task runs _really quickly_ we may already have a result!
+                self.update_task_state(key, result.state, getattr(result, 'info', None))
 
     def _send_tasks_to_celery(self, task_tuples_to_send):
         if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
@@ -223,6 +238,48 @@ class CeleryExecutor(BaseExecutor):
             return
         self.update_all_task_states()
 
+        if self.adopted_task_timeouts:
+            self._check_for_stalled_adopted_tasks()
+
+    def _check_for_stalled_adopted_tasks(self):
+        """
+        See if any of the tasks we adopted from another Executor run have not
+        progressed after the configured timeout.
+
+        If they haven't, they likely never made it to Celery, and we should
+        just resend them. We do that by clearing the state and letting the
+        normal scheduler loop deal with that
+        """
+        now = utcnow()
+
+        timedout_keys = []
+        for key, stalled_after in self.adopted_task_timeouts.items():
+            if stalled_after > now:
+                # Since items are stored sorted, if we get to a stalled_after
+                # in the future then we can stop
+                break
+
+            # If the task gets updated to STARTED (which Celery does) or has
+            # already finished, then it will be removed from this list -- so
+            # the only time it's still in this list is when it a) never made it
+            # to celery in the first place (i.e. race condition somehwere in
+            # the dying executor) or b) a really long celery queue and it just
+            # hasn't started yet -- better cancel it and let the scheduler
+            # re-queue rather than have this task risk stalling for ever
+            timedout_keys.append(key)
+
+        if timedout_keys:
+            self.log.error(
+                "Adopted tasks were still pending after %s, assuming they never made it to celery and "
+                "clearing:\n\t%s",
+                self.task_adoption_timeout,
+                "\n\t".join([repr(x) for x in timedout_keys])
+            )
+            for key in timedout_keys:
+                self.event_buffer[key] = (State.FAILED, None)
+                del self.tasks[key]
+                del self.adopted_task_timeouts[key]
+
     def update_all_task_states(self) -> None:
         """Updates states of the tasks."""
 
@@ -235,25 +292,25 @@ class CeleryExecutor(BaseExecutor):
             if state:
                 self.update_task_state(key, state, info)
 
+    def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
+        super().change_state(key, state, info)
+        self.tasks.pop(key, None)
+        self.adopted_task_timeouts.pop(key, None)
+
     def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
         """Updates state of a single task."""
         try:
-            if self.last_state[key] != state:
-                if state == celery_states.SUCCESS:
-                    self.success(key, info)
-                    del self.tasks[key]
-                    del self.last_state[key]
-                elif state == celery_states.FAILURE:
-                    self.fail(key, info)
-                    del self.tasks[key]  # noqa
-                    del self.last_state[key]
-                elif state == celery_states.REVOKED:
-                    self.fail(key, info)
-                    del self.tasks[key]  # noqa
-                    del self.last_state[key]
-                else:
-                    self.log.info("Unexpected state: %s", state)
-                    self.last_state[key] = state
+            if state == celery_states.SUCCESS:
+                self.success(key, info)
+            elif state in (celery_states.FAILURE, celery_states.REVOKED):
+                self.fail(key, info)
+            elif state == celery_states.STARTED:
+                # It's now actually running, so know it made it to celery okay!
+                self.adopted_task_timeouts.pop(key, None)
+            elif state == celery_states.PENDING:
+                pass
+            else:
+                self.log.info("Unexpected state for %s: %s", key, state)
         except Exception:  # noqa pylint: disable=broad-except
             self.log.exception("Error syncing the Celery executor, ignoring it.")
 
@@ -273,6 +330,62 @@ class CeleryExecutor(BaseExecutor):
 
     def terminate(self):
         pass
+
+    def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
+        # See which of the TIs are still alive (or have finished even!)
+        #
+        # Since Celery doesn't store "SENT" state for queued commands (if we create an AsyncResult with a made
+        # up id it just returns PENDING state for it), we have to store Celery's task_id against the TI row to
+        # look at in future.
+        #
+        # This process is not perfect -- we could have sent the task to celery, and crashed before we were
+        # able to record the AsyncResult.task_id in the TaskInstance table, in which case we won't adopt the
+        # task (it'll either run and update the TI state, or the scheduler will clear and re-queue it. Either
+        # way it won't get executed more than once)
+        #
+        # (If we swapped it around, and generated a task_id for Celery, stored that in TI and enqueued that
+        # there is also still a race condition where we could generate and store the task_id, but die before
+        # we managed to enqueue the command. Since neither way is perfect we always have to deal with this
+        # process not being perfect.)
+
+        celery_tasks = {}
+        not_adopted_tis = []
+
+        for ti in tis:
+            if ti.external_executor_id is not None:
+                celery_tasks[ti.external_executor_id] = (AsyncResult(ti.external_executor_id), ti)
+            else:
+                not_adopted_tis.append(ti)
+
+        if not celery_tasks:
+            # Nothing to adopt
+            return tis
+
+        states_by_celery_task_id = self.bulk_state_fetcher.get_many(
+            map(operator.itemgetter(0), celery_tasks.values())
+        )
+
+        adopted = []
+        cached_celery_backend = next(iter(celery_tasks.values()))[0].backend
+
+        for celery_task_id, (state, info) in states_by_celery_task_id.items():
+            result, ti = celery_tasks[celery_task_id]
+            result.backend = cached_celery_backend
+
+            # Set the correct elements of the state dicts, then update this
+            # like we just queried it.
+            self.adopted_task_timeouts[ti.key] = ti.queued_dttm + self.task_adoption_timeout
+            self.tasks[ti.key] = result
+            self.running.add(ti.key)
+            self.update_task_state(ti.key, state, info)
+            adopted.append(f"{ti} in state {state}")
+
+        if adopted:
+            task_instance_str = '\n\t'.join(adopted)
+            self.log.info("Adopted the following %d tasks from a dead executor\n\t%s",
+                          len(adopted), task_instance_str)
+
+        return not_adopted_tis
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> \
@@ -309,7 +422,7 @@ class BulkStateFetcher(LoggingMixin):
     Gets status for many Celery tasks using the best method available
 
     If BaseKeyValueStoreBackend is used as result backend, the mget method is used.
-    If DatabaseBackend is used as result backend, the SELECT ...WHER task_id IN (...) query is used
+    If DatabaseBackend is used as result backend, the SELECT ...WHERE task_id IN (...) query is used
     Otherwise, multiprocessing.Pool will be used. Each task status will be downloaded individually.
     """
     def __init__(self, sync_parralelism=None):

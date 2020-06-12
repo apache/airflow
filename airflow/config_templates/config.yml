@@ -1373,6 +1373,23 @@
       type: int
       example: ~
       default: "2"
+    - name: task_track_started
+      description: |
+        Celery task will report its status as 'started' when the task is executed by a worker.
+        This is used in Airflow to keep track of the running tasks and if a Scheduler is restarted
+        or run in HA mode, it can adopt the orphan tasks launched by previous SchedulerJob.
+      version_added: 2.0.0
+      type: boolean
+      example: ~
+      default: "True"
+    - name: task_adoption_timeout
+      description: |
+        Time in seconds after which Adopted tasks are cleared by CeleryExecutor. This is helpful to clear
+        stalled tasks.
+      version_added: 2.0.0
+      type: int
+      example: ~
+      default: "600"
 - name: celery_broker_transport_options
   description: |
     This section is for specifying options which can be passed to the

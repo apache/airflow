@@ -18,12 +18,15 @@
 #
 import datetime
 import unittest
+from unittest import mock
 
+from parameterized import parameterized
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
 from airflow.models import DAG
 from airflow.settings import Session
+from airflow.utils.sqlalchemy import skip_locked
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
@@ -94,6 +97,18 @@ class TestSqlAlchemyUtils(unittest.TestCase):
                 session=self.session
             )
         dag.clear()
+
+    @parameterized.expand([
+        ("postgresql", True, {'skip_locked': True}, ),
+        ("mysql", False, {}, ),
+        ("mysql", True, {'skip_locked': True}, ),
+        ("sqlite", False, {'skip_locked': True}, ),
+    ])
+    def test_skip_locked(self, dialect, supports_for_update_of, expected_return_value):
+        session = mock.Mock()
+        session.bind.dialect.name = dialect
+        session.bind.dialect.supports_for_update_of = supports_for_update_of
+        self.assertEqual(skip_locked(session=session), expected_return_value)
 
     def tearDown(self):
         self.session.close()
