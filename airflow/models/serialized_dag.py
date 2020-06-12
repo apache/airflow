@@ -30,7 +30,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS, json
+from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -140,6 +140,7 @@ class SerializedDagModel(Base):
         :param dag_id: dag_id to be deleted
         :param session: ORM Session
         """
+        # pylint: disable=no-member
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
     @classmethod
@@ -158,6 +159,7 @@ class SerializedDagModel(Base):
                   "scheduler since %s from %s table ", expiration_date, cls.__tablename__)
 
         session.execute(
+            # pylint: disable=no-member
             cls.__table__.delete().where(cls.last_updated < expiration_date)
         )
 
@@ -203,9 +205,6 @@ class SerializedDagModel(Base):
         :type dags: List[airflow.models.dag.DAG]
         :return: None
         """
-        if not STORE_SERIALIZED_DAGS:
-            return
-
         for dag in dags:
             if not dag.is_subdag:
                 SerializedDagModel.write_dag(

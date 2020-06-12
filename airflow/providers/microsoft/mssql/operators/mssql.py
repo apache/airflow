@@ -39,7 +39,7 @@ class MsSqlOperator(BaseOperator):
     :param mssql_conn_id: reference to a specific mssql database
     :type mssql_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
     :type autocommit: bool

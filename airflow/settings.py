@@ -44,13 +44,13 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-TIMEZONE = pendulum.timezone('UTC')
+TIMEZONE = pendulum.tz.timezone('UTC')
 try:
     tz = conf.get("core", "default_timezone")
     if tz == "system":
-        TIMEZONE = pendulum.local_timezone()
+        TIMEZONE = pendulum.tz.local_timezone()
     else:
-        TIMEZONE = pendulum.timezone(tz)
+        TIMEZONE = pendulum.tz.timezone(tz)
 except Exception:
     pass
 log.info("Configured default timezone %s" % TIMEZONE)
@@ -226,7 +226,7 @@ def dispose_orm():
 
 
 def configure_adapters():
-    from pendulum import Pendulum
+    from pendulum import DateTime as Pendulum
     try:
         from sqlite3 import register_adapter
         register_adapter(Pendulum, lambda val: val.isoformat(' '))

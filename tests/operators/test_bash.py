@@ -25,10 +25,12 @@ from tempfile import NamedTemporaryFile
 import mock
 
 from airflow.exceptions import AirflowException
+from airflow.models import DagRun
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
@@ -55,7 +57,7 @@ class TestBashOperator(unittest.TestCase):
             dagrun_timeout=timedelta(minutes=60))
 
         dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=now,
             state=State.RUNNING,
@@ -89,7 +91,7 @@ class TestBashOperator(unittest.TestCase):
                 self.assertIn('bash_op_test', output)
                 self.assertIn('echo_env_vars', output)
                 self.assertIn(DEFAULT_DATE.isoformat(), output)
-                self.assertIn('manual__' + DEFAULT_DATE.isoformat(), output)
+                self.assertIn(DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE), output)
 
     def test_return_value(self):
         bash_operator = BashOperator(

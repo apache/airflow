@@ -45,7 +45,7 @@ class TestFileToWasbOperator(unittest.TestCase):
 
     def test_init(self):
         operator = FileToWasbOperator(
-            task_id='wasb_operator',
+            task_id='wasb_operator_1',
             dag=self.dag,
             **self._config
         )
@@ -58,7 +58,7 @@ class TestFileToWasbOperator(unittest.TestCase):
         self.assertEqual(operator.retries, self._config['retries'])
 
         operator = FileToWasbOperator(
-            task_id='wasb_operator',
+            task_id='wasb_operator_2',
             dag=self.dag,
             load_options={'timeout': 2},
             **self._config

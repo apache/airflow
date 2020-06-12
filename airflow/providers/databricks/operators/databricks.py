@@ -141,6 +141,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
     Currently the named parameters that ``DatabricksSubmitRunOperator`` supports are
         - ``spark_jar_task``
         - ``notebook_task``
+        - ``spark_python_task``
+        - ``spark_submit_task``
         - ``new_cluster``
         - ``existing_cluster_id``
         - ``libraries``
@@ -160,19 +162,37 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :type json: dict
     :param spark_jar_task: The main class and parameters for the JAR task. Note that
         the actual JAR is specified in the ``libraries``.
-        *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` should be specified.
+        *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
+        *OR* ``spark_submit_task`` should be specified.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#jobssparkjartask
     :type spark_jar_task: dict
     :param notebook_task: The notebook path and parameters for the notebook task.
-        *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` should be specified.
+        *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
+        *OR* ``spark_submit_task`` should be specified.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#jobsnotebooktask
     :type notebook_task: dict
+    :param spark_python_task: The python file path and parameters to run the python file with.
+        *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
+        *OR* ``spark_submit_task`` should be specified.
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/latest/jobs.html#jobssparkpythontask
+    :type spark_python_task: dict
+    :param spark_submit_task: Parameters needed to run a spark-submit command.
+        *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
+        *OR* ``spark_submit_task`` should be specified.
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/latest/jobs.html#jobssparksubmittask
+    :type spark_submit_task: dict
     :param new_cluster: Specs for a new cluster on which this task will be run.
         *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
         This field will be templated.
@@ -229,6 +249,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
             json=None,
             spark_jar_task=None,
             notebook_task=None,
+            spark_python_task=None,
+            spark_submit_task=None,
             new_cluster=None,
             existing_cluster_id=None,
             libraries=None,
@@ -253,6 +275,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json['spark_jar_task'] = spark_jar_task
         if notebook_task is not None:
             self.json['notebook_task'] = notebook_task
+        if spark_python_task is not None:
+            self.json['spark_python_task'] = spark_python_task
+        if spark_submit_task is not None:
+            self.json['spark_submit_task'] = spark_submit_task
         if new_cluster is not None:
             self.json['new_cluster'] = new_cluster
         if existing_cluster_id is not None:

@@ -79,6 +79,10 @@ class AirflowSkipException(AirflowException):
     """Raise when the task should be skipped"""
 
 
+class AirflowFailException(AirflowException):
+    """Raise when the task should be failed without retrying"""
+
+
 class AirflowDagCycleException(AirflowException):
     """Raise when there is a cycle in Dag definition"""
 

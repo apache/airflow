@@ -24,7 +24,7 @@ from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.decorators import apply_defaults
 
 
-class S3ToMySqlTransfer(BaseOperator):
+class S3ToMySqlTransferOperator(BaseOperator):
     """
     Loads a file from S3 into a MySQL table.
 

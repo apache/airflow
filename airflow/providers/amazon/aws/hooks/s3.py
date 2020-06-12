@@ -664,6 +664,26 @@ class S3Hook(AwsBaseHook):
                                                ACL=acl_policy)
         return response
 
+    @provide_bucket_name
+    def delete_bucket(self, bucket_name: str, force_delete: bool = False) -> None:
+        """
+        To delete s3 bucket, delete all s3 bucket objects and then delete the bucket.
+
+        :param bucket_name: Bucket name
+        :type bucket_name: str
+        :param force_delete: Enable this to delete bucket even if not empty
+        :type force_delete: bool
+        :return: None
+        :rtype: None
+        """
+        if force_delete:
+            bucket_keys = self.list_keys(bucket_name=bucket_name)
+            if bucket_keys:
+                self.delete_objects(bucket=bucket_name, keys=bucket_keys)
+        self.conn.delete_bucket(
+            Bucket=bucket_name
+        )
+
     def delete_objects(self, bucket, keys):
         """
         Delete keys from the bucket.

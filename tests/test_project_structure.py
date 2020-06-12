@@ -33,10 +33,8 @@ MISSING_TEST_FILES = {
     'tests/providers/apache/hive/operators/test_vertica_to_hive.py',
     'tests/providers/apache/pig/operators/test_pig.py',
     'tests/providers/apache/spark/hooks/test_spark_jdbc_script.py',
-    'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
     'tests/providers/google/cloud/operators/test_sql_to_gcs.py',
-    'tests/providers/google/cloud/sensors/test_bigquery.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
     'tests/providers/google/cloud/utils/test_field_validator.py',
     'tests/providers/google/cloud/utils/test_mlengine_operator_utils.py',
@@ -57,7 +55,7 @@ class TestProjectStructure(unittest.TestCase):
             self.assert_file_not_contains(filename, "providers")
 
     def test_deprecated_packages(self):
-        for directory in ["operator", "hooks", "sensors", "task_runner"]:
+        for directory in ["hooks", "operators", "secrets", "sensors", "task_runner"]:
             path_pattern = f"{ROOT_FOLDER}/airflow/contrib/{directory}/*.py"
 
             for filename in glob.glob(path_pattern, recursive=True):
@@ -129,44 +127,13 @@ class TestProjectStructure(unittest.TestCase):
 
 class TestGoogleProviderProjectStructure(unittest.TestCase):
     MISSING_EXAMPLE_DAGS = {
-        ('cloud', 'text_to_speech'),
         ('cloud', 'adls_to_gcs'),
         ('cloud', 'sql_to_gcs'),
         ('cloud', 's3_to_gcs'),
-        ('cloud', 'translate_speech'),
         ('cloud', 'bigquery_to_mysql'),
-        ('cloud', 'speech_to_text'),
         ('cloud', 'cassandra_to_gcs'),
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
-        ('cloud', 'local_to_gcs'),
-        ('cloud', 'sheets_to_gcs'),
-        ('suite', 'gcs_to_sheets'),
-    }
-
-    MISSING_DOC_GUIDES = {
-        'adls_to_gcs',
-        'bigquery_to_bigquery',
-        'bigquery_to_gcs',
-        'bigquery_to_mysql',
-        'cassandra_to_gcs',
-        'dataflow',
-        'dataproc',
-        'datastore',
-        'dlp',
-        'gcs_to_bigquery',
-        'kubernetes_engine',
-        'local_to_gcs',
-        'mlengine',
-        'mssql_to_gcs',
-        'mysql_to_gcs',
-        'postgres_to_gcs',
-        's3_to_gcs',
-        'speech_to_text',
-        'sql_to_gcs',
-        'tasks',
-        'text_to_speech',
-        'translate_speech'
     }
 
     def test_example_dags(self):
@@ -207,32 +174,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
                     "Can you remove it from the list of missing example, please?"
                 )
 
-    def test_documentation(self):
-        doc_files = glob.glob(f"{ROOT_FOLDER}/docs/howto/operator/gcp/*.rst")
-        operators_modules = self.find_resource_files(resource_type="operators")
-        operator_names = {f.split("/")[-1].rsplit(".")[0] for f in operators_modules}
-        doc_names = {
-            f.split("/")[-1].rsplit(".")[0] for f in doc_files
-        }
-
-        with self.subTest("Detect missing example dags"):
-            missing_guide = operator_names - doc_names
-            missing_guide -= self.MISSING_DOC_GUIDES
-
-            self.assertEqual(missing_guide, set())
-
-        with self.subTest("Keep update missing missing guide list"):
-            new_guides = set(doc_names).intersection(set(self.MISSING_DOC_GUIDES))
-            if new_guides:
-                new_guides_text = '\n'.join(new_guides)
-                self.fail(
-                    "You've added a guide currently listed as missing:\n"
-                    f"{new_guides_text}"
-                    "\n"
-                    "Thank you very much.\n"
-                    "Can you remove it from the list of missing guide, please?"
-                )
-
     @staticmethod
     def find_resource_files(department="*", resource_type="*", service="*"):
         resource_files = glob.glob(
@@ -250,7 +191,7 @@ class TestOperatorsHooks(unittest.TestCase):
         files = itertools.chain(*[
             glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
             for resource_type in ["operators", "hooks", "sensors", "example_dags"]
-            for part in ["airlfow", "tests"]
+            for part in ["airflow", "tests"]
         ])
 
         invalid_files = [

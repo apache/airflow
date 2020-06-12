@@ -20,9 +20,25 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTransfer  # noqa
+from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTransferOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.apache.hive.operators.hive_to_mysql`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class HiveToMySqlTransfer(HiveToMySqlTransferOperator):
+    """
+    This class is deprecated.
+    Please use:
+    `airflow.providers.apache.hive.operators.hive_to_mysql.HiveToMySqlTransferOperator`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.apache.hive.operators.hive_to_mysql.HiveToMySqlTransferOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

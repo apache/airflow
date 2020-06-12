@@ -295,7 +295,7 @@ class ClusterGenerator:
         if self.auto_delete_time:
             utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
             cluster_data['config']['lifecycle_config']['auto_delete_time'] = \
-                utc_auto_delete_time.format('%Y-%m-%dT%H:%M:%S.%fZ', formatter='classic')
+                utc_auto_delete_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         elif self.auto_delete_ttl:
             cluster_data['config']['lifecycle_config']['auto_delete_ttl'] = \
                 "{}s".format(self.auto_delete_ttl)
@@ -1242,7 +1242,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     Start a PySpark Job on a Cloud DataProc cluster.
 
     :param main: [Required] The Hadoop Compatible Filesystem (HCFS) URI of the main
-            Python file to use as the driver. Must be a .py file.
+            Python file to use as the driver. Must be a .py file. (templated)
     :type main: str
     :param arguments: Arguments for the job. (templated)
     :type arguments: list
@@ -1256,7 +1256,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     :type pyfiles: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name',
+    template_fields = ['main', 'arguments', 'job_name', 'cluster_name',
                        'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'pyspark_job'
@@ -1294,7 +1294,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         main: str,
         arguments: Optional[List] = None,
         archives: Optional[List] = None,
-        pyfiles: Optional[Optional[Optional[List]]] = None,
+        pyfiles: Optional[List] = None,
         files: Optional[List] = None,
         *args,
         **kwargs

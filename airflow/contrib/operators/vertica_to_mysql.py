@@ -20,9 +20,25 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.mysql.operators.vertica_to_mysql import VerticaToMySqlTransfer  # noqa
+from airflow.providers.mysql.operators.vertica_to_mysql import VerticaToMySqlTransferOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.mysql.operators.vertica_to_mysql`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class VerticaToMySqlTransfer(VerticaToMySqlTransferOperator):
+    """
+    This class is deprecated.
+    Please use:
+    `airflow.providers.mysql.operators.vertica_to_mysql.VerticaToMySqlTransferOperator`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.mysql.operators.vertica_to_mysql.VerticaToMySqlTransferOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

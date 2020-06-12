@@ -37,12 +37,7 @@ if [[ "${RES}" == "0" && ${CI:="false"} == "true" ]]; then
 fi
 
 if [[ ${CI} == "true" ]]; then
-    send_docker_logs_to_file_io
     send_airflow_logs_to_file_io
-fi
-
-if [[ ${CI} == "true" && ${ENABLE_KIND_CLUSTER} == "true" ]]; then
-    send_kubernetes_logs_to_file_io
 fi
 
 exit "${RES}"

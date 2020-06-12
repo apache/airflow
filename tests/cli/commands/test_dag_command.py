@@ -18,23 +18,22 @@
 import contextlib
 import io
 import os
-import subprocess
 import tempfile
 import unittest
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 
 import mock
 import pytest
-import pytz
 
 from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
-from airflow.settings import Session
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
@@ -238,72 +237,73 @@ class TestCliDags(unittest.TestCase):
             verbose=False,
         )
 
-    @pytest.mark.quarantined
     def test_next_execution(self):
-        # A scaffolding function
-        def reset_dr_db(dag_id):
-            session = Session()
-            dr = session.query(DagRun).filter_by(dag_id=dag_id)
-            dr.delete()
-            session.commit()
-            session.close()
-
         dag_ids = ['example_bash_operator',  # schedule_interval is '0 0 * * *'
                    'latest_only',  # schedule_interval is timedelta(hours=4)
                    'example_python_operator',  # schedule_interval=None
                    'example_xcom']  # schedule_interval="@once"
 
-        # The details below is determined by the schedule_interval of example DAGs
-        now = timezone.utcnow()
-        next_execution_time_for_dag1 = pytz.utc.localize(
-            datetime.combine(
-                now.date() + timedelta(days=1),
-                time(0)
-            )
-        )
-        next_execution_time_for_dag2 = now + timedelta(hours=4)
-        expected_output = [str(next_execution_time_for_dag1),
-                           str(next_execution_time_for_dag2),
-                           "None",
-                           "None"]
+        # Delete DagRuns
+        with create_session() as session:
+            dr = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
+            dr.delete(synchronize_session=False)
 
-        for i in range(len(dag_ids)):  # pylint: disable=consider-using-enumerate
-            dag_id = dag_ids[i]
-
-            # Clear dag run so no execution history fo each DAG
-            reset_dr_db(dag_id)
-
-            proc = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
-                                     "--subdir", EXAMPLE_DAGS_FOLDER],
-                                    stdout=subprocess.PIPE)
-            proc.wait()
-            stdout = []
-            for line in proc.stdout:
-                stdout.append(str(line.decode("utf-8").rstrip()))
-
+        # Test None output
+        args = self.parser.parse_args(['dags',
+                                       'next_execution',
+                                       dag_ids[0]])
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_next_execution(args)
+            out = temp_stdout.getvalue()
             # `next_execution` function is inapplicable if no execution record found
             # It prints `None` in such cases
-            self.assertEqual(stdout[-1], "None")
+            self.assertIn("None", out)
 
+        # The details below is determined by the schedule_interval of example DAGs
+        now = DEFAULT_DATE
+        expected_output = [str(now + timedelta(days=1)),
+                           str(now + timedelta(hours=4)),
+                           "None",
+                           "None"]
+        expected_output_2 = [str(now + timedelta(days=1)) + os.linesep + str(now + timedelta(days=2)),
+                             str(now + timedelta(hours=4)) + os.linesep + str(now + timedelta(hours=8)),
+                             "None",
+                             "None"]
+
+        for i, dag_id in enumerate(dag_ids):
             dag = self.dagbag.dags[dag_id]
             # Create a DagRun for each DAG, to prepare for next step
             dag.create_dagrun(
-                run_id='manual__' + now.isoformat(),
+                run_type=DagRunType.MANUAL,
                 execution_date=now,
                 start_date=now,
                 state=State.FAILED
             )
 
-            proc = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
-                                     "--subdir", EXAMPLE_DAGS_FOLDER],
-                                    stdout=subprocess.PIPE)
-            proc.wait()
-            stdout = []
-            for line in proc.stdout:
-                stdout.append(str(line.decode("utf-8").rstrip()))
-            self.assertEqual(stdout[-1], expected_output[i])
+            # Test num-executions = 1 (default)
+            args = self.parser.parse_args(['dags',
+                                           'next_execution',
+                                           dag_id])
+            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+                dag_command.dag_next_execution(args)
+                out = temp_stdout.getvalue()
+            self.assertIn(expected_output[i], out)
 
-            reset_dr_db(dag_id)
+            # Test num-executions = 2
+            args = self.parser.parse_args(['dags',
+                                           'next_execution',
+                                           dag_id,
+                                           '--num-executions',
+                                           '2'])
+            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+                dag_command.dag_next_execution(args)
+                out = temp_stdout.getvalue()
+            self.assertIn(expected_output_2[i], out)
+
+        # Clean up before leaving
+        with create_session() as session:
+            dr = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
+            dr.delete(synchronize_session=False)
 
     @conf_vars({
         ('core', 'load_examples'): 'true'

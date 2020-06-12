@@ -42,7 +42,7 @@ class SSHOperator(BaseOperator):
     :type remote_host: str
     :param command: command to execute on remote host. (templated)
     :type command: str
-    :param timeout: timeout (in seconds) for executing the command.
+    :param timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
     :type timeout: int
     :param environment: a dict of shell environment variables. Note that the
         server will reject them silently if `AcceptEnv` is not set in SSH config.

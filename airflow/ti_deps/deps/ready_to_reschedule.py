@@ -52,14 +52,18 @@ class ReadyToRescheduleDep(BaseTIDep):
                 reason="The task instance is not in State_UP_FOR_RESCHEDULE or NONE state.")
             return
 
-        task_reschedules = TaskReschedule.find_for_task_instance(task_instance=ti)
-        if not task_reschedules:
+        task_reschedule = (
+            TaskReschedule.query_for_task_instance(task_instance=ti, descending=True, session=session)
+            .with_entities(TaskReschedule.reschedule_date)
+            .first()
+        )
+        if not task_reschedule:
             yield self._passing_status(
                 reason="There is no reschedule request for this task instance.")
             return
 
         now = timezone.utcnow()
-        next_reschedule_date = task_reschedules[-1].reschedule_date
+        next_reschedule_date = task_reschedule.reschedule_date
         if now >= next_reschedule_date:
             yield self._passing_status(
                 reason="Task instance id ready for reschedule.")

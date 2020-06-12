@@ -37,7 +37,7 @@ Here are a few imperative requirements for your workers:
   met in that context. For example, if you use the ``HiveOperator``,
   the hive CLI needs to be installed on that box, or if you use the
   ``MySqlOperator``, the required Python library needs to be available in
-  the ``PYTHONPATH`` somehow
+  the :envvar:`PYTHONPATH` somehow
 - The worker needs to have access to its ``DAGS_FOLDER``, and you need to
   synchronize the filesystems by your own means. A common setup would be to
   store your ``DAGS_FOLDER`` in a Git repository and sync it across machines using

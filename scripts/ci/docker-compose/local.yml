@@ -24,7 +24,7 @@ services:
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
-      # START automatically generated volumes from LOCAL_MOUNTS in _utils.sh
+      # START automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
       - ../../../.bash_aliases:/root/.bash_aliases:cached
       - ../../../.bash_history:/root/.bash_history:cached
       - ../../../.coveragerc:/opt/airflow/.coveragerc:cached
@@ -32,14 +32,13 @@ services:
       - ../../../.flake8:/opt/airflow/.flake8:cached
       - ../../../.github:/opt/airflow/.github:cached
       - ../../../.inputrc:/root/.inputrc:cached
-      - ../../../.kube:/root/.kube:cached
       - ../../../.rat-excludes:/opt/airflow/.rat-excludes:cached
       - ../../../CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
-      - ../../../Dockerfile.ci:/opt/airflow/Dockerfile.ci:cached
       - ../../../LICENSE:/opt/airflow/LICENSE:cached
       - ../../../MANIFEST.in:/opt/airflow/MANIFEST.in:cached
       - ../../../NOTICE:/opt/airflow/NOTICE:cached
       - ../../../airflow:/opt/airflow/airflow:cached
+      - ../../../backport_packages:/opt/airflow/backport_packages:cached
       - ../../../common:/opt/airflow/common:cached
       - ../../../dags:/opt/airflow/dags:cached
       - ../../../dev:/opt/airflow/dev:cached
@@ -56,11 +55,15 @@ services:
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
-      - ../../../tmp:/opt/airflow/tmp:cached
-      # END automatically generated volumes from LOCAL_MOUNTS in _utils.sh
+      - ../../../kubernetes_tests:/opt/airflow/kubernetes_tests:cached
+      - ../../../tmp:/tmp:cached
+      # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
     environment:
       - HOST_USER_ID
       - HOST_GROUP_ID
+      - HOST_HOME=${HOME}
+      - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+      - HOST_OS
       - PYTHONDONTWRITEBYTECODE
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"

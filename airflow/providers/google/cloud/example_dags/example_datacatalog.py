@@ -22,7 +22,6 @@ Example Airflow DAG that interacts with Google Data Catalog service
 from google.cloud.datacatalog_v1beta1.proto.tags_pb2 import FieldType, TagField, TagTemplateField
 
 from airflow import models
-from airflow.models.baseoperator import chain
 from airflow.operators.bash_operator import BashOperator
 from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogCreateEntryGroupOperator, CloudDataCatalogCreateEntryOperator,
@@ -38,6 +37,7 @@ from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogUpdateTagTemplateOperator,
 )
 from airflow.utils.dates import days_ago
+from airflow.utils.helpers import chain
 
 default_args = {"start_date": days_ago(1)}
 
@@ -181,7 +181,7 @@ with models.DAG("example_gcp_datacatalog", default_args=default_args, schedule_i
 
     # [START howto_operator_gcp_datacatalog_create_tag_template_field_result2]
     create_tag_template_field_result2 = BashOperator(
-        task_id="create_tag_template_field_result",
+        task_id="create_tag_template_field_result2",
         bash_command="echo \"{{ task_instance.xcom_pull('create_tag_template_field') }}\"",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_template_field_result2]

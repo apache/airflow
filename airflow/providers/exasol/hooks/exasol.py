@@ -66,7 +66,7 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             conn.export_to_pandas(sql, query_params=parameters)
@@ -79,7 +79,7 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.execute(sql, parameters)) as cur:
@@ -93,7 +93,7 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.execute(sql, parameters)) as cur:
@@ -112,7 +112,7 @@ class ExasolHook(DbApiHook):
             before executing the query.
         :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         if isinstance(sql, basestring):
             sql = [sql]

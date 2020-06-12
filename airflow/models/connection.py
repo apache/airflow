@@ -109,7 +109,7 @@ class Connection(Base, LoggingMixin):
 
     id = Column(Integer(), primary_key=True)
     conn_id = Column(String(ID_LEN))
-    conn_type = Column(String(500))
+    conn_type = Column(String(500), nullable=False)
     host = Column(String(500))
     schema = Column(String(500))
     login = Column(String(500))

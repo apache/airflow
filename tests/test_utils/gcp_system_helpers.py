@@ -72,7 +72,7 @@ def provide_gcp_context(
 
     - GCP credentials for application supporting `Application Default Credentials (ADC)
     strategy <https://cloud.google.com/docs/authentication/production>`__.
-    - temporary value of ``AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`` connection
+    - temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT` variable
     - the ``gcloud`` config directory isolated from user configuration
 
     Moreover it resolves full path to service keys so user can pass ``myservice.json``

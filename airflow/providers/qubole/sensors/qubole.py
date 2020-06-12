@@ -76,7 +76,7 @@ class QuboleFileSensor(QuboleSensor):
         Check this `example <https://github.com/apache/airflow/blob/master\
         /airflow/providers/qubole/example_dags/example_qubole_sensor.py>`_ for sample payload
         structure.
-    :type data: a JSON object
+    :type data: dict
 
     .. note:: Both ``data`` and ``qubole_conn_id`` fields support templating. You can
         also use ``.txt`` files for template-driven use cases.
@@ -99,7 +99,7 @@ class QubolePartitionSensor(QuboleSensor):
         Check this `example <https://github.com/apache/airflow/blob/master\
         /airflow/providers/qubole/example_dags/example_qubole_sensor.py>`_ for sample payload
         structure.
-    :type data: a JSON object
+    :type data: dict
 
     .. note:: Both ``data`` and ``qubole_conn_id`` fields support templating. You can
         also use ``.txt`` files for template-driven use cases.

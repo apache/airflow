@@ -136,8 +136,8 @@ class TestUtils(unittest.TestCase):
 
     def test_task_instance_link(self):
 
-        from airflow.www.app import cached_appbuilder
-        with cached_appbuilder(testing=True).app.test_request_context():
+        from airflow.www.app import cached_app
+        with cached_app(testing=True).test_request_context():
             html = str(utils.task_instance_link({
                 'dag_id': '<a&1>',
                 'task_id': '<b2>',
@@ -150,8 +150,8 @@ class TestUtils(unittest.TestCase):
         self.assertNotIn('<b2>', html)
 
     def test_dag_link(self):
-        from airflow.www.app import cached_appbuilder
-        with cached_appbuilder(testing=True).app.test_request_context():
+        from airflow.www.app import cached_app
+        with cached_app(testing=True).test_request_context():
             html = str(utils.dag_link({
                 'dag_id': '<a&1>',
                 'execution_date': datetime.now()
@@ -161,8 +161,8 @@ class TestUtils(unittest.TestCase):
         self.assertNotIn('<a&1>', html)
 
     def test_dag_run_link(self):
-        from airflow.www.app import cached_appbuilder
-        with cached_appbuilder(testing=True).app.test_request_context():
+        from airflow.www.app import cached_app
+        with cached_app(testing=True).test_request_context():
             html = str(utils.dag_run_link({
                 'dag_id': '<a&1>',
                 'run_id': '<b2>',

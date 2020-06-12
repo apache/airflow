@@ -147,7 +147,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         """
         response = \
             self.get_conn().projects().locations().functions().generateUploadUrl(  # pylint: disable=no-member # noqa
-            parent=self._full_location(project_id, location)
+                parent=self._full_location(project_id, location)
             ).execute(num_retries=self.num_retries)
 
         upload_url = response.get('uploadUrl')

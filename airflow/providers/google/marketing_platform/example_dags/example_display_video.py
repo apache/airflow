@@ -23,6 +23,7 @@ from typing import Dict
 
 from airflow import models
 from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
+from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateReportOperator, GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
     GoogleDisplayVideo360DeleteReportOperator, GoogleDisplayVideo360DownloadLineItemsOperator,
@@ -38,15 +39,14 @@ from airflow.utils import dates
 BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://test-display-video-bucket")
 ADVERTISER_ID = os.environ.get("GMP_ADVERTISER_ID", 1234567)
 OBJECT_NAME = os.environ.get("GMP_OBJECT_NAME", "files/report.csv")
-PATH_TO_UPLOAD_FILE = os.environ.get(
-    "GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt"
-)
-PATH_TO_SAVED_FILE = os.environ.get(
-    "GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt"
-)
+PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")
+PATH_TO_SAVED_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 SDF_VERSION = os.environ.get("GMP_SDF_VERSION", "SDF_VERSION_5_1")
 BQ_DATA_SET = os.environ.get("GMP_BQ_DATA_SET", "airflow_test")
+GMP_PARTNER_ID = os.environ.get("GMP_PARTNER_ID", 123)
+ENTITY_TYPE = os.environ.get("GMP_ENTITY_TYPE", "LineItem")
+ERF_SOURCE_OBJECT = GoogleDisplayVideo360Hook.erf_uri(GMP_PARTNER_ID, ENTITY_TYPE)
 
 REPORT = {
     "kind": "doubleclickbidmanager#query",
@@ -68,15 +68,17 @@ REPORT = {
 
 PARAMS = {"dataRange": "LAST_14_DAYS", "timezoneCode": "America/New_York"}
 
-BODY_REQUEST: Dict = {
+CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: Dict = {
     "version": SDF_VERSION,
     "advertiserId": ADVERTISER_ID,
     "inventorySourceFilter": {"inventorySourceIds": []},
 }
-# [END howto_display_video_env_variables]
 
-# download_line_items variables
-REQUEST_BODY = {"filterType": ADVERTISER_ID, "format": "CSV", "fileSpec": "EWF"}
+DOWNLOAD_LINE_ITEMS_REQUEST: Dict = {
+    "filterType": ADVERTISER_ID,
+    "format": "CSV",
+    "fileSpec": "EWF"}
+# [END howto_display_video_env_variables]
 
 default_args = {"start_date": dates.days_ago(1)}
 
@@ -119,10 +121,20 @@ with models.DAG(
     )
     # [END howto_google_display_video_deletequery_report_operator]
 
+    # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
+    upload_erf_to_bq = GCSToBigQueryOperator(
+        task_id='upload_erf_to_bq',
+        bucket=BUCKET,
+        source_objects=ERF_SOURCE_OBJECT,
+        destination_project_dataset_table=f"{BQ_DATA_SET}.gcs_to_bq_table",
+        write_disposition='WRITE_TRUNCATE',
+        dag=dag)
+    # [END howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
+
     # [START howto_google_display_video_download_line_items_operator]
     download_line_items = GoogleDisplayVideo360DownloadLineItemsOperator(
         task_id="download_line_items",
-        request_body=REQUEST_BODY,
+        request_body=DOWNLOAD_LINE_ITEMS_REQUEST,
         bucket_name=BUCKET,
         object_name=OBJECT_NAME,
         gzip=False,
@@ -139,7 +151,7 @@ with models.DAG(
 
     # [START howto_google_display_video_create_sdf_download_task_operator]
     create_sdf_download_task = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(
-        task_id="create_sdf_download_task", body_request=BODY_REQUEST
+        task_id="create_sdf_download_task", body_request=CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST
     )
     operation_name = '{{ task_instance.xcom_pull("create_sdf_download_task")["name"] }}'
     # [END howto_google_display_video_create_sdf_download_task_operator]

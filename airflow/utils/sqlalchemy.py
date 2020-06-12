@@ -32,7 +32,7 @@ from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
 
-utc = pendulum.timezone('UTC')
+utc = pendulum.tz.timezone('UTC')
 
 using_mysql = conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql')
 

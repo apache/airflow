@@ -145,11 +145,12 @@ def load_entrypoint_plugins():
     for entry_point in entry_points:  # pylint: disable=too-many-nested-blocks
         log.debug('Importing entry_point plugin %s', entry_point.name)
         try:
-            plugin_obj = entry_point.load()
-            if is_valid_plugin(plugin_obj):
-                if callable(getattr(plugin_obj, 'on_load', None)):
-                    plugin_obj.on_load()
-                    plugins.append(plugin_obj)
+            plugin_class = entry_point.load()
+            if is_valid_plugin(plugin_class):
+                plugin_instance = plugin_class()
+                if callable(getattr(plugin_instance, 'on_load', None)):
+                    plugin_instance.on_load()
+                    plugins.append(plugin_instance)
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module_name] = str(e)
@@ -182,9 +183,10 @@ def load_plugins_from_plugin_directory():
                 mod = importlib.util.module_from_spec(spec)
                 sys.modules[spec.name] = mod
                 loader.exec_module(mod)
-                for obj in list(mod.__dict__.values()):
-                    if is_valid_plugin(obj):
-                        plugins.append(obj)
+                for mod_attr_value in list(mod.__dict__.values()):
+                    if is_valid_plugin(mod_attr_value):
+                        plugin_instance = mod_attr_value()
+                        plugins.append(plugin_instance)
             except Exception as e:  # pylint: disable=broad-except
                 log.exception(e)
                 path = filepath or str(f)
@@ -196,6 +198,8 @@ def load_plugins_from_plugin_directory():
 # noinspection Mypy,PyTypeHints
 def make_module(name: str, objects: List[Any]):
     """Creates new module."""
+    if not objects:
+        return None
     log.debug('Creating module %s', name)
     name = name.lower()
     module = types.ModuleType(name)
@@ -331,11 +335,9 @@ def integrate_executor_plugins() -> None:
         plugin_name: str = plugin.name
 
         executors_module = make_module('airflow.executors.' + plugin_name, plugin.executors)
-        executors_modules.append(executors_module)
-
-        sys.modules[executors_module.__name__] = executors_module  # pylint: disable=no-member
-        # noinspection PyProtectedMember
-        globals()[executors_module._name] = executors_module  # pylint: disable=protected-access
+        if executors_module:
+            executors_modules.append(executors_module)
+            sys.modules[executors_module.__name__] = executors_module  # pylint: disable=no-member
 
 
 def integrate_dag_plugins() -> None:
@@ -369,30 +371,24 @@ def integrate_dag_plugins() -> None:
     for plugin in plugins:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
-        plugin_name: str = plugin.name
 
-        operators_module = make_module(f'airflow.operators.{plugin_name}', plugin.operators + plugin.sensors)
-        sensors_module = make_module(f'airflow.sensors.{plugin_name}', plugin.sensors)
-        hooks_module = make_module(f'airflow.hooks.{plugin_name}', plugin.hooks)
-        macros_module = make_module(f'airflow.macros.{plugin_name}', plugin.macros)
+        operators_module = make_module(f'airflow.operators.{plugin.name}', plugin.operators + plugin.sensors)
+        sensors_module = make_module(f'airflow.sensors.{plugin.name}', plugin.sensors)
+        hooks_module = make_module(f'airflow.hooks.{plugin.name}', plugin.hooks)
+        macros_module = make_module(f'airflow.macros.{plugin.name}', plugin.macros)
 
-        operators_modules.append(operators_module)
-        sensors_modules.append(sensors_module)
-        hooks_modules.append(hooks_module)
-        macros_modules.append(macros_module)
+        if operators_module:
+            operators_modules.append(operators_module)
+            sys.modules[operators_module.__name__] = operators_module  # pylint: disable=no-member
 
-        sys.modules[operators_module.__name__] = operators_module  # pylint: disable=no-member
-        # noinspection PyProtectedMember
-        globals()[operators_module._name] = operators_module  # pylint: disable=protected-access
+        if sensors_module:
+            sensors_modules.append(sensors_module)
+            sys.modules[sensors_module.__name__] = sensors_module  # pylint: disable=no-member
 
-        sys.modules[sensors_module.__name__] = sensors_module  # pylint: disable=no-member
-        # noinspection PyProtectedMember
-        globals()[sensors_module._name] = sensors_module  # pylint: disable=protected-access
+        if hooks_module:
+            hooks_modules.append(hooks_module)
+            sys.modules[hooks_module.__name__] = hooks_module  # pylint: disable=no-member
 
-        sys.modules[hooks_module.__name__] = hooks_module  # pylint: disable=no-member
-        # noinspection PyProtectedMember
-        globals()[hooks_module._name] = hooks_module  # pylint: disable=protected-access
-
-        sys.modules[macros_module.__name__] = macros_module  # pylint: disable=no-member
-        # noinspection PyProtectedMember
-        globals()[macros_module._name] = macros_module  # pylint: disable=protected-access
+        if macros_module:
+            macros_modules.append(macros_module)
+            sys.modules[macros_module.__name__] = macros_module  # pylint: disable=no-member

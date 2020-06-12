@@ -43,6 +43,7 @@ settings.initialize()
 login: Optional[Callable] = None
 
 PY37 = sys.version_info >= (3, 7)
+PY38 = sys.version_info >= (3, 8)
 
 
 def __getattr__(name):

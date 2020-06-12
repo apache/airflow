@@ -591,7 +591,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         }
         self.assertEqual(self.instance.num_retries, 5)
 
-    @mock.patch("airflow.providers.google.common.hooks.base_google.httplib2.Http")
+    @mock.patch("airflow.providers.google.common.hooks.base_google.build_http")
     @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
     def test_authorize_assert_user_agent_is_sent(self, mock_get_credentials, mock_http):
         """
@@ -615,6 +615,22 @@ class TestGoogleBaseHook(unittest.TestCase):
         )
         self.assertEqual(response, new_response)
         self.assertEqual(content, new_content)
+
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    def test_authorize_assert_http_308_is_excluded(self, mock_get_credentials):
+        """
+        Verify that 308 status code is excluded from httplib2's redirect codes
+        """
+        http_authorized = self.instance._authorize().http
+        self.assertTrue(308 not in http_authorized.redirect_codes)
+
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook._get_credentials")
+    def test_authorize_assert_http_timeout_is_present(self, mock_get_credentials):
+        """
+        Verify that http client has a timeout set
+        """
+        http_authorized = self.instance._authorize().http
+        self.assertNotEqual(http_authorized.timeout, None)
 
 
 class TestProvideAuthorizedGcloud(unittest.TestCase):

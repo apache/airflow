@@ -41,10 +41,11 @@ from airflow.utils.module_loading import import_string
 log = logging.getLogger(__name__)
 
 # show Airflow's deprecation warnings
-warnings.filterwarnings(
-    action='default', category=DeprecationWarning, module='airflow')
-warnings.filterwarnings(
-    action='default', category=PendingDeprecationWarning, module='airflow')
+if not sys.warnoptions:
+    warnings.filterwarnings(
+        action='default', category=DeprecationWarning, module='airflow')
+    warnings.filterwarnings(
+        action='default', category=PendingDeprecationWarning, module='airflow')
 
 
 def expand_env_var(env_var):

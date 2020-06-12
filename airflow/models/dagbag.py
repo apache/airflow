@@ -456,4 +456,5 @@ class DagBag(BaseDagBag, LoggingMixin):
         from airflow.models.dag import DAG
         from airflow.models.serialized_dag import SerializedDagModel
         DAG.bulk_sync_to_db(self.dags.values())
-        SerializedDagModel.bulk_sync_to_db(self.dags.values())
+        if self.store_serialized_dags:
+            SerializedDagModel.bulk_sync_to_db(self.dags.values())

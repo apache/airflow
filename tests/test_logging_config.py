@@ -17,6 +17,7 @@
 # under the License.
 import contextlib
 import importlib
+import logging
 import os
 import pathlib
 import sys
@@ -50,11 +51,6 @@ LOGGING_CONFIG = {
         },
     },
     'loggers': {
-        'airflow': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False
-        },
         'airflow.task': {
             'handlers': ['task'],
             'level': 'INFO',
@@ -95,6 +91,33 @@ SETTINGS_FILE_EMPTY = """
 """
 
 SETTINGS_DEFAULT_NAME = 'custom_airflow_local_settings'
+
+
+def reset_logging():
+    """Reset Logging"""
+    manager = logging.root.manager
+    manager.disabled = logging.NOTSET
+    airflow_loggers = [
+        logger for logger_name, logger in manager.loggerDict.items() if logger_name.startswith('airflow')
+    ]
+    for logger in airflow_loggers:  # pylint: disable=too-many-nested-blocks
+        if isinstance(logger, logging.Logger):
+            logger.setLevel(logging.NOTSET)
+            logger.propagate = True
+            logger.disabled = False
+            logger.filters.clear()
+            handlers = logger.handlers.copy()
+            for handler in handlers:
+                # Copied from `logging.shutdown`.
+                try:
+                    handler.acquire()
+                    handler.flush()
+                    handler.close()
+                except (OSError, ValueError):
+                    pass
+                finally:
+                    handler.release()
+                logger.removeHandler(handler)
 
 
 @contextlib.contextmanager
@@ -159,6 +182,7 @@ class TestLoggingSettings(unittest.TestCase):
             if mod not in self.old_modules:
                 del sys.modules[mod]
 
+        reset_logging()
         importlib.reload(airflow_local_settings)
         configure_logging()
 
@@ -238,7 +262,6 @@ class TestLoggingSettings(unittest.TestCase):
 
     def test_loading_remote_logging_with_wasb_handler(self):
         """Test if logging can be configured successfully for Azure Blob Storage"""
-        import logging
         from airflow.config_templates import airflow_local_settings
         from airflow.logging_config import configure_logging
         from airflow.utils.log.wasb_task_handler import WasbTaskHandler

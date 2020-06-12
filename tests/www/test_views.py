@@ -29,7 +29,7 @@ import tempfile
 import unittest
 import urllib
 from contextlib import contextmanager
-from datetime import datetime as dt, timedelta
+from datetime import datetime as dt, timedelta, timezone as tz
 from typing import Any, Dict, Generator, List, NamedTuple
 from unittest import mock
 from urllib.parse import quote_plus
@@ -114,11 +114,12 @@ class TemplateWithContext(NamedTuple):
 class TestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.appbuilder = application.create_app(session=Session, testing=True)
+        settings.configure_orm()
+        cls.session = settings.Session
+        cls.app = application.create_app(testing=True)
+        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
         cls.app.config['WTF_CSRF_ENABLED'] = False
         cls.app.jinja_env.undefined = jinja2.StrictUndefined
-        settings.configure_orm()
-        cls.session = Session
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -363,7 +364,7 @@ class TestMountPoint(unittest.TestCase):
     def setUpClass(cls):
         application.app = None
         application.appbuilder = None
-        app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, session=Session, testing=True)
+        app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, testing=True)
         cls.client = Client(app, BaseResponse)
 
     @classmethod
@@ -389,7 +390,6 @@ class TestMountPoint(unittest.TestCase):
 
 class TestAirflowBaseViews(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
-    run_id = f"test_{DagRunType.SCHEDULED.value}__{EXAMPLE_DAG_DEFAULT_DATE.isoformat()}"
 
     @classmethod
     def setUpClass(cls):
@@ -410,29 +410,29 @@ class TestAirflowBaseViews(TestBase):
         self.xcom_dag = self.dagbag.dags['example_xcom']
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.sub_dagrun = self.sub_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.xcom_dagrun = self.xcom_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
     def test_index(self):
-        with assert_queries_count(5):
+        with assert_queries_count(37):
             resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
-    def test_doc_site_url(self):
+    def test_doc_urls(self):
         resp = self.client.get('/', follow_redirects=True)
         if "dev" in version.version:
             airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
@@ -440,6 +440,7 @@ class TestAirflowBaseViews(TestBase):
             airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
 
         self.check_content_in_response(airflow_doc_site, resp)
+        self.check_content_in_response("/api/v1/ui", resp)
 
     def test_health(self):
 
@@ -503,8 +504,23 @@ class TestAirflowBaseViews(TestBase):
         self.assertIsNone(None, resp_json['scheduler']['latest_scheduler_heartbeat'])
 
     def test_home(self):
-        resp = self.client.get('home', follow_redirects=True)
-        self.check_content_in_response('DAGs', resp)
+        with self.capture_templates() as templates:
+            resp = self.client.get('home', follow_redirects=True)
+            self.check_content_in_response('DAGs', resp)
+            val_state_color_mapping = 'const STATE_COLOR = {"failed": "red", ' \
+                                      '"null": "lightblue", "queued": "gray", ' \
+                                      '"removed": "lightgrey", "running": "lime", ' \
+                                      '"scheduled": "tan", "shutdown": "blue", ' \
+                                      '"skipped": "pink", "success": "green", ' \
+                                      '"up_for_reschedule": "turquoise", ' \
+                                      '"up_for_retry": "gold", "upstream_failed": "orange"};'
+            self.check_content_in_response(val_state_color_mapping, resp)
+
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0].name, 'airflow/dags.html')
+        state_color_mapping = State.state_color.copy()
+        state_color_mapping["null"] = state_color_mapping.pop(None)
+        self.assertEqual(templates[0].local_context['state_color'], state_color_mapping)
 
     def test_users_list(self):
         resp = self.client.get('users/list', follow_redirects=True)
@@ -585,7 +601,7 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.post('task_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(set(list(resp.json.items())[0][1][0].keys()),
-                         {'state', 'count', 'color'})
+                         {'state', 'count'})
 
     @conf_vars({("webserver", "show_recent_stats_for_completed_runs"): "False"})
     def test_task_stats_only_noncompleted(self):
@@ -618,9 +634,9 @@ class TestAirflowBaseViews(TestBase):
     def test_escape_in_tree_view(self, test_str, seralized_test_str):
         dag = self.dagbag.dags['test_tree_view']
         dag.create_dagrun(
-            run_id=self.run_id,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
+            run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             conf={"abc": test_str},
         )
@@ -632,7 +648,7 @@ class TestAirflowBaseViews(TestBase):
     def test_dag_details_trigger_origin_tree_view(self):
         dag = self.dagbag.dags['test_tree_view']
         dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
@@ -646,7 +662,7 @@ class TestAirflowBaseViews(TestBase):
     def test_dag_details_trigger_origin_graph_view(self):
         dag = self.dagbag.dags['test_graph_view']
         dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
@@ -1028,7 +1044,8 @@ class TestLogView(TestBase):
         sys.path.append(self.settings_folder)
 
         with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
-            self.app, self.appbuilder = application.create_app(session=Session, testing=True)
+            self.app = application.create_app(testing=True)
+            self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
             self.app.config['WTF_CSRF_ENABLED'] = False
             self.client = self.app.test_client()
             settings.configure_orm()
@@ -1477,7 +1494,6 @@ class TestDagACLView(TestBase):
     """
     next_year = dt.now().year + 1
     default_date = timezone.datetime(next_year, 6, 1)
-    run_id = f"test_{DagRunType.SCHEDULED.value}__{default_date.isoformat()}"
 
     @classmethod
     def setUpClass(cls):
@@ -1491,13 +1507,13 @@ class TestDagACLView(TestBase):
         self.sub_dag = dagbag.dags['example_subdag_operator']
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.default_date,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.sub_dagrun = self.sub_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.default_date,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
@@ -1681,7 +1697,7 @@ class TestDagACLView(TestBase):
         resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.assertEqual(set(list(resp.json.items())[0][1][0].keys()),
-                         {'state', 'count', 'color'})
+                         {'state', 'count'})
 
     def test_dag_stats_failure(self):
         self.logout()
@@ -2267,7 +2283,8 @@ class TestTriggerDag(TestBase):
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
-        self.assertIn("manual__", run.run_id)
+        self.assertIn(DagRunType.MANUAL.value, run.run_id)
+        self.assertEqual(run.run_type, DagRunType.MANUAL.value)
 
     @pytest.mark.xfail(condition=using_mysql, reason="This test might be flaky on mysql")
     def test_trigger_dag_conf(self):
@@ -2283,7 +2300,8 @@ class TestTriggerDag(TestBase):
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
-        self.assertIn("manual__", run.run_id)
+        self.assertIn(DagRunType.MANUAL.value, run.run_id)
+        self.assertEqual(run.run_type, DagRunType.MANUAL.value)
         self.assertEqual(run.conf, conf_dict)
 
     def test_trigger_dag_conf_malformed(self):
@@ -2563,6 +2581,7 @@ class TestExtraLinks(TestBase):
 
 
 class TestDagRunModelView(TestBase):
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -2572,7 +2591,56 @@ class TestDagRunModelView(TestBase):
     def tearDown(self):
         self.clear_table(models.DagRun)
 
-    def test_create_dagrun(self):
+    def test_create_dagrun_execution_date_with_timezone_utc(self):
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:04:03Z",
+            "run_id": "test_create_dagrun",
+        }
+        resp = self.client.post('/dagrun/add',
+                                data=data,
+                                follow_redirects=True)
+        self.check_content_in_response('Added Row', resp)
+
+        dr = self.session.query(models.DagRun).one()
+
+        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz.utc))
+
+    def test_create_dagrun_execution_date_with_timezone_edt(self):
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:04:03-04:00",
+            "run_id": "test_create_dagrun",
+        }
+        resp = self.client.post('/dagrun/add',
+                                data=data,
+                                follow_redirects=True)
+        self.check_content_in_response('Added Row', resp)
+
+        dr = self.session.query(models.DagRun).one()
+
+        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-4))))
+
+    def test_create_dagrun_execution_date_with_timezone_pst(self):
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:04:03-08:00",
+            "run_id": "test_create_dagrun",
+        }
+        resp = self.client.post('/dagrun/add',
+                                data=data,
+                                follow_redirects=True)
+        self.check_content_in_response('Added Row', resp)
+
+        dr = self.session.query(models.DagRun).one()
+
+        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-8))))
+
+    @conf_vars({("core", "default_timezone"): "America/Toronto"})
+    def test_create_dagrun_execution_date_without_timezone_default_edt(self):
         data = {
             "state": "running",
             "dag_id": "example_bash_operator",
@@ -2586,14 +2654,30 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, timezone.convert_to_utc(datetime(2018, 7, 6, 5, 4, 3)))
+        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-4))))
+
+    def test_create_dagrun_execution_date_without_timezone_default_utc(self):
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:04:03",
+            "run_id": "test_create_dagrun",
+        }
+        resp = self.client.post('/dagrun/add',
+                                data=data,
+                                follow_redirects=True)
+        self.check_content_in_response('Added Row', resp)
+
+        dr = self.session.query(models.DagRun).one()
+
+        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz.utc))
 
     def test_create_dagrun_valid_conf(self):
         conf_value = dict(Valid=True)
         data = {
             "state": "running",
             "dag_id": "example_bash_operator",
-            "execution_date": "2018-07-06 05:05:03",
+            "execution_date": "2018-07-06 05:05:03-02:00",
             "run_id": "test_create_dagrun_valid_conf",
             "conf": json.dumps(conf_value)
         }
@@ -2621,10 +2705,25 @@ class TestDagRunModelView(TestBase):
         dr = self.session.query(models.DagRun).all()
         self.assertFalse(dr)
 
+    def test_list_dagrun_includes_conf(self):
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:06:03",
+            "run_id": "test_list_dagrun_includes_conf",
+            "conf": '{"include": "me"}'
+        }
+        self.client.post('/dagrun/add', data=data, follow_redirects=True)
+        dr = self.session.query(models.DagRun).one()
+        self.assertEqual(dr.execution_date, timezone.convert_to_utc(datetime(2018, 7, 6, 5, 6, 3)))
+        self.assertEqual(dr.conf, {"include": "me"})
+
+        resp = self.client.get('/dagrun/list', follow_redirects=True)
+        self.check_content_in_response("{'include': 'me'}", resp)
+
 
 class TestDecorators(TestBase):
     EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
-    run_id = f"test_{DagRunType.SCHEDULED.value}__{EXAMPLE_DAG_DEFAULT_DATE.isoformat()}"
 
     @classmethod
     def setUpClass(cls):
@@ -2646,19 +2745,19 @@ class TestDecorators(TestBase):
         self.xcom_dag = dagbag.dags['example_xcom']
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.sub_dagrun = self.sub_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.xcom_dagrun = self.xcom_dag.create_dagrun(
-            run_id=self.run_id,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)

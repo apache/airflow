@@ -16,11 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import json
 import unittest
 from unittest.mock import MagicMock, patch
-
-from boto.compat import json  # type: ignore
 
 from airflow.providers.amazon.aws.operators.dynamodb_to_s3 import DynamoDBToS3Operator
 

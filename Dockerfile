@@ -35,6 +35,8 @@
 #
 ARG AIRFLOW_VERSION="2.0.0.dev0"
 ARG AIRFLOW_EXTRAS="async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv"
+ARG ADDITIONAL_AIRFLOW_EXTRAS=""
+ARG ADDITIONAL_PYTHON_DEPS=""
 
 ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
@@ -77,7 +79,10 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install basic apt dependencies
+ARG ADDITIONAL_DEV_DEPS=""
+ENV ADDITIONAL_DEV_DEPS=${ADDITIONAL_DEV_DEPS}
+
+# Install basic and additional apt dependencies
 RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
     && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
     && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
@@ -118,6 +123,7 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            unixodbc \
            unixodbc-dev \
            yarn \
+           ${ADDITIONAL_DEV_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -166,7 +172,11 @@ ARG AIRFLOW_VERSION
 ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 
 ARG AIRFLOW_EXTRAS
-ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}
+ARG ADDITIONAL_AIRFLOW_EXTRAS=""
+ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS}
+
+ARG ADDITIONAL_PYTHON_DEPS=""
+ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS}
 
 ARG AIRFLOW_INSTALL_SOURCES="."
 ENV AIRFLOW_INSTALL_SOURCES=${AIRFLOW_INSTALL_SOURCES}
@@ -186,6 +196,8 @@ ENV PATH=${PATH}:/root/.local/bin
 
 RUN pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
     --constraint /requirements.txt && \
+    if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then pip install --user ${ADDITIONAL_PYTHON_DEPS} \
+    --constraint /requirements.txt; fi && \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r && \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
 
@@ -233,13 +245,16 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 ARG AIRFLOW_VERSION
 ENV AIRFLOW_VERSION=${AIRFLOW_VERSION}
 
+ARG ADDITIONAL_RUNTIME_DEPS=""
+ENV ADDITIONAL_RUNTIME_DEPS=${ADDITIONAL_RUNTIME_DEPS}
+
 # Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
-# Install basic apt dependencies
+# Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
     && apt-get update \
@@ -268,6 +283,7 @@ RUN mkdir -pv /usr/share/man/man1 \
            sqlite3 \
            sudo \
            unixodbc \
+           ${ADDITIONAL_RUNTIME_DEPS} \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

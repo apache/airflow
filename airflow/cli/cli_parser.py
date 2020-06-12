@@ -23,7 +23,7 @@ import json
 import os
 import textwrap
 from argparse import Action, ArgumentError, RawTextHelpFormatter
-from typing import Callable, Dict, Iterable, List, NamedTuple, Set, Union
+from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Union
 
 from tabulate import tabulate_formats
 
@@ -99,6 +99,17 @@ class Arg:
         parser.add_argument(*self.flags, **self.kwargs)
 
 
+def positive_int(value):
+    """Define a positive int type for an argument."""
+    try:
+        value = int(value)
+        if value > 0:
+            return value
+    except ValueError:
+        pass
+    raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
+
+
 # Shared
 ARG_DAG_ID = Arg(
     ("dag_id",),
@@ -160,6 +171,7 @@ ARG_OUTPUT = Arg(
         "Output table format. The specified value is passed to "
         "the tabulate module (https://pypi.org/project/tabulate/). "
     ),
+    metavar="FORMAT",
     choices=tabulate_formats,
     default="plain")
 ARG_COLOR = Arg(
@@ -181,6 +193,13 @@ ARG_STATE = Arg(
 ARG_LIMIT = Arg(
     ("--limit",),
     help="Return a limited number of records")
+
+# next_execution
+ARG_NUM_EXECUTIONS = Arg(
+    ("-n", "--num-executions"),
+    default=1,
+    type=positive_int,
+    help="The number of next execution datetimes to show")
 
 # backfill
 ARG_MARK_SUCCESS = Arg(
@@ -259,8 +278,6 @@ ARG_IMGCAT_DAGRUN = Arg(
     help=(
         "After completing the dag run, prints a diagram on the screen for the "
         "current DAG Run using the imgcat tool.\n"
-        "\n"
-        "For more information, see: https://www.iterm2.com/documentation-images.html"
     ),
     action='store_true')
 ARG_SAVE_DAGRUN = Arg(
@@ -268,14 +285,7 @@ ARG_SAVE_DAGRUN = Arg(
     help=(
         "After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n"
         "\n"
-        "The file format is determined by the file extension. For more information about supported "
-        "format, see: https://www.graphviz.org/doc/info/output.html\n"
-        "\n"
-        "If you want to create a PNG file then you should execute the following command:\n"
-        "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
-        "\n"
-        "If you want to create a DOT file then you should execute the following command:\n"
-        "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"))
+    ))
 
 # list_tasks
 ARG_TREE = Arg(
@@ -316,23 +326,12 @@ ARG_DAG_REGEX = Arg(
 # show_dag
 ARG_SAVE = Arg(
     ("-s", "--save"),
-    help=(
-        "Saves the result to the indicated file.\n"
-        "\n"
-        "The file format is determined by the file extension. For more information about supported "
-        "format, see: https://www.graphviz.org/doc/info/output.html\n"
-        "\n"
-        "If you want to create a PNG file then you should execute the following command:\n"
-        "airflow dags show <DAG_ID> --save output.png\n"
-        "\n"
-        "If you want to create a DOT file then you should execute the following command:\n"
-        "airflow dags show <DAG_ID> --save output.dot\n"))
+    help="Saves the result to the indicated file.")
+
 ARG_IMGCAT = Arg(
     ("--imgcat", ),
     help=(
-        "Displays graph using the imgcat tool. \n"
-        "\n"
-        "For more information, see: https://www.iterm2.com/documentation-images.html"),
+        "Displays graph using the imgcat tool."),
     action='store_true')
 
 # trigger_dag
@@ -742,6 +741,7 @@ class ActionCommand(NamedTuple):
     help: str
     func: Callable
     args: Iterable[Arg]
+    description: Optional[str] = None
 
 
 class GroupCommand(NamedTuple):
@@ -749,6 +749,7 @@ class GroupCommand(NamedTuple):
     name: str
     help: str
     subcommands: Iterable
+    description: Optional[str] = None
 
 
 CLICommand = Union[ActionCommand, GroupCommand]
@@ -769,7 +770,8 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='list_runs',
-        help=(
+        help="List dag runs given a DAG id.",
+        description=(
             "List dag runs given a DAG id. If state option is given, it will only search for all the "
             "dagruns with the given state. If no_backfill option is given, it will filter out all "
             "backfill dagruns for given dag id. If start_date is given, it will filter out all the "
@@ -793,9 +795,10 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='next_execution',
-        help="Get the next execution datetime of a DAG",
+        help="Get the next execution datetimes of a DAG. It returns one execution unless the "
+             "num-executions option is given",
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_next_execution'),
-        args=(ARG_DAG_ID, ARG_SUBDIR),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_NUM_EXECUTIONS),
     ),
     ActionCommand(
         name='pause',
@@ -824,12 +827,28 @@ DAGS_COMMANDS = (
     ActionCommand(
         name='show',
         help="Displays DAG's tasks with their dependencies",
+        description=("The --imgcat option only works in iTerm.\n"
+                     "\n"
+                     "For more information, see: https://www.iterm2.com/documentation-images.html\n"
+                     "\n"
+                     "The --save option saves the result to the indicated file.\n"
+                     "\n"
+                     "The file format is determined by the file extension. "
+                     "For more information about supported "
+                     "format, see: https://www.graphviz.org/doc/info/output.html\n"
+                     "\n"
+                     "If you want to create a PNG file then you should execute the following command:\n"
+                     "airflow dags show <DAG_ID> --save output.png\n"
+                     "\n"
+                     "If you want to create a DOT file then you should execute the following command:\n"
+                     "airflow dags show <DAG_ID> --save output.dot\n"),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_show'),
         args=(ARG_DAG_ID, ARG_SUBDIR, ARG_SAVE, ARG_IMGCAT,),
     ),
     ActionCommand(
         name='backfill',
-        help=(
+        help="Run subsections of a DAG for a specified date range.",
+        description=(
             "Run subsections of a DAG for a specified date range. If reset_dag_run option is used, "
             "backfill will first prompt users whether airflow should clear all the previous dag_run and "
             "task_instances within the backfill date range. If rerun_failed_tasks is used, backfill "
@@ -845,7 +864,25 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name='test',
-        help="Execute one run of a DAG",
+        help="Execute one single DagRun for a given DAG and execution date, using the DebugExecutor.",
+        description=("Execute one single DagRun for a given DAG and execution date, "
+                     "using the DebugExecutor.\n"
+                     "\n"
+                     "The --imgcat-dagrun option only works in iTerm.\n"
+                     "\n"
+                     "For more information, see: https://www.iterm2.com/documentation-images.html\n"
+                     "\n"
+                     "If --save-dagrun is used, then, after completing the backfill, saves the diagram "
+                     "for current DAG Run to the indicated file.\n"
+                     "The file format is determined by the file extension. "
+                     "For more information about supported format, "
+                     "see: https://www.graphviz.org/doc/info/output.html\n"
+                     "\n"
+                     "If you want to create a PNG file then you should execute the following command:\n"
+                     "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
+                     "\n"
+                     "If you want to create a DOT file then you should execute the following command:\n"
+                     "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_test'),
         args=(
             ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_SHOW_DAGRUN, ARG_IMGCAT_DAGRUN, ARG_SAVE_DAGRUN
@@ -877,7 +914,8 @@ TASKS_COMMANDS = (
     ),
     ActionCommand(
         name='failed_deps',
-        help=(
+        help="Returns the unmet dependencies for a task instance from the perspective of the scheduler. ",
+        description=(
             "Returns the unmet dependencies for a task instance from the perspective of the scheduler. "
             "In other words, why a task instance doesn't get scheduled and then queued by the scheduler, "
             "and then run by an executor."
@@ -904,7 +942,8 @@ TASKS_COMMANDS = (
     ),
     ActionCommand(
         name='test',
-        help=(
+        help="Test a task instance",
+        description=(
             "Test a task instance. This will run a task without checking for dependencies or recording "
             "its state in the database"
         ),
@@ -1226,7 +1265,8 @@ airflow_commands: List[CLICommand] = [
     ActionCommand(
         name='rotate_fernet_key',
         func=lazy_load_command('airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key'),
-        help=(
+        help='Rotate encrypted connection credentials and variables',
+        description=(
             'Rotate all encrypted connection credentials and variables; see '
             'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
             '#rotating-encryption-keys'
@@ -1245,9 +1285,16 @@ airflow_commands: List[CLICommand] = [
         func=lazy_load_command('airflow.cli.commands.info_command.show_info'),
         args=(ARG_ANONYMIZE, ARG_FILE_IO, ),
     ),
+    ActionCommand(
+        name='plugins',
+        help='Dump information about loaded plugins',
+        func=lazy_load_command('airflow.cli.commands.plugins_command.dump_plugins'),
+        args=(),
+    ),
     GroupCommand(
         name="celery",
-        help=(
+        help='Start celery components',
+        description=(
             'Start celery components. Works only when using CeleryExecutor. For more information, see '
             'https://airflow.readthedocs.io/en/stable/executor/celery.html'
         ),
@@ -1268,7 +1315,13 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
     """
     def _format_action(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
+
             parts = []
+            action_header = self._format_action_invocation(action)
+            action_header = '%*s%s\n' % (self._current_indent, '', action_header)
+            parts.append(action_header)
+
+            self._indent()
             subactions = action._get_subactions()  # pylint: disable=protected-access
             action_subcommnads, group_subcommnands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
@@ -1287,6 +1340,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
             for subaction in action_subcommnads:
                 parts.append(self._format_action(subaction))
             self._dedent()
+            self._dedent()
 
             # return a single string
             return self._join_parts(parts)
@@ -1297,7 +1351,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser"""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
-    subparsers = parser.add_subparsers(dest='subcommand')
+    subparsers = parser.add_subparsers(dest='subcommand', metavar="GROUP_OR_COMMAND")
     subparsers.required = True
 
     subparser_list = DAG_CLI_COMMANDS if dag_parser else ALL_COMMANDS_DICT.keys()
@@ -1327,7 +1381,7 @@ def _add_command(
     sub: CLICommand
 ) -> None:
     sub_proc = subparsers.add_parser(
-        sub.name, help=sub.help
+        sub.name, help=sub.help, description=sub.description or sub.help,
     )
     sub_proc.formatter_class = RawTextHelpFormatter
 
@@ -1347,7 +1401,7 @@ def _add_action_command(sub: ActionCommand, sub_proc: argparse.ArgumentParser) -
 
 def _add_group_command(sub: GroupCommand, sub_proc: argparse.ArgumentParser) -> None:
     subcommands = sub.subcommands
-    sub_subparsers = sub_proc.add_subparsers(dest="subcommand")
+    sub_subparsers = sub_proc.add_subparsers(dest="subcommand", metavar="COMMAND")
     sub_subparsers.required = True
 
     for command in sorted(subcommands, key=lambda x: x.name):

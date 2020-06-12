@@ -24,7 +24,6 @@ graft licenses
 graft airflow/www
 graft airflow/www/static
 graft airflow/www/templates
-graft airflow/_vendor/
 include airflow/alembic.ini
 include airflow/git_version
 include airflow/serialization/schema.json
@@ -34,3 +33,4 @@ graft airflow/config_templates
 recursive-exclude airflow/www/node_modules *
 global-exclude __pycache__  *.pyc
 include airflow/providers/cncf/kubernetes/example_dags/example_spark_kubernetes_operator_spark_pi.yaml
+include airflow/api_connexion/openapi/v1.yaml

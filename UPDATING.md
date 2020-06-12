@@ -62,6 +62,112 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Not-nullable conn_type collumn in connection table
+
+The `conn_type` column in the `connection` table must contain content. Previously, this rule was enforced
+by application logic, but was not enforced by the database schema.
+
+If you made any modifications to the table directly, make sure you don't have
+null in the conn_type column.
+
+### DAG.create_dagrun accepts run_type and does not require run_id
+This change is caused by adding `run_type` column to `DagRun`.
+
+Previous signature:
+```python
+def create_dagrun(self,
+                  run_id,
+                  state,
+                  execution_date=None,
+                  start_date=None,
+                  external_trigger=False,
+                  conf=None,
+                  session=None):
+```
+current:
+```python
+def create_dagrun(self,
+                  state,
+                  execution_date=None,
+                  run_id=None,
+                  start_date=None,
+                  external_trigger=False,
+                  conf=None,
+                  run_type=None,
+                  session=None):
+```
+If user provides `run_id` then the `run_type` will be derived from it by checking prefix, allowed types
+: `manual`, `scheduled`, `backfill` (defined by `airflow.utils.types.DagRunType`).
+
+If user provides `run_type` and `execution_date` then `run_id` is constructed as
+`{run_type}__{execution_data.isoformat()}`.
+
+Airflow should construct dagruns using `run_type` and `execution_date`, creation using
+`run_id` is preserved for user actions.
+
+
+### Standardised "extra" requirements
+
+We standardised the Extras names and synchronized providers package names with the main airflow extras.
+
+We deprecated a number of extras in 2.0.
+
+| Deprecated extras | New extras       |
+|-------------------|------------------|
+| atlas             | apache.atlas     |
+| aws               | amazon           |
+| azure             | microsoft.azure  |
+| cassandra         | apache.cassandra |
+| druid             | apache.druid     |
+| gcp               | google           |
+| gcp_api           | google           |
+| hdfs              | apache.hdfs      |
+| hive              | apache.hive      |
+| kubernetes        | cncf.kubernetes  |
+| mssql             | microsoft.mssql  |
+| pinot             | apache.pinot     |
+| webhdfs           | apache.webhdfs   |
+| winrm             | apache.winrm     |
+
+For example instead of `pip install apache-airflow[atlas]` you should use
+`pip install apache-airflow[apache.atlas]` .
+
+The deprecated extras will be removed in 2.1:
+
+### Skipped tasks can satisfy wait_for_downstream
+
+Previously, a task instance with `wait_for_downstream=True` will only run if the downstream task of
+the previous task instance is successful. Meanwhile, a task instance with `depends_on_past=True`
+will run if the previous task instance is either successful or skipped. These two flags are close siblings
+yet they have different behavior. This inconsistency in behavior made the API less intuitive to users.
+To maintain consistent behavior, both successful or skipped downstream task can now satisfy the
+`wait_for_downstream=True` flag.
+
+
+### Use DagRunType.SCHEDULED.value instead of DagRun.ID_PREFIX
+
+All the run_id prefixes for different kind of DagRuns have been grouped into a single
+enum in `airflow.utils.types.DagRunType`.
+
+Previously, there were defined in various places, example as `ID_PREFIX` class variables for
+`DagRun`, `BackfillJob` and in `_trigger_dag` function.
+
+Was:
+
+```python
+>> from airflow.models.dagrun import DagRun
+>> DagRun.ID_PREFIX
+scheduled__
+```
+
+Replaced by:
+
+```python
+>> from airflow.utils.types import DagRunType
+>> DagRunType.SCHEDULED.value
+scheduled
+```
+
 ### Ability to patch Pool.DEFAULT_POOL_NAME in BaseOperator
 It was not possible to patch pool in BaseOperator as the signature sets the default value of pool
 as Pool.DEFAULT_POOL_NAME.
@@ -89,6 +195,9 @@ The previous option used a colon(`:`) to split the module from function. Now the
 The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
 
 ### Changes in BigQueryHook
+In general all hook methods are decorated with `@GoogleBaseHook.fallback_to_default_project_id` thus
+parameters to hook can only be passed via keyword arguments.
+
 - `create_empty_table` method accepts now `table_resource` parameter. If provided all
 other parameters are ignored.
 - `create_empty_dataset` will now use values from `dataset_reference` instead of raising error
@@ -98,6 +207,8 @@ changed.
 - `update_dataset` requires now new `fields` argument (breaking change)
 - `delete_dataset` has new signature (dataset_id, project_id, ...)
 previous one was (project_id, dataset_id, ...) (breaking change)
+- `get_tabledata` returns list of rows instead of API response in dict format. This method is deprecated in
+ favor of `list_rows`. (breaking change)
 
 ### Added mypy plugin to preserve types of decorated functions
 
@@ -127,6 +238,29 @@ plugins =
     constructor.
 - Added optional project_id argument to DataflowCreatePythonJobOperator
     constructor.
+
+### GCSUploadSessionCompleteSensor signature change
+
+To provide more precise control in handling of changes to objects in
+underlying GCS Bucket the constructor of this sensor now has changed.
+
+- Old Behavior: This constructor used to optionally take ``previous_num_objects: int``.
+- New replacement constructor kwarg: ``previous_objects: Optional[Set[str]]``.
+
+Most users would not specify this argument because the bucket begins empty
+and the user wants to treat any files as new.
+
+Example of Updating usage of this sensor:
+Users who used to call:
+
+``GCSUploadSessionCompleteSensor(bucket='my_bucket', prefix='my_prefix', previous_num_objects=1)``
+
+Will now call:
+
+``GCSUploadSessionCompleteSensor(bucket='my_bucket', prefix='my_prefix', previous_num_objects={'.keep'})``
+
+Where '.keep' is a single file at your prefix that the sensor should not consider new.
+
 
 ### Rename pool statsd metrics
 
@@ -2167,14 +2301,11 @@ dags_are_paused_at_creation = False
 
 If you specify a hive conf to the run_cli command of the HiveHook, Airflow add some
 convenience variables to the config. In case you run a secure Hadoop setup it might be
-required to whitelist these variables by adding the following to your configuration:
+required to allow these variables by adjusting you hive configuration to add `airflow\.ctx\..*` to the regex
+of user-editable configuration properties. See
+[the Hive docs on Configuration Properties][hive.security.authorization.sqlstd] for more info.
 
-```
-<property>
-     <name>hive.security.authorization.sqlstd.confwhitelist.append</name>
-     <value>airflow\.ctx\..*</value>
-</property>
-```
+[hive.security.authorization.sqlstd]: https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82903061#ConfigurationProperties-SQLStandardBasedAuthorization.1
 
 ### Google Cloud Operator and Hook alignment
 

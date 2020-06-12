@@ -57,7 +57,8 @@ def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.D
     :return: Graphviz object
     :rtype: graphviz.Digraph
     """
-    dot = graphviz.Digraph(dag.dag_id, graph_attr={"rankdir": "LR", "labelloc": "t", "label": dag.dag_id})
+    dot = graphviz.Digraph(dag.dag_id, graph_attr={"rankdir": dag.orientation if dag.orientation else "LR",
+                                                   "labelloc": "t", "label": dag.dag_id})
     states_by_task_id = None
     if tis is not None:
         states_by_task_id = {ti.task_id: ti.state for ti in tis}

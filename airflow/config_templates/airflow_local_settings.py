@@ -100,6 +100,11 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'handler': ['console'],
             'level': FAB_LOG_LEVEL,
             'propagate': True,
+        },
+        'connexion': {
+            'handler': ['console'],
+            'level': LOG_LEVEL,
+            'propagate': True,
         }
     },
     'root': {

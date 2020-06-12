@@ -305,7 +305,7 @@ Extras
 
 There are a number of extras that can be specified when installing Airflow. Those
 extras can be specified after the usual pip install - for example
-``pip install -e .[gcp]``. For development purpose there is a ``devel`` extra that
+``pip install -e .[ssh]``. For development purpose there is a ``devel`` extra that
 installs all development dependencies. There is also ``devel_ci`` that installs
 all dependencies needed in the CI environment.
 
@@ -313,12 +313,15 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 
-all, all_dbs, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant, dask, databricks,
-datadog, devel, devel_ci, devel_hadoop, doc, docker, druid, elasticsearch, exasol, facebook, gcp,
-gcp_api, github_enterprise, google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos,
-kubernetes, ldap, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot,
-postgres, presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity,
-slack, snowflake, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud
+all_dbs, amazon, apache.atlas, apache_beam, apache.cassandra, apache.druid, apache.hdfs,
+apache.hive, apache.pinot, apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups,
+cloudant, cncf.kubernetes, dask, databricks, datadog, devel, devel_hadoop, doc, docker, druid,
+elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise, google, google_auth, grpc,
+hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap, microsoft.azure, microsoft.mssql,
+microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres,
+presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack,
+snowflake, spark, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud, all,
+devel_ci
 
   .. END EXTRAS HERE
 
@@ -372,14 +375,14 @@ This works also with extras - for example:
 
 .. code-block:: bash
 
-  pip install .[gcp] --constraint requirements/requirements-python3.6.txt
+  pip install .[ssh] --constraint requirements/requirements-python3.6.txt
 
 
 It is also possible to use constraints directly from github using tag/version name:
 
 .. code-block:: bash
 
-  pip install apache-airflow[gcp]==1.10.10 \
+  pip install apache-airflow[ssh]==1.10.10 \
       --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.6.txt
 
 There are different set of fixed requirements for different python major/minor versions and you should
@@ -427,7 +430,7 @@ The dependency list is automatically used during pypi packages generation.
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
 the other provider package you can install it adding [extra] after the
 apache-airflow-backport-providers-PROVIDER for example ``pip install
-apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP's
+apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP
 transfer operators from Amazon ECS.
 
 If you add a new dependency between different providers packages, it will be detected automatically during
@@ -465,6 +468,7 @@ opsgenie                   http
 postgres                   amazon
 sftp                       ssh
 slack                      http
+snowflake                  slack
 ========================== ===========================
 
   .. END PACKAGE DEPENDENCIES HERE
@@ -661,6 +665,9 @@ Contribution Workflow Example
 Typically, you start your first contribution by reviewing open tickets
 at `GitHub issues <https://github.com/apache/airflow/issues>`__.
 
+If you create pull-request, you don't have to create an issue first, but if you want, you can do it.
+Creating an issue will allow you to collect feedback or share plans with other people.
+
 For example, you want to have the following sample ticket assigned to you:
 `#7782: Add extra CC: to the emails sent by Aiflow <https://github.com/apache/airflow/issues/7782>`_.
 
@@ -822,7 +829,6 @@ useful for "bisecting" when looking for a commit that introduced some bugs.
 
 First of all - you can read about rebase workflow here:
 `Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_ - this is an
-`Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_ - this is an
 excellent article that describes all ins/outs of rebase. I recommend reading it and keeping it as reference.
 
 The goal of rebasing your PR on top of ``apache/master`` is to "transplant" your change on top of
@@ -901,6 +907,12 @@ You can join the channels via links at the `Airflow Community page <https://airf
 * Github `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
    * discussing implementation details of PRs
    * not for architectural discussions (use the devlist for that)
+* The deprecated `JIRA issues <https://issues.apache.org/jira/projects/AIRFLOW/issues/AIRFLOW-4470?filter=allopenissues>`_ for:
+   * checking out old but still valuable issues that are not on Github yet
+   * mentioning the JIRA issue number in the title of the related PR you would like to open on Github
+**IMPORTANT**
+We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable tickets inside of it. However, each new PR should be created on `Github issues <https://github.com/apache/airflow/issues>`_ as stated in `Contribution Workflow Example <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contribution-workflow-example>`_
+
 * The `Apache Airflow Slack <https://apache-airflow-slack.herokuapp.com/>`_ for:
    * ad-hoc questions related to development (#development channel)
    * asking for review (#development channel)
@@ -979,52 +991,3 @@ Resources & Links
 - `Airflow’s official documentation <http://airflow.apache.org/>`__
 
 - `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`__
-
-Preparing backport packages
-===========================
-
-As part of preparation to Airflow 2.0 we decided to prepare backport of providers package that will be
-possible to install in the Airflow 1.10.*, Python 3.6+ environment.
-Some of those packages will be soon (after testing) officially released via PyPi, but you can build and
-prepare such packages on your own easily.
-
-* The setuptools.py script only works in python3.6+. This is also our minimally supported python
-  version to use the packages in.
-
-* Make sure you have ``setuptools`` and ``wheel`` installed in your python environment. The easiest way
-  to do it is to run ``pip install setuptools wheel``
-
-* Run the following command:
-
-  .. code-block:: bash
-
-    ./scripts/ci/ci_prepare_packages.sh
-
-* Usually you only build some of the providers package. The ``providers`` directory is separated into
-  separate providers. You can see the list of all available providers by running
-  ``./scripts/ci/ci_prepare_packages.sh --help``. You can build the backport package
-  by running ``./scripts/ci/ci_prepare_packages.sh <PROVIDER_NAME>``. Note that there
-  might be (and are) dependencies between some packages that might prevent subset of the packages
-  to be used without installing the packages they depend on. This will be solved soon by
-  adding cross-dependencies between packages.
-
-* This creates a wheel package in your ``dist`` folder with a name similar to:
-  ``apache_airflow_backport_providers-0.0.1-py2.py3-none-any.whl``
-
-* You can install this package with ``pip install <PACKAGE_FILE>``
-
-
-* You can also build sdist (source distribution packages) by running
-  ``python setup.py <PROVIDER_NAME> sdist`` but this is only needed in case of distribution of the packages.
-
-Each package has description generated from the the general ``backport_packages/README.md`` file with the
-following replacements:
-
-* ``{{ PACKAGE_NAME }}`` is replaced with the name of the package
-(``apache-airflow-backport-providers-<NAME>``)
-* ``{{ PACKAGE_DEPENDENCIES }}`` is replaced with list of optional dependencies for the package
-* ``{{ PACKAGE_BACKPORT_README }}`` is replaced with the content of ``BACKPORT_README.md`` file in the
-  package folder if it exists.
-
-Note that those are unofficial packages yet - they are not yet released in PyPi, but you might use them to
-test the master versions of operators/hooks/sensors in Airflow 1.10.* environment  with Python3.6+

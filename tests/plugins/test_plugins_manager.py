@@ -19,12 +19,15 @@
 import unittest
 from unittest import mock
 
+from airflow.hooks.base_hook import BaseHook
+from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
 
 
 class TestPluginsRBAC(unittest.TestCase):
     def setUp(self):
-        self.app, self.appbuilder = application.create_app(testing=True)
+        self.app = application.create_app(testing=True)
+        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
 
     def test_flaskappbuilder_views(self):
         from tests.plugins.test_plugin import v_appbuilder_package
@@ -93,3 +96,34 @@ class TestPluginsRBAC(unittest.TestCase):
             assert "Version Conflict" in received_logs
             assert "Failed to import plugin test-entrypoint" in received_logs
             assert "Version Conflict", "test.plugins.test_plugins_manager" in import_errors.items()
+
+
+class TestPluginsManager(unittest.TestCase):
+    class AirflowTestPropertyPlugin(AirflowPlugin):
+        name = "test_property_plugin"
+
+        @property
+        def operators(self):
+            from airflow.models.baseoperator import BaseOperator
+
+            class PluginPropertyOperator(BaseOperator):
+                pass
+
+            return [PluginPropertyOperator]
+
+        class TestNonPropertyHook(BaseHook):
+            pass
+
+        hooks = [TestNonPropertyHook]
+
+    @mock.patch('airflow.plugins_manager.plugins', [AirflowTestPropertyPlugin()])
+    @mock.patch('airflow.plugins_manager.operators_modules', None)
+    @mock.patch('airflow.plugins_manager.sensors_modules', None)
+    @mock.patch('airflow.plugins_manager.hooks_modules', None)
+    @mock.patch('airflow.plugins_manager.macros_modules', None)
+    def test_should_load_plugins_from_property(self):
+        from airflow import plugins_manager
+        plugins_manager.integrate_dag_plugins()
+        self.assertIn('TestPluginsManager.AirflowTestPropertyPlugin', str(plugins_manager.plugins))
+        self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
+        self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))

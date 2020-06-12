@@ -470,8 +470,7 @@ class TestCore(unittest.TestCase):
             start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='test_externally_triggered_dag_context',
                              dag=dag)
-        run_id = f"{DagRunType.SCHEDULED.value}__{execution_date.isoformat()}"
-        dag.create_dagrun(run_id=run_id,
+        dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                           execution_date=execution_date,
                           state=State.RUNNING,
                           external_trigger=True)
