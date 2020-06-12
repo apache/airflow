@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import subprocess
 import unittest
 from tests.compat import mock
 
@@ -28,13 +29,22 @@ class LocalExecutorTest(unittest.TestCase):
 
     TEST_SUCCESS_COMMANDS = 5
 
-    def execution_parallelism(self, parallelism=0):
+    @mock.patch('airflow.executors.local_executor.subprocess.check_call')
+    def execution_parallelism(self, mock_check_call, parallelism=0):
+        success_command = ['airflow', 'run', 'true', 'some_parameter']
+        fail_command = ['airflow', 'run', 'false']
+
+        def fake_execute_command(command, close_fds=True):  # pylint: disable=unused-argument
+            if command != success_command:
+                raise subprocess.CalledProcessError(returncode=1, cmd=command)
+            else:
+                return 0
+
+        mock_check_call.side_effect = fake_execute_command
         executor = LocalExecutor(parallelism=parallelism)
         executor.start()
 
         success_key = 'success {}'
-        success_command = ['true', 'some_parameter']
-        fail_command = ['false', 'some_parameter']
         self.assertTrue(executor.result_queue.empty())
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
@@ -58,11 +68,11 @@ class LocalExecutorTest(unittest.TestCase):
         self.assertEqual(executor.workers_used, expected)
 
     def test_execution_unlimited_parallelism(self):
-        self.execution_parallelism(parallelism=0)
+        self.execution_parallelism(parallelism=0)  # pylint: disable=no-value-for-parameter
 
     def test_execution_limited_parallelism(self):
         test_parallelism = 2
-        self.execution_parallelism(parallelism=test_parallelism)
+        self.execution_parallelism(parallelism=test_parallelism)  # pylint: disable=no-value-for-parameter
 
     @mock.patch('airflow.executors.local_executor.LocalExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
