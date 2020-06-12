@@ -136,7 +136,7 @@ function populate_taskinstance_properties(node) {
 
 var devicePixelRatio = window.devicePixelRatio || 1;
 // JSON.parse is faster for large payloads than an object literal (because the JSON grammer is simpler!)
-var data = JSON.parse('{{ data }}');
+var data = JSON.parse({{ data|tojson }});
 var barHeight = 20;
 var axisHeight = 40;
 var square_x = parseInt(500 * devicePixelRatio);
