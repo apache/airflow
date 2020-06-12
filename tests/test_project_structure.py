@@ -136,24 +136,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'mssql_to_gcs'),
     }
 
-    MISSING_DOC_GUIDES = {
-        'adls_to_gcs',
-        'bigquery_to_bigquery',
-        'bigquery_to_gcs',
-        'bigquery_to_mysql',
-        'cassandra_to_gcs',
-        'datastore',
-        'dlp',
-        'gcs_to_bigquery',
-        'mlengine',
-        'mssql_to_gcs',
-        'mysql_to_gcs',
-        'postgres_to_gcs',
-        's3_to_gcs',
-        'sql_to_gcs',
-        'tasks',
-    }
-
     def test_example_dags(self):
         operators_modules = self.find_resource_files(resource_type="operators")
         example_dags_files = self.find_resource_files(resource_type="example_dags")
