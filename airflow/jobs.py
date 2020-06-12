@@ -38,9 +38,11 @@ import psutil
 from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_, and_
 from sqlalchemy import update
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
 from tqdm import tqdm
+from typing import List
 
 from airflow import executors, models, settings
 from airflow import configuration as conf
@@ -561,6 +563,7 @@ class SchedulerJob(BaseJob):
 
     @provide_session
     def manage_slas(self, dag, session=None):
+        # type: (DAG, Session) -> None
         """
         Finding all tasks that have SLAs defined, and sending alert emails
         where needed. New SLA misses are also recorded in the database.
@@ -661,8 +664,17 @@ class SchedulerJob(BaseJob):
             """.format(bug=asciiart.bug, **locals())
             emails = []
 
+            tasks_missed_sla = []  # type: List[TaskInstance]
+            for sla in slas:
+                try:
+                    task = dag.get_task(sla.task_id)
+                    tasks_missed_sla.append(task)
+                except AirflowException:
+                    # task already deleted from DAG, skip it
+                    self.logger.warning(
+                        "Task %s doesn't exist in DAG anymore, skipping SLA miss notification.",
+                        sla.task_id)
 
-            tasks_missed_sla = [dag.get_task(sla.task_id) for sla in slas]
             for t in tasks_missed_sla:
                 if t.email:
                     if isinstance(t.email, basestring):
