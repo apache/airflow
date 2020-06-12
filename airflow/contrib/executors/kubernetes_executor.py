@@ -482,11 +482,10 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.info('Kubernetes job is %s', str(next_job))
         key, command, kube_executor_config = next_job
         dag_id, task_id, execution_date, try_number = key
-        if isinstance(command, str):
-            command = [command]
 
-        if command[0] != "airflow":
-            raise ValueError('The first element of command must be equal to "airflow".')
+        if command[0:2] != ["airflow", "run"]:
+            raise ValueError('The command must start with ["airflow", "run"].')
+
         self.log.debug("Kubernetes running for command %s", command)
         self.log.debug("Kubernetes launching image %s", self.kube_config.kube_image)
         pod = self.worker_configuration.make_pod(

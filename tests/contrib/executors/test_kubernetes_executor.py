@@ -930,7 +930,8 @@ class TestKubernetesExecutor(unittest.TestCase):
         # Execute a task while the Api Throws errors
         try_number = 1
         kubernetesExecutor.execute_async(key=('dag', 'task', datetime.utcnow(), try_number),
-                                         command='command', executor_config={})
+                                         command=['airflow', 'run', 'true', 'some_parameter'],
+                                         executor_config={})
         kubernetesExecutor.sync()
         kubernetesExecutor.sync()
 
