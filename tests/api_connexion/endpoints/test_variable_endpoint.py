@@ -95,6 +95,14 @@ class TestGetVariables(TestVariableEndpoint):
             "total_entries": 1,
         }
 
+    def test_should_honor_100_limit_default(self):
+        for i in range(101):
+            Variable.set(f"var{i}", i)
+        response = self.client.get("/api/v1/variables")
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 100
+        assert len(response.json["variables"]) == 100
+
 
 class TestPatchVariable(TestVariableEndpoint):
     def test_should_update_variable(self):

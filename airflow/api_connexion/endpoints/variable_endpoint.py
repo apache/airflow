@@ -45,7 +45,7 @@ def get_variable(variable_key: str) -> Response:
 
 
 @provide_session
-def get_variables(offset: Optional[int], limit: Optional[int], session) -> Response:
+def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -> Response:
     """
     Get all variable values
     """
@@ -61,7 +61,6 @@ def get_variables(offset: Optional[int], limit: Optional[int], session) -> Respo
     })
 
 
-@provide_session
 def patch_variable(variable_key: str):
     """
     Update a variable by key
