@@ -170,16 +170,11 @@ STATE_COLORS = {
 
 def policy(task):
     """
-    This policy setting allows altering tasks right before they
-    are executed. It allows administrator to rewire some task parameters.
-
-    Note that the ``Task`` object has a reference to the DAG
-    object. So you can use the attributes of all of these to define your
-    policy.
+    This policy setting allows altering tasks after they are loaded in
+    the DagBag. It allows administrator to rewire some task parameters.
 
     To define policy, add a ``airflow_local_settings`` module
-    to your PYTHONPATH that defines this ``policy`` function. It receives
-    a ``Task`` object and can alter it where needed.
+    to your PYTHONPATH that defines this ``policy`` function.
 
     Here are a few examples of how this can be useful:
 
@@ -189,6 +184,18 @@ def policy(task):
     * You could enforce a task timeout policy, making sure that no tasks run
         for more than 48 hours
     * ...
+    """
+
+
+def task_instance_mutation_hook(task_instance):
+    """
+    This setting allows altering task instances before they are queued by
+    the Airflow scheduler.
+
+    To define task_instance_mutation_hook, add a ``airflow_local_settings`` module
+    to your PYTHONPATH that defines this ``task_instance_mutation_hook`` function.
+
+    This could be used, for instance, to modify the task instance during retries.
     """
 
 

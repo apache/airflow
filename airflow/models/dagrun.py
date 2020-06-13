@@ -27,8 +27,8 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 from sqlalchemy.orm.session import Session
 from airflow.exceptions import AirflowException
-from airflow.models.base import Base, ID_LEN
-from airflow.settings import Stats
+from airflow.models.base import ID_LEN, Base
+from airflow.settings import Stats, task_instance_mutation_hook
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
@@ -364,6 +364,7 @@ class DagRun(Base, LoggingMixin):
         # check for removed or restored tasks
         task_ids = []
         for ti in tis:
+            task_instance_mutation_hook(ti)
             task_ids.append(ti.task_id)
             task = None
             try:
@@ -385,6 +386,7 @@ class DagRun(Base, LoggingMixin):
                               "removed from DAG '{}'".format(ti, dag))
                 Stats.incr("task_restored_to_dag.{}".format(dag.dag_id), 1, 1)
                 ti.state = State.NONE
+            session.merge(ti)
 
         # check for missing tasks
         for task in six.itervalues(dag.task_dict):
@@ -396,6 +398,7 @@ class DagRun(Base, LoggingMixin):
                     "task_instance_created-{}".format(task.__class__.__name__),
                     1, 1)
                 ti = TaskInstance(task, self.execution_date)
+                task_instance_mutation_hook(ti)
                 session.add(ti)
 
         session.commit()
