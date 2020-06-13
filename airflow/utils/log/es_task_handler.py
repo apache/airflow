@@ -208,7 +208,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         if self.json_format:
             self.formatter = JSONFormatter(
-                self.formatter._fmt,  # pylint: disable=protected-access
                 json_fields=self.json_fields,
                 extras={
                     'dag_id': str(ti.dag_id),
