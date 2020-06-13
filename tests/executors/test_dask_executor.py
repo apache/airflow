@@ -66,7 +66,7 @@ class TestBaseDask(unittest.TestCase):
             if timezone.utcnow() > timeout:
                 raise ValueError(
                     'The futures should have finished; there is probably '
-                    'an error communciating with the Dask cluster.')
+                    'an error communicating with the Dask cluster.')
 
         # both tasks should have finished
         self.assertTrue(success_future.done())
