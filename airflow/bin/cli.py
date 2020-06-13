@@ -72,6 +72,8 @@ from airflow.models import (
 )
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_QUEUED_DEPS)
 from airflow.typing_compat import Protocol
+from airflow.upgrade.checker import check_upgrade
+from airflow.upgrade.formatters import (ConsoleFormatter, JSONFormatter)
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.dot_renderer import render_dag
 from airflow.utils.net import get_hostname
@@ -2273,6 +2275,19 @@ def info(args):
         print(info)
 
 
+def upgrade_check(args):
+    if args.save:
+        filename = args.save
+        if not filename.lower().endswith(".json"):
+            print("Only JSON files are supported", file=sys.stderr)
+        formatter = JSONFormatter(args.save)
+    else:
+        formatter = ConsoleFormatter()
+    all_problems = check_upgrade(formatter)
+    if all_problems:
+        exit(1)
+
+
 class Arg(object):
     def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
                  type=None, choices=None, metavar=None):
@@ -3014,6 +3029,12 @@ class CLIFactory(object):
             'help': 'Show information about current Airflow and environment',
             'func': info,
             'args': ('anonymize', 'file_io', ),
+        },
+        {
+            'name': 'upgrade_check',
+            'help': 'Check if you can upgrade to the new version.',
+            'func': upgrade_check,
+            'args': ('save', ),
         },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
