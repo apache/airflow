@@ -26,6 +26,7 @@ def conn_parse_datetime(datetime: str):
     Datetime format parser for args since connexion doesn't parse datetimes
     https://github.com/zalando/connexion/issues/476
 
+    This should only be used within connection views because it raises 400
     """
     if datetime[-1] != 'Z':
         datetime = datetime.replace(" ", '+')
