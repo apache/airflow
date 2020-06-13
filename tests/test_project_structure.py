@@ -21,6 +21,8 @@ import mmap
 import os
 import unittest
 
+from parameterized import parameterized
+
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)
 )
@@ -174,10 +176,38 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
                     "Can you remove it from the list of missing example, please?"
                 )
 
+    @parameterized.expand(
+        [
+            ("_system.py",),
+            ("_system_helper.py",),
+        ]
+    )
+    def test_detect_invalid_system_tests(self, filename_suffix):
+        operators_tests = self.find_resource_files(top_level_directory="tests", resource_type="operators")
+        operators_files = self.find_resource_files(top_level_directory="airflow", resource_type="operators")
+
+        files = {f for f in operators_tests if f.endswith(filename_suffix)}
+
+        expected_files = (f"tests/{f[8:]}" for f in operators_files)
+        expected_files = (
+            f.replace(".py", filename_suffix).replace("/test_", "/") for f in expected_files
+        )
+        expected_files = {
+            f'{f.rpartition("/")[0]}/test_{f.rpartition("/")[2]}' for f in expected_files
+        }
+
+        self.assertEqual(set(), files-expected_files)
+
     @staticmethod
-    def find_resource_files(department="*", resource_type="*", service="*"):
+    def find_resource_files(
+        top_level_directory: str = "airflow",
+        department: str = "*",
+        resource_type: str = "*",
+        service: str = "*"
+    ):
         resource_files = glob.glob(
-            f"{ROOT_FOLDER}/airflow/providers/google/{department}/{resource_type}/{service}.py")
+            f"{ROOT_FOLDER}/{top_level_directory}/providers/google/{department}/{resource_type}/{service}.py"
+        )
         # Make path relative
         resource_files = (os.path.relpath(f, ROOT_FOLDER) for f in resource_files)
         # Exclude __init__.py and pycache
