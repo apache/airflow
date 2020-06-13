@@ -24,7 +24,7 @@ from collections import defaultdict, Counter
 
 import re
 import sys
-from typing import List
+from typing import List, Optional
 
 from github import Github
 from github.Issue import Issue
@@ -93,6 +93,32 @@ def get_issue_type(issue):
     return issue_type
 
 
+def get_commit_in_master_associated_with_pr(repo: git.Repo, issue: Issue) -> Optional[str]:
+    """For a PR Get find the associated merged commit & return is SHA"""
+    if issue.pull_request:
+        commit = repo.git.log(f"--grep=#{issue.number}", "origin/master", "--format=%H")
+        if commit:
+            return commit
+        else:
+            pr: PullRequest = issue.as_pull_request()
+            if pr.is_merged():
+                commit = pr.merge_commit_sha
+                return commit
+    return None
+
+
+def is_cherrypicked(repo: git.Repo, issue: Issue, previous_version: Optional[str] = None) -> bool:
+    """Check if a given issue is cherry-picked in the current branch or not"""
+    log_args = ['--format=%H', f"--grep=#{issue.number}"]
+    if previous_version:
+        log_args.append(previous_version + "..")
+    log = repo.git.log(*log_args)
+
+    if log:
+        return True
+    return False
+
+
 def print_changelog(sections):
     for section, lines in sections.items():
         print(section)
@@ -122,8 +148,6 @@ def cli():
 @click.option('--unmerged', 'show_uncherrypicked_only', help="Show unmerged issues only", is_flag=True)
 def compare(target_version, github_token, previous_version=None, show_uncherrypicked_only=False):
     repo = git.Repo(".", search_parent_directories=True)
-    # Get a list of issues/PRs that have been commited on the current branch.
-    commits_to_current_branch = get_commits_to_current_branch(repo, previous_version)
 
     github_handler = Github(github_token)
     milestone_issues: List[Issue] = list(github_handler.search_issues(
@@ -146,16 +170,11 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
         commit="COMMIT"))
 
     for issue in milestone_issues:
-        commit = None
-        if issue.pull_request:
-            pr: PullRequest = issue.as_pull_request()
-            if pr.is_merged():
-                commit = pr.merge_commit_sha
-
+        commit_in_master = get_commit_in_master_associated_with_pr(repo, issue)
         status = get_issue_status(issue)
 
         # Checks if commit was cherrypicked into branch.
-        if commit and commit in commits_to_current_branch:
+        if is_cherrypicked(repo, issue, previous_version):
             num_cherrypicked += 1
             if show_uncherrypicked_only:
                 continue
@@ -174,7 +193,7 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
         print(formatstr.format(
             **fields,
             merged=cherrypicked,
-            commit=commit if commit else ""))
+            commit=commit_in_master if commit_in_master else ""))
 
     print("Commits on branch: {0:d}, {1:d} ({2}) yet to be cherry-picked".format(
         num_cherrypicked, sum(num_uncherrypicked.values()), dict(num_uncherrypicked)))
