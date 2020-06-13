@@ -203,7 +203,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.mark_end_on_close = not ti.raw
 
         if self.json_format:
-            self.formatter = JSONFormatter(self.formatter._fmt, json_fields=self.json_fields, extras={
+            self.formatter = JSONFormatter(json_fields=self.json_fields, extras={
                 'dag_id': str(ti.dag_id),
                 'task_id': str(ti.task_id),
                 'execution_date': self._clean_execution_date(ti.execution_date),
