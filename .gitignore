@@ -197,5 +197,3 @@ log.txt*
 
 # Terraform variables
 *.tfvars
-
-*.container_id
