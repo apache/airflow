@@ -243,7 +243,8 @@ function get_remote_image_info() {
     set -e
 
     # Docker needs the file passed to --cidfile to not exist, so we can't use mktemp
-    TMP_CONTAINER_ID="remote-airflow-manifest-$$.container_id"
+    TMP_CONTAINER_DIR="$(mktemp -d)"
+    TMP_CONTAINER_ID="${TMP_CONTAINER_DIR}/remote-airflow-manifest-$$.container_id"
     FILES_TO_CLEANUP_ON_EXIT+=("$TMP_CONTAINER_ID")
 
     TMP_MANIFEST_REMOTE_JSON=$(mktemp)
