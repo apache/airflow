@@ -15,15 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from flask import request
-
-from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection, dagrun_collection_schema, dagrun_schema,
 )
+from airflow.api_connexion.utils import conn_parse_datetime
 from airflow.models import DagRun
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 
 
@@ -49,18 +46,13 @@ def get_dag_run(dag_id, dag_run_id, session):
 
 
 @provide_session
-def get_dag_runs(dag_id, session):
+def get_dag_runs(session, dag_id, start_date_gte=None, start_date_lte=None,
+                 execution_date_gte=None, execution_date_lte=None,
+                 end_date_gte=None, end_date_lte=None, offset=None, limit=None):
     """
     Get all DAG Runs.
     """
-    offset = request.args.get(parameters.page_offset, 0)
-    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
-    start_date_gte = request.args.get(parameters.filter_start_date_gte, None)
-    start_date_lte = request.args.get(parameters.filter_start_date_lte, None)
-    execution_date_gte = request.args.get(parameters.filter_execution_date_gte, None)
-    execution_date_lte = request.args.get(parameters.filter_execution_date_lte, None)
-    end_date_gte = request.args.get(parameters.filter_end_date_gte, None)
-    end_date_lte = request.args.get(parameters.filter_end_date_lte, None)
+
     query = session.query(DagRun)
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
@@ -69,24 +61,25 @@ def get_dag_runs(dag_id, session):
 
     # filter start date
     if start_date_gte:
-        query = query.filter(DagRun.start_date >= timezone.parse(start_date_gte))
+        query = query.filter(DagRun.start_date >= conn_parse_datetime(start_date_gte))
 
     if start_date_lte:
-        query = query.filter(DagRun.start_date <= timezone.parse(start_date_lte))
+
+        query = query.filter(DagRun.start_date <= conn_parse_datetime(start_date_lte))
 
     # filter execution date
     if execution_date_gte:
-        query = query.filter(DagRun.execution_date >= timezone.parse(execution_date_gte))
+        query = query.filter(DagRun.execution_date >= conn_parse_datetime(execution_date_gte))
 
     if execution_date_lte:
-        query = query.filter(DagRun.execution_date <= timezone.parse(execution_date_lte))
+        query = query.filter(DagRun.execution_date <= conn_parse_datetime(execution_date_lte))
 
     # filter end date
     if end_date_gte:
-        query = query.filter(DagRun.end_date >= timezone.parse(end_date_gte))
+        query = query.filter(DagRun.end_date >= conn_parse_datetime(end_date_gte))
 
     if end_date_lte:
-        query = query.filter(DagRun.end_date <= timezone.parse(end_date_lte))
+        query = query.filter(DagRun.end_date <= conn_parse_datetime(end_date_lte))
 
     # apply offset and limit
     dag_run = query.offset(offset).limit(limit)

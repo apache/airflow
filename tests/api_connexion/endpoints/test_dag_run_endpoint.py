@@ -229,11 +229,11 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
         session.add_all(dagrun_models)
         session.commit()
 
-        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns?limit=150")
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns")  # default is 100
         assert response.status_code == 200
 
         self.assertEqual(response.json["total_entries"], 200)
-        self.assertEqual(len(response.json["dag_runs"]), 100)
+        self.assertEqual(len(response.json["dag_runs"]), 100)  # default is 100
 
     def _create_dag_runs(self, count):
         return [
@@ -253,26 +253,26 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
     @parameterized.expand(
         [
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18:00:00Z",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18:00:00+00:00",
                 ["TEST_START_EXEC_DAY_18", "TEST_START_EXEC_DAY_19"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-11T18:00:00Z",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-11T18:00:00+00:00",
                 ["TEST_START_EXEC_DAY_10", "TEST_START_EXEC_DAY_11"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-15T18:00:00Z"
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-15T18:00:00+00:00"
                 "&start_date_gte=2020-06-12T18:00:00Z",
                 ["TEST_START_EXEC_DAY_12", "TEST_START_EXEC_DAY_13",
                  "TEST_START_EXEC_DAY_14", "TEST_START_EXEC_DAY_15"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte=2020-06-13T18:00:00Z",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte=2020-06-13T18:00:00+00:00",
                 ["TEST_START_EXEC_DAY_10", "TEST_START_EXEC_DAY_11",
                  "TEST_START_EXEC_DAY_12", "TEST_START_EXEC_DAY_13"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-16T18:00:00Z",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-16T18:00:00+00:00",
                 ["TEST_START_EXEC_DAY_16", "TEST_START_EXEC_DAY_17",
                  "TEST_START_EXEC_DAY_18", "TEST_START_EXEC_DAY_19"],
             ),
@@ -292,11 +292,11 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
 
     def _create_dag_runs(self):
         dates = [
-            '2020-06-10T18:00:00Z',
-            '2020-06-11T18:00:00Z',
-            '2020-06-12T18:00:00Z',
-            '2020-06-13T18:00:00Z',
-            '2020-06-14T18:00:00Z',
+            '2020-06-10T18:00:00+00:00',
+            '2020-06-11T18:00:00+00:00',
+            '2020-06-12T18:00:00+00:00',
+            '2020-06-13T18:00:00+00:00',
+            '2020-06-14T18:00:00+00:00',
             '2020-06-15T18:00:00Z',
             '2020-06-16T18:00:00Z',
             '2020-06-17T18:00:00Z',
