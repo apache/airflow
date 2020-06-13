@@ -14,41 +14,77 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8142
+from flask import Response, make_response, request
+from marshmallow import ValidationError
+
+from airflow.api_connexion.exceptions import BadRequest, NotFound
+from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
+from airflow.models import Variable
+from airflow.utils.session import provide_session
 
 
-def delete_variable():
+def delete_variable(variable_key: str) -> Response:
     """
     Delete variable
     """
-    raise NotImplementedError("Not implemented yet.")
+    Variable.delete(variable_key)
+    return make_response('', 204)
 
 
-def get_variable():
+def get_variable(variable_key: str) -> Response:
     """
     Get a variables by key
     """
-    raise NotImplementedError("Not implemented yet.")
+    try:
+        var = Variable.get(variable_key)
+    except KeyError:
+        raise NotFound("Variable not found")
+    return variable_schema.dump({"key": variable_key, "val": var})
 
 
-def get_variables():
+@provide_session
+def get_variables(offset: Optional[int], limit: Optional[int], session) -> Response:
     """
     Get all variable values
     """
-    raise NotImplementedError("Not implemented yet.")
+    query = session.query(Variable)
+    if limit:
+        if offset:
+            query = query.offset(offset * limit)
+        query = query.limit(limit)
+    variables = query.all()
+    return variable_collection_schema.dump({
+        "variables": variables,
+        "total_entries": len(variables),
+    })
 
 
-def patch_variable():
+@provide_session
+def patch_variable(variable_key: str):
     """
     Update a variable by key
     """
-    raise NotImplementedError("Not implemented yet.")
+    try:
+        var = variable_schema.loads(request.get_data())
+    except ValidationError as err:
+        raise BadRequest("Invalid Variable schema", detail=str(err.messages))
+
+    if var.data["key"] != variable_key:
+        raise BadRequest("Invalid post body", detail="key from request body doesn't match uri parameter")
+
+    Variable.set(var.data["key"], var.data["val"])
+    return make_response('', 204)
 
 
 def post_variables():
     """
     Create a variable
     """
-    raise NotImplementedError("Not implemented yet.")
+    try:
+        var = variable_schema.loads(request.get_data())
+    except ValidationError as err:
+        raise BadRequest("Invalid Variable schema", detail=str(err.messages))
+    Variable.set(var.data["key"], var.data["val"])
+    return variable_schema.dump(var)
