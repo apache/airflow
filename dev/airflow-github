@@ -24,7 +24,11 @@ from collections import defaultdict, Counter
 
 import re
 import sys
+from typing import List
+
 from github import Github
+from github.Issue import Issue
+from github.PullRequest import PullRequest
 
 GIT_COMMIT_FIELDS = ['id', 'author_name',
                      'author_email', 'date', 'subject', 'body']
@@ -49,6 +53,7 @@ STATUS_COLOR_MAP = {
 }
 
 DEFAULT_SECTION_NAME = 'Uncategorized'
+
 
 def get_commits_to_current_branch(repo, previous_version=None):
     log_args = ['--format="%H"']
@@ -117,11 +122,11 @@ def cli():
 @click.option('--unmerged', 'show_uncherrypicked_only', help="Show unmerged issues only", is_flag=True)
 def compare(target_version, github_token, previous_version=None, show_uncherrypicked_only=False):
     repo = git.Repo(".", search_parent_directories=True)
-    commits_to_current_branch = get_commits_to_current_branch(
-        repo, previous_version)
+    # Get a list of issues/PRs that have been commited on the current branch.
+    commits_to_current_branch = get_commits_to_current_branch(repo, previous_version)
 
     github_handler = Github(github_token)
-    milestone_issues = list(github_handler.search_issues(
+    milestone_issues: List[Issue] = list(github_handler.search_issues(
         f"repo:apache/airflow milestone:\"Airflow {target_version}\""))
 
     num_cherrypicked = 0
@@ -142,17 +147,15 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
 
     for issue in milestone_issues:
         commit = None
-        for event in issue.get_events():
-            # Checks if event is a commit getting merged into master.
-            if event.event == 'merged':
-                commit = event.commit_id
-        if not commit:
-            continue
+        if issue.pull_request:
+            pr: PullRequest = issue.as_pull_request()
+            if pr.is_merged():
+                commit = pr.merge_commit_sha
 
         status = get_issue_status(issue)
 
         # Checks if commit was cherrypicked into branch.
-        if commit in commits_to_current_branch:
+        if commit and commit in commits_to_current_branch:
             num_cherrypicked += 1
             if show_uncherrypicked_only:
                 continue
@@ -171,7 +174,7 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
         print(formatstr.format(
             **fields,
             merged=cherrypicked,
-            commit=commit))
+            commit=commit if commit else ""))
 
     print("Commits on branch: {0:d}, {1:d} ({2}) yet to be cherry-picked".format(
         num_cherrypicked, sum(num_uncherrypicked.values()), dict(num_uncherrypicked)))
