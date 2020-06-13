@@ -390,6 +390,25 @@ class TestHiveMetastoreHook(HiveEnvironmentTest):
             self.hook.table_exists(str(random.randint(1, 10000)))
         )
 
+    def test_check_hms_clients_load_balance(self):
+        #   checks if every time HMS Hook is instantiated, it gets to
+        #   different HMS server most of the time and not to the same HMS server.
+        connection_count = {}
+        hms_hook = HiveMetastoreHook()
+        hms_server_count = len(hms_hook.get_connections('metastore_default'))
+
+        if hms_server_count > 2:
+            for index in range(2 * hms_server_count):
+                conn = HiveMetastoreHook()._find_valid_server().host
+                if conn in connection_count:
+                    if connection_count[conn] >= (2 * hms_server_count) - 1:
+                        self.assertFalse(1 == 2)
+                    else:
+                        connection_count[conn] = connection_count[conn] + 1
+                else:
+                    connection_count[conn] = 1
+        self.assertTrue(1 == 1)
+
 
 class TestHiveServer2Hook(unittest.TestCase):
 

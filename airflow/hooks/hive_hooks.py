@@ -21,6 +21,7 @@ from __future__ import print_function, unicode_literals
 
 import contextlib
 import os
+import random
 import re
 import subprocess
 import time
@@ -549,6 +550,7 @@ class HiveMetastoreHook(BaseHook):
 
     def _find_valid_server(self):
         conns = self.get_connections(self.conn_id)
+        random.shuffle(conns)
         for conn in conns:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
