@@ -109,7 +109,7 @@ def cli():
 
 @cli.command(short_help='Compare a Github target version against git merges')
 @click.argument('target_version')
-@click.argument('github_token')
+@click.argument('github-token', envvar='GITHUB_TOKEN')
 @click.option('--previous-version',
               'previous_version',
               help="Specify the previous tag on the working branch to limit"
@@ -180,7 +180,7 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
 @cli.command(short_help='Build a CHANGELOG grouped by Github Issue type')
 @click.argument('previous_version')
 @click.argument('target_version')
-@click.argument('github_token')
+@click.argument('github-token', envvar='GITHUB_TOKEN')
 def changelog(previous_version, target_version, github_token):
     repo = git.Repo(".", search_parent_directories=True)
     # Get a list of issues/PRs that have been commited on the current branch.
