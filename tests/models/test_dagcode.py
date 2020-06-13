@@ -18,6 +18,7 @@
 import unittest
 from datetime import timedelta
 
+import pytest
 from mock import patch
 
 from airflow import AirflowException, example_dags as example_dags_module, models
@@ -98,6 +99,7 @@ class TestDagCode(unittest.TestCase):
         with self.assertRaises(AirflowException):
             self._write_two_example_dags()
 
+    @pytest.mark.quarantined
     def test_remove_unused_code(self):
         example_dags = make_example_dags(example_dags_module)
         self._write_example_dags()
