@@ -16,10 +16,10 @@
 # under the License.
 
 import logging
-import shutil
 from pprint import pprint
 
 from airflow import plugins_manager
+from airflow.utils.cli import header
 
 # list to maintain the order of items.
 PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP = [
@@ -56,11 +56,6 @@ PLUGINS_ATTRIBUTES_TO_DUMP = [
 ]
 
 
-def _header(text, fillchar):
-    terminal_size_size = shutil.get_terminal_size((80, 20))
-    print(f" {text} ".center(terminal_size_size.columns, fillchar))
-
-
 def dump_plugins(args):
     """Dump plugins information"""
     plugins_manager.log.setLevel(logging.DEBUG)
@@ -71,7 +66,7 @@ def dump_plugins(args):
     plugins_manager.initialize_extra_operators_links_plugins()
     plugins_manager.initialize_web_ui_plugins()
 
-    _header("PLUGINS MANGER:", "#")
+    header("PLUGINS MANGER:", "#")
 
     for attr_name in PLUGINS_MANAGER_ATTRIBUTES_TO_DUMP:
         attr_value = getattr(plugins_manager, attr_name)
@@ -79,13 +74,13 @@ def dump_plugins(args):
         pprint(attr_value)
     print()
 
-    _header("PLUGINS:", "#")
+    header("PLUGINS:", "#")
     if not plugins_manager.plugins:
         print("No plugins loaded")
     else:
         print(f"Loaded {len(plugins_manager.plugins)} plugins")
         for plugin_no, plugin in enumerate(plugins_manager.plugins, 1):
-            _header(f"{plugin_no}. {plugin.name}", "=")
+            header(f"{plugin_no}. {plugin.name}", "=")
             for attr_name in PLUGINS_ATTRIBUTES_TO_DUMP:
                 attr_value = getattr(plugin, attr_name)
                 print(f"{attr_name} = ", end='')

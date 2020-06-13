@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import socket
 import sys
 import threading
@@ -255,3 +256,8 @@ def should_use_colors(args) -> bool:
     if args.color == ColorMode.OFF:
         return False
     return is_terminal_support_colors()
+
+
+def header(text: str, fillchar: str):
+    terminal_size_size = shutil.get_terminal_size((80, 20))
+    print(f" {text} ".center(terminal_size_size.columns, fillchar))

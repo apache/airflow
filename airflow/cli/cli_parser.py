@@ -1299,7 +1299,14 @@ airflow_commands: List[CLICommand] = [
             'https://airflow.readthedocs.io/en/stable/executor/celery.html'
         ),
         subcommands=CELERY_COMMANDS
-    )
+    ),
+    ActionCommand(
+        name='upgrade_check',
+        help='Check if you can upgrade to the new version.',
+        func=lazy_load_command('airflow.cli.commands.upgrade_check_command.upgrade_check'),
+        args=(ARG_SAVE, ),
+    ),
+
 ]
 ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
 DAG_CLI_COMMANDS: Set[str] = {
