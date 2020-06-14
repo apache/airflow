@@ -89,4 +89,4 @@ class MSSQLToOracleTransferOperator(BaseOperator):
     def execute(self, context):
         src_hook = MsSqlHook(mssql_conn_id=self.mssql_source_conn_id)
         dest_hook = OracleHook(oracle_conn_id=self.oracle_destination_conn_id)
-        self._execute(src_hook, dest_hook, context)
+        self._execute(src_hook, dest_hook)
