@@ -25,7 +25,6 @@ import sys
 from contextlib import suppress
 from functools import total_ordering
 from glob import glob
-from itertools import chain
 from subprocess import run
 from tempfile import NamedTemporaryFile
 from typing import Iterable, List, NamedTuple, Optional, Set
@@ -163,10 +162,9 @@ def check_guide_links_in_operator_descriptions():
                     message=(
                         f"Link to the guide is missing in operator's description: {operator_name}.\n"
                         f"Please add link to the guide to the description in the following form:\n"
-                        f"\n"
                         f".. seealso::\n"
-                        f"    For more information on how to use this operator, take a look at the guide:\n"
-                        f"    :ref:`howto/operator:{operator_name}`\n"
+                        f"For more information on how to use this operator, take a look at the guide:\n"
+                        f":ref:`howto/operator:{operator_name}`\n"
                     )
         )
 
@@ -174,29 +172,25 @@ def check_guide_links_in_operator_descriptions():
     operator_names = find_existing_guide_operator_names()
 
     # Extract all potential python modules that can contain operators
-    python_module_paths = chain(
-        glob(f"{ROOT_PACKAGE_DIR}/operators/*.py"),
-        glob(f"{ROOT_PACKAGE_DIR}/sensors/*.py"),
-        glob(f"{ROOT_PACKAGE_DIR}/providers/**/operators/*.py", recursive=True),
-        glob(f"{ROOT_PACKAGE_DIR}/providers/**/sensors/*.py", recursive=True),
-    )
+    python_module_paths = glob(f"{ROOT_PACKAGE_DIR}/**/*.py", recursive=True)
 
     for py_module_path in python_module_paths:
         with open(py_module_path) as f:
             py_content = f.read()
-        for existing_operator in operator_names:
-            if f"class {existing_operator}" not in py_content:
-                continue
-            # This is a potential file with necessary class definition.
-            # To make sure it's a real Python class definition, we build AST tree
-            ast_tree = ast.parse(py_content)
-            class_def = extract_ast_class_def_by_name(ast_tree, existing_operator)
+            for existing_operator in operator_names:
+                if f"class {existing_operator}" in py_content:
+                    # This is a potential file with necessary class definition.
+                    # To make sure it's a real Python class definition, we build AST tree
+                    ast_tree = ast.parse(py_content)
+                    class_def = extract_ast_class_def_by_name(ast_tree, existing_operator)
 
-            # Real class definition is found and docstring does not contain reference to the existing guide
-            if class_def is not None and f":ref:`howto/operator:{existing_operator}`" not in ast.get_docstring(class_def):
-                build_errors.append(
-                    generate_build_error(py_module_path, class_def.lineno, existing_operator)
-                )
+                    if class_def is not None:
+                        # Real class definition is found
+                        if f":ref:`howto/operator:{existing_operator}`" not in ast.get_docstring(class_def):
+                            # Docstring does not contain reference to the existing guide
+                            build_errors.append(
+                                generate_build_error(py_module_path, class_def.lineno, existing_operator)
+                            )
 
 
 def assert_file_not_contains(file_path: str, pattern: str, message: str) -> None:
