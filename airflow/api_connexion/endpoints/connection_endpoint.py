@@ -25,11 +25,9 @@ from airflow.api_connexion.schemas.connection_schema import (
 )
 from airflow.models import Connection
 from airflow.utils.session import provide_session
-from airflow.www.app import csrf
 
 
 @provide_session
-@csrf.exempt
 def delete_connection(connection_id, session):
     """
     Delete a connection entry
@@ -67,7 +65,6 @@ def get_connections(session, limit, offset=0):
 
 
 @provide_session
-@csrf.exempt
 def patch_connection(connection_id, session, update_mask=None):
     """
     Update a connection entry
@@ -88,7 +85,6 @@ def patch_connection(connection_id, session, update_mask=None):
 
 
 @provide_session
-@csrf.exempt
 def post_connection(session):
     """
     Create connection entry
