@@ -49,7 +49,7 @@ class TestEventLogSchemaBase(unittest.TestCase):
 class TestEventLogSchema(TestEventLogSchemaBase):
 
     @provide_session
-    def test_serialze(self, session):
+    def test_serialize(self, session):
         event_log_model = Log(
             event="TEST_EVENT",
             task_instance=self._create_task_instance()
