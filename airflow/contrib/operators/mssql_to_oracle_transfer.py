@@ -65,7 +65,6 @@ class MSSQLToOracleTransferOperator(BaseOperator):
         self.source_sql_params = source_sql_params
         self.rows_chunk = rows_chunk
 
-    # pylint: disable=unused-argument
     def _execute(self, src_hook: str, dest_hook: str):
         with src_hook.get_conn() as src_conn:
             cursor = src_conn.cursor()
