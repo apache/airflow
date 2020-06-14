@@ -16,16 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import datetime
 import socket
 from datetime import timedelta
 from typing import Optional
 from urllib.parse import urlparse
 
-import flask
-import flask_login
 import pendulum
-from flask import Flask, session as flask_session
+from flask import Flask
 from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
@@ -36,8 +33,11 @@ from airflow import settings, version
 from airflow.configuration import conf
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
-from airflow.www.extensions.init_views import init_appbuilder_views, init_plugins, init_error_handlers, \
-    init_api_connexion, init_api_experimental, init_flash_views
+from airflow.www.extensions.init_session import init_logout_timeout, init_permanent_session
+from airflow.www.extensions.init_views import (
+    init_api_connexion, init_api_experimental, init_appbuilder_views, init_error_handlers, init_flash_views,
+    init_plugins,
+)
 from airflow.www.static_config import configure_manifest_files
 
 app: Optional[Flask] = None
@@ -212,16 +212,6 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
                 return globals
 
-        def init_logout_timeout(app):
-            @app.before_request
-            def before_request():
-                _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
-                if _force_log_out_after > 0:
-                    flask.session.permanent = True
-                    app.permanent_session_lifetime = datetime.timedelta(minutes=_force_log_out_after)
-                    flask.session.modified = True
-                    flask.g.user = flask_login.current_user
-
         def init_xframe_protection(app):
             @app.after_request
             def apply_caching(response):
@@ -229,11 +219,6 @@ def create_app(config=None, testing=False, app_name="Airflow"):
                 if not _x_frame_enabled:
                     response.headers["X-Frame-Options"] = "DENY"
                 return response
-
-        def init_permanent_session(app):
-            @app.before_request
-            def make_session_permanent():
-                flask_session.permanent = True
 
         init_appbuilder(app)
 
