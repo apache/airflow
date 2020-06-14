@@ -106,45 +106,52 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     db.session = settings.Session
     db.init_app(app)
 
-    from airflow import api
-    api.load_auth()
-    api.API_AUTH.api_auth.init_app(app)
+    def init_api_experimental_auth():
+        from airflow import api
+        api.load_auth()
+        api.API_AUTH.api_auth.init_app(app)
+    init_api_experimental_auth()
 
     Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
-    from airflow.www.blueprints import routes
-    app.register_blueprint(routes)
+    def init_flash_views(app):
+        from airflow.www.blueprints import routes
+        app.register_blueprint(routes)
+
+    init_flash_views(app)
 
     configure_logging()
     configure_manifest_files(app)
 
     with app.app_context():
-        from airflow.www.security import AirflowSecurityManager
-        security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
-            AirflowSecurityManager
+        def init_appbuilder(app):
+            from airflow.www.security import AirflowSecurityManager
+            security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
+                AirflowSecurityManager
 
-        if not issubclass(security_manager_class, AirflowSecurityManager):
-            raise Exception(
-                """Your CUSTOM_SECURITY_MANAGER must now extend AirflowSecurityManager,
-                 not FAB's security manager.""")
+            if not issubclass(security_manager_class, AirflowSecurityManager):
+                raise Exception(
+                    """Your CUSTOM_SECURITY_MANAGER must now extend AirflowSecurityManager,
+                     not FAB's security manager.""")
 
-        class AirflowAppBuilder(AppBuilder):
+            class AirflowAppBuilder(AppBuilder):
 
-            def _check_and_init(self, baseview):
-                if hasattr(baseview, 'datamodel'):
-                    # Delete sessions if initiated previously to limit side effects. We want to use
-                    # the current session in the current application.
-                    baseview.datamodel.session = None
-                return super()._check_and_init(baseview)
+                def _check_and_init(self, baseview):
+                    if hasattr(baseview, 'datamodel'):
+                        # Delete sessions if initiated previously to limit side effects. We want to use
+                        # the current session in the current application.
+                        baseview.datamodel.session = None
+                    return super()._check_and_init(baseview)
 
-        appbuilder = AirflowAppBuilder(
-            app=app,
-            session=settings.Session,
-            security_manager_class=security_manager_class,
-            base_template='airflow/master.html',
-            update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
+            AirflowAppBuilder(
+                app=app,
+                session=settings.Session,
+                security_manager_class=security_manager_class,
+                base_template='airflow/master.html',
+                update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
 
-        def init_views(appbuilder):
+        def init_appbuilder_views(app):
+            appbuilder = app.appbuilder
             from airflow.www import views
             # Remove the session from scoped_session registry to avoid
             # reusing a session with a disconnected connection
@@ -183,7 +190,13 @@ def create_app(config=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.XComModelView,
                                 "XComs",
                                 category="Admin")
+            appbuilder.add_view(views.VersionView,
+                                'Version',
+                                category='About',
+                                category_icon='fa-th')
 
+        def init_appbuilder_links(app):
+            appbuilder = app.appbuilder
             if "dev" in version.version:
                 airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
             else:
@@ -203,39 +216,28 @@ def create_app(config=None, testing=False, app_name="Airflow"):
             appbuilder.add_link("REST API Reference",
                                 href='/api/v1./api/v1_swagger_ui_index',
                                 category="Docs")
-            appbuilder.add_view(views.VersionView,
-                                'Version',
-                                category='About',
-                                category_icon='fa-th')
 
-            def integrate_plugins():
-                """Integrate plugins to the context"""
-                from airflow import plugins_manager
+        def init_plugins(app):
+            from airflow import plugins_manager
 
-                plugins_manager.initialize_web_ui_plugins()
+            plugins_manager.initialize_web_ui_plugins()
 
-                for v in plugins_manager.flask_appbuilder_views:
-                    log.debug("Adding view %s", v["name"])
-                    appbuilder.add_view(v["view"],
-                                        v["name"],
-                                        category=v["category"])
-                for ml in sorted(plugins_manager.flask_appbuilder_menu_links, key=lambda x: x["name"]):
-                    log.debug("Adding menu link %s", ml["name"])
-                    appbuilder.add_link(ml["name"],
-                                        href=ml["href"],
-                                        category=ml["category"],
-                                        category_icon=ml["category_icon"])
+            appbuilder = app.appbuilder
 
-            integrate_plugins()
-            # Garbage collect old permissions/views after they have been modified.
-            # Otherwise, when the name of a view or menu is changed, the framework
-            # will add the new Views and Menus names to the backend, but will not
-            # delete the old ones.
+            for v in plugins_manager.flask_appbuilder_views:
+                log.debug("Adding view %s", v["name"])
+                appbuilder.add_view(v["view"],
+                                    v["name"],
+                                    category=v["category"])
 
-        def init_plugin_blueprints(app):
-            from airflow.plugins_manager import flask_blueprints
+            for ml in sorted(plugins_manager.flask_appbuilder_menu_links, key=lambda x: x["name"]):
+                log.debug("Adding menu link %s", ml["name"])
+                appbuilder.add_link(ml["name"],
+                                    href=ml["href"],
+                                    category=ml["category"],
+                                    category_icon=ml["category_icon"])
 
-            for bp in flask_blueprints:
+            for bp in plugins_manager.flask_blueprints:
                 log.debug("Adding blueprint %s:%s", bp["name"], bp["blueprint"].import_name)
                 app.register_blueprint(bp["blueprint"])
 
@@ -256,84 +258,105 @@ def create_app(config=None, testing=False, app_name="Airflow"):
             )
             app.register_error_handler(ProblemException, connexion_app.common_error_handler)
 
-        init_views(appbuilder)
-        init_plugin_blueprints(app)
+        def sync_appbuildder_roles(app):
+            # Garbage collect old permissions/views after they have been modified.
+            # Otherwise, when the name of a view or menu is changed, the framework
+            # will add the new Views and Menus names to the backend, but will not
+            # delete the old ones.
+            if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
+                security_manager = app.appbuilder.sm
+                security_manager.sync_roles()
+
+        def init_api_experimental(app):
+            from airflow.www.api.experimental import endpoints as e
+            # required for testing purposes otherwise the module retains
+            # a link to the default_auth
+            if app.config['TESTING']:
+                import importlib
+                importlib.reload(e)
+
+            app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
+            app.extensions['csrf'].exempt(e.api_experimental)
+
+        def init_jinja_globals(app):
+            server_timezone = conf.get('core', 'default_timezone')
+            if server_timezone == "system":
+                server_timezone = pendulum.local_timezone().name
+            elif server_timezone == "utc":
+                server_timezone = "UTC"
+
+            default_ui_timezone = conf.get('webserver', 'default_ui_timezone')
+            if default_ui_timezone == "system":
+                default_ui_timezone = pendulum.local_timezone().name
+            elif default_ui_timezone == "utc":
+                default_ui_timezone = "UTC"
+            if not default_ui_timezone:
+                default_ui_timezone = server_timezone
+
+            @app.context_processor
+            def jinja_globals():  # pylint: disable=unused-variable
+
+                globals = {
+                    'server_timezone': server_timezone,
+                    'default_ui_timezone': default_ui_timezone,
+                    'hostname': socket.getfqdn() if conf.getboolean(
+                        'webserver', 'EXPOSE_HOSTNAME', fallback=True) else 'redact',
+                    'navbar_color': conf.get(
+                        'webserver', 'NAVBAR_COLOR'),
+                    'log_fetch_delay_sec': conf.getint(
+                        'webserver', 'log_fetch_delay_sec', fallback=2),
+                    'log_auto_tailing_offset': conf.getint(
+                        'webserver', 'log_auto_tailing_offset', fallback=30),
+                    'log_animation_speed': conf.getint(
+                        'webserver', 'log_animation_speed', fallback=1000)
+                }
+
+                if 'analytics_tool' in conf.getsection('webserver'):
+                    globals.update({
+                        'analytics_tool': conf.get('webserver', 'ANALYTICS_TOOL'),
+                        'analytics_id': conf.get('webserver', 'ANALYTICS_ID')
+                    })
+
+                return globals
+
+        def init_logout_timeout(app):
+            @app.before_request
+            def before_request():
+                _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
+                if _force_log_out_after > 0:
+                    flask.session.permanent = True
+                    app.permanent_session_lifetime = datetime.timedelta(minutes=_force_log_out_after)
+                    flask.session.modified = True
+                    flask.g.user = flask_login.current_user
+
+        def init_xframe_protection(app):
+            @app.after_request
+            def apply_caching(response):
+                _x_frame_enabled = conf.getboolean('webserver', 'X_FRAME_ENABLED', fallback=True)
+                if not _x_frame_enabled:
+                    response.headers["X-Frame-Options"] = "DENY"
+                return response
+
+        def init_permanent_session(app):
+            @app.before_request
+            def make_session_permanent():
+                flask_session.permanent = True
+
+        init_appbuilder(app)
+
+        init_appbuilder_views(app)
+        init_appbuilder_links(app)
+        init_plugins(app)
         init_error_handlers(app)
         init_api_connexion(app)
+        init_api_experimental(app)
 
-        if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
-            security_manager = appbuilder.sm
-            security_manager.sync_roles()
+        sync_appbuildder_roles(app)
 
-        from airflow.www.api.experimental import endpoints as e
-        # required for testing purposes otherwise the module retains
-        # a link to the default_auth
-        if app.config['TESTING']:
-            import importlib
-            importlib.reload(e)
-
-        app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
-        app.extensions['csrf'].exempt(e.api_experimental)
-
-        server_timezone = conf.get('core', 'default_timezone')
-        if server_timezone == "system":
-            server_timezone = pendulum.local_timezone().name
-        elif server_timezone == "utc":
-            server_timezone = "UTC"
-
-        default_ui_timezone = conf.get('webserver', 'default_ui_timezone')
-        if default_ui_timezone == "system":
-            default_ui_timezone = pendulum.local_timezone().name
-        elif default_ui_timezone == "utc":
-            default_ui_timezone = "UTC"
-        if not default_ui_timezone:
-            default_ui_timezone = server_timezone
-
-        @app.context_processor
-        def jinja_globals():  # pylint: disable=unused-variable
-
-            globals = {
-                'server_timezone': server_timezone,
-                'default_ui_timezone': default_ui_timezone,
-                'hostname': socket.getfqdn() if conf.getboolean(
-                    'webserver', 'EXPOSE_HOSTNAME', fallback=True) else 'redact',
-                'navbar_color': conf.get(
-                    'webserver', 'NAVBAR_COLOR'),
-                'log_fetch_delay_sec': conf.getint(
-                    'webserver', 'log_fetch_delay_sec', fallback=2),
-                'log_auto_tailing_offset': conf.getint(
-                    'webserver', 'log_auto_tailing_offset', fallback=30),
-                'log_animation_speed': conf.getint(
-                    'webserver', 'log_animation_speed', fallback=1000)
-            }
-
-            if 'analytics_tool' in conf.getsection('webserver'):
-                globals.update({
-                    'analytics_tool': conf.get('webserver', 'ANALYTICS_TOOL'),
-                    'analytics_id': conf.get('webserver', 'ANALYTICS_ID')
-                })
-
-            return globals
-
-        @app.before_request
-        def before_request():
-            _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
-            if _force_log_out_after > 0:
-                flask.session.permanent = True
-                app.permanent_session_lifetime = datetime.timedelta(minutes=_force_log_out_after)
-                flask.session.modified = True
-                flask.g.user = flask_login.current_user
-
-        @app.after_request
-        def apply_caching(response):
-            _x_frame_enabled = conf.getboolean('webserver', 'X_FRAME_ENABLED', fallback=True)
-            if not _x_frame_enabled:
-                response.headers["X-Frame-Options"] = "DENY"
-            return response
-
-        @app.before_request
-        def make_session_permanent():
-            flask_session.permanent = True
+        init_jinja_globals(app)
+        init_logout_timeout(app)
+        init_xframe_protection(app)
+        init_permanent_session(app)
 
     return app
 
