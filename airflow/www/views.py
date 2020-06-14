@@ -1883,7 +1883,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def paused(self):
         dag_id = request.args.get('dag_id')
-        is_paused = True if request.args.get('is_paused') == 'false' else False
+        is_paused = bool(request.args.get('is_paused') == 'false')
         models.DagModel.get_dagmodel(dag_id).set_is_paused(
             is_paused=is_paused)
         return "OK"

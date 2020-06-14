@@ -190,7 +190,7 @@ def task_info(dag_id, task_id):
 def dag_paused(dag_id, paused):
     """(Un)pauses a dag"""
 
-    is_paused = True if paused == 'true' else False
+    is_paused = bool(paused == 'true')
 
     models.DagModel.get_dagmodel(dag_id).set_is_paused(
         is_paused=is_paused,
