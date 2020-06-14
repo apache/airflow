@@ -196,7 +196,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
             f'{f.rpartition("/")[0]}/test_{f.rpartition("/")[2]}' for f in expected_files
         }
 
-        self.assertEqual(set(), files-expected_files)
+        self.assertEqual(set(), files - expected_files)
 
     @staticmethod
     def find_resource_files(
@@ -205,11 +205,11 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         resource_type: str = "*",
         service: str = "*"
     ):
-        resource_files = glob.glob(
+        python_files = glob.glob(
             f"{ROOT_FOLDER}/{top_level_directory}/providers/google/{department}/{resource_type}/{service}.py"
         )
         # Make path relative
-        resource_files = (os.path.relpath(f, ROOT_FOLDER) for f in resource_files)
+        resource_files = (os.path.relpath(f, ROOT_FOLDER) for f in python_files)
         # Exclude __init__.py and pycache
         resource_files = (f for f in resource_files if not f.endswith("__init__.py"))
         return resource_files
