@@ -18,7 +18,6 @@
 
 import json
 import os
-from typing import Dict
 
 from flask import url_for
 

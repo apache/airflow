@@ -24,7 +24,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from airflow.configuration import conf
 
 
-def _root_app(env, resp):
+def _root_app(_, resp):
     resp(b'404 Not Found', [('Content-Type', 'text/plain')])
     return [b'Apache Airflow is not at this location']
 

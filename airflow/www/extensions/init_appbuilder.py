@@ -22,6 +22,7 @@ from airflow.configuration import conf
 
 
 def init_appbuilder(app):
+    """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
     from airflow.www.security import AirflowSecurityManager
 
     security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or AirflowSecurityManager
@@ -33,6 +34,9 @@ def init_appbuilder(app):
         )
 
     class AirflowAppBuilder(AppBuilder):
+        """
+        Custom class to prevent side effects of the session.
+        """
         def _check_and_init(self, baseview):
             if hasattr(baseview, 'datamodel'):
                 # Delete sessions if initiated previously to limit side effects. We want to use
