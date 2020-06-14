@@ -32,7 +32,6 @@ from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.strings import to_boolean
 from airflow.version import version
-from airflow.www.app import csrf
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +40,6 @@ requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 api_experimental = Blueprint('api_experimental', __name__)
 
 
-@csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
 @requires_authentication
 def trigger_dag(dag_id):
@@ -100,7 +98,6 @@ def trigger_dag(dag_id):
     return response
 
 
-@csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>', methods=['DELETE'])
 @requires_authentication
 def delete_dag(dag_id):
@@ -337,7 +334,6 @@ def get_pools():
         return jsonify([p.to_json() for p in pools])
 
 
-@csrf.exempt
 @api_experimental.route('/pools', methods=['POST'])
 @requires_authentication
 def create_pool():
@@ -354,7 +350,6 @@ def create_pool():
         return jsonify(pool.to_json())
 
 
-@csrf.exempt
 @api_experimental.route('/pools/<string:name>', methods=['DELETE'])
 @requires_authentication
 def delete_pool(name):
@@ -370,7 +365,6 @@ def delete_pool(name):
         return jsonify(pool.to_json())
 
 
-@csrf.exempt
 @api_experimental.route('/lineage/<string:dag_id>/<string:execution_date>',
                         methods=['GET'])
 @requires_authentication

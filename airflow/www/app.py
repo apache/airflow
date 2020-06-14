@@ -43,7 +43,6 @@ from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
 
 app: Optional[Flask] = None
-csrf = CSRFProtect()
 
 # airflow/www/app.py => airflow/
 ROOT_APP_DIR = path.abspath(path.join(path.dirname(__file__), path.pardir))
@@ -77,7 +76,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     # Configure the JSON encoder used by `|tojson` filter from Flask
     app.json_encoder = AirflowJsonEncoder
 
-    csrf.init_app(app)
+    CSRFProtect(app)
 
     def apply_middlewares(flask_app: Flask):
         # Apply DispatcherMiddleware
@@ -274,6 +273,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
             importlib.reload(e)
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
+        app.extensions['csrf'].exempt(e.api_experimental)
 
         server_timezone = conf.get('core', 'default_timezone')
         if server_timezone == "system":
