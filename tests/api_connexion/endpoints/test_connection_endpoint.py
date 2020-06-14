@@ -256,6 +256,19 @@ class TestPostConnection(TestConnectionEndpoint):
                           'type': 'about:blank'}
                          )
 
-    @unittest.skip('not implemented yet')
     def test_delete_should_response_409_already_exist(self):
-        pass
+        payload = {
+            "connection_id": "test-connection-id",
+            "conn_type": 'test_type'
+        }
+        response = self.client.post("/api/v1/connections", json=payload)
+        assert response.status_code == 200
+        # Another request
+        response = self.client.post("/api/v1/connections", json=payload)
+        assert response.status_code == 409
+        self.assertEqual(response.json,
+                         {'detail': None,
+                          'status': 409,
+                          'title': 'Connection already exist. ID: test-connection-id',
+                          'type': 'about:blank'}
+                         )
