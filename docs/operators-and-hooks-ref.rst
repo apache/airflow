@@ -1516,6 +1516,11 @@ These integrations allow you to copy data.
      -
      - :mod:`airflow.providers.oracle.transfers.oracle_to_oracle`
 
+   * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
+     - `Oracle <https://www.oracle.com/pl/database/>`__
+     -
+     - :mod:`airflow.contrib.operators.mssql_to_oracle_transfer`
+
    * - `PostgresSQL <https://www.postgresql.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
