@@ -200,7 +200,7 @@ def do_setup_package_providers(provider_package_id: str,
     found_packages = find_packages()
     found_packages = [package for package in found_packages if package.startswith(package_prefix)]
     install_requires = ['apache-airflow~=1.10']
-    install_requires.extend(package_dependencies),
+    install_requires.extend(package_dependencies)
     setuptools_setup(
         name=package_name,
         description=f'Back-ported {package_prefix}.* package for Airflow 1.10.*',
