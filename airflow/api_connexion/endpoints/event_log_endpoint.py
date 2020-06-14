@@ -47,7 +47,7 @@ def get_event_logs(session):
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
     query = session.query(Log)
-    total_entries = query.count()
+    total_entries = session.query(func.count(Log)).scalar()
     query = query.offset(offset).limit(limit)
 
     event_logs = query.all()
