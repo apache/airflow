@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import socket
 
 import pendulum
@@ -6,6 +23,7 @@ from airflow.configuration import conf
 
 
 def init_jinja_globals(app):
+    """Add extra globals variable to Jinja context"""
     server_timezone = conf.get('core', 'default_timezone')
     if server_timezone == "system":
         server_timezone = pendulum.local_timezone().name
@@ -20,28 +38,28 @@ def init_jinja_globals(app):
     if not default_ui_timezone:
         default_ui_timezone = server_timezone
 
-    @app.context_processor
-    def jinja_globals():  # pylint: disable=unused-variable
+    expose_hostname = conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
+    hosstname = socket.getfqdn() if expose_hostname else 'redact'
 
-        globals = {
+    def prepare_jinja_globals():
+        extra_globals = {
             'server_timezone': server_timezone,
             'default_ui_timezone': default_ui_timezone,
-            'hostname': socket.getfqdn() if conf.getboolean(
-                'webserver', 'EXPOSE_HOSTNAME', fallback=True) else 'redact',
-            'navbar_color': conf.get(
-                'webserver', 'NAVBAR_COLOR'),
-            'log_fetch_delay_sec': conf.getint(
-                'webserver', 'log_fetch_delay_sec', fallback=2),
-            'log_auto_tailing_offset': conf.getint(
-                'webserver', 'log_auto_tailing_offset', fallback=30),
-            'log_animation_speed': conf.getint(
-                'webserver', 'log_animation_speed', fallback=1000)
+            'hostname': hosstname,
+            'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
+            'log_fetch_delay_sec': conf.getint('webserver', 'log_fetch_delay_sec', fallback=2),
+            'log_auto_tailing_offset': conf.getint('webserver', 'log_auto_tailing_offset', fallback=30),
+            'log_animation_speed': conf.getint('webserver', 'log_animation_speed', fallback=1000),
         }
 
         if 'analytics_tool' in conf.getsection('webserver'):
-            globals.update({
-                'analytics_tool': conf.get('webserver', 'ANALYTICS_TOOL'),
-                'analytics_id': conf.get('webserver', 'ANALYTICS_ID')
-            })
+            extra_globals.update(
+                {
+                    'analytics_tool': conf.get('webserver', 'ANALYTICS_TOOL'),
+                    'analytics_id': conf.get('webserver', 'ANALYTICS_ID'),
+                }
+            )
 
-        return globals
+        return extra_globals
+
+    app.context_processor(prepare_jinja_globals)

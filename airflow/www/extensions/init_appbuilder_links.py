@@ -19,23 +19,16 @@ from airflow import version
 
 
 def init_appbuilder_links(app):
+    """Add links to Docs menu in navbar"""
     appbuilder = app.appbuilder
     if "dev" in version.version:
-        airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
+        doc_site = "https://airflow.readthedocs.io/en/latest"
     else:
-        airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
+        doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
 
-    appbuilder.add_link("Website",
-                        href='https://airflow.apache.org',
-                        category="Docs",
-                        category_icon="fa-globe")
-    appbuilder.add_link("Documentation",
-                        href=airflow_doc_site,
-                        category="Docs",
-                        category_icon="fa-cube")
-    appbuilder.add_link("GitHub",
-                        href='https://github.com/apache/airflow',
-                        category="Docs")
-    appbuilder.add_link("REST API Reference",
-                        href='/api/v1./api/v1_swagger_ui_index',
-                        category="Docs")
+    appbuilder.add_link(
+        "Website", href='https://airflow.apache.org', category="Docs", category_icon="fa-globe"
+    )
+    appbuilder.add_link("Documentation", href=doc_site, category="Docs", category_icon="fa-cube")
+    appbuilder.add_link("GitHub", href='https://github.com/apache/airflow', category="Docs")
+    appbuilder.add_link("REST API Reference", href='/api/v1./api/v1_swagger_ui_index', category="Docs")

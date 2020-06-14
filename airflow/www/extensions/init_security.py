@@ -19,15 +19,26 @@ from airflow.configuration import conf
 
 
 def init_xframe_protection(app):
-    @app.after_request
+    """
+    Add X-Frame-Options header. Use it avoid click-jacking attacks, by ensuring that their content is not
+    embedded into other sites.
+
+    See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
+    """
+    x_frame_enabled = conf.getboolean('webserver', 'X_FRAME_ENABLED', fallback=True)
+    if not x_frame_enabled:
+        return
+
     def apply_caching(response):
-        _x_frame_enabled = conf.getboolean('webserver', 'X_FRAME_ENABLED', fallback=True)
-        if not _x_frame_enabled:
-            response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Frame-Options"] = "DENY"
         return response
+
+    app.after_request(apply_caching)
 
 
 def init_api_experimental_auth(app):
+    """Initialize authorization in Experimental API"""
     from airflow import api
+
     api.load_auth()
     api.API_AUTH.api_auth.init_app(app)

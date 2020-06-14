@@ -25,7 +25,8 @@ from airflow.configuration import conf
 
 
 def init_logout_timeout(app):
-    @app.before_request
+    """Add logout user after timeout"""
+
     def before_request():
         _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
         if _force_log_out_after > 0:
@@ -34,8 +35,13 @@ def init_logout_timeout(app):
             flask.session.modified = True
             flask.g.user = flask_login.current_user
 
+    app.before_request(before_request)
+
 
 def init_permanent_session(app):
-    @app.before_request
+    """Make session permanent to allows us to store data"""
+
     def make_session_permanent():
         flask_session.permanent = True
+
+    app.before_request(make_session_permanent)

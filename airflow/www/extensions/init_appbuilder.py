@@ -23,16 +23,16 @@ from airflow.configuration import conf
 
 def init_appbuilder(app):
     from airflow.www.security import AirflowSecurityManager
-    security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
-                             AirflowSecurityManager
+
+    security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or AirflowSecurityManager
 
     if not issubclass(security_manager_class, AirflowSecurityManager):
         raise Exception(
             """Your CUSTOM_SECURITY_MANAGER must now extend AirflowSecurityManager,
-             not FAB's security manager.""")
+             not FAB's security manager."""
+        )
 
     class AirflowAppBuilder(AppBuilder):
-
         def _check_and_init(self, baseview):
             if hasattr(baseview, 'datamodel'):
                 # Delete sessions if initiated previously to limit side effects. We want to use
@@ -45,4 +45,5 @@ def init_appbuilder(app):
         session=settings.Session,
         security_manager_class=security_manager_class,
         base_template='airflow/master.html',
-        update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
+        update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'),
+    )
