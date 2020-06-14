@@ -141,9 +141,7 @@ class TestDagCode(unittest.TestCase):
 
     @conf_vars({('core', 'store_dag_code'): 'True'})
     def test_db_code_updated_on_dag_file_change(self):
-        """
-        Test Source Code is updated in DB when DAG File is changed
-        """
+        """Test if DagCode is updated in DB when DAG file is changed"""
         example_dag = make_example_dags(example_dags_module).get('example_bash_operator')
         example_dag.sync_to_db()
 
@@ -158,9 +156,9 @@ class TestDagCode(unittest.TestCase):
         with patch('airflow.models.dagcode.os.path.getmtime') as mock_mtime:
             if six.PY2:
                 mock_mtime.return_value = pendulum.instance(
-                    result.last_updated + timedelta(seconds=121)).timestamp()
+                    result.last_updated + timedelta(seconds=1)).timestamp()
             else:
-                mock_mtime.return_value = (result.last_updated + timedelta(seconds=121)).timestamp()
+                mock_mtime.return_value = (result.last_updated + timedelta(seconds=1)).timestamp()
 
             with patch('airflow.models.dagcode.DagCode._get_code_from_file') as mock_code:
                 mock_code.return_value = "# dummy code"
@@ -173,4 +171,4 @@ class TestDagCode(unittest.TestCase):
 
                     self.assertEqual(new_result.fileloc, example_dag.fileloc)
                     self.assertEqual(new_result.source_code, "# dummy code")
-                    self.assertGreaterEqual(new_result.last_updated, result.last_updated)
+                    self.assertGreater(new_result.last_updated, result.last_updated)

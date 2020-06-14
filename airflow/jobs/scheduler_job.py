@@ -450,7 +450,7 @@ class SchedulerJob(BaseJob):
         # This is a temporary fix for 1.10.4 release.
         # Background: AIRFLOW-4297
         # TODO: refactor manage_slas() to handle related issues.
-        if dag._schedule_interval is None:
+        if dag.normalized_schedule_interval is None:
             self.log.info("SLA check for DAGs with schedule_interval 'None'/'@once' are "
                           "skipped in 1.10.4, due to related refactoring going on.")
             return

@@ -584,7 +584,7 @@ class BaseOperator(LoggingMixin):
         schedule_interval as it may not be attached to a DAG.
         """
         if self.has_dag():
-            return self.dag._schedule_interval
+            return self.dag.normalized_schedule_interval
         else:
             return self._schedule_interval
 

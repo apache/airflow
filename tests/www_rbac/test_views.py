@@ -502,6 +502,21 @@ class TestAirflowBaseViews(TestBase):
             self.client.get('home?reset_tags', follow_redirects=True)
             self.assertEqual(None, flask_session[FILTER_TAGS_COOKIE])
 
+    def test_home_status_filter_cookie(self):
+        from airflow.www_rbac.views import FILTER_STATUS_COOKIE
+        with self.client:
+            self.client.get('home', follow_redirects=True)
+            self.assertEqual('all', flask_session[FILTER_STATUS_COOKIE])
+
+            self.client.get('home?status=active', follow_redirects=True)
+            self.assertEqual('active', flask_session[FILTER_STATUS_COOKIE])
+
+            self.client.get('home?status=paused', follow_redirects=True)
+            self.assertEqual('paused', flask_session[FILTER_STATUS_COOKIE])
+
+            self.client.get('home?status=all', follow_redirects=True)
+            self.assertEqual('all', flask_session[FILTER_STATUS_COOKIE])
+
     def test_task(self):
         url = ('task?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
@@ -1493,7 +1508,7 @@ class TestDagACLView(TestBase):
         self.login(username='all_dag_user',
                    password='all_dag_user')
         resp = self.client.get(
-            'dagmodel/autocomplete?query=example_bash&showPaused=True',
+            'dagmodel/autocomplete?query=example_bash',
             follow_redirects=False)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_not_in_response('example_subdag_operator', resp)
@@ -2148,6 +2163,46 @@ class TestTriggerDag(TestBase):
         self.assertEqual(resp.status_code, 200)
         self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
 
+    @mock.patch('airflow.models.dag.DAG.create_dagrun')
+    def test_trigger_dag(self, mock_dagrun):
+        test_dag_id = "example_bash_operator"
+        execution_date = timezone.utcnow()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+        mock_dagrun.return_value = DagRun(
+            dag_id=test_dag_id, run_id=run_id,
+            execution_date=execution_date, start_date=datetime(2020, 1, 1, 1, 1, 1),
+            external_trigger=True,
+            conf={},
+            state="running"
+        )
+
+        response = self.client.post(
+            'trigger?dag_id={}'.format(test_dag_id), data={}, follow_redirects=True)
+        self.check_content_in_response(
+            'Triggered example_bash_operator, it should start any moment now.', response)
+
+    @mock.patch('airflow.models.dag.DAG.create_dagrun')
+    @mock.patch('airflow.utils.dag_processing.os.path.isfile')
+    @conf_vars({("core", "store_serialized_dags"): "True"})
+    def test_trigger_serialized_dag(self, mock_os_isfile, mock_dagrun):
+        mock_os_isfile.return_value = False
+
+        test_dag_id = "example_bash_operator"
+        execution_date = timezone.utcnow()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+        mock_dagrun.return_value = DagRun(
+            dag_id=test_dag_id, run_id=run_id,
+            execution_date=execution_date, start_date=datetime(2020, 1, 1, 1, 1, 1),
+            external_trigger=True,
+            conf={},
+            state="running"
+        )
+
+        response = self.client.post(
+            'trigger?dag_id={}'.format(test_dag_id), data={}, follow_redirects=True)
+        self.check_content_in_response(
+            'Triggered example_bash_operator, it should start any moment now.', response)
+
 
 class TestExtraLinks(TestBase):
     def setUp(self):
@@ -2235,6 +2290,31 @@ class TestExtraLinks(TestBase):
             'url': 'https://github.com/apache/airflow',
             'error': None
         })
+
+    @mock.patch('airflow.www_rbac.views.dagbag.get_dag')
+    def test_extra_link_in_gantt_view(self, get_dag_function):
+        get_dag_function.return_value = self.dag
+
+        exec_date = dates.days_ago(2)
+        start_date = datetime(2020, 4, 10, 2, 0, 0)
+        end_date = exec_date + timedelta(seconds=30)
+
+        with create_session() as session:
+            for task in self.dag.tasks:
+                ti = TaskInstance(task=task, execution_date=exec_date, state="success")
+                ti.start_date = start_date
+                ti.end_date = end_date
+                session.add(ti)
+
+        url = 'gantt?dag_id={}&execution_date={}'.format(self.dag.dag_id, exec_date)
+        resp = self.client.get(url, follow_redirects=True)
+
+        self.check_content_in_response('"extraLinks":', resp)
+
+        extra_links_grps = re.search(r'extraLinks\": \[(\".*?\")\]', resp.get_data(as_text=True))
+        extra_links = extra_links_grps.group(0)
+        self.assertIn('airflow', extra_links)
+        self.assertIn('github', extra_links)
 
     @mock.patch('airflow.www_rbac.views.dagbag.get_dag')
     def test_operator_extra_link_override_global_extra_link(self, get_dag_function):

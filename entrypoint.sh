@@ -24,8 +24,8 @@ set -euo pipefail
 function verify_db_connection {
     DB_URL="${1}"
 
-    DB_CHECK_MAX_COUNT=${MAX_DB_CHECK_COUNT:=10}
-    DB_CHECK_SLEEP_TIME=${DB_CHECK_SLEEP_TIME:=2}
+    DB_CHECK_MAX_COUNT=${MAX_DB_CHECK_COUNT:=20}
+    DB_CHECK_SLEEP_TIME=${DB_CHECK_SLEEP_TIME:=3}
 
     local DETECTED_DB_BACKEND=""
     local DETECTED_DB_HOST=""

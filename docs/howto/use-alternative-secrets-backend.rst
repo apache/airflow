@@ -19,6 +19,8 @@
 Alternative secrets backend
 ---------------------------
 
+.. versionadded:: 1.10.10
+
 In addition to retrieving connections & variables from environment variables or the metastore database, you can enable
 an alternative secrets backend to retrieve Airflow connections or Airflow variables,
 such as :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`,
@@ -87,6 +89,62 @@ If you have set ``variables_prefix`` as ``/airflow/variables``, then for an Vari
 you would want to store your Variable at ``/airflow/variables/hello``.
 
 Optionally you can supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config``.
+
+AWS Secrets Manager Backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To enable Secrets Manager, specify :py:class:`~airflow.contrib.secrets.aws_secrets_manager.SecretsManagerBackend`
+as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
+
+Here is a sample configuration:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.contrib.secrets.aws_secrets_manager.SecretsManagerBackend
+    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "profile_name": "default"}
+
+To authenticate you can either supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config`` or set
+environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``.
+
+
+Storing and Retrieving Connections
+""""""""""""""""""""""""""""""""""
+
+If you have set ``connections_prefix`` as ``airflow/connections``, then for a connection id of ``smtp_default``,
+you would want to store your connection at ``airflow/connections/smtp_default``.
+
+Example:
+
+.. code-block:: bash
+
+    aws secretsmanager put-secret-value --secret-id airflow/connections/smtp_default --secret-string "smtps://user:host@relay.example.com:465"
+
+Verify that you can get the secret:
+
+.. code-block:: console
+
+    ❯ aws secretsmanager get-secret-value --secret-id airflow/connections/smtp_default
+    {
+        "ARN": "arn:aws:secretsmanager:us-east-2:314524341751:secret:airflow/connections/smtp_default-7meuul",
+        "Name": "airflow/connections/smtp_default",
+        "VersionId": "34f90eff-ea21-455a-9c8f-5ee74b21be672",
+        "SecretString": "smtps://user:host@relay.example.com:465",
+        "VersionStages": [
+            "AWSCURRENT"
+        ],
+        "CreatedDate": "2020-04-08T02:10:35.132000+01:00"
+    }
+
+The value of the secret must be the :ref:`connection URI representation <generating_connection_uri>`
+of the connection object.
+
+Storing and Retrieving Variables
+""""""""""""""""""""""""""""""""
+
+If you have set ``variables_prefix`` as ``airflow/variables``, then for an Variable key of ``hello``,
+you would want to store your Variable at ``airflow/variables/hello``.
+
 
 .. _hashicorp_vault_secrets:
 
@@ -253,19 +311,14 @@ of the connection object.
 Roll your own secrets backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend`, and just has to implement the
-:py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
+A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend` and must implement either
+:py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` or :py:meth:`~airflow.secrets.BaseSecretsBackend.get_conn_uri`.
 
-There are two options:
+After writing your backend class, provide the fully qualified class name in the ``backend`` key in the ``[secrets]``
+section of ``airflow.cfg``.
 
-* Option 1: a base implmentation of the :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` is provided, you just need to implement the
-  :py:meth:`~airflow.secrets.BaseSecretsBackend.get_conn_uri` method to make it functional.
-* Option 2: simply override the :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connections` method.
-
-Just create your class, and put the fully qualified class name in ``backend`` key in the ``[secrets]``
-section of ``airflow.cfg``.  You can you can also pass kwargs to ``__init__`` by supplying json to the
-``backend_kwargs`` config param.  See :ref:`Configuration <secrets_backend_configuration>` for more details,
-and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.
+Additional arguments to your SecretsBackend can be configured in ``airflow.cfg`` by supplying a JSON string to ``backend_kwargs``, which will be passed to the ``__init__`` of your SecretsBackend.
+See :ref:`Configuration <secrets_backend_configuration>` for more details, and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.
 
 .. note::
 
