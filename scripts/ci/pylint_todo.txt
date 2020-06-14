@@ -18,7 +18,6 @@
 ./airflow/models/taskinstance.py
 ./airflow/models/variable.py
 ./airflow/models/xcom.py
-./airflow/settings.py
 ./airflow/stats.py
 ./airflow/www/api/experimental/endpoints.py
 ./airflow/www/app.py
@@ -32,4 +31,3 @@
 ./airflow/www/validators.py
 ./airflow/www/views.py
 ./airflow/www/widgets.py
-./scripts/perf/scheduler_ops_metrics.py

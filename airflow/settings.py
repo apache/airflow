@@ -32,6 +32,7 @@ from sqlalchemy.pool import NullPool
 
 # noinspection PyUnresolvedReferences
 from airflow import api
+# pylint: disable=unused-import
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
 from airflow.utils.sqlalchemy import setup_event_handlers
@@ -51,7 +52,7 @@ try:
         TIMEZONE = pendulum.tz.local_timezone()
     else:
         TIMEZONE = pendulum.tz.timezone(tz)
-except Exception:
+except Exception:  # pylint: disable=broad-except
     pass
 log.info("Configured default timezone %s", TIMEZONE)
 
@@ -81,10 +82,10 @@ engine: Optional[Engine] = None
 Session: Optional[SASession] = None
 
 # The JSON library to use for DAG Serialization and De-Serialization
-json = json
+json = json  # pylint: disable=self-assigning-variable
 
 
-def policy(task: 'BaseOperator'):
+def policy(task: 'BaseOperator'):  # pylint: disable=unused-argument
     """
     This policy setting allows altering tasks after they are loaded in
     the DagBag. It allows administrator to rewire some task parameters.
@@ -103,7 +104,7 @@ def policy(task: 'BaseOperator'):
     """
 
 
-def task_instance_mutation_hook(task_instance: 'TaskInstance'):
+def task_instance_mutation_hook(task_instance: 'TaskInstance'):  # pylint: disable=unused-argument
     """
     This setting allows altering task instances before they are queued by
     the Airflow scheduler.
@@ -115,7 +116,7 @@ def task_instance_mutation_hook(task_instance: 'TaskInstance'):
     """
 
 
-def pod_mutation_hook(pod):
+def pod_mutation_hook(pod):  # pylint: disable=unused-argument
     """
     This setting allows altering ``kubernetes.client.models.V1Pod`` object
     before they are passed to the Kubernetes client by the ``PodLauncher``
@@ -130,7 +131,9 @@ def pod_mutation_hook(pod):
     """
 
 
+# pylint: disable=global-statement
 def configure_vars():
+    """ Configure Global Variables from airflow.cfg"""
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
@@ -145,6 +148,7 @@ def configure_vars():
 
 
 def configure_orm(disable_connection_pool=False):
+    """ Configure ORM using SQLAlchemy"""
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
@@ -226,6 +230,7 @@ def dispose_orm():
 
 
 def configure_adapters():
+    """ Register Adapters and DB Converters """
     from pendulum import DateTime as Pendulum
     try:
         from sqlite3 import register_adapter
@@ -245,6 +250,7 @@ def configure_adapters():
 
 
 def validate_session():
+    """ Validate ORM Session """
     worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
@@ -288,7 +294,8 @@ def prepare_syspath():
 
 
 def import_local_settings():
-    try:
+    """ Import airflow_local_settings.py files to allow overriding any configs in settings.py file """
+    try:  # pylint: disable=too-many-nested-blocks
         import airflow_local_settings
 
         if hasattr(airflow_local_settings, "__all__"):
@@ -305,6 +312,7 @@ def import_local_settings():
 
 
 def initialize():
+    """ Initialize Airflow with all the settings from this file """
     configure_vars()
     prepare_syspath()
     import_local_settings()
@@ -318,6 +326,7 @@ def initialize():
 
     # Ensure we close DB connections at scheduler and gunicon worker terminations
     atexit.register(dispose_orm)
+# pylint: enable=global-statement
 
 
 # Const stuff
