@@ -17,18 +17,14 @@
 # under the License.
 #
 import datetime
-import logging
 import socket
 from datetime import timedelta
-from os import path
 from typing import Optional
 from urllib.parse import urlparse
 
-import connexion
 import flask
 import flask_login
 import pendulum
-from connexion import ProblemException
 from flask import Flask, session as flask_session
 from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
@@ -40,13 +36,11 @@ from airflow import settings, version
 from airflow.configuration import conf
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
+from airflow.www.extensions.init_views import init_appbuilder_views, init_plugins, init_error_handlers, \
+    init_api_connexion, init_api_experimental, init_flash_views
 from airflow.www.static_config import configure_manifest_files
 
 app: Optional[Flask] = None
-
-# airflow/www/app.py => airflow/
-ROOT_APP_DIR = path.abspath(path.join(path.dirname(__file__), path.pardir))
-log = logging.getLogger(__name__)
 
 
 def root_app(env, resp):
@@ -114,10 +108,6 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
     Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
-    def init_flash_views(app):
-        from airflow.www.blueprints import routes
-        app.register_blueprint(routes)
-
     init_flash_views(app)
 
     configure_logging()
@@ -150,51 +140,6 @@ def create_app(config=None, testing=False, app_name="Airflow"):
                 base_template='airflow/master.html',
                 update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
 
-        def init_appbuilder_views(app):
-            appbuilder = app.appbuilder
-            from airflow.www import views
-            # Remove the session from scoped_session registry to avoid
-            # reusing a session with a disconnected connection
-            appbuilder.session.remove()
-            appbuilder.add_view_no_menu(views.Airflow())
-            appbuilder.add_view_no_menu(views.DagModelView())
-            appbuilder.add_view(views.DagRunModelView,
-                                "DAG Runs",
-                                category="Browse",
-                                category_icon="fa-globe")
-            appbuilder.add_view(views.JobModelView,
-                                "Jobs",
-                                category="Browse")
-            appbuilder.add_view(views.LogModelView,
-                                "Logs",
-                                category="Browse")
-            appbuilder.add_view(views.SlaMissModelView,
-                                "SLA Misses",
-                                category="Browse")
-            appbuilder.add_view(views.TaskInstanceModelView,
-                                "Task Instances",
-                                category="Browse")
-            appbuilder.add_view(views.ConfigurationView,
-                                "Configurations",
-                                category="Admin",
-                                category_icon="fa-user")
-            appbuilder.add_view(views.ConnectionModelView,
-                                "Connections",
-                                category="Admin")
-            appbuilder.add_view(views.PoolModelView,
-                                "Pools",
-                                category="Admin")
-            appbuilder.add_view(views.VariableModelView,
-                                "Variables",
-                                category="Admin")
-            appbuilder.add_view(views.XComModelView,
-                                "XComs",
-                                category="Admin")
-            appbuilder.add_view(views.VersionView,
-                                'Version',
-                                category='About',
-                                category_icon='fa-th')
-
         def init_appbuilder_links(app):
             appbuilder = app.appbuilder
             if "dev" in version.version:
@@ -217,47 +162,6 @@ def create_app(config=None, testing=False, app_name="Airflow"):
                                 href='/api/v1./api/v1_swagger_ui_index',
                                 category="Docs")
 
-        def init_plugins(app):
-            from airflow import plugins_manager
-
-            plugins_manager.initialize_web_ui_plugins()
-
-            appbuilder = app.appbuilder
-
-            for v in plugins_manager.flask_appbuilder_views:
-                log.debug("Adding view %s", v["name"])
-                appbuilder.add_view(v["view"],
-                                    v["name"],
-                                    category=v["category"])
-
-            for ml in sorted(plugins_manager.flask_appbuilder_menu_links, key=lambda x: x["name"]):
-                log.debug("Adding menu link %s", ml["name"])
-                appbuilder.add_link(ml["name"],
-                                    href=ml["href"],
-                                    category=ml["category"],
-                                    category_icon=ml["category_icon"])
-
-            for bp in plugins_manager.flask_blueprints:
-                log.debug("Adding blueprint %s:%s", bp["name"], bp["blueprint"].import_name)
-                app.register_blueprint(bp["blueprint"])
-
-        def init_error_handlers(app: Flask):
-            from airflow.www import views
-            app.register_error_handler(500, views.show_traceback)
-            app.register_error_handler(404, views.circles)
-
-        def init_api_connexion(app: Flask):
-            spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
-            connexion_app = connexion.App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
-            connexion_app.app = app
-            connexion_app.add_api(
-                specification='v1.yaml',
-                base_path='/api/v1',
-                validate_responses=True,
-                strict_validation=False
-            )
-            app.register_error_handler(ProblemException, connexion_app.common_error_handler)
-
         def sync_appbuildder_roles(app):
             # Garbage collect old permissions/views after they have been modified.
             # Otherwise, when the name of a view or menu is changed, the framework
@@ -266,17 +170,6 @@ def create_app(config=None, testing=False, app_name="Airflow"):
             if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
                 security_manager = app.appbuilder.sm
                 security_manager.sync_roles()
-
-        def init_api_experimental(app):
-            from airflow.www.api.experimental import endpoints as e
-            # required for testing purposes otherwise the module retains
-            # a link to the default_auth
-            if app.config['TESTING']:
-                import importlib
-                importlib.reload(e)
-
-            app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
-            app.extensions['csrf'].exempt(e.api_experimental)
 
         def init_jinja_globals(app):
             server_timezone = conf.get('core', 'default_timezone')
