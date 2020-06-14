@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from flask import request
 
-from airflow.api_connexion import parameters
+from sqlalchemy import func
+
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.event_log_schema import (
     EventLogCollection, event_log_collection_schema, event_log_schema,
@@ -39,16 +39,13 @@ def get_event_log(event_log_id, session):
 
 
 @provide_session
-def get_event_logs(session):
+def get_event_logs(session, limit, offset=None):
     """
     Get all log entries from event log
     """
-    offset = request.args.get(parameters.page_offset, 0)
-    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
-    query = session.query(Log)
-    total_entries = session.query(func.count(Log)).scalar()
-    query = query.offset(offset).limit(limit)
+    total_entries = session.query(func.count(Log.id)).scalar()
+    query = session.query(Log).offset(offset).limit(limit)
 
     event_logs = query.all()
     return event_log_collection_schema.dump(EventLogCollection(event_logs=event_logs,

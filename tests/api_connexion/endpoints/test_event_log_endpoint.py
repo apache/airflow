@@ -194,11 +194,11 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.add_all(log_models)
         session.commit()
 
-        response = self.client.get("/api/v1/eventLogs?limit=150")
+        response = self.client.get("/api/v1/eventLogs")  # default should be 100
         assert response.status_code == 200
 
         self.assertEqual(response.json["total_entries"], 200)
-        self.assertEqual(len(response.json["event_logs"]), 100)
+        self.assertEqual(len(response.json["event_logs"]), 100)  # default 100
 
     def _create_event_logs(self, count):
         return [
