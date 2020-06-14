@@ -50,9 +50,9 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
     Get all variable values
     """
     query = session.query(Variable)
+    if offset:
+        query = query.offset(offset)
     if limit:
-        if offset:
-            query = query.offset(offset * limit)
         query = query.limit(limit)
     variables = query.all()
     return variable_collection_schema.dump({

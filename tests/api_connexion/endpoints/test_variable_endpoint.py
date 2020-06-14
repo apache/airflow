@@ -41,7 +41,6 @@ class TestDeleteVariable(TestVariableEndpoint):
     def test_should_response_204(self):
         Variable.set("delete_var1", 1)
         response = self.client.delete("/api/v1/variables/delete_var1")
-        print(response.data)
         assert response.status_code == 204
         # make sure variable is deleted
         response = self.client.get("/api/v1/variables/delete_var1")
@@ -81,14 +80,12 @@ class TestGetVariables(TestVariableEndpoint):
         assert response.status_code == 200
         assert response.json == {
             "variables": [
-                {"key": "var3", "value": "[100, 101]"},
+                {"key": "var2"},
+                {"key": "var3"},
             ],
-            "total_entries": 1,
-        }
-
-        response = self.client.get("/api/v1/variables?limit=1&offset=2")
-        assert response.status_code == 200
-        assert response.json == {
+            "total_entries": 2,
+        }),
+        ("/api/v1/variables?limit=1&offset=2", {
             "variables": [
                 {"key": "var3", "value": "[100, 101]"},
             ],
