@@ -140,12 +140,14 @@ def dag_runs(dag_id):
 @api_experimental.route('/test', methods=['GET'])
 @requires_authentication
 def test():
+    """ Test endpoint to check authentication """
     return jsonify(status='OK')
 
 
 @api_experimental.route('/info', methods=['GET'])
 @requires_authentication
 def info():
+    """ Get Airflow Version """
     return jsonify(version=version)
 
 
@@ -167,7 +169,7 @@ def get_dag_code(dag_id):
 def task_info(dag_id, task_id):
     """Returns a JSON with a task's public instance variables. """
     try:
-        info = get_task(dag_id, task_id)
+        t_info = get_task(dag_id, task_id)
     except AirflowException as err:
         log.info(err)
         response = jsonify(error="{}".format(err))
@@ -176,7 +178,7 @@ def task_info(dag_id, task_id):
 
     # JSONify and return.
     fields = {k: str(v)
-              for k, v in vars(info).items()
+              for k, v in vars(t_info).items()
               if not k.startswith('_')}
     return jsonify(fields)
 
@@ -187,7 +189,7 @@ def task_info(dag_id, task_id):
 def dag_paused(dag_id, paused):
     """(Un)pauses a dag"""
 
-    is_paused = True if paused == 'true' else False
+    is_paused = bool(paused == 'true')
 
     models.DagModel.get_dagmodel(dag_id).set_is_paused(
         is_paused=is_paused,
@@ -233,7 +235,7 @@ def task_instance_info(dag_id, execution_date, task_id):
         return response
 
     try:
-        info = get_task_instance(dag_id, task_id, execution_date)
+        ti_info = get_task_instance(dag_id, task_id, execution_date)
     except AirflowException as err:
         log.info(err)
         response = jsonify(error="{}".format(err))
@@ -242,7 +244,7 @@ def task_instance_info(dag_id, execution_date, task_id):
 
     # JSONify and return.
     fields = {k: str(v)
-              for k, v in vars(info).items()
+              for k, v in vars(ti_info).items()
               if not k.startswith('_')}
     return jsonify(fields)
 
@@ -274,14 +276,14 @@ def dag_run_status(dag_id, execution_date):
         return response
 
     try:
-        info = get_dag_run_state(dag_id, execution_date)
+        dr_info = get_dag_run_state(dag_id, execution_date)
     except AirflowException as err:
         log.info(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
 
-    return jsonify(info)
+    return jsonify(dr_info)
 
 
 @api_experimental.route('/latest_runs', methods=['GET'])
@@ -369,6 +371,7 @@ def delete_pool(name):
                         methods=['GET'])
 @requires_authentication
 def get_lineage(dag_id: str, execution_date: str):
+    """ Get Lineage details for a DagRun """
     # Convert string datetime into actual datetime
     try:
         execution_date = timezone.parse(execution_date)

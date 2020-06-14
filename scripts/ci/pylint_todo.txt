@@ -17,7 +17,6 @@
 ./airflow/models/variable.py
 ./airflow/models/xcom.py
 ./airflow/stats.py
-./airflow/www/api/experimental/endpoints.py
 ./airflow/www/blueprints.py
 ./airflow/www/decorators.py
 ./airflow/www/forms.py
