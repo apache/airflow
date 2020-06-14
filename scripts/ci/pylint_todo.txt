@@ -9,7 +9,6 @@
 ./airflow/models/dagbag.py
 ./airflow/models/dagpickle.py
 ./airflow/models/dagrun.py
-./airflow/models/errors.py
 ./airflow/models/kubernetes.py
 ./airflow/models/log.py
 ./airflow/models/pool.py
