@@ -34,10 +34,10 @@ The images are named as follows:
 
 where:
 
-* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: master, v1-10-test, 1.10.10
-  The ``master`` and ``v1-10-test`` labels are built from branches so they change over time. the 1.10.* and in
+* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``master``, ``v1-10-test``, ``1.10.10``
+  The ``master`` and ``v1-10-test`` labels are built from branches so they change over time. The ``1.10.*`` and in
   the future ``2.*`` labels are build from git tags and they are "fixed" once built.
-* PYTHON_MAJOR_MINOR_VERSION - version of python used to build the image. Examples: 3.5, 3.7
+* ``PYTHON_MAJOR_MINOR_VERSION`` - version of python used to build the image. Examples: ``3.5``, ``3.7``
 * The ``-ci`` suffix is added for CI images
 * The ``-manifest`` is added for manifest images (see below for explanation of manifest images)
 
@@ -49,7 +49,7 @@ The easiest way to build those images is to use `<BREEZE.rst>`_.
 Note! Breeze by default builds production image from local sources. You can change it's behaviour by
 providing ``--install-airflow-version`` parameter, where you can specify the
 tag/branch used to download Airflow package from in github repository. You can
-also change the repository itself by adding --dockerhub-user and --dockerhub-repo flag values.
+also change the repository itself by adding ``--dockerhub-user`` and ``--dockerhub-repo`` flag values.
 
 You can build the CI image using this command:
 
@@ -121,9 +121,9 @@ url.
 Technical details of Airflow images
 ===================================
 
-The CI image is used by Breeze as shell image but it is also used during CI builds on Travis.
+The CI image is used by Breeze as shell image but it is also used during CI build.
 The image is single segment image that contains Airflow installation with "all" dependencies installed.
-It is optimised for rebuild speed (AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD flag set to "true").
+It is optimised for rebuild speed (``AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD`` flag set to "true").
 It installs PIP dependencies from the current branch first - so that any changes in setup.py do not trigger
 reinstalling of all dependencies. There is a second step of installation that re-installs the dependencies
 from the latest sources so that we are sure that latest dependencies are installed.
@@ -254,10 +254,6 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | downloaded for constraints (when         |
 |                                          |                                          | installed from repo).                    |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``WWW_FOLDER``                           | ``www``                                  | folder where www pages are generated -   |
-|                                          |                                          | should be set to www_rbac in case of     |
-|                                          |                                          | 1.10 image builds.                       |
-+------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -316,15 +312,15 @@ production image. There are three types of build:
 |                                   | series it should be "www_rbac".   |
 |                                   | See examples below                |
 +-----------------------------------+-----------------------------------+
-| ``AIRFLOW_SOURCES_FROM``          | Sources of Airflow. Should be set |
-|                                   | to "Dockerfile" to avoid costly   |
+| ``AIRFLOW_SOURCES_FROM``          | Sources of Airflow. Set it to     |
+|                                   | "entrypoint.sh" to avoid costly   |
 |                                   | Docker context copying            |
 |                                   | in case of installation from      |
 |                                   | the package or from GitHub URL.   |
 |                                   | See examples below                |
 +-----------------------------------+-----------------------------------+
 | ``AIRFLOW_SOURCES_TO``            | Target for Airflow sources. Set   |
-|                                   | to "/Dockerfile" to avoid costly  |
+|                                   | to "/entrypoint" to avoid costly  |
 |                                   | Docker context copying            |
 |                                   | in case of installation from      |
 |                                   | the package or from GitHub URL.   |
@@ -341,9 +337,7 @@ This builds production image in version 3.6 with default extras from the local s
 This builds the production image in version 3.7 with default extras from 1.10.9 tag and
 requirements taken from v1-10-test branch in Github.
 Note that versions 1.10.9 and below have no requirements so requirements should be taken from head of
-the v1-10-test branch. Once we release 1.10.10 we can take them from the 1.10.10 tag. Also
-Note that in case of Airflow 1.10 we need to specify "www_rbac" instead of "wwww" for
-WWW_FOLDER argument.
+the 1.10.10 tag.
 
 .. code-block::
 
@@ -353,26 +347,23 @@ WWW_FOLDER argument.
     --build-arg AIRFLOW_INSTALL_SOURCES="https://github.com/apache/airflow/archive/1.10.10.tar.gz#egg=apache-airflow" \
     --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt" \
     --build-arg ENTRYPOINT_FILE="https://raw.githubusercontent.com/apache/airflow/1.10.10/entrypoint.sh" \
-    --build-arg SOURCES_FROM="Dockerfile" \
-    --build-arg SOURCES_TO="/Dockerfile" \
-    --build-arg WWW_FOLDER="www_rbac"
+    --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
+    --build-arg AIRFLOW_SOURCES_TO="/entrypoint"
 
-This builds the production image in version 3.6 with default extras from current sources.
+This builds the production image in version 3.7 with default extras from 1.10.10 Pypi package and
+requirements taken from v1-10-test branch in Github.
 
 .. code-block::
 
-  docker build . --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 --build-arg COPY_SOURCE=. \
-    --build-arg COPY_TARGET=/opt/airflow --build-arg AIRFLOW_SOURCES=/opt/airflow \
-    --build-arg CONSTRAINT_REQUIREMENTS=requirements/requirements-python3.7.txt" \
-    --build-arg ENTRYPOINT_FILE=entrypoint.sh \
+  docker build . \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.10" \
-    --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt"
+    --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt" \
     --build-arg ENTRYPOINT_FILE="https://raw.githubusercontent.com/apache/airflow/1.10.10/entrypoint.sh" \
-    --build-arg SOURCES_FROM="Dockerfile" \
-    --build-arg SOURCES_TO="/Dockerfile" \
-    --build-arg WWW_FOLDER="www_rbac"
+    --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
+    --build-arg AIRFLOW_SOURCES_TO="/entrypoint"
 
 Image manifests
 ---------------

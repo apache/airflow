@@ -1,0 +1,294 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+---
+name: CI Build
+on:
+  push:
+    branches: ['master', 'v1-10-test']
+  pull_request:
+    branches: ['master', 'v1-10-test']
+env:
+  MOUNT_LOCAL_SOURCES: "false"
+  FORCE_ANSWER_TO_QUESTIONS: "yes"
+  SKIP_CHECK_REMOTE_IMAGE: "true"
+  SKIP_CI_IMAGE_CHECK: "true"
+  DB_RESET: "true"
+  VERBOSE: "true"
+  UPGRADE_TO_LATEST_REQUIREMENTS: "false"
+  PYTHON_MAJOR_MINOR_VERSION: 3.5
+  CACHE_REGISTRY: "docker.pkg.github.com"
+  CACHE_IMAGE_PREFIX: ${{ github.repository }}
+  CACHE_REGISTRY_USERNAME: ${{ github.actor }}
+  CACHE_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+jobs:
+
+  static-checks:
+    timeout-minutes: 60
+    name: "Checks"
+    runs-on: ubuntu-latest
+    env:
+      MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
+      CI_JOB_TYPE: "Static checks"
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - name: Cache pre-commit env
+        uses: actions/cache@v1
+        env:
+          cache-name: cache-pre-commit
+        with:
+          path: ~/.cache/pre-commit
+          key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: "Free space"
+        run: ./scripts/ci/ci_free_space_on_ci.sh
+      - name: "Build CI image"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+      - name: "Static checks"
+        if: success()
+        run: |
+          python -m pip install pre-commit \
+              --constraint requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt
+          ./scripts/ci/ci_run_static_checks.sh
+
+  docs:
+    timeout-minutes: 60
+    name: Build docs
+    runs-on: ubuntu-latest
+    env:
+      CI_JOB_TYPE: "Documentation"
+    steps:
+      - uses: actions/checkout@master
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+      - name: "Build docs"
+        run: ./scripts/ci/ci_docs.sh
+
+  build-prod-image:
+    timeout-minutes: 60
+    name: "Build prod image Py${{ matrix.python-version }}"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7]
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      CI_JOB_TYPE: "Prod image"
+    steps:
+      - uses: actions/checkout@master
+      - name: "Build PROD image ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_build_production_images.sh
+
+  tests-postgres:
+    timeout-minutes: 80
+    name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
+    runs-on: ubuntu-latest
+    needs: [static-checks]
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7]
+        postgres-version: [9.6, 10]
+        test-type: [Core, Integration]
+      fail-fast: false
+    env:
+      BACKEND: postgres
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      POSTGRES_VERSION: ${{ matrix.postgres-version }}
+      RUN_TESTS: "true"
+      CI_JOB_TYPE: "Tests"
+      TEST_TYPE: ${{ matrix.test-type }}
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - name: "Free space"
+        run: ./scripts/ci/ci_free_space_on_ci.sh
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+      - name: "Tests"
+        run: ./scripts/ci/ci_run_airflow_testing.sh
+
+  tests-mysql:
+    timeout-minutes: 80
+    name: "${{matrix.test-type}}:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
+    runs-on: ubuntu-latest
+    needs: [static-checks]
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7]
+        mysql-version: [5.6, 5.7]
+        test-type: [Core, Integration]
+      fail-fast: false
+    env:
+      BACKEND: mysql
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      MYSQL_VERSION: ${{ matrix.mysql-version }}
+      RUN_TESTS: "true"
+      CI_JOB_TYPE: "Tests"
+      TEST_TYPE: ${{ matrix.test-type }}
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - name: "Free space"
+        run: ./scripts/ci/ci_free_space_on_ci.sh
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+      - name: "Tests"
+        run: ./scripts/ci/ci_run_airflow_testing.sh
+
+  tests-sqlite:
+    timeout-minutes: 80
+    name: "${{matrix.test-type}}:Sqlite Py${{matrix.python-version}}"
+    runs-on: ubuntu-latest
+    needs: [static-checks]
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7]
+        test-type: [Core, Integration]
+      fail-fast: false
+    env:
+      BACKEND: sqlite
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      TEST_TYPE: ${{ matrix.test-type }}
+      RUN_TESTS: "true"
+      CI_JOB_TYPE: "Tests"
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - name: "Free space"
+        run: ./scripts/ci/ci_free_space_on_ci.sh
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+      - name: "Tests"
+        run: ./scripts/ci/ci_run_airflow_testing.sh
+
+  tests-quarantined:
+    timeout-minutes: 80
+    name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs: [static-checks]
+    strategy:
+      matrix:
+        python-version: [3.6]
+        postgres-version: [9.6]
+        test-type: [Quarantined]
+      fail-fast: false
+    env:
+      BACKEND: postgres
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      POSTGRES_VERSION: ${{ matrix.postgres-version }}
+      RUN_TESTS: "true"
+      CI_JOB_TYPE: "Tests"
+      TEST_TYPE: ${{ matrix.test-type }}
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - name: "Free space"
+        run: ./scripts/ci/ci_free_space_on_ci.sh
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+      - name: "Tests"
+        run: ./scripts/ci/ci_run_airflow_testing.sh
+
+  requirements:
+    timeout-minutes: 80
+    name: "Requirements"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7]
+      fail-fast: false
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS: true
+      UPGRADE_WHILE_GENERATING_REQUIREMENTS: ${{ github.event_name == 'schedule' }}
+      FAIL_WHEN_REQUIREMENTS_UPDATED: ${{ github.event_name != 'schedule' }}
+      CI_JOB_TYPE: "Requirements"
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+      - name: "Free space"
+        run: ./scripts/ci/ci_free_space_on_ci.sh
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+      - name: "Generate requirements"
+        run: ./scripts/ci/ci_generate_requirements.sh
+
+  push-prod-images-to-github-cache:
+    timeout-minutes: 80
+    name: "Push PROD images"
+    runs-on: ubuntu-latest
+    needs:
+      - tests-sqlite
+      - tests-postgres
+      - tests-mysql
+      - requirements
+      - build-prod-image
+      - docs
+    if: github.ref == 'refs/heads/master' && github.event_name != 'schedule'
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7]
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      CI_JOB_TYPE: "Prod image"
+    steps:
+      - uses: actions/checkout@master
+      - name: "Free space"
+        run: ./scripts/ci/ci_free_space_on_ci.sh
+      - name: "Build PROD images ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_build_production_images.sh
+      - name: "Push PROD images ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_push_production_images.sh
+
+  push-ci-images-to-github-cache:
+    timeout-minutes: 40
+    name: "Push CI images"
+    runs-on: ubuntu-latest
+    needs:
+      - tests-sqlite
+      - tests-postgres
+      - tests-mysql
+      - requirements
+      - build-prod-image
+      - docs
+    if: github.ref == 'refs/heads/master' && github.event_name != 'schedule'
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7]
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      CI_JOB_TYPE: "Prod image"
+    steps:
+      - uses: actions/checkout@master
+      - name: "Free space"
+        run: ./scripts/ci/ci_free_space_on_ci.sh
+      - name: "Build CI image"
+        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+      - name: "Push CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/ci_push_ci_image.sh

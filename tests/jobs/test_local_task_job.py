@@ -297,6 +297,7 @@ class LocalTaskJobTest(unittest.TestCase):
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
 
+    @pytest.mark.quarantined
     def test_mark_success_on_success_callback(self):
         """
         Test that ensures that where a task is marked suceess in the UI

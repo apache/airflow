@@ -49,6 +49,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
+@pytest.mark.quarantined
 class BackfillJobTest(unittest.TestCase):
 
     def _get_dummy_dag(self, dag_id, pool=Pool.DEFAULT_POOL_NAME, task_concurrency=None):
@@ -806,6 +807,7 @@ class BackfillJobTest(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
 
+    @pytest.mark.quarantined
     @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
     def test_run_ignores_all_dependencies(self):

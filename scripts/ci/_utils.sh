@@ -21,6 +21,8 @@
 
 declare -a EXTRA_DOCKER_FLAGS
 declare -a EXTRA_DOCKER_PROD_BUILD_FLAGS
+export EXTRA_DOCKER_FLAGS
+export EXTRA_DOCKER_PROD_BUILD_FLAGS
 
 function check_verbose_setup {
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
@@ -58,6 +60,8 @@ function initialize_common_environment {
     mkdir -p "${AIRFLOW_SOURCES}/files"
     mkdir -p "${AIRFLOW_SOURCES}/dist"
 
+    # shellcheck source=common/_common_values.sh
+    . "${AIRFLOW_SOURCES}/common/_common_values.sh"
     # shellcheck source=common/_image_variables.sh
     . "${AIRFLOW_SOURCES}/common/_image_variables.sh"
     # shellcheck source=common/_files_for_rebuild_check.sh
@@ -95,8 +99,8 @@ function initialize_common_environment {
 
     # If this variable is set, we mount the whole sources directory to the host rather than
     # selected volumes
-    AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS=${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="false"}
-    export AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS
+    MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS=${MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="false"}
+    export MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS
 
     # Set host user id to current user
     HOST_USER_ID="$(id -ur)"
@@ -106,7 +110,7 @@ function initialize_common_environment {
     HOST_GROUP_ID="$(id -gr)"
     export HOST_GROUP_ID
 
-    if [[ ${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
+    if [[ ${MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
         print_info
         print_info "Mount whole airflow source directory for static checks (make sure all files are in container)"
         print_info
@@ -133,10 +137,14 @@ function initialize_common_environment {
         )
     fi
 
-    export EXTRA_DOCKER_FLAGS
-
+    if [[ ${CI:=} == "true" ]]; then
+        CI_CODECOV_ENV="$(bash <(curl -s https://codecov.io/env))"
+        for ENV_PARAM in ${CI_CODECOV_ENV}
+        do
+            EXTRA_DOCKER_FLAGS+=("${ENV_PARAM}")
+        done
+    fi
     EXTRA_DOCKER_PROD_BUILD_FLAGS=()
-    export EXTRA_DOCKER_PROD_BUILD_FLAGS
 
     # We use pulled docker image cache by default to speed up the builds
     export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
@@ -165,10 +173,10 @@ function initialize_common_environment {
 
     # upgrade while generating requirements should only happen in localy run
     # pre-commits or in cron job
-    if [[ ${LOCAL_RUN} == "true" || "${TRAVIS_EVENT_TYPE:=}" != "cron" ]]; then
+    if [[ ${LOCAL_RUN} == "true" ]]; then
         export UPGRADE_WHILE_GENERATING_REQUIREMENTS="true"
     else
-        export UPGRADE_WHILE_GENERATING_REQUIREMENTS="false"
+        export UPGRADE_WHILE_GENERATING_REQUIREMENTS=${UPGRADE_WHILE_GENERATING_REQUIREMENTS:="false"}
     fi
 
     export SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS=${SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS:="false"}
@@ -342,7 +350,7 @@ function update_all_md5_files() {
     do
         move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
     done
-    mkdir -pv "${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}"
+    mkdir -pv "${BUILD_CACHE_DIR}/${BRANCH_NAME}"
     touch "${BUILT_IMAGE_FLAG_FILE}"
 }
 
@@ -708,6 +716,12 @@ function compare_layers() {
 }
 
 function rebuild_ci_image_if_needed() {
+    if [[ ${SKIP_CI_IMAGE_CHECK:="false"} == "true" ]]; then
+        echo
+        echo "Skip checking CI image"
+        echo
+        return
+    fi
     if [[ -f "${BUILT_IMAGE_FLAG_FILE}" ]]; then
         print_info
         print_info "${THE_IMAGE_TYPE} image already built locally."
@@ -902,77 +916,80 @@ function match_files_regexp() {
     export FILE_MATCHES
 }
 
+function get_ci_environment() {
+    export CI_EVENT_TYPE="manual"
+    export CI_TARGET_REPO="apache/airflow"
+    export CI_TARGET_BRANCH="master"
+    export CI_BUILD_ID="default-build-id"
+    export CI_JOB_ID="default-job-id"
+    if [[ ${CI:=} != "true" ]]; then
+        echo
+        echo "This is not a CI environment!. Staying with the defaults"
+        echo
+    else
+        if [[ ${TRAVIS:=} == "true" ]]; then
+            if [[ "${TRAVIS_PULL_REQUEST:=}" == "true" ]]; then
+                export CI_EVENT_TYPE="pull_request"
+            elif [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
+                export CI_EVENT_TYPE="schedule"
+            else
+                export CI_EVENT_TYPE="push"
+            fi
+            export CI_TARGET_BRANCH="${TRAVIS_BRANCH}"
+            export CI_TARGET_REPO="${TRAVIS_REPO_SLUG}"
+            export CI_BUILD_ID="${TRAVIS_BUILD_ID}"
+            export CI_JOB_ID="${TRAVIS_JOB_ID}"
+        elif [[ ${GITHUB_ACTIONS:=} == "true" ]]; then
+            if [[ ${GITHUB_EVENT_NAME:=} == "pull_request" ]]; then
+                export CI_EVENT_TYPE="pull_request"
+            elif [[ ${GITHUB_EVENT_TYPE:=} == "schedule" ]]; then
+                export CI_EVENT_TYPE="schedule"
+            else
+                export CI_EVENT_TYPE="push"
+            fi
+            export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
+            export CI_TARGET_BRANCH="${GITHUB_BASE_REF}"
+            export CI_BUILD_ID="${GITHUB_RUN_ID}"
+            export CI_JOB_ID="${GITHUB_JOB}"
+        else
+            echo
+            echo "ERROR! Unknown CI environment. Exiting"
+            exit 1
+        fi
+    fi
+    echo
+    echo "Detected CI build environment"
+    echo
+    echo "CI_EVENT_TYPE=${CI_EVENT_TYPE}"
+    echo "CI_TARGET_REPO=${CI_TARGET_REPO}"
+    echo "CI_TARGET_BRANCH=${CI_TARGET_BRANCH}"
+    echo "CI_BUILD_ID=${CI_BUILD_ID}"
+    echo "CI_JOB_ID=${CI_JOB_ID}"
+    echo
+}
+
+
 function build_ci_image_on_ci() {
-    if [[ "${CI:=}" != "true" ]]; then
-        print_info
-        print_info "Cleaning up docker installation!!!!!!"
-        print_info
-        "${AIRFLOW_SOURCES}/confirm" "Cleaning docker data and rebuilding"
+    get_ci_environment
+
+    # In case of CRON jobs we run builds without cache and upgrade to latest requirements
+    if [[ "${CI_EVENT_TYPE:=}" == "schedule" ]]; then
+        echo
+        echo "Disabling cache for scheduled jobs"
+        echo
+        export DOCKER_CACHE="no-cache"
+        echo
+        echo "Requirements are upgraded to latest while running Docker build"
+        echo
+        export UPGRADE_TO_LATEST_REQUIREMENTS="true"
     fi
 
     prepare_ci_build
 
-    # Cleanup docker installation. It should be empty in CI but let's not risk
-    verbose_docker system prune --all --force
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
 
-    if [[ "${TRAVIS_PULL_REQUEST:=}" == "false" ]]; then
-        # If we are building a tag or a branch build, then we don't want to skip any tests
-        rebuild_ci_image_if_needed
-        return
-    else
-        # Don't try and find changed files for non-PR builds (tags, branch pushes etc.)
-        echo
-        echo "Finding changed file names ${TRAVIS_BRANCH}...HEAD"
-        echo
-
-        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-        git fetch origin "${TRAVIS_BRANCH}"
-        CHANGED_FILE_NAMES=$(git diff --name-only "remotes/origin/${TRAVIS_BRANCH}...HEAD")
-        echo
-        echo "Changed file names in this commit"
-        echo "${CHANGED_FILE_NAMES}"
-        echo
-    fi
-
-    export FORCE_PULL_IMAGES="true"
-    export FORCE_BUILD="true"
-    export VERBOSE="${VERBOSE:="false"}"
-
-    if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"Kubernetes"* ]]; then
-        match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/runtime/kubernetes/.*\.py' \
-            'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html' \
-            'scripts/ci/.*' 'airflow/example_dags/.*'
-        if [[ ${FILE_MATCHES} == "true" ]]; then
-            rebuild_ci_image_if_needed
-        else
-            touch "${BUILD_CACHE_DIR}"/.skip_tests
-        fi
-    elif [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
-        match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' \
-            'airflow/www/.*\.html' 'scripts/ci/.*' 'airflow/example_dags/.*'
-        if [[ ${FILE_MATCHES} == "true" ]]; then
-            rebuild_ci_image_if_needed
-        else
-            touch "${BUILD_CACHE_DIR}"/.skip_tests
-        fi
-    elif [[ ${TRAVIS_JOB_NAME} == "Static"* ]]; then
-        rebuild_ci_image_if_needed
-    elif [[ ${TRAVIS_JOB_NAME} == *"documentation"* ]]; then
-        rebuild_ci_image_if_needed
-    else
-        echo
-        echo "Error! Unexpected Travis job name: ${TRAVIS_JOB_NAME}"
-        echo
-        exit 1
-    fi
-
-    if [[ -f "${BUILD_CACHE_DIR}/.skip_tests" ]]; then
-        echo
-        echo "Skip running tests !!!!"
-        echo
-    fi
+    rebuild_ci_image_if_needed
 
     # Disable force pulling forced above
     unset FORCE_PULL_IMAGES
@@ -1028,98 +1045,90 @@ function run_docs() {
             | tee -a "${OUTPUT_LOG}"
 }
 
+# Should be run with set +e
+# Parameters:
+#   $1 -> image to pull
+function pull_image_if_needed() {
+    local IMAGE_TO_PULL="${1}"
+    local IMAGE_HASH
+    IMAGE_HASH=$(docker images -q "${IMAGE_TO_PULL}" 2> /dev/null || true)
+    local PULL_IMAGE=${FORCE_PULL_IMAGES}
+
+    if [[ "${IMAGE_HASH}" == "" ]]; then
+        PULL_IMAGE="true"
+    fi
+    if [[ "${PULL_IMAGE}" == "true" ]]; then
+        echo
+        echo "Pulling the image ${IMAGE_TO_PULL}"
+        echo
+        verbose_docker pull "${IMAGE_TO_PULL}" | tee -a "${OUTPUT_LOG}"
+        EXIT_VALUE="$?"
+        echo
+        return ${EXIT_VALUE}
+    fi
+}
+
+# Parameters:
+#   $1 -> image to pull
+#   $2 -> cache image to pull first
+function pull_image_possibly_from_cache() {
+    local IMAGE="${1}"
+    local CACHED_IMAGE="${2}"
+    local IMAGE_PULL_RETURN_VALUE=-1
+
+    set +e
+    if [[ ${CACHED_IMAGE:=} != "" ]]; then
+        pull_image_if_needed "${CACHED_IMAGE}"
+        IMAGE_PULL_RETURN_VALUE="$?"
+        if [[ ${IMAGE_PULL_RETURN_VALUE} == "0" ]]; then
+            # Tag the image to be the target one
+            verbose_docker tag "${CACHED_IMAGE}" "${IMAGE}"
+        fi
+    fi
+    if [[ ${IMAGE_PULL_RETURN_VALUE} != "0" ]]; then
+        pull_image_if_needed "${IMAGE}"
+    fi
+    set -e
+}
+
 function pull_ci_image_if_needed() {
     # Whether to force pull images to populate cache
     export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
-    # In CI environment we skip pulling latest python image
-    export PULL_BASE_IMAGES=${PULL_BASE_IMAGES:="false"}
 
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         if [[ "${FORCE_PULL_IMAGES}" == "true" ]]; then
-            if [[ ${PULL_BASE_IMAGES} == "false" ]]; then
-                echo
-                echo "Skip force-pulling the ${PYTHON_BASE_IMAGE} image."
-                echo
-            else
-                echo
-                echo "Force pull base image ${PYTHON_BASE_IMAGE}"
-                echo
-                if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
-                    echo -n "
-Docker pulling ${PYTHON_BASE_IMAGE}.
-                    " > "${DETECTED_TERMINAL}"
-                fi
-                verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
-                echo
-            fi
-        fi
-        local PULL_IMAGE=${FORCE_PULL_IMAGES}
-        local IMAGE_HASH
-        IMAGE_HASH=$(docker images -q "${AIRFLOW_CI_IMAGE}" 2> /dev/null)
-        if [[ "${IMAGE_HASH}" == "" ]]; then
-            PULL_IMAGE="true"
-        fi
-        if [[ "${PULL_IMAGE}" == "true" ]]; then
             echo
-            echo "Pulling the image ${AIRFLOW_CI_IMAGE}"
+            echo "Force pull base image ${PYTHON_BASE_IMAGE}"
             echo
             if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
                 echo -n "
-Docker pulling ${IMAGE}.
-" > "${DETECTED_TERMINAL}"
+Docker pulling ${PYTHON_BASE_IMAGE}.
+                    " > "${DETECTED_TERMINAL}"
             fi
-            verbose_docker pull "${AIRFLOW_CI_IMAGE}" | tee -a "${OUTPUT_LOG}" || true
+            verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
             echo
         fi
+        pull_image_possibly_from_cache "${AIRFLOW_CI_IMAGE}" "${CACHED_AIRFLOW_CI_IMAGE}"
     fi
 }
+
 
 function pull_prod_images_if_needed() {
     # Whether to force pull images to populate cache
     export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
-    # In CI environment we skip pulling latest python image
-    export PULL_BASE_IMAGES=${PULL_BASE_IMAGES:="false"}
 
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         if [[ "${FORCE_PULL_IMAGES}" == "true" ]]; then
-            if [[ ${PULL_BASE_IMAGES} == "false" ]]; then
-                echo
-                echo "Skip force-pulling the ${PYTHON_BASE_IMAGE} image."
-                echo
-            else
-                echo
-                echo "Force pull base image ${PYTHON_BASE_IMAGE}"
-                echo
-                verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
-                echo
-            fi
-        fi
-        local PULL_BUILD_IMAGE=${FORCE_PULL_IMAGES}
-        local BUILD_IMAGE_HASH
-        BUILD_IMAGE_HASH=$(docker images -q "${AIRFLOW_PROD_BUILD_IMAGE}" 2> /dev/null)
-        if [[ "${BUILD_IMAGE_HASH}" == "" ]]; then
-            PULL_BUILD_IMAGE="true"
-        fi
-        if [[ "${PULL_BUILD_IMAGE}" == "true" ]]; then
             echo
-            echo "Pulling the image ${AIRFLOW_PROD_BUILD_IMAGE}"
+            echo "Force pull base image ${PYTHON_BASE_IMAGE}"
             echo
-            verbose_docker pull "${AIRFLOW_PROD_BUILD_IMAGE}" | tee -a "${OUTPUT_LOG}" || true
+            verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
             echo
         fi
-        local PULL_IMAGE=${FORCE_PULL_IMAGES}
-        local IMAGE_HASH
-        IMAGE_HASH=$(docker images -q "${AIRFLOW_PROD_IMAGE}" 2> /dev/null)
-        if [[ "${IMAGE_HASH}" == "" ]]; then
-            PULL_IMAGE="true"
-        fi
-        if [[ "${PULL_IMAGE}" == "true" ]]; then
-            echo
-            echo "Pulling the image ${AIRFLOW_PROD_IMAGE}"
-            echo
-            verbose_docker pull "${AIRFLOW_PROD_IMAGE}" | tee -a "${OUTPUT_LOG}" || true
-            echo
-        fi
+        # "Build" segment of production image
+        pull_image_possibly_from_cache "${AIRFLOW_PROD_BUILD_IMAGE}" "${CACHED_AIRFLOW_PROD_BUILD_IMAGE}"
+        # Main segment of production image
+        pull_image_possibly_from_cache "${AIRFLOW_PROD_IMAGE}" "${CACHED_AIRFLOW_PROD_IMAGE}"
     fi
 }
 
@@ -1330,6 +1339,16 @@ function prepare_ci_build() {
     export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
+    if [[ ${CACHE_REGISTRY=""} != "" ]]; then
+        echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
+            --username "${CACHE_REGISTRY_USERNAME}" \
+            --password-stdin \
+            "${CACHE_REGISTRY}"
+        export CACHED_AIRFLOW_CI_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_CI_BASE_TAG}"
+    else
+        export CACHED_AIRFLOW_CI_IMAGE=""
+    fi
+    export AIRFLOW_BUILD_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}/${AIRFLOW_CI_BASE_TAG}"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-ci"
     export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
     export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
@@ -1348,6 +1367,40 @@ function prepare_ci_build() {
     fix_group_permissions
 }
 
+function add_build_args_for_remote_install() {
+    # entrypoint is used as AIRFLOW_SOURCES_FROM/TO in order to avoid costly copying of all sources of
+    # Airflow - those are not needed for remote install at all. Entrypoint is later overwritten by
+    # ENTRYPOINT_FILE - downloaded entrypoint.sh so this is only for the purpose of iteration on Dockerfile
+    EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+        "--build-arg" "AIRFLOW_SOURCES_FROM=entrypoint.sh"
+        "--build-arg" "AIRFLOW_SOURCES_TO=/entrypoint"
+    )
+    if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]([0-9]*) ]]; then
+        # All types of references/versions match this regexp for 1.10 series
+        # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} is the () group matches last
+        # minor digit of version and it's length is 0 for v1_10_test, 1 for 1.10.9 and 2 for 1.10.10+
+        if [[ ${#BASH_REMATCH[1]} == "1" ]]; then
+            # This is only for 1.10.0 - 1.10.9
+            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+                "--build-arg" "ENTRYPOINT_FILE=https://raw.githubusercontent.com/apache/airflow/1.10.10/entrypoint.sh"
+            )
+        else
+            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+                # For 1.10.10+ and v1-10-test it's ok to use AIRFLOW_VERSION as reference
+                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+                "--build-arg" "ENTRYPOINT_FILE=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/entrypoint.sh"
+            )
+        fi
+    else
+        # For all other (master, 2.0+) we just match ${AIRFLOW_VERSION}
+        EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
+            "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+            "--build-arg" "ENTRYPOINT_FILE=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/entrypoint.sh"
+        )
+    fi
+}
+
 function prepare_prod_build() {
     export AIRFLOW_PROD_BASE_TAG="${DEFAULT_BRANCH}-python${PYTHON_MAJOR_MINOR_VERSION}"
     export AIRFLOW_PROD_BUILD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-build"
@@ -1363,84 +1416,95 @@ function prepare_prod_build() {
     export IMAGE_DESCRIPTION="Airflow production"
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_PROD_EXTRAS}"}"
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
-
-    if [[ "${INSTALL_AIRFLOW_VERSION:=}" == "" && "${INSTALL_AIRFLOW_REFERENCE:=}" == "" ]]; then
-        # When no airflow version/reference is specified, production image is built from local sources
-        export EXTRA_DOCKER_PROD_BUILD_FLAGS=(
-        )
+    if [[ ${CACHE_REGISTRY=""} != "" ]]; then
+        echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
+            --username "${CACHE_REGISTRY_USERNAME}" \
+            --password-stdin \
+            "${CACHE_REGISTRY}"
+        export CACHED_AIRFLOW_PROD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}"
+        export CACHED_AIRFLOW_PROD_BUILD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}-build"
     else
-        if [[ "${INSTALL_AIRFLOW_REFERENCE:=}" != "" ]]; then
-            # When --install-airflow-version is used then the image is build from github tag
-            export EXTRA_DOCKER_PROD_BUILD_FLAGS=(
-                "--build-arg" "AIRFLOW_INSTALL_SOURCES=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
-            )
-            export AIRFLOW_VERSION="${INSTALL_AIRFLOW_REFERENCE}"
-        else
-            # When --install-airflow-version is used then the image is build from github tag
-            export EXTRA_DOCKER_PROD_BUILD_FLAGS=(
-                "--build-arg" "AIRFLOW_INSTALL_SOURCES=apache-airflow"
-                "--build-arg" "AIRFLOW_INSTALL_VERSION===${INSTALL_AIRFLOW_VERSION}"
-            )
-            export AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
-        fi
-        if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]* ]]; then
-            # We need to set special arguments to build 1.10 version of image
-            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                "--build-arg" "AIRFLOW_SOURCES_FROM=Dockerfile"
-                "--build-arg" "AIRFLOW_SOURCES_TO=/Dockerfile"
-                "--build-arg" "WWW_FOLDER=www_rbac"
-                # TODO We should change it to 1.10.10 after release to make the image build repeatable
-                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/v1-10-test/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
-                # TODO We should uncomment it just before we merge this change to master/v1_10_test
-                #"--build-arg" "ENTRYPOINT_FILE=https://raw.githubusercontent.com/apache/airflow/v1-10-test/entrypoint.sh"
-            )
-        else
-            EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                "--build-arg" "AIRFLOW_SOURCES_FROM=Dockerfile"
-                "--build-arg" "AIRFLOW_SOURCES_TO=/Dockerfile"
-                # TODO We should change it to 1.10.10 after release to make the image build repeatable
-                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/v1-10-test/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
-                # TODO We should uncomment it just before we merge this change to master/v1_10_test
-                #"--build-arg" "ENTRYPOINT_FILE=https://raw.githubusercontent.com/apache/airflow/v1-10-test/entrypoint.sh"
-            )
-        fi
+        export CACHED_AIRFLOW_PROD_IMAGE=""
+        export CACHED_AIRFLOW_PROD_BUILD_IMAGE=""
+    fi
 
+    if [[ "${INSTALL_AIRFLOW_REFERENCE:=}" != "" ]]; then
+        # When --install-airflow-reference is used then the image is build from github tag
+        EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+            "--build-arg" "AIRFLOW_INSTALL_SOURCES=https://github.com/apache/airflow/archive/${INSTALL_AIRFLOW_REFERENCE}.tar.gz#egg=apache-airflow"
+        )
+        export AIRFLOW_VERSION="${INSTALL_AIRFLOW_REFERENCE}"
+        add_build_args_for_remote_install
+    elif [[ "${INSTALL_AIRFLOW_VERSION:=}" != "" ]]; then
+        # When --install-airflow-version is used then the image is build from PIP package
+        EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+            "--build-arg" "AIRFLOW_INSTALL_SOURCES=apache-airflow"
+            "--build-arg" "AIRFLOW_INSTALL_VERSION===${INSTALL_AIRFLOW_VERSION}"
+        )
+        export AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
+        add_build_args_for_remote_install
+    else
+        # When no airflow version/reference is specified, production image is built from local sources
+        EXTRA_DOCKER_PROD_BUILD_FLAGS=(
+        )
     fi
     go_to_airflow_sources
 }
 
 function push_ci_image() {
-    verbose_docker push "${AIRFLOW_CI_IMAGE}"
-    verbose_docker tag "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
-    verbose_docker push "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
-    if [[ -n ${DEFAULT_IMAGE:=""} ]]; then
-        verbose_docker push "${DEFAULT_IMAGE}"
+    if [[ ${CACHED_AIRFLOW_CI_IMAGE:=} != "" ]]; then
+        verbose_docker tag "${AIRFLOW_CI_IMAGE}" "${CACHED_AIRFLOW_CI_IMAGE}"
+        IMAGE_TO_PUSH="${CACHED_AIRFLOW_CI_IMAGE}"
+    else
+        IMAGE_TO_PUSH="${AIRFLOW_CI_IMAGE}"
+    fi
+    verbose_docker push "${IMAGE_TO_PUSH}"
+    if [[ ${CACHED_AIRFLOW_CI_IMAGE} == "" ]]; then
+        # Only push manifest image for builds that are not using CI cache
+        verbose_docker tag "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+        verbose_docker push "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+        if [[ -n ${DEFAULT_IMAGE:=""} ]]; then
+            verbose_docker push "${DEFAULT_IMAGE}"
+        fi
     fi
 }
 
 function push_prod_images() {
-    verbose_docker push "${AIRFLOW_PROD_IMAGE}"
-    verbose_docker push "${AIRFLOW_PROD_BUILD_IMAGE}"
-    if [[ -n ${DEFAULT_IMAGE:=""} ]]; then
+    if [[ ${CACHED_AIRFLOW_PROD_IMAGE:=} != "" ]]; then
+        verbose_docker tag "${AIRFLOW_PROD_IMAGE}" "${CACHED_AIRFLOW_PROD_IMAGE}"
+        IMAGE_TO_PUSH="${CACHED_AIRFLOW_PROD_IMAGE}"
+    else
+        IMAGE_TO_PUSH="${AIRFLOW_PROD_IMAGE}"
+    fi
+    if [[ ${CACHED_AIRFLOW_PROD_BUILD_IMAGE:=} != "" ]]; then
+        verbose_docker tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${CACHED_AIRFLOW_PROD_BUILD_IMAGE}"
+        IMAGE_TO_PUSH_BUILD="${CACHED_AIRFLOW_PROD_BUILD_IMAGE}"
+    else
+        IMAGE_TO_PUSH_BUILD="${AIRFLOW_PROD_BUILD_IMAGE}"
+    fi
+    verbose_docker push "${IMAGE_TO_PUSH}"
+    verbose_docker push "${IMAGE_TO_PUSH_BUILD}"
+    if [[ -n ${DEFAULT_IMAGE:=""} && ${CACHED_AIRFLOW_PROD_IMAGE} == "" ]]; then
         verbose_docker push "${DEFAULT_IMAGE}"
     fi
 }
 
 function run_generate_requirements() {
-        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env VERBOSE \
-            --env VERBOSE_COMMANDS \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
-            --env PYTHON_MAJOR_MINOR_VERSION \
-            --env SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_generate_requirements.sh" \
-            | tee -a "${OUTPUT_LOG}"
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        --env PYTHONDONTWRITEBYTECODE \
+        --env VERBOSE \
+        --env VERBOSE_COMMANDS \
+        --env HOST_USER_ID="$(id -ur)" \
+        --env HOST_GROUP_ID="$(id -gr)" \
+        --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
+        --env PYTHON_MAJOR_MINOR_VERSION \
+        --env SHOW_GENERATE_REQUIREMENTS_INSTRUCTIONS \
+        --env FAIL_WHEN_REQUIREMENTS_UPDATED \
+        --rm \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/ci/in_container/run_generate_requirements.sh" \
+        | tee -a "${OUTPUT_LOG}"
 }
 
 function set_mysql_encoding() {
@@ -1453,4 +1517,9 @@ function set_mysql_encoding() {
         # to utf8 (which is an alias to utf8mb3)
         export MYSQL_ENCODING=utf8
     fi
+}
+
+
+function get_airflow_version_from_production_image() {
+     docker run --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'echo "${AIRFLOW_VERSION}"'
 }

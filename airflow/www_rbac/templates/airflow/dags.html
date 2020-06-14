@@ -21,9 +21,9 @@
 {% block title %}Airflow - DAGs{% endblock %}
 
 {% block head_css %}
-{{ super() }}
-<link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
-<link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
+  {{ super() }}
+  <link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css">
+  <link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
 {% endblock %}
 
 {% block content %}
@@ -32,193 +32,196 @@
   <div id="main_content">
     <div class="row">
       <div class="col-sm-4">
-          <form id="filter_form" class="form-inline" style="width: 100%; text-align: left;">
-              <div id="dags_filter" class="form-group" style="width: 100%;">
-                  <select multiple name="tags" id="tags_filter" class="select2-drop-mask" style="width: 60%;">
-                    {% for tag in tags %}
-                      <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
-                    {% endfor %}
-                  </select>
-                  <input type="submit" value="Filter tags" class="btn btn-default">
-                  <input type="submit" value="Reset" class="btn btn-default" name="reset_tags">
-              </div>
-          </form>
+        <div class="btn-group">
+          <a href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.get('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'all' else 'btn-default'}}" title="Show active and paused DAGS">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
+          <a href="{{ url_for('Airflow.index', status='active', search=request.args.get('search', None), tags=request.args.get('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'active' else 'btn-default'}}" title="Show only active DAGS">Active <span class="badge">{{ "{:,}".format(status_count_active) }}</span></a>
+          <a href="{{ url_for('Airflow.index', status='paused', search=request.args.get('search', None), tags=request.args.get('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'paused' else 'btn-default'}}" title="Show only paused DAGS">Paused <span class="badge">{{ "{:,}".format(status_count_paused) }}</span></a>
+        </div>
       </div>
-      <div class="col-sm-8">
+      <div class="col-sm-4">
+        <form id="filter_form" class="form-inline" style="width: 100%; text-align: left;">
+          <div id="dags_filter" class="form-group" style="width: 100%;">
+            <select multiple name="tags" id="tags_filter" class="select2-drop-mask" style="width: 60%;">
+              {% for tag in tags %}
+                <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
+              {% endfor %}
+            </select>
+            <input type="submit" value="Filter tags" class="btn btn-default">
+            <input type="submit" value="Reset" class="btn btn-default" name="reset_tags">
+          </div>
+        </form>
+      </div>
+      <div class="col-sm-4">
         <form id="search_form" class="form-inline" style="width: 100%; text-align: right; float: right;">
-            <div id="dags_filter" class="form-group" style="width: 100%;">
-              <label for="dag_query" style="width:20%; text-align: right;">Search:</label>
-              <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}" autocomplete="off">
-            </div>
+          <div id="dags_filter" class="form-group" style="width: 100%;">
+            <label for="dag_query" style="width:20%; text-align: right;">Search:</label>
+            <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}" autocomplete="off">
+          </div>
         </form>
       </div>
     </div>
-    <table id="dags" class="table table-striped table-bordered">
-        <thead>
-            <tr>
-                <th></th>
-                <th width="12"><span id="pause_header" class="glyphicon glyphicon-info-sign" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span></th>
-                <th>DAG</th>
-                <th>Schedule</th>
-                <th>Owner</th>
-                <th style="padding-left: 5px;">Recent Tasks
-                  <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
-                  <img class="loading-task-stats" width="15" src="{{ url_for("static", filename="loading.gif") }}">
-                </th>
-                <th style="padding-left: 5px;">Last Run <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
-                </th>
-                <th style="padding-left: 5px;">DAG Runs
-                  <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
-                  <img class="loading-dag-stats"  width="15" src="{{ url_for("static", filename="loading.gif") }}">
-                </th>
-                <th class="text-center">Links</th>
-            </tr>
-        </thead>
-        <tbody>
+    <table id="dags" class="table table-striped table-bordered table-hover">
+      <thead>
+        <tr>
+          <th></th>
+          <th width="12">
+            <span id="pause_header" class="glyphicon glyphicon-info-sign" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span>
+          </th>
+          <th>DAG</th>
+          <th>Schedule</th>
+          <th>Owner</th>
+          <th style="padding-left: 5px;">Recent Tasks
+            <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
+            <img class="loading-task-stats" width="15" src="{{ url_for("static", filename="loading.gif") }}">
+          </th>
+          <th style="padding-left: 5px;">Last Run <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
+          </th>
+          <th style="padding-left: 5px;">DAG Runs
+            <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
+            <img class="loading-dag-stats"  width="15" src="{{ url_for("static", filename="loading.gif") }}">
+          </th>
+          <th class="text-center">Links</th>
+        </tr>
+      </thead>
+      <tbody>
         {% for dag in dags %}
-            <tr>
-                <!-- Column 1: Edit dag -->
-                <td class="text-center" style="width:10px;">
-                    <a href="{{ url_for('DagModelView.show', pk=dag.dag_id) }}" title="Info">
-                        <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
+
+          <tr>
+            <!-- Column 1: Edit dag -->
+            <td class="text-center" style="width:10px;">
+              <a href="{{ url_for('DagModelView.show', pk=dag.dag_id) }}" title="Info">
+                <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
+              </a>
+            </td>
+
+            <!-- Column 2: Turn dag on/off -->
+            <td>
+              <input id="toggle-{{ dag.dag_id }}" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
+            </td>
+
+            <!-- Column 3: Name -->
+                <td>
+                  <span>
+                    <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.description[0:80] + '...' if dag.description|length > 80 else dag.description }}">
+                        {{ dag.dag_id }}
                     </a>
-                </td>
+                  </span>
 
-                <!-- Column 2: Turn dag on/off -->
-                <td>
-                    <input id="toggle-{{ dag.dag_id }}" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
-                </td>
+              <div style="float: right; max-width: 70%; text-align: right; line-height: 160%;">
+                {% for tag in dag.tags | sort(attribute='name') %}
+                  <span class="label label-success" style="margin: 3px;">{{ tag.name }}</span>
+                {% endfor %}
+              </div>
+            </td>
 
-                <!-- Column 3: Name -->
-                <td>
-                    <span>
-                      <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.description[0:80] + '...' if dag.description|length > 80 else dag.description }}">
-                          {{ dag.dag_id }}
-                      </a>
-                    </span>
+            <!-- Column 4: Dag Schedule -->
+            <td>
+              <a class="label label-default schedule" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
+                {{ dag.schedule_interval }}
+              </a>
+            </td>
 
-                    <div style="float: right; max-width: 70%; text-align: right; line-height: 160%;">
-                    {% for tag in dag.tags | sort(attribute='name') %}
-                      <span class="label label-success" style="margin: 3px;">{{ tag.name }}</span>
-                    {% endfor %}
-                    </div>
-                </td>
+            <!-- Column 5: Dag Owners -->
+            <td>
+              {{ dag.owners }}
+            </td>
 
-                <!-- Column 4: Dag Schedule -->
-                <td>
-                    <a class="label label-default schedule" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
-                        {{ dag.schedule_interval }}
-                    </a>
-                </td>
+            <!-- Column 6: Recent Tasks -->
+            <td style="padding:0; width:200px; height:10px;">
+              <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+            </td>
 
-                <!-- Column 5: Dag Owners -->
-                <td>
-                  {{ dag.owners }}
-                </td>
+            <!-- Column 7: Last Run -->
+            <td class="text-nowrap latest_dag_run">
+              <div height="10" width="10" id='last-run-{{ dag.safe_dag_id }}' style="display: block;">
+                <a></a>
+                <img class="loading-last-run" width="15" src="{{ url_for("static", filename="loading.gif") }}">
+                <span aria-hidden="true" id="statuses_info" title=" " class="glyphicon glyphicon-info-sign" style="display:none"></span>
+              </div>
+            </td>
 
-                <!-- Column 6: Recent Tasks -->
-                <td style="padding:0px; width:200px; height:10px;">
-                    <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
-                </td>
+            <!-- Column 8: Dag Runs -->
+            <td style="padding:0; width:120px; height:10px;">
+              <svg height="10" width="10" id='dag-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+            </td>
 
-                <!-- Column 7: Last Run -->
-                <td class="text-nowrap latest_dag_run">
-                  <div height="10" width="10" id='last-run-{{ dag.safe_dag_id }}' style="display: block;">
-                    <a></a>
-                    <img class="loading-last-run" width="15" src="{{ url_for("static", filename="loading.gif") }}">
-                    <span aria-hidden="true" id="statuses_info" title=" " class="glyphicon glyphicon-info-sign" style="display:none"></span>
-                  </div>
-                </td>
-
-                <!-- Column 8: Dag Runs -->
-                <td style="padding:0px; width:120px; height:10px;">
-                    <svg height="10" width="10" id='dag-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
-                </td>
-
-                <!-- Column 9: Links -->
-                <td class="text-center" style="display:flex; flex-direction:row; justify-content:space-around;">
-                {% if dag %}
-
+            <!-- Column 9: Links -->
+            <td class="text-center" style="display:flex;flex-direction:row;justify-content:space-around;">
+              {% if dag %}
                 <!-- Trigger Dag -->
                 <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}&origin={{ request.base_url }}">
-                    <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
+                  <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
                 </a>
 
                 <!-- Tree -->
                 <a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}">
-                    <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true" data-original-title="Tree View"></span>
+                  <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true" data-original-title="Tree View"></span>
                 </a>
 
                 <!-- Graph -->
                 <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-certificate" aria-hidden="true" data-original-title="Graph View"></span>
+                  <span class="glyphicon glyphicon-certificate" aria-hidden="true" data-original-title="Graph View"></span>
                 </a>
 
                 <!-- Duration -->
                 <a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-stats" aria-hidden="true" data-original-title="Tasks Duration"></span>
+                  <span class="glyphicon glyphicon-stats" aria-hidden="true" data-original-title="Tasks Duration"></span>
                 </a>
 
                 <!-- Retries -->
                 <a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-duplicate" aria-hidden="true" data-original-title="Task Tries"></span>
+                  <span class="glyphicon glyphicon-duplicate" aria-hidden="true" data-original-title="Task Tries"></span>
                 </a>
 
                 <!-- Landing Times -->
                 <a href="{{ url_for("Airflow.landing_times", dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-plane" aria-hidden="true" data-original-title="Landing Times"></span>
+                  <span class="glyphicon glyphicon-plane" aria-hidden="true" data-original-title="Landing Times"></span>
                 </a>
 
                 <!-- Gantt -->
                 <a href="{{ url_for("Airflow.gantt", dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-align-left" aria-hidden="true" data-original-title="Gantt View"></span>
+                  <span class="glyphicon glyphicon-align-left" aria-hidden="true" data-original-title="Gantt View"></span>
                 </a>
 
                 <!-- Code -->
                 <a href="{{ url_for("Airflow.code", dag_id=dag.dag_id) }}">
-                    <span class="glyphicon glyphicon-file" aria-hidden="true" data-original-title="Code View"></span>
+                  <span class="glyphicon glyphicon-file" aria-hidden="true" data-original-title="Code View"></span>
                 </a>
 
                 <!-- Logs -->
                 <a href="{{ url_for('LogModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}&_od_LogModelView=desc&_oc_LogModelView=dttm">
-                    <span class="glyphicon glyphicon-align-justify" aria-hidden="true" data-original-title="Logs"></span>
+                  <span class="glyphicon glyphicon-align-justify" aria-hidden="true" data-original-title="Logs"></span>
                 </a>
-                {% endif %}
+              {% endif %}
 
-                <!-- Refresh -->
-                <a href="{{ url_for("Airflow.refresh", dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false">
-                  <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
-                </a>
+              <!-- Refresh -->
+              <a href="{{ url_for("Airflow.refresh", dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false">
+                <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
+              </a>
 
-                <!-- Delete -->
-                <!-- Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag -->
-                <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
-                  onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')">
-                   <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
-                </a>
-                </td>
-            </tr>
+              <!-- Delete -->
+              <!-- Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag -->
+              <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
+                onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')">
+                <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
+              </a>
+            </td>
+          </tr>
         {% endfor %}
-        </tbody>
+      </tbody>
     </table>
     <div class="row">
-      <div class="col-sm-12" style="text-align:right;">
-        <div class="dataTables_info" id="dags_info" role="status" aria-live="polite" style="padding-top: 0px;">Showing {{num_dag_from}} to {{num_dag_to}} of {{num_of_all_dags}} entries</div>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-sm-12" style="text-align:left;">
+      <div class="col-sm-8">
         <div class="dataTables_info" id="dags_paginate">
           {{paging}}
         </div>
       </div>
-
+      <div class="col-sm-4" style="text-align:right;">
+        <div class="dataTables_info" id="dags_info" role="status" aria-live="polite" style="padding-top: 0;">
+          Showing {{num_dag_from}} to {{num_dag_to}} of {{num_of_all_dags}} entries
+        </div>
+      </div>
     </div>
-    {% if not hide_paused %}
-    <a href="{{ url_for('Airflow.index', showPaused=False, search=request.args.get('search', None)) }}">Hide Paused DAGs</a>
-    {% else %}
-    <a href="{{ url_for('Airflow.index', showPaused=True, search=request.args.get('search', None)) }}">Show Paused DAGs</a>
-    {% endif %}
   </div>
 {% endblock %}
 
@@ -230,311 +233,319 @@
   <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
   <script>
 
-      const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
-      const ENTER_KEY_CODE = 13;
+    const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
+    const ENTER_KEY_CODE = 13;
 
-      $('#tags_filter').select2({
-        placeholder: "Filter dags",
-        allowClear: true
-      });
+    $('#tags_filter').select2({
+      placeholder: "Filter dags",
+      allowClear: true
+    });
 
-      $('#dag_query').on('keypress', function (e) {
-        // check for key press on ENTER (key code 13) to trigger the search
-        if (e.which === ENTER_KEY_CODE) {
-          var query = new URLSearchParams(window.location.search);
-          query.set("search", e.target.value.trim());
-          query.delete("page");
-          window.location = DAGS_INDEX + "?" + query.toString();
-          e.preventDefault();
-        }
-      });
-
-      $('#page_size').on('change', function() {
-        p_size = $(this).val();
-        window.location = DAGS_INDEX + "?page_size=" + p_size;
-      });
-
-      function confirmTriggerDag(link, dag_id){
-        if (confirm("Are you sure you want to run '"+dag_id+"' now?")) {
-          postAsForm(link.href, {});
-        }
-        // Never follow the link
-        return false;
+    $('#dag_query').on('keypress', function (e) {
+      // check for key press on ENTER (key code 13) to trigger the search
+      if (e.which === ENTER_KEY_CODE) {
+        var query = new URLSearchParams(window.location.search);
+        query.set("search", e.target.value.trim());
+        query.delete("page");
+        window.location = DAGS_INDEX + "?" + query.toString();
+        e.preventDefault();
       }
+    });
 
-      function confirmDeleteDag(link, dag_id){
-        if (confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
-          This option will delete ALL metadata, DAG runs, etc.\n\
-          EXCEPT Log.\n\
-          This cannot be undone.")) {
-          postAsForm(link.href, {});
-        }
-        return false;
+    $('#page_size').on('change', function() {
+      p_size = $(this).val();
+      window.location = DAGS_INDEX + "?page_size=" + p_size;
+    });
+
+    function confirmTriggerDag(link, dag_id){
+      if (confirm("Are you sure you want to run '"+dag_id+"' now?")) {
+        postAsForm(link.href, {});
       }
+      // Never follow the link
+      return false;
+    }
 
-      var encoded_dag_ids = new URLSearchParams();
+    function confirmDeleteDag(link, dag_id){
+      if (confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
+        This option will delete ALL metadata, DAG runs, etc.\n\
+        EXCEPT Log.\n\
+        This cannot be undone.")) {
+        postAsForm(link.href, {});
+      }
+      return false;
+    }
 
-      $.each($("[id^=toggle]"), function(i, v) {
-        var dag_id = $(v).attr('dag_id');
-        encoded_dag_ids.append('dag_ids', dag_id);
+    var encoded_dag_ids = new URLSearchParams();
 
-        $(v).change (function() {
-          var dag_id =  $(v).attr('dag_id');
-          if ($(v).prop('checked')) {
-            is_paused = 'true'
+    $.each($("[id^=toggle]"), function(i, v) {
+      var $input = $(v);
+      var dag_id = $input.attr('dag_id');
+      encoded_dag_ids.append('dag_ids', dag_id);
+
+      $input.change(function() {
+        var $buttons = $input.parent('.toggle').find('.btn');
+        $buttons.removeClass('btn-danger');
+        if ($input.prop('checked')) {
+          is_paused = 'true'
+        } else {
+          is_paused = 'false'
+        }
+        var url = 'paused?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
+        $.post(url).fail(function() {
+          if (is_paused === 'true') {
+            $input.data('bs.toggle').off(true);
           } else {
-            is_paused = 'false'
+            $input.data('bs.toggle').on(true);
           }
-          url = 'paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
-          $.post(url);
+          $buttons.addClass('btn-danger');
         });
       });
+    });
 
-      $(".typeahead").typeahead({
-        source: function (query, callback) {
-          return $.ajax("{{ url_for('DagModelView.autocomplete') }}",
-            {
-              data: {
-                "query": encodeURIComponent(query),
-                "showPaused": "{{ not hide_paused }}"
-              },
-              success: callback
-            });
-        },
-        autoSelect: false,
-        afterSelect: function(value) {
-          var search_query = value.trim();
-          if (search_query) {
-            var query = new URLSearchParams(window.location.search);
-            query.set("search", search_query);
-            window.location = DAGS_INDEX + "?" + query;
-          }
+    $(".typeahead").typeahead({
+      source: function (query, callback) {
+        return $.ajax("{{ url_for('DagModelView.autocomplete') }}",
+          {
+            data: {
+              "query": encodeURIComponent(query),
+              "status": "{{ status_filter }}"
+            },
+            success: callback
+          });
+      },
+      autoSelect: false,
+      afterSelect: function(value) {
+        var search_query = value.trim();
+        if (search_query) {
+          var query = new URLSearchParams(window.location.search);
+          query.set("search", search_query);
+          window.location = DAGS_INDEX + "?" + query;
         }
-      });
+      }
+    });
 
-      $('#dags').dataTable({
-        "iDisplayLength": 500,
-        "bSort": false,
-        "searching": false,
-        "ordering": false,
-        "paging": false,
-        "info": false
-      });
-      $("#main_content").show(250);
-      diameter = 25;
-      circle_margin = 4;
-      stroke_width = 2;
-      stroke_width_hover = 6;
+    $('#dags').dataTable({
+      "iDisplayLength": 500,
+      "bSort": false,
+      "searching": false,
+      "ordering": false,
+      "paging": false,
+      "info": false
+    });
+    $("#main_content").show(250);
+    diameter = 25;
+    circle_margin = 4;
+    stroke_width = 2;
+    stroke_width_hover = 6;
 
-      function blockedHandler(error, json) {
-        $.each(json, function() {
+    function blockedHandler(error, json) {
+      $.each(json, function() {
+        $('.label.schedule.' + this.dag_id)
+        .attr('title', this.active_dag_run + '/' + this.max_active_runs + ' active dag runs')
+        .tooltip();
+        if(this.active_dag_run >= this.max_active_runs) {
           $('.label.schedule.' + this.dag_id)
-          .attr('title', this.active_dag_run + '/' + this.max_active_runs + ' active dag runs')
-          .tooltip();
-          if(this.active_dag_run >= this.max_active_runs) {
-            $('.label.schedule.' + this.dag_id)
-            .css('background-color', 'red');
-          }
-        });
-      }
-
-      function lastDagRunsHandler(error, json) {
-        for(var safe_dag_id in json) {
-          dag_id = json[safe_dag_id].dag_id;
-          last_run = json[safe_dag_id].last_run;
-          g = d3.select('div#last-run-' + safe_dag_id)
-          g.selectAll('a')
-            .attr("href", "{{ url_for('Airflow.graph') }}?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" + last_run)
-            .insert(isoDateToTimeEl.bind(null, last_run, {title: false}));
-          g.selectAll('span')
-            // We don't translate the timezone in the tooltip, that stays in UTC.
-            .attr("data-original-title", "Start Date: " + last_run)
-            .style('display', null);
-          g.selectAll(".loading-last-run").remove();
+          .css('background-color', 'red');
         }
-        d3.selectAll(".loading-last-run").remove();
+      });
+    }
+
+    function lastDagRunsHandler(error, json) {
+      for(var safe_dag_id in json) {
+        dag_id = json[safe_dag_id].dag_id;
+        last_run = json[safe_dag_id].last_run;
+        g = d3.select('div#last-run-' + safe_dag_id)
+        g.selectAll('a')
+          .attr("href", "{{ url_for('Airflow.graph') }}?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" + last_run)
+          .insert(isoDateToTimeEl.bind(null, last_run, {title: false}));
+        g.selectAll('span')
+          // We don't translate the timezone in the tooltip, that stays in UTC.
+          .attr("data-original-title", "Start Date: " + last_run)
+          .style('display', null);
+        g.selectAll(".loading-last-run").remove();
       }
+      d3.selectAll(".loading-last-run").remove();
+    }
 
-      function dagStatsHandler(error, json) {
-        for(var dag_id in json) {
-            states = json[dag_id];
-            g = d3.select('svg#dag-run-' + dag_id.replace(/\./g, '__dot__'))
-              .attr('height', diameter + (stroke_width_hover * 2))
-              .attr('width', '110px')
-              .selectAll("g")
-              .data(states)
-              .enter()
-              .append('g')
-              .attr('transform', function(d, i) {
-                x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
-                y = (diameter/2) + stroke_width_hover;
-                return 'translate(' + x + ',' + y + ')';
-              });
+    function dagStatsHandler(error, json) {
+      for(var dag_id in json) {
+        states = json[dag_id];
+        g = d3.select('svg#dag-run-' + dag_id.replace(/\./g, '__dot__'))
+          .attr('height', diameter + (stroke_width_hover * 2))
+          .attr('width', '110px')
+          .selectAll("g")
+          .data(states)
+          .enter()
+          .append('g')
+          .attr('transform', function(d, i) {
+            x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
+            y = (diameter/2) + stroke_width_hover;
+            return 'translate(' + x + ',' + y + ')';
+          });
 
-            g.append('text')
-              .attr('fill', 'black')
-              .attr('text-anchor', 'middle')
-              .attr('vertical-align', 'middle')
-              .attr('font-size', 8)
-              .attr('y', 3)
-              .text(function(d){ return d.count > 0 ? d.count : ''; });
+        g.append('text')
+          .attr('fill', 'black')
+          .attr('text-anchor', 'middle')
+          .attr('vertical-align', 'middle')
+          .attr('font-size', 8)
+          .attr('y', 3)
+          .text(function(d){ return d.count > 0 ? d.count : ''; });
 
-            g.append('circle')
-              .attr('stroke-width', function(d) {
-                  if (d.count > 0)
-                    return stroke_width;
-                  else {
-                    return 1;
-                  }
-              })
-              .attr('stroke', function(d) {
-                  if (d.count > 0)
-                    return d.color;
-                  else {
-                    return 'gainsboro';
-                  }
-              })
-              .attr('fill-opacity', 0)
-              .attr('r', diameter/2)
-              .attr('title', function(d) {return d.state})
-              .attr('style', function(d) {
-                if (d.count > 0)
-                    return"cursor:pointer;"
-              })
-              .on('click', function(d, i) {
-                  if (d.count > 0)
-                    window.location = "{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
-              })
-              .on('mouseover', function(d, i) {
-                if (d.count > 0) {
-                    d3.select(this).transition().duration(400)
-                      .attr('fill-opacity', 0.3)
-                      .style("stroke-width", stroke_width_hover);
-                }
-              })
-              .on('mouseout', function(d, i) {
-                if (d.count > 0) {
-                    d3.select(this).transition().duration(400)
-                      .attr('fill-opacity', 0)
-                      .style("stroke-width", stroke_width);
-                }
-              })
-              .style("opacity", 0)
-              .transition()
-              .duration(500)
-              .delay(function(d, i){return i*50;})
-              .style("opacity", 1);
-            d3.select(".loading-dag-stats").remove();
-        }
-        $("#pause_header").tooltip();
-        $("#statuses_info").tooltip();
-
-        $("circle").tooltip({
-          html: true,
-          container: "body",
-        });
+        g.append('circle')
+          .attr('stroke-width', function(d) {
+            if (d.count > 0)
+              return stroke_width;
+            else {
+              return 1;
+            }
+          })
+          .attr('stroke', function(d) {
+            if (d.count > 0)
+              return d.color;
+            else {
+              return 'gainsboro';
+            }
+          })
+          .attr('fill-opacity', 0)
+          .attr('r', diameter/2)
+          .attr('title', function(d) {return d.state})
+          .attr('style', function(d) {
+            if (d.count > 0)
+                return"cursor:pointer;"
+          })
+          .on('click', function(d, i) {
+            if (d.count > 0)
+              window.location = "{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
+          })
+          .on('mouseover', function(d, i) {
+            if (d.count > 0) {
+              d3.select(this).transition().duration(400)
+                .attr('fill-opacity', 0.3)
+                .style("stroke-width", stroke_width_hover);
+            }
+          })
+          .on('mouseout', function(d, i) {
+            if (d.count > 0) {
+              d3.select(this).transition().duration(400)
+                .attr('fill-opacity', 0)
+                .style("stroke-width", stroke_width);
+            }
+          })
+          .style("opacity", 0)
+          .transition()
+          .duration(500)
+          .delay(function(d, i){return i*50;})
+          .style("opacity", 1);
+        d3.select(".loading-dag-stats").remove();
       }
+      $("#pause_header").tooltip();
+      $("#statuses_info").tooltip();
 
-      function taskStatsHandler(error, json) {
-        for(var dag_id in json) {
-            states = json[dag_id];
-            g = d3.select('svg#task-run-' + dag_id.replace(/\./g, '__dot__'))
-              .attr('height', diameter + (stroke_width_hover * 2))
-              .attr('width', '300px')
-              .selectAll("g")
-              .data(states)
-              .enter()
-              .append('g')
-              .attr('transform', function(d, i) {
-                x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
-                y = (diameter/2) + stroke_width_hover;
-                return 'translate(' + x + ',' + y + ')';
-              });
+      $("circle").tooltip({
+        html: true,
+        container: "body",
+      });
+    }
 
-            g.append('text')
-              .attr('fill', 'black')
-              .attr('text-anchor', 'middle')
-              .attr('vertical-align', 'middle')
-              .attr('font-size', 8)
-              .attr('y', 3)
-              .text(function(d){ return d.count > 0 ? d.count : ''; });
+    function taskStatsHandler(error, json) {
+      for(var dag_id in json) {
+        states = json[dag_id];
+        g = d3.select('svg#task-run-' + dag_id.replace(/\./g, '__dot__'))
+          .attr('height', diameter + (stroke_width_hover * 2))
+          .attr('width', '300px')
+          .selectAll("g")
+          .data(states)
+          .enter()
+          .append('g')
+          .attr('transform', function(d, i) {
+            x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
+            y = (diameter/2) + stroke_width_hover;
+            return 'translate(' + x + ',' + y + ')';
+          });
 
-            g.append('circle')
-              .attr('stroke-width', function(d) {
-                  if (d.count > 0)
-                    return stroke_width;
-                  else {
-                    return 1;
-                  }
-              })
-              .attr('stroke', function(d) {
-                  if (d.count > 0)
-                    return d.color;
-                  else {
-                    return 'gainsboro';
-                  }
-              })
-              .attr('fill-opacity', 0)
-              .attr('r', diameter/2)
-              .attr('title', function(d) {return d.state || 'none'})
-              .attr('style', function(d) {
-                if (d.count > 0)
-                    return"cursor:pointer;"
-              })
-              .on('click', function(d, i) {
-                  if (d.count > 0)
-                    window.location = "{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
-              })
-              .on('mouseover', function(d, i) {
-                if (d.count > 0) {
-                    d3.select(this).transition().duration(400)
-                      .attr('fill-opacity', 0.3)
-                      .style("stroke-width", stroke_width_hover);
-                }
-              })
-              .on('mouseout', function(d, i) {
-                if (d.count > 0) {
-                    d3.select(this).transition().duration(400)
-                      .attr('fill-opacity', 0)
-                      .style("stroke-width", stroke_width);
-                }
-              })
-              .style("opacity", 0)
-              .transition()
-              .duration(500)
-              .delay(function(d, i){return i*50;})
-              .style("opacity", 1);
-            d3.select(".loading-task-stats").remove();
-        }
-        $("#pause_header").tooltip();
-        $("#statuses_info").tooltip();
+        g.append('text')
+          .attr('fill', 'black')
+          .attr('text-anchor', 'middle')
+          .attr('vertical-align', 'middle')
+          .attr('font-size', 8)
+          .attr('y', 3)
+          .text(function(d){ return d.count > 0 ? d.count : ''; });
 
-        $("circle").tooltip({
-          html: true,
-          container: "body",
-        });
+        g.append('circle')
+          .attr('stroke-width', function(d) {
+            if (d.count > 0)
+              return stroke_width;
+            else {
+              return 1;
+            }
+          })
+          .attr('stroke', function(d) {
+            if (d.count > 0)
+              return d.color;
+            else {
+              return 'gainsboro';
+            }
+          })
+          .attr('fill-opacity', 0)
+          .attr('r', diameter/2)
+          .attr('title', function(d) {return d.state || 'none'})
+          .attr('style', function(d) {
+            if (d.count > 0)
+                return"cursor:pointer;"
+          })
+          .on('click', function(d, i) {
+            if (d.count > 0)
+              window.location = "{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
+          })
+          .on('mouseover', function(d, i) {
+            if (d.count > 0) {
+              d3.select(this).transition().duration(400)
+                .attr('fill-opacity', 0.3)
+                .style("stroke-width", stroke_width_hover);
+            }
+          })
+          .on('mouseout', function(d, i) {
+            if (d.count > 0) {
+              d3.select(this).transition().duration(400)
+                .attr('fill-opacity', 0)
+                .style("stroke-width", stroke_width);
+            }
+          })
+          .style("opacity", 0)
+          .transition()
+          .duration(500)
+          .delay(function(d, i){return i*50;})
+          .style("opacity", 1);
+        d3.select(".loading-task-stats").remove();
       }
+      $("#pause_header").tooltip();
+      $("#statuses_info").tooltip();
 
-      if (encoded_dag_ids.has('dag_ids')) {
-        // dags on page fetch stats
-        d3.json("{{ url_for('Airflow.blocked') }}")
-          .header("X-CSRFToken", "{{ csrf_token() }}")
-          .post(encoded_dag_ids, blockedHandler);
-        d3.json("{{ url_for('Airflow.last_dagruns') }}")
-          .header("X-CSRFToken", "{{ csrf_token() }}")
-          .post(encoded_dag_ids, lastDagRunsHandler);
-        d3.json("{{ url_for('Airflow.dag_stats') }}")
-          .header("X-CSRFToken", "{{ csrf_token() }}")
-          .post(encoded_dag_ids, dagStatsHandler);
-        d3.json("{{ url_for('Airflow.task_stats') }}")
-          .header("X-CSRFToken", "{{ csrf_token() }}")
-          .post(encoded_dag_ids, taskStatsHandler);
-      }
-      else {
-        // no dags, hide the loading gifs
-        $(".loading-task-stats").remove();
-        $(".loading-dag-stats").remove();
-      }
+      $("circle").tooltip({
+        html: true,
+        container: "body",
+      });
+    }
 
+    if (encoded_dag_ids.has('dag_ids')) {
+      // dags on page fetch stats
+      d3.json("{{ url_for('Airflow.blocked') }}")
+        .header("X-CSRFToken", "{{ csrf_token() }}")
+        .post(encoded_dag_ids, blockedHandler);
+      d3.json("{{ url_for('Airflow.last_dagruns') }}")
+        .header("X-CSRFToken", "{{ csrf_token() }}")
+        .post(encoded_dag_ids, lastDagRunsHandler);
+      d3.json("{{ url_for('Airflow.dag_stats') }}")
+        .header("X-CSRFToken", "{{ csrf_token() }}")
+        .post(encoded_dag_ids, dagStatsHandler);
+      d3.json("{{ url_for('Airflow.task_stats') }}")
+        .header("X-CSRFToken", "{{ csrf_token() }}")
+        .post(encoded_dag_ids, taskStatsHandler);
+    }
+    else {
+      // no dags, hide the loading gifs
+      $(".loading-task-stats").remove();
+      $(".loading-dag-stats").remove();
+    }
   </script>
 {% endblock %}

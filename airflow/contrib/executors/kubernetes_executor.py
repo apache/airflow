@@ -161,6 +161,8 @@ class KubeConfig:
         self.kube_labels = configuration_dict.get('kubernetes_labels', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
+        self.delete_worker_pods_on_failure = conf.getboolean(
+            self.kubernetes_section, 'delete_worker_pods_on_failure')
         self.worker_pods_creation_batch_size = conf.getint(
             self.kubernetes_section, 'worker_pods_creation_batch_size')
         self.worker_service_account_name = conf.get(
@@ -892,8 +894,11 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
     def _change_state(self, key, state, pod_id, namespace):
         if state != State.RUNNING:
             if self.kube_config.delete_worker_pods:
-                self.kube_scheduler.delete_pod(pod_id, namespace)
-                self.log.info('Deleted pod: %s in namespace %s', str(key), str(namespace))
+                if not self.kube_scheduler:
+                    raise AirflowException("The executor should be started first!")
+                if state is not State.FAILED or self.kube_config.delete_worker_pods_on_failure:
+                    self.kube_scheduler.delete_pod(pod_id, namespace)
+                    self.log.info('Deleted pod: %s in namespace %s', str(key), str(namespace))
             try:
                 self.running.pop(key)
             except KeyError:

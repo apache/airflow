@@ -22,6 +22,7 @@ import json
 import unittest
 from urllib.parse import quote_plus
 
+import pytest
 from parameterized import parameterized_class
 
 from airflow import settings
@@ -150,6 +151,7 @@ class TestApiExperimental(TestBase):
             self.assertEqual(200, paused_response.status_code)
             self.assertEqual({"is_paused": False}, paused_response.json)
 
+    @pytest.mark.quarantined
     def test_trigger_dag(self):
         with conf_vars(
             {("core", "store_serialized_dags"): self.dag_serialization}

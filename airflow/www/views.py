@@ -1247,6 +1247,7 @@ class Airflow(AirflowViewMixin, BaseView):
                     conf=conf,
                 )
 
+        dag = dagbag.get_dag(dag_id)
         dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,

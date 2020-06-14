@@ -27,6 +27,8 @@ import unittest
 from tests.compat import mock
 from copy import deepcopy
 
+import pytest
+
 from airflow import jobs, models
 from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
@@ -107,6 +109,7 @@ def create_user():
             )
 
 
+@pytest.mark.quarantined
 class TestImpersonation(unittest.TestCase):
 
     def setUp(self):
@@ -187,6 +190,7 @@ class TestImpersonation(unittest.TestCase):
         )
 
 
+@pytest.mark.quarantined
 class TestImpersonationWithCustomPythonPath(unittest.TestCase):
 
     @mock_custom_module_path(TEST_UTILS_FOLDER)

@@ -876,6 +876,7 @@ class SchedulerJobTest(unittest.TestCase):
             ti.refresh_from_db()
             self.assertEqual(State.QUEUED, ti.state)
 
+    @pytest.mark.quarantined
     @pytest.mark.xfail(condition=True, reason="The test is flaky with nondeterministic result")
     def test_change_state_for_tis_without_dagrun(self):
         dag1 = DAG(dag_id='test_change_state_for_tis_without_dagrun', start_date=DEFAULT_DATE)
@@ -2188,6 +2189,7 @@ class SchedulerJobTest(unittest.TestCase):
                 'Could not send SLA Miss email notification for DAG %s',
                 'test_sla_miss')
 
+    @pytest.mark.quarantined
     def test_retry_still_in_executor(self):
         """
         Checks if the scheduler does not put a task in limbo, when a task is retried
@@ -2277,6 +2279,7 @@ class SchedulerJobTest(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
 
+    @pytest.mark.quarantined
     @pytest.mark.xfail(condition=True, reason="This test is failing!")
     def test_retry_handling_job(self):
         """

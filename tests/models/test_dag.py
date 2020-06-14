@@ -24,6 +24,8 @@ import os
 import re
 import unittest
 from tempfile import NamedTemporaryFile
+
+from parameterized import parameterized
 from tests.compat import mock
 
 import pendulum
@@ -881,3 +883,21 @@ class DagTest(unittest.TestCase):
 
         sub_dag = dag.sub_dag('t2', include_upstream=True, include_downstream=False)
         self.assertEqual(id(sub_dag.task_dict['t1'].downstream_list[0].dag), id(sub_dag))
+
+    @parameterized.expand([
+        (None, None),
+        ("@daily", "0 0 * * *"),
+        ("@weekly", "0 0 * * 0"),
+        ("@monthly", "0 0 1 * *"),
+        ("@quarterly", "0 0 1 */3 *"),
+        ("@yearly", "0 0 1 1 *"),
+        ("@once", None),
+        (datetime.timedelta(days=1), datetime.timedelta(days=1)),
+    ])
+    def test_normalized_schedule_interval(
+        self, schedule_interval, expected_n_schedule_interval
+    ):
+        dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
+
+        self.assertEqual(dag.normalized_schedule_interval, expected_n_schedule_interval)
+        self.assertEqual(dag.schedule_interval, schedule_interval)
