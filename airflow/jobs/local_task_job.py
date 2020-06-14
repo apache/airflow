@@ -73,11 +73,14 @@ class LocalTaskJob(BaseJob):
     def _execute(self):
         self.task_runner = get_task_runner(self)
 
+        # pylint: disable=unused-argument
         def signal_handler(signum, frame):
             """Setting kill signal handler"""
             self.log.error("Received SIGTERM. Terminating subprocesses")
             self.on_kill()
             raise AirflowException("LocalTaskJob received SIGTERM signal")
+
+        # pylint: enable=unused-argument
         signal.signal(signal.SIGTERM, signal_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(

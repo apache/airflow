@@ -153,13 +153,14 @@ class LocalExecutor(BaseExecutor):
             self.executor.workers_used = 0
             self.executor.workers_active = 0
 
+        # pylint: disable=unused-argument # pragma: no cover
         # noinspection PyUnusedLocal
         def execute_async(self,
                           key: TaskInstanceKeyType,
                           command: CommandType,
                           queue: Optional[str] = None,
                           executor_config: Optional[Any] = None) -> None:  \
-                # pylint: disable=unused-argument # pragma: no cover
+
             """
             Executes task asynchronously.
 
@@ -175,6 +176,7 @@ class LocalExecutor(BaseExecutor):
             self.executor.workers_active += 1
             local_worker.start()
 
+        # pylint: enable=unused-argument # pragma: no cover
         def sync(self) -> None:
             """
             Sync will get called periodically by the heartbeat method.
