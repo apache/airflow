@@ -247,7 +247,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             for mod in zip_file.infolist():
                 head, _ = os.path.split(mod.filename)
                 mod_name, ext = os.path.splitext(mod.filename)
-                if not head and (ext == '.py' or ext == '.pyc'):
+                if not head and ext in [".py", ".pyc"]:
                     if mod_name == '__init__':
                         self.log.warning("Found __init__.%s at root of %s", ext, filepath)
                     if safe_mode:
