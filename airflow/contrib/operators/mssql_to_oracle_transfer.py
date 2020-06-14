@@ -17,8 +17,8 @@
 # under the License.
 
 from airflow.models import BaseOperator
-from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.utils.decorators import apply_defaults
 
 
