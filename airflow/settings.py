@@ -53,7 +53,7 @@ try:
         TIMEZONE = pendulum.tz.timezone(tz)
 except Exception:
     pass
-log.info("Configured default timezone %s" % TIMEZONE)
+log.info("Configured default timezone %s", TIMEZONE)
 
 
 HEADER = '\n'.join([
@@ -145,7 +145,7 @@ def configure_vars():
 
 
 def configure_orm(disable_connection_pool=False):
-    log.debug("Setting up DB connection pool (PID %s)" % os.getpid())
+    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
     engine_args = {}
@@ -299,7 +299,7 @@ def import_local_settings():
                 if not k.startswith("__"):
                     globals()[k] = v
 
-        log.info("Loaded airflow_local_settings from " + airflow_local_settings.__file__ + ".")
+        log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
     except ImportError:
         log.debug("Failed to import airflow_local_settings.", exc_info=True)
 
