@@ -66,7 +66,7 @@ class MSSQLToOracleTransferOperator(BaseOperator):
         self.rows_chunk = rows_chunk
 
     # pylint: disable=unused-argument
-    def _execute(self, src_hook : MsSqlHook, dest_hook : MsSqlHook):
+    def _execute(self, src_hook : MsSqlHook, dest_hook : OracleHook):
         with src_hook.get_conn() as src_conn:
             cursor = src_conn.cursor()
             self.log.info("Querying data from source: %s", self.mssql_source_conn_id)
