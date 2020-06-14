@@ -17,7 +17,7 @@
 # under the License.
 from typing import List, NamedTuple
 
-from marshmallow import Schema, fields, post_load
+from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.models.connection import Connection
@@ -47,13 +47,6 @@ class ConnectionSchema(ConnectionCollectionItemSchema):  # pylint: disable=too-m
 
     password = auto_field(load_only=True)
     extra = auto_field()
-
-    @post_load
-    def make_connection(self, data):
-
-        """ Deserialize to connection object"""
-
-        return Connection(**data)
 
 
 class ConnectionCollection(NamedTuple):

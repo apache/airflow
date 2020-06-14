@@ -17,10 +17,9 @@
 
 from connexion import NoContent
 from flask import request
-from marshmallow import ValidationError
 from sqlalchemy import func
 
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.api_connexion.exceptions import AlreadyExists, NotFound
 from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection, connection_collection_item_schema, connection_collection_schema, connection_schema,
 )
@@ -35,7 +34,8 @@ def delete_connection(connection_id, session):
     """
     Delete a connection entry
     """
-    query = session.query(Connection).filter_by(conn_id=connection_id)
+    query = session.query(Connection)
+    query = query.filter_by(conn_id=connection_id)
     connection = query.one_or_none()
     if connection is None:
         raise NotFound('Connection not found')
@@ -55,22 +55,36 @@ def get_connection(connection_id, session):
 
 
 @provide_session
-def get_connections(session, limit, offset=None):
+def get_connections(session, limit, offset=0):
     """
     Get all connection entries
     """
-
     total_entries = session.query(func.count(Connection.id)).scalar()
-    connections = session.query(Connection).order_by(Connection.id).offset(offset).limit(limit).all()
+    query = session.query(Connection)
+    connections = query.offset(offset).limit(limit).all()
     return connection_collection_schema.dump(ConnectionCollection(connections=connections,
                                                                   total_entries=total_entries))
 
 
-def patch_connection():
+@provide_session
+@csrf.exempt
+def patch_connection(connection_id, session, update_mask=None):
     """
     Update a connection entry
     """
-    raise NotImplementedError("Not implemented yet.")
+    body = request.json
+    connection = session.query(Connection).filter_by(conn_id=connection_id).first()
+    if connection is None:
+        raise NotFound("Connection not found")
+    if update_mask:
+        for field in update_mask:
+            setattr(connection, field, body[field])
+    else:
+        for key in body:
+            setattr(connection, key, body[key])
+    session.add(connection)
+    session.commit()
+    return connection_schema.dump(connection)
 
 
 @provide_session
@@ -81,16 +95,15 @@ def post_connection(session):
     """
     body = request.json
 
-    try:
-        result = connection_schema.load(body)
-    except ValidationError as err:
-        raise BadRequest("Bad Request", detail=err.messages)
-    connection_obj = result.data
-    conn_id = connection_obj.conn_id
+    # connexion handles 404, no need for try/except
+    result = connection_schema.load(body)
+    data = result.data
+    conn_id = data['conn_id']
     query = session.query(Connection)
     connection = query.filter_by(conn_id=conn_id).first()
     if not connection:
-        session.add(connection_obj)
+        connection = Connection(**data)
+        session.add(connection)
         session.commit()
-        return connection_schema.dump(connection_obj)
+        return connection_schema.dump(connection)
     raise AlreadyExists("Connection already exist. ID: %s" % conn_id)

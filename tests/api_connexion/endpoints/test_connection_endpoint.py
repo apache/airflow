@@ -39,6 +39,12 @@ class TestConnectionEndpoint(unittest.TestCase):
     def tearDown(self) -> None:
         clear_db_connections()
 
+    def _create_connection(self, session):
+        connection_model = Connection(conn_id='test-connection-id',
+                                      conn_type='test_type')
+        session.add(connection_model)
+        session.commit()
+
 
 class TestDeleteConnection(TestConnectionEndpoint):
 
@@ -223,10 +229,92 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
 
 
 class TestPatchConnection(TestConnectionEndpoint):
-    @unittest.skip("Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.patch("/api/v1/connections/1")
+
+    @provide_session
+    def test_patch_should_response_200(self, session):
+        self._create_connection(session)
+        payload = {
+            "connection_id": "test-connection-id",
+            "conn_type": 'test_type',
+            "extra": "{'key': 'var'}"
+        }
+        response = self.client.patch("/api/v1/connections/test-connection-id",
+                                     json=payload)
         assert response.status_code == 200
+
+    @provide_session
+    def test_patch_should_response_200_with_update_mask(self, session):
+        self._create_connection(session)
+        payload = {
+            "connection_id": "test-connection-id",
+            "conn_type": 'test_type_2',
+            "extra": "{'key': 'var'}",
+            'login': "login",
+            "port": 80
+        }
+        response = self.client.patch(
+            "/api/v1/connections/test-connection-id?update_mask=port,login",
+            json=payload
+        )
+        assert response.status_code == 200
+        # check that only port and login was updated
+        self.assertEqual(
+            response.json,
+            {
+                "connection_id": "test-connection-id",
+                "conn_type": 'test_type',  # Not updated
+                "extra": None,  # Not updated
+                'login': "login",  # updated
+                "port": 80,  # updated
+                "schema": None,
+                "host": None
+
+            }
+        )
+
+    @provide_session
+    def test_patch_should_response_400_for_invalid_update(self, session):
+        self._create_connection(session)
+        payload = {
+            "connection_id": "test-connection-id",
+            "conn_type": "test-type",
+            "extra": 0,  # expected string
+        }
+        response = self.client.patch(
+            "/api/v1/connections/test-connection-id",
+            json=payload
+        )
+        assert response.status_code == 400
+        self.assertEqual(
+            response.json,
+            {
+                'detail': "0 is not of type 'string' - 'extra'",
+                'status': 400,
+                'title': 'Bad Request',
+                'type': 'about:blank'
+            }
+        )
+
+    def test_patch_should_response_404(self):
+        payload = {
+            "connection_id": "test-connection-id",
+            "conn_type": "test-type",
+            "port": 90
+        }
+        response = self.client.patch(
+            "/api/v1/connections/test-connection-id",
+            json=payload
+        )
+        assert response.status_code == 404
+        self.assertEqual(
+            {
+                'detail': None,
+                'status': 404,
+                'title': 'Connection not found',
+                'type': 'about:blank'
+            },
+            response.json
+        )
 
 
 class TestPostConnection(TestConnectionEndpoint):
@@ -256,7 +344,7 @@ class TestPostConnection(TestConnectionEndpoint):
                           'type': 'about:blank'}
                          )
 
-    def test_delete_should_response_409_already_exist(self):
+    def test_post_should_response_409_already_exist(self):
         payload = {
             "connection_id": "test-connection-id",
             "conn_type": 'test_type'
@@ -266,9 +354,12 @@ class TestPostConnection(TestConnectionEndpoint):
         # Another request
         response = self.client.post("/api/v1/connections", json=payload)
         assert response.status_code == 409
-        self.assertEqual(response.json,
-                         {'detail': None,
-                          'status': 409,
-                          'title': 'Connection already exist. ID: test-connection-id',
-                          'type': 'about:blank'}
-                         )
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 409,
+                'title': 'Connection already exist. ID: test-connection-id',
+                'type': 'about:blank'
+            }
+        )
