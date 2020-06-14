@@ -20,10 +20,9 @@
 # This tool is based on the Spark merge_spark_pr script:
 # https://github.com/apache/spark/blob/master/dev/merge_spark_pr.py
 
-from collections import defaultdict, Counter
-
 import re
 import sys
+from collections import Counter, defaultdict
 from typing import List, Optional
 
 from github import Github
@@ -53,15 +52,6 @@ STATUS_COLOR_MAP = {
 }
 
 DEFAULT_SECTION_NAME = 'Uncategorized'
-
-
-def get_commits_to_current_branch(repo, previous_version=None):
-    log_args = ['--format="%H"']
-    if previous_version:
-        log_args.append(previous_version + "..")
-
-    log = repo.git.log(*log_args)
-    return set(log.strip('"').split('"\n"'))
 
 
 def get_commits_between_tags(repo, earlier_tag, later_tag):
@@ -94,7 +84,7 @@ def get_issue_type(issue):
 
 
 def get_commit_in_master_associated_with_pr(repo: git.Repo, issue: Issue) -> Optional[str]:
-    """For a PR Get find the associated merged commit & return is SHA"""
+    """For a PR, find the associated merged commit & return its SHA"""
     if issue.pull_request:
         commit = repo.git.log(f"--grep=#{issue.number}", "origin/master", "--format=%H")
         if commit:
