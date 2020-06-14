@@ -19,15 +19,12 @@
 import socket
 from datetime import timedelta
 from typing import Optional
-from urllib.parse import urlparse
 
 import pendulum
 from flask import Flask
 from flask_appbuilder import SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 from airflow import settings, version
 from airflow.configuration import conf
@@ -39,14 +36,10 @@ from airflow.www.extensions.init_views import (
     init_api_connexion, init_api_experimental, init_appbuilder_views, init_error_handlers, init_flash_views,
     init_plugins,
 )
+from airflow.www.extensions.init_wsgi_middlewares import init_wsg_middleware
 from airflow.www.static_config import configure_manifest_files
 
 app: Optional[Flask] = None
-
-
-def root_app(env, resp):
-    resp(b'404 Not Found', [('Content-Type', 'text/plain')])
-    return [b'Apache Airflow is not at this location']
 
 
 def init_appbuilder_links(app):
@@ -106,29 +99,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
     CSRFProtect(app)
 
-    def apply_middlewares(flask_app: Flask):
-        # Apply DispatcherMiddleware
-        base_url = urlparse(conf.get('webserver', 'base_url'))[2]
-        if not base_url or base_url == '/':
-            base_url = ""
-        if base_url:
-            flask_app.wsgi_app = DispatcherMiddleware(  # type: ignore
-                root_app,
-                mounts={base_url: flask_app.wsgi_app}
-            )
-
-        # Apply ProxyFix middleware
-        if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
-            flask_app.wsgi_app = ProxyFix(  # type: ignore
-                flask_app.wsgi_app,
-                x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
-                x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
-                x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
-                x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
-                x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
-            )
-
-    apply_middlewares(app)
+    init_wsg_middleware(app)
 
     db = SQLA()
     db.session = settings.Session
