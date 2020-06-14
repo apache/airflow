@@ -21,7 +21,7 @@ import json
 import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import pendulum
 from sqlalchemy import create_engine, exc
@@ -35,12 +35,7 @@ from airflow import api
 # pylint: disable=unused-import
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
-from airflow.utils.sqlalchemy import setup_event_handlers
-
-if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.taskinstance import TaskInstance
-
+from airflow.utils.orm_event_handlers import setup_event_handlers
 
 log = logging.getLogger(__name__)
 
@@ -85,7 +80,7 @@ Session: Optional[SASession] = None
 json = json  # pylint: disable=self-assigning-variable
 
 
-def policy(task: 'BaseOperator'):  # pylint: disable=unused-argument
+def policy(task):  # pylint: disable=unused-argument
     """
     This policy setting allows altering tasks after they are loaded in
     the DagBag. It allows administrator to rewire some task parameters.
@@ -104,7 +99,7 @@ def policy(task: 'BaseOperator'):  # pylint: disable=unused-argument
     """
 
 
-def task_instance_mutation_hook(task_instance: 'TaskInstance'):  # pylint: disable=unused-argument
+def task_instance_mutation_hook(task_instance):  # pylint: disable=unused-argument
     """
     This setting allows altering task instances before they are queued by
     the Airflow scheduler.
@@ -299,7 +294,7 @@ def import_local_settings():
         import airflow_local_settings
 
         if hasattr(airflow_local_settings, "__all__"):
-            for i in airflow_local_settings.__all__:
+            for i in airflow_local_settings.__all__:  # pylint: disable=no-member
                 globals()[i] = getattr(airflow_local_settings, i)
         else:
             for k, v in airflow_local_settings.__dict__.items():
