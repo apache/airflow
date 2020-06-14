@@ -105,14 +105,14 @@ def init_api_connexion(app: Flask):
 
 def init_api_experimental(app):
     """Initialize Experimental API"""
-    from airflow.www.api.experimental import endpoints as e
+    from airflow.www.api.experimental import endpoints
 
     # required for testing purposes otherwise the module retains
     # a link to the default_auth
     if app.config['TESTING']:
         import importlib
 
-        importlib.reload(e)
+        importlib.reload(endpoints)
 
-    app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
-    app.extensions['csrf'].exempt(e.api_experimental)
+    app.register_blueprint(endpoints.api_experimental, url_prefix='/api/experimental')
+    app.extensions['csrf'].exempt(endpoints.api_experimental)

@@ -20,7 +20,7 @@ from airflow.configuration import conf
 
 def init_xframe_protection(app):
     """
-    Add X-Frame-Options header. Use it avoid click-jacking attacks, by ensuring that their content is not
+    Add X-Frame-Options header. Use it to avoid click-jacking attacks, by ensuring that their content is not
     embedded into other sites.
 
     See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
