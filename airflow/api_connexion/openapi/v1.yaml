@@ -1134,6 +1134,19 @@ paths:
               schema:
                 type: string
 
+  /version:
+    get:
+      summary: Get version information
+      operationId: airflow.api_connexion.endpoints.version_endpoint.get_version
+      tags: [Monitoring]
+      responses:
+        '200':
+          description: Return current configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionInfo'
+
 
 components:
   # Reusable schemas (data models)
@@ -1732,6 +1745,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ConfigSection'
+
+    VersionInfo:
+      type: object
+      description: Version information.
+      properties:
+        version:
+          type: string
+          description: The version of Airflow
+        git_version:
+          type: string
+          description: The git version (including git commit hash)
+          nullable: true
 
     # From
     ClearTaskInstance:

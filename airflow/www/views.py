@@ -23,7 +23,6 @@ import json
 import logging
 import math
 import os
-import pkgutil
 import socket
 import traceback
 from collections import defaultdict
@@ -68,6 +67,7 @@ from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEP
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
+from airflow.utils.platform import get_airflow_git_version
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.www import utils as wwwutils
@@ -2095,13 +2095,7 @@ class VersionView(AirflowBaseView):
             airflow_version = None
             logging.error(e)
 
-        # Get the Git repo and git hash
-        git_version = None
-        try:
-            git_version = str(pkgutil.get_data('airflow', 'git_version'), encoding="UTF-8")
-        except Exception as e:
-            logging.error(e)
-
+        git_version = get_airflow_git_version()
         # Render information
         title = "Version Info"
         return self.render_template(
