@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 
 import pendulum
 from flask import Flask
-from flask_appbuilder import SQLA, AppBuilder
+from flask_appbuilder import SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
@@ -33,6 +33,7 @@ from airflow import settings, version
 from airflow.configuration import conf
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
+from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_session import init_logout_timeout, init_permanent_session
 from airflow.www.extensions.init_views import (
     init_api_connexion, init_api_experimental, init_appbuilder_views, init_error_handlers, init_flash_views,
@@ -46,6 +47,39 @@ app: Optional[Flask] = None
 def root_app(env, resp):
     resp(b'404 Not Found', [('Content-Type', 'text/plain')])
     return [b'Apache Airflow is not at this location']
+
+
+def init_appbuilder_links(app):
+    appbuilder = app.appbuilder
+    if "dev" in version.version:
+        airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
+    else:
+        airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
+
+    appbuilder.add_link("Website",
+                        href='https://airflow.apache.org',
+                        category="Docs",
+                        category_icon="fa-globe")
+    appbuilder.add_link("Documentation",
+                        href=airflow_doc_site,
+                        category="Docs",
+                        category_icon="fa-cube")
+    appbuilder.add_link("GitHub",
+                        href='https://github.com/apache/airflow',
+                        category="Docs")
+    appbuilder.add_link("REST API Reference",
+                        href='/api/v1./api/v1_swagger_ui_index',
+                        category="Docs")
+
+
+def sync_appbuilder_roles(app):
+    # Garbage collect old permissions/views after they have been modified.
+    # Otherwise, when the name of a view or menu is changed, the framework
+    # will add the new Views and Menus names to the backend, but will not
+    # delete the old ones.
+    if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
+        security_manager = app.appbuilder.sm
+        security_manager.sync_roles()
 
 
 def create_app(config=None, testing=False, app_name="Airflow"):
@@ -114,63 +148,6 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     configure_manifest_files(app)
 
     with app.app_context():
-        def init_appbuilder(app):
-            from airflow.www.security import AirflowSecurityManager
-            security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
-                AirflowSecurityManager
-
-            if not issubclass(security_manager_class, AirflowSecurityManager):
-                raise Exception(
-                    """Your CUSTOM_SECURITY_MANAGER must now extend AirflowSecurityManager,
-                     not FAB's security manager.""")
-
-            class AirflowAppBuilder(AppBuilder):
-
-                def _check_and_init(self, baseview):
-                    if hasattr(baseview, 'datamodel'):
-                        # Delete sessions if initiated previously to limit side effects. We want to use
-                        # the current session in the current application.
-                        baseview.datamodel.session = None
-                    return super()._check_and_init(baseview)
-
-            AirflowAppBuilder(
-                app=app,
-                session=settings.Session,
-                security_manager_class=security_manager_class,
-                base_template='airflow/master.html',
-                update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
-
-        def init_appbuilder_links(app):
-            appbuilder = app.appbuilder
-            if "dev" in version.version:
-                airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
-            else:
-                airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
-
-            appbuilder.add_link("Website",
-                                href='https://airflow.apache.org',
-                                category="Docs",
-                                category_icon="fa-globe")
-            appbuilder.add_link("Documentation",
-                                href=airflow_doc_site,
-                                category="Docs",
-                                category_icon="fa-cube")
-            appbuilder.add_link("GitHub",
-                                href='https://github.com/apache/airflow',
-                                category="Docs")
-            appbuilder.add_link("REST API Reference",
-                                href='/api/v1./api/v1_swagger_ui_index',
-                                category="Docs")
-
-        def sync_appbuildder_roles(app):
-            # Garbage collect old permissions/views after they have been modified.
-            # Otherwise, when the name of a view or menu is changed, the framework
-            # will add the new Views and Menus names to the backend, but will not
-            # delete the old ones.
-            if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
-                security_manager = app.appbuilder.sm
-                security_manager.sync_roles()
-
         def init_jinja_globals(app):
             server_timezone = conf.get('core', 'default_timezone')
             if server_timezone == "system":
@@ -229,7 +206,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
         init_api_connexion(app)
         init_api_experimental(app)
 
-        sync_appbuildder_roles(app)
+        sync_appbuilder_roles(app)
 
         init_jinja_globals(app)
         init_logout_timeout(app)
