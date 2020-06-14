@@ -31,8 +31,7 @@ def get_event_log(event_log_id, session):
     """
     Get a log entry
     """
-    query = session.query(Log)
-    query = query.filter(Log.id == event_log_id)
+    query = session.query(Log).filter(Log.id == event_log_id)
     event_log = query.one_or_none()
     if event_log is None:
         raise NotFound("Event Log not found")

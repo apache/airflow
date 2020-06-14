@@ -40,13 +40,10 @@ class TestEventLogSchemaBase(unittest.TestCase):
             session.query(Log).delete()
 
     def _create_task_instance(self):
-        dag = DAG('TEST_DAG_ID', start_date=timezone.parse(self.default_time),
-                  end_date=timezone.parse(self.default_time))
-        op1 = DummyOperator(task_id="TEST_TASK_ID", owner="airflow",
-                            )
-        dag.add_task(op1)
-        ti = TaskInstance(task=op1, execution_date=timezone.parse(self.default_time))
-        return ti
+        with DAG('TEST_DAG_ID', start_date=timezone.parse(self.default_time),
+                  end_date=timezone.parse(self.default_time)) as dag:
+            DummyOperator(task_id="TEST_TASK_ID", owner="airflow")
+        return TaskInstance(task=op1, execution_date=timezone.parse(self.default_time))
 
 
 class TestEventLogSchema(TestEventLogSchemaBase):
