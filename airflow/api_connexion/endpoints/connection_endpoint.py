@@ -69,16 +69,23 @@ def patch_connection(connection_id, session, update_mask=None):
     """
     Update a connection entry
     """
-    body = request.json
+    body = connection_schema.load(request.json)
+    data = body.data
+    # Here data contains only the allowed fields
+    # since it has passed through the schema
     connection = session.query(Connection).filter_by(conn_id=connection_id).first()
     if connection is None:
         raise NotFound("Connection not found")
     if update_mask:
+        update_mask = [i.strip() for i in update_mask]
         for field in update_mask:
-            setattr(connection, field, body[field])
+            if field == 'connection_id':
+                field = 'conn_id'
+            if field in data:
+                setattr(connection, field, data[field])
     else:
-        for key in body:
-            setattr(connection, key, body[key])
+        for key in data:
+            setattr(connection, key, data[key])
     session.add(connection)
     session.commit()
     return connection_schema.dump(connection)

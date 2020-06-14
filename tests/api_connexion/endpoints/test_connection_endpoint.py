@@ -246,22 +246,25 @@ class TestPatchConnection(TestConnectionEndpoint):
     def test_patch_should_response_200_with_update_mask(self, session):
         self._create_connection(session)
         payload = {
-            "connection_id": "test-connection-id",
+            "connection_id": "test-connection",
             "conn_type": 'test_type_2',
             "extra": "{'key': 'var'}",
             'login': "login",
-            "port": 80
+            "port": 80,
+            "_password": 'password',
+            'nan': 'asdf'
         }
         response = self.client.patch(
-            "/api/v1/connections/test-connection-id?update_mask=port,login",
+            "/api/v1/connections/test-connection-id?update_mask=port,login, connection_id, _password",
             json=payload
         )
         assert response.status_code == 200
-        # check that only port and login was updated
+
+        # check that only port, connection_id and login was updated
         self.assertEqual(
             response.json,
             {
-                "connection_id": "test-connection-id",
+                "connection_id": "test-connection",  # updated
                 "conn_type": 'test_type',  # Not updated
                 "extra": None,  # Not updated
                 'login': "login",  # updated
