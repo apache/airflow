@@ -209,11 +209,11 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         session.add_all(connection_models)
         session.commit()
 
-        response = self.client.get("/api/v1/connections?limit=150")
+        response = self.client.get("/api/v1/connections")  # default limit is 100
         assert response.status_code == 200
 
         self.assertEqual(response.json["total_entries"], 200)
-        self.assertEqual(len(response.json["connections"]), 100)
+        self.assertEqual(len(response.json["connections"]), 100)  # default
 
     def _create_connections(self, count):
         return [Connection(
