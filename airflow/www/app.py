@@ -116,7 +116,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
 def cached_app(config=None, testing=False):
     """Return cached instance of Airflow WWW app"""
-    global app  # pylintt: disable=global-statement
+    global app  # pylint: disable=global-statement
     if not app:
         app = create_app(config=config, testing=testing)
     return app
