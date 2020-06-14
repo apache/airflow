@@ -11,9 +11,7 @@
 ./airflow/models/dagrun.py
 ./airflow/models/errors.py
 ./airflow/models/kubernetes.py
-./airflow/models/log.py
 ./airflow/models/pool.py
-./airflow/models/skipmixin.py
 ./airflow/models/slamiss.py
 ./airflow/models/taskinstance.py
 ./airflow/models/variable.py
