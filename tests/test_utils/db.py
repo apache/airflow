@@ -77,3 +77,8 @@ def set_default_pool_slots(slots):
 def clear_rendered_ti_fields():
     with create_session() as session:
         session.query(RenderedTaskInstanceFields).delete()
+
+
+def clear_db_import_errors():
+    with create_session() as session:
+        session.query(errors.ImportError).delete()

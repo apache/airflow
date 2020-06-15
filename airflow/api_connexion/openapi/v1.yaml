@@ -446,7 +446,7 @@ paths:
   /importErrors:
     get:
       summary: Get all import errors
-      operationId: airflow.api_connexion.endpoints.import_errror_endpoint.get_import_errors
+      operationId: airflow.api_connexion.endpoints.import_error_endpoint.get_import_errors
       tags: [ImportError]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -471,7 +471,7 @@ paths:
 
     get:
       summary: Get an import error
-      operationId: airflow.api_connexion.endpoints.import_errror_endpoint.get_import_error
+      operationId: airflow.api_connexion.endpoints.import_error_endpoint.get_import_error
       tags: [ImportError]
       responses:
         '200':
@@ -489,7 +489,7 @@ paths:
 
     delete:
       summary: Delete an import error
-      operationId: airflow.api_connexion.endpoints.import_errror_endpoint.delete_import_error
+      operationId: airflow.api_connexion.endpoints.import_error_endpoint.delete_import_error
       tags: [ImportError]
       responses:
         '204':
