@@ -627,9 +627,9 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('example_bash_operator', resp)
 
     @parameterized.expand([
-        ("hello\nworld", r'"conf":{"abc":"hello\nworld"}}'),
-        ("hello'world", r'"conf":{"abc":"hello\u0027world"}}'),
-        ("<script>", r'"conf":{"abc":"\u003cscript\u003e"}}'),
+        ("hello\nworld", r'\"conf\":{\"abc\":\"hello\\nworld\"}}'),
+        ("hello'world", r'\"conf\":{\"abc\":\"hello\\u0027world\"}}'),
+        ("<script>", r'\"conf\":{\"abc\":\"\\u003cscript\\u003e\"}}'),
     ])
     def test_escape_in_tree_view(self, test_str, expected_text):
         dag = self.dagbag.dags['test_tree_view']
