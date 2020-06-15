@@ -223,8 +223,7 @@
       highlight_nodes(g.predecessors(d), upstream_color, highlightStrokeWidth);
       highlight_nodes(g.successors(d), downstream_color, highlightStrokeWidth)
       adjacent_node_names = [d, ...g.predecessors(d), ...g.successors(d)]
-      other_node_names = g.nodes().filter(x => !adjacent_node_names.includes(x))
-      d3.selectAll("g.nodes g.node").filter(x => other_node_names.includes(x))
+      d3.selectAll("g.nodes g.node").filter(x => !adjacent_node_names.includes(x))
         .style("opacity", 0.2);
       adjacent_edges = g.nodeEdges(d)
       d3.selectAll("g.edgePath")[0]
