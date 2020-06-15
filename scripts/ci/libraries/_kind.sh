@@ -379,16 +379,8 @@ function dump_kubernetes_logs() {
         --cluster "${KUBECTL_CLUSTER_NAME}" | grep airflow | head -1)
     echo "------- pod description -------"
     kubectl describe pod "${POD}" --cluster "${KUBECTL_CLUSTER_NAME}"
-    echo "------- webserver init container logs - init -------"
-    kubectl logs "${POD}" -c init --cluster "${KUBECTL_CLUSTER_NAME}" || true
-    if [[ "${KUBERNETES_MODE}" == "git" ]]; then
-        echo "------- webserver init container logs - git-sync-clone -------"
-        kubectl logs "${POD}" -c git-sync-clone --cluster "${KUBECTL_CLUSTER_NAME}" || true
-    fi
-    echo "------- webserver logs -------"
-    kubectl logs "${POD}" -c webserver --cluster "${KUBECTL_CLUSTER_NAME}" || true
-    echo "------- scheduler logs -------"
-    kubectl logs "${POD}" -c scheduler --cluster "${KUBECTL_CLUSTER_NAME}" || true
+    echo "------- airflow pod logs -------"
+    kubectl logs "${POD}" --all-containers=true || true
     echo "--------------"
 }
 
