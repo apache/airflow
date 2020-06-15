@@ -627,11 +627,11 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('example_bash_operator', resp)
 
     @parameterized.expand([
-        ("hello\nworld", "hello\\\\nworld"),
-        ("hello'world", "hello\\\\u0027world"),
-        ("<script>", "\\\\u003cscript\\\\u003e"),
+        ("hello\nworld", r'"conf":{"abc":"hello\nworld"}}'),
+        ("hello'world", r'"conf":{"abc":"hello\u0027world"}}'),
+        ("<script>", r'"conf":{"abc":"\u003cscript\u003e"}}'),
     ])
-    def test_escape_in_tree_view(self, test_str, seralized_test_str):
+    def test_escape_in_tree_view(self, test_str, expected_text):
         dag = self.dagbag.dags['test_tree_view']
         dag.create_dagrun(
             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
@@ -643,7 +643,7 @@ class TestAirflowBaseViews(TestBase):
 
         url = 'tree?dag_id=test_tree_view'
         resp = self.client.get(url, follow_redirects=True)
-        self.check_content_in_response(f'"conf":{{"abc":"{seralized_test_str}"}}', resp)
+        self.check_content_in_response(expected_text, resp)
 
     def test_dag_details_trigger_origin_tree_view(self):
         dag = self.dagbag.dags['test_tree_view']

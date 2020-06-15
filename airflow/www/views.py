@@ -1508,8 +1508,6 @@ class Airflow(AirflowBaseView):
 
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
-        # escape slashes to avoid JSON parse error in JS
-        data = data.replace('\\', '\\\\')
 
         return self.render_template(
             'airflow/tree.html',
