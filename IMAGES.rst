@@ -123,8 +123,8 @@ Technical details of Airflow images
 
 The CI image is used by Breeze as shell image but it is also used during CI build.
 The image is single segment image that contains Airflow installation with "all" dependencies installed.
-It is optimised for rebuild speed (``AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD`` flag set to "true").
-It installs PIP dependencies from the current branch first - so that any changes in setup.py do not trigger
+It is optimised for rebuild speed It installs PIP dependencies from the current branch first -
+so that any changes in setup.py do not trigger
 reinstalling of all dependencies. There is a second step of installation that re-installs the dependencies
 from the latest sources so that we are sure that latest dependencies are installed.
 
@@ -178,12 +178,6 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``CASS_DRIVER_NO_CYTHON``                | ``1``                                    | if set to 1 no CYTHON compilation is     |
 |                                          |                                          | done for cassandra driver (much faster)  |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD`` | ``true``                                 | if set then PIP dependencies are         |
-|                                          |                                          | installed from repo first before they    |
-|                                          |                                          | are reinstalled from local sources. This |
-|                                          |                                          | allows for incremental faster builds     |
-|                                          |                                          | when requirements change                 |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_REPO``                         | ``apache/airflow``                       | the repository from which PIP            |
 |                                          |                                          | dependencies are installed (CI           |
