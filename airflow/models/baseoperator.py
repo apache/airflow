@@ -678,7 +678,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         returns a copy of the task
         """
         other = copy.copy(self)
-        other._lock_for_execution = True
+        other._lock_for_execution = True  # pylint: disable=protected-access
         return other
 
     def set_xcomargs_dependencies(self) -> None:
