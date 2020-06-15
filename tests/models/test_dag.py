@@ -1314,7 +1314,7 @@ class TestDag(unittest.TestCase):
     @parameterized.expand([
         (None, None),
         ("@once", None),
-        ("@minutely", "* * * * *"),
+        ("@everyminute", "* * * * *"),
         ("@hourly", "0 * * * *"),
         ("@daily", "0 0 * * *"),
         ("@weekly", "0 0 * * 0"),
