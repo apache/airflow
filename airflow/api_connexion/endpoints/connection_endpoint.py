@@ -98,7 +98,7 @@ def post_connection(session):
     """
     body = request.json
 
-    # connexion handles 404, no need for try/except
+    # connexion handles 400, no need for try/except
     result = connection_schema.load(body)
     data = result.data
     conn_id = data['conn_id']
