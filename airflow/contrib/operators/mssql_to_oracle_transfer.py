@@ -52,7 +52,7 @@ class MSSQLToOracleTransferOperator(BaseOperator):
             destination_table: str,
             mssql_source_conn_id: str,
             source_sql: str,
-            source_sql_params: dict = None,
+            source_sql_params: dict = [],
             rows_chunk: int = 5000,
             *args, **kwargs):
         super().__init__(*args, **kwargs)
