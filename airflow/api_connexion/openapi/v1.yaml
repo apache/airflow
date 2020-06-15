@@ -1171,6 +1171,9 @@ components:
         port:
           type: integer
           nullable: true
+      required:
+        - connection_id
+        - conn_type
 
     ConnectionCollection:
       type: object
@@ -1282,6 +1285,7 @@ components:
           type: string
           format: date-time
           readOnly: True
+          nullable: true
         state:
           $ref: '#/components/schemas/DagState'
         external_trigger:
@@ -1333,6 +1337,7 @@ components:
         extra:
           type: string
           readOnly: true
+          nullable: true
 
     EventLogCollection:
       type: object
