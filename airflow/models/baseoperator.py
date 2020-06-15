@@ -677,8 +677,9 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         Lock task for execution to disable custom action in __setattr__ and
         returns a copy of the task
         """
-        self._lock_for_execution = True
-        return copy.copy(self)
+        other = copy.copy(self)
+        other._lock_for_execution = True
+        return other
 
     def set_xcomargs_dependencies(self) -> None:
         """
