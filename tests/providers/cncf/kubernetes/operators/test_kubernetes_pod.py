@@ -24,7 +24,7 @@ import pendulum
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskInstance
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow.utils import timezone
 
 
@@ -46,10 +46,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             "ti": task_instance,
         }
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_config_path(self, client_mock, monitor_mock, start_mock):  # pylint: disable=unused-argument
+    def test_config_path(self, client_mock, run_mock):  # pylint: disable=unused-argument
         from airflow.utils.state import State
 
         file_path = "/tmp/fake_file"
@@ -66,7 +65,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             config_file=file_path,
             cluster_context='default',
         )
-        monitor_mock.return_value = (State.SUCCESS, None)
+        run_mock.return_value = (State.SUCCESS, None)
         client_mock.list_namespaced_pod.return_value = []
         context = self.create_context(k)
         k.execute(context=context)
@@ -76,10 +75,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             config_file=file_path,
         )
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_image_pull_secrets_correctly_set(self, mock_client, monitor_mock, start_mock):
+    def test_image_pull_secrets_correctly_set(self, mock_client, run_mock):
         from airflow.utils.state import State
 
         fake_pull_secrets = "fakeSecret"
@@ -96,24 +94,22 @@ class TestKubernetesPodOperator(unittest.TestCase):
             image_pull_secrets=fake_pull_secrets,
             cluster_context='default',
         )
-        monitor_mock.return_value = (State.SUCCESS, None)
+        run_mock.return_value = (State.SUCCESS, None)
         context = self.create_context(k)
         k.execute(context=context)
         self.assertEqual(
-            start_mock.call_args[0][0].spec.image_pull_secrets,
+            run_mock.call_args[0][0].spec.image_pull_secrets,
             [k8s.V1LocalObjectReference(name=fake_pull_secrets)]
         )
 
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.delete_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_pod_delete_even_on_launcher_error(
             self,
             mock_client,
             delete_pod_mock,
-            monitor_pod_mock,
-            start_pod_mock):
+            run_pod_mock):
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
@@ -127,7 +123,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             cluster_context='default',
             is_delete_operator_pod=True,
         )
-        monitor_pod_mock.side_effect = AirflowException('fake failure')
+        run_pod_mock.side_effect = AirflowException('fake failure')
         with self.assertRaises(AirflowException):
             context = self.create_context(k)
             k.execute(context=context)
