@@ -315,50 +315,7 @@ class TestPythonOperator(TestPythonBase):
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
 
-class TestAirflowTaskDecorator(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
-
-    def setUp(self):
-        super().setUp()
-        self.owner = 'airflow_tes'
-        self.dag = DAG(
-            'test_dag',
-            default_args={
-                'owner': self.owner,
-                'start_date': DEFAULT_DATE})
-        self.addCleanup(self.dag.clear)
-
-    def tearDown(self):
-        super().tearDown()
-
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
-
-    def _assert_calls_equal(self, first, second):
-        assert isinstance(first, Call)
-        assert isinstance(second, Call)
-        assert first.args == second.args
-        # eliminate context (conf, dag_run, task_instance, etc.)
-        test_args = ["an_int", "a_date", "a_templated_string"]
-        first.kwargs = {
-            key: value
-            for (key, value) in first.kwargs.items()
-            if key in test_args
-        }
-        second.kwargs = {
-            key: value
-            for (key, value) in second.kwargs.items()
-            if key in test_args
-        }
-        assert first.kwargs == second.kwargs
+class TestAirflowTaskDecorator(TestPythonBase):
 
     def test_python_operator_python_callable_is_callable(self):
         """Tests that @task will only instantiate if
@@ -562,7 +519,7 @@ class TestAirflowTaskDecorator(unittest.TestCase):
 
         with self.dag:
             ret = do_run()
-        assert ret.operator.owner == self.owner  # pylint: disable=maybe-no-member
+        assert ret.operator.owner == 'airflow'  # pylint: disable=maybe-no-member
 
     def test_xcom_arg(self):
         """Tests that returned key in XComArg is returned correctly"""
