@@ -35,7 +35,7 @@ from future.backports.urllib.parse import urlparse
 
 from airflow import models
 from airflow.operators.bash import BashOperator
-from airflow.providers.google.cloud.operators.cloud_build import CloudBuildCreateOperator
+from airflow.providers.google.cloud.operators.cloud_build import CloudBuildCreateBuildOperator
 from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -81,7 +81,7 @@ with models.DAG(
     tags=['example'],
 ) as dag:
     # [START howto_operator_create_build_from_storage]
-    create_build_from_storage = CloudBuildCreateOperator(
+    create_build_from_storage = CloudBuildCreateBuildOperator(
         task_id="create_build_from_storage", project_id=GCP_PROJECT_ID, body=create_build_from_storage_body
     )
     # [END howto_operator_create_build_from_storage]
@@ -93,7 +93,7 @@ with models.DAG(
     )
     # [END howto_operator_create_build_from_storage_result]
 
-    create_build_from_repo = CloudBuildCreateOperator(
+    create_build_from_repo = CloudBuildCreateBuildOperator(
         task_id="create_build_from_repo", project_id=GCP_PROJECT_ID, body=create_build_from_repo_body
     )
 
@@ -103,7 +103,7 @@ with models.DAG(
     )
 
     # [START howto_operator_gcp_create_build_from_yaml_body]
-    create_build_from_file = CloudBuildCreateOperator(
+    create_build_from_file = CloudBuildCreateBuildOperator(
         task_id="create_build_from_file", project_id=GCP_PROJECT_ID,
         body=str(CURRENT_FOLDER.joinpath('example_cloud_build.yaml')),
         params={'name': 'Airflow'}

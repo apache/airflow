@@ -27,7 +27,7 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskInstance
-from airflow.providers.google.cloud.operators.cloud_build import BuildProcessor, CloudBuildCreateOperator
+from airflow.providers.google.cloud.operators.cloud_build import BuildProcessor, CloudBuildCreateBuildOperator
 
 TEST_CREATE_BODY = {
     "source": {"storageSource": {"bucket": "cloud-build-examples", "object": "node-docker-example.tar.gz"}},
@@ -114,11 +114,11 @@ class TestBuildProcessor(TestCase):
         self.assertEqual(body, expected_body)
 
 
-class TestGcpCloudBuildCreateOperator(TestCase):
+class TestGcpCloudBuildCreateBuildOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.create_build.return_value = TEST_CREATE_BODY
-        operator = CloudBuildCreateOperator(
+        operator = CloudBuildCreateBuildOperator(
             body=TEST_CREATE_BODY, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
         result = operator.execute({})
@@ -127,7 +127,7 @@ class TestGcpCloudBuildCreateOperator(TestCase):
     @parameterized.expand([({},), (None,)])
     def test_missing_input(self, body):
         with self.assertRaisesRegex(AirflowException, "The required parameter 'body' is missing"):
-            CloudBuildCreateOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
+            CloudBuildCreateBuildOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
     def test_storage_source_replace(self, hook_mock):
@@ -145,7 +145,7 @@ class TestGcpCloudBuildCreateOperator(TestCase):
             "images": ["gcr.io/$PROJECT_ID/docker-image"],
         }
 
-        operator = CloudBuildCreateOperator(
+        operator = CloudBuildCreateBuildOperator(
             body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
         operator.execute({})
@@ -181,7 +181,7 @@ class TestGcpCloudBuildCreateOperator(TestCase):
             ],
             "images": ["gcr.io/$PROJECT_ID/docker-image"],
         }
-        operator = CloudBuildCreateOperator(
+        operator = CloudBuildCreateBuildOperator(
             body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
 
@@ -219,7 +219,7 @@ class TestGcpCloudBuildCreateOperator(TestCase):
             """)
             build.seek(0)
             body_path = build.name
-            operator = CloudBuildCreateOperator(
+            operator = CloudBuildCreateBuildOperator(
                 body=body_path,
                 task_id="task-id", dag=dag,
                 params={'name': 'airflow'}

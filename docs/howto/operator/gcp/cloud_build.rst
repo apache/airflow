@@ -92,13 +92,13 @@ It is also possible to specify it using a YAML or JSON format.
 Read `Build Configuration Overview <https://cloud.google.com/cloud-build/docs/build-config>`__ to understand all the fields you can include in a build config file.
 
 
-.. _howto/operator:CloudBuildCreateOperator:
+.. _howto/operator:CloudBuildCreateBuildOperator:
 
 Trigger a build
 ^^^^^^^^^^^^^^^
 
 Trigger a build is performed with the
-:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator` operator.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
     :language: python
@@ -107,7 +107,7 @@ Trigger a build is performed with the
     :end-before: [END howto_operator_create_build_from_storage]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
