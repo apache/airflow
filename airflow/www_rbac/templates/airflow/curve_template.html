@@ -60,8 +60,25 @@
 <script type="text/javascript">
   let curveChart = null;
   const curves = [];
+  const colors = {};
   const curveTemplate = JSON.parse('{{ curve_template|tojson|safe }}');
   const timeStep = curveTemplate.curve_param.sampling_time;
+
+  console.log(curveTemplate);
+
+  function randomColor() {
+    return '#' + (function (color) {
+      return (color += '0123456789abcdef' [Math.floor(Math.random() * 16)])
+      && (color.length === 6) ? color : arguments.callee(color);
+    })('');
+  }
+
+  function genColors() {
+    const modes = Object.keys(curveTemplate.template_cluster);
+    modes.forEach((m) => {
+      colors[m] = randomColor();
+    });
+  }
 
 
   function isEmptyValue(val) {
@@ -130,6 +147,9 @@
       type: 'line',
       data: genData(c, xKey, yKey),
       symbol: 'none',
+      lineStyle: {
+        color: colors[c.mode],
+      },
       markLine: {
         data: [
           { type: 'min', name: '最小值' },
@@ -213,7 +233,9 @@
   $(document).ready(() => {
     chartInit();
     renderCurveParam();
+    genColors();
     loadCurvesData();
+    console.log(curves);
     chartInit();
   });
 </script>
