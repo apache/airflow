@@ -628,6 +628,9 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     :param success_states: If provided the operator will wait for pipeline to be in one of
         the provided states.
     :type success_states: List[str]
+    :param pipeline_timeout: How long (in seconds) operator should wait for the pipeline to be in one of
+        ``success_states``. Works only if ``success_states`` are provided.
+    :type pipeline_timeout: int
     :param location: The Cloud Data Fusion location in which to handle the request.
     :type location: str
     :param runtime_args: Optional runtime args to be passed to the pipeline

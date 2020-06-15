@@ -465,6 +465,9 @@ class DataFusionHook(GoogleBaseHook):
             can create a namespace.
         :type namespace: str
         """
+        # TODO: This API endpoint starts multiple pipelines. There will eventually be a fix
+        #  return the run Id as part of the API request to run a single pipeline.
+        #  https://github.com/apache/airflow/pull/8954#discussion_r438223116
         url = os.path.join(
             instance_url,
             "v3",
