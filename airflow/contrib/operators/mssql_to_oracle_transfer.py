@@ -48,10 +48,10 @@ class MSSQLToOracleTransferOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            oracle_destination_conn_id : str,
-            destination_table : str,
-            mssql_source_conn_id : str,
-            source_sql : str,
+            oracle_destination_conn_id: str,
+            destination_table: str,
+            mssql_source_conn_id: str,
+            source_sql: str,
             source_sql_params: dict = None,
             rows_chunk: int = 5000,
             *args, **kwargs):
@@ -66,7 +66,7 @@ class MSSQLToOracleTransferOperator(BaseOperator):
         self.rows_chunk = rows_chunk
 
     # pylint: disable=unused-argument
-    def _execute(self, src_hook : MsSqlHook, dest_hook : OracleHook):
+    def _execute(self, src_hook: MsSqlHook, dest_hook: OracleHook):
         with src_hook.get_conn() as src_conn:
             cursor = src_conn.cursor()
             self.log.info("Querying data from source: %s", self.mssql_source_conn_id)
