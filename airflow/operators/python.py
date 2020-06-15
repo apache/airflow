@@ -273,7 +273,7 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: bool = Fa
         Used for Airflow functional interface
         """
         _PythonFunctionalOperator.validate_python_callable(f)
-        kwargs['task_id'] = kwargs.get('task_id', None) or f.__name__
+        kwargs.setdefault('task_id', f.__name__)
 
         @functools.wraps(f)
         def factory(*args, **f_kwargs):

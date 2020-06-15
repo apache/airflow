@@ -471,7 +471,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         assert do_run_2.operator.task_id == 'do_run__2'  # pylint: disable=maybe-no-member
 
     def test_call_20(self):
-        """Test calling decorated function 10 times in a DAG"""
+        """Test calling decorated function 21 times in a DAG"""
         @task_decorator
         def __do_run():
             return 4
