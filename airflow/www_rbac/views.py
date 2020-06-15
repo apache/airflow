@@ -406,7 +406,7 @@ class Airflow(AirflowBaseView):
                                                       default_var={})
 
         verify_error_map = Variable.get('verify_error_map', deserialize_json=True,
-                                                      default_var={})
+                                        default_var={})
 
         result_error_message_mapping = Variable.get('result_error_message_mapping', deserialize_json=True,
                                                     default_var={})
@@ -419,6 +419,17 @@ class Airflow(AirflowBaseView):
                                     resultKeysTranslationMapping=result_keys_translation_mapping,
                                     verify_error_map=verify_error_map,
                                     errorTags=error_tags)
+
+    @expose('/curve_template/<string:template_name>/<string:craft_type>')
+    @has_access
+    def view_curve_template(self, template_name, craft_type):
+        curve_template = Variable.get_fuzzy_active('{}/{}'.format(template_name, craft_type),
+                                                   deserialize_json=True,
+                                                   default_var=None
+                                                   )[1]
+        if curve_template is None:
+            return None
+        return self.render_template('airflow/curve_template.html', curve_template=curve_template)
 
     @expose('/task_stats', methods=['POST'])
     @has_access

@@ -290,8 +290,9 @@ def ensure_int(num):
 
 def get_curve_mode(final_state, error_tag):
     print(final_state, error_tag)
-    if error_tag is not None:
-        return ensure_int(error_tag)
+    # todo: use error_tag
+    # if error_tag is not None:
+    #     return ensure_int(error_tag)
     if final_state is not None:
         state = 0 if final_state == 'OK' else 1
         return state
