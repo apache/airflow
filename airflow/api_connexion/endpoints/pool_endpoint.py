@@ -14,9 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from flask import request
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8131
+from airflow.api_connexion import parameters
+from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
+from airflow.models.pool import Pool
+from airflow.utils.session import provide_session
 
 
 def delete_pool():
@@ -26,18 +30,33 @@ def delete_pool():
     raise NotImplementedError("Not implemented yet.")
 
 
-def get_pool():
+@provide_session
+def get_pool(pool_name, session):
     """
     Get a pool
     """
-    raise NotImplementedError("Not implemented yet.")
+    pool_id = pool_name
+    query = session.query(Pool)
+    obj = query.filter(Pool.pool == pool_id).one_or_none()
+
+    if obj is None:
+        raise NotFound("Pool not found")
+    return pool_schema.dump(obj)
 
 
-def get_pools():
+@provide_session
+def get_pools(session):
     """
     Get all pools
     """
-    raise NotImplementedError("Not implemented yet.")
+    offset = request.args.get(parameters.page_offset, 0)
+    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
+
+    query = session.query(Pool)
+    total_entries = query.count()
+    query_list = query.offset(offset).limit(limit).all()
+
+    return pool_collection_schema.dump(PoolCollection(pools=query_list, total_entries=total_entries)).data
 
 
 def patch_pool():
