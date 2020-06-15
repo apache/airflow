@@ -218,7 +218,7 @@
         })
     }
 
-    d3.selectAll("g.node").on("mouseover", function (d) {
+    d3.selectAll("g.node").on("mouseover", function(d){
         d3.select(this).selectAll("rect").style("stroke", highlight_color) ;
         highlight_nodes(g.predecessors(d), upstream_color, highlightStrokeWidth);
         highlight_nodes(g.successors(d), downstream_color, highlightStrokeWidth)
@@ -231,7 +231,7 @@
             .forEach(function(x) {
                 d3.select(x).style('opacity', .2)
         })
-    })
+    });
 
     d3.selectAll("g.node").on("mouseout", function(d){
         d3.select(this).selectAll("rect").style("stroke", null) ;
