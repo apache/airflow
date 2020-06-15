@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from typing import Optional
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.providers.oracle.hooks.oracle import OracleHook
