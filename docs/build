@@ -25,6 +25,7 @@ import sys
 from contextlib import suppress
 from functools import total_ordering
 from glob import glob
+from itertools import chain
 from subprocess import run
 from tempfile import NamedTemporaryFile
 from typing import Iterable, List, NamedTuple, Optional, Set
@@ -173,7 +174,7 @@ def check_guide_links_in_operator_descriptions():
     operator_names = find_existing_guide_operator_names()
 
     # Extract all potential python modules that can contain operators
-    python_module_paths = itertools(
+    python_module_paths = chain(
         glob(f"{ROOT_PACKAGE_DIR}/operators/*.py"),
         glob(f"{ROOT_PACKAGE_DIR}/sensors/*.py"),
         glob(f"{ROOT_PACKAGE_DIR}/providers/**/operators/*.py", recursive=True),
