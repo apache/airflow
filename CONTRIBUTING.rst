@@ -602,7 +602,7 @@ The rules are as follows:
 * Tests are grouped in parallel packages under "tests.providers" top level package.  Module name is usually
   "test_<object_to_test>.py',
 
-* System tests (not yet fully automated but allowing to run e2e testing of partucular provider) are
+* System tests (not yet fully automated but allowing to run e2e testing of particular provider) are
   named with _system.py suffix.
 
 Metadata Database Updates
