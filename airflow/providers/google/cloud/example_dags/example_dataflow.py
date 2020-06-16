@@ -49,11 +49,11 @@ default_args = {
 }
 
 with models.DAG(
-    "example_gcp_dataflow",
+    "example_gcp_dataflow_native_java",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
-) as dag:
+) as dag_native_java:
 
     # [START howto_operator_start_java_job]
     start_java_job = DataflowCreateJavaJobOperator(
@@ -90,6 +90,13 @@ with models.DAG(
     )
     jar_to_local >> start_java_job_local
 
+with models.DAG(
+    "example_gcp_dataflow_native_python",
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
+) as dag_native_python:
+
     # [START howto_operator_start_python_job]
     start_python_job = DataflowCreatePythonJobOperator(
         task_id="start-python-job",
@@ -100,7 +107,7 @@ with models.DAG(
             'output': GCS_OUTPUT,
         },
         py_requirements=[
-            'apache-beam[gcp]>=2.14.0'
+            'apache-beam[gcp]==2.21.0'
         ],
         py_interpreter='python3',
         py_system_site_packages=False,
@@ -117,12 +124,18 @@ with models.DAG(
             'output': GCS_OUTPUT,
         },
         py_requirements=[
-            'apache-beam[gcp]>=2.14.0'
+            'apache-beam[gcp]==2.14.0'
         ],
         py_interpreter='python3',
         py_system_site_packages=False
     )
 
+with models.DAG(
+    "example_gcp_dataflow_template",
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
+) as dag_template:
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
         template='gs://dataflow-templates/latest/Word_Count',
