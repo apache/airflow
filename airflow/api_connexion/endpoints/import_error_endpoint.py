@@ -25,13 +25,6 @@ from airflow.models.errors import ImportError  # pylint: disable=redefined-built
 from airflow.utils.session import provide_session
 
 
-def delete_import_error():
-    """
-    Delete an import error
-    """
-    raise NotImplementedError("Not implemented yet.")
-
-
 @provide_session
 def get_import_error(import_error_id, session):
     """

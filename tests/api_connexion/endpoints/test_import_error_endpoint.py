@@ -46,13 +46,6 @@ class TestBaseImportError(unittest.TestCase):
             import_error["import_error_id"] = i
 
 
-class TestDeleteImportErrorEndpoint(TestBaseImportError):
-    @unittest.skip("Not implemented yet")
-    def test_delete_endpoint(self):
-        response = self.client.delete("/api/v1/importErrors/1")
-        assert response.status_code == 200
-
-
 class TestGetImportErrorEndpoint(TestBaseImportError):
     @provide_session
     def test_response_200(self, session):

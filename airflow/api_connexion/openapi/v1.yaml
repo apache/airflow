@@ -487,20 +487,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-    delete:
-      summary: Delete an import error
-      operationId: airflow.api_connexion.endpoints.import_error_endpoint.delete_import_error
-      tags: [ImportError]
-      responses:
-        '204':
-          description: No content.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-
   /pools:
     get:
       summary: Get all pools
