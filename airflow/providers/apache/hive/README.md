@@ -113,9 +113,9 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.hive` package.
 
 
 
-    ### Moved transfer operators
+### Moved transfer operators
 
-    | Airflow 2.0 transfers: `airflow.providers.apache.hive` package                                                                                              | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                |
+| Airflow 2.0 transfers: `airflow.providers.apache.hive` package                                                                                              | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                |
 |:------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [transfers.hive_to_mysql.HiveToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/transfers/hive_to_mysql.py)       | [operators.hive_to_mysql.HiveToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_mysql.py)                       |
 | [transfers.hive_to_samba.HiveToSambaOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/hive/transfers/hive_to_samba.py)       | [operators.hive_to_samba_operator.HiveToSambaOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_samba_operator.py)     |

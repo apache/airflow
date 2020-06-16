@@ -88,9 +88,9 @@ All classes in Airflow 2.0 are in `airflow.providers.oracle` package.
 
 
 
-    ### Moved transfer operators
+### Moved transfer operators
 
-    | Airflow 2.0 transfers: `airflow.providers.oracle` package                                                                                                 | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                                     |
+| Airflow 2.0 transfers: `airflow.providers.oracle` package                                                                                                 | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                                     |
 |:----------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [transfers.oracle_to_oracle.OracleToOracleOperator](https://github.com/apache/airflow/blob/master/airflow/providers/oracle/transfers/oracle_to_oracle.py) | [contrib.operators.oracle_to_oracle_transfer.OracleToOracleTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/oracle_to_oracle_transfer.py) |
 

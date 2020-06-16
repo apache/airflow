@@ -411,9 +411,9 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 
 
 
-    ### New transfer operators
+### New transfer operators
 
-    | New Airflow 2.0 transfers: `airflow.providers.google` package                                                                                                                       |
+| New Airflow 2.0 transfers: `airflow.providers.google` package                                                                                                                       |
 |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [ads.transfers.ads_to_gcs.GoogleAdsToGcsOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/ads/transfers/ads_to_gcs.py)                               |
 | [cloud.transfers.facebook_ads_to_gcs.FacebookAdsReportToGcsOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/facebook_ads_to_gcs.py) |
@@ -426,9 +426,9 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 
 
 
-    ### Moved transfer operators
+### Moved transfer operators
 
-    | Airflow 2.0 transfers: `airflow.providers.google` package                                                                                                             | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                                                 |
+| Airflow 2.0 transfers: `airflow.providers.google` package                                                                                                             | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                                                 |
 |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [cloud.transfers.adls_to_gcs.ADLSToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/adls_to_gcs.py)                | [contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/adls_to_gcs.py)                               |
 | [cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/cassandra_to_gcs.py) | [contrib.operators.cassandra_to_gcs.CassandraToGoogleCloudStorageOperator](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/cassandra_to_gcs.py)                |
@@ -549,6 +549,7 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [639972d99](https://github.com/apache/airflow/commit/639972d995d848b16a3f283576efdbde28b8fdef) | 2020-06-16  | Add support for latest Apache Beam SDK in Dataflow operators (#9323)                                                                                               |
 | [1459970b3](https://github.com/apache/airflow/commit/1459970b3b9780e139ce029ae889fd8f69a37bc7) | 2020-06-15  | Rename CloudBuildCreateBuildOperator to CloudBuildCreateOperator (#9314)                                                                                           |
 | [431ea3291](https://github.com/apache/airflow/commit/431ea3291c9bf236bccdf8446d753c630ada2b25) | 2020-06-15  | Resolve upstream tasks when template field is XComArg (#8805)                                                                                                      |
 | [aee6ab94e](https://github.com/apache/airflow/commit/aee6ab94eb956347ad560cfe2673bc6011074513) | 2020-06-15  | Wait for pipeline state in Data Fusion operators (#8954)                                                                                                           |

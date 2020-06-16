@@ -1653,7 +1653,7 @@ TRANSFERS = [
         'airflow.operators.gcs_to_s3.GCSToS3Operator',
     ),
     (
-        'airflow.providers.amazon.aws.transfers.google_api_to_s3_transfer.GoogleApiToS3Operator',
+        'airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleApiToS3Operator',
         'airflow.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer',
     ),
     (

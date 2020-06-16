@@ -38,7 +38,7 @@ from os import getenv
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import BranchPythonOperator
-from airflow.providers.amazon.aws.transfers.google_api_to_s3_transfer import GoogleApiToS3Operator
+from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_google_api_to_s3_transfer_advanced_env_variables]

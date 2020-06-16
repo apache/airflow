@@ -105,9 +105,9 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.druid` package.
 
 
 
-    ### Moved transfer operators
+### Moved transfer operators
 
-    | Airflow 2.0 transfers: `airflow.providers.apache.druid` package                                                                                        | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                          |
+| Airflow 2.0 transfers: `airflow.providers.apache.druid` package                                                                                        | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                          |
 |:-------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------|
 | [transfers.hive_to_druid.HiveToDruidOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/druid/transfers/hive_to_druid.py) | [operators.hive_to_druid.HiveToDruidTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/hive_to_druid.py) |
 

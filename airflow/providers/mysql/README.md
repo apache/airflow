@@ -106,17 +106,17 @@ All classes in Airflow 2.0 are in `airflow.providers.mysql` package.
 
 
 
-    ### New transfer operators
+### New transfer operators
 
-    | New Airflow 2.0 transfers: `airflow.providers.mysql` package                                                                              |
+| New Airflow 2.0 transfers: `airflow.providers.mysql` package                                                                              |
 |:------------------------------------------------------------------------------------------------------------------------------------------|
 | [transfers.s3_to_mysql.S3ToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/s3_to_mysql.py) |
 
 
 
-    ### Moved transfer operators
+### Moved transfer operators
 
-    | Airflow 2.0 transfers: `airflow.providers.mysql` package                                                                                                 | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                   |
+| Airflow 2.0 transfers: `airflow.providers.mysql` package                                                                                                 | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                   |
 |:---------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [transfers.presto_to_mysql.PrestoToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/presto_to_mysql.py)    | [operators.presto_to_mysql.PrestoToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/operators/presto_to_mysql.py)                    |
 | [transfers.vertica_to_mysql.VerticaToMySqlOperator](https://github.com/apache/airflow/blob/master/airflow/providers/mysql/transfers/vertica_to_mysql.py) | [contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/operators/vertica_to_mysql.py) |

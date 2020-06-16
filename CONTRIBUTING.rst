@@ -554,13 +554,16 @@ detailed discussion you can go to [AIP-21 Changes in import paths](https://cwiki
 The rules are as follows:
 
 * Provider packages are all placed in 'airflow.providers'
+
 * Providers are usually direct sub-packages of the 'airflow.providers' package but in some cases they can be
   further split into sub-packages (for example 'apache' package has 'cassandra', 'druid' ... providers ) out
   of which several different provider packages are produced (apache.cassandra, apache.druid). This is
   case when the providers are connected under common umbrella but very loosely coupled on the code level.
+
 * In some cases the package can have sub-packages but they are all delivered as single provider
   package (for example 'google' package contains 'ads', 'cloud' etc. sub-packages). This is in case
   the providers are connected under common umbrella and they are also tightly coupled on the code level.
+
 * Typical structure of provider package:
     * example_dags -> example DAGs are stored here (used for documentation and System Tests)
     * hooks -> hooks are stored here
@@ -568,17 +571,37 @@ The rules are as follows:
     * sensors -> sensors are stored here
     * secrets -> secret backends are stored here
     * transfers -> transfer operators are stored here
+
 * Module names do not contain word "hooks" , "operators" etc. The right type comes from
   the package. For example 'hooks.datastore' module contains DataStore hook and 'operators.datastore'
   contains DataStore operators.
+
 * Class names contain 'Operator', 'Hook', 'Sensor' - for example DataStoreHook, DataStoreExportOperator
+
 * Operator name usually follows the convention: <Subject><Action><Entity>Operator
   (BigQueryExecuteQueryOperator) is a good example
-* Transfer Operators follow the convention <Source>To<Destination>Operator. They are not named
-  *TransferOperator nor *Transfer.
+
+* Transfer Operators are those that actively push data from one service/provider and send it to another
+  service (might be for the same or another provider). This usually involves two hooks. The convention
+  for those <Source>To<Destination>Operator. They are not named *TransferOperator nor *Transfer.
+
+* Operators that use external service to perform transfer (for example CloudDataTransferService operators
+  are not placed in "transfers" package and do not have to follow the naming convention for
+  transfer operators.
+
+* It is often debatable where to put transfer operators but we agreed to the following criteria:
+
+  * We use "maintainability" of the operators as the main criteria - so the transfer operator
+    should be kept at the provider which has highest "interest" in the transfer operator
+
+  * For Cloud Providers or Service providers that usually means that the transfer operators
+    should land at the "target" side of the transfer
+
 * Secret Backend name follows the convention: <SecretEngine>Backend.
+
 * Tests are grouped in parallel packages under "tests.providers" top level package.  Module name is usually
   "test_<object_to_test>.py',
+
 * System tests (not yet fully automated but allowing to run e2e testing of partucular provider) are
   named with _system.py suffix.
 

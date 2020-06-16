@@ -103,9 +103,9 @@ All classes in Airflow 2.0 are in `airflow.providers.snowflake` package.
 
 
 
-    ### New transfer operators
+### New transfer operators
 
-    | New Airflow 2.0 transfers: `airflow.providers.snowflake` package                                                                                                   |
+| New Airflow 2.0 transfers: `airflow.providers.snowflake` package                                                                                                   |
 |:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [transfers.s3_to_snowflake.S3ToSnowflakeOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/transfers/s3_to_snowflake.py)          |
 | [transfers.snowflake_to_slack.SnowflakeToSlackOperator](https://github.com/apache/airflow/blob/master/airflow/providers/snowflake/transfers/snowflake_to_slack.py) |
