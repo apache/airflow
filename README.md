@@ -351,6 +351,7 @@ Currently **officially** using Airflow:
 1. [Groupalia](http://es.groupalia.com) [[@jesusfcr](https://github.com/jesusfcr)]
 1. [Groupon](https://groupon.com) [[@stevencasey](https://github.com/stevencasey)]
 1. [Growbots](https://www.growbots.com/)[[@exploy](https://github.com/exploy)]
+1. [GrowthSimple](https://growthsimple.ai/)
 1. [GSN Games](https://www.gsngames.com)
 1. [Gusto](https://gusto.com) [[@frankhsu](https://github.com/frankhsu)]
 1. [Handshake](https://joinhandshake.com/) [[@mhickman](https://github.com/mhickman)]
