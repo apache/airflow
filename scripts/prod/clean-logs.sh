@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,7 +16,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/in_container/configure_environment.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
 
-exec /bin/bash "${@}"
+set -euo pipefail
+
+DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
+RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+
+trap "exit" INT TERM
+
+EVERY=$((15*60))
+
+echo "Cleaning logs every $EVERY seconds"
+
+while true; do
+  seconds=$(( $(date -u +%s) % EVERY))
+  [[ $seconds -lt 1 ]] || sleep $((EVERY - seconds))
+
+  echo "Trimming airflow logs to ${RETENTION} days."
+  find "${DIRECTORY}"/logs -mtime +"${RETENTION}" -name '*.log' -delete
+done

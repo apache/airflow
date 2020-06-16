@@ -35,6 +35,17 @@ function verbose_docker {
     docker "${@}"
 }
 
+# In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
+# printed before execution
+function verbose_docker_hide_output_on_success {
+    if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
+       # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
+        echo "docker" "${@}"
+    fi
+    docker "${@}" >>"${OUTPUT_LOG}" 2>&1
+}
+
+
 # Prints verbose information in case VERBOSE variable is set
 function print_info() {
     if [[ ${VERBOSE:="false"} == "true" ]]; then

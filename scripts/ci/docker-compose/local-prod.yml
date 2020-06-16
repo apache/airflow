@@ -31,7 +31,7 @@ services:
       - ../../../.kube:/root/.kube:cached
       - ../../../files:/files:cached
       - ../../../dist:/dist:cached
-      - ../../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached
+      - ../../../scripts/prod/entrypoint_prod.sh:/entrypoint:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
