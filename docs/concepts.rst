@@ -120,7 +120,6 @@ DAGs can be used as context managers to automatically assign new operators to th
 
 Functional DAGs
 ---------------
-*Added in Airflow 1.10.11*
 
 DAGs can be defined using functional abstractions. Outputs and inputs are sent between tasks using
 :ref:`XCom values <concepts:xcom>`. In addition, you can wrap functions as tasks using the
@@ -218,8 +217,6 @@ When a DAG Run is created, task_1 will start running and task_2 waits for task_1
 
 Python task decorator
 ---------------------
-*Added in Airflow 1.10.11*
-
 
 Airflow ``task`` decorator converts any Python decorated function to a Python Airflow operator.
 The decorated function can be called once to set the arguments and key arguments for operator execution.
