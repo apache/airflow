@@ -70,7 +70,7 @@
   const curves = [];
   const modes = [];
   const tree = [];
-  let currentMode = null;
+  let renderCurves = [];
   const colors = {};
   const curveTemplate = JSON.parse('{{ curve_template|tojson|safe }}');
   const timeStep = curveTemplate.curve_param.sampling_time;
@@ -125,15 +125,15 @@
 
   const treeItemClickActions = {
     cluster: (event, data) => {
-      currentMode = data.mode;
+      renderCurves = curves.filter(c => c.mode === data.mode);
       updateChart();
     },
     group: (event, data) => {
-      currentMode = data.mode;
+      renderCurves = curves.filter(c => c.mode === data.mode && c.centroid === data.centroid);
       updateChart();
     },
     curve: (event, data) => {
-      currentMode = data.mode;
+      renderCurves = curves.filter(c => c.mode === data.mode && c.centroid === data.centroid && c.idx === data.idx);
       updateChart();
     },
   };
@@ -142,7 +142,7 @@
     $('#tree').treeview({ data: tree }).on('nodeSelected', (event, data) => {
       console.log(event, data);
       treeItemClickActions[data.role](event, data);
-    });
+    }).treeview('selectNode', [0]);
   }
 
 
@@ -180,7 +180,7 @@
         text: `模板簇-${mode}`,
         nodes: [],
         role: treeRoles.cluster,
-        mode
+        mode,
       };
       const { curve_template_group_array: templateGroup } = cluster;
       templateGroup.forEach((group, groupIdx) => {
@@ -189,6 +189,7 @@
           text: `曲线聚类-${mode}-${centroid}`,
           nodes: [],
           mode,
+          centroid,
           role: treeRoles.group,
         };
         curvesData.forEach((curve, idx) => {
@@ -197,13 +198,17 @@
             start_point,
             mode,
             centroid,
+            idx,
             cur_w,
             cur_m,
+            color: randomColor(),
             cur_t: genTimeSeries(timeStep, cur_w.length),
           });
           gRow.nodes.push({
             text: `曲线-${mode}-${centroid}-${idx}`,
             role: treeRoles.curve,
+            centroid,
+            idx,
             mode,
           });
         });
@@ -211,7 +216,7 @@
       });
       tree.push(row);
     });
-    currentMode = modes[0];
+    renderCurves = curves.filter(c => c.mode === modes[0]);
   }
 
   function genData(curve, xKey, yKey) {
@@ -225,13 +230,13 @@
 
   function genDataSeries() {
     const { xKey, yKey, yName } = chartParams;
-    return curves.filter(c => c.mode === currentMode).map(c => ({
+    return renderCurves.map(c => ({
       name: yName,
       type: 'line',
       data: genData(c, xKey, yKey),
       symbol: 'none',
       lineStyle: {
-        color: colors[c.mode],
+        color: c.color,
       },
       markLine: {
         data: [
@@ -281,7 +286,7 @@
         trigger: 'axis',
       },
     };
-    curveChart.setOption(option);
+    curveChart.setOption(option, true);
   }
 
   function chartInit() {
@@ -323,10 +328,9 @@
     renderCurveParam();
     genColors();
     loadCurvesData();
-
+    chartInit();
     renderTemplateList();
     console.log(curves);
-    chartInit();
   });
 </script>
 {% endblock %}
