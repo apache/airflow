@@ -339,19 +339,17 @@ class _DataflowRunner(LoggingMixin):
             while True:
                 line = self._proc.stderr.readline().decode()
                 if not line:
-                    break
+                    return
                 self._process_line_and_extract_job_id(line)
                 self.log.warning(line.rstrip("\n"))
-            return
 
         if fd == self._proc.stdout:
             while True:
                 line = self._proc.stdout.readline().decode()
                 if not line:
-                    break
+                    return
                 self._process_line_and_extract_job_id(line)
                 self.log.info(line.rstrip("\n"))
-            return
 
         raise Exception("No data in stderr or in stdout.")
 
