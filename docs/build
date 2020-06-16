@@ -162,9 +162,10 @@ def check_guide_links_in_operator_descriptions():
                     message=(
                         f"Link to the guide is missing in operator's description: {operator_name}.\n"
                         f"Please add link to the guide to the description in the following form:\n"
+                        f"\n"
                         f".. seealso::\n"
-                        f"For more information on how to use this operator, take a look at the guide:\n"
-                        f":ref:`howto/operator:{operator_name}`\n"
+                        f"    For more information on how to use this operator, take a look at the guide:\n"
+                        f"    :ref:`howto/operator:{operator_name}`\n"
                     )
         )
 
