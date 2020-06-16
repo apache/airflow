@@ -28,6 +28,10 @@ class ImapAttachmentToS3Operator(BaseOperator):
     """
     Transfers a mail attachment from a mail server into s3 bucket.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ImapAttachmentToS3Operator`
+
     :param imap_attachment_name: The file name of the mail attachment that you want to transfer.
     :type imap_attachment_name: str
     :param s3_key: The destination file name in the s3 bucket for the attachment.

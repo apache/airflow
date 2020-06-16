@@ -27,6 +27,10 @@ class SimpleHttpOperator(BaseOperator):
     """
     Calls an endpoint on an HTTP system to execute an action
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SimpleHttpOperator`
+
     :param http_conn_id: The connection to run the operator against
     :type http_conn_id: str
     :param endpoint: The relative part of the full url. (templated)

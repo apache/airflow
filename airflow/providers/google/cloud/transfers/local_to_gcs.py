@@ -30,6 +30,10 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     Uploads a file to Google Cloud Storage.
     Optionally can compress the file for upload.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:LocalFilesystemToGCSOperator`
+
     :param src: Path to the local file. (templated)
     :type src: str
     :param dst: The object name to set when uploading the file. (templated)

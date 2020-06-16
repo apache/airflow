@@ -95,6 +95,10 @@ class BigQueryCheckOperator(CheckOperator):
     first row is evaluated using python ``bool`` casting. If any of the
     values return ``False`` the check is failed and errors out.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryCheckOperator`
+
     Note that Python bool casting evals the following as ``False``:
 
     * ``False``
@@ -168,6 +172,10 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     """
     Performs a simple value check using sql code.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryValueCheckOperator`
+
     :param sql: the sql to be executed
     :type sql: str
     :param use_legacy_sql: Whether to use legacy SQL (true)
@@ -232,6 +240,10 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
 
         SELECT {metrics_threshold_dict_key} FROM {table}
         WHERE {date_filter_column}=<date>
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryIntervalCheckOperator`
 
     :param table: the table name
     :type table: str
@@ -304,6 +316,10 @@ class BigQueryGetDataOperator(BaseOperator):
     where element would represent the columns values for that row.
 
     **Example Result**: ``[['Tony', '10'], ['Mike', '20'], ['Steve', '15']]``
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryGetDataOperator`
 
     .. note::
         If you pass fields to ``selected_fields`` which are in different order than the
@@ -650,6 +666,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     Google Cloud Storage must be a JSON file with the schema fields in it.
     You can also create a table without schema.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryCreateEmptyTableOperator`
+
     :param project_id: The project to create the table into. (templated)
     :type project_id: str
     :param dataset_id: The dataset to create the table into. (templated)
@@ -853,6 +873,10 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     two ways. You may either directly pass the schema fields in, or you may
     point the operator to a Google Cloud Storage object name. The object in
     Google Cloud Storage must be a JSON file with the schema fields in it.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryCreateExternalTableOperator`
 
     :param bucket: The bucket to point the external table to. (templated)
     :type bucket: str
@@ -1076,6 +1100,10 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     This operator deletes an existing dataset from your Project in Big query.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryDeleteDatasetOperator`
+
     :param project_id: The project id of the dataset.
     :type project_id: str
     :param dataset_id: The dataset to be deleted.
@@ -1149,6 +1177,10 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     """
     This operator is used to create new dataset for your Project in BigQuery.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryCreateEmptyDatasetOperator`
 
     :param project_id: The name of the project where we want to create the dataset.
     :type project_id: str
@@ -1231,6 +1263,10 @@ class BigQueryGetDatasetOperator(BaseOperator):
     """
     This operator is used to return the dataset specified by dataset_id.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryGetDatasetOperator`
+
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
     :type dataset_id: str
@@ -1274,6 +1310,10 @@ class BigQueryGetDatasetOperator(BaseOperator):
 class BigQueryGetDatasetTablesOperator(BaseOperator):
     """
     This operator retrieves the list of tables in the specified dataset.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryGetDatasetTablesOperator`
 
     :param dataset_id: the dataset ID of the requested dataset.
     :type dataset_id: str
@@ -1326,6 +1366,10 @@ class BigQueryPatchDatasetOperator(BaseOperator):
     """
     This operator is used to patch dataset for your Project in BigQuery.
     It only replaces fields that are provided in the submitted dataset resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryPatchDatasetOperator`
 
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
@@ -1388,6 +1432,10 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     If no ``fields`` are provided then all fields of provided ``dataset_reources``
     will be used.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryUpdateDatasetOperator`
+
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
     :type dataset_id: str
@@ -1446,6 +1494,10 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
 class BigQueryDeleteTableOperator(BaseOperator):
     """
     Deletes BigQuery tables
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryDeleteTableOperator`
 
     :param deletion_dataset_table: A dotted
         ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
@@ -1511,6 +1563,10 @@ class BigQueryDeleteTableOperator(BaseOperator):
 class BigQueryUpsertTableOperator(BaseOperator):
     """
     Upsert BigQuery table
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryUpsertTableOperator`
 
     :param dataset_id: A dotted
         ``(<project>.|<project>:)<dataset>`` that indicates which dataset
@@ -1585,6 +1641,11 @@ class BigQueryInsertJobOperator(BaseOperator):
     See here:
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryInsertJobOperator`
+
 
     :param configuration: The configuration parameter maps directly to BigQuery's
         configuration field in the job  object. For more details see

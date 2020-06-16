@@ -39,6 +39,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     """
     Execute a task in a Kubernetes Pod
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:KubernetesPodOperator`
+
     .. note::
         If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, use
         :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`, which

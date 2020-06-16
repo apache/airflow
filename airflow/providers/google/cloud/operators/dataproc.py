@@ -428,6 +428,10 @@ class DataprocCreateClusterOperator(BaseOperator):
     for a detailed explanation on the different parameters. Most of the configuration
     parameters detailed in the link are available as a parameter to this operator.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataprocCreateClusterOperator`
+
     :param project_id: The ID of the google cloud project in which
         to create the cluster. (templated)
     :type project_id: str

@@ -29,6 +29,10 @@ class SparkJDBCOperator(SparkSubmitOperator):
     SparkSubmitOperator, it assumes that the "spark-submit" binary is available on the
     PATH.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SparkJDBCOperator`
+
     :param spark_app_name: Name of the job (default airflow-spark-jdbc)
     :type spark_app_name: str
     :param spark_conn_id: Connection id as configured in Airflow administration
