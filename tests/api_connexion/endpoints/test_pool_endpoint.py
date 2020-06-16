@@ -86,7 +86,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
             ("/api/v1/pools?limit=1", ["default_pool"]),
             # Limit and offset test data
             (
-                "/api/v1/pools?limit=120&offset=1",
+                "/api/v1/pools?limit=100&offset=1",
                 [f"test_pool{i}" for i in range(1, 101)],
             ),
             ("/api/v1/pools?limit=2&offset=1", ["test_pool1", "test_pool2"]),

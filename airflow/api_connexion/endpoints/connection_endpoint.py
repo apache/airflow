@@ -15,10 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from flask import request
 from sqlalchemy import func
 
-from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection, connection_collection_item_schema, connection_collection_schema,
@@ -48,13 +46,10 @@ def get_connection(connection_id, session):
 
 
 @provide_session
-def get_connections(session):
+def get_connections(session, limit, offset=None):
     """
     Get all connection entries
     """
-    offset = request.args.get(parameters.page_offset, 0)
-    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
-
     total_entries = session.query(func.count(Connection.id)).scalar()
     query = session.query(Connection).order_by(Connection.id).offset(offset).limit(limit)
 

@@ -14,10 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import request
 from sqlalchemy import func
 
-from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.error_schema import (
     ImportErrorCollection, import_error_collection_schema, import_error_schema,
@@ -47,13 +45,10 @@ def get_import_error(import_error_id, session):
 
 
 @provide_session
-def get_import_errors(session):
+def get_import_errors(session, limit, offset=None):
     """
     Get all import errors
     """
-    offset = request.args.get(parameters.page_offset, 0)
-    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
-
     total_entries = session.query(func.count(ImportError.id)).scalar()
     query = session.query(ImportError).order_by(ImportError.id).offset(offset).limit(limit)
 

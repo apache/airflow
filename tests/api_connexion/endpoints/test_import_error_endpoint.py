@@ -139,7 +139,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         [
             # Limit test data
             ("/api/v1/importErrors?limit=1", ["/tmp/file_1.py"]),
-            ("/api/v1/importErrors?limit=110", [f"/tmp/file_{i}.py" for i in range(1, 101)]),
+            ("/api/v1/importErrors?limit=100", [f"/tmp/file_{i}.py" for i in range(1, 101)]),
             # Offset test data
             ("/api/v1/importErrors?offset=1", [f"/tmp/file_{i}.py" for i in range(2, 102)]),
             ("/api/v1/importErrors?offset=3", [f"/tmp/file_{i}.py" for i in range(4, 104)]),

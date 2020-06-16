@@ -14,10 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import request
 from sqlalchemy import func
 
-from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
@@ -46,13 +44,10 @@ def get_pool(pool_name, session):
 
 
 @provide_session
-def get_pools(session):
+def get_pools(session, limit, offset=None):
     """
     Get all pools
     """
-    offset = request.args.get(parameters.page_offset, 0)
-    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
-
     total_entries = session.query(func.count(Pool.id)).scalar()
     query = session.query(Pool).order_by(Pool.id).offset(offset).limit(limit)
 

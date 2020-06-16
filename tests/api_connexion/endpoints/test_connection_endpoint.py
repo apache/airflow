@@ -180,17 +180,18 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         conn_ids = [conn["connection_id"] for conn in response.json["connections"] if conn]
         self.assertEqual(conn_ids, expected_conn_ids)
 
-    @provide_session
-    def test_should_respect_page_size_limit(self, session):
-        connection_models = self._create_connections(200)
-        session.add_all(connection_models)
-        session.commit()
-
-        response = self.client.get("/api/v1/connections?limit=150")
-        assert response.status_code == 200
-
-        self.assertEqual(response.json["total_entries"], 200)
-        self.assertEqual(len(response.json["connections"]), 100)
+    @parameterized.expand(
+        [
+            "/api/v1/connections?limit=None",
+            "/api/v1/connections?limit=''",
+            "/api/v1/connections?limit=-10",
+            "/api/v1/connections?limit=0",
+            "/api/v1/connections?limit=150",
+        ]
+    )
+    def test_should_respect_min_max_page_size(self, url):
+        response = self.client.get(url)
+        assert response.status_code == 400
 
     def _create_connections(self, count):
         return [Connection(
