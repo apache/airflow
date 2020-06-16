@@ -241,7 +241,7 @@ The decorated function can be called once to set the arguments and key arguments
 
     hello_name('Airflow users')
 
-Operator decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default, returned
+Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default, returned
 value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True`` to unroll dictionaries,
 lists or tuples into seprate XCom values. This can be used with regular operators to create
 :ref:`functional DAGs <concepts:functional_dags>`.
@@ -249,8 +249,8 @@ lists or tuples into seprate XCom values. This can be used with regular operator
 Calling a decorated function returns an ``XComArg`` instance. You can use it to set templated fields on downstream
 operators.
 
-You can call a decorated function twice in a DAG. The decorated function will automatically generate unique a ``task_id``
-for each generated operator.
+You can call a decorated function more than once in a DAG. The decorated function will automatically generate unique 
+a ``task_id`` for each generated operator.
 
 .. code:: python
 
