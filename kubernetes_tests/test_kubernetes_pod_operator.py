@@ -74,10 +74,11 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'labels': {
                     'foo': 'bar', 'kubernetes_pod_operator': 'True',
                     'airflow_version': airflow_version.replace('+', '-'),
-                    'execution_date': '2016-01-01T0100000100-a2f50a31f',
-                    'dag_id': 'dag',
-                    'task_id': 'task',
-                    'try_number': '1'},
+                    # 'execution_date': '2016-01-01T0100000100-a2f50a31f',
+                    # 'dag_id': 'dag',
+                    # 'task_id': 'task',
+                    # 'try_number': '1'
+                },
             },
             'spec': {
                 'affinity': {},
@@ -91,6 +92,10 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                     'name': 'base',
                     'ports': [],
                     'volumeMounts': [],
+                    'resources': {'limits': {'cpu': None,
+                                             'memory': None,
+                                             'nvidia.com/gpu': None},
+                                  'requests': {'cpu': None, 'memory': None}},
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
@@ -229,26 +234,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.assertEqual(self.expected_pod['spec'], actual_pod['spec'])
         self.assertEqual(self.expected_pod['metadata']['labels'], actual_pod['metadata']['labels'])
 
-    def test_pod_schedulername(self):
-        scheduler_name = "default-scheduler"
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            schedulername=scheduler_name
-        )
-        context = create_context(k)
-        k.execute(context)
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod['spec']['schedulerName'] = scheduler_name
-        self.assertEqual(self.expected_pod, actual_pod)
-
     def test_pod_node_selectors(self):
         node_selectors = {
             'beta.kubernetes.io/os': 'linux'
@@ -275,10 +260,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         resources = {
             'limit_cpu': 0.25,
             'limit_memory': '64Mi',
-            'limit_ephemeral_storage': '2Gi',
             'request_cpu': '250m',
             'request_memory': '64Mi',
-            'request_ephemeral_storage': '1Gi',
         }
         k = KubernetesPodOperator(
             namespace='default',
@@ -299,13 +282,11 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'requests': {
                 'memory': '64Mi',
                 'cpu': '250m',
-                'ephemeral-storage': '1Gi'
             },
             'limits': {
                 'memory': '64Mi',
                 'cpu': 0.25,
                 'nvidia.com/gpu': None,
-                'ephemeral-storage': '2Gi'
             }
         }
         self.assertEqual(self.expected_pod, actual_pod)
@@ -583,10 +564,9 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.expected_pod['spec']['containers'].append(container)
         self.assertEqual(self.expected_pod, actual_pod)
 
-    @patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_configmaps(self, mock_client, mock_monitor, mock_start):
+    def test_envs_from_configmaps(self, mock_client, mock_run):
         # GIVEN
         from airflow.utils.state import State
 
@@ -605,20 +585,19 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             configmaps=[configmap],
         )
         # THEN
-        mock_monitor.return_value = (State.SUCCESS, None)
+        mock_run.return_value = (State.SUCCESS, None)
         context = create_context(k)
         k.execute(context)
         self.assertEqual(
-            mock_start.call_args[0][0].spec.containers[0].env_from,
+            mock_run.call_args[0][0].spec.containers[0].env_from,
             [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(
                 name=configmap
             ))]
         )
 
-    @patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_secrets(self, mock_client, monitor_mock, start_mock):
+    def test_envs_from_secrets(self, mock_client, mock_run):
         # GIVEN
         from airflow.utils.state import State
         secret_ref = 'secret_name'
@@ -637,11 +616,11 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             do_xcom_push=False,
         )
         # THEN
-        monitor_mock.return_value = (State.SUCCESS, None)
+        mock_run.return_value = (State.SUCCESS, None)
         context = create_context(k)
         k.execute(context)
         self.assertEqual(
-            start_mock.call_args[0][0].spec.containers[0].env_from,
+            mock_run.call_args[0][0].spec.containers[0].env_from,
             [k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(
                 name=secret_ref
             ))]
@@ -725,66 +704,12 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         }]
         self.assertEqual(self.expected_pod, actual_pod)
 
-    @patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
-    @patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_pod_template_file(
-            self,
-            mock_client,
-            monitor_mock,
-            start_mock):  # pylint: disable=unused-argument
-        from airflow.utils.state import State
-        k = KubernetesPodOperator(
-            task_id='task',
-            pod_template_file='tests/kubernetes/pod.yaml',
-            do_xcom_push=True
-        )
-        monitor_mock.return_value = (State.SUCCESS, None)
-        context = create_context(k)
-        k.execute(context)
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.assertEqual({
-            'apiVersion': 'v1',
-            'kind': 'Pod',
-            'metadata': {'name': mock.ANY, 'namespace': 'mem-example'},
-            'spec': {
-                'volumes': [{'name': 'xcom', 'emptyDir': {}}],
-                'containers': [{
-                    'args': ['--vm', '1', '--vm-bytes', '150M', '--vm-hang', '1'],
-                    'command': ['stress'],
-                    'image': 'polinux/stress',
-                    'name': 'memory-demo-ctr',
-                    'resources': {
-                        'limits': {'memory': '200Mi'},
-                        'requests': {'memory': '100Mi'}
-                    },
-                    'volumeMounts': [{
-                        'name': 'xcom',
-                        'mountPath': '/airflow/xcom'
-                    }]
-                }, {
-                    'name': 'airflow-xcom-sidecar',
-                    'image': "alpine",
-                    'command': ['sh', '-c', PodDefaults.XCOM_CMD],
-                    'volumeMounts': [
-                        {
-                            'name': 'xcom',
-                            'mountPath': '/airflow/xcom'
-                        }
-                    ],
-                    'resources': {'requests': {'cpu': '1m'}},
-                }],
-            }
-        }, actual_pod)
-
-    @patch("airflow.kubernetes.pod_launcher.PodLauncher.start_pod")
-    @patch("airflow.kubernetes.pod_launcher.PodLauncher.monitor_pod")
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
     @patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_pod_priority_class_name(
             self,
             mock_client,
-            monitor_mock,
-            start_mock):  # pylint: disable=unused-argument
+            run_mock):  # pylint: disable=unused-argument
         """Test ability to assign priorityClassName to pod
 
         """
@@ -804,27 +729,9 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             priority_class_name=priority_class_name,
         )
 
-        monitor_mock.return_value = (State.SUCCESS, None)
+        run_mock.return_value = (State.SUCCESS, None)
         context = create_context(k)
         k.execute(context)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         self.expected_pod['spec']['priorityClassName'] = priority_class_name
         self.assertEqual(self.expected_pod, actual_pod)
-
-    def test_pod_name(self):
-        pod_name_too_long = "a" * 221
-        with self.assertRaises(AirflowException):
-            KubernetesPodOperator(
-                namespace='default',
-                image="ubuntu:16.04",
-                cmds=["bash", "-cx"],
-                arguments=["echo 10"],
-                labels={"foo": "bar"},
-                name=pod_name_too_long,
-                task_id="task",
-                in_cluster=False,
-                do_xcom_push=False,
-            )
-
-
-# pylint: enable=unused-argument

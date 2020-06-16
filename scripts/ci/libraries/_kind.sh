@@ -274,7 +274,7 @@ function load_image_to_kind_cluster() {
     echo
     echo "Loading ${AIRFLOW_KUBERNETES_IMAGE} to ${KIND_CLUSTER_NAME}"
     echo
-    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_KUBERNETES_IMAGE}"
+#    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_KUBERNETES_IMAGE}"
 }
 
 function prepare_kubernetes_app_variables() {
@@ -368,8 +368,13 @@ function apply_kubernetes_resources() {
 
     kubectl apply -f "${KUBERNETES_APP_DIR}/secrets.yaml" --cluster "${KUBECTL_CLUSTER_NAME}"
     kubectl apply -f "${BUILD_DIRNAME}/configmaps.yaml" --cluster "${KUBECTL_CLUSTER_NAME}"
-    kubectl apply -f "${KUBERNETES_APP_DIR}/postgres.yaml" --cluster "${KUBECTL_CLUSTER_NAME}"
     kubectl apply -f "${KUBERNETES_APP_DIR}/volumes.yaml" --cluster "${KUBECTL_CLUSTER_NAME}"
+
+    kubectl apply -f "${KUBERNETES_APP_DIR}/secrets.yaml" --cluster "${KUBECTL_CLUSTER_NAME}" -n "test-namespace"
+    kubectl apply -f "${BUILD_DIRNAME}/configmaps.yaml" --cluster "${KUBECTL_CLUSTER_NAME}" -n "test-namespace"
+    kubectl apply -f "${KUBERNETES_APP_DIR}/volumes.yaml" --cluster "${KUBECTL_CLUSTER_NAME}" -n "test-namespace"
+
+    kubectl apply -f "${KUBERNETES_APP_DIR}/postgres.yaml" --cluster "${KUBECTL_CLUSTER_NAME}"
     kubectl apply -f "${BUILD_DIRNAME}/airflow.yaml" --cluster "${KUBECTL_CLUSTER_NAME}"
 }
 
