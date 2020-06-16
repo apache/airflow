@@ -169,13 +169,13 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             else:
                 airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
 
-            appbuilder.add_link("Documentation",
-                                href=airflow_doc_site,
-                                category="Docs",
-                                category_icon="fa-cube")
-            appbuilder.add_link("GitHub",
-                                href='https://github.com/apache/airflow',
-                                category="Docs")
+            # appbuilder.add_link("Documentation",
+            #                     href=airflow_doc_site,
+            #                     category="Docs",
+            #                     category_icon="fa-cube")
+            # appbuilder.add_link("GitHub",
+            #                     href='https://github.com/apache/airflow',
+            #                     category="Docs")
             appbuilder.add_view(views.VersionView,
                                 'Version',
                                 category='About',

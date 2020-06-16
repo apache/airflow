@@ -2467,7 +2467,7 @@ class VariableModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport']
+    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport', 'is_curve_template']
 
     list_columns = ['key', 'val', 'is_encrypted', 'is_curve_template', 'active']
     add_columns = ['key', 'val', 'is_curve_template', 'active']

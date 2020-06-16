@@ -60,6 +60,12 @@
     {% endblock %}
 
     {% block begin_loop_values %}
+          <script>
+            function viewCurveTemplate(templateKey){
+              var templateName = templateKey.split('@@')[0];
+              return '/curve_template/' + templateName;
+            }
+            </script>
         {% for item in value_columns %}
             {% set pk = pks[loop.index-1] %}
             <tr>
@@ -71,7 +77,11 @@
                 {% if can_show or can_edit or can_delete %}
                     <td><center>
                     {{ lib.btn_crud(can_show, can_edit, can_delete, pk, modelview_name, filters) }}
-                    </center></td>
+                    </center>
+                      {% if item['is_curve_template'] %}
+                      <a href="/curve_template/{{ item.key.split('@@')[0] }}">查看曲线模板</a>
+                      {% endif %}
+                    </td>
                 {% endif %}
                 {% for value in include_columns %}
                     {% set formatter = formatters_columns.get(value) %}

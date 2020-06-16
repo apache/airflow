@@ -139,8 +139,9 @@
   };
 
   function renderTemplateList() {
-    $('#tree').treeview({ data: tree }).on('nodeSelected', (event, data) => {
-      console.log(event, data);
+    $('#tree').treeview({
+      data: tree,
+    }).on('nodeSelected', (event, data) => {
       treeItemClickActions[data.role](event, data);
     }).treeview('selectNode', [0]);
   }
@@ -234,7 +235,9 @@
       name: yName,
       type: 'line',
       data: genData(c, xKey, yKey),
-      symbol: 'none',
+      cursor: 'pointer',
+      showSymbol: false,
+      clip: false,
       lineStyle: {
         color: c.color,
       },
@@ -299,6 +302,12 @@
     curveChart.setOption(option);
     setChartParams('cur_w', 'cur_m');
     updateChart();
+    curveChart.on('click', (params) => {
+      if (params.componentType === 'series') {
+        console.log(params);
+
+      }
+    });
   }
 
   $('#update-chart-w-m').change(() => {
