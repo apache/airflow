@@ -329,7 +329,12 @@ class _DataflowRunner(LoggingMixin):
             stderr=subprocess.PIPE,
             close_fds=True)
 
-    def process_fb(self, fd):
+    def _process_fd(self, fd):
+        """
+        Prints output to logs and lookup for job ID in each line.
+
+        :param fd: File descriptor.
+        """
         if fd == self._proc.stderr:
             while True:
                 line = self._proc.stderr.readline().decode()
@@ -376,20 +381,20 @@ class _DataflowRunner(LoggingMixin):
         reads = [self._proc.stderr, self._proc.stdout]
         while True:
             # Wait for at least one available fd.
-            readable_fbs, _, _ = select.select(reads, [], [], 5)
-            if readable_fbs is None:
+            readable_fds, _, _ = select.select(reads, [], [], 5)
+            if readable_fds is None:
                 self.log.info("Waiting for DataFlow process to complete.")
                 continue
 
-            for readable_fb in readable_fbs:
-                self.process_fb(readable_fb)
+            for readable_fd in readable_fds:
+                self._process_fd(readable_fd)
 
             if self._proc.poll() is not None:
                 break
 
         # Corner case: check if more output was created between the last read and the process termination
-        for readable_fb in reads:
-            self.process_fb(readable_fb)
+        for readable_fd in reads:
+            self._process_fd(readable_fd)
 
         self.log.info("Process exited with return code: %s", self._proc.returncode)
 
