@@ -20,7 +20,7 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
 fi
 
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
+. /opt/airflow/scripts/ci/in_container/_in_container_script_init.sh
 
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
@@ -40,8 +40,6 @@ if [[ -n "${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS:=}" ]]; then
 fi
 
 echo
-
-ARGS=( "$@" )
 
 RUN_TESTS=${RUN_TESTS:="true"}
 INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
@@ -86,15 +84,6 @@ fi
 
 export RUN_AIRFLOW_1_10=${RUN_AIRFLOW_1_10:="false"}
 
-export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
-export HADOOP_HOME="${HADOOP_HOME:="/opt/hadoop-cdh"}"
-
-if [[ ${VERBOSE} == "true" ]]; then
-    echo
-    echo "Using ${HADOOP_DISTRO} distribution of Hadoop from ${HADOOP_HOME}"
-    echo
-fi
-
 # Added to have run-tests on path
 export PATH=${PATH}:${AIRFLOW_SOURCES}
 
@@ -134,10 +123,6 @@ if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
 fi
 
 
-# Start MiniCluster
-java -cp "/opt/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
-    >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
-
 # Set up ssh keys
 echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
     >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
@@ -160,25 +145,13 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 # shellcheck source=scripts/ci/in_container/configure_environment.sh
 . "${MY_DIR}/configure_environment.sh"
 
-if [[ ${CI:=} == "true" && ${RUN_TESTS} == "true" ]] ; then
-    echo
-    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    echo "  Setting default parallellism to 2 because we can run out of memory during tests on CI"
-    echo " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    echo
-    export AIRFLOW__CORE__PARALELLISM=2
-fi
+cd "${AIRFLOW_SOURCES}"
 
 set +u
 # If we do not want to run tests, we simply drop into bash
-if [[ "${RUN_TESTS}" == "false" ]]; then
-    if [[ ${#ARGS} == 0 ]]; then
-        exec /bin/bash
-    else
-        exec /bin/bash -c "$(printf "%q " "${ARGS[@]}")"
-    fi
+if [[ "${RUN_TESTS:=false}" != "true" ]]; then
+    exec /bin/bash "${@}"
 fi
-
 set -u
 
 if [[ "${CI}" == "true" ]]; then
@@ -199,10 +172,11 @@ else
     CI_ARGS=()
 fi
 
-TESTS_TO_RUN="tests/"
+declare -a TESTS_TO_RUN
+TESTS_TO_RUN=("tests")
 
 if [[ ${#@} -gt 0 && -n "$1" ]]; then
-    TESTS_TO_RUN="$1"
+    TESTS_TO_RUN=("${@}")
 fi
 
 if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
@@ -227,7 +201,7 @@ elif [[ ${ONLY_RUN_QUARANTINED_TESTS:=""} == "true" ]]; then
         "--timeout" "90")
 fi
 
-ARGS=("${CI_ARGS[@]}" "${TESTS_TO_RUN}")
+ARGS=("${CI_ARGS[@]}" "${TESTS_TO_RUN[@]}")
 
 if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
     "${MY_DIR}/run_system_tests.sh" "${ARGS[@]}"

@@ -293,7 +293,7 @@ Manage environments - CI (default) or Production - if ``--production-image`` fla
 
 Interact with CI environment:
 
-    * Run test target specified with ``breeze test-target`` command
+    * Run test target specified with ``breeze tests`` command
     * Execute arbitrary command in the test environment with ``breeze execute-command`` command
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
 
@@ -709,7 +709,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
     generate-requirements                    Generates pinned requirements for pip dependencies
     push-image                               Pushes images to registry
     initialize-local-virtualenv              Initializes local virtualenv
-    kind-cluster                             Manages KinD cluster on the host
     setup-autocomplete                       Sets up autocomplete for breeze
     stop                                     Stops the docker-compose environment
     restart                                  Stops the docker-compose environment including DB cleanup
@@ -719,11 +718,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Commands with arguments:
 
     docker-compose                <ARG>      Executes specified docker-compose command
-    execute-command               <ARG>      Executes specified command in the container
     kind-cluster                  <ARG>      Manages KinD cluster on the host
     static-check                  <ARG>      Performs selected static check for changed files
-    static-check-all-files        <ARG>      Performs selected static check for all files
-    test-target                   <ARG>      Runs selected test target in the container
+    tests                         <ARG>      Runs selected tests in the container
 
   Help commands:
 
@@ -741,7 +738,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Detailed usage for command: shell
 
 
-  breeze shell [FLAGS] -- <EXTRA_ARGS>
+  breeze shell [FLAGS] [-- <EXTRA_ARGS>]
 
         This is default subcommand if no subcommand is used.
 
@@ -757,6 +754,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
         and setup. This file is automatically sourced when you enter the container. Database
         and webserver ports are forwarded to appropriate database/webserver so that you can
         connect to it from your host environment.
+
+        You can also pass <EXTRA_ARGS> after -- they will be passed as bash parameters, this is
+        especially useful to pass bash options, for example -c to execute command:
+
+        'breeze shell -- -c "ls -la"'
 
   Flags:
 
@@ -795,6 +797,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -p, --python <PYTHON_MAJOR_MINOR_VERSION>
           Python version used for the image. This is always major/minor version.
+
           One of:
 
                  2.7 3.5 3.6 3.7
@@ -858,10 +861,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --registry-cache
-          If registry cache is enabled, pulls and pushes are done from the registry cache in github.
-          You need to be logged in to the registry in order to be able to pull/push from it and you
-          need to be committer to push to airflow registry.
+  -c, --github-registry
+          If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
+          DockerHub. You need to be logged in to the registry in order to be able to pull/push from it
+          and you need to be committer to push to Apache Airflow' GitHub registry.
 
   -G, --github-organisation
           GitHub organisation used to pull, push images when cache is used. Default: apache.
@@ -891,6 +894,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -p, --python <PYTHON_MAJOR_MINOR_VERSION>
           Python version used for the image. This is always major/minor version.
+
           One of:
 
                  2.7 3.5 3.6 3.7
@@ -910,7 +914,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Detailed usage for command: exec
 
 
-  breeze exec
+  breeze exec [-- <EXTRA_ARGS>]
 
         Execs into interactive shell to an already running container. The container mus be started
         already by breeze shell command. If you are not familiar with tmux, this is the best
@@ -936,6 +940,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -p, --python <PYTHON_MAJOR_MINOR_VERSION>
           Python version used for the image. This is always major/minor version.
+
           One of:
 
                  2.7 3.5 3.6 3.7
@@ -955,7 +960,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze push_image [FLAGS]
 
         Pushes images to docker registry. You can push the images to DockerHub registry (default)
-        or to the GitHub cache registry (if --registry-cache flag is used).
+        or to the GitHub registry (if --github-registry flag is used).
 
         For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
         the repository to push to. For GitHub repository --github-organisation and --github-repo
@@ -968,8 +973,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
         'breeze push-image' or
         'breeze push-image --dockerhub-user user' to push to your private registry or
         'breeze push-image --production-image' - to push production image or
-        'breeze push-image --registry-cache' - to push to GitHub cache or
-        'breeze push-image --registry-cache --github-organisation org' - for other organisation
+        'breeze push-image --github-registry' - to push to GitHub image registry or
+        'breeze push-image --github-registry --github-organisation org' - for other organisation
 
   Flags:
 
@@ -979,10 +984,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --registry-cache
-          If registry cache is enabled, pulls and pushes are done from the registry cache in github.
-          You need to be logged in to the registry in order to be able to pull/push from it and you
-          need to be committer to push to airflow registry.
+  -c, --github-registry
+          If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
+          DockerHub. You need to be logged in to the registry in order to be able to pull/push from it
+          and you need to be committer to push to Apache Airflow' GitHub registry.
 
   -G, --github-organisation
           GitHub organisation used to pull, push images when cache is used. Default: apache.
@@ -1014,75 +1019,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -p, --python <PYTHON_MAJOR_MINOR_VERSION>
           Python version used for the image. This is always major/minor version.
+
           One of:
 
                  2.7 3.5 3.6 3.7
-
-
-  ####################################################################################################
-
-
-  Detailed usage for command: kind-cluster
-
-
-  breeze kind-cluster [FLAGS] OPERATION
-
-        Manages host-side Kind Kubernetes cluster that is used to run Kubernetes integration tests.
-        It allows to start/stop/restart/status the Kind Kubernetes cluster and deploy Airflow to it.
-        This enables you to run tests inside the breeze environment with latest airflow images loaded.
-        Note that in case of deploying airflow, the first step is to rebuild the image and loading it
-        to the cluster so you can also pass appropriate build image flags that will influence
-        rebuilding the production image. Operation is one of:
-
-                 start stop restart status deploy test
-
-  Flags:
-
-  -p, --python <PYTHON_MAJOR_MINOR_VERSION>
-          Python version used for the image. This is always major/minor version.
-          One of:
-
-                 2.7 3.5 3.6 3.7
-
-  -F, --force-build-images
-          Forces building of the local docker images. The images are rebuilt
-          automatically for the first time or when changes are detected in
-          package-related files, but you can force it using this flag.
-
-  -P, --force-pull-images
-          Forces pulling of images from DockerHub before building to populate cache. The
-          images are pulled by default only for the first time you run the
-          environment, later the locally build images are used as cache.
-
-  -E, --extras
-          Extras to pass to build images The default are different for CI and production images:
-
-          CI image:
-                 devel_ci
-
-          Production image:
-                 async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,
-                 ssh,statsd,virtualenv
-
-  --additional-extras
-          Additional extras to pass to build images The default is no additional extras.
-
-  --additional-python-deps
-          Additional python dependencies to use when building the images.
-
-  --additional-dev-deps
-          Additional apt dev dependencies to use when building the images.
-
-  --additional-runtime-deps
-          Additional apt runtime dependencies to use when building the images.
-
-  -C, --force-clean-images
-          Force build images with cache disabled. This will remove the pulled or build images
-          and start building images from scratch. This might take a long time.
-
-  -L, --use-local-cache
-          Uses local cache to build images. No pulled images will be used, but results of local
-          builds in the Docker cache are used instead.
 
 
   ####################################################################################################
@@ -1156,7 +1096,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Detailed usage for command: docker-compose
 
 
-  breeze docker-compose [FLAGS] COMMAND -- <EXTRA_ARGS>
+  breeze docker-compose [FLAGS] COMMAND [-- <EXTRA_ARGS>]
 
         Run docker-compose command instead of entering the environment. Use 'help' as command
         to see available commands. The <EXTRA_ARGS> passed after -- are treated
@@ -1168,54 +1108,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -p, --python <PYTHON_MAJOR_MINOR_VERSION>
           Python version used for the image. This is always major/minor version.
-          One of:
 
-                 2.7 3.5 3.6 3.7
-
-  -b, --backend <BACKEND>
-          Backend to use for tests - it determines which database is used.
-          One of:
-
-                 sqlite mysql postgres
-
-          Default: sqlite
-
-  --postgres-version <POSTGRES_VERSION>
-          Postgres version used. One of:
-
-                 9.6 10
-
-  --mysql-version <MYSQL_VERSION>
-          Mysql version used. One of:
-
-                 5.6 5.7
-
-  -v, --verbose
-          Show verbose information about executed commands (enabled by default for running test).
-          Note that you can further increase verbosity and see all the commands executed by breeze
-          by running 'export VERBOSE_COMMANDS="true"' before running breeze.
-
-
-  ####################################################################################################
-
-
-  Detailed usage for command: execute-command
-
-
-  breeze execute-command [FLAGS] COMMAND -- <EXTRA_ARGS>
-
-        Run chosen command instead of entering the environment. The command is run using
-        'bash -c "<command with args>" if you need to pass arguments to your command, you need
-        to pass them together with command surrounded with " or '. Alternatively you can
-        pass arguments as <EXTRA_ARGS> passed after --. For example:
-
-        'breeze execute-command "ls -la"' or
-        'breeze execute-command ls -- --la'
-
-  Flags:
-
-  -p, --python <PYTHON_MAJOR_MINOR_VERSION>
-          Python version used for the image. This is always major/minor version.
           One of:
 
                  2.7 3.5 3.6 3.7
@@ -1265,6 +1158,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -p, --python <PYTHON_MAJOR_MINOR_VERSION>
           Python version used for the image. This is always major/minor version.
+
           One of:
 
                  2.7 3.5 3.6 3.7
@@ -1316,7 +1210,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Detailed usage for command: static-check
 
 
-  breeze static-check [FLAGS] STATIC_CHECK
+  breeze static-check [FLAGS] STATIC_CHECK [-- <EXTRA_ARGS>]
 
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
@@ -1334,6 +1228,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         'breeze static-check mypy' or
         'breeze static-check mypy -- --files tests/core.py'
+        'breeze static-check mypy -- --all-files'
 
         You can see all the options by adding --help EXTRA_ARG:
 
@@ -1343,46 +1238,18 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ####################################################################################################
 
 
-  Detailed usage for command: static-check-all-files
+  Detailed usage for command: tests
 
 
-  breeze static-check-all [FLAGS] STATIC_CHECK
-
-        Run selected static checks for all applicable files. You should specify static check that
-        you would like to run or 'all' to run all checks. One of:
-
-                 all airflow-config-yaml bat-tests build check-apache-license
-                 check-executables-have-shebangs check-hooks-apply check-integrations
-                 check-merge-conflict check-xml debug-statements detect-private-key doctoc
-                 end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs insert-license
-                 language-matters lint-dockerfile mixed-line-ending mypy pydevd python2-compile
-                 python2-fastcheck python-no-log-warn rst-backticks setup-order shellcheck
-                 trailing-whitespace update-breeze-file update-extras update-local-yml-file yamllint
-
-        You can pass extra arguments including options to the pre-commit framework as
-        <EXTRA_ARGS> passed after --. For example:
-
-        'breeze static-check-all-files mypy' or
-        'breeze static-check-all-files mypy -- --verbose'
-
-        You can see all the options by adding --help EXTRA_ARG:
-
-        'breeze static-check-all-files mypy -- --help'
-
-
-  ####################################################################################################
-
-
-  Detailed usage for command: test-target
-
-
-  breeze test-target [FLAGS] TEST_TARGET -- <EXTRA_ARGS>
+  breeze tests [FLAGS] [TEST_TARGET ..] [-- <EXTRA_ARGS>]
 
         Run the specified unit test target. There might be multiple
         targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
-        as additional options passed to pytest. For example:
+        as additional options passed to pytest. You can pass 'tests' as target to
+        run all tests. For example:
 
-        'breeze test-target tests/test_core.py -- --logging-level=DEBUG'
+        'breeze tests tests/test_core.py -- --logging-level=DEBUG'
+        'breeze tests tests
 
   Flags:
 
@@ -1432,6 +1299,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -p, --python <PYTHON_MAJOR_MINOR_VERSION>
           Python version used for the image. This is always major/minor version.
+
           One of:
 
                  2.7 3.5 3.6 3.7
@@ -1594,10 +1462,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -H, --dockerhub-repo
           DockerHub repository used to pull, push, build images. Default: airflow.
 
-  -c, --registry-cache
-          If registry cache is enabled, pulls and pushes are done from the registry cache in github.
-          You need to be logged in to the registry in order to be able to pull/push from it and you
-          need to be committer to push to airflow registry.
+  -c, --github-registry
+          If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
+          DockerHub. You need to be logged in to the registry in order to be able to pull/push from it
+          and you need to be committer to push to Apache Airflow' GitHub registry.
 
   -G, --github-organisation
           GitHub organisation used to pull, push images when cache is used. Default: apache.
@@ -1621,17 +1489,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
  .. END BREEZE HELP MARKER
 
-Convenience Scripts
--------------------
-
-Once you run ``./breeze`` you can also execute various actions via generated convenience scripts:
-
-.. code-block::
-
-   Enter the environment          : ./.build/cmd_run
-   Run command in the environment : ./.build/cmd_run "[command with args]" [bash options]
-   Run tests in the environment   : ./.build/test_run [test-target] [pytest options]
-   Run Docker compose command     : ./.build/dc [help/pull/...] [docker-compose options]
 
 Troubleshooting
 ===============
