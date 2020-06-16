@@ -2009,7 +2009,7 @@ function run_build_command {
 # Runs the actual command - depending on the command chosen it will use the right
 # Convenient script and run the right command with it
 function run_breeze_command {
-    set -u
+    set +u
     case "${COMMAND_TO_RUN}" in
         enter_breeze)
             if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
@@ -2090,6 +2090,7 @@ function run_breeze_command {
           echo >&2
           ;;
     esac
+    set -u
 }
 
 setup_default_breeze_variables
