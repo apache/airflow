@@ -168,7 +168,8 @@ def check_class_links_in_operators_and_hooks_ref() -> None:
 
     airflow_modules = find_modules() - find_modules(deprecated_only=True)
     airflow_modules = {
-        o for o in airflow_modules if any(f".{d}." in o for d in ["operators", "hooks", "sensors"])
+        o for o in airflow_modules if any(f".{d}." in o for d in
+                                          ["operators", "hooks", "sensors", "transfers"])
     }
 
     missing_modules = airflow_modules - current_modules_in_file

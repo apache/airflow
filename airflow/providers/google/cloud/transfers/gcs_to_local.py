@@ -26,7 +26,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.sensors.base_sensor_operator import apply_defaults
 
 
-class GCSToLocalOperator(BaseOperator):
+class GCSToLocalFilesystemOperator(BaseOperator):
     """
     Downloads a file from Google Cloud Storage.
 

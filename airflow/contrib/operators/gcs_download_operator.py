@@ -21,7 +21,7 @@ This module is deprecated. Please use `airflow.providers.google.cloud.operators.
 
 import warnings
 
-from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.operators.gcs`.",
@@ -29,16 +29,16 @@ warnings.warn(
 )
 
 
-class GoogleCloudStorageDownloadOperator(GCSToLocalOperator):
+class GoogleCloudStorageDownloadOperator(GCSToLocalFilesystemOperator):
     """
     This class is deprecated.
-    Please use `airflow.providers.google.cloud.operators.gcs.GCSToLocalOperator`.
+    Please use `airflow.providers.google.cloud.operators.gcs.GCSToLocalFilesystemOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.providers.google.cloud.operators.gcs.GCSToLocalOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.gcs.GCSToLocalFilesystemOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

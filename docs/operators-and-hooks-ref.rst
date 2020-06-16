@@ -873,6 +873,12 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - :doc:`How to use <howto/operator/gcp/facebook_ads_to_gcs>`
      - :mod:`airflow.providers.google.cloud.transfers.facebook_ads_to_gcs`
 
+
+   * - `Google Ads <https://ads.google.com/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/ads>`
+     - :mod:`airflow.providers.google.ads.transfers.ads_to_gcs`
+
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
@@ -909,6 +915,11 @@ These integrations allow you to copy data from/to Google Cloud Platform.
        :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
      - :mod:`airflow.providers.google.cloud.transfers.gcs_to_gcs`,
        :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
+
+   * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - Local
+     - :doc:`How to use <howto/operator/gcp/gcs_to_local>`
+     - :mod:`airflow.providers.google.cloud.transfers.gcs_to_local`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__

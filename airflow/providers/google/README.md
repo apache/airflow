@@ -417,7 +417,7 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [ads.transfers.ads_to_gcs.GoogleAdsToGcsOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/ads/transfers/ads_to_gcs.py)                               |
 | [cloud.transfers.facebook_ads_to_gcs.FacebookAdsReportToGcsOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/facebook_ads_to_gcs.py) |
-| [cloud.transfers.gcs_to_local.GCSToLocalOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/gcs_to_local.py)                           |
+| [cloud.transfers.gcs_to_local.GCSToLocalFileSystemOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/gcs_to_local.py)                 |
 | [cloud.transfers.gcs_to_sftp.GCSToSFTPOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/gcs_to_sftp.py)                              |
 | [cloud.transfers.presto_to_gcs.PrestoToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/presto_to_gcs.py)                        |
 | [cloud.transfers.sftp_to_gcs.SFTPToGCSOperator](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/transfers/sftp_to_gcs.py)                              |

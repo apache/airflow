@@ -27,7 +27,7 @@ from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
-from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.dates import days_ago
 
 GCS_TMP = os.environ.get('GCP_DATAFLOW_GCS_TMP', 'gs://test-dataflow-example/temp/')
@@ -70,7 +70,7 @@ with models.DAG(
     )
     # [END howto_operator_start_java_job]
 
-    jar_to_local = GCSToLocalOperator(
+    jar_to_local = GCSToLocalFilesystemOperator(
         task_id="jar-to-local",
         bucket=GCS_JAR_BUCKET_NAME,
         object_name=GCS_JAR_OBJECT_NAME,

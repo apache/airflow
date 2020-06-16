@@ -19,7 +19,7 @@ import unittest
 
 import mock
 
-from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 
 TASK_ID = "test-gcs-operator"
 TEST_BUCKET = "test-bucket"
@@ -34,7 +34,7 @@ LOCAL_FILE_PATH = "/home/airflow/gcp/test-object"
 class TestGoogleCloudStorageDownloadOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_local.GCSHook")
     def test_execute(self, mock_hook):
-        operator = GCSToLocalOperator(
+        operator = GCSToLocalFilesystemOperator(
             task_id=TASK_ID,
             bucket=TEST_BUCKET,
             object_name=TEST_OBJECT,
