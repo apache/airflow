@@ -15,12 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8137
+import logging
+
+from flask import current_app
+from itsdangerous import BadSignature, URLSafeSerializer
+
+from airflow.api_connexion.exceptions import NotFound
+from airflow.models.dagcode import DagCode
+
+log = logging.getLogger(__name__)
 
 
-def get_dag_source():
+def get_dag_source(file_token: str):
     """
     Get source code using file token
     """
-    raise NotImplementedError("Not implemented yet.")
+    secret_key = current_app.config["SECRET_KEY"]
+    auth_s = URLSafeSerializer(secret_key)
+    try:
+        path = auth_s.loads(file_token)
+        dag_source = DagCode.code(path)
+    except (BadSignature, FileNotFoundError):
+        NotFound("Dag Source not found")
+    else:
+        return dag_source
