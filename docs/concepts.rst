@@ -140,7 +140,7 @@ Example DAG with functional abstraction
     )
 
     @dag.task(multiple_outputs=True)
-    def prepare_email(raw_json: str) -> str:
+    def prepare_email(raw_json: str) -> Dict[str, str]:
       external_ip = json.loads(raw_json)['origin']
       return {
         'subject':f'Server connected from {external_ip}',
