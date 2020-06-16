@@ -26,7 +26,7 @@ class TestModuleImport(unittest.TestCase):
         cls = import_string('airflow.utils.module_loading.import_string')
         self.assertEqual(cls, import_string)
 
-        # Test false_positive_class_names raised
+        # Test exceptions raised
         with self.assertRaises(ImportError):
             import_string('no_dots_in_path')
         msg = 'Module "airflow.utils" does not define a "nonexistent" attribute'

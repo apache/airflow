@@ -34,8 +34,8 @@ class DynamodbToS3Test(unittest.TestCase):
             for line in lines:
                 self.output_queue.append(json.loads(line))
 
-    @patch('airflow.providers.amazon.aws.operators.dynamodb_to_s3.S3Hook')
-    @patch('airflow.providers.amazon.aws.operators.dynamodb_to_s3.AwsDynamoDBHook')
+    @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook')
+    @patch('airflow.providers.amazon.aws.transfers.dynamodb_to_s3.AwsDynamoDBHook')
     def test_dynamodb_to_s3_success(self, mock_aws_dynamodb_hook, mock_s3_hook):
         responses = [
             {

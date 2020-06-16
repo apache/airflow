@@ -492,7 +492,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         Checks whether the operation list has an operation with the
         expected status, then returns true
         If it encounters operations in FAILED or ABORTED state
-        throw :class:`airflow.false_positive_class_names.AirflowException`.
+        throw :class:`airflow.exceptions.AirflowException`.
 
         :param operations: (Required) List of transfer operations to check.
         :type operations: list[dict]
@@ -502,7 +502,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :type expected_statuses: set[str]
         :return: If there is an operation with the expected state
             in the operation list, returns true,
-        :raises: airflow.false_positive_class_names.AirflowException If it encounters operations
+        :raises: airflow.exceptions.AirflowException If it encounters operations
             with a state in the list,
         :rtype: bool
         """

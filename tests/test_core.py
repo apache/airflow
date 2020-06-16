@@ -140,7 +140,7 @@ class TestCore(unittest.TestCase):
 
     def test_illegal_args_forbidden(self):
         """
-        Tests that operators raise false_positive_class_names on illegal arguments when
+        Tests that operators raise exceptions on illegal arguments when
         illegal arguments are not allowed.
         """
         with self.assertRaises(AirflowException) as ctx:

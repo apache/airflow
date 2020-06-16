@@ -88,7 +88,7 @@ def execute_command(command_to_exec: CommandType) -> None:
 
 class ExceptionWithTraceback:
     """
-    Wrapper class used to propagate false_positive_class_names to parent processes from subprocesses.
+    Wrapper class used to propagate exceptions to parent processes from subprocesses.
 
     :param exception: The exception to wrap
     :type exception: Exception

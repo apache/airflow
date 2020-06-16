@@ -22,7 +22,7 @@ from typing import Any, Optional
 
 def get_python_source(x: Any) -> Optional[str]:
     """
-    Helper function to get Python source (or not), preventing false_positive_class_names
+    Helper function to get Python source (or not), preventing exceptions
     """
     if isinstance(x, str):
         return x

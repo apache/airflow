@@ -38,7 +38,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.typing_compat import Protocol, runtime_checkable
 
-# Add false_positive_class_names to pylint for the boto3 protocol only; ideally the boto3 library
+# Add exceptions to pylint for the boto3 protocol only; ideally the boto3 library
 # could provide
 # protocols for all their dynamically generated classes (try to migrate this to a PR on botocore).
 # Note that the use of invalid-name parameters should be restricted to the boto3 mappings only;

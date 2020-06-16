@@ -461,7 +461,7 @@ class RefactorBackportPackages:
             +++ ./airflow/providers/google/cloud/operators/kubernetes_engine.py
             @@ -28,11 +28,11 @@
 
-             from airflow.false_positive_class_names import AirflowException
+             from airflow.exceptions import AirflowException
              from airflow.models import BaseOperator
             -from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
             +from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
@@ -501,7 +501,7 @@ class RefactorBackportPackages:
             @@ -24,7 +24,7 @@
              from typing import List, Optional
 
-             from airflow.false_positive_class_names import AirflowException
+             from airflow.exceptions import AirflowException
             -from airflow.models import BaseOperator, BaseOperatorLink
             +from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
              from airflow.models.taskinstance import TaskInstance
@@ -536,7 +536,7 @@ class RefactorBackportPackages:
             @@ -26,7 +26,7 @@
              from jinja2 import Template
 
-             from airflow.false_positive_class_names import AirflowException
+             from airflow.exceptions import AirflowException
             -from airflow.utils.module_loading import import_string
             +from airflow.providers.google.common.utils.module_loading import import_string
 

@@ -256,7 +256,7 @@ ARG_RERUN_FAILED_TASKS = Arg(
     help=(
         "if set, the backfill will auto-rerun "
         "all the failed tasks for the backfill date range "
-        "instead of throwing false_positive_class_names"),
+        "instead of throwing exceptions"),
     action="store_true")
 ARG_RUN_BACKWARDS = Arg(
     ("-B", "--run-backwards",),

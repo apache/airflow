@@ -93,7 +93,7 @@ class CloudTranslateHook(GoogleBaseHook):
 
                   If only a single value is passed, then only a single
                   dictionary will be returned.
-        :raises: :class:`~false_positive_class_names.ValueError` if the number of
+        :raises: :class:`~exceptions.ValueError` if the number of
                  values and translations differ.
         """
         client = self.get_conn()
