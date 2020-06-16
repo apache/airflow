@@ -64,7 +64,6 @@ def get_dag_runs(session, dag_id, start_date_gte=None, start_date_lte=None,
         query = query.filter(DagRun.start_date >= conn_parse_datetime(start_date_gte))
 
     if start_date_lte:
-
         query = query.filter(DagRun.start_date <= conn_parse_datetime(start_date_lte))
 
     # filter execution date
@@ -82,7 +81,7 @@ def get_dag_runs(session, dag_id, start_date_gte=None, start_date_lte=None,
         query = query.filter(DagRun.end_date <= conn_parse_datetime(end_date_lte))
 
     # apply offset and limit
-    dag_run = query.offset(offset).limit(limit)
+    dag_run = query.offset(offset).limit(limit).all()
     total_entries = session.query(DagRun).all()
 
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run,
