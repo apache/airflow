@@ -22,6 +22,8 @@ import sys
 import tempfile
 import unittest
 
+from itsdangerous.url_safe import URLSafeSerializer
+
 from airflow import DAG, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DagRun, TaskInstance
@@ -38,6 +40,13 @@ class TestGetLog(unittest.TestCase):
     DAG_ID = 'dag_for_testing_log_endpoint'
     DAG_ID_REMOVED = 'removed_dag_for_testing_log_endpoint'
     TASK_ID = 'task_for_testing_log_endpoint'
+    TRY_NUMBER = 1
+
+    @classmethod
+    def setUpClass(cls):
+        settings.configure_orm()
+        cls.session = settings.Session
+        cls.app = app.create_app(testing=True)
 
     def setUp(self) -> None:
         self.default_time = "2020-06-10T20:00:00+00:00"
@@ -88,6 +97,18 @@ class TestGetLog(unittest.TestCase):
                 session.merge(self.ti)
                 session.merge(self.ti_removed_dag)
 
+    def _create_dagrun(self, session):
+        dagrun_model = DagRun(
+            dag_id=self.DAG_ID,
+            run_id='TEST_DAG_RUN_ID',
+            run_type=DagRunType.MANUAL.value,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+        )
+        session.add(dagrun_model)
+        session.commit()
+
     def tearDown(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         clear_db_runs()
@@ -103,21 +124,41 @@ class TestGetLog(unittest.TestCase):
         super().tearDown()
 
     @provide_session
-    def test_should_response_200(self, session):
-        dagrun_model = DagRun(
-            dag_id=self.DAG_ID,
-            run_id='TEST_DAG_RUN_ID',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=timezone.parse(self.default_time),
-            start_date=timezone.parse(self.default_time),
-            external_trigger=True,
-        )
-        session.add(dagrun_model)
-        session.commit()
+    def test_should_response_200_json(self, session):
+        self._create_dagrun(session)
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": False})
         headers = {'Content-Type': 'application/json'}
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-            f"taskInstances/{self.TASK_ID}/logs/1",
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers=headers
         )
+        self.assertIn('content', response.json)
+        self.assertIn('continuation_token', response.json)
+        self.assertIn('Log for testing.', response.json.get('content'))
+        self.assertEqual(200, response.status_code)
+
+    @provide_session
+    def test_should_response_200_text_plain(self, session):
+        self._create_dagrun(session)
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": True})
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+        )
         assert response.status_code == 200
+        expected_filename = '{}/{}/{}/{}.log'.format(self.DAG_ID,
+                                                     self.TASK_ID,
+                                                     self.default_time,
+                                                     self.TRY_NUMBER)
+
+        content_disposition = response.headers.get('Content-Disposition')
+        self.assertTrue(content_disposition.startswith('attachment'))
+        self.assertTrue(expected_filename in content_disposition)
+        self.assertEqual(200, response.status_code)
+        self.assertIn('Log for testing.', response.data.decode('utf-8'))

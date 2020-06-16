@@ -18,10 +18,12 @@ import logging
 import os
 from io import BytesIO
 
-from flask import request, send_file
+from flask import Response, current_app, request
+from itsdangerous.exc import BadSignature
+from itsdangerous.url_safe import URLSafeSerializer
 
 from airflow import models, settings
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.configuration import conf
 from airflow.models import DagRun
 from airflow.settings import STORE_SERIALIZED_DAGS
@@ -41,14 +43,22 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
     Get logs for specific task instance
     """
     if not token:
-        token = {}
-    # Todo use itsdangerous to decrypt metadata
+        metadata = {}
+    else:
+        key = current_app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        try:
+            metadata = serializer.loads(token)
+        except BadSignature as err:
+            raise BadRequest(err.message, err.payload)
 
-    metadata = token
-    if metadata.get('download_logs', None) and not full_content:
+    if metadata.get('download_logs', None) and metadata['download_logs']:
         full_content = True
+
     if full_content:
         metadata['download_logs'] = True
+    else:
+        metadata['download_logs'] = False
     query = session.query(DagRun).filter(DagRun.dag_id == dag_id)
     dag_run = query.filter(DagRun.run_id == dag_run_id).first()
     if not dag_run:
@@ -70,24 +80,28 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
             logs, metadatas = handler.read(ti, task_try_number, metadata=metadata)
             metadata = metadatas[0]
 
-        if request.headers['Content-Type'] == 'application/json':
+        if request.headers.get('Content-Type', None) == 'application/json':
             return dict(continuation_token=str(metadata),
                         content=str(logs))
 
         file_obj = BytesIO(b'\n'.join(
             log.encode('utf-8') for log in logs
         ))
-        filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
+        filename_template = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
         attachment_filename = render_log_filename(
             ti=ti,
             try_number="all" if task_try_number is None else task_try_number,
             filename_template=filename_template)
-        return send_file(file_obj, as_attachment=True,
-                         attachment_filename=attachment_filename)
+
+        return Response(file_obj, mimetype="text/plain",
+                        headers={"Content-Disposition": "attachment; filename={}".format(
+                            attachment_filename)})
 
     except AttributeError as err:
-        error_message = ["Task log handler {} does not support read logs.\n{}\n"
-                         .format(task_log_reader, str(err))]
+        error_message = [
+            "Task log handler {} does not support read logs.\n{}\n"
+            .format(task_log_reader, str(err))
+        ]
         metadata['end_of_log'] = True
         return dict(continuation_token=str(metadata),
                     content=str(error_message))
