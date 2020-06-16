@@ -82,6 +82,7 @@ class TestTaskInstance(unittest.TestCase):
 
     def setUp(self):
         db.clear_db_pools()
+        db.clear_rendered_ti_fields()
         with create_session() as session:
             test_pool = Pool(pool='test_pool', slots=1)
             session.add(test_pool)
@@ -89,6 +90,7 @@ class TestTaskInstance(unittest.TestCase):
 
     def tearDown(self):
         db.clear_db_pools()
+        db.clear_rendered_ti_fields()
         with create_session() as session:
             session.query(TaskFail).delete()
             session.query(TaskReschedule).delete()
@@ -473,58 +475,64 @@ class TestTaskInstance(unittest.TestCase):
         run_with_error(ti)
         self.assertEqual(ti.state, State.FAILED)
 
-    def test_retry_handling(self):
+    @parameterized.expand([
+        (False, None,),
+        (True, {'env': None, 'bash_command': 'echo test_retry_handling; exit 1'},),
+    ])
+    def test_retry_handling(self, dag_serialization, expected_rendered_ti_fields):
         """
         Test that task retries are handled properly
         """
-        dag = models.DAG(dag_id='test_retry_handling')
-        task = BashOperator(
-            task_id='test_retry_handling_op',
-            bash_command='exit 1',
-            retries=1,
-            retry_delay=datetime.timedelta(seconds=0),
-            dag=dag,
-            owner='test_pool',
-            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        with patch("airflow.models.taskinstance.STORE_SERIALIZED_DAGS", dag_serialization):
+            dag = models.DAG(dag_id='test_retry_handling')
+            task = BashOperator(
+                task_id='test_retry_handling_op',
+                bash_command='echo {{dag.dag_id}}; exit 1',
+                retries=1,
+                retry_delay=datetime.timedelta(seconds=0),
+                dag=dag,
+                owner='test_pool',
+                start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
-        def run_with_error(ti):
-            try:
-                ti.run()
-            except AirflowException:
-                pass
+            def run_with_error(ti):
+                try:
+                    ti.run()
+                except AirflowException:
+                    pass
 
-        ti = TI(
-            task=task, execution_date=timezone.utcnow())
-        self.assertEqual(ti.try_number, 1)
+            ti = TI(
+                task=task, execution_date=timezone.utcnow())
+            self.assertEqual(ti.try_number, 1)
 
-        # first run -- up for retry
-        run_with_error(ti)
-        self.assertEqual(ti.state, State.UP_FOR_RETRY)
-        self.assertEqual(ti._try_number, 1)
-        self.assertEqual(ti.try_number, 2)
+            # first run -- up for retry
+            run_with_error(ti)
+            self.assertEqual(ti.state, State.UP_FOR_RETRY)
+            self.assertEqual(ti._try_number, 1)
+            self.assertEqual(ti.try_number, 2)
 
-        # second run -- fail
-        run_with_error(ti)
-        self.assertEqual(ti.state, State.FAILED)
-        self.assertEqual(ti._try_number, 2)
-        self.assertEqual(ti.try_number, 3)
+            # second run -- fail
+            run_with_error(ti)
+            self.assertEqual(ti.state, State.FAILED)
+            self.assertEqual(ti._try_number, 2)
+            self.assertEqual(ti.try_number, 3)
 
-        # Clear the TI state since you can't run a task with a FAILED state without
-        # clearing it first
-        dag.clear()
+            # Clear the TI state since you can't run a task with a FAILED state without
+            # clearing it first
+            dag.clear()
 
-        # third run -- up for retry
-        run_with_error(ti)
-        self.assertEqual(ti.state, State.UP_FOR_RETRY)
-        self.assertEqual(ti._try_number, 3)
-        self.assertEqual(ti.try_number, 4)
+            # third run -- up for retry
+            run_with_error(ti)
+            self.assertEqual(ti.state, State.UP_FOR_RETRY)
+            self.assertEqual(ti._try_number, 3)
+            self.assertEqual(ti.try_number, 4)
 
-        # fourth run -- fail
-        run_with_error(ti)
-        ti.refresh_from_db()
-        self.assertEqual(ti.state, State.FAILED)
-        self.assertEqual(ti._try_number, 4)
-        self.assertEqual(ti.try_number, 5)
+            # fourth run -- fail
+            run_with_error(ti)
+            ti.refresh_from_db()
+            self.assertEqual(ti.state, State.FAILED)
+            self.assertEqual(ti._try_number, 4)
+            self.assertEqual(ti.try_number, 5)
+            self.assertEqual(RenderedTaskInstanceFields.get_templated_fields(ti), expected_rendered_ti_fields)
 
     def test_next_retry_datetime(self):
         delay = datetime.timedelta(seconds=30)
