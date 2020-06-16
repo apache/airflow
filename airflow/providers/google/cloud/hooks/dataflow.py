@@ -342,6 +342,7 @@ class _DataflowRunner(LoggingMixin):
                     break
                 self._process_line_and_extract_job_id(line)
                 self.log.warning(line.rstrip("\n"))
+            return
 
         if fd == self._proc.stdout:
             while True:
@@ -350,6 +351,7 @@ class _DataflowRunner(LoggingMixin):
                     break
                 self._process_line_and_extract_job_id(line)
                 self.log.info(line.rstrip("\n"))
+            return
 
         raise Exception("No data in stderr or in stdout.")
 
