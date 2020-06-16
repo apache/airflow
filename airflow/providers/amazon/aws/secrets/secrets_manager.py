@@ -90,13 +90,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         for user_denomination in ['user', 'username', 'login']:
             if user_denomination in secret:
                 user = secret[user_denomination]
-            else:
-                user = None
+
         for password_denomination in ['pass', 'password', 'key']:
             if password_denomination in secret:
                 password = secret[password_denomination]
-            else:
-                password = None
 
         return user, password
 
@@ -104,8 +101,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         for host_denomination in ['host', 'remote_host', 'server']:
             if host_denomination in secret:
                 host = secret[host_denomination]
-            else:
-                host = None
 
         return host
 
@@ -149,15 +144,25 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         # These lines will check if we have with some denomination stored an username, password and host
         if secret:
-            user, password = self._get_user_and_password(secret)
-            host = self._get_host(secret)
             try:
-                conn_type = self._get_conn_type(secret)
-                port, database = self._get_port_and_database(secret)
+                user, password = self._get_user_and_password(secret)
+                host = self._get_host(secret)
+                if user and password and host:
+                    conn_type = self._get_conn_type(secret)
+                    port, database = self._get_port_and_database(secret)
 
-                conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
-                print(conn_string)
-                connection = conn_string
+                    conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
+
+                    if 'extra' in secret:
+                        extra_dict = ast.literal_eval(secret['extra'])
+                        counter = 0
+                        for key, value in extra_dict.values():
+                            if counter == 0:
+                                conn_string += f'{key}={value}'
+                            else:
+                                conn_string += f'&{key}={value}'
+
+                    connection = conn_string
             except UnboundLocalError:
                 conn_string = self._get_secret(conn_id)
                 connection = f'{{{conn_string[:-1]}}}'  # without this line, the secret_string
