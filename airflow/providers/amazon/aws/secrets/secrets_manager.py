@@ -125,6 +125,20 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return port, database
 
+    def _get_extra(self, secret, conn_string):
+        if 'extra' in secret:
+            extra_dict = ast.literal_eval(secret['extra'])
+            counter = 0
+            for key, value in extra_dict.values():
+                if counter == 0:
+                    conn_string += f'{key}={value}'
+                else:
+                    conn_string += f'&{key}={value}'
+
+                counter += 1
+
+        return conn_string
+
     def get_conn_uri(self, conn_id: str):
         """
         Get Connection Value
@@ -152,16 +166,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                     port, database = self._get_port_and_database(secret)
 
                     conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
-
-                    if 'extra' in secret:
-                        extra_dict = ast.literal_eval(secret['extra'])
-                        counter = 0
-                        for key, value in extra_dict.values():
-                            if counter == 0:
-                                conn_string += f'{key}={value}'
-                            else:
-                                conn_string += f'&{key}={value}'
-
                     connection = conn_string
             except UnboundLocalError:
                 conn_string = self._get_secret(conn_id)
