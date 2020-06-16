@@ -8,6 +8,8 @@
       href="{{ url_for('static', filename='css/curve_template.css') }}">
 <link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" type="text/css"
+      href="{{ url_for('static', filename='css/bootstrap-treeview.min.css') }}">
 <script src="{{ url_for('static', filename='js/echarts.js') }}" type="text/javascript"></script>
 {% endblock %}
 
@@ -53,9 +55,8 @@
     </div>
   </div>
   <div id="curve-template-list-container" class="card">
-    <h4>曲线模板</h4>
-    <ul id="curve-template-list">
-    </ul>
+    <h4>曲线模板簇</h4>
+    <div id="tree"></div>
   </div>
 </div>
 {% endblock %}
@@ -63,10 +64,12 @@
 
 {% block tail_js %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/bootstrap-treeview.min.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
   let curveChart = null;
   const curves = [];
   const modes = [];
+  const tree = [];
   let currentMode = null;
   const colors = {};
   const curveTemplate = JSON.parse('{{ curve_template|tojson|safe }}');
@@ -76,6 +79,12 @@
     'cur_m': '扭矩',
     'cur_t': '时间',
   };
+  const treeRoles = {
+    cluster: 'cluster',
+    group: 'group',
+    curve: 'curve',
+  };
+
   const chartParams = {
     xKey: 'cur_w',
     yKey: 'cur_m',
@@ -114,20 +123,28 @@
     return val === undefined || val === null || val === '';
   }
 
-  function renderTemplateRow(mode) {
-    return $(`<li>${mode}</li>`).click(() => {
-      currentMode = mode;
+  const treeItemClickActions = {
+    cluster: (event, data) => {
+      currentMode = data.mode;
       updateChart();
+    },
+    group: (event, data) => {
+      currentMode = data.mode;
+      updateChart();
+    },
+    curve: (event, data) => {
+      currentMode = data.mode;
+      updateChart();
+    },
+  };
+
+  function renderTemplateList() {
+    $('#tree').treeview({ data: tree }).on('nodeSelected', (event, data) => {
+      console.log(event, data);
+      treeItemClickActions[data.role](event, data);
     });
   }
 
-  function renderTemplateList() {
-    const modes = Object.keys(curveTemplate.template_cluster);
-    const $list = $('#curve-template-list');
-    modes.forEach((m) => {
-      $list.append(renderTemplateRow(m));
-    });
-  }
 
   function renderParamTableRow(key, value) {
     const $tr = $('<tr class="result-content-row">');
@@ -159,10 +176,22 @@
     const { template_cluster: templateCluster } = curveTemplate;
     Object.entries(templateCluster).forEach(([mode, cluster]) => {
       modes.push(mode);
+      const row = {
+        text: `模板簇-${mode}`,
+        nodes: [],
+        role: treeRoles.cluster,
+        mode
+      };
       const { curve_template_group_array: templateGroup } = cluster;
-      templateGroup.forEach((group) => {
+      templateGroup.forEach((group, groupIdx) => {
         const { template_data_array: curvesData, template_centroid_index: centroid } = group;
-        curvesData.forEach((curve) => {
+        const gRow = {
+          text: `曲线聚类-${mode}-${centroid}`,
+          nodes: [],
+          mode,
+          role: treeRoles.group,
+        };
+        curvesData.forEach((curve, idx) => {
           const { template_angle: cur_w, template_torque: cur_m, start_point } = curve;
           curves.push({
             start_point,
@@ -172,8 +201,15 @@
             cur_m,
             cur_t: genTimeSeries(timeStep, cur_w.length),
           });
+          gRow.nodes.push({
+            text: `曲线-${mode}-${centroid}-${idx}`,
+            role: treeRoles.curve,
+            mode,
+          });
         });
+        row.nodes.push(gRow);
       });
+      tree.push(row);
     });
     currentMode = modes[0];
   }
@@ -287,6 +323,7 @@
     renderCurveParam();
     genColors();
     loadCurvesData();
+
     renderTemplateList();
     console.log(curves);
     chartInit();

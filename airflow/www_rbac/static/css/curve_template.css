@@ -152,5 +152,9 @@ button.margin {
   word-wrap: break-word;
   word-break: break-all;
   /*min-height: 30px;*/
+}
 
+#curve-template-list li{
+  user-select: none;
+  cursor: pointer;
 }
