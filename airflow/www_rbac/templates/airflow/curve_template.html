@@ -24,6 +24,7 @@
       <tbody id="result_detail"></tbody>
     </table>
   </div>
+
   <div id="echarts-container" style="flex:1" class="card flex-column">
     <div class="flex" id="actions-container">
         <span class="btn-group" data-toggle="buttons">
@@ -51,6 +52,11 @@
       <div id="echarts-main" style="width: 100%;height:100%;"></div>
     </div>
   </div>
+  <div id="curve-template-list-container" class="card">
+    <h4>曲线模板</h4>
+    <ul id="curve-template-list">
+    </ul>
+  </div>
 </div>
 {% endblock %}
 
@@ -60,15 +66,38 @@
 <script type="text/javascript">
   let curveChart = null;
   const curves = [];
+  const modes = [];
+  let currentMode = null;
   const colors = {};
   const curveTemplate = JSON.parse('{{ curve_template|tojson|safe }}');
   const timeStep = curveTemplate.curve_param.sampling_time;
+  const curKeyMap = {
+    'cur_w': '角度',
+    'cur_m': '扭矩',
+    'cur_t': '时间',
+  };
+  const chartParams = {
+    xKey: 'cur_w',
+    yKey: 'cur_m',
+    xName: curKeyMap.cur_w,
+    yName: curKeyMap.cur_m,
+  };
+
+  function setChartParams(xKey, yKey) {
+    chartParams.xKey = xKey;
+    chartParams.yKey = yKey;
+    chartParams.xName = curKeyMap[xKey];
+    chartParams.yName = curKeyMap[yKey];
+  }
+
+  // todo: 在左侧增加曲线列表
+  // fixme: 在一张图上只显示一个模板簇
 
   console.log(curveTemplate);
 
   function randomColor() {
     return '#' + (function (color) {
-      return (color += '0123456789abcdef' [Math.floor(Math.random() * 16)])
+      return (color += '0123456789abcdef'[Math.floor(Math.random() * 16)])
       && (color.length === 6) ? color : arguments.callee(color);
     })('');
   }
@@ -85,7 +114,22 @@
     return val === undefined || val === null || val === '';
   }
 
-  function renderResultTableRow(key, value) {
+  function renderTemplateRow(mode) {
+    return $(`<li>${mode}</li>`).click(() => {
+      currentMode = mode;
+      updateChart();
+    });
+  }
+
+  function renderTemplateList() {
+    const modes = Object.keys(curveTemplate.template_cluster);
+    const $list = $('#curve-template-list');
+    modes.forEach((m) => {
+      $list.append(renderTemplateRow(m));
+    });
+  }
+
+  function renderParamTableRow(key, value) {
     const $tr = $('<tr class="result-content-row">');
     const $key = $(`<td class="result-content-item">${key}</td>`);
     let content = value;
@@ -101,7 +145,7 @@
     const { curve_param: curveParam } = curveTemplate;
     const $rows = [];
     Object.entries(curveParam).forEach(([k, v]) => {
-      $rows.push(renderResultTableRow(k, v));
+      $rows.push(renderParamTableRow(k, v));
     });
     $('#result_detail').append($rows);
   }
@@ -114,6 +158,7 @@
   function loadCurvesData() {
     const { template_cluster: templateCluster } = curveTemplate;
     Object.entries(templateCluster).forEach(([mode, cluster]) => {
+      modes.push(mode);
       const { curve_template_group_array: templateGroup } = cluster;
       templateGroup.forEach((group) => {
         const { template_data_array: curvesData, template_centroid_index: centroid } = group;
@@ -130,6 +175,7 @@
         });
       });
     });
+    currentMode = modes[0];
   }
 
   function genData(curve, xKey, yKey) {
@@ -141,8 +187,9 @@
     return xData.map((x, idx) => [xData[idx], yData[idx]]);
   }
 
-  function genDataSeries(xKey, yKey, xName, yName) {
-    return curves.map(c => ({
+  function genDataSeries() {
+    const { xKey, yKey, yName } = chartParams;
+    return curves.filter(c => c.mode === currentMode).map(c => ({
       name: yName,
       type: 'line',
       data: genData(c, xKey, yKey),
@@ -159,7 +206,8 @@
     }));
   }
 
-  function updateChart(xKey, yKey, xName, yName) {
+  function updateChart() {
+    const { xName, yName } = chartParams;
     const option = {
       title: {
         text: `${xName}-${yName}图`,
@@ -170,7 +218,7 @@
       },
       xAxis: { type: 'value' },
       yAxis: { type: 'value' },
-      series: genDataSeries(xKey, yKey, xName, yName),
+      series: genDataSeries(),
       dataZoom: [
         {
           type: 'slider',
@@ -208,19 +256,23 @@
 
     // 使用刚指定的配置项和数据显示图表。
     curveChart.setOption(option);
-    updateChart('cur_w', 'cur_m', '角度', '扭矩');
+    setChartParams('cur_w', 'cur_m');
+    updateChart();
   }
 
   $('#update-chart-w-m').change(() => {
-    updateChart('cur_w', 'cur_m', '角度', '扭矩');
+    setChartParams('cur_w', 'cur_m');
+    updateChart();
   });
 
   $('#update-chart-t-m').change(() => {
-    updateChart('cur_t', 'cur_m', '时间', '扭矩');
+    setChartParams('cur_t', 'cur_m');
+    updateChart();
   });
 
   $('#update-chart-t-w').change(() => {
-    updateChart('cur_t', 'cur_w', '时间', '角度');
+    setChartParams('cur_t', 'cur_w');
+    updateChart();
   });
 
   $(window).resize(() => {
@@ -235,6 +287,7 @@
     renderCurveParam();
     genColors();
     loadCurvesData();
+    renderTemplateList();
     console.log(curves);
     chartInit();
   });
