@@ -79,14 +79,14 @@
                     {{ lib.btn_crud(can_show, can_edit, can_delete, pk, modelview_name, filters) }}
                     </center>
                       {% if item['is_curve_template'] %}
-                      <a href="/curve_template/{{ item.key.split('@@')[0] }}">查看曲线模板</a>
+                      <a href="/curve_template/{{ item.key.split('@@')[0] }}" target="_blank">查看曲线模板</a>
                       {% endif %}
                     </td>
                 {% endif %}
                 {% for value in include_columns %}
                     {% set formatter = formatters_columns.get(value) %}
                     {% if formatter and formatter(item) %}
-                        <td>{{ formatter(item) }}</td>
+                        <td><p style="text-overflow:ellipsis;overflow: auto;line-height:2rem;max-height:10rem">{{ formatter(item) }}</p></td>
                     {% elif item[value] != None %}
                         <td>{{ item[value]|safe }}</td>
                     {% else %}
