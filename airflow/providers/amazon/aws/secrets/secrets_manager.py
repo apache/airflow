@@ -166,7 +166,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                     port, database = self._get_port_and_database(secret)
 
                     conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{database}'
-                    connection = conn_string
+
+                    connection = self._get_extra(secret, conn_string)
             except UnboundLocalError:
                 conn_string = self._get_secret(conn_id)
                 connection = f'{{{conn_string[:-1]}}}'  # without this line, the secret_string
