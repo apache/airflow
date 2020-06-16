@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from sqlalchemy import func
+
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection, dagrun_collection_schema, dagrun_schema,
@@ -82,10 +84,10 @@ def get_dag_runs(session, dag_id, start_date_gte=None, start_date_lte=None,
 
     # apply offset and limit
     dag_run = query.offset(offset).limit(limit).all()
-    total_entries = session.query(DagRun).all()
+    total_entries = session.query(func.count(DagRun.id)).scalar()
 
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run,
-                                                          total_entries=len(total_entries)))
+                                                          total_entries=total_entries))
 
 
 def get_dag_runs_batch():
