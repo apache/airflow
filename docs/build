@@ -172,7 +172,12 @@ def check_guide_links_in_operator_descriptions():
     operator_names = find_existing_guide_operator_names()
 
     # Extract all potential python modules that can contain operators
-    python_module_paths = glob(f"{ROOT_PACKAGE_DIR}/**/*.py", recursive=True)
+    python_module_paths = itertools(
+        glob(f"{ROOT_PACKAGE_DIR}/operators/*.py"),
+        glob(f"{ROOT_PACKAGE_DIR}/sensors/*.py"),
+        glob(f"{ROOT_PACKAGE_DIR}/providers/**/operators/*.py", recursive=True),
+        glob(f"{ROOT_PACKAGE_DIR}/providers/**/sensors/*.py", recursive=True),
+    )
 
     for py_module_path in python_module_paths:
         with open(py_module_path) as f:
