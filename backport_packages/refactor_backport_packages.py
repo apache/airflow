@@ -25,7 +25,7 @@ from typing import List
 
 from backport_packages.setup_backport_packages import (
     get_source_airflow_folder, get_source_providers_folder, get_target_providers_folder,
-    get_target_providers_package_folder, is_bigquery_non_dts_module,
+    get_target_providers_package_folder,
 )
 from bowler import LN, TOKEN, Capture, Filename, Query
 from fissix.fixer_util import Comma, KeywordArg, Name
@@ -46,28 +46,6 @@ def copy_provider_sources() -> None:
         if os.path.isdir(build_dir):
             rmtree(build_dir)
 
-    def ignore_bigquery_files(src: str, names: List[str]) -> List[str]:
-        """
-        Ignore files with bigquery
-        :param src: source file
-        :param names: Name of the file
-        :return:
-        """
-        ignored_names = []
-        if any([src.endswith(os.path.sep + class_type) for class_type in CLASS_TYPES]):
-            ignored_names = [name for name in names
-                             if is_bigquery_non_dts_module(module_name=name)]
-        if src.endswith(os.path.sep + "example_dags"):
-            for file_name in names:
-                file_path = src + os.path.sep + file_name
-                with open(file_path, "rt") as file:
-                    text = file.read()
-                if any([f"airflow.providers.google.cloud.{class_type}.bigquery" in text
-                        for class_type in CLASS_TYPES]) or "_to_bigquery" in text:
-                    print(f"Ignoring {file_path}")
-                    ignored_names.append(file_name)
-        return ignored_names
-
     def ignore_kubernetes_files(src: str, names: List[str]) -> List[str]:
         ignored_names = []
         if src.endswith(os.path.sep + "example_dags"):
@@ -77,7 +55,7 @@ def copy_provider_sources() -> None:
         return ignored_names
 
     def ignore_some_files(src: str, names: List[str]) -> List[str]:
-        ignored_list = ignore_bigquery_files(src=src, names=names)
+        ignored_list = []
         ignored_list.extend(ignore_kubernetes_files(src=src, names=names))
         return ignored_list
 

@@ -152,19 +152,6 @@ def get_pip_package_name(provider_package_id: str) -> str:
     return "apache-airflow-backport-providers-" + provider_package_id.replace(".", "-")
 
 
-def is_bigquery_non_dts_module(module_name: str) -> bool:
-    """
-    Returns true if the module name indicates this is a bigquery module that should be skipped
-    for now.
-    TODO: this method should be removed as soon as BigQuery rewrite is finished.
-
-    :param module_name: name of the module
-    :return: true if module is a bigquery module (but not bigquery_dts)
-    """
-    return module_name.startswith("bigquery") and "bigquery_dts" not in module_name \
-        or "_to_bigquery" in module_name
-
-
 def get_long_description(provider_package_id: str) -> str:
     """
     Gets long description of the package.
@@ -359,15 +346,6 @@ def is_class(the_class: Type) -> bool:
     return inspect.isclass(the_class)
 
 
-def is_bigquery_class(imported_name: str) -> bool:
-    """
-    Returns true if the object passed is a class
-    :param imported_name: name of the class imported
-    :return: true if it is a class
-    """
-    return is_bigquery_non_dts_module(module_name=imported_name.split(".")[-2])
-
-
 def package_name_matches(the_class: Type, expected_pattern: Optional[str]) -> bool:
     """
     In case expected_pattern is set, it checks if the package name matches the pattern.
@@ -412,7 +390,6 @@ def find_all_classes(imported_classes: List[str],
             and is_imported_from_same_module(the_class=the_class, imported_name=imported_name) \
             and inherits_from(the_class=the_class, expected_ancestor=ancestor_match) \
             and not inherits_from(the_class=the_class, expected_ancestor=exclude_class_type) \
-            and not is_bigquery_class(imported_name=imported_name) \
                 and package_name_matches(the_class=the_class, expected_pattern=sub_package_pattern_match):
 
             if not false_positive_class_names or class_name not in false_positive_class_names:
@@ -828,13 +805,11 @@ def get_previous_release_info(previous_release_version: str,
 
 def check_if_release_version_ok(
         past_releases: List[ReleaseInfo],
-        current_release_version: str,
-        package_id: str) -> Tuple[str, Optional[str]]:
+        current_release_version: str) -> Tuple[str, Optional[str]]:
     """
     Check if the release version passed is not later than the last release version
     :param past_releases: all past releases (if there are any)
     :param current_release_version: release version to check
-    :param package_id: package id
     :return: Tuple of current/previous_release (previous might be None if there are no releases)
     """
     previous_release_version = past_releases[0].release_version if past_releases else None
@@ -1010,7 +985,7 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
     class_summary, num_errors = get_package_class_summary(full_package_name, imported_classes)
     past_releases = get_all_releases(provider_package_path=provider_package_path)
     current_release_version, previous_release = check_if_release_version_ok(
-        past_releases, current_release_version, provider_package_id)
+        past_releases, current_release_version)
     cross_providers_dependencies = \
         get_cross_provider_dependent_packages(provider_package_id=provider_package_id)
     previous_release = get_previous_release_info(previous_release_version=previous_release,
