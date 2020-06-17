@@ -61,6 +61,27 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+### SendGrid emailer has been moved
+Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
+package was supported by the community. The project was passed to the Apache community and currently the
+entire code is maintained by the community, so now the division has no justification, and it is only due
+to historical reasons.
+
+To clean up, the `send_mail` function from the `airflow.contrib.utils.sendgrid` module has been moved.
+
+If your configuration file looks like this:
+```ini
+[email]
+email_backend = airflow.contrib.utils.sendgrid.send_email
+```
+It should look like this now:
+```ini
+[email]
+email_backend = airflow.providers.sendgrid.utils.emailer.send_email
+```
+
+The old configuration still works but can be abandoned.
+
 ### Weekday enum has been moved
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
 package was supported by the community. The project was passed to the Apache community and currently the

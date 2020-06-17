@@ -195,18 +195,18 @@ def partition(pred: Callable, iterable: Iterable):
 
 
 def chain(*args, **kwargs):
-    """This function is deprecated. Please use `airflow.models.baseoperator.chain`."""
+    """This module is deprecated. Please use `airflow.models.baseoperator.chain`."""
     warnings.warn(
-        "This function is deprecated. Please use `airflow.models.baseoperator.chain`.",
+        "This module is deprecated. Please use `airflow.models.baseoperator.chain`.",
         DeprecationWarning, stacklevel=2
     )
     return import_string('airflow.models.baseoperator.chain')(*args, **kwargs)
 
 
 def cross_downstream(*args, **kwargs):
-    """This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`."""
+    """This module is deprecated. Please use `airflow.models.baseoperator.cross_downstream`."""
     warnings.warn(
-        "This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
+        "This module is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
         DeprecationWarning, stacklevel=2
     )
     return import_string('airflow.models.baseoperator.cross_downstream')(*args, **kwargs)

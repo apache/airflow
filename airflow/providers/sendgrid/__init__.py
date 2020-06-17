@@ -14,21 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""
-This module is deprecated.
-Please use `airflow.providers.sendgrid.utils.emailer`
-."""
-
-import warnings
-
-from airflow.utils.module_loading import import_string
-
-
-def send_email(*args, **kwargs):
-    """This function is deprecated. Please use `airflow.providers.sendgrid.utils.emailer.send_email`."""
-    warnings.warn(
-        "This function is deprecated. Please use `airflow.providers.sendgrid.utils.emailer.send_email`.",
-        DeprecationWarning, stacklevel=2
-    )
-    return import_string('airflow.providers.sendgrid.utils.emailer.send_email')(*args, **kwargs)

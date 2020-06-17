@@ -190,6 +190,8 @@ release = airflow.__version__
 exclude_patterns: List[str] = [
     # We only link to selected subpackages.
     '_api/airflow/index.rst',
+    # Required by airflow/contrib/plugins
+    '_api/main',
     # We have custom page - operators-and-hooks-ref.rst
     '_api/airflow/providers/index.rst',
     # Packages with subpackages
@@ -200,7 +202,9 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/apache/index.rst",
     "_api/airflow/providers/yandex/index.rst",
     "_api/airflow/providers/cncf/index.rst",
-    # Utils for internal use
+    # Packages without operators
+    "_api/airflow/providers/sendgrid",
+    # Utils
     '_api/airflow/providers/google/cloud/utils',
     # Internal client for Hashicorp Vault
     '_api/airflow/providers/hashicorp/_internal_client',
