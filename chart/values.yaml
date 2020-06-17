@@ -31,7 +31,7 @@ airflowHome: "/opt/airflow"
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: 1.10.10-1-python3.6
+defaultAirflowTag: 1.10.10.1-alpha2-python3.7
 
 
 # Select certain nodes for airflow pods.
@@ -76,7 +76,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: astronomerinc/ap-statsd-exporter
-    tag: 0.15.0
+    tag: 0.11.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis

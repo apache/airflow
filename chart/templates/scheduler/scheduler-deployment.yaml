@@ -149,7 +149,7 @@ spec:
         - name: scheduler-gc
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["/usr/local/bin/clean-airflow-logs"]
+          args: ["bash", "/usr/local/bin/clean-airflow-logs"]
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
