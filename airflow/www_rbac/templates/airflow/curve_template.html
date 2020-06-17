@@ -93,7 +93,6 @@
   const modes = [];
   const tree = [];
   let renderCurves = [];
-  const colors = {};
   const curveTemplate = JSON.parse('{{ curve_template|tojson|safe }}');
   const timeStep = curveTemplate.curve_param.sampling_time;
   const curKeyMap = {
@@ -121,9 +120,6 @@
     chartParams.yName = curKeyMap[yKey];
   }
 
-  // todo: 在左侧增加曲线列表
-  // fixme: 在一张图上只显示一个模板簇
-
   console.log(curveTemplate);
 
   function randomColor() {
@@ -131,13 +127,6 @@
       return (color += '0123456789abcdef'[Math.floor(Math.random() * 16)])
       && (color.length === 6) ? color : arguments.callee(color);
     })('');
-  }
-
-  function genColors() {
-    const modes = Object.keys(curveTemplate.template_cluster);
-    modes.forEach((m) => {
-      colors[m] = randomColor();
-    });
   }
 
 
@@ -155,29 +144,34 @@
       updateChart();
     },
     curve: (event, data) => {
-      renderCurves = curves.filter(c => c.mode === data.mode && c.centroid === data.centroid && c.idx === data.idx);
+      renderCurves = curves.filter(c => c.mode === data.mode
+        && c.centroid === data.centroid
+        && c.idx === data.idx);
       updateChart();
     },
   };
 
+  function showRemoveCurveDialog(name, color) {
+    const modal = $('#removeCurveDialog');
+    modal.find('.modal-body')
+      .html(`确认删除曲线 <div class="color-indicator" style="background-color: ${color}"></div>${name}`);
+    modal.modal({});
+  }
+
   function renderTemplateList() {
-    $('#tree').treeview({
+    const treeView = $('#tree');
+    treeView.treeview({
       data: tree,
       // showCheckbox: true,
-    })
-      .on('nodeSelected', (event, data) => {
-        treeItemClickActions[data.role](event, data);
-      })
-      .on('nodeChecked', (event, data) => {
-        $('#tree').treeview('uncheckAll', { silent: true });
-        console.log('checked');
-        const modal = $('#removeCurveDialog');
-        modal.find('.modal-body')
-          .html(`确认删除曲线 <div class="color-indicator" style="background-color: ${data.curveColor}"></div>${data.name}`);
-        modal.modal({});
-        // treeItemClickActions[data.role](event, data);
-      })
-      .treeview('selectNode', [0]);
+    }).on('nodeSelected', (event, data) => {
+      treeItemClickActions[data.role](event, data);
+    }).on('nodeChecked', (event, data) => {
+      treeView.treeview('uncheckAll', { silent: true });
+      console.log('checked');
+      showRemoveCurveDialog(data.name, data.curveColor);
+      // treeItemClickActions[data.role](event, data);
+    });
+    treeView.treeview('selectNode', [0]);
   }
 
 
@@ -275,20 +269,23 @@
   function genDataSeries() {
     const { xKey, yKey, yName } = chartParams;
     return renderCurves.map(c => ({
-      name: yName,
+      name: c.name,
       type: 'line',
       data: genData(c, xKey, yKey),
       cursor: 'pointer',
       showSymbol: false,
       clip: false,
+      itemStyle: {
+        color: c.color,
+      },
       lineStyle: {
         color: c.color,
       },
       markLine: {
-        data: [
-          { type: 'min', name: '最小值' },
-          { type: 'max', name: '最大值' },
-        ],
+        // data: [
+        //   { type: 'min', name: '最小值' },
+        //   { type: 'max', name: '最大值' },
+        // ],
       },
     }));
   }
@@ -348,6 +345,7 @@
     curveChart.on('click', (params) => {
       if (params.componentType === 'series') {
         console.log(params);
+        showRemoveCurveDialog(params.seriesName, params.color);
       }
     });
   }
@@ -377,7 +375,6 @@
   $(document).ready(() => {
     chartInit();
     renderCurveParam();
-    genColors();
     loadCurvesData();
     chartInit();
     renderTemplateList();
