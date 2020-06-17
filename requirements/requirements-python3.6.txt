@@ -214,7 +214,6 @@ kubernetes==11.0.0
 kylinpy==2.8.1
 lazy-object-proxy==1.5.0
 ldap3==2.7
-libcst==0.3.6
 lockfile==0.12.2
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==2.0.1
@@ -268,7 +267,6 @@ presto-python-client==0.7.0
 prison==0.1.3
 prometheus-client==0.8.0
 prompt-toolkit==3.0.5
-proto-plus==0.4.0
 protobuf==3.12.2
 psutil==5.7.0
 psycopg2-binary==2.8.5
@@ -393,7 +391,7 @@ virtualenv==20.0.26
 watchtower==0.7.3
 wcwidth==0.2.5
 websocket-client==0.57.0
-wrapt==1.12.1
+wrapt==1.11.2
 xmltodict==0.12.0
 yamllint==1.23.0
 yandexcloud==0.43.0

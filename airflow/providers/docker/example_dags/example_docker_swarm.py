@@ -22,6 +22,7 @@ from airflow import DAG
 from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 from airflow.utils.dates import days_ago
 
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,

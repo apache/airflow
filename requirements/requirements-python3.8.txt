@@ -181,6 +181,7 @@ humanize==2.5.0
 hvac==0.10.4
 identify==1.4.23
 idna==2.10
+ijson==2.6.1
 imagesize==1.2.0
 importlib-metadata==1.7.0
 inflection==0.5.0
