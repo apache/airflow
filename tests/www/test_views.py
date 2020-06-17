@@ -997,7 +997,7 @@ class TestAirflowBaseViews(TestBase):
         """Do not show remote links if log handler is local."""
         url = f'{endpoint}?dag_id=example_bash_operator'
         with self.capture_templates() as templates:
-            resp = self.client.get(url, follow_redirects=True)
+            self.client.get(url, follow_redirects=True)
             ctx = templates[0].local_context
             self.assertFalse(ctx['show_remote_log_redirect'])
             self.assertIsNone(ctx['remote_log_name'])
@@ -1012,7 +1012,7 @@ class TestAirflowBaseViews(TestBase):
         get_log_handler_function.return_value = RemoteHandler()
         url = f'{endpoint}?dag_id=example_bash_operator'
         with self.capture_templates() as templates:
-            resp = self.client.get(url, follow_redirects=True)
+            self.client.get(url, follow_redirects=True)
             ctx = templates[0].local_context
             self.assertTrue(ctx['show_remote_log_redirect'])
             self.assertEqual(ctx['remote_log_name'], RemoteHandler.REMOTE_LOG_NAME)
@@ -1314,6 +1314,7 @@ class TestLogView(TestBase):
     def test_redirect_to_remote_log_remote_logger(self, get_log_handler_function):
         class RemoteHandler(RemoteLoggingMixin):
             REMOTE_URL = 'http://remote-service.com'
+
             def get_remote_log_url(self, *args, **kwargs):
                 return self.REMOTE_URL
 
