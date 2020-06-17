@@ -17,6 +17,7 @@
 # under the License.
 
 import io
+import os
 import unittest
 from unittest.mock import call, patch
 
@@ -679,7 +680,46 @@ class TestSparkSubmitHook(unittest.TestCase):
         # Then
         self.assertIn(call(['yarn', 'application', '-kill',
                             'application_1486558679801_1820'],
-                           stderr=-1, stdout=-1),
+                      env=None, stderr=-1, stdout=-1),
+                      mock_popen.mock_calls)
+
+    @patch('airflow.providers.apache.spark.hooks.spark_submit.airflow_conf')
+    @patch('airflow.providers.apache.spark.hooks.spark_submit.renew_from_kt')
+    @patch('airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen')
+    def test_yarn_process_on_kill_with_keytab(self, mock_popen, mock_krb, mock_conf):
+        # Given
+        mock_popen.return_value.stdout = io.StringIO('stdout')
+        mock_popen.return_value.stderr = io.StringIO('stderr')
+        mock_popen.return_value.poll.return_value = None
+        mock_popen.return_value.wait.return_value = 0
+        log_lines = [
+            'SPARK_MAJOR_VERSION is set to 2, using Spark2',
+            'WARN NativeCodeLoader: Unable to load native-hadoop library for your ' +
+            'platform... using builtin-java classes where applicable',
+            'WARN DomainSocketFactory: The short-circuit local reads feature cannot ' +
+            'be used because libhadoop cannot be loaded.',
+            'INFO Client: Requesting a new application from cluster with 10 ' +
+            'NodeManagerapplication_1486558679801_1820s',
+            'INFO Client: Submitting application application_1486558679801_1820 ' +
+            'to ResourceManager'
+        ]
+
+        krb5_conf_loc = '/tmp/krb5'
+        mock_conf.get.return_value = krb5_conf_loc
+        hook = SparkSubmitHook(conn_id='spark_yarn_cluster', keytab='privileged_user.keytab',
+                               principal='user/spark@airflow.org')
+        hook._process_spark_submit_log(log_lines)
+        hook.submit()
+
+        # When
+        hook.on_kill()
+
+        # Then
+        expected_env = os.environ.copy()
+        expected_env["KRB5CCNAME"] = krb5_conf_loc
+        self.assertIn(call(['yarn', 'application', '-kill',
+                            'application_1486558679801_1820'],
+                      env=expected_env, stderr=-1, stdout=-1),
                       mock_popen.mock_calls)
 
     def test_standalone_cluster_process_on_kill(self):
