@@ -21,6 +21,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from itsdangerous.url_safe import URLSafeSerializer
 
@@ -162,3 +163,23 @@ class TestGetLog(unittest.TestCase):
         self.assertTrue(expected_filename in content_disposition)
         self.assertEqual(200, response.status_code)
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
+
+    @provide_session
+    def test_get_logs_with_metadata_as_download_large_file(self, session):
+        self._create_dagrun(session)
+        with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
+            first_return = (['1st line'], [{}])
+            second_return = (['2nd line'], [{'end_of_log': False}])
+            third_return = (['3rd line'], [{'end_of_log': True}])
+            fourth_return = (['should never be read'], [{'end_of_log': True}])
+            read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
+
+            response = self.client.get(
+                f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+                f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
+            )
+
+            self.assertIn('1st line', response.data.decode('utf-8'))
+            self.assertIn('2nd line', response.data.decode('utf-8'))
+            self.assertIn('3rd line', response.data.decode('utf-8'))
+            self.assertNotIn('should never be read', response.data.decode('utf-8'))
