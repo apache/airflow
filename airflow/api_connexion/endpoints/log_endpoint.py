@@ -46,9 +46,8 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
         metadata = {}
     else:
         key = current_app.config["SECRET_KEY"]
-        serializer = URLSafeSerializer(key)
         try:
-            metadata = serializer.loads(token)
+            metadata = URLSafeSerializer(key).loads(token)
         except BadSignature as err:
             raise BadRequest(err.message, err.payload)
 
@@ -79,6 +78,12 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
             ti.task = dag.get_task(ti.task_id)
             logs, metadatas = handler.read(ti, task_try_number, metadata=metadata)
             metadata = metadatas[0]
+
+        if full_content:
+            while 'end_of_log' not in metadata or not metadata['end_of_log']:
+                logs_, metadatas = handler.read(ti, task_try_number, metadata)
+                metadata = metadatas[0]
+                logs.append("\n".join(logs_) + "\n")
 
         if request.headers.get('Content-Type', None) == 'application/json':
             return dict(continuation_token=str(metadata),
