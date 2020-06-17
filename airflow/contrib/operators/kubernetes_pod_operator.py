@@ -150,8 +150,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 extract_xcom=self.do_xcom_push,
                 image_pull_policy=self.image_pull_policy,
                 node_selectors=self.node_selectors,
+                priority_class_name=self.priority_class_name,
                 annotations=self.annotations,
                 affinity=self.affinity,
+                init_containers=self.init_containers,
                 image_pull_secrets=self.image_pull_secrets,
                 service_account_name=self.service_account_name,
                 hostnetwork=self.hostnetwork,
@@ -223,6 +225,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  annotations=None,
                  resources=None,
                  affinity=None,
+                 init_containers=None,
                  config_file=None,
                  do_xcom_push=False,
                  node_selectors=None,
@@ -236,6 +239,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  pod_runtime_info_envs=None,
                  dnspolicy=None,
                  full_pod_spec=None,
+                 priority_class_name=None,
                  *args,
                  **kwargs):
         # https://github.com/apache/airflow/blob/2d0eff4ee4fafcf8c7978ac287a8fb968e56605f/UPDATING.md#unification-of-do_xcom_push-flag
@@ -257,6 +261,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.name = name
         self.env_vars = env_vars or {}
         self.ports = ports or []
+        self.init_containers = init_containers or []
+        self.priority_class_name = priority_class_name
         self.volume_mounts = volume_mounts or []
         self.volumes = volumes or []
         self.secrets = secrets or []
