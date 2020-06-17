@@ -24,6 +24,11 @@ from airflow.operators.sql import (
     SQLCheckOperator, SQLIntervalCheckOperator, SQLThresholdCheckOperator, SQLValueCheckOperator,
 )
 
+warnings.warn(
+    "This module is deprecated. Please use `airflow.operators.sql`.",
+    DeprecationWarning, stacklevel=2
+)
+
 
 class CheckOperator(SQLCheckOperator):
     """
