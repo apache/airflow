@@ -88,6 +88,10 @@ labelPRBasedOnFilePath:
     - docs/**/*
     - docs/*
 
+  area:helm-chart:
+    - chart/**/*
+    - chart/*
+
   area:Webserver:
     - airflow/cli/commands/webserver_command.py
     - airflow/www/**/*
