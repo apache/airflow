@@ -1,0 +1,436 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Default values for airflow.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# User and group of airflow user
+uid: 50000
+gid: 50000
+
+# Airflow home directory
+# Used for mount paths
+airflowHome: "/opt/airflow"
+
+# Default airflow repository -- overrides all the specific images below
+defaultAirflowRepository: apache/airflow
+
+# Default airflow tag to deploy
+defaultAirflowTag: 1.10.10.1-alpha2-python3.6
+
+
+# Select certain nodes for airflow pods.
+nodeSelector: {}
+affinity: {}
+tolerations: []
+
+# Add common labels to all objects and pods defined in this chart.
+labels: {}
+
+# Network policy configuration
+networkPolicies:
+  # Enabled network policies
+  enabled: false
+
+
+# Extra annotations to apply to all
+# Airflow pods
+airflowPodAnnotations: {}
+
+# Enable RBAC (default on most clusters these days)
+rbacEnabled: true
+
+# Airflow executor
+# Options: SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor
+executor: "KubernetesExecutor"
+
+# If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheudler's
+# service account will have access to communicate with the api-server and launch pods.
+# If this is true and using the CeleryExecutor, the workers will be able to launch pods.
+allowPodLaunching: true
+
+# Images
+images:
+  airflow:
+    repository: ~
+    tag: ~
+    pullPolicy: IfNotPresent
+  flower:
+    repository: ~
+    tag: ~
+    pullPolicy: IfNotPresent
+  statsd:
+    repository: astronomerinc/ap-statsd-exporter
+    tag: 0.11.0
+    pullPolicy: IfNotPresent
+  redis:
+    repository: redis
+    tag: 6-buster
+    pullPolicy: IfNotPresent
+  pgbouncer:
+    repository: astronomerinc/ap-pgbouncer
+    tag: 1.8.1
+    pullPolicy: IfNotPresent
+  pgbouncerExporter:
+    repository: astronomerinc/ap-pgbouncer-exporter
+    tag: 0.5.0-1
+    pullPolicy: IfNotPresent
+
+# Environment variables for all airflow containers
+env: []
+# - name: ""
+#   value: ""
+
+# Secrets for all airflow containers
+secret: []
+# - envName: ""
+#   secretName: ""
+#   secretKey: ""
+
+# Airflow database config
+data:
+  # If secret names are provided, use those secrets
+  metadataSecretName: ~
+  resultBackendSecretName: ~
+
+  # Otherwise pass connection values in
+  metadataConnection:
+    user: postgres
+    pass: postgres
+    host: ~
+    port: 5432
+    db: postgres
+    sslmode: disable
+  resultBackendConnection:
+    user: postgres
+    pass: postgres
+    host: ~
+    port: 5432
+    db: postgres
+    sslmode: disable
+
+# Fernet key settings
+fernetKey: ~
+fernetKeySecretName: ~
+
+# Airflow Worker Config
+workers:
+  # Number of airflow celery workers in StatefulSet
+  replicas: 1
+
+  # Allow KEDA autoscaling.
+  # Persistence.enabled must be set to false to use KEDA.
+  keda:
+    enabled: false
+    namespaceLabels: {}
+
+    # How often KEDA polls the airflow DB to report new scale requests to the HPA
+    pollingInterval: 5
+
+    # How many seconds KEDA will wait before scaling to zero.
+    # Note that HPA has a seperate cooldwon period for scale-downs
+    cooldownPeriod: 30
+
+    # Maximum number of workers created by keda
+    maxReplicaCount: 10
+
+  persistence:
+    # Enable persistent volumes
+    enabled: true
+    # Volume size for worker StatefulSet
+    size: 100Gi
+    # If using a custom storageClass, pass name ref to all statefulSets here
+    storageClassName:
+    # Execute init container to chown log directory.
+    # This is currently only needed in KinD, due to usage
+    # of local-path provisioner.
+    fixPermissions: false
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 600
+
+  # This setting tells kubernetes that its ok to evict
+  # when it wants to scale a node down.
+  safeToEvict: true
+
+# Airflow scheduler settings
+scheduler:
+  # Scheduler pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      maxUnavailable: 1
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # This setting can overwrite
+  # podMutation settings.
+  airflowLocalSettings: ~
+
+  # This setting tells kubernetes that its ok to evict
+  # when it wants to scale a node down.
+  safeToEvict: true
+
+# Airflow webserver settings
+webserver:
+  livenessProbe:
+    initialDelaySeconds: 15
+    timeoutSeconds: 30
+    failureThreshold: 20
+    periodSeconds: 5
+
+  readinessProbe:
+    initialDelaySeconds: 15
+    timeoutSeconds: 30
+    failureThreshold: 20
+    periodSeconds: 5
+
+  # Number of webservers
+  replicas: 1
+
+  # Additional network policies as needed
+  extraNetworkPolicies: []
+
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  # Create initial user.
+  defaultUser:
+    enabled: true
+    role: Admin
+    username: admin
+    email: admin@example.com
+    firstName: admin
+    lastName: user
+    password: admin
+
+  # Mount additional volumes into webserver.
+  extraVolumes: []
+  extraVolumeMounts: []
+
+  # This will be mounted into the Airflow Webserver as a custom
+  # webserver_config.py. You can bake a webserver_config.py in to your image
+  # instead
+  webserverConfig: ~
+  # webserverConfig: |
+  #   from airflow import configuration as conf
+
+  #   # The SQLAlchemy connection string.
+  #   SQLALCHEMY_DATABASE_URI = conf.get('core', 'SQL_ALCHEMY_CONN')
+
+  #   # Flask-WTF flag for CSRF
+  #   CSRF_ENABLED = True
+
+  service:
+    type: ClusterIP
+
+# Flower settings
+flower:
+  # Additional network policies as needed
+  extraNetworkPolicies: []
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  service:
+    type: ClusterIP
+
+# Statsd settings
+statsd:
+  enabled: true
+  # Additional network policies as needed
+  extraNetworkPolicies: []
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  service:
+    extraAnnotations: {}
+
+# Pgbouncer settings
+pgbouncer:
+  # Enable pgbouncer
+  enabled: false
+  # Additional network policies as needed
+  extraNetworkPolicies: []
+
+  # Pool sizes
+  metadataPoolSize: 10
+  resultBackendPoolSize: 5
+
+  # Maximum clients that can connect to pgbouncer (higher = more file descriptors)
+  maxClientConn: 100
+
+  # Pgbouner pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      maxUnavailable: 1
+
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  service:
+    extraAnnotations: {}
+
+  # https://www.pgbouncer.org/config.html
+  verbose: 0
+  logDisconnections: 0
+  logConnections: 0
+
+redis:
+  terminationGracePeriodSeconds: 600
+
+  persistence:
+    # Enable persistent volumes
+    enabled: true
+    # Volume size for worker StatefulSet
+    size: 1Gi
+    # If using a custom storageClass, pass name ref to all statefulSets here
+    storageClassName:
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # If set use as redis secret
+  passwordSecretName: ~
+  brokerURLSecretName: ~
+
+  # Else, if password is set, create secret with it,
+  # else generate a new one on install
+  password: ~
+
+  # This setting tells kubernetes that its ok to evict
+  # when it wants to scale a node down.
+  safeToEvict: true
+
+# Auth secret for a private registry
+# This is used if pulling airflow images from a private registry
+registry:
+  secretName: ~
+
+  connection: {}
+    # user: ~
+    # pass: ~
+    # host: ~
+    # email: ~
+
+# Elasticsearch logging configuration
+elasticsearch:
+  # Enable elasticsearch task logging
+  enabled: false
+  # A secret containing the connection
+  secretName: ~
+  # Or an object representing the connection
+  connection: {}
+    # user: ~
+    # pass: ~
+    # host: ~
+    # port: ~
+
+# All ports used by chart
+ports:
+  flowerUI: 5555
+  airflowUI: 8080
+  workerLogs: 8793
+  redisDB: 6379
+  statsdIngest: 9125
+  statsdScrape: 9102
+  pgbouncer: 6543
+  pgbouncerScrape: 9127
+
+# Define any ResourceQuotas for namespace
+quotas: {}
+
+# Define default/max/min values for pods and containers in namespace
+limits: []
+
+# Config Settings for pod_mutation_hook
+podMutation:
+  # Tolerations provided here would be applied using pod_mutation_hook
+  # So any pods spun up using KubernetesExecutor or KubernetesPodOperator will contain these tolerations.
+  tolerations: []
+  #  - key: "dynamic-pods"
+  #    operator: "Equal"
+  #    value: "true"
+  #    effect: "NoSchedule"
+
+  # Pods spun up would land in the node that matches the affinity
+  affinity: {}
+  #   nodeAffinity:
+  #     requiredDuringSchedulingIgnoredDuringExecution:
+  #       nodeSelectorTerms:
+  #       - matchExpressions:
+  #         - key: "company.io/dynamic-pods"
+  #           operator: In
+  #           values:
+  #           - "true"
+
+# This runs as a CronJob to cleanup old pods.
+cleanup:
+  enabled: false
+  # Run every 15 minutes
+  schedule: "*/15 * * * *"
+
+# Configuration for postgresql subchart
+# Not recommended for production
+postgresql:
+  enabled: true
+  postgresqlPassword: postgres
+  postgresqlUsername: postgres
