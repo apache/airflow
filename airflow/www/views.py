@@ -67,7 +67,7 @@ from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log.log_reader import TaskLogReader
-from airflow.utils.log.logging_mixin import RemoteLoggingMixin
+from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.platform import get_airflow_git_version
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -761,12 +761,12 @@ class Airflow(AirflowBaseView):  # noqa: D101
             execution_date=execution_date, form=form,
             root=root, wrapped=conf.getboolean('webserver', 'default_wrap'))
 
-    @expose('/redirect_to_remote_log')
+    @expose('/redirect_to_external_log')
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
     @provide_session
-    def redirect_to_remote_log(self, session=None):
+    def redirect_to_external_log(self, session=None):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
@@ -781,10 +781,10 @@ class Airflow(AirflowBaseView):  # noqa: D101
             models.TaskInstance.execution_date == dttm).first()
 
         try:
-            url = handler.get_remote_log_url(ti, try_number)
+            url = handler.get_external_log_url(ti, try_number)
             return redirect(url)
         except AttributeError as e:
-            error_message = ["Task log handler {} does not support remote log redirects.\n{}\n"
+            error_message = ["Task log handler {} does not support external log redirects.\n{}\n"
                              .format(handler.__class__.__name__, str(e))]
             return jsonify(message=error_message, error=True)
 
@@ -1516,8 +1516,8 @@ class Airflow(AirflowBaseView):  # noqa: D101
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
         handler = self._get_log_handler()
-        show_remote_log_redirect = isinstance(handler, RemoteLoggingMixin)
-        remote_log_name = handler.REMOTE_LOG_NAME if show_remote_log_redirect else None
+        show_external_log_redirect = isinstance(handler, ExternalLoggingMixin)
+        external_log_name = handler.log_name() if show_external_log_redirect else None
 
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
@@ -1531,8 +1531,8 @@ class Airflow(AirflowBaseView):  # noqa: D101
             doc_md=doc_md,
             data=data,
             blur=blur, num_runs=num_runs,
-            show_remote_log_redirect=show_remote_log_redirect,
-            remote_log_name=remote_log_name)
+            show_external_log_redirect=show_external_log_redirect,
+            external_log_name=external_log_name)
 
     @expose('/graph')
     @has_dag_access(can_dag_read=True)
@@ -1615,8 +1615,8 @@ class Airflow(AirflowBaseView):  # noqa: D101
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
         handler = self._get_log_handler()
-        show_remote_log_redirect = isinstance(handler, RemoteLoggingMixin)
-        remote_log_name = handler.REMOTE_LOG_NAME if show_remote_log_redirect else None
+        show_external_log_redirect = isinstance(handler, ExternalLoggingMixin)
+        external_log_name = handler.log_name() if show_external_log_redirect else None
 
         return self.render_template(
             'airflow/graph.html',
@@ -1635,8 +1635,8 @@ class Airflow(AirflowBaseView):  # noqa: D101
             tasks=tasks,
             nodes=nodes,
             edges=edges,
-            show_remote_log_redirect=show_remote_log_redirect,
-            remote_log_name=remote_log_name)
+            show_external_log_redirect=show_external_log_redirect,
+            external_log_name=external_log_name)
 
     @expose('/duration')
     @has_dag_access(can_dag_read=True)

@@ -168,7 +168,7 @@
             <hr/>
           </div>
           <div id="dag_redir_logs">
-            <label style="display:inline"> View Logs in {{ remote_log_name }} (by attempts): </label>
+            <label style="display:inline"> View Logs in {{ external_log_name }} (by attempts): </label>
             <ul class="nav nav-pills" role="tablist" id="redir_log_try_index" style="display:inline">
             </ul>
             <hr/>
@@ -366,9 +366,9 @@ function updateQueryStringParameter(uri, key, value) {
     var task_id = '';
     var execution_date = '';
     var subdag_id = '';
-    var show_remote_log_redirect = false;
-    {% if show_remote_log_redirect is defined %}
-      show_remote_log_redirect = '{{ show_remote_log_redirect }}' == "True";
+    var show_external_log_redirect = false;
+    {% if show_external_log_redirect is defined %}
+      show_external_log_redirect = '{{ show_external_log_redirect }}' == "True";
     {% endif %}
 
     var buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce(function(obj, elm) {
@@ -444,7 +444,7 @@ function updateQueryStringParameter(uri, key, value) {
       $("#dag_redir_logs").hide();
       if (try_numbers > 0) {
           $("#dag_dl_logs").show();
-          if (show_remote_log_redirect) {
+          if (show_external_log_redirect) {
               $("#dag_redir_logs").show();
           }
       }
@@ -474,8 +474,8 @@ function updateQueryStringParameter(uri, key, value) {
           </li>`
         );
 
-        if (index == 0 || !show_remote_log_redirect) continue;
-        var redir_log_url = "{{ url_for('Airflow.redirect_to_remote_log') }}" +
+        if (index == 0 || !show_external_log_redirect) continue;
+        var redir_log_url = "{{ url_for('Airflow.redirect_to_external_log') }}" +
           "?dag_id=" + encodeURIComponent(dag_id) +
           "&task_id=" + encodeURIComponent(task_id) +
           "&execution_date=" + encodeURIComponent(execution_date) +

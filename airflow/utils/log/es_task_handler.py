@@ -31,10 +31,10 @@ from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
-from airflow.utils.log.logging_mixin import LoggingMixin, RemoteLoggingMixin
+from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 
 
-class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin, RemoteLoggingMixin):
+class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin, ExternalLoggingMixin):
     """
     ElasticsearchTaskHandler is a python log handler that
     reads logs from Elasticsearch. Note logs are not directly
@@ -53,7 +53,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin, RemoteLoggingMixin
 
     PAGE = 0
     MAX_LINE_PER_PAGE = 1000
-    REMOTE_LOG_NAME = 'Elasticsearch'
+    LOG_NAME = 'Elasticsearch'
 
     def __init__(self, base_log_folder, filename_template,  # pylint: disable=too-many-arguments
                  log_id_template, end_of_log_mark,
@@ -268,7 +268,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin, RemoteLoggingMixin
 
         self.closed = True
 
-    def get_remote_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
+    def log_name(self):
+        return self.LOG_NAME
+
+    def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
         """
         Creates an address for an external log collecting service.
         :param task_instance: task instance object

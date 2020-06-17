@@ -355,7 +355,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         # Ignore template if "{log_id}"" is missing in the URL
         ('localhost:5601', 'https://localhost:5601'),
     ])
-    def test_get_remote_log_url(self, es_frontend, expected_url):
+    def test_get_external_log_url(self, es_frontend, expected_url):
         es_task_handler = ElasticsearchTaskHandler(
             self.local_log_location,
             self.filename_template,
@@ -366,5 +366,5 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.json_fields,
             frontend=es_frontend
         )
-        url = es_task_handler.get_remote_log_url(self.ti, self.ti.try_number)
+        url = es_task_handler.get_external_log_url(self.ti, self.ti.try_number)
         self.assertEqual(expected_url, url)

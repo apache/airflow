@@ -58,18 +58,20 @@ class LoggingMixin:
             set_context(self.log, context)
 
 
-class RemoteLoggingMixin:
+class ExternalLoggingMixin:
     """
     Define a logging handler based on a remote service (e.g. ELK, StackDriver). Subclasses must override
-    REMOTE_LOG_NAME and get_remote_log_url().
+    "log_name" and "get_external_log_url".
     """
-    REMOTE_LOG_NAME: str = 'RemoteLog'
+    def log_name(self) -> str:
+        """Return log name"""
+        raise NotImplementedError('External logger must provide a name')
 
-    def get_remote_log_url(self, task_instance, try_number) -> str:
+    def get_external_log_url(self, task_instance, try_number) -> str:
         """
-        Return the URL for log visualization in the the remote service.
+        Return the URL for log visualization in the remote service.
         """
-        raise NotImplementedError('Remote logger must provide remote URL')
+        raise NotImplementedError('External logger must provide remote URL')
 
 
 # TODO: Formally inherit from io.IOBase
