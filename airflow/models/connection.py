@@ -145,6 +145,9 @@ class Connection(Base, LoggingMixin):
     :type uri: str
     """
     __tablename__ = "connection"
+    __table_args__ = (
+        UniqueConstraint('conn_id', name='unique_conn_id'),
+    )
 
     id = Column(Integer(), primary_key=True)
     conn_id = Column(String(ID_LEN))
@@ -157,8 +160,6 @@ class Connection(Base, LoggingMixin):
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', String(5000))
-
-    UniqueConstraint(conn_id, name='unique_conn_id')
 
     _types = [
         ('docker', 'Docker Registry'),
