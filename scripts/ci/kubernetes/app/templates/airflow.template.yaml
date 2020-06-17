@@ -162,3 +162,46 @@ spec:
       nodePort: 30809
   selector:
     name: airflow
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-dags
+  namespace: test-namespace
+spec:
+  containers:
+    - name: "init-dags-test-namespace"
+      image: {{AIRFLOW_KUBERNETES_IMAGE}}
+      imagePullPolicy: Never
+      securityContext:
+        runAsUser: 0
+      volumeMounts:
+        - name: airflow-configmap
+          mountPath: /opt/airflow/airflow.cfg
+          subPath: airflow.cfg
+        - name: {{INIT_DAGS_VOLUME_NAME}}
+          mountPath: /opt/airflow/dags
+      env:
+        - name: SQL_ALCHEMY_CONN
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secrets
+              key: sql_alchemy_conn
+      command:
+        - "bash"
+      args:
+        - "-cx"
+        - "/tmp/airflow-test-env-init-dags.sh"
+  volumes:
+  - name: airflow-dags
+    persistentVolumeClaim:
+      claimName: airflow-dags
+  - name: airflow-dags-fake
+    emptyDir: {}
+  - name: airflow-dags-git
+    emptyDir: {}
+  - name: airflow-logs
+    emptyDir: {}
+  - name: airflow-configmap
+    configMap:
+      name: airflow-configmap

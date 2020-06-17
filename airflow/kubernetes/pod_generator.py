@@ -118,6 +118,7 @@ class PodGenerator:
         security_context=None,
         configmaps=None,
         dnspolicy=None,
+        priority_class_name=None,
         pod=None,
         extract_xcom=False,
     ):
@@ -176,7 +177,7 @@ class PodGenerator:
         self.spec.volumes = volumes or []
         self.spec.node_selector = node_selectors
         self.spec.restart_policy = restart_policy
-
+        self.spec.priority_class_name = priority_class_name
         self.spec.image_pull_secrets = []
 
         if image_pull_secrets:
