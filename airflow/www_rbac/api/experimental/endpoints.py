@@ -30,12 +30,13 @@ from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
+from airflow.models import Variable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.strings import to_boolean
 from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
 from airflow import models
-from airflow.utils.db import create_session
+from airflow.utils.db import create_session, provide_session
 from .utils import get_cas_base_url, get_result_args, get_task_params, get_curve_args, get_craft_type, \
     generate_bolt_number, get_curve_params
 from flask import g, Blueprint, jsonify, request, url_for
@@ -422,6 +423,61 @@ def dag_is_paused(dag_id):
     is_paused = models.DagModel.get_dagmodel(dag_id).is_paused
 
     return jsonify({'is_paused': is_paused})
+
+
+def do_remove_curve_from_curve_template(bolt_no=None, craft_type=None, version=None, mode=None, group_center_idx=None,
+                                        curve_idx=None):
+    if version is None or not bolt_no or not craft_type \
+        or mode is None or group_center_idx is None or curve_idx is None:
+        raise Exception('参数错误')
+    template_name = '{}/{}'.format(bolt_no, craft_type)
+    key, curve_template = Variable.get_fuzzy_active(template_name,
+                                                    deserialize_json=True,
+                                                    default_var=None
+                                                    )
+    template_version = curve_template.get('version', 0)
+    if version != template_version:
+        raise Exception('曲线模板信息过期，请刷新页面')
+    if curve_template is None:
+        raise Exception('读取模板信息失败')
+    template_cluster = curve_template.get('template_cluster', None)
+    if template_cluster is None:
+        raise Exception('读取模板簇失败')
+    mode_cluster = template_cluster.get(mode, None)
+    if mode_cluster is None:
+        raise Exception('无法找到对应模式的模板簇')
+    groups = mode_cluster.get('curve_template_group_array', None)
+    if groups is None:
+        raise Exception('无法找到对应模式的曲线组')
+    group = groups[group_center_idx]  # fixme
+    if group is None:
+        raise Exception('无法找到对应模式的曲线组')
+    template_data_array = group.get('template_data_array', None)
+    if group is None:
+        raise Exception('无法找到对应模式的曲线组')
+    if template_data_array[curve_idx]:
+        del template_data_array[curve_idx]
+    curve_template.update({
+        'version': template_version + 1
+    })
+    Variable.set(key, curve_template, serialize_json=True, is_curve_template=True)
+    return curve_template
+
+
+@api_experimental.route('/curve_template/<string:bolt_no>/<string:craft_type>/remove_curve', methods=['PUT'])
+@requires_authentication
+def remove_curve_from_curve_template(bolt_no, craft_type):
+    params = request.get_json(force=True)
+    version = params.get('version', None)
+    mode = params.get('mode', None)
+    group_center_idx = params.get('group_center_idx', None)
+    curve_idx = params.get('curve_idx', None)
+    try:
+        new_template = do_remove_curve_from_curve_template(bolt_no, craft_type, version, mode, group_center_idx,
+                                                           curve_idx)
+        return {'data': new_template}
+    except Exception as e:
+        return {'error': str(e)}
 
 
 @api_experimental.route(

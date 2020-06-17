@@ -76,7 +76,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
-        <button type="button" class="btn btn-primary">删除</button>
+        <button type="button" class="btn btn-primary" id="btnDoRemoveCurve">删除</button>
       </div>
     </div>
   </div>
@@ -89,11 +89,12 @@
 <script src="{{ url_for('static', filename='js/bootstrap-treeview.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
   let curveChart = null;
-  const curves = [];
-  const modes = [];
-  const tree = [];
+  let curves = [];
+  let modes = [];
+  let tree = [];
   let renderCurves = [];
-  const curveTemplate = JSON.parse('{{ curve_template|tojson|safe }}');
+  let selectedNode = 0;
+  let curveTemplate = JSON.parse('{{ curve_template|tojson|safe }}');
   const timeStep = curveTemplate.curve_param.sampling_time;
   const curKeyMap = {
     'cur_w': '角度',
@@ -151,19 +152,62 @@
     },
   };
 
+  function doRemoveCurve(version, mode, groupCenterIdx, curveIdx) {
+    $.ajax({
+      type: 'PUT',
+      url: "{{ url_for('api_experimental.remove_curve_from_curve_template',bolt_no=bolt_no, craft_type=craft_type ) }}",
+      data: JSON.stringify({
+        csrf_token: '{{ csrf_token() }}',
+        version,
+        mode,
+        group_center_idx: groupCenterIdx,
+        curve_idx: curveIdx,
+      }),
+      headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
+      dataType: 'json',
+      contentType: 'application/json',
+    }).then((resp) => {
+      console.log(resp);
+      const { error, data } = resp;
+      if (error) {
+        return;
+      }
+      if (!resp.data) {
+        return;
+      }
+      curveTemplate = data;
+      render();
+    });
+  }
+
   function showRemoveCurveDialog(name, color) {
+    const curve = curves.find(c => c.name === name);
     const modal = $('#removeCurveDialog');
     modal.find('.modal-body')
       .html(`确认删除曲线 <div class="color-indicator" style="background-color: ${color}"></div>${name}`);
+    modal.find('#btnDoRemoveCurve').off('click');
+    modal.find('#btnDoRemoveCurve').on('click', () => {
+      doRemoveCurve(
+        curveTemplate.version || 0,
+        curve.mode,
+        curve.centroid,
+        curve.idx,
+      );
+      modal.modal('hide');
+    });
     modal.modal({});
   }
 
-  function renderTemplateList() {
+  function templateListInit() {
     const treeView = $('#tree');
     treeView.treeview({
       data: tree,
       // showCheckbox: true,
-    }).on('nodeSelected', (event, data) => {
+    });
+    treeView.off('nodeSelected');
+    treeView.off('nodeChecked');
+    treeView.on('nodeSelected', (event, data) => {
+      selectedNode = data.nodeId;
       treeItemClickActions[data.role](event, data);
     }).on('nodeChecked', (event, data) => {
       treeView.treeview('uncheckAll', { silent: true });
@@ -171,7 +215,7 @@
       showRemoveCurveDialog(data.name, data.curveColor);
       // treeItemClickActions[data.role](event, data);
     });
-    treeView.treeview('selectNode', [0]);
+    treeView.treeview('selectNode', [selectedNode]);
   }
 
 
@@ -190,6 +234,7 @@
   function renderCurveParam() {
     const { curve_param: curveParam } = curveTemplate;
     const $rows = [];
+    $('#result_detail').html('');
     Object.entries(curveParam).forEach(([k, v]) => {
       $rows.push(renderParamTableRow(k, v));
     });
@@ -203,11 +248,13 @@
 
 
   function loadCurvesData() {
+    tree = [];
+    curves = [];
     const { template_cluster: templateCluster } = curveTemplate;
     Object.entries(templateCluster).forEach(([mode, cluster]) => {
       modes.push(mode);
       const row = {
-        text: `<span style="user-select: none;">模板簇-${mode}</span>`,
+        text: `<span style="user-select: none;">模板簇-模式${mode}</span>`,
         nodes: [],
         role: treeRoles.cluster,
         mode,
@@ -372,13 +419,18 @@
     curveChart.resize();
   });
 
-  $(document).ready(() => {
-    chartInit();
+  function render() {
     renderCurveParam();
     loadCurvesData();
-    chartInit();
-    renderTemplateList();
+    // updateTreeView();
+    templateListInit();
     console.log(curves);
+  }
+
+  $(document).ready(() => {
+    chartInit();
+    render();
+    templateListInit();
   });
 </script>
 {% endblock %}

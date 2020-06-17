@@ -165,3 +165,8 @@ button.margin {
   display: inline-block;
   margin: 0 4px 0 4px;
 }
+
+#curve-template-list-container{
+  height:100%;
+  overflow: auto;
+}

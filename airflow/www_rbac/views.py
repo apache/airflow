@@ -420,16 +420,17 @@ class Airflow(AirflowBaseView):
                                     verify_error_map=verify_error_map,
                                     errorTags=error_tags)
 
-    @expose('/curve_template/<string:template_name>/<string:craft_type>')
+    @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
     @has_access
-    def view_curve_template(self, template_name, craft_type):
-        curve_template = Variable.get_fuzzy_active('{}/{}'.format(template_name, craft_type),
+    def view_curve_template(self, bolt_no, craft_type):
+        curve_template = Variable.get_fuzzy_active('{}/{}'.format(bolt_no, craft_type),
                                                    deserialize_json=True,
                                                    default_var=None
                                                    )[1]
         if curve_template is None:
             return None
-        return self.render_template('airflow/curve_template.html', curve_template=curve_template)
+        return self.render_template('airflow/curve_template.html', curve_template=curve_template, bolt_no=bolt_no,
+                                    craft_type=craft_type)
 
     @expose('/task_stats', methods=['POST'])
     @has_access
