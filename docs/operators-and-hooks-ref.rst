@@ -146,7 +146,7 @@ Foundation.
      -
      - :mod:`airflow.providers.apache.kafka.hooks.kafka_producer_hook`,
        :mod:`airflow.providers.apache.kafka.hooks.kafka_consumer_hook`
-	 - 
+     - 
      - :mod:`airflow.providers.apache.kafka.sensors.kafka_sensor`
 
    * - `Apache Hive <https://hive.apache.org/>`__
