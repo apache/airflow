@@ -179,6 +179,7 @@ def check_guide_links_in_operator_descriptions():
         glob(f"{ROOT_PACKAGE_DIR}/sensors/*.py"),
         glob(f"{ROOT_PACKAGE_DIR}/providers/**/operators/*.py", recursive=True),
         glob(f"{ROOT_PACKAGE_DIR}/providers/**/sensors/*.py", recursive=True),
+        glob(f"{ROOT_PACKAGE_DIR}/providers/**/transfers/*.py", recursive=True),
     )
 
     for py_module_path in python_module_paths:

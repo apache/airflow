@@ -34,6 +34,10 @@ class GCSToLocalFilesystemOperator(BaseOperator):
     set the ``store_to_xcom_key`` parameter to True push the file content into xcom. When the file size
     exceeds the maximum size for xcom it is recommended to write to a file.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GCSToLocalFilesystemOperator`
+
     :param bucket: The Google Cloud Storage bucket where the object is.
         Must not contain 'gs://' prefix. (templated)
     :type bucket: str
