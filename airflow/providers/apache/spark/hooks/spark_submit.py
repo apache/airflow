@@ -403,11 +403,18 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
         # of exit code in the log, as it may differ.
-        if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
+        if returncode:
+            raise AirflowException(
+                "Cannot execute: {}. Error code is: {}.".format(
+                    self._mask_cmd(spark_submit_cmd), returncode
+                )
+            )
+
+        if self._is_kubernetes and self._spark_exit_code != 0:
+            self.log.info("Monitoring status of spark driver pod on K8s, pod name is %s", spark_driver_pod_status)
             # double check by spark driver pod status (blocking function)
             spark_driver_pod_status = self._start_k8s_pod_status_tracking()
             self.log.info("The final status of spark driver pod on K8s is %s", spark_driver_pod_status)
-
             if spark_driver_pod_status != 'Succeeded':
                 raise AirflowException(
                     "Cannot execute: {}. Error code is: {}.".format(
