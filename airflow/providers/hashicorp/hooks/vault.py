@@ -45,14 +45,14 @@ VALID_AUTH_TYPES: List[str] = [
 class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attributes
     """
     Retrieves Authenticated client from Hashicorp Vault. This is purely internal class promoting
-    authentication code reuse between the Hook an Secret, it should not be used directly in
+    authentication code reuse between the Hook and the SecretBackend, it should not be used directly in
     Airflow DAGs. Use VaultBackend for backend integration and Hook in case you want to communicate
     with VaultHook using standard Airflow Connection definition.
 
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
     :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are in
-        :py:const:`airflow.providers.hashicorp.hooks.vault.VALID_AUTH_TYPES`.
+        ('approle', 'github', 'gcp', 'kubernetes', 'ldap', 'token', 'userpass')
     :type auth_type: str
     :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
          this mount_point is not used for authentication if authentication is done via a
@@ -98,7 +98,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         gcp_scopes: Optional[str] = None,
         **kwargs
     ):
-        super().__init__(**kwargs)
+        super().__init__()
         if kv_engine_version and kv_engine_version not in VALID_KV_VERSIONS:
             raise VaultError(f"The version is not supported: {kv_engine_version}. "
                              f"It should be one of {VALID_KV_VERSIONS}")
@@ -197,7 +197,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
 
     def get_secret(self, secret_path: str, secret_version: Optional[int] = None) -> Optional[dict]:
         """
-        Get secret value from the engine.
+        Get secret value from the KV engine.
 
         :param secret_path: The path of the secret.
         :type secret_path: str
@@ -319,9 +319,9 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
 
 class VaultHook(BaseHook):
     """
-    HashiCorp Vault wrapper to Interact with HashiCorp Vault KeyValue Secret engine.
+    Hook to Interact with HashiCorp Vault KeyValue Secret engine.
 
-    HashiCorp HVac documentation:
+    HashiCorp hvac documentation:
        * https://hvac.readthedocs.io/en/stable/
 
     You connect to the host specified as host in the connection. The login/password from the connection
@@ -342,7 +342,7 @@ class VaultHook(BaseHook):
         :py:const:`airflow.providers.hashicorp.hooks.vault.VALID_AUTH_TYPES`.
     :type auth_type: str
     :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
-         this mount_point is not used for authentication if authentication is done via a
+         this ``mount_point`` is not used for authentication if authentication is done via a
          different engine.
     :type mount_point: str
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``). Defaults to
@@ -441,8 +441,10 @@ class VaultHook(BaseHook):
         return kubernetes_jwt_path, kubernetes_role
 
     def _get_gcp_parameters_from_connection(
-        self, gcp_key_path: Optional[str], gcp_scopes: Optional[str]) \
-            -> Tuple[Optional[str], Optional[str]]:
+        self,
+        gcp_key_path: Optional[str],
+        gcp_scopes: Optional[str],
+    ) -> Tuple[Optional[str], Optional[str]]:
         if not gcp_scopes:
             gcp_scopes = self.connection.extra_dejson.get("gcp_scopes")
         if not gcp_key_path:
@@ -486,7 +488,7 @@ class VaultHook(BaseHook):
         :rtype: dict
         :return: secret metadata. This is a Dict containing metadata for the secret.
 
-                 See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
+        See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
         """
         return self.vault_client.get_secret_metadata(secret_path=secret_path)
@@ -505,7 +507,7 @@ class VaultHook(BaseHook):
         :type secret_version: int
         :rtype: dict
         :return: key info. This is a Dict with "data" mapping keeping secret
-                 and "metadata" mapping keeping metadata of the secret.
+            and "metadata" mapping keeping metadata of the secret.
 
         """
         return self.vault_client.get_secret_including_metadata(
@@ -535,8 +537,8 @@ class VaultHook(BaseHook):
         :rtype: requests.Response
         :return: The response of the create_or_update_secret request.
 
-                 See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v1.html
-                 and https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
+        See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v1.html
+        and https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
         """
         return self.vault_client.create_or_update_secret(

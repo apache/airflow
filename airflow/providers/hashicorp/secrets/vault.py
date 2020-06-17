@@ -55,7 +55,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
     :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are in
-        :py:const:`airflow.providers.hashicorp.hooks.vault.VALID_AUTH_TYPES`.
+        ('approle', 'github', 'gcp', 'kubernetes', 'ldap', 'token', 'userpass')
     :type auth_type: str
     :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
          this mount_point is not used for authentication if authentication is done via a
@@ -83,7 +83,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :type gcp_key_path: str
     :param gcp_scopes: Comma-separated string containing GCP scopes (for ``gcp`` auth_type).
     :type gcp_scopes: str
-   """
+    """
     def __init__(  # pylint: disable=too-many-arguments
         self,
         connections_path: str = 'connections',
