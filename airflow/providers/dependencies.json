@@ -47,7 +47,8 @@
     "oracle"
   ],
   "microsoft.mssql": [
-    "odbc"
+    "odbc",
+    "oracle"
   ],
   "mysql": [
     "amazon",
