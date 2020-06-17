@@ -56,6 +56,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
+from airflow.utils.log.logging_mixin import RemoteLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import using_mysql
 from airflow.utils.state import State
@@ -991,6 +992,31 @@ class TestAirflowBaseViews(TestBase):
         self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': dag_id})
         self.session.commit()
 
+    @parameterized.expand(["graph", "tree"])
+    def test_show_remote_log_redirect_link_local_logger(self, endpoint):
+        """Do not show remote links if log handler is local."""
+        url = f'{endpoint}?dag_id=example_bash_operator'
+        with self.capture_templates() as templates:
+            resp = self.client.get(url, follow_redirects=True)
+            ctx = templates[0].local_context
+            self.assertFalse(ctx['show_remote_log_redirect'])
+            self.assertIsNone(ctx['remote_log_name'])
+
+    @parameterized.expand(["graph", "tree"])
+    @mock.patch('airflow.www.views.Airflow._get_log_handler')
+    def test_show_remote_log_redirect_link_remote_logger(self, endpoint, get_log_handler_function):
+        """Show remote links if log handler is remote."""
+        class RemoteHandler(RemoteLoggingMixin):
+            REMOTE_LOG_NAME = 'RemoteLog'
+
+        get_log_handler_function.return_value = RemoteHandler()
+        url = f'{endpoint}?dag_id=example_bash_operator'
+        with self.capture_templates() as templates:
+            resp = self.client.get(url, follow_redirects=True)
+            ctx = templates[0].local_context
+            self.assertTrue(ctx['show_remote_log_redirect'])
+            self.assertEqual(ctx['remote_log_name'], RemoteHandler.REMOTE_LOG_NAME)
+
 
 class TestConfigurationView(TestBase):
     def test_configuration_do_not_expose_config(self):
@@ -1268,6 +1294,43 @@ class TestLogView(TestBase):
         self.assertIn(
             'Task log handler does not support read logs.',
             response.json['message'])
+
+    def test_redirect_to_remote_log_local_logger(self):
+        url_template = "redirect_to_remote_log?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}"
+        try_number = 1
+        url = url_template.format(self.DAG_ID,
+                                  self.TASK_ID,
+                                  quote_plus(self.DEFAULT_DATE.isoformat()),
+                                  try_number)
+        response = self.client.get(url)
+
+        self.assertEqual(200, response.status_code)
+        self.assertIn('"error":true', response.data.decode('utf-8'))
+        self.assertIn('Task log handler FileTaskHandler does not support', response.data.decode('utf-8'))
+
+    @mock.patch('airflow.www.views.Airflow._get_log_handler')
+    def test_redirect_to_remote_log_remote_logger(self, get_log_handler_function):
+        class RemoteHandler(RemoteLoggingMixin):
+            REMOTE_URL = 'http://remote-service.com'
+            def get_remote_log_url(self, *args, **kwargs):
+                return self.REMOTE_URL
+
+        get_log_handler_function.return_value = RemoteHandler()
+
+        url_template = "redirect_to_remote_log?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}"
+        try_number = 1
+        url = url_template.format(self.DAG_ID,
+                                  self.TASK_ID,
+                                  quote_plus(self.DEFAULT_DATE.isoformat()),
+                                  try_number)
+        response = self.client.get(url)
+
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(RemoteHandler.REMOTE_URL, response.headers['Location'])
 
 
 class TestVersionView(TestBase):
