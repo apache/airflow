@@ -31,7 +31,7 @@ from airflow.models.baseoperator import chain, cross_downstream
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.decorators import apply_defaults
 from tests.models import DEFAULT_DATE
-from tests.test_utils.mock_operators import MockNamedTuple, MockOperator
+from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
 
 
 class ClassWithCustomAttributes:
@@ -348,6 +348,15 @@ class TestBaseOperatorMethods(unittest.TestCase):
         task4 = DummyOperator(task_id="op4", dag=dag)
         task4 > [inlet, outlet, extra]
         self.assertEqual(task4.get_outlet_defs(), [inlet, outlet, extra])
+
+    def test_warnings_are_properly_propagated(self):
+        with self.assertWarns(DeprecationWarning) as warns:
+            DeprecatedOperator(task_id="test")
+            assert len(warns.warnings) == 1
+            warning = warns.warnings[0]
+            # Here we check that the trace points to the place
+            # where the deprecated class was used
+            assert warning.filename == __file__
 
 
 class CustomOp(DummyOperator):
