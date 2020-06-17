@@ -20,7 +20,7 @@ Objects relating to sourcing connections & variables from Hashicorp Vault
 """
 from typing import Optional
 
-from airflow.providers.hashicorp.hooks.vault import _VaultClient
+from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient  # noqa
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 

@@ -291,6 +291,8 @@ All hooks are in the following packages:
 
   airflow/providers/grpc/hooks/index
 
+  airflow/providers/hashicorp/hooks/index
+
   airflow/providers/http/hooks/index
 
   airflow/providers/imap/hooks/index

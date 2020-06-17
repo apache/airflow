@@ -24,7 +24,7 @@ from airflow.providers.hashicorp.secrets.vault import VaultBackend
 
 class TestVaultSecrets(TestCase):
 
-    @mock.patch("airflow.providers.hashicorp.hooks.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -56,7 +56,7 @@ class TestVaultSecrets(TestCase):
         returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
         self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
 
-    @mock.patch("airflow.providers.hashicorp.hooks.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_engine_version_1(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -88,7 +88,7 @@ class TestVaultSecrets(TestCase):
     @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
     })
-    @mock.patch("airflow.providers.hashicorp.hooks.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_non_existent_key(self, mock_hvac):
         """
         Test that if the key with connection ID is not present in Vault, _VaultClient.get_connections
@@ -113,7 +113,7 @@ class TestVaultSecrets(TestCase):
             mount_point='airflow', path='connections/test_mysql', version=None)
         self.assertEqual([], test_client.get_connections(conn_id="test_mysql"))
 
-    @mock.patch("airflow.providers.hashicorp.hooks.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -144,7 +144,7 @@ class TestVaultSecrets(TestCase):
         returned_uri = test_client.get_variable("hello")
         self.assertEqual('world', returned_uri)
 
-    @mock.patch("airflow.providers.hashicorp.hooks.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value_engine_version_1(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -176,7 +176,7 @@ class TestVaultSecrets(TestCase):
     @mock.patch.dict('os.environ', {
         'AIRFLOW_VAR_HELLO': 'world',
     })
-    @mock.patch("airflow.providers.hashicorp.hooks.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value_non_existent_key(self, mock_hvac):
         """
         Test that if the key with connection ID is not present in Vault, _VaultClient.get_connections
@@ -201,7 +201,7 @@ class TestVaultSecrets(TestCase):
             mount_point='airflow', path='variables/hello', version=None)
         self.assertIsNone(test_client.get_variable("hello"))
 
-    @mock.patch("airflow.providers.hashicorp.hooks.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_auth_failure_raises_error(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
