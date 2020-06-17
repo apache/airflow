@@ -175,28 +175,31 @@ class CeleryExecutor(BaseExecutor):
             task_tuples_to_send.append((key, simple_ti, command, queue, execute_command))
 
         if task_tuples_to_send:
-            first_task = next(t[4] for t in task_tuples_to_send)
+            self._process_tasks(task_tuples_to_send)
 
-            # Celery state queries will stuck if we do not use one same backend
-            # for all tasks.
-            cached_celery_backend = first_task.backend
+    def _process_tasks(self, task_tuples_to_send: List[TaskInstanceInCelery]) -> None:
+        first_task = next(t[4] for t in task_tuples_to_send)
 
-            key_and_async_results = self._send_tasks_to_celery(task_tuples_to_send)
-            self.log.debug('Sent all tasks.')
+        # Celery state queries will stuck if we do not use one same backend
+        # for all tasks.
+        cached_celery_backend = first_task.backend
 
-            for key, command, result in key_and_async_results:
-                if isinstance(result, ExceptionWithTraceback):
-                    self.log.error(  # pylint: disable=logging-not-lazy
-                        CELERY_SEND_ERR_MSG_HEADER + ":%s\n%s\n", result.exception, result.traceback
-                    )
-                elif result is not None:
-                    # Only pops when enqueued successfully, otherwise keep it
-                    # and expect scheduler loop to deal with it.
-                    self.queued_tasks.pop(key)
-                    result.backend = cached_celery_backend
-                    self.running.add(key)
-                    self.tasks[key] = result
-                    self.last_state[key] = celery_states.PENDING
+        key_and_async_results = self._send_tasks_to_celery(task_tuples_to_send)
+        self.log.debug('Sent all tasks.')
+
+        for key, _, result in key_and_async_results:
+            if isinstance(result, ExceptionWithTraceback):
+                self.log.error(  # pylint: disable=logging-not-lazy
+                    CELERY_SEND_ERR_MSG_HEADER + ":%s\n%s\n", result.exception, result.traceback
+                )
+            elif result is not None:
+                # Only pops when enqueued successfully, otherwise keep it
+                # and expect scheduler loop to deal with it.
+                self.queued_tasks.pop(key)
+                result.backend = cached_celery_backend
+                self.running.add(key)
+                self.tasks[key] = result
+                self.last_state[key] = celery_states.PENDING
 
     def _send_tasks_to_celery(self, task_tuples_to_send):
         if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
