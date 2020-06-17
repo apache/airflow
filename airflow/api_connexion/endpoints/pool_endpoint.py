@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from flask import request
+from sqlalchemy import func
 
 from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
@@ -53,7 +54,7 @@ def get_pools(session):
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
     query = session.query(Pool)
-    total_entries = query.count()
+    total_entries = session.query(func.count(Pool.id)).scalar()
     query_list = query.offset(offset).limit(limit).all()
 
     return pool_collection_schema.dump(PoolCollection(pools=query_list, total_entries=total_entries)).data

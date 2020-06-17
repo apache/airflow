@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from flask import request
+from sqlalchemy import func
 
 from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
@@ -54,7 +55,7 @@ def get_import_errors(session):
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
     query = session.query(ImportError)
-    total_entries = query.count()
+    total_entries = session.query(func.count(ImportError.id)).scalar()
     query_list = query.offset(offset).limit(limit).all()
 
     return import_error_collection_schema.dump(
