@@ -67,7 +67,7 @@ Apache Airflow is tested with:
 * Sqlite - latest stable (it is used mainly for development purpose)
 * Kubernetes - 1.16.2, 1.17.0
 
-### Stable version (1.10.9)
+### Stable version (1.10.10)
 
 * Python versions: 2.7, 3.5, 3.6, 3.7
 * Postgres DB: 9.6, 10
