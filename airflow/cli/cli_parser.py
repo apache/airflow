@@ -730,6 +730,21 @@ ARG_FILE_IO = Arg(
     action='store_true'
 )
 
+# scheduler health
+ARG_SILENT = Arg(
+    ('--silent',),
+    help=(
+        'Do not print health information if scheduler is healthy. '
+    ),
+    action='store_true'
+)
+ARG_VALIDATE_HOST = Arg(
+    ('--validate-host',),
+    help=(
+        'check if scheduler is running on the same host from where command is invoked '
+    ),
+    action='store_true'
+)
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE, ARG_CONN_HOST, ARG_CONN_LOGIN, ARG_CONN_PASSWORD, ARG_CONN_SCHEMA, ARG_CONN_PORT
 ]
@@ -1284,6 +1299,12 @@ airflow_commands: List[CLICommand] = [
         help='Show information about current Airflow and environment',
         func=lazy_load_command('airflow.cli.commands.info_command.show_info'),
         args=(ARG_ANONYMIZE, ARG_FILE_IO, ),
+    ),
+    ActionCommand(
+        name='scheduler_health',
+        help='Check Airflow scheduler health',
+        func=lazy_load_command('airflow.cli.commands.health_command.scheduler_health'),
+        args=(ARG_SILENT, ARG_VALIDATE_HOST, ),
     ),
     ActionCommand(
         name='plugins',
