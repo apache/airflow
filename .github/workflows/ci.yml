@@ -106,7 +106,7 @@ jobs:
     timeout-minutes: 80
     name: "K8s: ${{matrix.kube-mode}} ${{matrix.python-version}} ${{matrix.kubernetes-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks]
+    needs: [static-checks, pyfiles]
     strategy:
       matrix:
         python-version: [3.6, 3.7]
