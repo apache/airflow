@@ -33,6 +33,7 @@
 !dev
 !docs
 !licenses
+!metastore_browser
 !scripts
 !tests
 
