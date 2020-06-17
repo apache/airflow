@@ -19,6 +19,8 @@
 
 import unittest
 
+import six
+
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 
@@ -43,7 +45,7 @@ class ApplyDefaultTest(unittest.TestCase):
         dc = DummyClass(test_param=True)
         self.assertTrue(dc.test_param)
 
-        with self.assertRaisesRegexp(AirflowException, 'Argument.*test_param.*required'):
+        with six.assertRaisesRegex(self, AirflowException, 'Argument.*test_param.*required'):
             DummySubClass(test_sub_param=True)
 
     def test_default_args(self):
@@ -61,8 +63,8 @@ class ApplyDefaultTest(unittest.TestCase):
         self.assertTrue(dc.test_param)
         self.assertTrue(dsc.test_sub_param)
 
-        with self.assertRaisesRegexp(AirflowException,
-                                     'Argument.*test_sub_param.*required'):
+        with six.assertRaisesRegex(self, AirflowException,
+                                   'Argument.*test_sub_param.*required'):
             DummySubClass(default_args=default_args)
 
     def test_incorrect_default_args(self):
@@ -71,5 +73,5 @@ class ApplyDefaultTest(unittest.TestCase):
         self.assertTrue(dc.test_param)
 
         default_args = {'random_params': True}
-        with self.assertRaisesRegexp(AirflowException, 'Argument.*test_param.*required'):
+        with six.assertRaisesRegex(self, AirflowException, 'Argument.*test_param.*required'):
             DummyClass(default_args=default_args)

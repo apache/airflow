@@ -19,6 +19,9 @@
 
 import datetime
 import unittest
+
+import six
+
 from tests.compat import mock
 import uuid
 
@@ -196,7 +199,7 @@ class BaseOperatorTest(unittest.TestCase):
 
         re = "('ClassWithCustomAttributes' object|ClassWithCustomAttributes instance) " \
              "has no attribute 'missing_field'"
-        with self.assertRaisesRegexp(AttributeError, re):
+        with six.assertRaisesRegex(self, AttributeError, re):
             task.render_template(ClassWithCustomAttributes(template_fields=["missing_field"]), {})
 
     def test_jinja_invalid_expression_is_just_propagated(self):

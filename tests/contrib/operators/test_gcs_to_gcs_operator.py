@@ -20,6 +20,8 @@
 import unittest
 from datetime import datetime
 
+import six
+
 from airflow.contrib.operators.gcs_to_gcs import \
     GoogleCloudStorageToGoogleCloudStorageOperator, WILDCARD
 from airflow.exceptions import AirflowException
@@ -290,7 +292,7 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
         error_msg = "Only one wildcard '[*]' is allowed in source_object parameter. " \
                     "Found {}".format(total_wildcards)
 
-        with self.assertRaisesRegexp(AirflowException, error_msg):
+        with six.assertRaisesRegex(self, AirflowException, error_msg):
             operator.execute(None)
 
     @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
