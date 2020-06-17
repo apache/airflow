@@ -135,8 +135,8 @@ class Variable(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def delete(cls, key, session=None):
-        session.query(cls).filter(cls.key == key).delete()
+    def delete(cls, key, session=None) -> int:
+        return session.query(cls).filter(cls.key == key).delete()
 
     def rotate_fernet_key(self):
         fernet = get_fernet()

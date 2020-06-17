@@ -77,7 +77,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     # Configure the JSON encoder used by `|tojson` filter from Flask
     flask_app.json_encoder = AirflowJsonEncoder
 
-    CSRFProtect(flask_app)
+    csrf = CSRFProtect(flask_app)
 
     init_wsg_middleware(flask_app)
 
@@ -101,7 +101,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
         init_appbuilder_links(flask_app)
         init_plugins(flask_app)
         init_error_handlers(flask_app)
-        init_api_connexion(flask_app)
+        init_api_connexion(flask_app, csrf)
         init_api_experimental(flask_app)
 
         sync_appbuilder_roles(flask_app)

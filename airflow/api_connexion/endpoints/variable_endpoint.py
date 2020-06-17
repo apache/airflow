@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from typing import List, Optional
 
-from flask import Response, make_response, request
+from flask import Response, request
 from marshmallow import ValidationError
 
 from airflow.api_connexion.exceptions import BadRequest, NotFound
@@ -29,8 +29,9 @@ def delete_variable(variable_key: str) -> Response:
     """
     Delete variable
     """
-    Variable.delete(variable_key)
-    return make_response('', 204)
+    if Variable.delete(variable_key) == 0:
+        raise NotFound("Variable not found")
+    return Response(status=204)
 
 
 def get_variable(variable_key: str) -> Response:
@@ -61,28 +62,34 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
     })
 
 
-def patch_variable(variable_key: str):
+def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -> Response:
     """
     Update a variable by key
     """
     try:
-        var = variable_schema.loads(request.get_data())
+        var = variable_schema.load(request.json)
     except ValidationError as err:
         raise BadRequest("Invalid Variable schema", detail=str(err.messages))
 
     if var.data["key"] != variable_key:
         raise BadRequest("Invalid post body", detail="key from request body doesn't match uri parameter")
 
+    if update_mask:
+        if "key" in update_mask:
+            raise BadRequest("key is a ready only field")
+        if "value" not in update_mask:
+            raise BadRequest("No field to update")
+
     Variable.set(var.data["key"], var.data["val"])
-    return make_response('', 204)
+    return Response(status=204)
 
 
-def post_variables():
+def post_variables() -> Response:
     """
     Create a variable
     """
     try:
-        var = variable_schema.loads(request.get_data())
+        var = variable_schema.load(request.json)
     except ValidationError as err:
         raise BadRequest("Invalid Variable schema", detail=str(err.messages))
     Variable.set(var.data["key"], var.data["val"])

@@ -16,10 +16,11 @@
 # under the License.
 import unittest
 
+from parameterized import parameterized
+
 from airflow.models import Variable
-from airflow.utils.session import create_session
 from airflow.www import app
-from tests.test_utils.db import clear_db_connections
+from tests.test_utils.db import clear_db_variables
 
 
 class TestVariableEndpoint(unittest.TestCase):
@@ -30,20 +31,28 @@ class TestVariableEndpoint(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
-        with create_session() as session:
-            session.query(Variable).delete()
+        clear_db_variables()
 
     def tearDown(self) -> None:
-        clear_db_connections()
+        clear_db_variables()
 
 
 class TestDeleteVariable(TestVariableEndpoint):
-    def test_should_response_204(self):
+    def test_should_delete_variable(self):
         Variable.set("delete_var1", 1)
+        # make sure variable is added
+        response = self.client.get("/api/v1/variables/delete_var1")
+        assert response.status_code == 200
+
         response = self.client.delete("/api/v1/variables/delete_var1")
         assert response.status_code == 204
+
         # make sure variable is deleted
         response = self.client.get("/api/v1/variables/delete_var1")
+        assert response.status_code == 404
+
+    def test_should_response_404_if_key_does_not_exist(self):
+        response = self.client.delete("/api/v1/variables/NONEXIST_VARIABLE_KEY")
         assert response.status_code == 404
 
 
@@ -62,26 +71,18 @@ class TestGetVariable(TestVariableEndpoint):
 
 
 class TestGetVariables(TestVariableEndpoint):
-    def test_should_get_list_variables(self):
-        Variable.set("var1", 1)
-        Variable.set("var2", "foo")
-        Variable.set("var3", "[100, 101]")
-        response = self.client.get("/api/v1/variables?limit=2&offset=0")
-        assert response.status_code == 200
-        assert response.json == {
+    @parameterized.expand([
+        ("/api/v1/variables?limit=2&offset=0", {
             "variables": [
                 {"key": "var1", "value": "1"},
                 {"key": "var2", "value": "foo"},
             ],
             "total_entries": 2,
-        }
-
-        response = self.client.get("/api/v1/variables?limit=2&offset=1")
-        assert response.status_code == 200
-        assert response.json == {
+        }),
+        ("/api/v1/variables?limit=2&offset=1", {
             "variables": [
-                {"key": "var2"},
-                {"key": "var3"},
+                {"key": "var2", "value": "foo"},
+                {"key": "var3", "value": "[100, 101]"},
             ],
             "total_entries": 2,
         }),
@@ -90,7 +91,15 @@ class TestGetVariables(TestVariableEndpoint):
                 {"key": "var3", "value": "[100, 101]"},
             ],
             "total_entries": 1,
-        }
+        }),
+    ])
+    def test_should_get_list_variables(self, query, expected):
+        Variable.set("var1", 1)
+        Variable.set("var2", "foo")
+        Variable.set("var3", "[100, 101]")
+        response = self.client.get(query)
+        assert response.status_code == 200
+        assert response.json == expected
 
     def test_should_honor_100_limit_default(self):
         for i in range(101):
