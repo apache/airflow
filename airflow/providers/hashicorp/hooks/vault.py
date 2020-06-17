@@ -40,29 +40,39 @@ class VaultHook(BaseHook):
     are used as credentials usually and you can specify different authentication parameters
     via init params or via corresponding extras in the connection.
 
-    The extras in the connection are named the same as the parameters (`mount_point`,'kv_engine_version' ...).
+    The mount point should be placed as a path in the URL - similarly to Vault's URL schema:
+    This indicates the "path" the secret engine is mounted on. Default id not specified is "secret".
+    Note that this ``mount_point`` is not used for authentication if authentication is done via a
+    different engines. Each engine uses it's own engine-specific authentication mount_point.
+
+    The extras in the connection are named the same as the parameters ('kv_engine_version', 'auth_type', ...).
+
+    The URL schemas supported are "vault", "http" (using http to connect to the vault) or
+    "vaults" and "https" (using https to connect to the vault).
+
+    Example URL:
+
+    .. code-block::
+
+        vault://user:password@host:port/mount_point?kv_engine_version=1&auth_type=github
+
 
     Login/Password are used as credentials:
 
         * approle: password -> secret_id
+        * github: password -> token
+        * token: password -> token
         * ldap: login -> username,   password -> password
         * userpass: login -> username, password -> password
 
     :param vault_conn_id: The id of the connection to use
     :type vault_conn_id: str
-    :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are in
-        :py:const:`airflow.providers.hashicorp.hooks.vault.VALID_AUTH_TYPES`.
+    :param auth_type: Authentication Type for the Vault. Default is ``token``. Available values are:
+        ('approle', 'github', 'gcp', 'kubernetes', 'ldap', 'token', 'userpass')
     :type auth_type: str
-    :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
-         this ``mount_point`` is not used for authentication if authentication is done via a
-         different engine.
-    :type mount_point: str
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``). Defaults to
           version defined in connection or ``2`` if not defined in connection.
     :type kv_engine_version: int
-    :param token: Authentication token to include in requests sent to Vault.
-        (for ``token`` and ``github`` auth_type)
-    :type token: str
     :param role_id: Role ID for Authentication (for ``approle`` auth_type)
     :type role_id: str
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type)
@@ -80,9 +90,7 @@ class VaultHook(BaseHook):
         self,
         vault_conn_id: str,
         auth_type: Optional[str] = None,
-        mount_point: Optional[str] = None,
         kv_engine_version: Optional[int] = None,
-        token: Optional[str] = None,
         role_id: Optional[str] = None,
         kubernetes_role: Optional[str] = None,
         kubernetes_jwt_path: Optional[str] = None,
@@ -95,11 +103,6 @@ class VaultHook(BaseHook):
         if not auth_type:
             auth_type = self.connection.extra_dejson.get('auth_type') or "token"
 
-        if not mount_point:
-            mount_point = self.connection.extra_dejson.get('mount_point')
-        if not mount_point:
-            mount_point = 'secret'
-
         if not kv_engine_version:
             conn_version = self.connection.extra_dejson.get("kv_engine_version")
             try:
@@ -111,9 +114,6 @@ class VaultHook(BaseHook):
             if not role_id:
                 role_id = self.connection.extra_dejson.get('role_id')
 
-        if auth_type in ['github', "token"]:
-            if not token:
-                token = self.connection.extra_dejson.get('token')
         gcp_key_path, gcp_scopes = \
             self._get_gcp_parameters_from_connection(gcp_key_path, gcp_scopes) \
             if auth_type == 'gcp' else (None, None)
@@ -121,16 +121,30 @@ class VaultHook(BaseHook):
             self._get_kubernetes_parameters_from_connection(kubernetes_jwt_path, kubernetes_role) \
             if auth_type == 'kubernetes' else (None, None)
 
-        url = f"{self.connection.schema}://{self.connection.host}"
+        if self.connection.conn_type == 'vault':
+            conn_protocol = 'http'
+        elif self.connection.conn_type == 'vaults':
+            conn_protocol = 'https'
+        elif self.connection.conn_type == 'http':
+            conn_protocol = 'http'
+        elif self.connection.conn_type == 'https':
+            conn_protocol = 'https'
+        else:
+            raise VaultError("The url schema must be one of ['http', 'https', 'vault', 'vaults' ]")
+
+        url = f"{conn_protocol}://{self.connection.host}"
         if self.connection.port:
             url += f":{self.connection.port}"
+
+        # Schema is really path in the Connection definition. This is pretty confusing because of URL schema
+        mount_point = self.connection.schema if self.connection.schema else 'secret'
 
         self.vault_client = _VaultClient(
             url=url,
             auth_type=auth_type,
             mount_point=mount_point,
             kv_engine_version=kv_engine_version,
-            token=token,
+            token=self.connection.password,
             username=self.connection.login,
             password=self.connection.password,
             secret_id=self.connection.password,

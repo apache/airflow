@@ -203,6 +203,8 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/cncf/index.rst",
     # Utils for internal use
     '_api/airflow/providers/google/cloud/utils',
+    # Internal client for hashicorp
+    '_api/airflow/providers/hashicorp/_internal_client',
     # Templates or partials
     'autoapi_templates',
     'howto/operator/gcp/_partials',
@@ -498,7 +500,7 @@ autoapi_ignore = [
     '*/airflow/contrib/sensors/*',
     '*/airflow/contrib/hooks/*',
     '*/airflow/contrib/operators/*',
-
+    '*/_internal*',
     '*/node_modules/*',
     '*/migrations/*',
 ]

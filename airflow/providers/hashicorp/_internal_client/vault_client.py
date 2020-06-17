@@ -34,7 +34,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
 
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
-    :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are in
+    :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are:
         ('approle', 'github', 'gcp', 'kubernetes', 'ldap', 'token', 'userpass')
     :type auth_type: str
     :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that

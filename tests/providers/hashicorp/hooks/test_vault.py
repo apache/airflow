@@ -29,13 +29,19 @@ from airflow.providers.hashicorp.hooks.vault import VaultHook
 class TestVaultHook(TestCase):
 
     @staticmethod
-    def get_mock_connection(schema="http", host="localhost", port=8180, user="user", password="pass"):
+    def get_mock_connection(conn_type="vault",
+                            schema="secret",
+                            host="localhost",
+                            port=8180,
+                            user="user",
+                            password="pass"):
         mock_connection = mock.MagicMock()
-        type(mock_connection).schema = PropertyMock(return_value=schema)
+        type(mock_connection).conn_type = PropertyMock(return_value=conn_type)
         type(mock_connection).host = PropertyMock(return_value=host)
         type(mock_connection).port = PropertyMock(return_value=port)
         type(mock_connection).login = PropertyMock(return_value=user)
         type(mock_connection).password = PropertyMock(return_value=password)
+        type(mock_connection).schema = PropertyMock(return_value=schema)
         return mock_connection
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
@@ -80,35 +86,14 @@ class TestVaultHook(TestCase):
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_custom_mount_point_init_params(self, mock_hvac, mock_get_connection):
-        mock_client = mock.MagicMock()
-        mock_hvac.Client.return_value = mock_client
-        mock_connection = self.get_mock_connection()
-        mock_get_connection.return_value = mock_connection
-
-        connection_dict = {
-            "auth_type": "userpass",
-        }
-
-        mock_connection.extra_dejson.get.side_effect = connection_dict.get
-        kwargs = {
-            "vault_conn_id": "vault_conn_id",
-            "mount_point": "custom"
-        }
-        test_hook = VaultHook(**kwargs)
-        self.assertEqual("custom", test_hook.vault_client.mount_point)
-
-    @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
-    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_custom_mount_point_dejson(self, mock_hvac, mock_get_connection):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
-        mock_connection = self.get_mock_connection()
+        mock_connection = self.get_mock_connection(schema='custom')
         mock_get_connection.return_value = mock_connection
 
         connection_dict = {
             "auth_type": "userpass",
-            "mount_point": "custom"
         }
 
         mock_connection.extra_dejson.get.side_effect = connection_dict.get
@@ -157,6 +142,84 @@ class TestVaultHook(TestCase):
         }
         test_hook = VaultHook(**kwargs)
         self.assertEqual(1, test_hook.vault_client.kv_engine_version)
+
+    @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_vaults_protocol(self, mock_hvac, mock_get_connection):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_connection = self.get_mock_connection(conn_type='vaults')
+        mock_get_connection.return_value = mock_connection
+
+        connection_dict = {}
+
+        mock_connection.extra_dejson.get.side_effect = connection_dict.get
+        kwargs = {
+            "vault_conn_id": "vault_conn_id",
+            "auth_type": "approle",
+            "role_id": "role",
+            "kv_engine_version": 2
+        }
+
+        test_hook = VaultHook(**kwargs)
+        mock_get_connection.assert_called_with("vault_conn_id")
+        test_client = test_hook.get_conn()
+        mock_hvac.Client.assert_called_with(url='https://localhost:8180')
+        test_client.auth_approle.assert_called_with(role_id="role", secret_id="pass")
+        test_client.is_authenticated.assert_called_with()
+        self.assertEqual(2, test_hook.vault_client.kv_engine_version)
+
+    @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_http_protocol(self, mock_hvac, mock_get_connection):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_connection = self.get_mock_connection(conn_type='http')
+        mock_get_connection.return_value = mock_connection
+
+        connection_dict = {}
+
+        mock_connection.extra_dejson.get.side_effect = connection_dict.get
+        kwargs = {
+            "vault_conn_id": "vault_conn_id",
+            "auth_type": "approle",
+            "role_id": "role",
+            "kv_engine_version": 2
+        }
+
+        test_hook = VaultHook(**kwargs)
+        mock_get_connection.assert_called_with("vault_conn_id")
+        test_client = test_hook.get_conn()
+        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        test_client.auth_approle.assert_called_with(role_id="role", secret_id="pass")
+        test_client.is_authenticated.assert_called_with()
+        self.assertEqual(2, test_hook.vault_client.kv_engine_version)
+
+    @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_https_protocol(self, mock_hvac, mock_get_connection):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_connection = self.get_mock_connection(conn_type='https')
+        mock_get_connection.return_value = mock_connection
+
+        connection_dict = {}
+
+        mock_connection.extra_dejson.get.side_effect = connection_dict.get
+        kwargs = {
+            "vault_conn_id": "vault_conn_id",
+            "auth_type": "approle",
+            "role_id": "role",
+            "kv_engine_version": 2
+        }
+
+        test_hook = VaultHook(**kwargs)
+        mock_get_connection.assert_called_with("vault_conn_id")
+        test_client = test_hook.get_conn()
+        mock_hvac.Client.assert_called_with(url='https://localhost:8180')
+        test_client.auth_approle.assert_called_with(role_id="role", secret_id="pass")
+        test_client.is_authenticated.assert_called_with()
+        self.assertEqual(2, test_hook.vault_client.kv_engine_version)
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -301,7 +364,6 @@ class TestVaultHook(TestCase):
         kwargs = {
             "auth_type": "github",
             "vault_conn_id": "vault_conn_id",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
         }
 
         test_hook = VaultHook(**kwargs)
@@ -309,7 +371,7 @@ class TestVaultHook(TestCase):
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
         test_client.auth.github.login.assert_called_with(
-            token="s.7AU0I51yv1Q1lxOIg1F3ZRAS")
+            token="pass")
         test_client.is_authenticated.assert_called_with()
         self.assertEqual(2, test_hook.vault_client.kv_engine_version)
 
@@ -323,7 +385,6 @@ class TestVaultHook(TestCase):
 
         connection_dict = {
             "auth_type": "github",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
         }
 
         mock_connection.extra_dejson.get.side_effect = connection_dict.get
@@ -336,7 +397,7 @@ class TestVaultHook(TestCase):
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
         test_client.auth.github.login.assert_called_with(
-            token="s.7AU0I51yv1Q1lxOIg1F3ZRAS")
+            token="pass")
         test_client.is_authenticated.assert_called_with()
         self.assertEqual(2, test_hook.vault_client.kv_engine_version)
 
@@ -488,7 +549,6 @@ class TestVaultHook(TestCase):
         kwargs = {
             "vault_conn_id": "vault_conn_id",
             "auth_type": "token",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
             "kv_engine_version": 2
         }
 
@@ -497,7 +557,7 @@ class TestVaultHook(TestCase):
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
         test_client.is_authenticated.assert_called_with()
-        self.assertEqual("s.7AU0I51yv1Q1lxOIg1F3ZRAS", test_client.token)
+        self.assertEqual("pass", test_client.token)
         self.assertEqual(2, test_hook.vault_client.kv_engine_version)
         self.assertEqual("secret", test_hook.vault_client.mount_point)
 
@@ -511,7 +571,6 @@ class TestVaultHook(TestCase):
 
         connection_dict = {
             "auth_type": "token",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
         }
 
         mock_connection.extra_dejson.get.side_effect = connection_dict.get
@@ -524,7 +583,7 @@ class TestVaultHook(TestCase):
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
         test_client.is_authenticated.assert_called_with()
-        self.assertEqual("s.7AU0I51yv1Q1lxOIg1F3ZRAS", test_client.token)
+        self.assertEqual("pass", test_client.token)
         self.assertEqual(2, test_hook.vault_client.kv_engine_version)
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
@@ -609,7 +668,6 @@ class TestVaultHook(TestCase):
         kwargs = {
             "vault_conn_id": "vault_conn_id",
             "auth_type": "token",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
             "kv_engine_version": 2
         }
 
@@ -649,7 +707,6 @@ class TestVaultHook(TestCase):
         kwargs = {
             "vault_conn_id": "vault_conn_id",
             "auth_type": "token",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
             "kv_engine_version": 2
         }
 
@@ -683,7 +740,6 @@ class TestVaultHook(TestCase):
         kwargs = {
             "vault_conn_id": "vault_conn_id",
             "auth_type": "token",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
             "kv_engine_version": 1
         }
 
@@ -724,7 +780,6 @@ class TestVaultHook(TestCase):
         kwargs = {
             "vault_conn_id": "vault_conn_id",
             "auth_type": "token",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
             "kv_engine_version": 2
         }
 
@@ -780,7 +835,6 @@ class TestVaultHook(TestCase):
         kwargs = {
             "vault_conn_id": "vault_conn_id",
             "auth_type": "token",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
             "kv_engine_version": 2
         }
 
@@ -819,7 +873,6 @@ class TestVaultHook(TestCase):
         kwargs = {
             "vault_conn_id": "vault_conn_id",
             "auth_type": "token",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
             "kv_engine_version": 2
         }
 
@@ -845,7 +898,6 @@ class TestVaultHook(TestCase):
         kwargs = {
             "vault_conn_id": "vault_conn_id",
             "auth_type": "token",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
             "kv_engine_version": 2
         }
 
@@ -872,7 +924,6 @@ class TestVaultHook(TestCase):
         kwargs = {
             "vault_conn_id": "vault_conn_id",
             "auth_type": "token",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
             "kv_engine_version": 1
         }
 
@@ -898,7 +949,6 @@ class TestVaultHook(TestCase):
         kwargs = {
             "vault_conn_id": "vault_conn_id",
             "auth_type": "token",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
             "kv_engine_version": 1
         }
 
