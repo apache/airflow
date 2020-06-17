@@ -19,6 +19,9 @@
 import unittest
 import uuid
 from datetime import datetime
+
+import six
+
 from tests.compat import mock
 from tests.test_utils.config import conf_vars
 try:
@@ -99,10 +102,10 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         ('kubernetes', 'kube_client_request_args'): '{"_request_timeout" : [60,360]}',
     })
     def test_worker_configuration_auth_both_ssh_and_user(self):
-        with self.assertRaisesRegexp(AirflowConfigException,
-                                     'either `git_user` and `git_password`.*'
-                                     'or `git_ssh_key_secret_name`.*'
-                                     'but not both$'):
+        with six.assertRaisesRegex(self, AirflowConfigException,
+                                   'either `git_user` and `git_password`.*'
+                                   'or `git_ssh_key_secret_name`.*'
+                                   'but not both$'):
             KubeConfig()
 
     def test_worker_with_subpaths(self):
