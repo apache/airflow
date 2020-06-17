@@ -561,12 +561,12 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         if bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.", DeprecationWarning)
             gcp_conn_id = bigquery_conn_id
 
         warnings.warn(
             "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
-            DeprecationWarning, stacklevel=3,
+            DeprecationWarning,
         )
 
         self.sql = sql

@@ -37,6 +37,6 @@ class S3ToHiveTransfer(S3ToHiveOperator):
         warnings.warn(
             """This class is deprecated.
            Please use `airflow.providers.apache.hive.transfers.s3_to_hive.S3ToHiveOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

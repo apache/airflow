@@ -24,6 +24,8 @@ from unittest import TestCase, mock
 
 from parameterized import parameterized
 
+from airflow.models.baseoperator import BaseOperator
+
 HOOKS = [
     (
         "airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook",
@@ -1754,7 +1756,7 @@ TRANSFERS = [
 
 ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS
 
-RENAMED_HOOKS = [
+RENAMED_ALL = [
     (old_class, new_class)
     for old_class, new_class in HOOKS + OPERATORS + SECRETS + SENSORS
     if old_class.rpartition(".")[2] != new_class.rpartition(".")[2]
@@ -1807,7 +1809,7 @@ class TestMovingCoreToContrib(TestCase):
             return new_class
         return class_
 
-    @parameterized.expand(RENAMED_HOOKS)
+    @parameterized.expand(RENAMED_ALL)
     def test_is_class_deprecated(self, new_module, old_module):
         self.skip_test_with_mssql_in_py38(new_module, old_module)
         deprecation_warning_msg = "This class is deprecated."
@@ -1815,8 +1817,12 @@ class TestMovingCoreToContrib(TestCase):
         with self.assertWarnsRegex(DeprecationWarning, deprecation_warning_msg) as wrn:
             with mock.patch("{}.__init__".format(new_module)) as init_mock:
                 init_mock.return_value = None
-                self.assertTrue(deprecation_warning_msg, wrn)
-                old_module_class()
+                klass = old_module_class()
+                if isinstance(klass, BaseOperator):
+                    # In case of operators we are validating that proper stacklevel
+                    # is used (=3 or =4 if @apply_defaults)
+                    assert len(wrn.warnings) == 1
+                    assert wrn.warnings[0].filename == __file__
                 init_mock.assert_called_once_with()
 
     @parameterized.expand(ALL)

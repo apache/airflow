@@ -39,6 +39,6 @@ class OracleToOracleTransfer(OracleToOracleOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.oracle.transfers.oracle_to_oracle.OracleToOracleOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

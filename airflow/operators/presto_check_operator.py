@@ -38,7 +38,7 @@ class PrestoCheckOperator(CheckOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.check_operator.CheckOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -55,7 +55,7 @@ class PrestoIntervalCheckOperator(IntervalCheckOperator):
             This class is deprecated.l
             Please use `airflow.operators.check_operator.IntervalCheckOperator`.
             """,
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -72,6 +72,6 @@ class PrestoValueCheckOperator(ValueCheckOperator):
             This class is deprecated.l
             Please use `airflow.operators.check_operator.ValueCheckOperator`.
             """,
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

@@ -39,6 +39,6 @@ class HiveToMySqlTransfer(HiveToMySqlOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.apache.hive.transfers.hive_to_mysql.HiveToMySqlOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

@@ -43,6 +43,6 @@ class GoogleApiToS3Transfer(GoogleApiToS3Operator):
             Please use
             `airflow.providers.amazon.aws.transfers.""" +
             "google_api_to_s3_transfer.GoogleApiToS3Operator`.",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

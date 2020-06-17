@@ -39,6 +39,6 @@ class VerticaToMySqlTransfer(VerticaToMySqlOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.mysql.transfers.vertica_to_mysql.VerticaToMySqlOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

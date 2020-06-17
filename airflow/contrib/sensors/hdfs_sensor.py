@@ -40,7 +40,7 @@ class HdfsSensorFolder(HdfsFolderSensor):
             """This class is deprecated.
             Please use
             `airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -57,6 +57,6 @@ class HdfsSensorRegex(HdfsRegexSensor):
             """This class is deprecated.
             Please use
             `airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

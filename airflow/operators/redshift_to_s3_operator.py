@@ -38,6 +38,6 @@ class RedshiftToS3Transfer(RedshiftToS3Operator):
             """This class is deprecated.
             Please use
             `airflow.providers.amazon.aws.transfers.redshift_to_s3.RedshiftToS3Operator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

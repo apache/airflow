@@ -39,6 +39,6 @@ class HiveToDruidTransfer(HiveToDruidOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.apache.druid.transfers.hive_to_druid.HiveToDruidOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
