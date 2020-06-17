@@ -5,6 +5,8 @@
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css"
+      href="{{ url_for('static', filename='css/bootstrap-theme.css') }}">
+<link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/curve_template.css') }}">
 <link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/main.css') }}">
@@ -59,12 +61,32 @@
     <div id="tree"></div>
   </div>
 </div>
+
+<div class="modal" id="removeCurveDialog" tabindex="-1" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">删除曲线</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>确认删除曲线？</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-primary">删除</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 
 {% block tail_js %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/bootstrap-treeview.min.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('static', filename='js/bootstrap-treeview.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
   let curveChart = null;
   const curves = [];
@@ -141,9 +163,21 @@
   function renderTemplateList() {
     $('#tree').treeview({
       data: tree,
-    }).on('nodeSelected', (event, data) => {
-      treeItemClickActions[data.role](event, data);
-    }).treeview('selectNode', [0]);
+      // showCheckbox: true,
+    })
+      .on('nodeSelected', (event, data) => {
+        treeItemClickActions[data.role](event, data);
+      })
+      .on('nodeChecked', (event, data) => {
+        $('#tree').treeview('uncheckAll', { silent: true });
+        console.log('checked');
+        const modal = $('#removeCurveDialog');
+        modal.find('.modal-body')
+          .html(`确认删除曲线 <div class="color-indicator" style="background-color: ${data.curveColor}"></div>${data.name}`);
+        modal.modal({});
+        // treeItemClickActions[data.role](event, data);
+      })
+      .treeview('selectNode', [0]);
   }
 
 
@@ -173,12 +207,13 @@
     return Array.from(new Array(length), (item, idx) => +(idx * step).toFixed(digits ? digits.length : 4));
   }
 
+
   function loadCurvesData() {
     const { template_cluster: templateCluster } = curveTemplate;
     Object.entries(templateCluster).forEach(([mode, cluster]) => {
       modes.push(mode);
       const row = {
-        text: `模板簇-${mode}`,
+        text: `<span style="user-select: none;">模板簇-${mode}</span>`,
         nodes: [],
         role: treeRoles.cluster,
         mode,
@@ -187,7 +222,7 @@
       templateGroup.forEach((group, groupIdx) => {
         const { template_data_array: curvesData, template_centroid_index: centroid } = group;
         const gRow = {
-          text: `曲线聚类-${mode}-${centroid}`,
+          text: `<span style="user-select: none;">曲线聚类-${mode}-${centroid}</span>`,
           nodes: [],
           mode,
           centroid,
@@ -195,6 +230,8 @@
         };
         curvesData.forEach((curve, idx) => {
           const { template_angle: cur_w, template_torque: cur_m, start_point } = curve;
+          const color = randomColor();
+          const name = `曲线-${mode}-${centroid}-${idx}`;
           curves.push({
             start_point,
             mode,
@@ -202,11 +239,17 @@
             idx,
             cur_w,
             cur_m,
-            color: randomColor(),
+            color,
+            name,
             cur_t: genTimeSeries(timeStep, cur_w.length),
           });
           gRow.nodes.push({
-            text: `曲线-${mode}-${centroid}-${idx}`,
+            text: `<span style="user-select: none;">${name}
+                <div class="color-indicator" style="background-color: ${color};"></div>
+                <button class="check-icon">删除</button>
+                </span>`,
+            name,
+            curveColor: color,
             role: treeRoles.curve,
             centroid,
             idx,
@@ -305,7 +348,6 @@
     curveChart.on('click', (params) => {
       if (params.componentType === 'series') {
         console.log(params);
-
       }
     });
   }

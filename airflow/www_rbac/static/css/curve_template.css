@@ -154,7 +154,14 @@ button.margin {
   /*min-height: 30px;*/
 }
 
-#curve-template-list li{
+#curve-template-list li {
   user-select: none;
   cursor: pointer;
+}
+
+.color-indicator {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  margin: 0 4px 0 4px;
 }
