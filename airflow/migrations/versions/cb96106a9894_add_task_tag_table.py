@@ -16,37 +16,45 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add TaskTag table
+"""Add task_tag table
 
-Revision ID: 19d8a998c007
-Revises: 952da73b5eff
-Create Date: 2020-05-29 14:20:37.831692
+Revision ID: cb96106a9894
+Revises: 8f966b9c467a
+Create Date: 2020-06-11 14:39:02.764770
 
 """
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import mysql
+from airflow.models.base import COLLATION_ARGS
 
-from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
-revision = '19d8a998c007'
-down_revision = '952da73b5eff'
+revision = 'cb96106a9894'
+down_revision = '8f966b9c467a'
 branch_labels = None
 depends_on = None
 
+
+def get_execution_date_type():
+    conn = op.get_bind()
+    if conn.dialect.name == 'mysql':
+        return mysql.TIMESTAMP(fsp=6)
+    else:
+        return sa.TIMESTAMP(timezone=True)
 
 def upgrade():
     """Apply Add TaskTag table"""
     op.create_table(
         'task_tag',
         sa.Column('name', sa.String(length=100), nullable=False),
-        sa.Column('dag_id', sa.String(length=250), nullable=False),
-        sa.Column('task_id', sa.String(length=250), nullable=False),
-        sa.Column('execution_date', UtcDateTime, nullable=False),
-        sa.ForeignKeyConstraint(('dag_id', 'task_id', 'execution_date'),
-                                ('task_instance.dag_id',
-                                 'task_instance.task_id',
+        sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+        sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+        sa.Column('execution_date', get_execution_date_type(), nullable=False, server_default=None),
+        sa.ForeignKeyConstraint(('task_id', 'dag_id', 'execution_date'),
+                                ('task_instance.task_id',
+                                 'task_instance.dag_id',
                                  'task_instance.execution_date'),
                                 ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('name', 'dag_id', 'task_id', 'execution_date')
@@ -56,3 +64,4 @@ def upgrade():
 def downgrade():
     """Unapply Add TaskTag table"""
     op.drop_table('task_tag')
+
