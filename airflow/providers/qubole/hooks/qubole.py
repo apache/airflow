@@ -254,4 +254,4 @@ class QuboleHook(BaseHook):
         if isinstance(value, str):
             tags.add(value)
         elif isinstance(value, (list, tuple)):
-            tags.extend(value)
+            tags.update(value)
