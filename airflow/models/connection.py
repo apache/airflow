@@ -174,7 +174,7 @@ class Connection(Base, LoggingMixin):
         ('kubernetes', 'Kubernetes cluster Connection'),
         ('spark', 'Spark'),
         ('imap', 'IMAP'),
-        ('vault', 'Hashicorp Vault')
+        ('vault', 'Hashicorp Vault'),
     ]
 
     def __init__(
