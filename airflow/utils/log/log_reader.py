@@ -16,7 +16,7 @@
 # under the License.
 
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from cached_property import cached_property
 
@@ -26,51 +26,17 @@ from airflow.utils.helpers import render_log_filename
 
 
 class TaskLogReader:
-    """ Task log reader"""
+    """TODO"""
 
-    def read_log_chunks(self, ti: TaskInstance, try_number: Optional[int],
-                        metadata) -> Tuple[List[str], Dict[str, Any]]:
-        """
-        Reads chunks of Task Instance logs.
-
-        :param ti: The taskInstance
-        :type ti: TaskInstance
-        :param try_number: If provided, logs for the given try will be returned.
-            Otherwise, logs from all attempts are returned.
-        :type try_number: Optional[int]
-        :param metadata: A dictionary containing information about how to read the task log
-        :type metadata: dict
-        :rtype: Tuple[List[str], Dict[str, Any]]
-
-        The following is an example of how to use this method to read log:
-
-        .. code-block:: python
-
-            logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
-            logs = logs[0] if try_number is not None else logs
-
-        where task_log_reader is an instance of TaskLogReader. The metadata will always
-        contain information about the task log which can enable you read logs to the
-        end.
-        """
+    def read_log_chunks(self, ti, try_number, metadata) -> Tuple[List[int], List[str]]:
+        """TODO"""
 
         logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
         metadata = metadatas[0]
         return logs, metadata
 
-    def read_log_stream(self, ti: TaskInstance, try_number: Optional[int],
-                        metadata: dict) -> Iterator[str]:
-        """
-        Used to continuously read log to the end
-
-        :param ti: The Task Instance
-        :type ti: TaskInstance
-        :param try_number: the task try number
-        :type try_number: Optional[int]
-        :param metadata: A dictionary containing information about how to read the task log
-        :type metadata: dict
-        :rtype: Iterator[str]
-        """
+    def read_log_stream(self, ti, try_number, metadata):
+        """TODO"""
 
         if try_number is None:
             next_try = ti.next_try_number
@@ -87,7 +53,7 @@ class TaskLogReader:
 
     @cached_property
     def log_handler(self):
-        """Log handler, which is configured to read logs."""
+        """TODO"""
 
         logger = logging.getLogger('airflow.task')
         task_log_reader = conf.get('logging', 'task_log_reader')
@@ -96,20 +62,12 @@ class TaskLogReader:
 
     @property
     def is_supported(self):
-        """Checks if a read operation is supported by a current log handler."""
+        """TODO"""
 
         return hasattr(self.log_handler, 'read')
 
-    def render_log_filename(self, ti: TaskInstance, try_number: Optional[int] = None):
-        """
-        Renders the log attachment filename
-
-        :param ti: The task instance
-        :type ti: TaskInstance
-        :param try_number: The task try number
-        :type try_number: Optional[int]
-        :rtype: str
-        """
+    def render_log_filename(self, ti: TaskInstance, try_number: Optional[int]):
+        """TODO"""
 
         filename_template = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
         attachment_filename = render_log_filename(
