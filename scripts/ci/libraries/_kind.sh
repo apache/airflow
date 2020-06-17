@@ -274,7 +274,7 @@ function load_image_to_kind_cluster() {
     echo
     echo "Loading ${AIRFLOW_KUBERNETES_IMAGE} to ${KIND_CLUSTER_NAME}"
     echo
-#    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_KUBERNETES_IMAGE}"
+    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_KUBERNETES_IMAGE}"
 }
 
 function prepare_kubernetes_app_variables() {
