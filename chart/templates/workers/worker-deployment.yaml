@@ -133,7 +133,7 @@ spec:
 {{- if $persistence }}
         - name: worker-gc
           image: {{ template "airflow_image" . }}
-          args: ["bash", "/usr/local/bin/clean-airflow-logs"]
+          args: ["bash", "/clean-logs"]
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
