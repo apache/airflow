@@ -19,7 +19,7 @@
 """add unique constraint to conn_id
 
 Revision ID: 8d48763f6d53
-Revises: 952da73b5eff
+Revises: 8f966b9c467a
 Create Date: 2020-05-03 16:55:01.834231
 
 """
@@ -29,7 +29,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '8d48763f6d53'
-down_revision = '952da73b5eff'
+down_revision = '8f966b9c467a'
 branch_labels = None
 depends_on = None
 
