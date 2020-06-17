@@ -23,7 +23,8 @@
 
 ## Introduction
 
-This chart will bootstrap an [Airfow](https://airflow.apache.org) deployment on a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager.
+This chart will bootstrap an [Airflow](https://airflow.apache.org) deployment on a [Kubernetes](http://kubernetes.io)
+cluster using the [Helm](https://helm.sh) package manager.
 
 ## Prerequisites
 
@@ -41,7 +42,8 @@ helm dep update
 helm install airflow . --namespace airflow
 ```
 
-The command deploys Airflow on the Kubernetes cluster in the default configuration. The [Parameters](#parameters) section lists the parameters that can be configured during installation.
+The command deploys Airflow on the Kubernetes cluster in the default configuration. The [Parameters](#parameters)
+section lists the parameters that can be configured during installation.
 
 > **Tip**: List all releases using `helm list`
 
@@ -72,19 +74,14 @@ helm upgrade airflow . \
   --set images.airflow.tag=8a0da78
 ```
 
-## Docker Images
-
-* The Airflow image that are referenced as the default values in this chart are generated from this repository: https://github.com/astronomer/ap-airflow.
-* Other non-airflow images used in this chart are generted from this repository: https://github.com/astronomer/ap-vendor.
-
 ## Parameters
 
 The following tables lists the configurable parameters of the Airflow chart and their default values.
 
 | Parameter                                             | Description                                                                                                  | Default                                           |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
-| `uid`                                                 | UID to run airflow pods under                                                                                | `nil`                                             |
-| `gid`                                                 | GID to run airflow pods under                                                                                | `nil`                                             |
+| `uid`                                                 | UID to run airflow pods under                                                                                | `50000`                                           |
+| `gid`                                                 | GID to run airflow pods under                                                                                | `50000`                                           |
 | `nodeSelector`                                        | Node labels for pod assignment                                                                               | `{}`                                              |
 | `affinity`                                            | Affinity labels for pod assignment                                                                           | `{}`                                              |
 | `tolerations`                                         | Toleration labels for pod assignment                                                                         | `[]`                                              |
@@ -92,24 +89,24 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `privateRegistry.enabled`                             | Enable usage of a private registry for Airflow base image                                                    | `false`                                           |
 | `privateRegistry.repository`                          | Repository where base image lives (eg: quay.io)                                                              | `~`                                               |
 | `networkPolicies.enabled`                             | Enable Network Policies to restrict traffic                                                                  | `true`                                            |
-| `airflowHome`                                         | Location of airflow home directory                                                                           | `/usr/local/airflow`                              |
+| `airflowHome`                                         | Location of airflow home directory                                                                           | `/opt/airflow`                                    |
 | `rbacEnabled`                                         | Deploy pods with Kubernets RBAC enabled                                                                      | `true`                                            |
 | `airflowVersion`                                      | Default Airflow image version                                                                                | `1.10.5`                                          |
 | `executor`                                            | Airflow executor (eg SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor)                  | `KubernetesExecutor`                              |
 | `allowPodLaunching`                                   | Allow airflow pods to talk to Kubernetes API to launch more pods                                             | `true`                                            |
-| `defaultAirflowRepository`                            | Fallback docker repository to pull airflow image from                                                        | `astronomerinc/ap-airflow`                        |
-| `defaultAirflowTag`                                   | Fallback docker image tag to deploy                                                                          | `1.10.7-alpine3.10`                               |
-| `images.airflow.repository`                           | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-airflow`                        |
+| `defaultAirflowRepository`                            | Fallback docker repository to pull airflow image from                                                        | `apache/airflow`                                  |
+| `defaultAirflowTag`                                   | Fallback docker image tag to deploy                                                                          | `1.10.10-1-python3.6`                             |
+| `images.airflow.repository`                           | Docker repository to pull image from. Update this to deploy a custom image                                   | `~`                                               |
 | `images.airflow.tag`                                  | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
 | `images.airflow.pullPolicy`                           | PullPolicy for airflow image                                                                                 | `IfNotPresent`                                    |
-| `images.flower.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-airflow`                        |
+| `images.flower.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `~`                                               |
 | `images.flower.tag`                                   | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
 | `images.flower.pullPolicy`                            | PullPolicy for flower image                                                                                  | `IfNotPresent`                                    |
 | `images.statsd.repository`                            | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-statsd-exporter`                |
 | `images.statsd.tag`                                   | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
 | `images.statsd.pullPolicy`                            | PullPolicy for statsd-exporter image                                                                         | `IfNotPresent`                                    |
-| `images.redis.repository`                             | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-redis`                          |
-| `images.redis.tag`                                    | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
+| `images.redis.repository`                             | Docker repository to pull image from. Update this to deploy a custom image                                   | `redis`                                           |
+| `images.redis.tag`                                    | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `6-buster`                                        |
 | `images.redis.pullPolicy`                             | PullPolicy for redis image                                                                                   | `IfNotPresent`                                    |
 | `images.pgbouncer.repository`                         | Docker repository to pull image from. Update this to deploy a custom image                                   | `astronomerinc/ap-pgbouncer`                      |
 | `images.pgbouncer.tag`                                | Docker image tag to pull image from. Update this to deploy a new custom image tag                            | `~`                                               |
