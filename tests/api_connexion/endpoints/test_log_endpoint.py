@@ -176,10 +176,72 @@ class TestGetLog(unittest.TestCase):
 
             response = self.client.get(
                 f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-                f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
+                f"taskInstances/{self.TASK_ID}/logs/1?full_content=True"
             )
 
             self.assertIn('1st line', response.data.decode('utf-8'))
             self.assertIn('2nd line', response.data.decode('utf-8'))
             self.assertIn('3rd line', response.data.decode('utf-8'))
             self.assertNotIn('should never be read', response.data.decode('utf-8'))
+
+    @provide_session
+    def test_get_logs_with_metadata_as_json_large_file(self, session):
+        self._create_dagrun(session)
+        with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
+            first_return = (['1st line'], [{}])
+            second_return = (['2nd line'], [{'end_of_log': False}])
+            third_return = (['3rd line'], [{'end_of_log': True}])
+            fourth_return = (['should never be read'], [{'end_of_log': True}])
+            read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
+
+            headers = {'Content-Type': 'application/json'}
+
+            response = self.client.get(
+                f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+                f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
+                headers=headers
+            )
+
+            self.assertIn('content', response.json)
+            self.assertIn('continuation_token', response.json)
+            self.assertIn('1st line', response.json.get('content'))
+            self.assertIn('2nd line', response.json.get('content'))
+            self.assertIn('3rd line', response.json.get('content'))
+            self.assertNotIn('should never be read', response.json.get('content'))
+
+    @provide_session
+    def test_bad_signature_raises(self, session):
+        self._create_dagrun(session)
+        token = {"download_logs": False}
+        headers = {'Content-Type': 'application/json'}
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            headers=headers
+        )
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 400,
+                'title': "Bad Signature. Please sign your token with URLSafeSerializer",
+                'type': 'about:blank'
+            }
+        )
+
+    def test_raises_404_for_invalid_dag_run_id(self):
+        headers = {'Content-Type': 'application/json'}
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN/"  # invalid dagrun_id
+            f"taskInstances/{self.TASK_ID}/logs/1?",
+            headers=headers
+        )
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 404,
+                'title': "Specified DagRun not found",
+                'type': 'about:blank'
+            }
+        )
