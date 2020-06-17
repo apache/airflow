@@ -1027,13 +1027,10 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
                 t.task_id for t in self.get_flat_relatives(upstream=False)]
 
         qry = qry.filter(TaskInstance.task_id.in_(tasks))
-
-        count = qry.count()
-
-        clear_task_instances(qry.all(), session, dag=self.dag)
-
+        results = qry.all()
+        count = len(results)
+        clear_task_instances(results, session, dag=self.dag)
         session.commit()
-
         return count
 
     @provide_session
