@@ -234,6 +234,7 @@ if REMOTE_LOGGING:
     elif ELASTICSEARCH_HOST:
         ELASTICSEARCH_LOG_ID_TEMPLATE: str = conf.get('elasticsearch', 'LOG_ID_TEMPLATE')
         ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get('elasticsearch', 'END_OF_LOG_MARK')
+        ELASTICSEARCH_FRONTEND: str = conf.get('elasticsearch', 'frontend')
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean('elasticsearch', 'WRITE_STDOUT')
         ELASTICSEARCH_JSON_FORMAT: bool = conf.getboolean('elasticsearch', 'JSON_FORMAT')
         ELASTICSEARCH_JSON_FIELDS: str = conf.get('elasticsearch', 'JSON_FIELDS')
@@ -247,6 +248,7 @@ if REMOTE_LOGGING:
                 'filename_template': FILENAME_TEMPLATE,
                 'end_of_log_mark': ELASTICSEARCH_END_OF_LOG_MARK,
                 'host': ELASTICSEARCH_HOST,
+                'frontend': ELASTICSEARCH_FRONTEND,
                 'write_stdout': ELASTICSEARCH_WRITE_STDOUT,
                 'json_format': ELASTICSEARCH_JSON_FORMAT,
                 'json_fields': ELASTICSEARCH_JSON_FIELDS
