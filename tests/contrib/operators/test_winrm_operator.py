@@ -20,6 +20,8 @@
 import mock
 import unittest
 
+import six
+
 from airflow.contrib.operators.winrm_operator import WinRMOperator
 from airflow.exceptions import AirflowException
 
@@ -30,7 +32,7 @@ class WinRMOperatorTest(unittest.TestCase):
                            winrm_hook=None,
                            ssh_conn_id=None)
         exception_msg = "Cannot operate without winrm_hook or ssh_conn_id."
-        with self.assertRaisesRegexp(AirflowException, exception_msg):
+        with six.assertRaisesRegex(self, AirflowException, exception_msg):
             op.execute(None)
 
     @mock.patch('airflow.contrib.operators.winrm_operator.WinRMHook')
@@ -41,7 +43,7 @@ class WinRMOperatorTest(unittest.TestCase):
             command=None
         )
         exception_msg = "No command specified so nothing to execute here."
-        with self.assertRaisesRegexp(AirflowException, exception_msg):
+        with six.assertRaisesRegex(self, AirflowException, exception_msg):
             op.execute(None)
 
 

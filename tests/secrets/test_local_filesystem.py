@@ -48,7 +48,7 @@ class FileParsers(unittest.TestCase):
     )
     def test_env_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegexp(AirflowFileParseException, re.escape(expected_message)):
+            with six.assertRaisesRegex(self, AirflowFileParseException, re.escape(expected_message)):
                 local_filesystem.load_variables("a.env")
 
     @parameterized.expand(
@@ -65,7 +65,7 @@ class FileParsers(unittest.TestCase):
     )
     def test_json_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegexp(AirflowFileParseException, re.escape(expected_message)):
+            with six.assertRaisesRegex(self, AirflowFileParseException, re.escape(expected_message)):
                 local_filesystem.load_variables("a.json")
 
 
@@ -87,7 +87,7 @@ class TestLoadVariables(unittest.TestCase):
     @parameterized.expand((("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),))
     def test_env_file_invalid_logic(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegexp(AirflowException, re.escape(expected_message)):
+            with six.assertRaisesRegex(self, AirflowException, re.escape(expected_message)):
                 local_filesystem.load_variables("a.env")
 
     @parameterized.expand(
@@ -105,7 +105,8 @@ class TestLoadVariables(unittest.TestCase):
 
     @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
     def test_missing_file(self, mock_exists):
-        with self.assertRaisesRegexp(
+        with six.assertRaisesRegex(
+            self,
             AirflowException,
             re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
         ):
@@ -148,7 +149,7 @@ class TestLoadConnection(unittest.TestCase):
     )
     def test_env_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegexp(AirflowFileParseException, re.escape(expected_message)):
+            with six.assertRaisesRegex(self, AirflowFileParseException, re.escape(expected_message)):
                 local_filesystem.load_connections("a.env")
 
     @parameterized.expand(
@@ -189,12 +190,13 @@ class TestLoadConnection(unittest.TestCase):
     )
     def test_env_file_invalid_input(self, file_content, expected_connection_uris):
         with mock_local_file(json.dumps(file_content)):
-            with self.assertRaisesRegexp(AirflowException, re.escape(expected_connection_uris)):
+            with six.assertRaisesRegex(self, AirflowException, re.escape(expected_connection_uris)):
                 local_filesystem.load_connections("a.json")
 
     @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
     def test_missing_file(self, mock_exists):
-        with self.assertRaisesRegexp(
+        with six.assertRaisesRegex(
+            self,
             AirflowException,
             re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
         ):

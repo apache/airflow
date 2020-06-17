@@ -57,10 +57,6 @@ Fundamentals
 
    * - :mod:`airflow.operators.branch_operator`
      -
-
-   * - :mod:`airflow.operators.check_operator`
-     -
-
    * - :mod:`airflow.operators.dagrun_operator`
      -
 
@@ -76,7 +72,7 @@ Fundamentals
    * - :mod:`airflow.operators.subdag_operator`
      -
 
-   * - :mod:`airflow.operators.sql_branch_operator`
+   * - :mod:`airflow.operators.sql`
      -
 
 **Sensors:**
@@ -89,9 +85,6 @@ Fundamentals
 
    * - :mod:`airflow.sensors.weekday_sensor`
      -
-
-   * - :mod:`airflow.sensors.external_task_sensor`
-     - :doc:`How to use <howto/operator/external_task_sensor>`
 
    * - :mod:`airflow.sensors.sql_sensor`
      -
@@ -470,7 +463,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
+     -
      - :mod:`airflow.contrib.operators.s3_to_gcs_operator`,
        :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
 
@@ -551,7 +544,7 @@ These integrations allow you to perform various operations within the Google Clo
      - Sensors
 
    * - `AutoML <https://cloud.google.com/automl/>`__
-     - :doc:`How to use <howto/operator/gcp/automl>`
+     -
      - :mod:`airflow.gcp.hooks.automl`
      - :mod:`airflow.gcp.operators.automl`
      -
@@ -563,7 +556,7 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.gcp.sensors.bigquery`
 
    * - `BigQuery Data Transfer Service <https://cloud.google.com/bigquery/transfer/>`__
-     - :doc:`How to use <howto/operator/gcp/bigquery_dts>`
+     -
      - :mod:`airflow.gcp.hooks.bigquery_dts`
      - :mod:`airflow.gcp.operators.bigquery_dts`
      - :mod:`airflow.gcp.sensors.bigquery_dts`
@@ -611,7 +604,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Cloud Functions <https://cloud.google.com/functions/>`__
-     - :doc:`How to use <howto/operator/gcp/functions>`
+     - :doc:`How to use <howto/operator/gcp/function>`
      - :mod:`airflow.gcp.hooks.functions`
      - :mod:`airflow.gcp.operators.functions`
      -
@@ -635,7 +628,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Cloud Memorystore <https://cloud.google.com/memorystore/>`__
-     - :doc:`How to use <howto/operator/gcp/cloud_memorystore>`
+     -
      - :mod:`airflow.gcp.hooks.cloud_memorystore`
      - :mod:`airflow.gcp.operators.cloud_memorystore`
      -
@@ -677,7 +670,7 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.gcp.sensors.gcs`
 
    * - `Storage Transfer Service <https://cloud.google.com/storage/transfer/>`__
-     - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
+     -
      - :mod:`airflow.gcp.hooks.cloud_storage_transfer_service`
      - :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
      - :mod:`airflow.gcp.sensors.cloud_storage_transfer_service`
@@ -701,7 +694,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Cloud Video Intelligence <https://cloud.google.com/video_intelligence/>`__
-     - :doc:`How to use <howto/operator/gcp/video_intelligence>`
+     - :doc:`How to use <howto/operator/gcp/video>`
      - :mod:`airflow.gcp.hooks.video_intelligence`
      - :mod:`airflow.gcp.operators.video_intelligence`
      -
@@ -741,7 +734,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
+     -
      - :mod:`airflow.contrib.operators.s3_to_gcs_operator`,
        :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
 
@@ -772,8 +765,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
-     - :doc:`How to use <howto/operator/gcp/gcs_to_gcs>`,
-       :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
+     -
      - :mod:`airflow.operators.gcs_to_gcs`,
        :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
 
@@ -1037,7 +1029,7 @@ These integrations allow you to perform various operations using various softwar
      - :mod:`airflow.contrib.sensors.bash_sensor`
 
    * - `Kubernetes <https://kubernetes.io/>`__
-     - :doc:`How to use <howto/operator/kubernetes>`
+     -
      -
      - :mod:`airflow.contrib.operators.kubernetes_pod_operator`
      -
