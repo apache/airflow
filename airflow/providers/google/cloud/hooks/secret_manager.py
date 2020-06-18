@@ -18,7 +18,7 @@
 """Hook for Secrets Manager service"""
 from typing import Optional
 
-from airflow.providers.google.cloud._internal_client.secret_client import _SecretManagerClient  # noqa
+from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient  # noqa
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -52,7 +52,7 @@ class SecretsManagerHook(GoogleBaseHook):
         Retrieves the connection to Secret Manager.
 
         :return: Secret Manager client.
-        :rtype: airflow.providers.google.cloud._internal_client.secret_client._SecretManagerClient
+        :rtype: airflow.providers.google.cloud._internal_client.secret_manager_client._SecretManagerClient
         """
         return self.client
 

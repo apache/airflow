@@ -21,10 +21,10 @@ from unittest import TestCase, mock
 from google.api_core.exceptions import NotFound
 from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
 
-from airflow.providers.google.cloud._internal_client.secret_client import _SecretManagerClient  # noqa
+from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient  # noqa
 from airflow.version import version
 
-INTERNAL_CLIENT_MODULE = "airflow.providers.google.cloud._internal_client.secret_client"
+INTERNAL_CLIENT_MODULE = "airflow.providers.google.cloud._internal_client.secret_manager_client"
 
 
 # noinspection DuplicatedCode,PyUnresolvedReferences
@@ -33,10 +33,9 @@ class TestSecretManagerClient(TestCase):
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
     @mock.patch(INTERNAL_CLIENT_MODULE + ".ClientInfo")
     def test_auth(self, mock_client_info, mock_secrets_client):
-        mock_client = mock.MagicMock()
         mock_client_info_mock = mock.MagicMock()
         mock_client_info.return_value = mock_client_info_mock
-        mock_secrets_client.return_value = mock_client
+        mock_secrets_client.return_value = mock.MagicMock()
         secrets_client = _SecretManagerClient(credentials="credentials")
         _ = secrets_client.client
         mock_client_info.assert_called_with(
@@ -51,8 +50,7 @@ class TestSecretManagerClient(TestCase):
     @mock.patch(INTERNAL_CLIENT_MODULE + ".ClientInfo")
     def test_get_non_existing_key(self, mock_client_info, mock_secrets_client):
         mock_client = mock.MagicMock()
-        mock_client_info_mock = mock.MagicMock()
-        mock_client_info.return_value = mock_client_info_mock
+        mock_client_info.return_value = mock.MagicMock()
         mock_secrets_client.return_value = mock_client
         mock_client.secret_version_path.return_value = "full-path"
         # The requested secret id or secret version does not exist
@@ -67,8 +65,7 @@ class TestSecretManagerClient(TestCase):
     @mock.patch(INTERNAL_CLIENT_MODULE + ".ClientInfo")
     def test_get_existing_key(self, mock_client_info, mock_secrets_client):
         mock_client = mock.MagicMock()
-        mock_client_info_mock = mock.MagicMock()
-        mock_client_info.return_value = mock_client_info_mock
+        mock_client_info.return_value = mock.MagicMock()
         mock_secrets_client.return_value = mock_client
         mock_client.secret_version_path.return_value = "full-path"
         test_response = AccessSecretVersionResponse()
@@ -84,8 +81,7 @@ class TestSecretManagerClient(TestCase):
     @mock.patch(INTERNAL_CLIENT_MODULE + ".ClientInfo")
     def test_get_existing_key_with_version(self, mock_client_info, mock_secrets_client):
         mock_client = mock.MagicMock()
-        mock_client_info_mock = mock.MagicMock()
-        mock_client_info.return_value = mock_client_info_mock
+        mock_client_info.return_value = mock.MagicMock()
         mock_secrets_client.return_value = mock_client
         mock_client.secret_version_path.return_value = "full-path"
         test_response = AccessSecretVersionResponse()

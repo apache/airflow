@@ -29,7 +29,7 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 
 BASE_PACKAGE = 'airflow.providers.google.common.hooks.base_google.'
 SECRETS_HOOK_PACKAGE = 'airflow.providers.google.cloud.hooks.secret_manager.'
-INTERNAL_CLIENT_PACKAGE = 'airflow.providers.google.cloud._internal_client.secret_client'
+INTERNAL_CLIENT_PACKAGE = 'airflow.providers.google.cloud._internal_client.secret_manager_client'
 
 
 class TestSecretsManagerHook(unittest.TestCase):
