@@ -62,6 +62,16 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### airflow.contrib.utils.log has been moved
+Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
+package was supported by the community. The project was passed to the Apache community and currently the
+entire code is maintained by the community, so now the division has no justification, and it is only due
+to historical reasons.
+
+To clean up, modules in `airflow.contrib.utils.log` have been moved into `airflow.utils.log`
+this includes:
+* `TaskHandlerWithCustomFormatter` class
+
 ### BaseOperator uses metaclass
 
 `BaseOperator` class uses a `BaseOperatorMeta` as a metaclass. This meta class is based on
