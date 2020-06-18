@@ -112,3 +112,17 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         # There should be no object found in the bucket created earlier
         self.assertFalse('Contents' in conn.list_objects(Bucket=bucket,
                                                          Prefix=key_pattern))
+
+    @mock_s3
+    def test_s3_delete_empty_list_and_does_nothing(self):
+        bucket = "testbucket"
+
+        conn = boto3.client('s3')
+        conn.create_bucket(Bucket=bucket)
+
+        op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_empty_list_and_does_nothing",
+                                     bucket=bucket,
+                                     keys=list())
+
+        # Even if key is an empty list, there should be no exception.
+        op.execute(None)
