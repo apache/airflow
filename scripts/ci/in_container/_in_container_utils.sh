@@ -99,7 +99,7 @@ function in_container_fix_ownership() {
             "/files"
             "/root/.aws"
             "/root/.azure"
-            "/root/.config"
+            "/root/.config/gcloud"
             "/root/.docker"
             "${AIRFLOW_SOURCES}"
         )
