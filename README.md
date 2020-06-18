@@ -46,7 +46,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
 - [User Interface](#user-interface)
-- [Using hooks and Operators from "master" in Airflow 1.10](#using-hooks-and-operators-from-master-in-airflow-110)
+- [Backport packages: Using providers from Airflow 2.0 in Airflow 1.10.*](#backport-packages-using-providers-from-airflow-20-in-airflow-110)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -167,31 +167,80 @@ unit of work and continuity.
   ![](/docs/img/code.png)
 
 
-## Using hooks and Operators from "master" in Airflow 1.10
+## Backport packages: Using providers from Airflow 2.0 in Airflow 1.10.*
 
-Currently, stable versions of Apache Airflow are released in 1.10.* series. We are working on the
-future, major version of Airflow from the 2.0.* series. It is going to be released in 2020. However, the exact time of release depends on many factors and is yet unknown.
-We have already a lot of changes in the hooks/operators/sensors for many external systems
-and they are not used because they are part of the master/2.0 release.
+Currently, stable Apache Airflow versions are from the 1.10.* series.
+We are working on the future, major version of Airflow from the 2.0.* series.
+It is going to be released in 2020. However, the exact time of release depends on many factors and is
+not yet confirmed.
 
-In the Airflow 2.0 - following AIP-21 "change in import paths" all the non-core operators/hooks/sensors
-of Apache Airflow have been moved to the "airflow.providers" package. This opened a possibility to
-use the operators from Airflow 2.0 in Airflow 1.10 - with the constraint that those
-packages can only be used in python3.6+ environment.
+We have already a lot of changes in the operators, transfers, hooks, sensors, secrets for many external
+systems, but they are not used nor tested widely because they are part of the master/2.0 release.
 
-Therefore we decided to prepare and release backport packages that can be installed
-for older Airflow versions. Those backport packages are released more frequently. Users do not
-have to upgrade their Airflow version to use those packages. There are a number of changes
-between Airflow 2.0 and 1.10.* - documented in [UPDATING.md](UPDATING.md). With backported
-providers package users can migrate their DAGs to the new providers package incrementally
+In the Airflow 2.0 - following AIP-21 "change in import paths" all the non-core interfaces to external
+systems of Apache Airflow have been moved to the "airflow.providers" package.
+
+Thanks to that and automated backport effort we took, the operators from Airflow 2.0
+can be used in Airflow 1.10 as separately installable packages, with the constraint that
+those packages can only be used in python3.6+ environment.
+
+We released backport packages that can be installed for older Airflow versions.
+Those backport packages are going to be released more frequently that main Airflow 1.10.& releases.
+
+You will not have to upgrade your Airflow version to use those packages. You can find those packages in the
+[PyPI](https://pypi.org/search/?q=apache-airflow-backport-providers&o=) and install them separately for each
+provider.
+
+Those packages are available now and can be used in the latest Airflow 1.10* version. Most of those
+packages are also installable and usable in most Airflow 1.10.* releases but there is no extensive testing
+done beyond the latest released version, so you might expect more problems in earlier Airflow versions.
+
+Releasing the backport packages is also a way to ease migration to 2.0.
+
+With backported providers package users can migrate their DAGs to the new providers package incrementally
 and once they convert to the new operators/sensors/hooks they can seamlessly migrate their
-environments to Airflow 2.0.
+environments to Airflow 2.0. The nice thing about providers backport packages is that you can use
+both old and new classes at the same time - even in the same DAG. So your migration can be gradual and smooth.
+Note that in Airflow 2.0 old classes raise deprecation warning and redirect to the new classes wherever
+it is possible. In some rare cases the new operators will not be fully backwards compatible - you will find
+information about those cases in [UPDATING.md](UPDATING.md) where we explained all such cases. Switching
+early to the Airflow 2.0 operators while still running Airflow 1.10 will make your migration much easier.
 
 More information about the status and releases of the back-ported packages are available
 at [Backported providers package page](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
 
-Dependencies between packages are stored in ``airflow/providers/dependencies.json``. See
-[CONTRIBUTING.rst](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#backport-providers-packages)
+Note that the backport packages might require extra dependencies. Pip installs the required dependencies
+automatically when it installs the backport package, but there are sometimes cross-dependencies between the
+backport packages. For example `google` package has cross-dependency with `amazon` package to allow
+transfers between those two cloud providers. You might need to install those packages in case you use
+cross-dependent packages. The easiest way to install them is to use "extras" when installing the package,
+for example the below will install both `google` and `amazon` backport packages:
+
+```bash
+pip install apache-airflow-backport-providers-google[amazon]
+```
+
+This is all documented in the PyPI description of the packages
+as well as in the README.md file available for each provider package. For example for google package
+you can find the readme in [README.md](airflow/providers/google/README.md). You will also find there
+the summary of both - new classes and moved classes as well as requirement information.
+
+IMPORTANT NOTE!
+
+Backport providers only work when they are installed in the same namespace as the 'apache-airflow' 1.10
+package. This is majority of cases when you simply run `pip install` - it installs all packages
+in the same folder (usually in `/usr/local/lib/pythonX.Y/site-packages`). But when you install
+the `apache-airflow` and `apache-airflow-backport-package-*` using different methods (for example using
+`pip install -e .` or `pip install --user` they might be installed in different namespaces.
+If that's the case, the provider packages will not be importable (the error in such case is
+`ModuleNotFoundError: No module named 'airflow.providers'`).
+
+If you experience the problem, you can easily fix it by creating symbolic link
+in your installed "airflow" folder to the  "providers" folder where you installed your backport packages.
+If you installed it with `-e`, this link should be created in your airflow
+sources,  if you installed it with the `--user` flag it should be from the
+`~/.local/lib/pythonX.Y/site-packages/airflow/` folder,
+
 
 ## Contributing
 
