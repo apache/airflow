@@ -36,7 +36,7 @@ from backport_packages.import_all_provider_classes import import_all_provider_cl
 from setup import PROVIDERS_REQUIREMENTS
 from setuptools import Command, find_packages, setup as setuptools_setup
 
-from tests.test_core_to_contrib import HOOKS, OPERATORS, SECRETS, SENSORS, TRANSFERS
+from tests.deprecated_classes import HOOKS, OPERATORS, SECRETS, SENSORS, TRANSFERS
 
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
