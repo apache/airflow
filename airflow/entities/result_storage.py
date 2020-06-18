@@ -4,6 +4,7 @@ from influxdb_client import InfluxDBClient, Point, WriteApi
 from .entity import ClsEntity
 from airflow.utils.logger import generate_logger
 import os
+import threading
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
@@ -12,14 +13,41 @@ IS_DEBUG = RUNTIME_ENV != 'prod'
 
 
 class ClsResultStorage(ClsEntity):
+    _instance_lock = threading.Lock()
+
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(ClsResultStorage, "_instance"):
+            with ClsResultStorage._instance_lock:
+                if not hasattr(ClsResultStorage, "_instance"):
+                    ClsResultStorage._instance = object.__new__(cls)
+        return ClsResultStorage._instance
+
     def __init__(self, url, bucket, token, ou, write_options):
         super(ClsResultStorage, self).__init__()
+        if not self.is_config_changed(url, bucket, token, ou, write_options):
+            return
         self._token = token
         self._ou = ou
         self._client = None
         self._bucket = bucket
         self._url = url
         self.write_options = write_options
+
+    def is_config_changed(self, url, bucket, token, ou, write_options):
+        try:
+            if self._token != token:
+                return True
+            if self._ou != ou:
+                return True
+            if self._bucket != bucket:
+                return True
+            if self._url != url:
+                return True
+            if self.write_options != write_options:
+                return True
+            return False
+        except Exception as e:
+            return True
 
     @property
     def endpoint(self):
@@ -89,8 +117,7 @@ class ClsResultStorage(ClsEntity):
             return
         entity_id = self.entity_id
         if not entity_id:
-            _logger.error("entity id Is Required!")
-            return
+            raise Exception("entity id Is Required!")
         result_body: Optional[Dict] = data.get('result')  # 之前验证过了 无需再验证有效性
         self.ensure_connect()
         result_body.update({"entity_id": entity_id})  # 将 entity id 也保存到数据库中

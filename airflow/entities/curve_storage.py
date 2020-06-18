@@ -9,16 +9,27 @@ from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
                          BucketAlreadyExists)
 from .entity import ClsEntity
 from airflow.utils.logger import generate_logger
+import threading
 
 _logger = generate_logger(__name__)
 
 
 class ClsCurveStorage(ClsEntity):
+    _instance_lock = threading.Lock()
+
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(ClsCurveStorage, "_instance"):
+            with ClsCurveStorage._instance_lock:
+                if not hasattr(ClsCurveStorage, "_instance"):
+                    ClsCurveStorage._instance = object.__new__(cls)
+        return ClsCurveStorage._instance
+
     def __init__(self, endpoint, access_key, secret_key, secure, bucket):
         super(ClsCurveStorage, self).__init__()
+        if not self.is_config_changed(endpoint, access_key, secret_key, secure, bucket):
+            return
         self._access_key = access_key
         self._secret_key = secret_key
-        self._client = None  # type: Optional[Minio]
         self._secure = secure
         self._url = endpoint
         self._bucket = bucket
@@ -28,6 +39,23 @@ class ClsCurveStorage(ClsEntity):
             "cur_m": u'扭矩',
             "cur_t": u'时间'
         }
+        self._client = None  # type: Optional[Minio]
+
+    def is_config_changed(self, endpoint, access_key, secret_key, secure, bucket):
+        try:
+            if self._access_key != access_key:
+                return True
+            if self._secret_key != secret_key:
+                return True
+            if self._secure != secure:
+                return True
+            if self._url != endpoint:
+                return True
+            if self._bucket != bucket:
+                return True
+            return False
+        except Exception as e:
+            return True
 
     @property
     def ObjectName(self):
@@ -80,12 +108,10 @@ class ClsCurveStorage(ClsEntity):
 
     def write_curve(self, data: Optional[Dict] = None) -> None:
         if not data:
-            _logger.error(u"未传入数据!")
-            return
+            raise Exception(u"未传入数据!")
         curve = data.get('curve', None)
         if not curve:
-            _logger.error(u"未传入曲线!")
-            return
+            raise Exception(u"未传入曲线!")
         try:
             self.ensure_bucket(self._bucket)
             data = self.convertCSVData(curve)
@@ -94,7 +120,7 @@ class ClsCurveStorage(ClsEntity):
                 self._bucket, self.ObjectName, f, length=len(data))
 
         except Exception as err:
-            _logger.error(u"写入曲线 失败: {}".format(err))
+            raise Exception(u"写入曲线 失败: {}".format(err))
 
     def csv_data_to_dict(self, data):
         data_set = Dataset()
