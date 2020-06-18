@@ -41,7 +41,8 @@ fi
 
 echo
 
-RUN_TESTS=${RUN_TESTS:="true"}
+RUN_TESTS=${RUN_TESTS:="false"}
+CI=${CI:="false"}
 INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
 if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
@@ -149,13 +150,13 @@ cd "${AIRFLOW_SOURCES}"
 
 set +u
 # If we do not want to run tests, we simply drop into bash
-if [[ "${RUN_TESTS:=false}" != "true" ]]; then
+if [[ "${RUN_TESTS}" != "true" ]]; then
     exec /bin/bash "${@}"
 fi
 set -u
 
 if [[ "${CI}" == "true" ]]; then
-    CI_ARGS=(
+    EXTRA_PYTEST_ARGS=(
         "--verbosity=0"
         "--strict-markers"
         "--instafail"
@@ -169,7 +170,7 @@ if [[ "${CI}" == "true" ]]; then
         "--pythonwarnings=ignore::PendingDeprecationWarning"
         )
 else
-    CI_ARGS=()
+    EXTRA_PYTEST_ARGS=()
 fi
 
 declare -a TESTS_TO_RUN
@@ -182,18 +183,18 @@ fi
 if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
     for INT in ${RUN_INTEGRATION_TESTS}
     do
-        CI_ARGS+=("--integration" "${INT}")
+        EXTRA_PYTEST_ARGS+=("--integration" "${INT}")
     done
-    CI_ARGS+=("-rpfExX")
+    EXTRA_PYTEST_ARGS+=("-rpfExX")
 elif [[ ${ONLY_RUN_LONG_RUNNING_TESTS:=""} == "true" ]]; then
-    CI_ARGS+=(
+    EXTRA_PYTEST_ARGS+=(
         "-m" "long_running"
         "--include-long-running"
         "--verbosity=1"
         "--reruns" "3"
         "--timeout" "90")
 elif [[ ${ONLY_RUN_QUARANTINED_TESTS:=""} == "true" ]]; then
-    CI_ARGS+=(
+    EXTRA_PYTEST_ARGS+=(
         "-m" "quarantined"
         "--include-quarantined"
         "--verbosity=1"
@@ -201,7 +202,7 @@ elif [[ ${ONLY_RUN_QUARANTINED_TESTS:=""} == "true" ]]; then
         "--timeout" "90")
 fi
 
-ARGS=("${CI_ARGS[@]}" "${TESTS_TO_RUN[@]}")
+ARGS=("${EXTRA_PYTEST_ARGS[@]}" "${TESTS_TO_RUN[@]}")
 
 if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
     "${MY_DIR}/run_system_tests.sh" "${ARGS[@]}"
