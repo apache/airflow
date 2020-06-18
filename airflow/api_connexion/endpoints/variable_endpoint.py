@@ -50,7 +50,7 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
     """
     Get all variable values
     """
-    query = session.query(Variable)
+    query = session.query(Variable).order_by(Variable.id)
     if offset:
         query = query.offset(offset)
     if limit:
