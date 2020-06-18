@@ -614,16 +614,15 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('DAG details', resp)
 
     @parameterized.expand(["graph", "tree", "dag_details"])
-    @mock.patch('airflow.www.views.dagbag.get_dag')
+    @mock.patch('airflow.www.views.get_app_dag_bag')
     def test_view_uses_existing_dagbag(self, endpoint, mock_get_dag):
         """
         Test that Graph, Tree & Dag Details View uses the DagBag already created in views.py
         instead of creating a new one.
         """
-        mock_get_dag.return_value = DAG(dag_id='example_bash_operator')
+        mock_get_dag.return_value.get_dag.return_value = DAG(dag_id='example_bash_operator')
         url = f'{endpoint}?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
-        mock_get_dag.assert_called_once_with('example_bash_operator')
         self.check_content_in_response('example_bash_operator', resp)
 
     @parameterized.expand([
@@ -1052,7 +1051,7 @@ class TestLogView(TestBase):
             settings.configure_orm()
             self.login()
 
-            from airflow.www.views import dagbag
+            dagbag = self.app.dag_bag
             dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
             dag.sync_to_db()
             dag_removed = DAG(self.DAG_ID_REMOVED, start_date=self.DEFAULT_DATE)
@@ -1252,7 +1251,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.runs = []
 
     def setup(self):
-        from airflow.www.views import dagbag
+        dagbag = self.test.app.dag_bag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
         for run_data in self.RUNS_DATA:
@@ -2192,14 +2191,13 @@ class TestRenderedView(TestBase):
         with create_session() as session:
             session.query(RTIF).delete()
 
-    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
-    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_rendered_view(self, get_dag_function):
+    @mock.patch('airflow.www.views.get_app_dag_bag')
+    def test_rendered_view(self, mock_get_dagbag):
         """
         Test that the Rendered View contains the values from RenderedTaskInstanceFields
         """
-        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+        mock_get_dagbag.return_value.get_dag.return_value = \
+            SerializedDagModel.get(self.dag.dag_id).dag
 
         self.assertEqual(self.task1.bash_command, '{{ task_instance_key_str }}')
         ti = TaskInstance(self.task1, self.default_date)
@@ -2213,15 +2211,14 @@ class TestRenderedView(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response("testdag__task1__20200301", resp)
 
-    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
-    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_rendered_view_for_unexecuted_tis(self, get_dag_function):
+    @mock.patch('airflow.www.views.get_app_dag_bag')
+    def test_rendered_view_for_unexecuted_tis(self, mock_get_dagbag):
         """
         Test that the Rendered View is able to show rendered values
         even for TIs that have not yet executed
         """
-        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+        mock_get_dagbag.return_value.get_dag.return_value = \
+            SerializedDagModel.get(self.dag.dag_id).dag
 
         self.assertEqual(self.task1.bash_command, '{{ task_instance_key_str }}')
 
@@ -2231,15 +2228,15 @@ class TestRenderedView(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response("testdag__task1__20200301", resp)
 
-    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
     @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_user_defined_filter_and_macros_raise_error(self, get_dag_function):
+    @mock.patch('airflow.www.views.get_app_dag_bag')
+    def test_user_defined_filter_and_macros_raise_error(self, mock_get_dagbag):
         """
         Test that the Rendered View is able to show rendered values
         even for TIs that have not yet executed
         """
-        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+        mock_get_dagbag.return_value.get_dag.return_value = \
+            SerializedDagModel.get(self.dag.dag_id).dag
 
         self.assertEqual(self.task2.bash_command,
                          'echo {{ fullname("Apache", "Airflow") | hello }}')
@@ -2326,16 +2323,15 @@ class TestTriggerDag(TestBase):
         self.assertEqual(resp.status_code, 200)
         self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
 
-    @mock.patch('airflow.www.views.dagbag.get_dag')
+    @mock.patch('airflow.www.views.get_app_dag_bag')
     def test_trigger_endpoint_uses_existing_dagbag(self, mock_get_dag):
         """
         Test that Trigger Endpoint uses the DagBag already created in views.py
         instead of creating a new one.
         """
-        mock_get_dag.return_value = DAG(dag_id='example_bash_operator')
+        mock_get_dag.return_value.get_dag.return_value = DAG(dag_id='example_bash_operator')
         url = 'trigger?dag_id=example_bash_operator'
         resp = self.client.post(url, data={}, follow_redirects=True)
-        mock_get_dag.assert_called_once_with('example_bash_operator')
         self.check_content_in_response('example_bash_operator', resp)
 
 
@@ -2386,9 +2382,9 @@ class TestExtraLinks(TestBase):
         self.task_2 = Dummy2TestOperator(task_id="some_dummy_task_2", dag=self.dag)
         self.task_3 = Dummy3TestOperator(task_id="some_dummy_task_3", dag=self.dag)
 
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_extra_links_works(self, get_dag_function):
-        get_dag_function.return_value = self.dag
+    @mock.patch('airflow.www.views.get_app_dag_bag')
+    def test_extra_links_works(self, mock_get_dagbag):
+        mock_get_dagbag.return_value.get_dag.return_value = self.dag
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=foo-bar"
@@ -2405,9 +2401,9 @@ class TestExtraLinks(TestBase):
             'error': None
         })
 
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_global_extra_links_works(self, get_dag_function):
-        get_dag_function.return_value = self.dag
+    @mock.patch('airflow.www.views.get_app_dag_bag')
+    def test_global_extra_links_works(self, mock_get_dagbag):
+        mock_get_dagbag.return_value.get_dag.return_value = self.dag
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=github"
@@ -2423,9 +2419,9 @@ class TestExtraLinks(TestBase):
             'error': None
         })
 
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_extra_link_in_gantt_view(self, get_dag_function):
-        get_dag_function.return_value = self.dag
+    @mock.patch('airflow.www.views.get_app_dag_bag')
+    def test_extra_link_in_gantt_view(self, mock_get_dagbag):
+        mock_get_dagbag.return_value.get_dag.return_value = self.dag
 
         exec_date = dates.days_ago(2)
         start_date = datetime(2020, 4, 10, 2, 0, 0)
@@ -2448,9 +2444,9 @@ class TestExtraLinks(TestBase):
         self.assertIn('airflow', extra_links)
         self.assertIn('github', extra_links)
 
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_operator_extra_link_override_global_extra_link(self, get_dag_function):
-        get_dag_function.return_value = self.dag
+    @mock.patch('airflow.www.views.get_app_dag_bag')
+    def test_operator_extra_link_override_global_extra_link(self, mock_get_dagbag):
+        mock_get_dagbag.return_value.get_dag.return_value = self.dag
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
@@ -2466,9 +2462,9 @@ class TestExtraLinks(TestBase):
             'error': None
         })
 
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_extra_links_error_raised(self, get_dag_function):
-        get_dag_function.return_value = self.dag
+    @mock.patch('airflow.www.views.get_app_dag_bag')
+    def test_extra_links_error_raised(self, mock_get_dagbag):
+        mock_get_dagbag.return_value.get_dag.return_value = self.dag
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=raise_error"
@@ -2483,9 +2479,9 @@ class TestExtraLinks(TestBase):
             'url': None,
             'error': 'This is an error'})
 
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_extra_links_no_response(self, get_dag_function):
-        get_dag_function.return_value = self.dag
+    @mock.patch('airflow.www.views.get_app_dag_bag')
+    def test_extra_links_no_response(self, mock_get_dagbag):
+        mock_get_dagbag.return_value.get_dag.return_value = self.dag
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=no_response"
@@ -2500,8 +2496,8 @@ class TestExtraLinks(TestBase):
             'url': None,
             'error': 'No URL found for no_response'})
 
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_operator_extra_link_override_plugin(self, get_dag_function):
+    @mock.patch('airflow.www.views.get_app_dag_bag')
+    def test_operator_extra_link_override_plugin(self, mock_get_dagbag):
         """
         This tests checks if Operator Link (AirflowLink) defined in the Dummy2TestOperator
         is overriden by Airflow Plugin (AirflowLink2).
@@ -2509,7 +2505,7 @@ class TestExtraLinks(TestBase):
         AirflowLink returns 'https://airflow.apache.org/' link
         AirflowLink2 returns 'https://airflow.apache.org/1.10.5/' link
         """
-        get_dag_function.return_value = self.dag
+        mock_get_dagbag.return_value.get_dag.return_value = self.dag
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
@@ -2525,8 +2521,8 @@ class TestExtraLinks(TestBase):
             'error': None
         })
 
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_operator_extra_link_multiple_operators(self, get_dag_function):
+    @mock.patch('airflow.www.views.get_app_dag_bag')
+    def test_operator_extra_link_multiple_operators(self, mock_get_dagbag):
         """
         This tests checks if Operator Link (AirflowLink2) defined in
         Airflow Plugin (AirflowLink2) is attached to all the list of
@@ -2535,7 +2531,7 @@ class TestExtraLinks(TestBase):
         AirflowLink2 returns 'https://airflow.apache.org/1.10.5/' link
         GoogleLink returns 'https://www.google.com'
         """
-        get_dag_function.return_value = self.dag
+        mock_get_dagbag.return_value.get_dag.return_value = self.dag
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(

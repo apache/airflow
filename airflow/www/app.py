@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 from datetime import timedelta
 from typing import Optional
 
@@ -30,6 +31,7 @@ from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
+from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_security import init_api_experimental_auth, init_xframe_protection
@@ -84,6 +86,8 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     db = SQLA()
     db.session = settings.Session
     db.init_app(flask_app)
+
+    init_dagbag(flask_app)
 
     init_api_experimental_auth(flask_app)
 
