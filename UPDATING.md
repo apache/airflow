@@ -62,7 +62,12 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### Not-nullable conn_type collumn in connection table
+### BaseOperator uses metaclass
+
+`BaseOperator` class uses a `BaseOperatorMeta` as a metaclass. This meta class is based on
+`abc.ABCMeta`. If your custom operator uses different metaclass then you will have to adjust it.
+
+### Not-nullable conn_type column in connection table
 
 The `conn_type` column in the `connection` table must contain content. Previously, this rule was enforced
 by application logic, but was not enforced by the database schema.
