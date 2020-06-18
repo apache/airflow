@@ -30,7 +30,7 @@ class TestDagUnpausedDep(unittest.TestCase):
         Test paused DAG should fail dependency
         """
         dag = Mock(**{'get_is_paused.return_value': True})
-        task = Mock(dag=dag)
+        task = Mock(dag=dag, task_tags=[])
         ti = TaskInstance(task=task, execution_date=None)
 
         self.assertFalse(DagUnpausedDep().is_met(ti=ti))
@@ -40,7 +40,7 @@ class TestDagUnpausedDep(unittest.TestCase):
         Test all conditions met should pass dep
         """
         dag = Mock(**{'get_is_paused.return_value': False})
-        task = Mock(dag=dag)
+        task = Mock(dag=dag, task_tags=[])
         ti = TaskInstance(task=task, execution_date=None)
 
         self.assertTrue(DagUnpausedDep().is_met(ti=ti))

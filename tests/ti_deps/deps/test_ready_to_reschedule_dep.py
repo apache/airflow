@@ -31,7 +31,7 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
 
     def _get_task_instance(self, state):
         dag = DAG('test_dag')
-        task = Mock(dag=dag)
+        task = Mock(dag=dag, task_tags=[])
         ti = TaskInstance(task=task, state=state, execution_date=None)
         return ti
 
