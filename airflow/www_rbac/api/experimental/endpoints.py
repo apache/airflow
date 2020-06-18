@@ -457,10 +457,16 @@ def do_remove_curve_from_curve_template(bolt_no=None, craft_type=None, version=N
         raise Exception('无法找到对应模式的曲线组')
     if template_data_array[curve_idx]:
         del template_data_array[curve_idx]
+    if len(template_data_array) == 0:
+        del groups[group_center_idx]
+        mode_cluster['curve_template_groups_k'] -= 1
+    if mode_cluster['curve_template_groups_k'] == 0:
+        del template_cluster[mode]
     curve_template.update({
         'version': template_version + 1
     })
-    Variable.set(key, curve_template, serialize_json=True, is_curve_template=True)
+    Variable.update(key, curve_template, serialize_json=True)
+    # todo: load new template
     return curve_template
 
 
