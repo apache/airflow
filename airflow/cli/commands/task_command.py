@@ -41,6 +41,8 @@ from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
+CAN_FORK = hasattr(os, 'fork')
+
 
 def _run_task_by_selected_method(args, dag, ti):
     """
@@ -182,9 +184,25 @@ def task_run(args, dag=None):
     if args.interactive:
         _run_task_by_selected_method(args, dag, ti)
     else:
+        airflow_logger = None
+        airflow_logger_handlers = []
+        if CAN_FORK:
+            airflow_logger_handlers = logging.getLogger('airflow.task').handlers
+            airflow_logger = logging.getLogger('airflow')
+            for handler in airflow_logger_handlers:
+                airflow_logger.addHandler(handler)
+            airflow_logger.setLevel(logging.getLogger('airflow.task').level)
+            airflow_logger.propagate = False
+
         with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
                 redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
             _run_task_by_selected_method(args, dag, ti)
+
+        if CAN_FORK:
+            for handler in airflow_logger_handlers:
+                airflow_logger.removeHandler(handler)
+            airflow_logger.propagate = True
+
     logging.shutdown()
 
 

@@ -17,6 +17,7 @@
 # under the License.
 #
 import io
+import os
 import unittest
 from contextlib import redirect_stdout
 from datetime import datetime, timedelta
@@ -28,6 +29,7 @@ from tabulate import tabulate
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, TaskInstance
 from airflow.settings import Session
@@ -243,6 +245,80 @@ class TestCliTasks(unittest.TestCase):
         ti.refresh_from_db()
         state = ti.current_state()
         self.assertEqual(state, State.SUCCESS)
+
+
+class TestLogsfromTaskRunCommand(unittest.TestCase):
+
+    def setUp(self) -> None:
+        reset("example_bash_operator")
+        self.execution_date_str = timezone.make_aware(datetime(2017, 1, 1)).isoformat()
+        self.log_dir = conf.get('logging', 'base_log_folder')
+        self.log_filename = f"example_bash_operator/runme_0/{self.execution_date_str}/1.log"
+        self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
+        self.parser = cli_parser.get_parser()
+        try:
+            os.remove(self.ti_log_file_path)
+        except OSError:
+            pass
+
+    def tearDown(self) -> None:
+        reset("example_bash_operator")
+        try:
+            os.remove(self.ti_log_file_path)
+        except OSError:
+            pass
+
+    def test_logging_with_run_task(self):
+        task_command.task_run(self.parser.parse_args([
+            'tasks', 'run', 'example_bash_operator', 'runme_0', '--local', self.execution_date_str]))
+
+        with open(self.ti_log_file_path) as l_file:
+            logs = l_file.read()
+
+        print(logs)     # In case of a test failures this line would show detailed log
+        logs_list = logs.splitlines()
+
+        ltj_exit_code_log_line = [log for log in logs_list if "Task exited with return code 0" in log]
+        self.assertEqual(len(ltj_exit_code_log_line), 1)
+        self.assertIn("local_task_job.py", ltj_exit_code_log_line[0])
+        self.assertNotIn("logging_mixin.py", ltj_exit_code_log_line[0])
+
+        self.assertIn("INFO - Started process", logs)
+        self.assertIn("INFO - Running: ['airflow', 'tasks', 'run', 'example_bash_operator', "
+                      "'runme_0', '2017-01-01T00:00:00+00:00',", logs)
+        self.assertIn("INFO - Running command: "
+                      "echo \"example_bash_operator__runme_0__20170101\" && sleep 1", logs)
+        self.assertIn("INFO - Marking task as SUCCESS.dag_id=example_bash_operator, "
+                      "task_id=runme_0, execution_date=20170101T000000", logs)
+
+        # This one lines comes from the print statement in task_run command
+        lines_with_logging_mixins = [log for log in logs_list if "logging_mixin" in log]
+        self.assertIn("on host", lines_with_logging_mixins[0])
+        self.assertEqual(len(lines_with_logging_mixins), 1)
+
+    @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
+    def test_logging_with_run_task_subprocess(self):
+        task_command.task_run(self.parser.parse_args([
+            'tasks', 'run', 'example_bash_operator', 'runme_0', '--local', self.execution_date_str]))
+
+        with open(self.ti_log_file_path) as l_file:
+            logs = l_file.read()
+
+        print(logs)     # In case of a test failures this line would show detailed log
+        logs_list = logs.splitlines()
+
+        ltj_exit_code_log_line = [log for log in logs_list if "Task exited with return code 0" in log]
+        self.assertEqual(len(ltj_exit_code_log_line), 1)
+        self.assertIn("local_task_job.py", ltj_exit_code_log_line[0])
+        self.assertNotIn("logging_mixin.py", ltj_exit_code_log_line[0])
+
+        self.assertIn("INFO - subprocess", logs)
+        self.assertIn("INFO - Running: ['airflow', 'tasks', 'run', 'example_bash_operator', "
+                      "'runme_0', '2017-01-01T00:00:00+00:00',", logs)
+        self.assertIn("INFO - Running command: "
+                      "echo \"example_bash_operator__runme_0__20170101\" && sleep 1", logs)
+        self.assertIn("INFO - Marking task as SUCCESS.dag_id=example_bash_operator, "
+                      "task_id=runme_0, execution_date=20170101T000000", logs)
 
 
 class TestCliTaskBackfill(unittest.TestCase):
