@@ -93,6 +93,54 @@
   {{ end }}
 {{- end }}
 
+{{/*  Git ssh key volume */}}
+{{- define "git_sync_ssh_key_volume"}}
+- name: git-sync-ssh-key
+  secret:
+    secretName: {{ .Values.gitSync.ssh_key_secret }}
+    defaultMode: 288
+{{- end }}
+
+{{/*  Git sync container */}}
+{{- define "git_sync_container"}}
+- name: {{ .Values.gitSync.container_name }}
+  image: "{{ .Values.gitSync.container_repository }}:{{ .Values.gitSync.container_tag }}"
+  env:
+    {{- if .Values.gitSync.ssh_key_secret }}
+    - name: GIT_SSH_KEY_FILE
+      value: "/etc/git-secret/ssh"
+    - name: GIT_SYNC_SSH
+      value: "true"
+    {{- end }}
+    - name: GIT_SYNC_REV
+      value: {{ .Values.gitSync.rev | quote }}
+    - name: GIT_SYNC_BRANCH
+      value: {{ .Values.gitSync.branch | quote }}
+    - name: GIT_SYNC_REPO
+      value: {{ .Values.gitSync.repo | quote }}
+    - name: GIT_SYNC_DEPTH
+      value: {{ .Values.gitSync.depth | quote }}
+    - name: GIT_SYNC_ROOT
+      value: {{ .Values.gitSync.root | quote }}
+    - name: GIT_SYNC_DEST
+      value: {{ .Values.gitSync.dest | quote }}
+    - name: GIT_SYNC_ADD_USER
+      value: "true"
+    - name: GIT_KNOWN_HOSTS
+      value: "false"
+    - name: GIT_SYNC_WAIT
+      value: {{ .Values.gitSync.wait | quote }}
+  volumeMounts:
+  - name: dags
+    mountPath: {{ .Values.gitSync.root }}
+  {{- if and  .Values.gitSync.enabled  .Values.gitSync.ssh_key_secret }}
+  - name: git-sync-ssh-key
+    mountPath: /etc/git-secret/ssh
+    readOnly: true
+    subPath: gitSshKey
+  {{- end }}
+{{- end }}
+
 # This helper will change when customers deploy a new image.
 {{ define "airflow_image" -}}
 {{ printf "%s:%s" (.Values.images.airflow.repository | default .Values.defaultAirflowRepository) (.Values.images.airflow.tag | default .Values.defaultAirflowTag) }}
@@ -185,9 +233,22 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
 {{ (printf "%s/logs" .Values.airflowHome) | quote }}
 {{- end }}
 
+{{ define "airflow_dags" -}}
+{{- if .Values.gitSync.enabled -}}
+{{ (printf "%s/dags/%s/%s" .Values.airflowHome .Values.gitSync.dest .Values.gitSync.subpath ) }}
+{{- else -}}
+{{ (printf "%s/dags" .Values.airflowHome) }}
+{{- end -}}
+{{- end -}}
+
+{{ define "airflow_dags_mount_path" -}}
+{{ (printf "%s/dags" .Values.airflowHome) }}
+{{- end }}
+
 {{ define "airflow_config_path" -}}
 {{ (printf "%s/airflow.cfg" .Values.airflowHome) | quote }}
 {{- end }}
+
 {{ define "airflow_webserver_config_path" -}}
 {{ (printf "%s/webserver_config.py" .Values.airflowHome) | quote }}
 {{- end }}

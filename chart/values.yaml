@@ -438,3 +438,35 @@ postgresql:
 # Authentication backend used for the experimental API
 api:
   authBackend: airflow.api.auth.backend.deny_all
+
+# Git sync
+gitSync:
+  enabled: true
+  persistence:
+    # Enable persistent volumes for storing synced dags
+    enabled: true
+    # Volume size for dags
+    size: 1Gi
+    # If using a custom storageClass, pass name here
+    storageClassName:
+  # git repo clone url
+  # ssh examples ssh://git@github.com/apache/airflow.git
+  # git@github.com:apache/airflow.git
+  # https example: https://github.com/apache/airflow.git
+  repo: https://github.com/apache/airflow.git
+  branch: v1-10-stable
+  rev: HEAD
+  root: "/git"
+  dest: "repo"
+  depth: 1
+  # subpath within the repo where dags are located
+  # should be "" if dags are at repo root
+  subpath: "tests/dags"
+  #TODO Handle username password secrets
+  #TODO Handle known_hosts
+  #credentials_secret:
+  #ssh_key_secret: git-ssh
+  wait: 60
+  container_repository: k8s.gcr.io/git-sync
+  container_tag: v3.1.6
+  container_name: git-sync-clone

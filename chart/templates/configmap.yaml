@@ -35,6 +35,7 @@ data:
   # These are system-specified config overrides.
   airflow.cfg: |
     [core]
+    dags_folder = {{ include "airflow_dags" . }}
     load_examples = False
     colored_console_log = False
     executor = {{ .Values.executor }}
@@ -92,8 +93,31 @@ data:
     worker_container_image_pull_policy = {{ .Values.images.airflow.pullPolicy }}
     worker_service_account_name = {{ .Release.Name }}-worker-serviceaccount
     image_pull_secrets = {{ template "registry_secret" . }}
-    dags_in_image = True
+    dags_in_image = {{ if .Values.gitSync.enabled }}False{{ else }}True{{ end }}
     delete_worker_pods = True
+    run_as_user = {{ .Values.uid }}
+    {{- if .Values.gitSync.enabled }}
+    git_dags_folder_mount_point = {{ include "airflow_dags_mount_path" . }}
+    dags_volume_mount_point = {{ include "airflow_dags_mount_path" . }}
+
+    {{- if .Values.gitSync.persistence.enabled }}
+    dags_volume_claim = {{ .Release.Name }}-dags
+    dags_volume_subpath = {{.Values.gitSync.dest }}/{{ .Values.gitSync.subpath }}
+    {{- else }}
+    git_repo = {{ .Values.gitSync.repo }}
+    git_branch = {{ .Values.gitSync.branch }}
+    git_sync_rev = {{ .Values.gitSync.rev }}
+    git_sync_depth = {{ .Values.gitSync.depth }}
+    git_sync_root = {{ .Values.gitSync.root }}
+    git_sync_dest = {{ .Values.gitSync.dest }}
+    git_sync_container_repository = {{ .Values.gitSync.container_repository }}
+    git_sync_container_tag = {{ .Values.gitSync.container_tag }}
+    git_sync_init_container_name = {{ .Values.gitSync.container_name }}
+    {{- if .Values.gitSync.ssh_key_secret }}
+    git_ssh_key_secret_name = {{ .Values.gitSync.ssh_key_secret }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
 
     [kubernetes_secrets]
     AIRFLOW__CORE__SQL_ALCHEMY_CONN = {{ printf "%s=connection" (include "airflow_metadata_secret" .) }}

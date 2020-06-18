@@ -145,6 +145,11 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
 {{- end }}
+{{- if .Values.gitSync.enabled }}
+            - name: dags
+              mountPath: {{ template "airflow_dags_mount_path" . }}
+        {{- include "git_sync_container" . | indent 8 }}
+{{- end }}
         # Always start the garbage collector sidecar.
         - name: scheduler-gc
           image: {{ template "airflow_image" . }}
@@ -177,6 +182,19 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if and  .Values.gitSync.enabled  .Values.gitSync.ssh_key_secret }}
+        {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+        {{- end }}
+        {{- if .Values.gitSync.enabled }}
+        {{- if .Values.gitSync.persistence.enabled }}
+        - name: dags
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-dags
+        {{- else }}
+        - name: dags
+          emptyDir: {}
+        {{- end }}
+        {{- end }}
 {{- if not $stateful }}
         - name: logs
           emptyDir: {}

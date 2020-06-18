@@ -82,6 +82,9 @@ spec:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
       containers:
+{{- if and (.Values.gitSync.enabled) (not .Values.gitSync.persistence.enabled) }}
+{{- include "git_sync_container" . | indent 8 }}
+{{- end }}
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
@@ -104,6 +107,10 @@ spec:
               mountPath: {{ template "airflow_local_setting_path" . }}
               subPath: airflow_local_settings.py
               readOnly: true
+{{- end }}
+{{- if .Values.gitSync.enabled }}
+            - name: dags
+              mountPath: {{ template "airflow_dags_mount_path" . }}
 {{- end }}
 {{- if .Values.webserver.extraVolumeMounts }}
 {{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
@@ -134,6 +141,19 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if .Values.gitSync.enabled }}
+        {{- if .Values.gitSync.persistence.enabled }}
+        - name: dags
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-dags
+        {{- else }}
+        {{- if  .Values.gitSync.ssh_key_secret }}
+        {{- include "git_ssh_key_volume" . | indent 8 }}
+        {{- end }}
+        - name: dags
+          emptyDir: {}
+        {{- end }}
+        {{- end }}
 {{- if .Values.webserver.extraVolumes }}
 {{ toYaml .Values.webserver.extraVolumes | indent 8 }}
 {{- end }}
