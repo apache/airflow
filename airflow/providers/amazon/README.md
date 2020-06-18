@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-amazon
 
-Release: 2020.5.20
+Release: 2020-06-23
 
 **Table of contents**
 
@@ -44,7 +44,7 @@ Release: 2020.5.20
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
-    - [Release 2020.5.20](#release-2020520)
+    - [Release 2020-06-23](#release-2020-06-23)
 
 ## Backport package
 
@@ -95,7 +95,7 @@ pip install apache-airflow-backport-providers-amazon[apache.hive]
 | [apache-airflow-backport-providers-postgres](https://github.com/apache/airflow/tree/master/airflow/providers/postgres)       | postgres    |
 | [apache-airflow-backport-providers-ssh](https://github.com/apache/airflow/tree/master/airflow/providers/ssh)                 | ssh         |
 
-# Provider class summary
+# Provider classes summary
 
 All classes in Airflow 2.0 are in `airflow.providers.amazon` package.
 
@@ -253,10 +253,11 @@ All classes in Airflow 2.0 are in `airflow.providers.amazon` package.
 
 ## Releases
 
-### Release 2020.5.20
+### Release 2020-06-23
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                                                                                             |
 | [58a8ec0e4](https://github.com/apache/airflow/commit/58a8ec0e46f624ee0369dd156dd8fb4f81884a21) | 2020-06-16  | AWSBatchOperator &lt;&gt; ClientHook relation changed to composition (#9306)                                                                                             |
 | [a80cd25e8](https://github.com/apache/airflow/commit/a80cd25e8eb7f8b5d89af26cdcd62a5bbe44d65c) | 2020-06-15  | Close/Flush byte stream in s3 hook load_string and load_bytes (#9211)                                                                                              |
 | [ffb857403](https://github.com/apache/airflow/commit/ffb85740373f7adb70d28ec7d5a8886380170e5e) | 2020-06-14  | Decrypt secrets from SystemsManagerParameterStoreBackend (#9214)                                                                                                   |

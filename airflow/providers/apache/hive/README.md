@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-apache-hive
 
-Release: 2020.5.20
+Release: 2020-06-23
 
 **Table of contents**
 
@@ -39,7 +39,7 @@ Release: 2020.5.20
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 2020.5.20](#release-2020520)
+    - [Release 2020-06-23](#release-2020-06-23)
 
 ## Backport package
 
@@ -90,7 +90,7 @@ pip install apache-airflow-backport-providers-apache-hive[amazon]
 | [apache-airflow-backport-providers-samba](https://github.com/apache/airflow/tree/master/airflow/providers/samba)                     | samba           |
 | [apache-airflow-backport-providers-vertica](https://github.com/apache/airflow/tree/master/airflow/providers/vertica)                 | vertica         |
 
-# Provider class summary
+# Provider classes summary
 
 All classes in Airflow 2.0 are in `airflow.providers.apache.hive` package.
 
@@ -160,10 +160,12 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.hive` package.
 
 ## Releases
 
-### Release 2020.5.20
+### Release 2020-06-23
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                                                                                             |
+| [c78e2a5fe](https://github.com/apache/airflow/commit/c78e2a5feae15e84b05430cfc5935f0e289fb6b4) | 2020-06-16  | Make hive macros py3 compatible (#8598)                                                                                                                            |
 | [6350fd6eb](https://github.com/apache/airflow/commit/6350fd6ebb9958982cb3fa1d466168fc31708035) | 2020-06-08  | Don&#39;t use the term &#34;whitelist&#34; - language matters (#9174)                                                                                                          |
 | [10796cb7c](https://github.com/apache/airflow/commit/10796cb7ce52c8ac2f68024e531fdda779547bdf) | 2020-06-03  | Remove Hive/Hadoop/Java dependency from unit tests (#9029)                                                                                                         |
 | [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                                                                                                                      |

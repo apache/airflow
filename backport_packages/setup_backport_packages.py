@@ -1034,13 +1034,15 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
     if old_text != readme:
         file, temp_file_path = tempfile.mkstemp(".md")
         try:
-            copyfile(readme_file_path, temp_file_path)
+            if os.path.isfile(readme_file_path):
+                copyfile(readme_file_path, temp_file_path)
             with open(readme_file_path, "wt") as readme_file:
                 readme_file.write(readme)
             print()
             print(f"Generated {readme_file_path} file for the {provider_package_id} provider")
             print()
-            subprocess.call(["diff", "--color=always", temp_file_path, readme_file_path])
+            if old_text != "":
+                subprocess.call(["diff", "--color=always", temp_file_path, readme_file_path])
         finally:
             os.remove(temp_file_path)
     total, bad = check_if_classes_are_properly_named(class_summary)

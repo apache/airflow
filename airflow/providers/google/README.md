@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-google
 
-Release: 2020.5.20
+Release: 2020-06-23
 
 **Table of contents**
 
@@ -45,7 +45,7 @@ Release: 2020.5.20
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
-    - [Release 2020.5.20](#release-2020520)
+    - [Release 2020-06-23](#release-2020-06-23)
 
 ## Backport package
 
@@ -57,13 +57,6 @@ are in `airflow.providers.google` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-## Additional notes
-
-The BigQuery classes are undergoing heavy rewriting. The implementation in Airflow 2.0 will not
-be fully backwards compatible with the old BigQuery operators. Therefore, the BigQuery classes
-have been stripped out of the current release of the backport packages. We will add the
-BigQuery Classes back in one of the future releases of the provider&#39;s package.
 
 
 ## Installation
@@ -134,7 +127,7 @@ pip install apache-airflow-backport-providers-google[amazon]
 | [apache-airflow-backport-providers-presto](https://github.com/apache/airflow/tree/master/airflow/providers/presto)                     | presto           |
 | [apache-airflow-backport-providers-sftp](https://github.com/apache/airflow/tree/master/airflow/providers/sftp)                         | sftp             |
 
-# Provider class summary
+# Provider classes summary
 
 All classes in Airflow 2.0 are in `airflow.providers.google` package.
 
@@ -567,10 +560,11 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 
 ## Releases
 
-### Release 2020.5.20
+### Release 2020-06-23
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                                                                                             |
 | [639972d99](https://github.com/apache/airflow/commit/639972d995d848b16a3f283576efdbde28b8fdef) | 2020-06-16  | Add support for latest Apache Beam SDK in Dataflow operators (#9323)                                                                                               |
 | [1459970b3](https://github.com/apache/airflow/commit/1459970b3b9780e139ce029ae889fd8f69a37bc7) | 2020-06-15  | Rename CloudBuildCreateBuildOperator to CloudBuildCreateOperator (#9314)                                                                                           |
 | [431ea3291](https://github.com/apache/airflow/commit/431ea3291c9bf236bccdf8446d753c630ada2b25) | 2020-06-15  | Resolve upstream tasks when template field is XComArg (#8805)                                                                                                      |

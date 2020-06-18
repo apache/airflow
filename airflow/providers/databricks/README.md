@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-databricks
 
-Release: 2020.5.20
+Release: 2020-06-23
 
 **Table of contents**
 
@@ -34,7 +34,7 @@ Release: 2020.5.20
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 2020.5.20](#release-2020520)
+    - [Release 2020-06-23](#release-2020-06-23)
 
 ## Backport package
 
@@ -64,7 +64,7 @@ For full compatibility and test status of the backport packages check
 |:--------------|:-------------------|
 | requests      | &gt;=2.20.0, &lt;3       |
 
-# Provider class summary
+# Provider classes summary
 
 All classes in Airflow 2.0 are in `airflow.providers.databricks` package.
 
@@ -104,10 +104,11 @@ All classes in Airflow 2.0 are in `airflow.providers.databricks` package.
 
 ## Releases
 
-### Release 2020.5.20
+### Release 2020-06-23
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                                                                                             |
 | [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                                                                                                                      |
 | [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)                                                                                                        |
 | [f1073381e](https://github.com/apache/airflow/commit/f1073381ed764a218b2502d15ca28a5b326f9f2d) | 2020-05-22  | Add support for spark python and submit tasks in Databricks operator(#8846)                                                                                        |

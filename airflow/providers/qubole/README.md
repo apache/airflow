@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-qubole
 
-Release: 2020.5.20
+Release: 2020-06-23
 
 **Table of contents**
 
@@ -36,7 +36,7 @@ Release: 2020.5.20
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 2020.5.20](#release-2020520)
+    - [Release 2020-06-23](#release-2020-06-23)
 
 ## Backport package
 
@@ -66,7 +66,7 @@ For full compatibility and test status of the backport packages check
 |:--------------|:-------------------|
 | qds-sdk       | &gt;=1.10.4           |
 
-# Provider class summary
+# Provider classes summary
 
 All classes in Airflow 2.0 are in `airflow.providers.qubole` package.
 
@@ -121,10 +121,11 @@ All classes in Airflow 2.0 are in `airflow.providers.qubole` package.
 
 ## Releases
 
-### Release 2020.5.20
+### Release 2020-06-23
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                                                                                             |
 | [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                                                                                                                      |
 | [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)                                                                                                        |
 | [1d36b0303](https://github.com/apache/airflow/commit/1d36b0303b8632fce6de78ca4e782ae26ee06fea) | 2020-05-23  | Fix references in docs (#8984)                                                                                                                                     |
