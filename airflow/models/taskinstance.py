@@ -17,7 +17,6 @@
 # under the License.
 import contextlib
 
-import collections.abc as coll
 import getpass
 import hashlib
 import logging
