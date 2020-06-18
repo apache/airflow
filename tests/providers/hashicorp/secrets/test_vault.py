@@ -230,7 +230,6 @@ class TestVaultSecrets(TestCase):
         with self.assertRaisesRegex(FileNotFoundError, path):
             VaultBackend(**kwargs).get_connections(conn_id='test')
 
-
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_auto_renew_token(self, mock_hvac):
         mock_client = mock.MagicMock()

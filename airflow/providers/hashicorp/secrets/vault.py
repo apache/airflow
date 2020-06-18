@@ -159,5 +159,5 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         return response.get("value") if response else None
 
     def _renew_token(self) -> None:
-        if (self.token_auto_renew):
+        if self.token_auto_renew:
             self.vault_client.client.renew_token()
