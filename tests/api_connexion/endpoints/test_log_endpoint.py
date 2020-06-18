@@ -22,6 +22,7 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
+from unittest.mock import PropertyMock
 
 from itsdangerous.url_safe import URLSafeSerializer
 
@@ -51,15 +52,30 @@ class TestGetLog(unittest.TestCase):
 
     def setUp(self) -> None:
         self.default_time = "2020-06-10T20:00:00+00:00"
-
+        self.client = self.app.test_client()
+        self.log_dir = tempfile.mkdtemp()
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)
+        self._prepare_log_files()
+        self._configure_loggers()
+        self._prepare_db()
 
+    def _create_dagrun(self, session):
+        dagrun_model = DagRun(
+            dag_id=self.DAG_ID,
+            run_id='TEST_DAG_RUN_ID',
+            run_type=DagRunType.MANUAL.value,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+        )
+        session.add(dagrun_model)
+        session.commit()
+
+    def _configure_loggers(self):
         # Create a custom logging configuration
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        logging_config['handlers']['task']['base_log_folder'] = os.path.normpath(
-            os.path.join(current_dir, 'test_logs'))
+        logging_config['handlers']['task']['base_log_folder'] = self.log_dir
 
         logging_config['handlers']['task']['filename_template'] = \
             '{{ ti.dag_id }}/{{ ti.task_id }}/' \
@@ -74,41 +90,38 @@ class TestGetLog(unittest.TestCase):
         sys.path.append(self.settings_folder)
 
         with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
-            self.app = app.create_app(testing=True)  # type:ignore
-            self.client = self.app.test_client()  # type:ignore
-            settings.configure_orm()
-            from airflow.api_connexion.endpoints.log_endpoint import dagbag
-            dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
-            dag.sync_to_db()
-            dag_removed = DAG(self.DAG_ID_REMOVED, start_date=timezone.parse(self.default_time))
-            dag_removed.sync_to_db()
-            dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
-            with create_session() as session:
-                self.ti = TaskInstance(
-                    task=DummyOperator(task_id=self.TASK_ID, dag=dag),
-                    execution_date=timezone.parse(self.default_time)
-                )
-                self.ti.try_number = 1
-                self.ti_removed_dag = TaskInstance(
-                    task=DummyOperator(task_id=self.TASK_ID, dag=dag_removed),
-                    execution_date=timezone.parse(self.default_time)
-                )
-                self.ti_removed_dag.try_number = 1
+            self.app = app.create_app(testing=True)
+            settings.configure_logging()
 
-                session.merge(self.ti)
-                session.merge(self.ti_removed_dag)
+    def _prepare_db(self):
+        from airflow.api_connexion.endpoints.log_endpoint import dagbag
+        dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
+        dag.sync_to_db()
+        dag_removed = DAG(self.DAG_ID_REMOVED, start_date=timezone.parse(self.default_time))
+        dag_removed.sync_to_db()
+        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+        with create_session() as session:
+            self.ti = TaskInstance(
+                task=DummyOperator(task_id=self.TASK_ID, dag=dag),
+                execution_date=timezone.parse(self.default_time)
+            )
+            self.ti.try_number = 1
+            self.ti_removed_dag = TaskInstance(
+                task=DummyOperator(task_id=self.TASK_ID, dag=dag_removed),
+                execution_date=timezone.parse(self.default_time)
+            )
+            self.ti_removed_dag.try_number = 1
 
-    def _create_dagrun(self, session):
-        dagrun_model = DagRun(
-            dag_id=self.DAG_ID,
-            run_id='TEST_DAG_RUN_ID',
-            run_type=DagRunType.MANUAL.value,
-            execution_date=timezone.parse(self.default_time),
-            start_date=timezone.parse(self.default_time),
-            external_trigger=True,
-        )
-        session.add(dagrun_model)
-        session.commit()
+            session.merge(self.ti)
+            session.merge(self.ti_removed_dag)
+
+    def _prepare_log_files(self):
+        dir_path = f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/" \
+                   f"{self.default_time.replace(':', '.')}/"
+        os.makedirs(dir_path)
+        with open(f"{dir_path}/1.log", "w+") as file:
+            file.write("Log for testing.")
+            file.flush()
 
     def tearDown(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -121,6 +134,7 @@ class TestGetLog(unittest.TestCase):
 
         sys.path.remove(self.settings_folder)
         shutil.rmtree(self.settings_folder)
+        shutil.rmtree(self.log_dir)
 
         super().tearDown()
 
@@ -164,6 +178,42 @@ class TestGetLog(unittest.TestCase):
         self.assertEqual(200, response.status_code)
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
 
+    @mock.patch("airflow.api_connexion.endpoints.log_endpoint.TaskLogReader")
+    def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
+        type(mock_log_reader.return_value).is_supported = PropertyMock(return_value=False)
+
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": False})
+        headers = {'Content-Type': 'application/json'}
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            headers=headers
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertIn('content', response.json)
+        self.assertIn('continuation_token', response.json)
+        self.assertIn(
+            'Task log handler does not support read logs.',
+            response.json['content'])
+
+    @provide_session
+    def test_get_logs_response_with_ti_equal_to_none(self, session):
+        self._create_dagrun(session)
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": True})
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/Invalid-Task-ID/logs/1?token={token}",
+        )
+        self.assertIn('content', response.json)
+        self.assertIn('continuation_token', response.json)
+        self.assertEqual("[*** Task instance did not exist in the DB\n]",
+                         response.json['content'])
+
     @provide_session
     def test_get_logs_with_metadata_as_download_large_file(self, session):
         self._create_dagrun(session)
@@ -183,31 +233,6 @@ class TestGetLog(unittest.TestCase):
             self.assertIn('2nd line', response.data.decode('utf-8'))
             self.assertIn('3rd line', response.data.decode('utf-8'))
             self.assertNotIn('should never be read', response.data.decode('utf-8'))
-
-    @provide_session
-    def test_get_logs_with_metadata_as_json_large_file(self, session):
-        self._create_dagrun(session)
-        with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
-            first_return = (['1st line'], [{}])
-            second_return = (['2nd line'], [{'end_of_log': False}])
-            third_return = (['3rd line'], [{'end_of_log': True}])
-            fourth_return = (['should never be read'], [{'end_of_log': True}])
-            read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
-
-            headers = {'Content-Type': 'application/json'}
-
-            response = self.client.get(
-                f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-                f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
-                headers=headers
-            )
-
-            self.assertIn('content', response.json)
-            self.assertIn('continuation_token', response.json)
-            self.assertIn('1st line', response.json.get('content'))
-            self.assertIn('2nd line', response.json.get('content'))
-            self.assertIn('3rd line', response.json.get('content'))
-            self.assertNotIn('should never be read', response.json.get('content'))
 
     @provide_session
     def test_bad_signature_raises(self, session):
