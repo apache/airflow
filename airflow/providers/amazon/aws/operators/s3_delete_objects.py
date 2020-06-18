@@ -85,5 +85,5 @@ class S3DeleteObjectsOperator(BaseOperator):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         keys = self.keys or s3_hook.list_keys(bucket_name=self.bucket, prefix=self.prefix)
-
-        s3_hook.delete_objects(bucket=self.bucket, keys=keys)
+        if keys:
+            s3_hook.delete_objects(bucket=self.bucket, keys=keys)
