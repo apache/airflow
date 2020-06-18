@@ -66,9 +66,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param token: Authentication token to include in requests sent to Vault.
         (for ``token`` and ``github`` auth_type)
     :type token: str
-
-    <INSERT YOUR STUFF HERE>
-
+    :param token_auto_renew: Specifies whether the token should automatically be renewed, or let to
+        expire when its expire time comes. (for ``token`` only auth_type)
+    :type token_auto_renew: bool
     :param username: Username for Authentication (for ``ldap`` and ``userpass`` auth_type).
     :type username: str
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_type).
