@@ -16,7 +16,7 @@
 # under the License.
 
 import logging
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from cached_property import cached_property
 
@@ -26,17 +26,37 @@ from airflow.utils.helpers import render_log_filename
 
 
 class TaskLogReader:
-    """TODO"""
+    """ Task log reader"""
 
-    def read_log_chunks(self, ti, try_number, metadata) -> Tuple[List[int], List[str]]:
-        """TODO"""
+    def read_log_chunks(self, ti: TaskInstance, try_number: Optional[int],
+                        metadata) -> Tuple[List[str], Dict[str, Any]]:
+        """
+         Reads logs in chunks
+        :param ti: The taskInstance
+        :type ti: TaskInstance
+        :param try_number: The taskInstance try_number
+        :type try_number: Optional[int]
+        :param metadata: A dictionary containing information about how to read the task
+        :type metadata: dict
+
+        """
 
         logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
         metadata = metadatas[0]
         return logs, metadata
 
-    def read_log_stream(self, ti, try_number, metadata):
-        """TODO"""
+    def read_log_stream(self, ti: TaskInstance, try_number: Optional[int], metadata: dict):
+        """
+        Used to continuously read log to the end
+
+        :param ti: The Task Instance
+        :type ti: TaskInstance
+        :param try_number: the task try number
+        :type try_number: Optional[int]
+        :param metadata: A dictionary containing information about how to read the task
+        :type metadata: dict
+
+        """
 
         if try_number is None:
             next_try = ti.next_try_number
@@ -53,7 +73,7 @@ class TaskLogReader:
 
     @cached_property
     def log_handler(self):
-        """TODO"""
+        """The log handler"""
 
         logger = logging.getLogger('airflow.task')
         task_log_reader = conf.get('logging', 'task_log_reader')
@@ -62,12 +82,19 @@ class TaskLogReader:
 
     @property
     def is_supported(self):
-        """TODO"""
+        """ Checks if read method is supported by a given log handler"""
 
         return hasattr(self.log_handler, 'read')
 
-    def render_log_filename(self, ti: TaskInstance, try_number: Optional[int]):
-        """TODO"""
+    def render_log_filename(self, ti: TaskInstance, try_number: Optional[int] = None):
+        """
+        Renders the log attachment filename
+
+        :param ti: The task instance
+        :type ti: TaskInstance
+        :param try_number: The task try number
+        :type try_number: Optional[int]
+        """
 
         filename_template = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
         attachment_filename = render_log_filename(
