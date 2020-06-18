@@ -16,6 +16,7 @@
 # under the License.
 
 from flask import request
+from sqlalchemy import func
 
 from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
@@ -55,7 +56,7 @@ def get_connections(session):
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
     query = session.query(Connection)
-    total_entries = query.count()
+    total_entries = session.query(func.count(Connection.id)).scalar()
     query = query.offset(offset).limit(limit)
 
     connections = query.all()
