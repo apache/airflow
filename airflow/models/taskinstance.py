@@ -165,6 +165,7 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
     error_tag = Column(String(1000))
+    measure_result = Column(String(20))  # 拧紧结果, OK/NOK
     result = Column(String(20))  # 分析结果, OK/NOK
     error_code = Column(Integer)
     verify_error = Column(Integer)

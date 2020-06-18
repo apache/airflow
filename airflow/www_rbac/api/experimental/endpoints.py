@@ -67,6 +67,7 @@ def put_anaylysis_result():
         real_task_id = data.get('real_task_id')
         execution_date = data.get('exec_date')
         entity_id = data.get('entity_id')
+        measure_result = data.get('measure_result')
         curve_mode = int(data.get('result'))  # OK, NOK
         verify_error = int(data.get('verify_error'))  # OK, NOK
         rresult = 'OK' if curve_mode is 0 else 'NOK'
@@ -89,6 +90,7 @@ def put_anaylysis_result():
                 response.status_code = 404
                 return response
             ti.result = rresult
+            ti.measure_result = measure_result
             ti.entity_id = entity_id
             ti.error_code = curve_mode
             if curve_mode is not 0:

@@ -2749,13 +2749,13 @@ class TaskInstanceModelView(AirflowModelView):
 
     page_size = PAGE_SIZE
 
-    list_columns = ['state', 'dag_id', 'task_id', 'entity_id', 'execution_date', 'result', 'final_state',
+    list_columns = ['state', 'dag_id', 'task_id', 'entity_id', 'execution_date', 'measure_result', 'result', 'final_state',
                     'start_date', 'end_date', 'duration', 'job_id',
                      'priority_weight',  'try_number',
                     # 'unixname', 'hostname', 'queue', 'queued_dttm', 'operator',
                     'pool', 'log_url']
 
-    search_columns = ['state', 'dag_id', 'entity_id', 'result', 'final_state', 'task_id', 'execution_date', 'hostname',
+    search_columns = ['state', 'dag_id', 'entity_id', 'measure_result', 'result', 'final_state', 'task_id', 'execution_date', 'hostname',
                       'queue', 'pool', 'operator', 'start_date', 'end_date']
 
     base_order = ('job_id', 'asc')
