@@ -71,8 +71,8 @@ class S3DeleteObjectsOperator(BaseOperator):
             verify=None,
             *args, **kwargs):
 
-        if not keys and not prefix:
-            raise ValueError("Either keys or prefix should be set. Both are None")
+        if not bool(keys) ^ bool(prefix):
+            raise ValueError("Either keys or prefix should be set.")
 
         super().__init__(*args, **kwargs)
         self.bucket = bucket
