@@ -32,8 +32,7 @@ def delete_connection(connection_id, session):
     """
     Delete a connection entry
     """
-    query = session.query(Connection)
-    query = query.filter_by(conn_id=connection_id)
+    query = session.query(Connection).filter_by(conn_id=connection_id)
     connection = query.one_or_none()
     if connection is None:
         raise NotFound('Connection not found')
@@ -59,7 +58,7 @@ def get_connections(session, limit, offset=0):
     """
     total_entries = session.query(func.count(Connection.id)).scalar()
     query = session.query(Connection)
-    connections = query.offset(offset).limit(limit).all()
+    connections = query.order_by(Connection.id).offset(offset).limit(limit).all()
     return connection_collection_schema.dump(ConnectionCollection(connections=connections,
                                                                   total_entries=total_entries))
 
@@ -71,8 +70,6 @@ def patch_connection(connection_id, session, update_mask=None):
     """
     body = connection_schema.load(request.json)
     data = body.data
-    # Here data contains only the allowed fields
-    # since it has passed through the schema
     connection = session.query(Connection).filter_by(conn_id=connection_id).first()
     if connection is None:
         raise NotFound("Connection not found")
@@ -98,7 +95,6 @@ def post_connection(session):
     """
     body = request.json
 
-    # connexion handles 400, no need for try/except
     result = connection_schema.load(body)
     data = result.data
     conn_id = data['conn_id']

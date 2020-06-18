@@ -64,4 +64,3 @@ class ConnectionCollectionSchema(Schema):
 connection_schema = ConnectionSchema(strict=True)
 connection_collection_item_schema = ConnectionCollectionItemSchema(strict=True)
 connection_collection_schema = ConnectionCollectionSchema(strict=True)
-
