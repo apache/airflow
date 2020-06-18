@@ -45,12 +45,12 @@ if [ ! -L "${BASH_SOURCE[0]}" ]
 then
     SCRIPT_PATH=$(readlink -e "${BASH_SOURCE[0]}")
     # Direct execution - return installation script
-    >&2 echo "# CLI tool wrappers"
-    >&2 echo "#"
-    >&2 echo "# To install, run the following command:"
-    >&2 echo "#     source <(bash ${SCRIPT_PATH@Q})"
-    >&2 echo "#"
-    >&2 echo ""
+    echo "# CLI tool wrappers"
+    echo "#"
+    echo "# To install, run the following command:"
+    echo "#     source <(bash ${SCRIPT_PATH@Q})"
+    echo "#"
+    echo ""
     # Print installation script
     for NAME in "${SUPPORTED_TOOL_NAMES[@]}"
     do
@@ -157,12 +157,8 @@ RES=$?
 
 # Set file permissions to the host user
 if [[ "${HOST_OS}" == "Linux" ]]; then
-    FIX_DOCKER_ARGS=(--rm)
-    FIX_DOCKER_ARGS+=("${COMMON_DOCKER_ARGS[@]}")
-    FIX_COMMAND=(bash -c
-        "find ${DIRECTORIES_TO_FIX[@]@Q} -user root -print0 | xargs --null chown '${HOST_USER_ID}.${HOST_GROUP_ID}' --no-dereference")
-
-    docker run "${FIX_DOCKER_ARGS[@]}" "${AIRFLOW_CI_IMAGE}" "${FIX_COMMAND[@]}" >/dev/null 2>&1
+    find "${DIRECTORIES_TO_FIX[@]}" -user root -print0 2>/dev/null | \
+        xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1 || true
 fi
 
 exit ${RES}
