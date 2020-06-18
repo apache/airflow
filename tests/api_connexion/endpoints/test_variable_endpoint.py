@@ -77,20 +77,20 @@ class TestGetVariables(TestVariableEndpoint):
                 {"key": "var1", "value": "1"},
                 {"key": "var2", "value": "foo"},
             ],
-            "total_entries": 2,
+            "total_entries": 3,
         }),
         ("/api/v1/variables?limit=2&offset=1", {
             "variables": [
                 {"key": "var2", "value": "foo"},
                 {"key": "var3", "value": "[100, 101]"},
             ],
-            "total_entries": 2,
+            "total_entries": 3,
         }),
         ("/api/v1/variables?limit=1&offset=2", {
             "variables": [
                 {"key": "var3", "value": "[100, 101]"},
             ],
-            "total_entries": 1,
+            "total_entries": 3,
         }),
     ])
     def test_should_get_list_variables(self, query, expected):
@@ -106,7 +106,7 @@ class TestGetVariables(TestVariableEndpoint):
             Variable.set(f"var{i}", i)
         response = self.client.get("/api/v1/variables")
         assert response.status_code == 200
-        assert response.json["total_entries"] == 100
+        assert response.json["total_entries"] == 101
         assert len(response.json["variables"]) == 100
 
 

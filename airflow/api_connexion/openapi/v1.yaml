@@ -2071,6 +2071,7 @@ components:
       properties:
         total_entries:
           type: integer
+          description: Total count for all collection items.
 
     # Enums
     TaskState:

@@ -18,6 +18,7 @@ from typing import List, Optional
 
 from flask import Response, request
 from marshmallow import ValidationError
+from sqlalchemy import func
 
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
@@ -50,7 +51,9 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
     """
     Get all variable values
     """
-    query = session.query(Variable).order_by(Variable.id)
+    query = session.query(Variable)
+    total_entries = session.query(func.count(Variable.id)).scalar()
+    query = query.order_by(Variable.id)
     if offset:
         query = query.offset(offset)
     if limit:
@@ -58,7 +61,7 @@ def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -
     variables = query.all()
     return variable_collection_schema.dump({
         "variables": variables,
-        "total_entries": len(variables),
+        "total_entries": total_entries,
     })
 
 
