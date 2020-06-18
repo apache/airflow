@@ -179,7 +179,7 @@ amazon = [
     'watchtower~=0.7.3',
 ]
 apache_beam = [
-    'apache-beam[gcp]<2.20.0',
+    'apache-beam[gcp]',
 ]
 async_packages = [
     'eventlet>= 0.9.7',
