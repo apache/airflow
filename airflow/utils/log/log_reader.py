@@ -31,10 +31,11 @@ class TaskLogReader:
     def read_log_chunks(self, ti: TaskInstance, try_number: Optional[int],
                         metadata) -> Tuple[List[str], Dict[str, Any]]:
         """
-         Reads logs in chunks
+        Reads chunks of Task Instance logs.
+
         :param ti: The taskInstance
         :type ti: TaskInstance
-        :param try_number: The taskInstance try_number
+        :param try_number: If provided, logs for the given try will be returned. Otherwise, logs from all attempts are returned.
         :type try_number: Optional[int]
         :param metadata: A dictionary containing information about how to read the task
         :type metadata: dict
@@ -73,7 +74,7 @@ class TaskLogReader:
 
     @cached_property
     def log_handler(self):
-        """The log handler"""
+        """Log handler, which is configured to read logs."""
 
         logger = logging.getLogger('airflow.task')
         task_log_reader = conf.get('logging', 'task_log_reader')
@@ -82,7 +83,7 @@ class TaskLogReader:
 
     @property
     def is_supported(self):
-        """ Checks if read method is supported by a given log handler"""
+        """Checks if a read operation is supported by a current log handler."""
 
         return hasattr(self.log_handler, 'read')
 
