@@ -229,3 +229,32 @@ class TestVaultSecrets(TestCase):
 
         with self.assertRaisesRegex(FileNotFoundError, path):
             VaultBackend(**kwargs).get_connections(conn_id='test')
+
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_auto_renew_token(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v1.read_secret.return_value = {
+            'request_id': '182d0673-618c-9889-4cba-4e1f4cfe4b4b',
+            'lease_id': '',
+            'renewable': False,
+            'lease_duration': 2764800,
+            'data': {'conn_uri': 'postgresql://airflow:airflow@host:5432/airflow'},
+            'wrap_info': None,
+            'warnings': None,
+            'auth': None}
+
+        kwargs = {
+            "connections_path": "connections",
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+            "token_auto_renew": "True",
+            "kv_engine_version": 1,
+        }
+
+        test_client = VaultBackend(**kwargs)
+        returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
+        self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)

@@ -66,6 +66,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param token: Authentication token to include in requests sent to Vault.
         (for ``token`` and ``github`` auth_type)
     :type token: str
+
+    <INSERT YOUR STUFF HERE>
+
     :param username: Username for Authentication (for ``ldap`` and ``userpass`` auth_type).
     :type username: str
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_type).
@@ -93,6 +96,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         mount_point: str = 'secret',
         kv_engine_version: int = 2,
         token: Optional[str] = None,
+        token_auto_renew: Optional[bool] = False,
         username: Optional[str] = None,
         password: Optional[str] = None,
         secret_id: Optional[str] = None,
@@ -108,6 +112,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         self.variables_path = variables_path.rstrip('/')
         self.mount_point = mount_point
         self.kv_engine_version = kv_engine_version
+        self.token_auto_renew = token_auto_renew
         self.vault_client = _VaultClient(
             url=url,
             auth_type=auth_type,
@@ -135,6 +140,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :return: The connection uri retrieved from the secret
         """
         secret_path = self.build_path(self.connections_path, conn_id)
+        self._renew_token()
         response = self.vault_client.get_secret(secret_path=secret_path)
         return response.get("conn_uri") if response else None
 
@@ -148,5 +154,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :return: Variable Value retrieved from the vault
         """
         secret_path = self.build_path(self.variables_path, key)
+        self._renew_token()
         response = self.vault_client.get_secret(secret_path=secret_path)
         return response.get("value") if response else None
+
+    def _renew_token(self) -> None:
+        if (self.token_auto_renew):
+            self.vault_client.client.renew_token()
