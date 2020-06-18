@@ -466,7 +466,11 @@ def do_remove_curve_from_curve_template(bolt_no=None, craft_type=None, version=N
         'version': template_version + 1
     })
     Variable.update(key, curve_template, serialize_json=True)
-    # todo: load new template
+    dag_id = 'load_all_curve_tmpls'
+    conf = {
+        'template_names': [template_name]
+    }
+    trigger.trigger_dag(dag_id, conf=conf, replace_microseconds=True)
     return curve_template
 
 
