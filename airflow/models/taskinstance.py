@@ -100,9 +100,9 @@ class TaskTag(Base):
     __tablename__ = 'task_tag'
     __table_args__ = (
         PrimaryKeyConstraint('name', 'dag_id', 'task_id', 'execution_date'),
-        ForeignKeyConstraint(('dag_id', 'task_id', 'execution_date'),
-                             ('task_instance.dag_id',
-                              'task_instance.task_id',
+        ForeignKeyConstraint(('task_id', 'dag_id', 'execution_date'),
+                             ('task_instance.task_id',
+                              'task_instance.dag_id',
                               'task_instance.execution_date'),
                              ondelete='CASCADE'),
     )
@@ -597,10 +597,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         # Mocks tags attribute is not iterable
         if isinstance(task.task_tags, coll.Iterable):
             for tag in task.task_tags:
-                self.task_tags.append(
-                    TaskTag(name=tag, dag_id=self.dag_id,
-                            task_id=self.task_id, execution_date=self.execution_date)
-                )
+                self.task_tags.append(TaskTag(name=tag))
 
     @provide_session
     def clear_xcom_data(self, session=None):
