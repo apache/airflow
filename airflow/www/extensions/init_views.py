@@ -98,7 +98,7 @@ def init_api_connexion(app: Flask) -> None:
     connexion_app = connexion.App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
     connexion_app.app = app
     api_bp = connexion_app.add_api(
-        specification='v1.yaml', base_path='/api/v1', validate_responses=True, strict_validation=False
+        specification='v1.yaml', base_path='/api/v1', validate_responses=True, strict_validation=True
     ).blueprint
     app.register_error_handler(ProblemException, connexion_app.common_error_handler)
     app.extensions['csrf'].exempt(api_bp)

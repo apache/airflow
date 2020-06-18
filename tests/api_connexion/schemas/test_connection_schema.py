@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import re
 import unittest
+
+import marshmallow
 
 from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection, connection_collection_item_schema, connection_collection_schema, connection_schema,
@@ -70,7 +72,8 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
             'port': 80
         }
         connection_dump_2 = {
-            'connection_id': "mysql_default_2"
+            'connection_id': "mysql_default_2",
+            'conn_type': "postgres",
         }
         result_1 = connection_collection_item_schema.load(connection_dump_1)
         result_2 = connection_collection_item_schema.load(connection_dump_2)
@@ -90,8 +93,19 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
             result_2[0],
             {
                 'conn_id': "mysql_default_2",
+                'conn_type': "postgres",
             }
         )
+
+    def test_deserialize_required_fields(self):
+        connection_dump_1 = {
+            'connection_id': "mysql_default_2",
+        }
+        with self.assertRaisesRegex(
+            marshmallow.exceptions.ValidationError,
+            re.escape("{'conn_type': ['Missing data for required field.']}")
+        ):
+            connection_collection_item_schema.load(connection_dump_1)
 
 
 class TestConnectionCollectionSchema(unittest.TestCase):

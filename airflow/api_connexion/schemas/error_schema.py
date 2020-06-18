@@ -52,5 +52,5 @@ class ImportErrorCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-import_error_schema = ImportErrorSchema()
-import_error_collection_schema = ImportErrorCollectionSchema()
+import_error_schema = ImportErrorSchema(strict=True)
+import_error_collection_schema = ImportErrorCollectionSchema(strict=True)
