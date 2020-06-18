@@ -32,6 +32,7 @@ from contextlib import contextmanager
 from datetime import datetime as dt, timedelta, timezone as tz
 from typing import Any, Dict, Generator, List, NamedTuple
 from unittest import mock
+from unittest.mock import PropertyMock
 from urllib.parse import quote_plus
 
 import jinja2
@@ -1214,6 +1215,59 @@ class TestLogView(TestBase):
         self.assertIn('"metadata":', response.data.decode('utf-8'))
         self.assertIn('airflow log line', response.data.decode('utf-8'))
         self.assertEqual(200, response.status_code)
+
+    def test_get_logs_response_with_ti_equal_to_none(self):
+        url_template = "get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata={}&format=file"
+        try_number = 1
+        url = url_template.format(self.DAG_ID,
+                                  'Non_Existing_ID',
+                                  quote_plus(self.DEFAULT_DATE.isoformat()),
+                                  try_number,
+                                  json.dumps({}))
+        response = self.client.get(url)
+        self.assertIn('message', response.json)
+        self.assertIn('error', response.json)
+        self.assertEqual("*** Task instance did not exist in the DB\n",
+                         response.json['message'])
+
+    def test_get_logs_with_json_response_format(self):
+        url_template = "get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata={}&format=json"
+        try_number = 1
+        url = url_template.format(self.DAG_ID,
+                                  self.TASK_ID,
+                                  quote_plus(self.DEFAULT_DATE.isoformat()),
+                                  try_number,
+                                  json.dumps({}))
+        response = self.client.get(url)
+        self.assertIn('message', response.json)
+        self.assertIn('metadata', response.json)
+        self.assertIn('Log for testing.', response.json['message'])
+        self.assertEqual(200, response.status_code)
+
+    @mock.patch("airflow.www.views.TaskLogReader")
+    def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
+        type(mock_log_reader.return_value).is_supported = PropertyMock(return_value=False)
+
+        url_template = "get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata={}&format=json"
+        try_number = 1
+        url = url_template.format(self.DAG_ID,
+                                  self.TASK_ID,
+                                  quote_plus(self.DEFAULT_DATE.isoformat()),
+                                  try_number,
+                                  json.dumps({}))
+        response = self.client.get(url)
+        self.assertEqual(200, response.status_code)
+        self.assertIn('message', response.json)
+        self.assertIn('metadata', response.json)
+        self.assertIn(
+            'Task log handler does not support read logs.',
+            response.json['message'])
 
 
 class TestVersionView(TestBase):
