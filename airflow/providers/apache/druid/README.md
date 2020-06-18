@@ -84,7 +84,9 @@ pip install apache-airflow-backport-providers-apache-druid[apache.hive]
 
 # Provider classes summary
 
-All classes in Airflow 2.0 are in `airflow.providers.apache.druid` package.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apache.druid` provider
+are in the `airflow.providers.apache.druid` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators

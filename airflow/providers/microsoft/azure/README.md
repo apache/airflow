@@ -97,7 +97,9 @@ pip install apache-airflow-backport-providers-microsoft-azure[oracle]
 
 # Provider classes summary
 
-All classes in Airflow 2.0 are in `airflow.providers.microsoft.azure` package.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `microsoft.azure` provider
+are in the `airflow.providers.microsoft.azure` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators

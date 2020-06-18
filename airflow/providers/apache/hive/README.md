@@ -92,7 +92,9 @@ pip install apache-airflow-backport-providers-apache-hive[amazon]
 
 # Provider classes summary
 
-All classes in Airflow 2.0 are in `airflow.providers.apache.hive` package.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apache.hive` provider
+are in the `airflow.providers.apache.hive` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators

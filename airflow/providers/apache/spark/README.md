@@ -66,7 +66,9 @@ For full compatibility and test status of the backport packages check
 
 # Provider classes summary
 
-All classes in Airflow 2.0 are in `airflow.providers.apache.spark` package.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apache.spark` provider
+are in the `airflow.providers.apache.spark` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators
@@ -111,6 +113,7 @@ All classes in Airflow 2.0 are in `airflow.providers.apache.spark` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                                          |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------|
+| [40bf8f28f](https://github.com/apache/airflow/commit/40bf8f28f97f17f40d993d207ea740eba54593ee) | 2020-06-18  | Detect automatically the lack of reference to the guide in the operator descriptions (#9290)     |
 | [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                           |
 | [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                                                    |
 | [00642a46d](https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c) | 2020-05-26  | Fixed name of 20 remaining wrongly named operators. (#8994)                                      |

@@ -129,7 +129,9 @@ pip install apache-airflow-backport-providers-google[amazon]
 
 # Provider classes summary
 
-All classes in Airflow 2.0 are in `airflow.providers.google` package.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `google` provider
+are in the `airflow.providers.google` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators
@@ -564,6 +566,7 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [40bf8f28f](https://github.com/apache/airflow/commit/40bf8f28f97f17f40d993d207ea740eba54593ee) | 2020-06-18  | Detect automatically the lack of reference to the guide in the operator descriptions (#9290)                                                                       |
 | [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                                                                                             |
 | [639972d99](https://github.com/apache/airflow/commit/639972d995d848b16a3f283576efdbde28b8fdef) | 2020-06-16  | Add support for latest Apache Beam SDK in Dataflow operators (#9323)                                                                                               |
 | [1459970b3](https://github.com/apache/airflow/commit/1459970b3b9780e139ce029ae889fd8f69a37bc7) | 2020-06-15  | Rename CloudBuildCreateBuildOperator to CloudBuildCreateOperator (#9314)                                                                                           |

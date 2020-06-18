@@ -88,7 +88,9 @@ pip install apache-airflow-backport-providers-mysql[amazon]
 
 # Provider classes summary
 
-All classes in Airflow 2.0 are in `airflow.providers.mysql` package.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `mysql` provider
+are in the `airflow.providers.mysql` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators

@@ -97,7 +97,9 @@ pip install apache-airflow-backport-providers-amazon[apache.hive]
 
 # Provider classes summary
 
-All classes in Airflow 2.0 are in `airflow.providers.amazon` package.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `amazon` provider
+are in the `airflow.providers.amazon` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators
@@ -257,6 +259,7 @@ All classes in Airflow 2.0 are in `airflow.providers.amazon` package.
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [40bf8f28f](https://github.com/apache/airflow/commit/40bf8f28f97f17f40d993d207ea740eba54593ee) | 2020-06-18  | Detect automatically the lack of reference to the guide in the operator descriptions (#9290)                                                                       |
 | [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                                                                                             |
 | [58a8ec0e4](https://github.com/apache/airflow/commit/58a8ec0e46f624ee0369dd156dd8fb4f81884a21) | 2020-06-16  | AWSBatchOperator &lt;&gt; ClientHook relation changed to composition (#9306)                                                                                             |
 | [a80cd25e8](https://github.com/apache/airflow/commit/a80cd25e8eb7f8b5d89af26cdcd62a5bbe44d65c) | 2020-06-15  | Close/Flush byte stream in s3 hook load_string and load_bytes (#9211)                                                                                              |

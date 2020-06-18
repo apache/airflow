@@ -68,7 +68,9 @@ For full compatibility and test status of the backport packages check
 
 # Provider classes summary
 
-All classes in Airflow 2.0 are in `airflow.providers.redis` package.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `redis` provider
+are in the `airflow.providers.redis` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators
