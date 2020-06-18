@@ -71,8 +71,8 @@ class S3DeleteObjectsOperator(BaseOperator):
             verify=None,
             *args, **kwargs):
 
-        if not (keys is None) ^ (prefix is None):
-            raise ValueError("Either keys or prefix should be set.")
+        if not keys and not prefix:
+            raise ValueError("Either keys or prefix should be set. Both are None")
 
         super().__init__(*args, **kwargs)
         self.bucket = bucket
@@ -84,7 +84,7 @@ class S3DeleteObjectsOperator(BaseOperator):
     def execute(self, context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
-        if self.keys is not None:
+        if self.keys:
             keys = self.keys
         else:
             keys = s3_hook.list_keys(bucket_name=self.bucket, prefix=self.prefix)
