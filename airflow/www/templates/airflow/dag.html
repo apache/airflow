@@ -168,11 +168,13 @@
             <hr/>
           </div>
           <div id="dag_redir_logs">
+            {% if external_log_name is defined %}
             <label style="display:inline"> View Logs in {{ external_log_name }} (by attempts): </label>
             <ul class="nav nav-pills" role="tablist" id="redir_log_try_index" style="display:inline">
             </ul>
             <hr/>
             <hr/>
+            {% endif %}
           </div>
           <form method="POST">
             <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
