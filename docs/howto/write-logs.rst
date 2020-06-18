@@ -309,6 +309,12 @@ For integration with Stackdriver, this option should start with ``stackdriver://
 The path section of the URL specifies the name of the log e.g. ``stackdriver://airflow-tasks`` writes
 logs under the name ``airflow-tasks``.
 
+You can set ``stackdriver_key_path`` option in the ``[logging]`` section to specify the path to `the service
+account key file <https://cloud.google.com/iam/docs/service-accounts>`__.
+If ommited, authorization based on `the Application Default Credentials
+<https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
+be used.
+
 By using the ``logging_config_class`` option you can get :ref:`advanced features <write-logs-advanced>` of
 this handler. Details are available in the handler's documentation -
 :class:`~airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler`.
