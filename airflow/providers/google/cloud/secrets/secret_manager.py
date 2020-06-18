@@ -113,7 +113,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
-        Get secret value from Secrets Manager.
+        Get secret value from the SecretManager.
 
         :param conn_id: connection id
         :type conn_id: str
@@ -131,7 +131,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
         """
-        Get secret value from Secret_manager based on prefix.
+        Get secret value from the SecretManager based on prefix.
 
         :param path_prefix: Prefix for the Path to get Secret
         :type path_prefix: str

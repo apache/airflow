@@ -192,10 +192,10 @@ class GoogleSystemTest(SystemTest):
 
     @classmethod
     def update_secret(cls, name: str, value: str):
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        with tempfile.NamedTemporaryFile() as tmp:
             tmp.write(value.encode("UTF-8"))
-        cmd = ["gcloud", "secrets", "versions", "add", name,
-               "--project", GoogleSystemTest._project_id(),
-               "--data-file", tmp.name]
-        cls.execute_with_ctx(cmd, key=GCP_SECRET_MANAGER_KEY)
-        os.remove(tmp.name)
+            tmp.flush()
+            cmd = ["gcloud", "secrets", "versions", "add", name,
+                   "--project", GoogleSystemTest._project_id(),
+                   "--data-file", tmp.name]
+            cls.execute_with_ctx(cmd, key=GCP_SECRET_MANAGER_KEY)
