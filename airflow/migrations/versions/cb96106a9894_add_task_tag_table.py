@@ -27,12 +27,12 @@ Create Date: 2020-06-11 14:39:02.764770
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import mysql
-from airflow.models.base import COLLATION_ARGS
 
+from airflow.models.base import COLLATION_ARGS
 
 # revision identifiers, used by Alembic.
 revision = 'cb96106a9894'
-down_revision = '8f966b9c467a'
+down_revision = 'a66efa278eea'
 branch_labels = None
 depends_on = None
 
@@ -43,6 +43,7 @@ def get_execution_date_type():
         return mysql.TIMESTAMP(fsp=6)
     else:
         return sa.TIMESTAMP(timezone=True)
+
 
 def upgrade():
     """Apply Add TaskTag table"""
@@ -64,4 +65,3 @@ def upgrade():
 def downgrade():
     """Unapply Add TaskTag table"""
     op.drop_table('task_tag')
-
