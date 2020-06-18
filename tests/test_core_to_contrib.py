@@ -25,7 +25,6 @@ from unittest import TestCase, mock
 from parameterized import parameterized
 
 from airflow.models.baseoperator import BaseOperator
-
 from tests.deprecated_classes import ALL, RENAMED_ALL
 
 
