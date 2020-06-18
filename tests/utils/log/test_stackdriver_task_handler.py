@@ -260,7 +260,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     @mock.patch('airflow.utils.log.stackdriver_task_handler.gcp_logging.Client')
     def test_should_use_credentials(self, mock_client, mock_get_creds_and_project_id):
         stackdriver_task_handler = StackdriverTaskHandler(
-            key_path="KEY_PATH",
+            gcp_key_path="KEY_PATH",
         )
 
         client = stackdriver_task_handler._client

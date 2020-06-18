@@ -52,12 +52,12 @@ class StackdriverTaskHandler(logging.Handler):
     This handler supports both an asynchronous and synchronous transport.
 
 
-    :param key_path: Path to GCP Credential JSON file.
+    :param gcp_key_path: Path to GCP Credential JSON file.
         If ommited, authorization based on `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
 
-    :type key_path: str
+    :type gcp_key_path: str
     :param scopes: OAuth scopes for the credentials,
     :type scopes: Sequence[str]
     :param name: the name of the custom log in Stackdriver Logging. Defaults
@@ -84,7 +84,7 @@ class StackdriverTaskHandler(logging.Handler):
 
     def __init__(
         self,
-        key_path: Optional[str] = None,
+        gcp_key_path: Optional[str] = None,
         # See: https://github.com/PyCQA/pylint/issues/2377
         scopes: Optional[Collection[str]] = _DEFAULT_SCOPESS,  # pylint: disable=unsubscriptable-object
         name: str = DEFAULT_LOGGER_NAME,
@@ -93,7 +93,7 @@ class StackdriverTaskHandler(logging.Handler):
         labels: Optional[Dict[str, str]] = None,
     ):
         super().__init__()
-        self.key_path: Optional[str] = key_path
+        self.gcp_key_path: Optional[str] = gcp_key_path
         # See: https://github.com/PyCQA/pylint/issues/2377
         self.scopes: Optional[Collection[str]] = scopes  # pylint: disable=unsubscriptable-object
         self.name: str = name
@@ -106,7 +106,7 @@ class StackdriverTaskHandler(logging.Handler):
     def _client(self) -> gcp_logging.Client:
         """Google Cloud Library API client"""
         credentials = get_credentials_and_project_id(
-            key_path=self.key_path,
+            key_path=self.gcp_key_path,
             scopes=self.scopes,
         )
         client = gcp_logging.Client(

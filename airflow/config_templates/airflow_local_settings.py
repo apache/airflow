@@ -226,7 +226,7 @@ if REMOTE_LOGGING:
                 'class': 'airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler',
                 'formatter': 'airflow',
                 'name': log_name,
-                'key_path': key_path
+                'gcp_key_path': key_path
             }
         }
 
