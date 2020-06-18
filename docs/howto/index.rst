@@ -29,9 +29,8 @@ configuring an Airflow environment.
 .. toctree::
     :maxdepth: 2
 
-    add-dag-tags
     add-new-role
-    add-task-tags
+    add-tags
     set-config
     initialize-database
     operator/index

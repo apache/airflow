@@ -16,10 +16,12 @@
     under the License.
 
 
+Tagging DAGs and tasks
+======================
 
 
-Add tags to DAGs and use it for filtering in the UI
-===================================================
+Add tags to DAGs and tasks and use it for filtering in the UI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. versionadded:: 1.10.8
 
@@ -42,3 +44,28 @@ In your Dag file, pass a list of tags you want to add to DAG object:
 **Screenshot**:
 
 .. image:: ../img/add-dag-tags.png
+
+
+Add tags to tasks
+^^^^^^^^^^^^^^^^^
+Tags can be added to tasks simply by adding a ``task_tags`` parameter when constructing an operator.
+Multiple tags can be added for every task. Duplicate tags are automatically removed.
+
+.. code-block:: python
+
+  operator = DummyOperator(
+    task_id='example_task',
+    task_tags=['example', 'dummy'],
+    dag=dag
+  )
+
+
+Filtering task instances by tags
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In addition to filtering tasks by task ids in graph view, you can also filter by tags.
+
+.. image:: ../img/add_task_tags_filter_graph.png
+
+It is also possible to filter task instances by tags.
+
+.. image:: ../img/add_task_tags_filter_ti.png
