@@ -395,6 +395,7 @@ class TestAirflowBaseViews(TestBase):
     def setUpClass(cls):
         super().setUpClass()
         cls.dagbag = models.DagBag(include_examples=True)
+        cls.app.dag_bag = cls.dagbag
         DAG.bulk_sync_to_db(cls.dagbag.dags.values())
 
     def setUp(self):
@@ -614,13 +615,11 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('DAG details', resp)
 
     @parameterized.expand(["graph", "tree", "dag_details"])
-    @mock.patch('airflow.www.views.get_app_dag_bag')
-    def test_view_uses_existing_dagbag(self, endpoint, mock_get_dag):
+    def test_view_uses_existing_dagbag(self, endpoint):
         """
         Test that Graph, Tree & Dag Details View uses the DagBag already created in views.py
         instead of creating a new one.
         """
-        mock_get_dag.return_value.get_dag.return_value = DAG(dag_id='example_bash_operator')
         url = f'{endpoint}?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
@@ -2224,14 +2223,14 @@ class TestRenderedView(TestBase):
         self.check_content_in_response("testdag__task1__20200301", resp)
 
     @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
-    @mock.patch('airflow.www.views.get_app_dag_bag')
-    def test_user_defined_filter_and_macros_raise_error(self, mock_get_dagbag):
+    def test_user_defined_filter_and_macros_raise_error(self):
         """
         Test that the Rendered View is able to show rendered values
         even for TIs that have not yet executed
         """
-        mock_get_dagbag.return_value.get_dag.return_value = \
-            SerializedDagModel.get(self.dag.dag_id).dag
+        self.app.dag_bag = mock.MagicMock(
+            **{'get_dag.return_value': SerializedDagModel.get(self.dag.dag_id).dag}
+        )
         self.assertEqual(self.task2.bash_command,
                          'echo {{ fullname("Apache", "Airflow") | hello }}')
 
@@ -2317,13 +2316,11 @@ class TestTriggerDag(TestBase):
         self.assertEqual(resp.status_code, 200)
         self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
 
-    @mock.patch('airflow.www.views.get_app_dag_bag')
-    def test_trigger_endpoint_uses_existing_dagbag(self, mock_get_dag):
+    def test_trigger_endpoint_uses_existing_dagbag(self):
         """
         Test that Trigger Endpoint uses the DagBag already created in views.py
         instead of creating a new one.
         """
-        mock_get_dag.return_value.get_dag.return_value = DAG(dag_id='example_bash_operator')
         url = 'trigger?dag_id=example_bash_operator'
         resp = self.client.post(url, data={}, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)

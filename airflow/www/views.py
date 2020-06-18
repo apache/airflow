@@ -80,11 +80,6 @@ FILTER_TAGS_COOKIE = 'tags_filter'
 FILTER_STATUS_COOKIE = 'dag_status_filter'
 
 
-def get_app_dag_bag():
-    """This is used only to simplify changes in tests"""
-    return current_app.dag_bag
-
-
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     dttm = request.args.get('execution_date')
     if dttm:
@@ -575,7 +570,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def dag_details(self, session=None):
         dag_id = request.args.get('dag_id')
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         title = "DAG details"
         root = request.args.get('root', '')
 
@@ -610,7 +605,7 @@ class Airflow(AirflowBaseView):
         root = request.args.get('root', '')
 
         logging.info("Retrieving rendered templates.")
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
 
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
@@ -698,7 +693,7 @@ class Airflow(AirflowBaseView):
 
         try:
             if ti is not None:
-                dag = get_app_dag_bag().get_dag(dag_id)
+                dag = current_app.dag_bag.get_dag(dag_id)
                 if dag:
                     ti.task = dag.get_task(ti.task_id)
             if response_format == 'json':
@@ -801,7 +796,7 @@ class Airflow(AirflowBaseView):
         dttm = timezone.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
             flash(
@@ -919,7 +914,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
         origin = request.form.get('origin')
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
 
         execution_date = request.form.get('execution_date')
@@ -1050,7 +1045,7 @@ class Airflow(AirflowBaseView):
                     conf=conf
                 )
 
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=execution_date,
@@ -1115,7 +1110,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
         origin = request.form.get('origin')
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
 
         execution_date = request.form.get('execution_date')
         execution_date = timezone.parse(execution_date)
@@ -1148,7 +1143,7 @@ class Airflow(AirflowBaseView):
         execution_date = request.form.get('execution_date')
         confirmed = request.form.get('confirmed') == "true"
 
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         execution_date = timezone.parse(execution_date)
         start_date = execution_date
         end_date = execution_date
@@ -1190,7 +1185,7 @@ class Airflow(AirflowBaseView):
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
-            dag = get_app_dag_bag().get_dag(dag_id)
+            dag = current_app.dag_bag.get_dag(dag_id)
             if dag:
                 # TODO: Make max_active_runs a column so we can query for it directly
                 max_active_runs = dag.max_active_runs
@@ -1207,7 +1202,7 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         execution_date = timezone.parse(execution_date)
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
             flash('Cannot find DAG: {}'.format(dag_id), 'error')
@@ -1235,7 +1230,7 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         execution_date = timezone.parse(execution_date)
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag:
             flash('Cannot find DAG: {}'.format(dag_id), 'error')
@@ -1285,7 +1280,7 @@ class Airflow(AirflowBaseView):
     def _mark_task_instance_state(self, dag_id, task_id, origin, execution_date,
                                   confirmed, upstream, downstream,
                                   future, past, state):
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
         task.dag = dag
 
@@ -1369,7 +1364,7 @@ class Airflow(AirflowBaseView):
     def tree(self):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             flash('DAG "{0}" seems to be missing from DagBag.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
@@ -1526,7 +1521,7 @@ class Airflow(AirflowBaseView):
     def graph(self, session=None):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect(url_for('Airflow.index'))
@@ -1625,7 +1620,7 @@ class Airflow(AirflowBaseView):
     def duration(self, session=None):
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
@@ -1737,7 +1732,7 @@ class Airflow(AirflowBaseView):
     def tries(self, session=None):
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
@@ -1802,7 +1797,7 @@ class Airflow(AirflowBaseView):
     def landing_times(self, session=None):
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
@@ -1900,7 +1895,7 @@ class Airflow(AirflowBaseView):
             session.merge(orm_dag)
         session.commit()
 
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         # sync dag permission
         current_app.appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
 
@@ -1914,7 +1909,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def gantt(self, session=None):
         dag_id = request.args.get('dag_id')
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         demo_mode = conf.getboolean('webserver', 'demo_mode')
 
         root = request.args.get('root')
@@ -2027,7 +2022,7 @@ class Airflow(AirflowBaseView):
         execution_date = request.args.get('execution_date')
         link_name = request.args.get('link_name')
         dttm = timezone.parse(execution_date)
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
             response = jsonify(
@@ -2064,7 +2059,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def task_instances(self):
         dag_id = request.args.get('dag_id')
-        dag = get_app_dag_bag().get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
 
         dttm = request.args.get('execution_date')
         if dttm:
@@ -2542,7 +2537,7 @@ class DagRunModelView(AirflowModelView):
                 dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += \
-                    set_dag_run_state_to_failed(get_app_dag_bag().get_dag(dr.dag_id),
+                    set_dag_run_state_to_failed(current_app.dag_bag.get_dag(dr.dag_id),
                                                 dr.execution_date,
                                                 commit=True,
                                                 session=session)
@@ -2569,7 +2564,7 @@ class DagRunModelView(AirflowModelView):
                 dirty_ids.append(dr.dag_id)
                 count += 1
                 altered_tis += \
-                    set_dag_run_state_to_success(get_app_dag_bag().get_dag(dr.dag_id),
+                    set_dag_run_state_to_success(current_app.dag_bag.get_dag(dr.dag_id),
                                                  dr.execution_date,
                                                  commit=True,
                                                  session=session)
@@ -2663,7 +2658,7 @@ class TaskInstanceModelView(AirflowModelView):
             dag_to_tis = {}
 
             for ti in tis:
-                dag = get_app_dag_bag().get_dag(ti.dag_id)
+                dag = current_app.dag_bag.get_dag(ti.dag_id)
                 tis = dag_to_tis.setdefault(dag, [])
                 tis.append(ti)
 
