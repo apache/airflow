@@ -45,7 +45,7 @@ def get_event_logs(session, limit, offset=None):
     """
 
     total_entries = session.query(func.count(Log.id)).scalar()
-    query = session.query(Log).offset(offset).limit(limit)
+    query = session.query(Log).order_by(Log.id).offset(offset).limit(limit)
 
     event_logs = query.all()
     return event_log_collection_schema.dump(EventLogCollection(event_logs=event_logs,

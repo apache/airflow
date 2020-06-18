@@ -54,10 +54,10 @@ def get_import_errors(session):
     offset = request.args.get(parameters.page_offset, 0)
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
-    query = session.query(ImportError)
     total_entries = session.query(func.count(ImportError.id)).scalar()
-    query_list = query.offset(offset).limit(limit).all()
+    query = session.query(ImportError).order_by(ImportError.id).offset(offset).limit(limit)
 
+    import_errors = query.all()
     return import_error_collection_schema.dump(
-        ImportErrorCollection(import_errors=query_list, total_entries=total_entries)
+        ImportErrorCollection(import_errors=import_errors, total_entries=total_entries)
     ).data

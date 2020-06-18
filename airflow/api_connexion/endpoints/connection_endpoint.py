@@ -55,9 +55,8 @@ def get_connections(session):
     offset = request.args.get(parameters.page_offset, 0)
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
-    query = session.query(Connection)
     total_entries = session.query(func.count(Connection.id)).scalar()
-    query = query.offset(offset).limit(limit)
+    query = session.query(Connection).order_by(Connection.id).offset(offset).limit(limit)
 
     connections = query.all()
     return connection_collection_schema.dump(ConnectionCollection(connections=connections,

@@ -53,11 +53,11 @@ def get_pools(session):
     offset = request.args.get(parameters.page_offset, 0)
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
-    query = session.query(Pool)
     total_entries = session.query(func.count(Pool.id)).scalar()
-    query_list = query.offset(offset).limit(limit).all()
+    query = session.query(Pool).order_by(Pool.id).offset(offset).limit(limit)
 
-    return pool_collection_schema.dump(PoolCollection(pools=query_list, total_entries=total_entries)).data
+    pools = query.all()
+    return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries)).data
 
 
 def patch_pool():
