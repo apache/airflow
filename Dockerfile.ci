@@ -315,6 +315,9 @@ WORKDIR ${AIRFLOW_SOURCES}
 
 ENV PATH="${HOME}:${PATH}"
 
+# Needed to stop Gunicorn from crashing when /tmp is now mounted from host
+ENV GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm/"
+
 EXPOSE 8080
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
