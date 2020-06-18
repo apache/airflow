@@ -21,7 +21,7 @@ import json
 import logging
 import os
 import sys
-from typing import Optional
+from typing import Optional, cast
 
 import pendulum
 from sqlalchemy import create_engine, exc
@@ -251,7 +251,7 @@ def validate_session():
         return True
     else:
         check_session = sessionmaker(bind=engine)
-        session = check_session()
+        session: SASession = cast(SASession, check_session())
         try:
             session.execute("select 1")
             conn_status = True
