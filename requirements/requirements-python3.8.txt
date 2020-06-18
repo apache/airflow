@@ -50,7 +50,7 @@ async-generator==1.10
 async-timeout==3.0.1
 atlasclient==1.0.0
 attrs==19.3.0
-aws-sam-translator==1.24.0
+aws-sam-translator==1.25.0
 aws-xray-sdk==2.6.0
 azure-batch==9.0.0
 azure-common==1.1.25
@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.14.3
+boto3==1.14.5
 boto==2.49.0
-botocore==1.17.3
+botocore==1.17.5
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
@@ -84,7 +84,7 @@ celery==4.4.5
 certifi==2020.4.5.2
 cffi==1.14.0
 cfgv==3.1.0
-cfn-lint==0.33.0
+cfn-lint==0.33.1
 cgroupspy==0.1.6
 chardet==3.0.4
 click==6.7
@@ -134,10 +134,10 @@ funcsigs==1.0.2
 future-fstrings==1.2.0
 future==0.18.2
 gcsfs==0.6.2
-gevent==20.6.1
+gevent==20.6.2
 gitdb==4.0.5
 google-ads==5.1.0
-google-api-core==1.20.0
+google-api-core==1.20.1
 google-api-python-client==1.9.3
 google-auth-httplib2==0.0.3
 google-auth-oauthlib==0.4.1
@@ -146,10 +146,10 @@ google-cloud-automl==0.10.0
 google-cloud-bigquery-datatransfer==1.0.0
 google-cloud-bigquery==1.25.0
 google-cloud-bigtable==1.2.1
-google-cloud-container==0.5.0
+google-cloud-container==1.0.1
 google-cloud-core==1.3.0
 google-cloud-datacatalog==0.7.0
-google-cloud-dataproc==0.8.1
+google-cloud-dataproc==1.0.0
 google-cloud-dlp==1.0.0
 google-cloud-kms==1.4.0
 google-cloud-language==1.3.0
@@ -178,7 +178,7 @@ hdfs==2.5.8
 hmsclient==0.1.1
 httplib2==0.18.1
 humanize==0.5.1
-hvac==0.10.3
+hvac==0.10.4
 identify==1.4.19
 idna==2.9
 ijson==2.6.1
@@ -234,14 +234,14 @@ nest-asyncio==1.3.3
 networkx==2.4
 nodeenv==1.4.0
 nteract-scrapbook==0.4.1
-ntlm-auth==1.4.0
+ntlm-auth==1.5.0
 numpy==1.18.5
 oauthlib==2.1.0
 openapi-spec-validator==0.2.8
 oscrypto==1.2.0
 packaging==20.4
 pandas-gbq==0.13.2
-pandas==1.0.4
+pandas==1.0.5
 papermill==2.1.1
 parameterized==0.7.4
 paramiko==2.7.1
@@ -262,7 +262,7 @@ protobuf==3.12.2
 psutil==5.7.0
 psycopg2-binary==2.8.5
 ptyprocess==0.6.0
-py4j==0.10.7
+py4j==0.10.9
 py==1.8.2
 pyOpenSSL==19.1.0
 pyarrow==0.17.1
@@ -284,7 +284,7 @@ pyparsing==2.4.7
 pypd==1.1.0
 pyrsistent==0.16.0
 pysftp==0.2.9
-pyspark==2.4.6
+pyspark==3.0.0
 pytest-cov==2.10.0
 pytest-forked==1.1.3
 pytest-instafail==0.4.2
@@ -313,7 +313,7 @@ requests-mock==1.8.0
 requests-ntlm==1.1.0
 requests-oauthlib==1.1.0
 requests-toolbelt==0.9.1
-requests==2.23.0
+requests==2.24.0
 responses==0.10.15
 rsa==4.6
 s3transfer==0.3.3
@@ -321,7 +321,7 @@ sasl==0.2.1
 semver==2.10.2
 sendgrid==6.3.1
 sentinels==1.0.0
-sentry-sdk==0.14.4
+sentry-sdk==0.15.1
 setproctitle==1.1.10
 sh==1.13.1
 simple-salesforce==1.1.0
@@ -336,7 +336,7 @@ soupsieve==2.0.1
 sphinx-argparse==0.2.5
 sphinx-autoapi==1.0.0
 sphinx-jinja==1.1.1
-sphinx-rtd-theme==0.4.3
+sphinx-rtd-theme==0.5.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
 sphinxcontrib-dotnetdomain==0.4
@@ -376,7 +376,7 @@ virtualenv==20.0.23
 watchtower==0.7.3
 wcwidth==0.2.4
 websocket-client==0.57.0
-wrapt==1.11.2
+wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.23.0
 yandexcloud==0.41.0
