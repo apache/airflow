@@ -14,11 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import unittest
 
-import pytest
+from itsdangerous import URLSafeSerializer
+from parameterized import parameterized
 
+from airflow import DAG
+from airflow.configuration import conf
+from airflow.models import DagBag
 from airflow.www import app
+from tests.test_utils.config import conf_vars
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
+EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
 
 
 class TestDagSourceEndpoint(unittest.TestCase):
@@ -40,7 +49,43 @@ class TestGetSource(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
 
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.get("/api/v1/health")
-        assert response.status_code == 200
+    @parameterized.expand([("True",), ("False",)])
+    def test_should_response_200_text(self, store_serialized_dags):
+        serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+        with conf_vars(
+            {("core", "store_serialized_dags"): store_serialized_dags}
+        ):
+            dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
+            dagbag.sync_to_db()
+            first_dag: DAG = next(iter(dagbag.dags.values()))
+
+            url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
+            response = self.client.get(url, headers={
+                "Accept": "text/plain"
+            })
+
+            self.assertEqual(200, response.status_code)
+            self.assertIn("Example DAG demonstrating the usage of the BashOperator.", response.data.decode())
+            self.assertEqual('text/plain', response.headers['Content-Type'])
+
+    @parameterized.expand([("True",), ("False",)])
+    def test_should_response_200_json(self, store_serialized_dags):
+        serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+        with conf_vars(
+            {("core", "store_serialized_dags"): store_serialized_dags}
+        ):
+            dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
+            dagbag.sync_to_db()
+            first_dag: DAG = next(iter(dagbag.dags.values()))
+
+            url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
+            response = self.client.get(url, headers={
+                "Accept": 'application/json'
+            })
+
+            self.assertEqual(200, response.status_code)
+            self.assertIn(
+                "Example DAG demonstrating the usage of the BashOperator.",
+                response.json['content']
+            )
+            self.assertEqual('application/json', response.headers['Content-Type'])

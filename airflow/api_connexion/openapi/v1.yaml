@@ -1021,7 +1021,14 @@ paths:
           content:
             application/json:
               schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+            plain/text:
+              schema:
                 type: string
+
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':

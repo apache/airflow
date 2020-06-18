@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import json
 import logging
 
-from flask import current_app
+from flask import Response, current_app, request
 from itsdangerous import BadSignature, URLSafeSerializer
 
 from airflow.api_connexion.exceptions import NotFound
@@ -36,6 +36,13 @@ def get_dag_source(file_token: str):
         path = auth_s.loads(file_token)
         dag_source = DagCode.code(path)
     except (BadSignature, FileNotFoundError):
-        NotFound("Dag Source not found")
-    else:
-        return dag_source
+        raise NotFound("Dag Source not found")
+
+    from accept_types import get_best_match
+    return_type = get_best_match(request.headers.get('Accept'), ['text/plain', 'application/json'])
+    if return_type == 'text/plain':
+        return Response(dag_source, headers={'Content-Type': return_type})
+    if return_type == 'application/json':
+        content = json.dumps(dict(content=dag_source))
+        return Response(content, headers={'Content-Type': return_type})
+    return '', 406
