@@ -417,9 +417,8 @@ EOF
 function prepare_command_file() {
     local FILE="${1}"
     local CMD="${2}"
-    local TESTS="${3}"
-    local COMPOSE_FILE="${4}"
-    local AIRFLOW_IMAGE="${5}"
+    local COMPOSE_FILE="${3}"
+    local AIRFLOW_IMAGE="${4}"
     cat <<EOF > "${FILE}"
 #!/usr/bin/env bash
 if [[ \${VERBOSE} == "true" ]]; then
@@ -443,7 +442,6 @@ export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
 export BACKEND="${BACKEND}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
-export RUN_TESTS="${TESTS}"
 export WEBSERVER_HOST_PORT="${WEBSERVER_HOST_PORT}"
 export POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT}"
 export POSTGRES_VERSION="${POSTGRES_VERSION}"
@@ -518,11 +516,11 @@ function prepare_command_files() {
 
     # Prepare script for "run docker compose CI command"
     prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE}" \
-        "\"\${@}\"" "false" "${COMPOSE_CI_FILE}" "${AIRFLOW_CI_IMAGE}"
+        "\"\${@}\"" "${COMPOSE_CI_FILE}" "${AIRFLOW_CI_IMAGE}"
 
     # Prepare script for "run docker compose PROD command"
     prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_PROD_FILE}" \
-        "\"\${@}\"" "false" "${COMPOSE_PROD_FILE}" "${AIRFLOW_PROD_IMAGE}"
+        "\"\${@}\"" "${COMPOSE_PROD_FILE}" "${AIRFLOW_PROD_IMAGE}"
 }
 
 # Prints detailed help for all commands and flgas. Used to generate documentation added to BREEZE.rst
@@ -913,6 +911,7 @@ function parse_arguments() {
           LAST_SUBCOMMAND="${1}"
           if [[ $# -lt 2 ]]; then
             RUN_HELP="true"
+          else
             shift
           fi
           COMMAND_TO_RUN="run_tests" ;;
@@ -2034,6 +2033,7 @@ function run_breeze_command {
                 "/opt/airflow/scripts/ci/in_container/entrypoint_exec.sh" "${@}"
             ;;
         run_tests)
+            export RUN_TESTS="true"
             "${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE}" run --service-ports --rm airflow "$@"
             ;;
         run_docker_compose)
