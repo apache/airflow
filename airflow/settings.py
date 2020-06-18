@@ -21,7 +21,7 @@ import json
 import logging
 import os
 import sys
-from typing import Optional, cast
+from typing import Optional
 
 import pendulum
 from sqlalchemy import create_engine, exc
@@ -251,14 +251,14 @@ def validate_session():
         return True
     else:
         check_session = sessionmaker(bind=engine)
-        session: SASession = cast(SASession, check_session())
+        session = check_session()
         try:
-            session.execute("select 1")
+            session.execute("select 1")  # pylint: disable=no-member
             conn_status = True
         except exc.DBAPIError as err:
             log.error(err)
             conn_status = False
-        session.close()
+        session.close()  # pylint: disable=no-member
         return conn_status
 
 
