@@ -18,6 +18,7 @@
 import json
 import time
 from datetime import datetime as dt
+from itertools import islice
 from typing import Optional, Tuple
 
 import tenacity
@@ -26,6 +27,7 @@ from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
+from urllib3.exceptions import ProtocolError
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.pod_generator import PodDefaults
@@ -123,10 +125,21 @@ class PodLauncher(LoggingMixin):
         :param get_logs: whether to read the logs locally
         :return:  Tuple[State, Optional[str]]
         """
-        if get_logs:
+        index = 0  # the index of log line
+        while True and get_logs:
+            # get log may result in Connection reset by peer, if there is
+            # output for more than 90 seconds
             logs = self.read_pod_logs(pod)
-            for line in logs:
-                self.log.info(line)
+            try:
+                # do not print duplicated log
+                for line in islice(logs, index, None):
+                    self.log.info(line)
+                    index += 1
+            except ProtocolError:
+                pass
+            if not self.pod_is_running(pod):
+                break
+
         result = None
         if self.extract_xcom:
             while self.base_container_is_running(pod):
