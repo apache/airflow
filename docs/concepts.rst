@@ -249,7 +249,7 @@ lists or tuples into seprate XCom values. This can be used with regular operator
 Calling a decorated function returns an ``XComArg`` instance. You can use it to set templated fields on downstream
 operators.
 
-You can call a decorated function more than once in a DAG. The decorated function will automatically generate unique 
+You can call a decorated function more than once in a DAG. The decorated function will automatically generate unique
 a ``task_id`` for each generated operator.
 
 .. code:: python
@@ -260,6 +260,7 @@ a ``task_id`` for each generated operator.
     def update_user(user_id: int):
       ...
 
+    # Avoid generating this list dynamically to keep dag topology stable between DAG runs
     for user_id in user_ids:
       update_current(user_id)
 
