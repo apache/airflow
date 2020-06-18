@@ -16,7 +16,7 @@
 # under the License.
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from cached_property import cached_property
 
@@ -35,18 +35,20 @@ class TaskLogReader:
 
         :param ti: The taskInstance
         :type ti: TaskInstance
-        :param try_number: If provided, logs for the given try will be returned. Otherwise, logs from all attempts are returned.
+        :param try_number: If provided, logs for the given try will be returned.
+            Otherwise, logs from all attempts are returned.
         :type try_number: Optional[int]
-        :param metadata: A dictionary containing information about how to read the task
+        :param metadata: A dictionary containing information about how to read the task log
         :type metadata: dict
-
+        :rtype: Tuple[List[str], Dict[str, Any]]
         """
 
         logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
         metadata = metadatas[0]
         return logs, metadata
 
-    def read_log_stream(self, ti: TaskInstance, try_number: Optional[int], metadata: dict):
+    def read_log_stream(self, ti: TaskInstance, try_number: Optional[int],
+                        metadata: dict) -> Iterator[str]:
         """
         Used to continuously read log to the end
 
@@ -54,9 +56,9 @@ class TaskLogReader:
         :type ti: TaskInstance
         :param try_number: the task try number
         :type try_number: Optional[int]
-        :param metadata: A dictionary containing information about how to read the task
+        :param metadata: A dictionary containing information about how to read the task log
         :type metadata: dict
-
+        :rtype: Iterator[str]
         """
 
         if try_number is None:
@@ -95,6 +97,7 @@ class TaskLogReader:
         :type ti: TaskInstance
         :param try_number: The task try number
         :type try_number: Optional[int]
+        :rtype: str
         """
 
         filename_template = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
