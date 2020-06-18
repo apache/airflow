@@ -594,10 +594,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.max_tries = task.retries
         self.executor_config = task.executor_config
         self.operator = task.__class__.__name__
-        # Mocks tags attribute is not iterable
-        if isinstance(task.task_tags, coll.Iterable):
-            for tag in task.task_tags:
-                self.task_tags.append(TaskTag(name=tag))
+        for tag in task.task_tags:
+            self.task_tags.append(TaskTag(name=tag))
 
     @provide_session
     def clear_xcom_data(self, session=None):
