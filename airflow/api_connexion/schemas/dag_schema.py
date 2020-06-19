@@ -20,7 +20,7 @@ from typing import List, NamedTuple
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.api_connexion.schemas.common_schema import ScheduleIntervalSchema, TimeDeltaSchema
+from airflow.api_connexion.schemas.common_schema import ScheduleIntervalSchema, TimeDeltaSchema, TimezoneField
 from airflow.models.dag import DagModel, DagTag
 
 
@@ -44,7 +44,7 @@ class DAGSchema(SQLAlchemySchema):
 
     dag_id = auto_field(dump_only=True)
     root_dag_id = auto_field(dump_only=True)
-    is_paused = auto_field()
+    is_paused = auto_field(dump_only=True)
     is_subdag = auto_field(dump_only=True)
     fileloc = auto_field(dump_only=True)
     owners = fields.Method("get_owners", dump_only=True)
@@ -64,12 +64,12 @@ class DAGSchema(SQLAlchemySchema):
 class DAGDetailSchema(DAGSchema):
     """DAG details"""
 
-    timezone = None
+    timezone = TimezoneField(dump_only=True)
     catchup = fields.Boolean(dump_only=True)
     orientation = fields.String(dump_only=True)
     concurrency = fields.Integer(dump_only=True)
     start_date = fields.DateTime(dump_only=True)
-    dag_run_timeout = fields.Nested(TimeDeltaSchema, dump_only=True)
+    dag_run_timeout = fields.Nested(TimeDeltaSchema, dump_only=True, attribute="dagrun_timeout")
     doc_md = fields.String(dump_only=True)
     default_view = fields.String(dump_only=True)
 
@@ -90,3 +90,4 @@ class DAGCollectionSchema(Schema):
 
 dags_collection_schema = DAGCollectionSchema()
 dag_schema = DAGSchema()
+dag_detail_schema = DAGDetailSchema()

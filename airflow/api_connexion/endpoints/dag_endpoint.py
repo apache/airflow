@@ -15,10 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from flask import current_app
+
+from airflow import DAG
+from airflow.api_connexion.exceptions import NotFound
 # TODO(mik-laj): We have to implement it.
 #     Do you want to help? Please look at:
 #     * https://github.com/apache/airflow/issues/8128
 #     * https://github.com/apache/airflow/issues/8138
+from airflow.api_connexion.schemas.dag_schema import dag_detail_schema
 
 
 def get_dag():
@@ -28,11 +33,14 @@ def get_dag():
     raise NotImplementedError("Not implemented yet.")
 
 
-def get_dag_details():
+def get_dag_details(dag_id):
     """
     Get details of DAG.
     """
-    raise NotImplementedError("Not implemented yet.")
+    dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    if not dag:
+        raise NotFound("DAG not found")
+    return dag_detail_schema.dump(dag)
 
 
 def get_dags():

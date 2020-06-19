@@ -16,8 +16,12 @@
 # under the License.
 
 import unittest
+from datetime import datetime
 
-from airflow.api_connexion.schemas.dag_schema import DAGCollection, DAGCollectionSchema, DAGSchema
+from airflow import DAG
+from airflow.api_connexion.schemas.dag_schema import (
+    DAGCollection, DAGCollectionSchema, DAGDetailSchema, DAGSchema,
+)
 from airflow.models import DagModel, DagTag
 
 
@@ -87,3 +91,33 @@ class TestDAGCollectionSchema(unittest.TestCase):
             },
             schema.dump(instance).data,
         )
+
+
+class TestDAGDetailSchema:
+    def test_serialize(self):
+        dag = DAG(
+            dag_id="test_dag",
+            start_date=datetime(2020, 6, 19),
+            doc_md="docs",
+            orientation="LR",
+            default_view="duration",
+        )
+        schema = DAGDetailSchema()
+        expected = {
+            'catchup': True,
+            'concurrency': 16,
+            'dag_id': 'test_dag',
+            'dag_run_timeout': None,
+            'default_view': 'duration',
+            'description': None,
+            'doc_md': 'docs',
+            'fileloc': __file__,
+            'is_paused': None,
+            'is_subdag': False,
+            'orientation': 'LR',
+            'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'seconds': 0},
+            'start_date': '2020-06-19T00:00:00+00:00',
+            'tags': None,
+            'timezone': "Timezone('UTC')"
+        }
+        assert schema.dump(dag).data == expected

@@ -41,8 +41,9 @@ class TestTaskEndpoint(unittest.TestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.app = app.create_app(testing=True)  # type:ignore
+        cls.app_serialized = app.create_app(testing=True)  # type:ignore
 
-        with DAG(cls.dag_id, start_date=datetime(2020, 6, 15)) as dag:
+        with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
 
         cls.dag = dag  # type:ignore
@@ -51,9 +52,13 @@ class TestTaskEndpoint(unittest.TestCase):
         dag_bag.dags = {dag.dag_id: dag}
         cls.app.dag_bag = dag_bag  # type:ignore
 
+        dag_bag = DagBag(os.devnull, include_examples=False, store_serialized_dags=True)
+        cls.app_serialized.dag_bag = dag_bag  # type:ignore
+
     def setUp(self) -> None:
         self.clean_db()
         self.client = self.app.test_client()  # type:ignore
+        self.client_serialized = self.app_serialized.test_client()  # type:ignore
 
     def tearDown(self) -> None:
         self.clean_db()
@@ -61,9 +66,6 @@ class TestTaskEndpoint(unittest.TestCase):
 
 class TestGetTask(TestTaskEndpoint):
     def test_should_response_200(self):
-        dag_id = self.dag_id
-        task_id = self.task_id
-
         expected = {
             "class_ref": {
                 "class_name": "DummyOperator",
@@ -80,7 +82,7 @@ class TestGetTask(TestTaskEndpoint):
             "priority_weight": 1.0,
             "queue": "default",
             "retries": 0.0,
-            "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300},
+            "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
             "retry_exponential_backoff": False,
             "start_date": "2020-06-15T00:00:00+00:00",
             "task_id": "op1",
@@ -91,15 +93,13 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
         }
-        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks/{task_id}")
+        response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}")
         assert response.status_code == 200
         assert response.json == expected
 
     @conf_vars({("core", "store_serialized_dags"): "True"})
     def test_should_response_200_serialized(self):
         SerializedDagModel.write_dag(self.dag)
-        dag_id = self.dag_id
-        task_id = self.task_id
 
         expected = {
             "class_ref": {
@@ -117,7 +117,7 @@ class TestGetTask(TestTaskEndpoint):
             "priority_weight": 1.0,
             "queue": "default",
             "retries": 0.0,
-            "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300},
+            "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
             "retry_exponential_backoff": False,
             "start_date": "2020-06-15T00:00:00+00:00",
             "task_id": "op1",
@@ -128,20 +128,18 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
         }
-        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks/{task_id}")
+        response = self.client_serialized.get(f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}")
         assert response.status_code == 200
         assert response.json == expected
 
     def test_should_response_404(self):
-        dag_id = self.dag_id
         task_id = "xxxx_not_existing"
-        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks/{task_id}")
+        response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks/{task_id}")
         assert response.status_code == 404
 
 
 class TestGetTasks(TestTaskEndpoint):
     def test_should_response_200(self):
-        dag_id = self.dag_id
         expected = {
             "tasks": [
                 {
@@ -160,7 +158,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "priority_weight": 1.0,
                     "queue": "default",
                     "retries": 0.0,
-                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300},
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
                     "retry_exponential_backoff": False,
                     "start_date": "2020-06-15T00:00:00+00:00",
                     "task_id": "op1",
@@ -174,7 +172,7 @@ class TestGetTasks(TestTaskEndpoint):
             ],
             "total_entries": 1,
         }
-        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks")
+        response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks")
         assert response.status_code == 200
         assert response.json == expected
 

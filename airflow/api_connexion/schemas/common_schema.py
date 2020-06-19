@@ -39,7 +39,7 @@ class TimeDeltaSchema(Schema):
     objectType = fields.Constant("TimeDelta", dump_to="__type")
     days = fields.Integer()
     seconds = fields.Integer()
-    microsecond = fields.Integer()
+    microseconds = fields.Integer()
 
     @marshmallow.post_load
     def make_time_delta(self, data, **kwargs):
@@ -143,6 +143,10 @@ class WeightRuleField(fields.String):
         self.validators = (
             [validate.OneOf(WeightRule.all_weight_rules())] + list(self.validators)
         )
+
+
+class TimezoneField(fields.String):
+    """Schema for timezone"""
 
 
 class ClassReferenceSchema(Schema):

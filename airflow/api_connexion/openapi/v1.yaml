@@ -1203,6 +1203,9 @@ components:
         port:
           type: integer
           nullable: true
+      required:
+        - connection_id
+        - conn_type
 
     ConnectionCollection:
       type: object
@@ -1237,6 +1240,7 @@ components:
           nullable: true
         is_paused:
           type: boolean
+          nullable: true
         is_subdag:
           type: boolean
           readOnly: true
@@ -1264,6 +1268,7 @@ components:
           readOnly: true
         tags:
           type: array
+          nullable: true
           items:
             $ref: '#/components/schemas/Tag'
           readOnly: true
@@ -1316,6 +1321,7 @@ components:
           type: string
           format: date-time
           readOnly: True
+          nullable: true
         state:
           $ref: '#/components/schemas/DagState'
         external_trigger:
@@ -1639,6 +1645,7 @@ components:
               format: 'date-time'
               readOnly: true
             dag_run_timeout:
+              nullable: true
               $ref: '#/components/schemas/TimeDelta'
             doc_md:
               type: string
@@ -2011,13 +2018,14 @@ components:
         __type: {type: string}
         days: {type: integer}
         seconds: {type: integer}
-        microsecond: {type: integer}
+        microseconds: {type: integer}
 
     RelativeDelta:
       # TODO: Why we need these fields?
       type: object
       required:
         - __type
+        - years
       properties:
         __type: {type: string}
         years: {type: integer}
@@ -2040,6 +2048,7 @@ components:
       type: object
       required:
         - __type
+        - value
       properties:
         __type: {type: string}
         value: {type: string}
