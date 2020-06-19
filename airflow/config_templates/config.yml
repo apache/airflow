@@ -411,6 +411,7 @@
         Cloudwatch log groups should start with "cloudwatch://"
         GCS buckets should start with "gs://"
         WASB buckets should start with "wasb" just to help Airflow select correct handler
+        Stackdriver logs should start with "stackdriver://"
       version_added: ~
       type: string
       example: ~
