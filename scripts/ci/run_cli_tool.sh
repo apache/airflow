@@ -45,12 +45,12 @@ if [ ! -L "${BASH_SOURCE[0]}" ]
 then
     SCRIPT_PATH=$(readlink -e "${BASH_SOURCE[0]}")
     # Direct execution - return installation script
-    >&2 echo "# CLI tool wrappers"
-    >&2 echo "#"
-    >&2 echo "# To install, run the following command:"
-    >&2 echo "#     source <(bash ${SCRIPT_PATH@Q})"
-    >&2 echo "#"
-    >&2 echo ""
+    echo "# CLI tool wrappers"
+    echo "#"
+    echo "# To install, run the following command:"
+    echo "#     source <(bash ${SCRIPT_PATH@Q})"
+    echo "#"
+    echo ""
     # Print installation script
     for NAME in "${SUPPORTED_TOOL_NAMES[@]}"
     do
@@ -87,25 +87,20 @@ AWS_CREDENTIALS_DOCKER_ARGS=(-v "${HOST_HOME}/.aws:/root/.aws")
 AZURE_CREDENTIALS_DOCKER_ARGS=(-v "${HOST_HOME}/.azure:/root/.azure")
 GOOGLE_CREDENTIALS_DOCKER_ARGS=(-v "${HOST_HOME}/.config/gcloud:/root/.config/gcloud")
 
-DIRECTORIES_TO_FIX=('/tmp/' '/files/')
-
 COMMAND=("${@}")
 
 # Configure selected tool
 case "${TOOL_NAME}" in
     aws )
         COMMON_DOCKER_ARGS+=("${AWS_CREDENTIALS_DOCKER_ARGS[@]}")
-        DIRECTORIES_TO_FIX+=("/root/.aws")
         IMAGE_NAME="amazon/aws-cli:latest"
         ;;
     az )
         COMMON_DOCKER_ARGS+=("${AZURE_CREDENTIALS_DOCKER_ARGS[@]}")
-        DIRECTORIES_TO_FIX+=("/root/.azure")
         IMAGE_NAME="mcr.microsoft.com/azure-cli:latest"
         ;;
     gcloud | bq | gsutil )
         COMMON_DOCKER_ARGS+=("${GOOGLE_CREDENTIALS_DOCKER_ARGS[@]}")
-        DIRECTORIES_TO_FIX+=("/root/.config/gcloud")
         IMAGE_NAME="gcr.io/google.com/cloudsdktool/cloud-sdk:latest"
         COMMAND=("$TOOL_NAME" "${@}")
         ;;
@@ -115,17 +110,11 @@ case "${TOOL_NAME}" in
             "${AZURE_CREDENTIALS_DOCKER_ARGS[@]}"
             "${AWS_CREDENTIALS_DOCKER_ARGS[@]}"
         )
-        DIRECTORIES_TO_FIX+=(
-            "/root/.config/gcloud"
-            "/root/.aws"
-            "/root/.azure"
-        )
         IMAGE_NAME="hashicorp/terraform:latest"
         ;;
     java )
         # TODO: Should we add other credentials?
         COMMON_DOCKER_ARGS+=("${GOOGLE_CREDENTIALS_DOCKER_ARGS[@]}")
-        DIRECTORIES_TO_FIX+=("/root/.config/gcloud")
         IMAGE_NAME="openjdk:8-jre-slim"
         COMMAND=("/usr/local/openjdk-8/bin/java" "${@}")
         ;;
@@ -150,19 +139,16 @@ if [ -t 0 ] ; then
         --tty
     )
 fi
-
+set +e
 docker run "${TOOL_DOCKER_ARGS[@]}" "${IMAGE_NAME}" "${COMMAND[@]}"
 
 RES=$?
 
 # Set file permissions to the host user
 if [[ "${HOST_OS}" == "Linux" ]]; then
-    FIX_DOCKER_ARGS=(--rm)
-    FIX_DOCKER_ARGS+=("${COMMON_DOCKER_ARGS[@]}")
-    FIX_COMMAND=(bash -c
-        "find ${DIRECTORIES_TO_FIX[@]@Q} -user root -print0 | xargs --null chown '${HOST_USER_ID}.${HOST_GROUP_ID}' --no-dereference")
-
-    docker run "${FIX_DOCKER_ARGS[@]}" "${AIRFLOW_CI_IMAGE}" "${FIX_COMMAND[@]}" >/dev/null 2>&1
+    docker run --rm "${COMMON_DOCKER_ARGS[@]}" \
+        --entrypoint /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh \
+            "${AIRFLOW_CI_IMAGE}"
 fi
 
 exit ${RES}
