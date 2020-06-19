@@ -34,6 +34,7 @@ Release: 2020-06-23
         - [New operators](#new-operators)
         - [Moved operators](#moved-operators)
     - [Transfer operators](#transfers)
+        - [New transfer operators](#new-transfers)
         - [Moved transfer operators](#moved-transfers)
     - [Sensors](#sensors)
         - [New sensors](#new-sensors)
@@ -92,6 +93,7 @@ pip install apache-airflow-backport-providers-amazon[apache.hive]
 | [apache-airflow-backport-providers-google](https://github.com/apache/airflow/tree/master/airflow/providers/google)           | google      |
 | [apache-airflow-backport-providers-imap](https://github.com/apache/airflow/tree/master/airflow/providers/imap)               | imap        |
 | [apache-airflow-backport-providers-mongo](https://github.com/apache/airflow/tree/master/airflow/providers/mongo)             | mongo       |
+| [apache-airflow-backport-providers-mysql](https://github.com/apache/airflow/tree/master/airflow/providers/mysql)             | mysql       |
 | [apache-airflow-backport-providers-postgres](https://github.com/apache/airflow/tree/master/airflow/providers/postgres)       | postgres    |
 | [apache-airflow-backport-providers-ssh](https://github.com/apache/airflow/tree/master/airflow/providers/ssh)                 | ssh         |
 
@@ -148,6 +150,12 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 
 
+
+### New transfer operators
+
+| New Airflow 2.0 transfers: `airflow.providers.amazon` package                                                                                      |
+|:---------------------------------------------------------------------------------------------------------------------------------------------------|
+| [aws.transfers.mysql_to_s3.MySQLToS3Operator](https://github.com/apache/airflow/blob/master/airflow/providers/amazon/aws/transfers/mysql_to_s3.py) |
 
 
 
@@ -259,6 +267,9 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [992a18c84](https://github.com/apache/airflow/commit/992a18c84a355d13e821c703e7364f12233c37dc) | 2020-06-19  | Move MySqlToS3Operator to transfers (#9400)                                                                                                                        |
+| [a60f589aa](https://github.com/apache/airflow/commit/a60f589aa251cc3df6bec5b306ad4a7f736f539f) | 2020-06-19  | Add MySqlToS3Operator (#9054)                                                                                                                                      |
+| [c7e5bce57](https://github.com/apache/airflow/commit/c7e5bce57fe7f51cefce4f8a41ce408ac5675d13) | 2020-06-19  | Prepare backport release candidate for 2020.6.23rc1 (#9370)                                                                                                        |
 | [40bf8f28f](https://github.com/apache/airflow/commit/40bf8f28f97f17f40d993d207ea740eba54593ee) | 2020-06-18  | Detect automatically the lack of reference to the guide in the operator descriptions (#9290)                                                                       |
 | [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                                                                                             |
 | [58a8ec0e4](https://github.com/apache/airflow/commit/58a8ec0e46f624ee0369dd156dd8fb4f81884a21) | 2020-06-16  | AWSBatchOperator &lt;&gt; ClientHook relation changed to composition (#9306)                                                                                             |

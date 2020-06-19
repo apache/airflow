@@ -4,6 +4,7 @@
 
 | Commit                                                                                         | Committed   | Subject                                                                 |
 |:-----------------------------------------------------------------------------------------------|:------------|:------------------------------------------------------------------------|
+| [c7e5bce57](https://github.com/apache/airflow/commit/c7e5bce57fe7f51cefce4f8a41ce408ac5675d13) | 2020-06-19  | Prepare backport release candidate for 2020.6.23rc1 (#9370)             |
 | [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                  |
 | [1c9374d25](https://github.com/apache/airflow/commit/1c9374d2573483dd66f5c35032e24140864e72c0) | 2020-06-03  | Add snowflake to slack operator (#9023)                                 |
 | [0b0e4f7a4](https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34) | 2020-05-26  | Preparing for RC3 relase of backports (#9026)                           |

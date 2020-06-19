@@ -502,6 +502,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 | [cloud.hooks.datacatalog.CloudDataCatalogHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/datacatalog.py)                                          |
 | [cloud.hooks.datafusion.DataFusionHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/datafusion.py)                                                  |
 | [cloud.hooks.life_sciences.LifeSciencesHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/life_sciences.py)                                          |
+| [cloud.hooks.secret_manager.SecretsManagerHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/secret_manager.py)                                      |
 | [cloud.hooks.stackdriver.StackdriverHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/stackdriver.py)                                               |
 | [common.hooks.discovery_api.GoogleDiscoveryApiHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/common/hooks/discovery_api.py)                                  |
 | [firebase.hooks.firestore.CloudFirestoreHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/firebase/hooks/firestore.py)                                          |
@@ -553,9 +554,9 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ### Moved secrets
 
-| Airflow 2.0 protocols: `airflow.providers.google` package                                                                                                           | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                         |
-|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [cloud.secrets.secrets_manager.CloudSecretsManagerBackend](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/secrets/secrets_manager.py) | [contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/secrets/gcp_secrets_manager.py) |
+| Airflow 2.0 protocols: `airflow.providers.google` package                                                                                                        | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                         |
+|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [cloud.secrets.secret_manager.CloudSecretManagerBackend](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/secrets/secret_manager.py) | [contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/secrets/gcp_secrets_manager.py) |
 
 
 
@@ -566,6 +567,8 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [c7e5bce57](https://github.com/apache/airflow/commit/c7e5bce57fe7f51cefce4f8a41ce408ac5675d13) | 2020-06-19  | Prepare backport release candidate for 2020.6.23rc1 (#9370)                                                                                                        |
+| [4e09c6442](https://github.com/apache/airflow/commit/4e09c64423bfaabd02a18b5fe7757dc15451ab73) | 2020-06-18  | Adds GCP Secret Manager Hook (#9368)                                                                                                                               |
 | [40bf8f28f](https://github.com/apache/airflow/commit/40bf8f28f97f17f40d993d207ea740eba54593ee) | 2020-06-18  | Detect automatically the lack of reference to the guide in the operator descriptions (#9290)                                                                       |
 | [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                                                                                             |
 | [639972d99](https://github.com/apache/airflow/commit/639972d995d848b16a3f283576efdbde28b8fdef) | 2020-06-16  | Add support for latest Apache Beam SDK in Dataflow operators (#9323)                                                                                               |
