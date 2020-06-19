@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+import re
 import unittest
 from collections import namedtuple
 from unittest import mock
@@ -24,6 +25,7 @@ import sqlalchemy
 from cryptography.fernet import Fernet
 from parameterized import parameterized
 
+from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection, crypto
 from airflow.models.connection import CONN_TYPE_TO_HOOK
@@ -343,7 +345,7 @@ class TestConnection(unittest.TestCase):
             else:
                 conn_kwargs.update({k: v})
 
-        connection = Connection(conn_id='test_conn', **conn_kwargs)
+        connection = Connection(conn_id='test_conn', **conn_kwargs)  # type: ignore
         gen_uri = connection.get_uri()
         new_conn = Connection(conn_id='test_conn', uri=gen_uri)
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
@@ -513,6 +515,16 @@ class TestConnection(unittest.TestCase):
         assert conns[0].login == 'username'
         assert conns[0].password == 'password'
         assert conns[0].port == 5432
+
+    def test_connection_mixed(self):
+        with self.assertRaisesRegex(
+            AirflowException,
+            re.escape(
+                "You must create an object using the URI or individual values (conn_type, host, login, "
+                "password, schema, port or extra).You can't mix these two ways to create this object."
+            )
+        ):
+            Connection(conn_id="TEST_ID", uri="mysql://", schema="AAA")
 
 
 class TestConnTypeToHook(unittest.TestCase):

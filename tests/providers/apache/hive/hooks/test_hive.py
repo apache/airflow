@@ -384,7 +384,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         self.assertIsInstance(max_partition, str)
 
     @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
-                return_value=[Connection(host="localhost", port="9802")])
+                return_value=[Connection(host="localhost", port=9802)])
     @mock.patch("airflow.providers.apache.hive.hooks.hive.socket")
     def test_error_metastore_client(self, socket_mock, _find_valid_server_mock):
         socket_mock.socket.return_value.connect_ex.return_value = 0

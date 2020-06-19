@@ -821,8 +821,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
     ])
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection')
     def test_cloudsql_database_hook_create_connection_missing_fields(self, uri, get_connection):
-        connection = Connection()
-        connection.parse_from_uri(uri)
+        connection = Connection(uri=uri)
         params = {
             "location": "test",
             "instance": "instance",
@@ -841,8 +840,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection')
     def test_cloudsql_database_hook_get_sqlproxy_runner_no_proxy(self, get_connection):
-        connection = Connection()
-        connection.parse_from_uri("http://user:password@host:80/database")
+        connection = Connection(uri="http://user:password@host:80/database")
         connection.set_extra(json.dumps({
             "location": "test",
             "instance": "instance",
@@ -858,8 +856,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection')
     def test_cloudsql_database_hook_get_sqlproxy_runner(self, get_connection):
-        connection = Connection()
-        connection.parse_from_uri("http://user:password@host:80/database")
+        connection = Connection(uri="http://user:password@host:80/database")
         connection.set_extra(json.dumps({
             "location": "test",
             "instance": "instance",
@@ -876,8 +873,7 @@ class TestCloudSqlDatabaseHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection')
     def test_cloudsql_database_hook_get_database_hook(self, get_connection):
-        connection = Connection()
-        connection.parse_from_uri("http://user:password@host:80/database")
+        connection = Connection(uri="http://user:password@host:80/database")
         connection.set_extra(json.dumps({
             "location": "test",
             "instance": "instance",

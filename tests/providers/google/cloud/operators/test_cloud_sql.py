@@ -714,10 +714,8 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         gcp_connection = mock.MagicMock()
         gcp_connection.extra_dejson = mock.MagicMock()
         gcp_connection.extra_dejson.get.return_value = 'empty_project'
-        cloudsql_connection = Connection()
-        cloudsql_connection.parse_from_uri(uri)
-        cloudsql_connection2 = Connection()
-        cloudsql_connection2.parse_from_uri(uri)
+        cloudsql_connection = Connection(uri=uri)
+        cloudsql_connection2 = Connection(uri=uri)
         get_connections.side_effect = [[gcp_connection], [cloudsql_connection],
                                        [cloudsql_connection2]]
 

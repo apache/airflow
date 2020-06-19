@@ -933,10 +933,9 @@ class CloudSQLDatabaseHook(BaseHook):
         Create Connection object, according to whether it uses proxy, TCP, UNIX sockets, SSL.
         Connection ID will be randomly generated.
         """
-        connection = Connection(conn_id=self.db_conn_id)
         uri = self._generate_connection_uri()
+        connection = Connection(conn_id=self.db_conn_id, uri=uri)
         self.log.info("Creating connection %s", self.db_conn_id)
-        connection.parse_from_uri(uri)
         return connection
 
     def get_sqlproxy_runner(self) -> CloudSqlProxyRunner:

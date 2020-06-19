@@ -17,7 +17,9 @@
 # under the License.
 
 import json
+import warnings
 from json import JSONDecodeError
+from typing import Dict, Optional
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String
@@ -88,7 +90,7 @@ CONN_TYPE_TO_HOOK = {
 
 # Python automatically converts all letters to lowercase in hostname
 # See: https://issues.apache.org/jira/browse/AIRFLOW-3615
-def parse_netloc_to_hostname(uri_parts):
+def _parse_netloc_to_hostname(uri_parts):
     """Parse a URI string to get correct Hostname."""
     hostname = unquote(uri_parts.hostname or '')
     if '/' in hostname:
@@ -107,6 +109,29 @@ class Connection(Base, LoggingMixin):
     connection information. The idea here is that scripts use references to
     database instances (conn_id) instead of hard coding hostname, logins and
     passwords when using operators or hooks.
+
+    .. seealso::
+        For more information on how to use this class, see: :doc:`/howto/connection/index`
+
+    :param conn_id: The connection ID.
+    :type conn_id: str
+    :param conn_type: The connection type.
+    :type conn_type: str
+    :param host: The host.
+    :type host: str
+    :param login: The login.
+    :type login: str
+    :param password: The pasword.
+    :type password: str
+    :param schema: The schema.
+    :type schema: str
+    :param port: The port number.
+    :type port: int
+    :param extra: Extra metadata. Non-standard data such as private/SSH keys can be saved here. JSON
+        encoded object.
+    :type extra: str
+    :param uri: URI address describing connection parameters.
+    :type uri: str
     """
     __tablename__ = "connection"
 
@@ -123,13 +148,29 @@ class Connection(Base, LoggingMixin):
     _extra = Column('extra', String(5000))
 
     def __init__(
-            self, conn_id=None, conn_type=None,
-            host=None, login=None, password=None,
-            schema=None, port=None, extra=None,
-            uri=None):
+        self,
+        conn_id: Optional[str] = None,
+        conn_type: Optional[str] = None,
+        host: Optional[str] = None,
+        login: Optional[str] = None,
+        password: Optional[str] = None,
+        schema: Optional[str] = None,
+        port: Optional[int] = None,
+        extra: Optional[str] = None,
+        uri: Optional[str] = None
+    ):
+        super().__init__()
         self.conn_id = conn_id
+        if uri and (  # pylint: disable=too-many-boolean-expressions
+            conn_type or host or login or password or schema or port or extra
+        ):
+            raise AirflowException(
+                "You must create an object using the URI or individual values "
+                "(conn_type, host, login, password, schema, port or extra)."
+                "You can't mix these two ways to create this object."
+            )
         if uri:
-            self.parse_from_uri(uri)
+            self._parse_from_uri(uri)
         else:
             self.conn_type = conn_type
             self.host = host
@@ -139,7 +180,15 @@ class Connection(Base, LoggingMixin):
             self.port = port
             self.extra = extra
 
-    def parse_from_uri(self, uri):
+    def parse_from_uri(self, **uri):
+        """This method is deprecated. Please use uri parameter in constructor."""
+        warnings.warn(
+            "This method is deprecated. Please use uri parameter in constructor.",
+            DeprecationWarning
+        )
+        self._parse_from_uri(**uri)
+
+    def _parse_from_uri(self, uri: str):
         uri_parts = urlparse(uri)
         conn_type = uri_parts.scheme
         if conn_type == 'postgresql':
@@ -147,7 +196,7 @@ class Connection(Base, LoggingMixin):
         elif '-' in conn_type:
             conn_type = conn_type.replace('-', '_')
         self.conn_type = conn_type
-        self.host = parse_netloc_to_hostname(uri_parts)
+        self.host = _parse_netloc_to_hostname(uri_parts)
         quoted_schema = uri_parts.path[1:]
         self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
         self.login = unquote(uri_parts.username) \
@@ -159,6 +208,7 @@ class Connection(Base, LoggingMixin):
             self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
 
     def get_uri(self) -> str:
+        """Return connection in URI format"""
         uri = '{}://'.format(str(self.conn_type).lower().replace('_', '-'))
 
         authority_block = ''
@@ -193,7 +243,8 @@ class Connection(Base, LoggingMixin):
 
         return uri
 
-    def get_password(self):
+    def get_password(self) -> Optional[str]:
+        """Return encrypted password."""
         if self._password and self.is_encrypted:
             fernet = get_fernet()
             if not fernet.is_encrypted:
@@ -204,18 +255,21 @@ class Connection(Base, LoggingMixin):
         else:
             return self._password
 
-    def set_password(self, value):
+    def set_password(self, value: Optional[str]):
+        """Encrypt password and set in object attribute."""
         if value:
             fernet = get_fernet()
             self._password = fernet.encrypt(bytes(value, 'utf-8')).decode()
             self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
-    def password(cls):
+    def password(cls):   # pylint: disable=no-self-argument
+        """Password. The value is decrypted/encrypted when reading/setting the value."""
         return synonym('_password',
                        descriptor=property(cls.get_password, cls.set_password))
 
-    def get_extra(self):
+    def get_extra(self) -> Dict:
+        """Return encrypted extra-data."""
         if self._extra and self.is_extra_encrypted:
             fernet = get_fernet()
             if not fernet.is_encrypted:
@@ -226,7 +280,8 @@ class Connection(Base, LoggingMixin):
         else:
             return self._extra
 
-    def set_extra(self, value):
+    def set_extra(self, value: str):
+        """Encrypt extra-data and save in object attribute to object."""
         if value:
             fernet = get_fernet()
             self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
@@ -236,11 +291,13 @@ class Connection(Base, LoggingMixin):
             self.is_extra_encrypted = False
 
     @declared_attr
-    def extra(cls):
+    def extra(cls):   # pylint: disable=no-self-argument
+        """Extra data. The value is decrypted/encrypted when reading/setting the value."""
         return synonym('_extra',
                        descriptor=property(cls.get_extra, cls.set_extra))
 
     def rotate_fernet_key(self):
+        """Encrypts data with a new key. See: :ref:`security/fernet`. """
         fernet = get_fernet()
         if self._password and self.is_encrypted:
             self._password = fernet.rotate(self._password.encode('utf-8')).decode()
@@ -248,6 +305,7 @@ class Connection(Base, LoggingMixin):
             self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
 
     def get_hook(self):
+        """Return hook based on conn_type."""
         hook_class_name, conn_id_param = CONN_TYPE_TO_HOOK.get(self.conn_type, (None, None))
         if not hook_class_name:
             raise AirflowException('Unknown hook type "{}"'.format(self.conn_type))
@@ -258,6 +316,16 @@ class Connection(Base, LoggingMixin):
         return self.conn_id
 
     def log_info(self):
+        """
+        This method is deprecated. You can read each field individually or use the
+        default representation (`__repr__`).
+        """
+        warnings.warn(
+            "This method is deprecated. You can read each field individually or "
+            "use the default representation (__repr__).",
+            DeprecationWarning,
+            stacklevel=2
+        )
         return ("id: {}. Host: {}, Port: {}, Schema: {}, "
                 "Login: {}, Password: {}, extra: {}".
                 format(self.conn_id,
@@ -269,6 +337,16 @@ class Connection(Base, LoggingMixin):
                        "XXXXXXXX" if self.extra_dejson else None))
 
     def debug_info(self):
+        """
+        This method is deprecated. You can read each field individually or use the
+        default representation (`__repr__`).
+        """
+        warnings.warn(
+            "This method is deprecated. You can read each field individually or "
+            "use the default representation (__repr__).",
+            DeprecationWarning,
+            stacklevel=2
+        )
         return ("id: {}. Host: {}, Port: {}, Schema: {}, "
                 "Login: {}, Password: {}, extra: {}".
                 format(self.conn_id,
@@ -280,7 +358,7 @@ class Connection(Base, LoggingMixin):
                        self.extra_dejson))
 
     @property
-    def extra_dejson(self):
+    def extra_dejson(self) -> Dict:
         """Returns the extra property by deserializing json."""
         obj = {}
         if self.extra:
