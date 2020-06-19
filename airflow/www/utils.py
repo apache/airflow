@@ -39,7 +39,7 @@ from airflow.utils.state import State
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
-DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
+DEFAULT_SENSITIVE_VARIABLE_FIELDS = {
     'password',
     'secret',
     'passwd',
@@ -47,7 +47,7 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'api_key',
     'apikey',
     'access_token',
-)
+}
 
 
 def should_hide_value_for_key(key_name):
@@ -57,10 +57,10 @@ def should_hide_value_for_key(key_name):
 
         sensitive_variable_fields = conf.get('admin', 'sensitive_variable_fields')
 
-        field_comp = any(
-            s in key_name.strip().lower()
-            for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS.extend(sensitive_variable_fields.split(','))
-        )
+        if sensitive_variable_fields:
+            DEFAULT_SENSITIVE_VARIABLE_FIELDS.update(sensitive_variable_fields.split(','))
+
+        field_comp = any(s in key_name.strip().lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS)
         return config_set and field_comp
     return False
 
