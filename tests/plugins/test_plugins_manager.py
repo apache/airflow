@@ -127,3 +127,37 @@ class TestPluginsManager(unittest.TestCase):
         self.assertIn('TestPluginsManager.AirflowTestPropertyPlugin', str(plugins_manager.plugins))
         self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
         self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
+
+    @mock.patch('airflow.plugins_manager.plugins', [])
+    @mock.patch('airflow.plugins_manager.admin_views', None)
+    @mock.patch('airflow.plugins_manager.flask_blueprints', None)
+    @mock.patch('airflow.plugins_manager.menu_links', None)
+    @mock.patch('airflow.plugins_manager.flask_appbuilder_views', None)
+    @mock.patch('airflow.plugins_manager.flask_appbuilder_menu_links', None)
+    def test_should_warning_about_incompatible_plugins(self):
+        class AirflowDeprecatedAdminViewsPlugin(AirflowPlugin):
+            name = "test_admin_views_plugin"
+
+            admin_views = [mock.MagicMock()]
+
+        class AirflowDeprecatedAdminMenuLinksPlugin(AirflowPlugin):
+            name = "test_menu_links_plugin"
+
+            menu_links = [mock.MagicMock()]
+
+        from airflow import plugins_manager
+        plugins_manager.plugins = [
+            AirflowDeprecatedAdminViewsPlugin(),
+            AirflowDeprecatedAdminMenuLinksPlugin()
+        ]
+        with self.assertLogs(plugins_manager.log) as cm:
+            plugins_manager.initialize_web_ui_plugins()
+
+        self.assertEqual(cm.output, [
+            'WARNING:airflow.plugins_manager:Plugin \'test_admin_views_plugin\' may not be '
+            'compatible with the current Airflow version. Please contact the author of '
+            'the plugin.',
+            'WARNING:airflow.plugins_manager:Plugin \'test_menu_links_plugin\' may not be '
+            'compatible with the current Airflow version. Please contact the author of '
+            'the plugin.'
+        ])
