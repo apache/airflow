@@ -53,9 +53,14 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
 def should_hide_value_for_key(key_name):
     # It is possible via importing variables from file that a key is empty.
     if key_name:
-        config_set = conf.getboolean('admin',
-                                     'hide_sensitive_variable_fields')
-        field_comp = any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS)
+        config_set = conf.getboolean('admin', 'hide_sensitive_variable_fields')
+
+        sensitive_variable_fields = conf.get('admin', 'sensitive_variable_fields')
+
+        field_comp = any(
+            s in key_name.strip().lower()
+            for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS.extend(sensitive_variable_fields.split(','))
+        )
         return config_set and field_comp
     return False
 
