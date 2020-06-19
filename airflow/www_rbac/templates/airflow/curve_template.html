@@ -36,26 +36,24 @@
   <div id="echarts-container" style="flex:1"
        class="border rounded-sm d-flex p-2 bd-highlight shadow p-2 m-1 bg-white rounded flex-column">
     <div class="flex-row mb-2" id="actions-container">
-        <span class="btn-group btn-group-toggle" data-toggle="buttons">
-          <label class="btn active btn-outline-secondary font-weight-bold " for="update-chart-w-m" id="update-chart-w-m-label"
-                 title="Also include past task instances when clearing this one">
-            <input id="update-chart-w-m" type="radio" name="chart-type" checked autocomplete="off">
-            角度/扭矩
-          </label>
-          <label class="btn btn-outline-secondary font-weight-bold " for="update-chart-t-m" id="update-chart-t-m-label"
-                 title="Also include past task instances when clearing this one">
-            <input id="update-chart-t-m" type="radio" name="chart-type" autocomplete="off">
-            时间/扭矩
-          </label>
-          <label class="btn btn-outline-secondary font-weight-bold " for="update-chart-t-w" id="update-chart-t-w-label"
-                 title="Also include past task instances when clearing this one">
-            <input id="update-chart-t-w" type="radio" name="chart-type" autocomplete="off">
-            时间/角度
-          </label>
-        </span>
-      <!--        <button class="btn btn-primary margin" id="update-chart-w-m">角度/扭矩</button>-->
-      <!--        <button class="btn btn-primary margin" id="update-chart-t-m">时间/扭矩</button>-->
-      <!--        <button class="btn btn-primary margin" id="update-chart-t-w">时间/角度</button>-->
+      <span class="btn-group btn-group-toggle" data-toggle="buttons">
+        <label class="btn active btn-outline-secondary font-weight-bold " for="update-chart-w-m"
+               id="update-chart-w-m-label"
+               title="Also include past task instances when clearing this one">
+          <input id="update-chart-w-m" type="radio" name="chart-type" checked autocomplete="off">
+          角度/扭矩
+        </label>
+        <label class="btn btn-outline-secondary font-weight-bold " for="update-chart-t-m" id="update-chart-t-m-label"
+               title="Also include past task instances when clearing this one">
+          <input id="update-chart-t-m" type="radio" name="chart-type" autocomplete="off">
+          时间/扭矩
+        </label>
+        <label class="btn btn-outline-secondary font-weight-bold " for="update-chart-t-w" id="update-chart-t-w-label"
+               title="Also include past task instances when clearing this one">
+          <input id="update-chart-t-w" type="radio" name="chart-type" autocomplete="off">
+          时间/角度
+        </label>
+      </span>
     </div>
     <div style="flex:1">
       <div id="echarts-main" style="width: 100%;height:100%;"></div>
@@ -82,7 +80,8 @@
         <p>确认删除曲线？</p>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary m-2  px-4 py-2 font-weight-bold " data-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-secondary m-2  px-4 py-2 font-weight-bold " data-dismiss="modal">取消
+        </button>
         <button type="button" class="btn btn-danger m-2 px-4 py-2 font-weight-bold " id="btnDoRemoveCurve">删除</button>
       </div>
     </div>
