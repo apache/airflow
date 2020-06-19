@@ -17,7 +17,7 @@
 # under the License.
 
 import os
-import tempfile
+from tempfile import NamedTemporaryFile
 from typing import Optional, Union
 
 import numpy as np
@@ -114,7 +114,7 @@ class MySQLToS3Operator(BaseOperator):
         self.log.info("Data from MySQL obtained")
 
         self._fix_int_dtypes(data_df)
-        with tempfile.NamedTemporaryFile(mode='r+', suffix='.csv') as tmp_csv:
+        with NamedTemporaryFile(mode='r+', suffix='.csv') as tmp_csv:
             data_df.to_csv(tmp_csv.name, **self.pd_csv_kwargs)
             s3_conn.load_file(filename=tmp_csv.name,
                               key=self.s3_key,

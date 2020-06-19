@@ -250,6 +250,11 @@ Foundation.
      -
      - :mod:`airflow.providers.apache.hive.transfers.mysql_to_hive`
 
+   * - `MySQL <https://www.mysql.com/>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     -
+     - :mod:`airflow.providers.mysql.transfers.mysql_to_s3`
+
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -

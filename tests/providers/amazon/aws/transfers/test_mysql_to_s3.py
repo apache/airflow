@@ -21,22 +21,24 @@ from unittest import mock
 
 import pandas as pd
 
-from airflow.providers.amazon.aws.operators.mysql_to_s3 import MySQLToS3Operator
+from airflow.providers.amazon.aws.transfers.mysql_to_s3 import MySQLToS3Operator
 
 
 class TestMySqlToS3Operator(unittest.TestCase):
 
-    @mock.patch("airflow.providers.amazon.aws.operators.mysql_to_s3.tempfile.NamedTemporaryFile")
-    @mock.patch("airflow.providers.amazon.aws.operators.mysql_to_s3.S3Hook")
-    @mock.patch("airflow.providers.amazon.aws.operators.mysql_to_s3.MySqlHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.mysql_to_s3.NamedTemporaryFile")
+    @mock.patch("airflow.providers.amazon.aws.transfers.mysql_to_s3.S3Hook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.mysql_to_s3.MySqlHook")
     def test_execute(self, mock_mysql_hook, mock_s3_hook, temp_mock):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
+        filename = "file"
 
         test_df = pd.DataFrame({'a': '1', 'b': '2'}, index=[0, 1])
         get_pandas_df_mock = mock_mysql_hook.return_value.get_pandas_df
         get_pandas_df_mock.return_value = test_df
+        temp_mock.return_value.__enter__.return_value.name = filename
 
         op = MySQLToS3Operator(query=query,
                                s3_bucket=s3_bucket,
@@ -54,8 +56,6 @@ class TestMySqlToS3Operator(unittest.TestCase):
         get_pandas_df_mock.assert_called_once_with(query)
 
         temp_mock.assert_called_once_with(mode='r+', suffix=".csv")
-        filename = "file"
-        temp_mock.return_value.__enter__.return_value.name = mock.PropertyMock(return_value=filename)
         mock_s3_hook.return_value.load_file.assert_called_once_with(filename=filename,
                                                                     key=s3_key,
                                                                     bucket_name=s3_bucket)
