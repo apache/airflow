@@ -15,24 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 
 from flask import Response, current_app, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
 
-from airflow import models, settings
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import logs_schema
 from airflow.models import DagRun
-from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
-
-if os.environ.get('SKIP_DAGS_PARSING') != 'True':
-    dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
-else:
-    dagbag = models.DagBag(os.devnull, include_examples=False)
 
 
 @provide_session
@@ -81,7 +73,7 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
                 continuation_token=str(metadata))
         )
     try:
-        dag = dagbag.get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
         if dag:
             ti.task = dag.get_task(ti.task_id)
 
