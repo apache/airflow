@@ -189,8 +189,6 @@ release = airflow.__version__
 exclude_patterns: List[str] = [
     # We only link to selected subpackages.
     '_api/airflow/index.rst',
-    # Required by airflow/contrib/plugins
-    '_api/main',
     # We have custom page - operators-and-hooks-ref.rst
     '_api/airflow/providers/index.rst',
     # Packages with subpackages
