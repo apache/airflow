@@ -56,7 +56,6 @@ class StackdriverTaskHandler(logging.Handler):
         If ommited, authorization based on `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
-
     :type gcp_key_path: str
     :param scopes: OAuth scopes for the credentials,
     :type scopes: Sequence[str]

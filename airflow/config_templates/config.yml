@@ -394,6 +394,16 @@
       type: string
       example: ~
       default: ""
+    - name: stackdriver_key_path
+      description: |
+        Path to GCP Credential JSON file. If ommited, authorization based on `the Application Default
+        Credentials
+        <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
+        be used.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     - name: remote_base_log_folder
       description: |
         Storage bucket URL for remote logging
