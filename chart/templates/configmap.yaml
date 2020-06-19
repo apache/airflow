@@ -96,6 +96,7 @@ data:
     dags_in_image = {{ if .Values.gitSync.enabled }}False{{ else }}True{{ end }}
     delete_worker_pods = True
     run_as_user = {{ .Values.uid }}
+    fs_group = {{ .Values.gid }}
     {{- if .Values.gitSync.enabled }}
     git_dags_folder_mount_point = {{ include "airflow_dags_mount_path" . }}
     dags_volume_mount_point = {{ include "airflow_dags_mount_path" . }}
