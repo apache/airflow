@@ -64,10 +64,60 @@ tests:
                 value: test-dest
               - name: GIT_SYNC_ADD_USER
                 value: "true"
-              - name: GIT_KNOWN_HOSTS
-                value: "false"
               - name: GIT_SYNC_WAIT
                 value: "66"
             volumeMounts:
               - mountPath: /git-root
                 name: dags
+  - it: validate if ssh params are added
+    set:
+      gitSync:
+        enabled: true
+        container_name: git-sync-test
+        ssh_key_secret: ssh-secret
+        branch: test-branch
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[1].env
+          content:
+            name: GIT_SSH_KEY_FILE
+            value: "/etc/git-secret/ssh"
+      - contains:
+          path: spec.template.spec.containers[1].env
+          content:
+            name: GIT_SYNC_SSH
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[1].env
+          content:
+            name: GIT_KNOWN_HOSTS
+            value: "false"
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: git-sync-ssh-key
+            secret:
+              secretName: ssh-secret
+              defaultMode: 288
+  - it: should set username and pass env variables
+    set:
+      gitSync:
+        enabled: true
+        credentials_secret: user-pass-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[1].env
+          content:
+            name: GIT_SYNC_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: user-pass-secret
+                key: GIT_SYNC_USERNAME
+      - contains:
+          path: spec.template.spec.containers[1].env
+          content:
+            name: GIT_SYNC_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: user-pass-secret
+                key: GIT_SYNC_PASSWORD

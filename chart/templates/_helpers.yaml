@@ -111,6 +111,19 @@
       value: "/etc/git-secret/ssh"
     - name: GIT_SYNC_SSH
       value: "true"
+    - name: GIT_KNOWN_HOSTS
+      value: "false"
+    {{ else if .Values.gitSync.credentials_secret }}
+    - name: GIT_SYNC_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.gitSync.credentials_secret }}
+          key: GIT_SYNC_USERNAME
+    - name: GIT_SYNC_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.gitSync.credentials_secret }}
+          key: GIT_SYNC_PASSWORD
     {{- end }}
     - name: GIT_SYNC_REV
       value: {{ .Values.gitSync.rev | quote }}
@@ -126,8 +139,6 @@
       value: {{ .Values.gitSync.dest | quote }}
     - name: GIT_SYNC_ADD_USER
       value: "true"
-    - name: GIT_KNOWN_HOSTS
-      value: "false"
     - name: GIT_SYNC_WAIT
       value: {{ .Values.gitSync.wait | quote }}
   volumeMounts:
