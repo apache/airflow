@@ -113,6 +113,7 @@ data:
     git_sync_container_repository = {{ .Values.gitSync.container_repository }}
     git_sync_container_tag = {{ .Values.gitSync.container_tag }}
     git_sync_init_container_name = {{ .Values.gitSync.container_name }}
+    git_sync_run_as_user = {{ .Values.uid }}
     {{- if .Values.gitSync.ssh_key_secret }}
     git_ssh_key_secret_name = {{ .Values.gitSync.ssh_key_secret }}
     {{- else if .Values.gitSync.credentials_secret }}
