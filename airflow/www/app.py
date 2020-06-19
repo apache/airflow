@@ -44,6 +44,10 @@ from airflow.www.extensions.init_wsgi_middlewares import init_wsg_middleware
 
 app: Optional[Flask] = None
 
+# Initializes at the module level so plugins can access it.
+# See: /docs/plugins.rst
+csrf = CSRFProtect()
+
 
 def sync_appbuilder_roles(flask_app):
     """Sync appbuilder roles to DB"""
@@ -79,7 +83,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     # Configure the JSON encoder used by `|tojson` filter from Flask
     flask_app.json_encoder = AirflowJsonEncoder
 
-    CSRFProtect(flask_app)
+    csrf.init_app(flask_app)
 
     init_wsg_middleware(flask_app)
 

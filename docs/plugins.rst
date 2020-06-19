@@ -253,6 +253,20 @@ Airflow 1.10 introduced role based views using FlaskAppBuilder. You can configur
 ``rbac = True``. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
 the fields ``appbuilder_views`` and ``appbuilder_menu_items`` were added to the ``AirflowTestPlugin`` class.
 
+Exclude views from CSRF protection
+----------------------------------
+
+We strongly suggest that you protect all your views with CSRF. But if needed, you can exclude
+some views using a decorator.
+
+.. code-block:: python
+
+    from airflow.www.app import csrf
+
+    @csrf.exempt
+    def my_handler():
+        # ...
+        return 'ok'
 
 Plugins as Python packages
 --------------------------
