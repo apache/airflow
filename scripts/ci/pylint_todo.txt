@@ -16,13 +16,5 @@
 ./airflow/models/variable.py
 ./airflow/models/xcom.py
 ./airflow/stats.py
-./airflow/www/blueprints.py
-./airflow/www/decorators.py
-./airflow/www/forms.py
-./airflow/www/gunicorn_config.py
-./airflow/www/security.py
-./airflow/www/static_config.py
 ./airflow/www/utils.py
-./airflow/www/validators.py
 ./airflow/www/views.py
-./airflow/www/widgets.py

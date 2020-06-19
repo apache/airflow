@@ -44,22 +44,23 @@ class GreaterEqualThan(EqualTo):
             return
 
         if field.data < other.data:
-            d = {
+            message_args = {
                 'other_label':
                     hasattr(other, 'label') and other.label.text or self.fieldname,
                 'other_name': self.fieldname,
             }
             message = self.message
             if message is None:
-                message = field.gettext('Field must be greater than or equal '
-                                        'to %(other_label)s.' % d)
+                message = field.gettext(
+                    'Field must be greater than or equal to %(other_label)s.' % message_args
+                )
             else:
-                message = message % d
+                message = message % message_args
 
             raise ValidationError(message)
 
 
-class ValidJson(object):
+class ValidJson:
     """Validates data is valid JSON.
 
     :param message:
