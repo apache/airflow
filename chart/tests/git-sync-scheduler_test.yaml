@@ -14,28 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-{{- if and .Values.gitSync.enabled .Values.gitSync.persistence.enabled }}
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: {{ .Release.Name }}-dags
-  labels:
-    tier: airflow
-    component: dags-pvc
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
-spec:
-  accessModes: ["ReadWriteMany"]
-  resources:
-    requests:
-      storage: {{ .Values.gitSync.persistence.size | quote }}
-  {{- if .Values.gitSync.persistence.storageClass }}
-  {{- if (eq "-" .Values.gitSync.persistence.storageClass) }}
-  storageClassName: ""
-  {{- else }}
-  storageClassName: "{{ .Values.gitSync.persistence.storageClass }}"
-  {{- end }}
-  {{- end }}
-{{- end }}
+tests:
+  - it: should add dags volume
+    set:
+      gitSync:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: dags
+        template: scheduler/scheduler-deployment.yaml

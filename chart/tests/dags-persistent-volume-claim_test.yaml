@@ -1,0 +1,63 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+templates:
+  - dags-persistent-volume-claim.yaml
+tests:
+  - it: should  not generate a document if persistence is disabled
+    set:
+      gitSync:
+        enabled: true
+        persistence:
+          enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: should  not generate a document if git sync is disabled
+    set:
+      gitSync:
+        enabled: false
+        persistence:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: should  generate a document if git sync & persistence is enabled
+    set:
+      gitSync:
+        enabled: true
+        persistence:
+          enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+  - it: should set PVC details correctly
+    set:
+      gitSync:
+        persistence:
+          enabled: true
+          size: 1G
+          storageClass: "MyStorageClass"
+    asserts:
+      - equal:
+          path: spec
+          value:
+            accessModes: ["ReadWriteMany"]
+            resources:
+              requests:
+                storage: 1G
+            storageClassName: "MyStorageClass"

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,27 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-{{- if and .Values.gitSync.enabled .Values.gitSync.persistence.enabled }}
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: {{ .Release.Name }}-dags
-  labels:
-    tier: airflow
-    component: dags-pvc
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
-spec:
-  accessModes: ["ReadWriteMany"]
-  resources:
-    requests:
-      storage: {{ .Values.gitSync.persistence.size | quote }}
-  {{- if .Values.gitSync.persistence.storageClass }}
-  {{- if (eq "-" .Values.gitSync.persistence.storageClass) }}
-  storageClassName: ""
-  {{- else }}
-  storageClassName: "{{ .Values.gitSync.persistence.storageClass }}"
-  {{- end }}
-  {{- end }}
-{{- end }}
+echo "Running helm tests"
+
+CHART_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../chart/"
+
+echo "Chart directory is $CHART_DIR"
+
+docker run -w /airflow-chart -v "$CHART_DIR":/airflow-chart \
+  --entrypoint /bin/sh \
+  divya12/helm-unittest \
+  -c "helm repo add stable https://kubernetes-charts.storage.googleapis.com; helm dependency update ; helm unittest ."
