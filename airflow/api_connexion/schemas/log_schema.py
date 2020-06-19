@@ -25,4 +25,4 @@ class LogsSchema(Schema):
     continuation_token = fields.Str()
 
 
-logs_schema = LogsSchema()
+logs_schema = LogsSchema(strict=True)

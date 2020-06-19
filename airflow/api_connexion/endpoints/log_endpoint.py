@@ -69,7 +69,7 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
         metadata['end_of_log'] = True
         return logs_schema.dump(
             dict(
-                content=str("[*** Task instance did not exist in the DB\n]"),
+                content="[*** Task instance did not exist in the DB\n]",
                 continuation_token=str(metadata))
         )
     try:
