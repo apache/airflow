@@ -16,9 +16,13 @@
 # under the License.
 
 import unittest
+from unittest import mock
+
+from pendulum import DateTime
+from pendulum.tz.timezone import Timezone
 
 from airflow.api_connexion.exceptions import BadRequest
-from airflow.api_connexion.utils import conn_parse_datetime
+from airflow.api_connexion.parameters import format_datetime, format_parameters
 from airflow.utils import timezone
 
 
@@ -29,13 +33,13 @@ class TestDateTimeParser(unittest.TestCase):
         self.default_time_2 = '2020-06-13T22:44:00Z'
 
     def test_works_with_datestring_ending_00_00(self):
-        datetime = conn_parse_datetime(self.default_time)
+        datetime = format_datetime(self.default_time)
         datetime2 = timezone.parse(self.default_time)
         assert datetime == datetime2
         assert datetime.isoformat() == self.default_time
 
     def test_works_with_datestring_ending_with_zed(self):
-        datetime = conn_parse_datetime(self.default_time_2)
+        datetime = format_datetime(self.default_time_2)
         datetime2 = timezone.parse(self.default_time_2)
         assert datetime == datetime2
         assert datetime.isoformat() == self.default_time  # python uses +00:00 instead of Z
@@ -43,4 +47,23 @@ class TestDateTimeParser(unittest.TestCase):
     def test_raises_400_for_invalid_arg(self):
         invalid_datetime = '2020-06-13T22:44:00P'
         with self.assertRaises(BadRequest):
-            conn_parse_datetime(invalid_datetime)
+            format_datetime(invalid_datetime)
+
+
+class TestFormatParameters(unittest.TestCase):
+
+    def test_should_works_with_datetime_formatter(self):
+        decorator = format_parameters({"param_a": format_datetime})
+        endpoint = mock.MagicMock()
+        decorated_endpoint = decorator(endpoint)
+
+        decorated_endpoint(param_a='2020-01-01T0:0:00+00:00')
+
+        endpoint.assert_called_once_with(param_a=DateTime(2020, 1, 1, 0, tzinfo=Timezone('UTC')))
+
+    def test_should_propagate_exceptions(self):
+        decorator = format_parameters({"param_a": format_datetime})
+        endpoint = mock.MagicMock()
+        decorated_endpoint = decorator(endpoint)
+        with self.assertRaises(BadRequest):
+            decorated_endpoint(param_a='XXXXX')
