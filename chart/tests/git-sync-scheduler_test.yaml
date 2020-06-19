@@ -14,6 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+---
+templates:
+  - scheduler/scheduler-deployment.yaml
 tests:
   - it: should add dags volume
     set:
@@ -23,4 +26,48 @@ tests:
       - equal:
           path: spec.template.spec.volumes[1].name
           value: dags
-        template: scheduler/scheduler-deployment.yaml
+  - it: validate the git sync container spec
+    set:
+      gitSync:
+        enabled: true
+        container_name: git-sync-test
+        container_tag: test-tag
+        container_repository: test-registry/test-repo
+        wait: 66
+        subpath: "path1/path2"
+        dest: "test-dest"
+        root: "/git-root"
+        rev: HEAD
+        depth: 1
+        repo: https://github.com/apache/airflow.git
+        branch: test-branch
+        persistence:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1]
+          value:
+            name: git-sync-test
+            image: test-registry/test-repo:test-tag
+            env:
+              - name: GIT_SYNC_REV
+                value: HEAD
+              - name: GIT_SYNC_BRANCH
+                value: test-branch
+              - name: GIT_SYNC_REPO
+                value: https://github.com/apache/airflow.git
+              - name: GIT_SYNC_DEPTH
+                value: "1"
+              - name: GIT_SYNC_ROOT
+                value: /git-root
+              - name: GIT_SYNC_DEST
+                value: test-dest
+              - name: GIT_SYNC_ADD_USER
+                value: "true"
+              - name: GIT_KNOWN_HOSTS
+                value: "false"
+              - name: GIT_SYNC_WAIT
+                value: "66"
+            volumeMounts:
+              - mountPath: /git-root
+                name: dags

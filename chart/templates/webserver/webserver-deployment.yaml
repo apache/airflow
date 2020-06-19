@@ -147,11 +147,11 @@ spec:
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-dags
         {{- else }}
-        {{- if  .Values.gitSync.ssh_key_secret }}
-        {{- include "git_ssh_key_volume" . | indent 8 }}
-        {{- end }}
         - name: dags
           emptyDir: {}
+        {{- if  .Values.gitSync.ssh_key_secret }}
+        {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+        {{- end }}
         {{- end }}
         {{- end }}
 {{- if .Values.webserver.extraVolumes }}

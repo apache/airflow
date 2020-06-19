@@ -24,5 +24,5 @@ echo "Chart directory is $CHART_DIR"
 
 docker run -w /airflow-chart -v "$CHART_DIR":/airflow-chart \
   --entrypoint /bin/sh \
-  divya12/helm-unittest \
+  aneeshkj/helm-unittest \
   -c "helm repo add stable https://kubernetes-charts.storage.googleapis.com; helm dependency update ; helm unittest ."

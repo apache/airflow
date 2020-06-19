@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+---
 # Default values for airflow.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
@@ -469,4 +469,4 @@ gitSync:
   wait: 60
   container_repository: k8s.gcr.io/git-sync
   container_tag: v3.1.6
-  container_name: git-sync-clone
+  container_name: git-sync

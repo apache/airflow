@@ -16,48 +16,47 @@
 # under the License.
 ---
 templates:
-  - dags-persistent-volume-claim.yaml
+  - webserver/webserver-deployment.yaml
 tests:
-  - it: should  not generate a document if persistence is disabled
+  - it: should add dags volume to the webserver if git sync & peristence is enabled
     set:
       gitSync:
         enabled: true
+      persistence:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: dags
+  - it: should add dags volume to the webserver if git sync is enabled & peristence is disabled
+    set:
+      gitSync:
+        enabled: true
+      persistence:
+        enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: dags
+  - it: should add git sync container to webserver if persistence is not enabled, but git sync is
+    set:
+      gitSync:
+        enabled: true
+        container_name: git-sync
         persistence:
           enabled: false
     asserts:
-      - hasDocuments:
-          count: 0
-  - it: should  not generate a document if git sync is disabled
-    set:
-      gitSync:
-        enabled: false
-        persistence:
-          enabled: true
-    asserts:
-      - hasDocuments:
-          count: 0
-  - it: should  generate a document if git sync & persistence is enabled
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: git-sync
+  - it: should not add sync container to webserver if git sync and persistence are enabled
     set:
       gitSync:
         enabled: true
+        container_name: git-sync
         persistence:
           enabled: true
     asserts:
-      - hasDocuments:
-          count: 1
-  - it: should set PVC details correctly
-    set:
-      gitSync:
-        persistence:
-          enabled: true
-          size: 1G
-          storageClass: "MyStorageClass"
-    asserts:
-      - equal:
-          path: spec
-          value:
-            accessModes: ["ReadWriteMany"]
-            resources:
-              requests:
-                storage: 1G
-            storageClassName: "MyStorageClass"
+      - notEqual:
+          path: spec.template.spec.containers[0].name
+          value: git-sync
