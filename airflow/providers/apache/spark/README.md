@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-apache-spark
 
-Release: 2020-06-23
+Release: 2020.6.24
 
 **Table of contents**
 
@@ -34,7 +34,7 @@ Release: 2020-06-23
     - [Hooks](#hooks)
         - [Moved hooks](#moved-hooks)
 - [Releases](#releases)
-    - [Release 2020-06-23](#release-2020-06-23)
+    - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
 
@@ -109,10 +109,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020-06-23
+### Release 2020.6.24
 
 | Commit                                                                                         | Committed   | Subject                                                                                          |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------|
+| [12af6a080](https://github.com/apache/airflow/commit/12af6a08009b8776e00d8a0aab92363eb8c4e8b1) | 2020-06-19  | Final cleanup for 2020.6.23rc1 release preparation (#9404)                                       |
 | [c7e5bce57](https://github.com/apache/airflow/commit/c7e5bce57fe7f51cefce4f8a41ce408ac5675d13) | 2020-06-19  | Prepare backport release candidate for 2020.6.23rc1 (#9370)                                      |
 | [40bf8f28f](https://github.com/apache/airflow/commit/40bf8f28f97f17f40d993d207ea740eba54593ee) | 2020-06-18  | Detect automatically the lack of reference to the guide in the operator descriptions (#9290)     |
 | [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                           |

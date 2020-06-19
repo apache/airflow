@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-hashicorp
 
-Release: 2020-06-23
+Release: 2020.6.24
 
 **Table of contents**
 
@@ -35,7 +35,7 @@ Release: 2020-06-23
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
-    - [Release 2020-06-23](#release-2020-06-23)
+    - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
 
@@ -120,10 +120,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020-06-23
+### Release 2020.6.24
 
 | Commit                                                                                         | Committed   | Subject                                                                   |
 |:-----------------------------------------------------------------------------------------------|:------------|:--------------------------------------------------------------------------|
+| [12af6a080](https://github.com/apache/airflow/commit/12af6a08009b8776e00d8a0aab92363eb8c4e8b1) | 2020-06-19  | Final cleanup for 2020.6.23rc1 release preparation (#9404)                |
 | [df693e0e3](https://github.com/apache/airflow/commit/df693e0e3138f6601c4776cd529d8cb7bcde2f90) | 2020-06-19  | Add more authentication options for HashiCorp Vault classes (#8974)       |
 | [c7e5bce57](https://github.com/apache/airflow/commit/c7e5bce57fe7f51cefce4f8a41ce408ac5675d13) | 2020-06-19  | Prepare backport release candidate for 2020.6.23rc1 (#9370)               |
 | [d47e070a7](https://github.com/apache/airflow/commit/d47e070a79b574cca043ca9c06f91d47eecb3040) | 2020-06-17  | Add HashiCorp Vault Hook (split-out from Vault secret backend) (#9333)    |

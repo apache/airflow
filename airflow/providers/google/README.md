@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-google
 
-Release: 2020-06-23
+Release: 2020.6.24
 
 **Table of contents**
 
@@ -45,7 +45,7 @@ Release: 2020-06-23
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
-    - [Release 2020-06-23](#release-2020-06-23)
+    - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
 
@@ -563,10 +563,12 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020-06-23
+### Release 2020.6.24
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [416334e2e](https://github.com/apache/airflow/commit/416334e2ecd21d8a532af6102f1cfa9ac921a97a) | 2020-06-19  | Properly propagated warnings in operators (#9348)                                                                                                                  |
+| [12af6a080](https://github.com/apache/airflow/commit/12af6a08009b8776e00d8a0aab92363eb8c4e8b1) | 2020-06-19  | Final cleanup for 2020.6.23rc1 release preparation (#9404)                                                                                                         |
 | [c7e5bce57](https://github.com/apache/airflow/commit/c7e5bce57fe7f51cefce4f8a41ce408ac5675d13) | 2020-06-19  | Prepare backport release candidate for 2020.6.23rc1 (#9370)                                                                                                        |
 | [4e09c6442](https://github.com/apache/airflow/commit/4e09c64423bfaabd02a18b5fe7757dc15451ab73) | 2020-06-18  | Adds GCP Secret Manager Hook (#9368)                                                                                                                               |
 | [40bf8f28f](https://github.com/apache/airflow/commit/40bf8f28f97f17f40d993d207ea740eba54593ee) | 2020-06-18  | Detect automatically the lack of reference to the guide in the operator descriptions (#9290)                                                                       |

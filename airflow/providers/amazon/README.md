@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-amazon
 
-Release: 2020-06-23
+Release: 2020.6.24
 
 **Table of contents**
 
@@ -45,7 +45,7 @@ Release: 2020-06-23
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
-    - [Release 2020-06-23](#release-2020-06-23)
+    - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
 
@@ -263,10 +263,11 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ## Releases
 
-### Release 2020-06-23
+### Release 2020.6.24
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [12af6a080](https://github.com/apache/airflow/commit/12af6a08009b8776e00d8a0aab92363eb8c4e8b1) | 2020-06-19  | Final cleanup for 2020.6.23rc1 release preparation (#9404)                                                                                                         |
 | [992a18c84](https://github.com/apache/airflow/commit/992a18c84a355d13e821c703e7364f12233c37dc) | 2020-06-19  | Move MySqlToS3Operator to transfers (#9400)                                                                                                                        |
 | [a60f589aa](https://github.com/apache/airflow/commit/a60f589aa251cc3df6bec5b306ad4a7f736f539f) | 2020-06-19  | Add MySqlToS3Operator (#9054)                                                                                                                                      |
 | [c7e5bce57](https://github.com/apache/airflow/commit/c7e5bce57fe7f51cefce4f8a41ce408ac5675d13) | 2020-06-19  | Prepare backport release candidate for 2020.6.23rc1 (#9370)                                                                                                        |

@@ -817,7 +817,7 @@ def check_if_release_version_ok(
         if previous_release_version:
             current_release_version = previous_release_version
         else:
-            current_release_version = (datetime.today() + timedelta(days=5)).strftime('%Y-%m-%d')
+            current_release_version = (datetime.today() + timedelta(days=5)).strftime('%Y.%m.%d')
     if previous_release_version and previous_release_version > current_release_version:
         print(f"The release {current_release_version} must be not less than "
               f"{previous_release_version} - last release for the package", file=sys.stderr)
