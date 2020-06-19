@@ -44,7 +44,7 @@ from airflow.www.extensions.init_wsgi_middlewares import init_wsg_middleware
 
 app: Optional[Flask] = None
 
-# Initializes at the module level so plugins can access it.
+# Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst
 csrf = CSRFProtect()
 
