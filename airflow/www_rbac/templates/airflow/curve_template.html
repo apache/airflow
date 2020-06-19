@@ -1,15 +1,14 @@
 {% extends 'appbuilder/init.html' %}
-{% import 'appbuilder/baselib.html' as baselib %}
 
 
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/bootstrap-theme.css') }}">
+      href="{{ url_for('static', filename='css/bootstrap-reboot.min.css') }}">
+<link rel="stylesheet" type="text/css"
+      href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 <link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/curve_template.css') }}">
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/main.css') }}">
 <link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/bootstrap-treeview.min.css') }}">
 <script src="{{ url_for('static', filename='js/echarts.js') }}" type="text/javascript"></script>
@@ -17,32 +16,38 @@
 
 {% block body %}
 <div id="root">
-  <div id="result-container" class="card">
-    <table id="result_table">
-      <thead>
-      <tr class="result-content-row">
-        <th>Key</th>
-        <th>Value</th>
-      </tr>
-      </thead>
-      <tbody id="result_detail"></tbody>
-    </table>
+  <div id="result-container" class="card overflow-hidden border rounded-sm d-flex shadow-sm m-1 bg-white rounded">
+    <div class="card-header">
+      <h5 class="m-0">曲线参数</h5>
+    </div>
+    <div class="card-body overflow-auto p-0">
+      <table id="result_table" class="table">
+        <thead>
+        <tr class="result-content-row">
+          <th class="position-sticky bg-light" style="top:0">参数</th>
+          <th class="position-sticky bg-light" style="top:0">值</th>
+        </tr>
+        </thead>
+        <tbody id="result_detail"></tbody>
+      </table>
+    </div>
   </div>
 
-  <div id="echarts-container" style="flex:1" class="card flex-column">
-    <div class="flex" id="actions-container">
-        <span class="btn-group" data-toggle="buttons">
-          <label class="btn active" for="update-chart-w-m" id="update-chart-w-m-label"
+  <div id="echarts-container" style="flex:1"
+       class="border rounded-sm d-flex p-2 bd-highlight shadow p-2 m-1 bg-white rounded flex-column">
+    <div class="flex-row mb-2" id="actions-container">
+        <span class="btn-group btn-group-toggle" data-toggle="buttons">
+          <label class="btn active btn-outline-secondary font-weight-bold " for="update-chart-w-m" id="update-chart-w-m-label"
                  title="Also include past task instances when clearing this one">
             <input id="update-chart-w-m" type="radio" name="chart-type" checked autocomplete="off">
             角度/扭矩
           </label>
-          <label class="btn" for="update-chart-t-m" id="update-chart-t-m-label"
+          <label class="btn btn-outline-secondary font-weight-bold " for="update-chart-t-m" id="update-chart-t-m-label"
                  title="Also include past task instances when clearing this one">
             <input id="update-chart-t-m" type="radio" name="chart-type" autocomplete="off">
             时间/扭矩
           </label>
-          <label class="btn" for="update-chart-t-w" id="update-chart-t-w-label"
+          <label class="btn btn-outline-secondary font-weight-bold " for="update-chart-t-w" id="update-chart-t-w-label"
                  title="Also include past task instances when clearing this one">
             <input id="update-chart-t-w" type="radio" name="chart-type" autocomplete="off">
             时间/角度
@@ -56,9 +61,11 @@
       <div id="echarts-main" style="width: 100%;height:100%;"></div>
     </div>
   </div>
-  <div id="curve-template-list-container" class="card">
-    <h4>曲线模板簇</h4>
-    <div id="tree"></div>
+  <div class="card overflow-hidden border rounded-sm d-flex shadow-sm m-1 bg-white rounded flex-column">
+    <div class="card-header">
+      <h5 class="m-0">曲线模板簇</h5>
+    </div>
+    <div id="tree" class="card-body overflow-auto"></div>
   </div>
 </div>
 
@@ -66,7 +73,7 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">删除曲线</h5>
+        <h5 class="modal-title m-0">删除曲线</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
@@ -75,8 +82,8 @@
         <p>确认删除曲线？</p>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
-        <button type="button" class="btn btn-primary" id="btnDoRemoveCurve">删除</button>
+        <button type="button" class="btn btn-secondary m-2  px-4 py-2 font-weight-bold " data-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-danger m-2 px-4 py-2 font-weight-bold " id="btnDoRemoveCurve">删除</button>
       </div>
     </div>
   </div>
@@ -90,16 +97,16 @@
 <script type="text/javascript">
   let curveChart = null;
   let curves = [];
-  let modes = [];
+  const modes = [];
   let tree = [];
   let renderCurves = [];
   let selectedNode = 0;
   let curveTemplate = JSON.parse('{{ curve_template|tojson|safe }}');
   const timeStep = curveTemplate.curve_param.sampling_time;
   const curKeyMap = {
-    'cur_w': '角度',
-    'cur_m': '扭矩',
-    'cur_t': '时间',
+    cur_w: '角度',
+    cur_m: '扭矩',
+    cur_t: '时间',
   };
   const treeRoles = {
     cluster: 'cluster',
@@ -124,10 +131,10 @@
   console.log(curveTemplate);
 
   function randomColor() {
-    return '#' + (function (color) {
+    return `#${(function (color) {
       return (color += '0123456789abcdef'[Math.floor(Math.random() * 16)])
       && (color.length === 6) ? color : arguments.callee(color);
-    })('');
+    }(''))}`;
   }
 
 
@@ -184,7 +191,7 @@
     const curve = curves.find(c => c.name === name);
     const modal = $('#removeCurveDialog');
     modal.find('.modal-body')
-      .html(`确认删除曲线 <div class="color-indicator" style="background-color: ${color}"></div>${name}`);
+      .html(`<p>确认删除曲线 <span class="color-indicator" style="display:inline-block;background-color: ${color}"></span>${name}</p>`);
     modal.find('#btnDoRemoveCurve').off('click');
     modal.find('#btnDoRemoveCurve').on('click', () => {
       doRemoveCurve(
@@ -285,9 +292,11 @@
             cur_t: genTimeSeries(timeStep, cur_w.length),
           });
           gRow.nodes.push({
-            text: `<span style="user-select: none;">${name}
-                <div class="color-indicator" style="background-color: ${color};"></div>
-                <button class="check-icon">删除</button>
+            text: `<span style="user-select: none;height:100%;">
+                  <span  class="align-items-center d-inline-flex">${name}
+                  <div class="color-indicator ml-2 mr-3" style="background-color: ${color};"></div>
+                  <button class="btn check-icon btn-danger">删除</button>
+                  </span>
                 </span>`,
             name,
             curveColor: color,
@@ -314,7 +323,7 @@
   }
 
   function genDataSeries() {
-    const { xKey, yKey, yName } = chartParams;
+    const { xKey, yKey } = chartParams;
     return renderCurves.map(c => ({
       name: c.name,
       type: 'line',

@@ -1,74 +1,86 @@
 {% extends 'appbuilder/init.html' %}
-{% import 'appbuilder/baselib.html' as baselib %}
 
 
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css"
+      href="{{ url_for('static', filename='css/bootstrap-reboot.min.css') }}">
+<link rel="stylesheet" type="text/css"
+      href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+<link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/curve.css') }}">
 <link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/main.css') }}">
-<link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/select2.min.css') }}">
-<script src="{{ url_for('static', filename='js/echarts.js') }}" type="text/javascript"></script>
 {% endblock %}
 
 {% block body %}
-<div id="root">
-  <div id="base-info-container" class="card flex justify-stretch align-stretch">
-    <fieldset class="base-info-item card flex-column">
-      <legend class="base-info-title">二次确认</legend>
-      <div class="base-info-content" id="double-check-result">
+<div id="root" class="bg-light ">
+  <div id="base-info-container" class="border rounded-sm d-flex p-1 shadow-sm m-1 bg-white rounded">
+    <div class="card base-info-item flex-column shadow-sm m-1 {{ 'alert-danger' if task_instance.final_state =='NOK'
+    else ('alert-success' if task_instance.final_state =='OK' else '')}}" id="double-check-card">
+      <div class="card-header base-info-title"><h5 class="m-0">二次确认</h5></div>
+      <div class="card-body d-flex flex-row justify-content-center align-items-center" id="double-check-result">
         {% if task_instance.final_state %}
-        {{task_instance.final_state}}
+        <h4 class="m-0">{{task_instance.final_state}}</h4>
         {% else %}
-        <button id="btn_double_check_success" class="button-double-check btn btn-primary margin">
-          <span class="glyphicon glyphicon-ok" style="color:red" aria-hidden="true" onclick=""></span>
+        <button id="btn_double_check_success" style="width:80px"
+                class="button-double-check btn btn-success mr-2 font-weight-bold">
+          <span class="glyphicon glyphicon-ok" aria-hidden="true" onclick=""></span>
           OK
         </button>
-        <button id="btn_double_check_failed" class="button-double-check btn btn-primary margin">
-          <span class="glyphicon glyphicon-remove" style="color:red" aria-hidden="true"></span>
+        <button id="btn_double_check_failed" style="width:80px"
+                class="button-double-check btn btn-danger ml-2 font-weight-bold">
+          <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
           NOK
         </button>
         {% endif %}
       </div>
-    </fieldset>
+    </div>
   </div>
-  <div id="result-container" class="card">
-    <table id="result_table">
-      <thead>
-      <tr class="result-content-row">
-        <th>Key</th>
-        <th>Value</th>
-      </tr>
-      </thead>
-      <tbody id="result_detail"></tbody>
-    </table>
+  <div id="result-container" class="card border rounded-sm shadow-sm m-1 bg-white rounded">
+    <div class="card-header"><h5  class="m-0">结果数据</h5></div>
+    <div class="card-body overflow-auto p-0">
+      <table id="result_table" class="table position-relative">
+        <thead>
+        <tr class="result-content-row">
+          <th class="position-sticky bg-light" style="top:0">字段</th>
+          <th class="position-sticky bg-light" style="top:0">值</th>
+        </tr>
+        </thead>
+        <tbody id="result_detail"></tbody>
+      </table>
+    </div>
   </div>
-  <div id="error-tag-container" class="card">
-    <label for="error-tag-select" id="error-tag-label-container" class="flex">
-      曲线标签
+  <div id="error-tag-container"
+       class="border rounded-sm d-flex p-2 align-items-center shadow-sm m-1 bg-white rounded flex-row justify-content-between">
+    曲线标签
+    <label for="error-tag-select" id="error-tag-label-container" class="mx-2 my-0 flex-fill">
       <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple disabled>
         {% for err in errorTags %}
         <option value="{{err.id}}" data-value="{{err.value}}">{{err.label}}</option>
         {% endfor %}
       </select>
-      <button id="error-tag-button">编辑</button>
+    </label>
+    <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>
   </div>
-  <div id="echarts-container" style="flex:1" class="card flex-column">
-    <div class="flex" id="actions-container">
-        <span class="btn-group" data-toggle="buttons">
-          <label class="btn active" for="update-chart-w-m" id="update-chart-w-m-label"
+  <div id="echarts-container" style="flex:1"
+       class="border rounded-sm d-flex p-2 bd-highlight shadow p-2 m-1 bg-white rounded flex-column">
+    <div class="flex-row mb-2" id="actions-container">
+        <span class="btn-group btn-group-toggle " data-toggle="buttons">
+          <label class="btn active btn-outline-secondary font-weight-bold " for="update-chart-w-m"
+                 id="update-chart-w-m-label"
                  title="Also include past task instances when clearing this one">
             <input id="update-chart-w-m" type="radio" name="chart-type" checked autocomplete="off">
             角度/扭矩
           </label>
-          <label class="btn" for="update-chart-t-m" id="update-chart-t-m-label"
+          <label class="btn btn-outline-secondary font-weight-bold " for="update-chart-t-m"
+                 id="update-chart-t-m-label"
                  title="Also include past task instances when clearing this one">
             <input id="update-chart-t-m" type="radio" name="chart-type" autocomplete="off">
             时间/扭矩
           </label>
-          <label class="btn" for="update-chart-t-w" id="update-chart-t-w-label"
+          <label class="btn btn-outline-secondary font-weight-bold " for="update-chart-t-w"
+                 id="update-chart-t-w-label"
                  title="Also include past task instances when clearing this one">
             <input id="update-chart-t-w" type="radio" name="chart-type" autocomplete="off">
             时间/角度
@@ -88,6 +100,7 @@
 
 {% block tail_js %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/echarts.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('static', filename='js/select2.min.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
   let curveChart = null;
@@ -181,13 +194,9 @@
     const $key = $(`<td class="result-content-item">${key}</td>`);
     const $value = $(`<td class="result-content-item">${isEmptyValue(value) ? '' : value}</td>`);
     if (alert === false) {
-      $tr.css({
-        'background-color': '#33ee33',
-      });
+      $tr.addClass('bg-success text-white font-weight-bold');
     } else if (alert === true) {
-      $tr.css({
-        'background-color': '#ee3333',
-      });
+      $tr.addClass('bg-danger text-white font-weight-bold');
     }
     $tr.append([$key, $value]);
     return $tr;
@@ -217,7 +226,7 @@
   function renderResultDetail() {
     const { measure_result: measureResult, error_code: errorCode, ...rest } = result;
     const $rows = [];
-    const isNOK = (measureResult||'').toUpperCase() === 'NOK';
+    const isNOK = (measureResult || '').toUpperCase() === 'NOK';
     $rows.push(renderResultTableRow(resultKeys.measure_result || 'measure_result', measureResult, isNOK));
     $rows.push(renderResultTableRow(resultKeys.error_code || 'error_code', parseResultErrorCode(errorCode), isNOK));
     Object.keys(rest).forEach((k) => {
@@ -234,10 +243,7 @@
   });
 
   const info = [
-    {
-      title: '拧紧结果',
-      content: result.measure_result,
-    },
+
     {
       title: '螺栓编号',
       content: result.nut_no,
@@ -251,18 +257,19 @@
       content: result.update_time,
     },
     {
+      title: '拧紧结果',
+      content: result.measure_result,
+      className: result.measure_result === 'NOK' ? 'alert-danger' : 'alert-success',
+    },
+    {
       title: '分析结果',
       content: '{{task_instance.result}}',
-      css: {
-        color: '{{task_instance.result}}' === 'NOK' ? '#ee3333' : '#33ee33',
-      },
+      className: '{{task_instance.result}}' === 'NOK' ? 'alert-danger' : 'alert-success',
     },
     {
       title: '异常信息',
       content: verifyErrorMap['{{task_instance.verify_error}}'] || '{{task_instance.verify_error}}',
-      css: {
-        color: '{{task_instance.verify_error}}' !== '0' ? '#ee3333' : '#33ee33',
-      },
+      className: '{{task_instance.result}}' === 'NOK' ? 'alert-danger' : 'alert-success',
     },
   ];
   const errorCode = '{{task_instance.error_code}}';
@@ -278,12 +285,14 @@
   // }
 
   info.reverse().forEach((i) => {
-    const $info = $('<fieldset class="base-info-item card flex-column justify-center">');
-    const $title = $('<legend class="base-info-title">').append([i.title]);
-    const $content = $('<span class="base-info-content">').append([i.content]);
+    const $info = $('<div class="card base-info-item flex-column shadow-sm m-1">');
+    const $titleText = $('<h5 class="m-0">').append([i.title]);
+    const $title = $('<div class="base-info-title card-header ">').append($titleText);
+    const $contentText = $('<h4 class="m-0">').append([i.content]);
+    const $content = $('<div class="card-body d-flex flex-row justify-content-center align-items-center">').append($contentText);
     $info.append([$title, $content]);
-    if (i.css) {
-      $info.css(i.css);
+    if (i.className) {
+      $info.addClass(i.className);
     }
     $('#base-info-container').prepend($info);
   });
@@ -313,7 +322,7 @@
       dataType: 'json',
       contentType: 'application/json',
     }).then((resp) => {
-      $('#double-check-result').html(finalState);
+      $('#double-check-result').html(`<h5 class="m-0">${finalState}</h5>`);
       $('#doubleCheckModal').modal('hide');
       if (resp && resp.response === 'ok') {
         $('#double_check_result').html(`二次确认为${finalState}`);
@@ -361,7 +370,7 @@
     const $errorTagInput = $('.error-tag-select-input');
     const $errorTagButton = $('#error-tag-button');
     $errorTagInput.select2({
-      width: '85%',
+      width: '100%',
     });
 
     $errorTagInput.val(getTaskErrorTags().map(t => `${t}`)).trigger('change');
