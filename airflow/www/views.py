@@ -64,7 +64,8 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.helpers import alchemy_to_dict, render_log_filename
+from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.platform import get_airflow_git_version
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -646,7 +647,6 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        dttm = timezone.parse(execution_date)
         if request.args.get('try_number') is not None:
             try_number = int(request.args.get('try_number'))
         else:
@@ -672,62 +672,53 @@ class Airflow(AirflowBaseView):
 
             return response
 
-        logger = logging.getLogger('airflow.task')
-        task_log_reader = conf.get('logging', 'task_log_reader')
-        handler = next((handler for handler in logger.handlers
-                        if handler.name == task_log_reader), None)
+        task_log_reader = TaskLogReader()
+        if not task_log_reader.is_supported:
+            return jsonify(
+                message="Task log handler does not support read logs.",
+                error=True,
+                metadata={
+                    "end_of_log": True
+                }
+            )
 
         ti = session.query(models.TaskInstance).filter(
             models.TaskInstance.dag_id == dag_id,
             models.TaskInstance.task_id == task_id,
-            models.TaskInstance.execution_date == dttm).first()
+            models.TaskInstance.execution_date == execution_date).first()
 
-        def _get_logs_with_metadata(try_number, metadata):
-            if ti is None:
-                logs = ["*** Task instance did not exist in the DB\n"]
-                metadata['end_of_log'] = True
-            else:
-                logs, metadatas = handler.read(ti, try_number, metadata=metadata)
-                metadata = metadatas[0]
-            return logs, metadata
+        if ti is None:
+            return jsonify(
+                message="*** Task instance did not exist in the DB\n",
+                error=True,
+                metadata={
+                    "end_of_log": True
+                }
+            )
 
         try:
-            if ti is not None:
-                dag = current_app.dag_bag.get_dag(dag_id)
-                if dag:
-                    ti.task = dag.get_task(ti.task_id)
+            dag = current_app.dag_bag.get_dag(dag_id)
+            if dag:
+                ti.task = dag.get_task(ti.task_id)
+
             if response_format == 'json':
-                logs, metadata = _get_logs_with_metadata(try_number, metadata)
+                logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
                 message = logs[0] if try_number is not None else logs
                 return jsonify(message=message, metadata=metadata)
 
-            filename_template = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
-            attachment_filename = render_log_filename(
-                ti=ti,
-                try_number="all" if try_number is None else try_number,
-                filename_template=filename_template)
             metadata['download_logs'] = True
-
-            def _generate_log_stream(try_number, metadata):
-                if try_number is None and ti is not None:
-                    next_try = ti.next_try_number
-                    try_numbers = list(range(1, next_try))
-                else:
-                    try_numbers = [try_number]
-                for try_number in try_numbers:
-                    metadata.pop('end_of_log', None)
-                    metadata.pop('max_offset', None)
-                    metadata.pop('offset', None)
-                    while 'end_of_log' not in metadata or not metadata['end_of_log']:
-                        logs, metadata = _get_logs_with_metadata(try_number, metadata)
-                        yield "\n".join(logs) + "\n"
-            return Response(_generate_log_stream(try_number, metadata),
-                            mimetype="text/plain",
-                            headers={"Content-Disposition": "attachment; filename={}".format(
-                                attachment_filename)})
+            attachment_filename = task_log_reader.render_log_filename(ti, try_number)
+            log_stream = task_log_reader.read_log_stream(ti, try_number, metadata)
+            return Response(
+                response=log_stream,
+                mimetype="text/plain",
+                headers={
+                    "Content-Disposition": f"attachment; filename={attachment_filename}"
+                })
         except AttributeError as e:
-            error_message = ["Task log handler {} does not support read logs.\n{}\n"
-                             .format(task_log_reader, str(e))]
+            error_message = [
+                f"Task log handler does not support read logs.\n{str(e)}\n"
+            ]
             metadata['end_of_log'] = True
             return jsonify(message=error_message, error=True, metadata=metadata)
 
