@@ -256,7 +256,7 @@ the fields ``appbuilder_views`` and ``appbuilder_menu_items`` were added to the 
 Exclude views from CSRF protection
 ----------------------------------
 
-We strongly suggest that you protect all your views with CSRF. But if needed, you can exclude
+We strongly suggest that you should protect all your views with CSRF. But if needed, you can exclude
 some views using a decorator.
 
 .. code-block:: python
