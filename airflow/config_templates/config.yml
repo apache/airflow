@@ -1678,6 +1678,13 @@
       type: string
       example: ~
       default: "True"
+    - name: sensitive_variable_fields
+      description: |
+        Sensitive keywords to look for in variables names
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
 - name: elasticsearch
   description: ~
   options:
