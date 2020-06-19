@@ -115,6 +115,8 @@ data:
     git_sync_init_container_name = {{ .Values.gitSync.container_name }}
     {{- if .Values.gitSync.ssh_key_secret }}
     git_ssh_key_secret_name = {{ .Values.gitSync.ssh_key_secret }}
+    {{- else if .Values.gitSync.credentials_secret }}
+    git_sync_credentials_secret = {{ .Values.gitSync.credentials_secret }}
     {{- end }}
     {{- end }}
     {{- end }}
