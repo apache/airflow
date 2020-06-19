@@ -91,10 +91,11 @@ class TestGetLog(unittest.TestCase):
 
         with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
             self.app = app.create_app(testing=True)
+            self.client = self.app.test_client()
             settings.configure_logging()
 
     def _prepare_db(self):
-        from airflow.api_connexion.endpoints.log_endpoint import dagbag
+        dagbag = self.app.dag_bag  # pylint: disable=no-member
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
         dag.sync_to_db()
         dag_removed = DAG(self.DAG_ID_REMOVED, start_date=timezone.parse(self.default_time))
@@ -178,26 +179,6 @@ class TestGetLog(unittest.TestCase):
         self.assertEqual(200, response.status_code)
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
 
-    @mock.patch("airflow.api_connexion.endpoints.log_endpoint.TaskLogReader")
-    def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
-        type(mock_log_reader.return_value).is_supported = PropertyMock(return_value=False)
-
-        key = self.app.config["SECRET_KEY"]
-        serializer = URLSafeSerializer(key)
-        token = serializer.dumps({"download_logs": False})
-        headers = {'Content-Type': 'application/json'}
-        response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
-            headers=headers
-        )
-        self.assertEqual(200, response.status_code)
-        self.assertIn('content', response.json)
-        self.assertIn('continuation_token', response.json)
-        self.assertIn(
-            'Task log handler does not support read logs.',
-            response.json['content'])
-
     @provide_session
     def test_get_logs_response_with_ti_equal_to_none(self, session):
         self._create_dagrun(session)
@@ -233,6 +214,26 @@ class TestGetLog(unittest.TestCase):
             self.assertIn('2nd line', response.data.decode('utf-8'))
             self.assertIn('3rd line', response.data.decode('utf-8'))
             self.assertNotIn('should never be read', response.data.decode('utf-8'))
+
+    @mock.patch("airflow.api_connexion.endpoints.log_endpoint.TaskLogReader")
+    def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
+        type(mock_log_reader.return_value).is_supported = PropertyMock(return_value=False)
+
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": False})
+        headers = {'Content-Type': 'application/json'}
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            headers=headers
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertIn('content', response.json)
+        self.assertIn('continuation_token', response.json)
+        self.assertIn(
+            'Task log handler does not support read logs.',
+            response.json['content'])
 
     @provide_session
     def test_bad_signature_raises(self, session):
