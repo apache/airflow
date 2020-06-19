@@ -24,7 +24,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.www import app
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 
 class TestTaskEndpoint(unittest.TestCase):
@@ -35,6 +35,7 @@ class TestTaskEndpoint(unittest.TestCase):
     def clean_db():
         clear_db_runs()
         clear_db_dags()
+        clear_db_serialized_dags()
 
     @classmethod
     def setUpClass(cls) -> None:

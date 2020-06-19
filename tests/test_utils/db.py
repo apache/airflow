@@ -35,6 +35,10 @@ def clear_db_dags():
     with create_session() as session:
         session.query(DagTag).delete()
         session.query(DagModel).delete()
+
+
+def clear_db_serialized_dags():
+    with create_session() as session:
         session.query(SerializedDagModel).delete()
 
 
