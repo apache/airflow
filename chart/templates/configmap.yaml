@@ -88,8 +88,8 @@ data:
     namespace = {{ .Release.Namespace }}
     airflow_configmap = {{ include "airflow_config" . }}
     airflow_local_settings_configmap = {{ include "airflow_config" . }}
-    worker_container_repository = {{ .Values.images.airflow.repository }}
-    worker_container_tag = {{ .Values.images.airflow.tag }}
+    worker_container_repository = {{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}
+    worker_container_tag = {{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}
     worker_container_image_pull_policy = {{ .Values.images.airflow.pullPolicy }}
     worker_service_account_name = {{ .Release.Name }}-worker-serviceaccount
     image_pull_secrets = {{ template "registry_secret" . }}
