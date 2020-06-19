@@ -41,17 +41,6 @@ class TaskLogReader:
         :param metadata: A dictionary containing information about how to read the task log
         :type metadata: dict
         :rtype: Tuple[List[str], Dict[str, Any]]
-
-        The following is an example of how to use this method to read log:
-
-        .. code-block:: python
-
-            logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
-            logs = logs[0] if try_number is not None else logs
-
-        where task_log_reader is an instance of TaskLogReader. The metadata will always
-        contain information about the task log which can enable you read logs to the
-        end.
         """
 
         logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
