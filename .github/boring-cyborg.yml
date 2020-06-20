@@ -177,6 +177,9 @@ firstPRWelcomeComment: >
   - Be patient and persistent. It might take some time to get a review or get the final approval from
   Committers.
 
+  - Please follow [ASF Code of Conduct](<https://www.apache.org/foundation/policies/conduct) for all
+  communication including (but not limited to) comments on Pull Requests, Mailing list and Slack.
+
   - Be sure to read the [Airflow Coding style](
   https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#coding-style-and-best-practices).
 
