@@ -1108,7 +1108,7 @@ Documentation & Notes
 =====================
 
 It's possible to add documentation or notes to your DAGs & task objects that
-become visible in the web interface ("Graph View" & "Tree Vuew" for DAGs, "Task Details" for
+become visible in the web interface ("Graph View" & "Tree View" for DAGs, "Task Details" for
 tasks). There are a set of special task attributes that get rendered as rich
 content if defined:
 
