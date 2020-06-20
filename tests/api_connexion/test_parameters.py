@@ -22,7 +22,7 @@ from pendulum import DateTime
 from pendulum.tz.timezone import Timezone
 
 from airflow.api_connexion.exceptions import BadRequest
-from airflow.api_connexion.parameters import format_datetime, format_parameters
+from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
 from airflow.utils import timezone
 
 
@@ -50,6 +50,21 @@ class TestDateTimeParser(unittest.TestCase):
             format_datetime(invalid_datetime)
 
 
+class TestMaximumPagelimit(unittest.TestCase):
+
+    @mock.patch("airflow.api_connexion.parameters.conf.get")
+    def test_maximum_limit_return_val(self, mock_get):
+        mock_get.return_value = 320  # maximum limit
+        limit = check_limit(300)
+        self.assertEqual(limit, 300)
+
+    @mock.patch("airflow.api_connexion.parameters.conf.get")
+    def test_maximum_limit_raises_on_limit_exceeding(self, mock_get):
+        mock_get.return_value = 320  # maximum limit
+        with self.assertRaises(BadRequest):
+            check_limit(350)
+
+
 class TestFormatParameters(unittest.TestCase):
 
     def test_should_works_with_datetime_formatter(self):
@@ -67,3 +82,21 @@ class TestFormatParameters(unittest.TestCase):
         decorated_endpoint = decorator(endpoint)
         with self.assertRaises(BadRequest):
             decorated_endpoint(param_a='XXXXX')
+
+    @mock.patch("airflow.api_connexion.parameters.conf.get")
+    def test_should_work_with_limit(self, mock_get):
+        mock_get.return_value = 100
+        decorator = format_parameters({"limit": check_limit})
+        endpoint = mock.MagicMock()
+        decorated_endpoint = decorator(endpoint)
+        decorated_endpoint(limit=89)
+        endpoint.assert_called_once_with(limit=89)
+
+    @mock.patch("airflow.api_connexion.parameters.conf.get")
+    def test_should_raise_exception_for_max_val_exceeded(self, mock_get):
+        mock_get.return_value = 100
+        decorator = format_parameters({"limit": check_limit})
+        endpoint = mock.MagicMock()
+        decorated_endpoint = decorator(endpoint)
+        with self.assertRaises(BadRequest):
+            decorated_endpoint(limit=101)

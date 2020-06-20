@@ -18,6 +18,7 @@
 from sqlalchemy import func
 
 from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.error_schema import (
     ImportErrorCollection, import_error_collection_schema, import_error_schema,
 )
@@ -37,6 +38,9 @@ def get_import_error(import_error_id, session):
     return import_error_schema.dump(error)
 
 
+@format_parameters({
+    'limit': check_limit
+})
 @provide_session
 def get_import_errors(session, limit, offset=None):
     """

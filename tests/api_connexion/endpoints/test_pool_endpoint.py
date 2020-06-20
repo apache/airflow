@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -109,7 +110,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         self.assertEqual(pool_ids, expected_pool_ids)
 
     @provide_session
-    def test_should_respect_default_page_limit(self, session):
+    def test_should_respect_page_size_limit_default(self, session):
         pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
         session.add_all(pools)
         session.commit()
@@ -120,7 +121,9 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         self.assertEqual(len(response.json['pools']), 100)
 
     @provide_session
-    def test_should_raise_when_page_size_limit_exceeded(self, session):
+    @mock.patch("airflow.api_connexion.parameters.conf.get")
+    def test_should_raise_when_page_size_limit_exceeded(self, mock_get, session):
+        mock_get.return_value = 100
         pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
         session.add_all(pools)
         session.commit()

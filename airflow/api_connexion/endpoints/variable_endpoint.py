@@ -21,6 +21,7 @@ from marshmallow import ValidationError
 from sqlalchemy import func
 
 from airflow.api_connexion.exceptions import BadRequest, NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
 from airflow.models import Variable
 from airflow.utils.session import provide_session
@@ -46,6 +47,9 @@ def get_variable(variable_key: str) -> Response:
     return variable_schema.dump({"key": variable_key, "val": var})
 
 
+@format_parameters({
+    'limit': check_limit
+})
 @provide_session
 def get_variables(session, limit: Optional[int], offset: Optional[int] = None) -> Response:
     """

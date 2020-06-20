@@ -19,6 +19,7 @@
 from sqlalchemy import func
 
 from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.event_log_schema import (
     EventLogCollection, event_log_collection_schema, event_log_schema,
 )
@@ -37,6 +38,9 @@ def get_event_log(event_log_id, session):
     return event_log_schema.dump(event_log)
 
 
+@format_parameters({
+    'limit': check_limit
+})
 @provide_session
 def get_event_logs(session, limit, offset=None):
     """

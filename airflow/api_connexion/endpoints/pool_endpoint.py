@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
@@ -51,6 +52,9 @@ def get_pool(pool_name, session):
     return pool_schema.dump(obj)
 
 
+@format_parameters({
+    'limit': check_limit
+})
 @provide_session
 def get_pools(session, limit, offset=None):
     """

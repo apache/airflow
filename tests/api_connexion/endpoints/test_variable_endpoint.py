@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -101,13 +102,35 @@ class TestGetVariables(TestVariableEndpoint):
         assert response.status_code == 200
         assert response.json == expected
 
-    def test_should_honor_100_limit_default(self):
+    def test_should_respect_page_size_limit_default(self):
         for i in range(101):
             Variable.set(f"var{i}", i)
         response = self.client.get("/api/v1/variables")
         assert response.status_code == 200
         assert response.json["total_entries"] == 101
         assert len(response.json["variables"]) == 100
+
+    @mock.patch("airflow.api_connexion.parameters.conf.get")
+    def test_should_raise_when_page_size_limit_exceeded(self, mock_get):
+        mock_get.return_value = 100
+        for i in range(200):
+            Variable.set(f"var{i}", i)
+        response = self.client.get("/api/v1/variables?limit=150")
+        assert response.status_code == 400
+        self.assertEqual(
+            response.json,
+            {
+                'detail': "150 is greater than the maximum of 100\n"
+                          "\nFailed validating 'maximum' in schema:\n    "
+                          "{'default': 100, 'maximum': 100, "
+                          "'minimum': 1, 'type': 'integer'}\n"
+                          "\nOn instance:\n    150",
+                'status': 400,
+                'title': 'Bad Request',
+                'type': 'about:blank'
+            }
+
+        )
 
 
 class TestPatchVariable(TestVariableEndpoint):

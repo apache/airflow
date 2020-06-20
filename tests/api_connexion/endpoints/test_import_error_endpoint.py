@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -162,7 +163,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         self.assertEqual(import_ids, expected_import_error_ids)
 
     @provide_session
-    def test_should_respect_default_page_limit(self, session):
+    def test_should_respect_page_size_limit_default(self, session):
         import_errors = [
             ImportError(
                 filename=f"/tmp/file_{i}.py",
@@ -178,7 +179,9 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         self.assertEqual(len(response.json['import_errors']), 100)
 
     @provide_session
-    def test_should_raise_when_page_size_limit_exceeded(self, session):
+    @mock.patch("airflow.api_connexion.parameters.conf.get")
+    def test_should_raise_when_page_size_limit_exceeded(self, mock_get, session):
+        mock_get.return_value = 100
         import_errors = [
             ImportError(
                 filename=f"/tmp/file_{i}.py",

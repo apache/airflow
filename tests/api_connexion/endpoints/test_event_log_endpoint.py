@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -189,7 +190,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         self.assertEqual(events, expected_events)
 
     @provide_session
-    def test_should_respect_page_size_limit(self, session):
+    def test_should_respect_page_size_limit_default(self, session):
         log_models = self._create_event_logs(200)
         session.add_all(log_models)
         session.commit()
@@ -199,6 +200,31 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
 
         self.assertEqual(response.json["total_entries"], 200)
         self.assertEqual(len(response.json["event_logs"]), 100)  # default 100
+
+    @provide_session
+    @mock.patch("airflow.api_connexion.parameters.conf.get")
+    def test_should_raise_when_page_size_limit_exceeded(self, mock_get, session):
+        mock_get.return_value = 100
+        log_models = self._create_event_logs(200)
+        session.add_all(log_models)
+        session.commit()
+
+        response = self.client.get("/api/v1/eventLogs?limit=150")
+        assert response.status_code == 400
+        self.assertEqual(
+            response.json,
+            {
+                'detail': "150 is greater than the maximum of 100\n"
+                          "\nFailed validating 'maximum' in schema:\n    "
+                          "{'default': 100, 'maximum': 100, "
+                          "'minimum': 1, 'type': 'integer'}\n"
+                          "\nOn instance:\n    150",
+                'status': 400,
+                'title': 'Bad Request',
+                'type': 'about:blank'
+            }
+
+        )
 
     def _create_event_logs(self, count):
         return [

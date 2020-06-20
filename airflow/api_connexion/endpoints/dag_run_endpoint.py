@@ -18,7 +18,7 @@
 from sqlalchemy import func
 
 from airflow.api_connexion.exceptions import NotFound
-from airflow.api_connexion.parameters import format_datetime, format_parameters
+from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection, dagrun_collection_schema, dagrun_schema,
 )
@@ -52,6 +52,7 @@ def get_dag_run(dag_id, dag_run_id, session):
     'execution_date_lte': format_datetime,
     'end_date_gte': format_datetime,
     'end_date_lte': format_datetime,
+    'limit': check_limit
 })
 @provide_session
 def get_dag_runs(session, dag_id, start_date_gte=None, start_date_lte=None,

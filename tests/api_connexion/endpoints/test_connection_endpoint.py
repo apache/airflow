@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -210,16 +211,41 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         self.assertEqual(conn_ids, expected_conn_ids)
 
     @provide_session
-    def test_should_respect_page_size_limit(self, session):
+    def test_should_respect_page_size_limit_default(self, session):
         connection_models = self._create_connections(200)
         session.add_all(connection_models)
         session.commit()
 
-        response = self.client.get("/api/v1/connections")  # default limit is 100
+        response = self.client.get("/api/v1/connections")
         assert response.status_code == 200
 
         self.assertEqual(response.json["total_entries"], 200)
-        self.assertEqual(len(response.json["connections"]), 100)  # default
+        self.assertEqual(len(response.json["connections"]), 100)
+
+    @provide_session
+    @mock.patch("airflow.api_connexion.parameters.conf.get")
+    def test_should_raise_when_page_size_limit_exceeded(self, mock_get, session):
+        mock_get.return_value = 100
+        connection_models = self._create_connections(200)
+        session.add_all(connection_models)
+        session.commit()
+
+        response = self.client.get("/api/v1/connections?limit=150")
+        assert response.status_code == 400
+        self.assertEqual(
+            response.json,
+            {
+                'detail': "150 is greater than the maximum of 100\n"
+                          "\nFailed validating 'maximum' in schema:\n    "
+                          "{'default': 100, 'maximum': 100, "
+                          "'minimum': 1, 'type': 'integer'}\n"
+                          "\nOn instance:\n    150",
+                'status': 400,
+                'title': 'Bad Request',
+                'type': 'about:blank'
+            }
+
+        )
 
     def _create_connections(self, count):
         return [Connection(
@@ -417,39 +443,3 @@ class TestPostConnection(TestConnectionEndpoint):
         }
         response = self.client.post("/api/v1/connections", json=payload)
         assert response.status_code == 200
-        connection = session.query(Connection).all()
-        assert len(connection) == 1
-        self.assertEqual(connection[0].conn_id, 'test-connection-id')
-
-    def test_post_should_response_400_for_invalid_payload(self):
-        payload = {
-            "connection_id": "test-connection-id",
-        }  # conn_type missing
-        response = self.client.post("/api/v1/connections", json=payload)
-        assert response.status_code == 400
-        self.assertEqual(response.json,
-                         {'detail': "{'conn_type': ['Missing data for required field.']}",
-                          'status': 400,
-                          'title': 'Bad request',
-                          'type': 'about:blank'}
-                         )
-
-    def test_post_should_response_409_already_exist(self):
-        payload = {
-            "connection_id": "test-connection-id",
-            "conn_type": 'test_type'
-        }
-        response = self.client.post("/api/v1/connections", json=payload)
-        assert response.status_code == 200
-        # Another request
-        response = self.client.post("/api/v1/connections", json=payload)
-        assert response.status_code == 409
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 409,
-                'title': 'Connection already exist. ID: test-connection-id',
-                'type': 'about:blank'
-            }
-        )

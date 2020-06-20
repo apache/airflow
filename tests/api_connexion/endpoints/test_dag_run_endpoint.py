@@ -16,6 +16,7 @@
 # under the License.
 import unittest
 from datetime import timedelta
+from unittest import mock
 
 import pytest
 from parameterized import parameterized
@@ -234,6 +235,31 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
 
         self.assertEqual(response.json["total_entries"], 200)
         self.assertEqual(len(response.json["dag_runs"]), 100)  # default is 100
+
+    @provide_session
+    @mock.patch("airflow.api_connexion.parameters.conf.get")
+    def test_should_raise_when_page_size_limit_exceeded(self, mock_get, session):
+        mock_get.return_value = 100
+        dagrun_models = self._create_dag_runs(200)
+        session.add_all(dagrun_models)
+        session.commit()
+
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns?limit=150")
+        assert response.status_code == 400
+        self.assertEqual(
+            response.json,
+            {
+                'detail': "150 is greater than the maximum of 100\n"
+                          "\nFailed validating 'maximum' in schema:\n    "
+                          "{'default': 100, 'maximum': 100, "
+                          "'minimum': 1, 'type': 'integer'}\n"
+                          "\nOn instance:\n    150",
+                'status': 400,
+                'title': 'Bad Request',
+                'type': 'about:blank'
+            }
+
+        )
 
     def _create_dag_runs(self, count):
         return [

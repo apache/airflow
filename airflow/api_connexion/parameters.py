@@ -20,6 +20,7 @@ from typing import Callable, Dict
 from pendulum.parsing import ParserError
 
 from airflow.api_connexion.exceptions import BadRequest
+from airflow.configuration import conf
 from airflow.utils import timezone
 
 # Database entity fields
@@ -44,6 +45,27 @@ def format_datetime(value: str):
         )
 
 
+def check_limit(value: int):
+    """
+    This checks the limit passed to view and raises BadRequest if
+    limit exceed user configured value
+    """
+    max_val = int(conf.get("api", "maximum_page_limit"))
+    spec = {'default': 100, 'maximum': max_val,
+            'minimum': 1, 'type': 'integer'}
+    if value > max_val:
+        # This message should not be formatted. If formatted please
+        # run tests
+        message = ("{value} is greater than the maximum of {max_val}\n"
+                   "\n"
+                   "Failed validating 'maximum' in schema:\n"
+                   "    {spec}\n"
+                   "\nOn instance:\n    {value}").format(value=value,
+                                                         max_val=max_val, spec=spec)
+        raise BadRequest(title="Bad Request", detail=message)
+    return value
+
+
 def format_parameters(params_formatters: Dict[str, Callable[..., bool]]):
     """
     Decorator factory that create decorator that convert parameters using given formatters.
@@ -52,6 +74,7 @@ def format_parameters(params_formatters: Dict[str, Callable[..., bool]]):
 
     :param params_formatters: Map of key name and formatter function
     """
+
     def format_parameters_decorator(func):
         @wraps(func)
         def wrapped_function(*args, **kwargs):
@@ -59,5 +82,7 @@ def format_parameters(params_formatters: Dict[str, Callable[..., bool]]):
                 if key in kwargs:
                     kwargs[key] = formatter(kwargs[key])
             return func(*args, **kwargs)
+
         return wrapped_function
+
     return format_parameters_decorator
