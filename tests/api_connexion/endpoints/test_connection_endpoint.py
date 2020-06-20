@@ -245,29 +245,25 @@ class TestPatchConnection(TestConnectionEndpoint):
     @provide_session
     def test_patch_should_response_200_with_update_mask(self, session):
         self._create_connection(session)
-        test_connection = "test-connection"
+        test_connection = "test-connection-id"
         payload = {
             "connection_id": test_connection,
             "conn_type": 'test_type_2',
             "extra": "{'key': 'var'}",
             'login': "login",
             "port": 80,
-            "_password": 'password',
-            'nan': 'asdf'
         }
         response = self.client.patch(
-            "/api/v1/connections/test-connection-id?update_mask=port,login, connection_id, _password",
+            "/api/v1/connections/test-connection-id?update_mask=port,login",
             json=payload
         )
         assert response.status_code == 200
         connection = session.query(Connection).filter_by(conn_id=test_connection).first()
-        # Ensure password is not set with _password mask
         self.assertEqual(connection.password, None)
-        # check that only port, connection_id and login was updated
         self.assertEqual(
             response.json,
             {
-                "connection_id": test_connection,  # updated
+                "connection_id": test_connection,  # not updated
                 "conn_type": 'test_type',  # Not updated
                 "extra": None,  # Not updated
                 'login': "login",  # updated
@@ -278,30 +274,106 @@ class TestPatchConnection(TestConnectionEndpoint):
             }
         )
 
+    @parameterized.expand(
+        [
+            (
+                {
+                    "connection_id": 'test-connection-id',
+                    "conn_type": 'test_type_2',
+                    "extra": "{'key': 'var'}",
+                    'login': "login",
+                    "port": 80,
+                },
+                'update_mask=ports, login',  # posts is unknown
+                "'ports' is unknown or cannot be updated."
+
+            ),
+            (
+                {
+                    "connection_id": 'test-connection-id',
+                    "conn_type": 'test_type_2',
+                    "extra": "{'key': 'var'}",
+                    'login': "login",
+                    "port": 80,
+                },
+                'update_mask=port, login, conn_id',  # conn_id is unknown
+                "'conn_id' is unknown or cannot be updated."
+
+            ),
+            (
+                {
+                    "connection_id": 'test-connection-id',
+                    "conn_type": 'test_type_2',
+                    "extra": "{'key': 'var'}",
+                    'login': "login",
+                    "port": 80,
+                },
+                'update_mask=port, login, connection_id',  # connection_id cannot be updated
+                "'connection_id' is unknown or cannot be updated."
+
+            ),
+            (
+                {
+                    "connection_id": "test-connection",  # trying to change connection_id
+                    "conn_type": "test-type",
+                    "login": "login",
+                },
+                '',  # not necessary
+                "The connection_id cannot be updated."
+            ),
+        ]
+    )
     @provide_session
-    def test_patch_should_response_400_for_invalid_update(self, session):
+    def test_patch_should_response_400_for_invalid_fields_in_update_mask(
+        self, payload, update_mask, error_message, session
+    ):
         self._create_connection(session)
-        payload = {
-            "connection_id": "test-connection-id",
-            "conn_type": "test-type",
-            "extra": 0,  # expected string
-        }
+        response = self.client.patch(
+            f"/api/v1/connections/test-connection-id?{update_mask}",
+            json=payload
+        )
+        assert response.status_code == 400
+        self.assertEqual(response.json['title'], error_message)
+
+    @parameterized.expand(
+        [
+            (
+                {
+                    "connection_id": "test-connection-id",
+                    "conn_type": "test-type",
+                    "extra": 0,  # expected string
+                }, "0 is not of type 'string' - 'extra'"
+            ),
+            (
+                {
+                    "connection_id": "test-connection-id",
+                    "conn_type": "test-type",
+                    "extras": "{}",  # extras not a known field e.g typo
+                }, "Extra arguments passed: ['extras']"
+            ),
+            (
+                {
+                    "connection_id": "test-connection-id",
+                    "conn_type": "test-type",
+                    "invalid_field": "invalid field",  # unknown field
+                    "_password": "{}",  # _password not a known field
+                }, "Extra arguments passed: ['_password', 'invalid_field']"
+            ),
+        ]
+    )
+    @provide_session
+    def test_patch_should_response_400_for_invalid_update(
+        self, payload, error_message, session
+    ):
+        self._create_connection(session)
         response = self.client.patch(
             "/api/v1/connections/test-connection-id",
             json=payload
         )
         assert response.status_code == 400
-        self.assertEqual(
-            response.json,
-            {
-                'detail': "0 is not of type 'string' - 'extra'",
-                'status': 400,
-                'title': 'Bad Request',
-                'type': 'about:blank'
-            }
-        )
+        self.assertEqual(response.json['detail'], error_message)
 
-    def test_patch_should_response_404(self):
+    def test_patch_should_response_404_not_found(self):
         payload = {
             "connection_id": "test-connection-id",
             "conn_type": "test-type",

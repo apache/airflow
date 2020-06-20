@@ -17,9 +17,10 @@
 
 from connexion import NoContent
 from flask import request
+from marshmallow import ValidationError
 from sqlalchemy import func
 
-from airflow.api_connexion.exceptions import AlreadyExists, NotFound
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection, connection_collection_item_schema, connection_collection_schema, connection_schema,
 )
@@ -68,21 +69,32 @@ def patch_connection(connection_id, session, update_mask=None):
     """
     Update a connection entry
     """
-    body = connection_schema.load(request.json)
+    try:
+        body = connection_schema.load(request.json)
+    except ValidationError as err:
+        # If validation get to here, it is extra field validation.
+        # Marshmallow 2 doesn't have support for excluding extra field
+        # We will be able to remove this when we upgrade to marshmallow 3.
+        # To remove it, we would need to set unknown=EXCLUDE in schema Meta
+        raise BadRequest(detail=err.messages.get('_schema', [err.messages])[0])
     data = body.data
+    non_update_fields = ['connection_id', 'conn_id']
     connection = session.query(Connection).filter_by(conn_id=connection_id).first()
     if connection is None:
         raise NotFound("Connection not found")
+    if connection.conn_id != data['conn_id']:
+        raise BadRequest("The connection_id cannot be updated.")
     if update_mask:
         update_mask = [i.strip() for i in update_mask]
+        data_ = {}
         for field in update_mask:
-            if field == 'connection_id':
-                field = 'conn_id'
-            if field in data:
-                setattr(connection, field, data[field])
-    else:
-        for key in data:
-            setattr(connection, key, data[key])
+            if field in data and field not in non_update_fields:
+                data_[field] = data[field]
+            else:
+                raise BadRequest(f"'{field}' is unknown or cannot be updated.")
+        data = data_
+    for key in data:
+        setattr(connection, key, data[key])
     session.add(connection)
     session.commit()
     return connection_schema.dump(connection)
