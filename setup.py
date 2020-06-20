@@ -228,6 +228,7 @@ doc = [
     'sphinx==1.8.5;python_version<"3.0"',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
+    'sphinx-copybutton;python_version>="3.6"',
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
@@ -314,7 +315,8 @@ mysql = [
     'mysqlclient>=1.3.6,<1.4',
 ]
 oracle = [
-    'cx_Oracle>=5.1.2',
+    'cx_Oracle>=5.1.2, <8.0;python_version<"3.0"',
+    'cx_Oracle>=5.1.2;python_version>="3.0"',
 ]
 pagerduty = [
     'pypd>=1.1.0',
