@@ -86,7 +86,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
             ("/api/v1/pools?limit=1", ["default_pool"]),
             # Limit and offset test data
             (
-                "/api/v1/pools?limit=120&offset=1",
+                "/api/v1/pools?limit=100&offset=1",
                 [f"test_pool{i}" for i in range(1, 101)],
             ),
             ("/api/v1/pools?limit=2&offset=1", ["test_pool1", "test_pool2"]),
@@ -107,6 +107,41 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         assert response.status_code == 200
         pool_ids = [pool["name"] for pool in response.json["pools"]]
         self.assertEqual(pool_ids, expected_pool_ids)
+
+    @provide_session
+    def test_should_respect_default_page_limit(self, session):
+        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
+        session.add_all(pools)
+        session.commit()
+        result = session.query(Pool).count()
+        self.assertEqual(result, 121)
+        response = self.client.get("/api/v1/pools")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['pools']), 100)
+
+    @provide_session
+    def test_should_raise_when_page_size_limit_exceeded(self, session):
+        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
+        session.add_all(pools)
+        session.commit()
+        result = session.query(Pool).count()
+        self.assertEqual(result, 121)
+        response = self.client.get("/api/v1/pools?limit=150")
+        assert response.status_code == 400
+        self.assertEqual(
+            response.json,
+            {
+                'detail': "150 is greater than the maximum of 100\n"
+                          "\nFailed validating 'maximum' in schema:\n    "
+                          "{'default': 100, 'maximum': 100, "
+                          "'minimum': 1, 'type': 'integer'}\n"
+                          "\nOn instance:\n    150",
+                'status': 400,
+                'title': 'Bad Request',
+                'type': 'about:blank'
+            }
+
+        )
 
 
 class TestGetPool(TestBasePoolEndpoints):

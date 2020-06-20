@@ -22,10 +22,6 @@ from pendulum.parsing import ParserError
 from airflow.api_connexion.exceptions import BadRequest
 from airflow.utils import timezone
 
-# Page parameters
-page_offset = "offset"
-page_limit = "limit"
-
 # Database entity fields
 dag_id = "dag_id"
 pool_id = "pool_id"

@@ -16,11 +16,12 @@
 # under the License.
 from flask import Response, request
 from marshmallow import ValidationError
+
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
-from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
@@ -51,12 +52,10 @@ def get_pool(pool_name, session):
 
 
 @provide_session
-def get_pools(session):
+def get_pools(session, limit, offset=None):
     """
     Get all pools
     """
-    offset = request.args.get(parameters.page_offset, 0)
-    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
     total_entries = session.query(func.count(Pool.id)).scalar()
     pools = session.query(Pool).order_by(Pool.id).offset(offset).limit(limit).all()
