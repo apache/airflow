@@ -334,15 +334,32 @@ class AirflowConfigParser(ConfigParser):
         elif val in ('f', 'false', '0'):
             return False
         else:
-            raise ValueError(
-                'The value for configuration option "{}:{}" is not a '
-                'boolean (received "{}").'.format(section, key, val))
+            raise AirflowConfigException(
+                f'Failed to convert value to bool. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{val}".'
+            )
 
     def getint(self, section, key, **kwargs):
-        return int(self.get(section, key, **kwargs))
+        val = self.get(section, key, **kwargs)
+
+        try:
+            return int(val)
+        except ValueError:
+            raise AirflowConfigException(
+                f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{val}".'
+            )
 
     def getfloat(self, section, key, **kwargs):
-        return float(self.get(section, key, **kwargs))
+        val = self.get(section, key, **kwargs)
+
+        try:
+            return float(val)
+        except ValueError:
+            raise AirflowConfigException(
+                f'Failed to convert value to float. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{val}".'
+            )
 
     def getimport(self, section, key, **kwargs):
         """
