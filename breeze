@@ -1949,9 +1949,17 @@ function run_build_command {
                 rebuild_ci_image_if_needed
             fi
             ;;
-        build_docs|perform_static_checks|perform_generate_requirements|perform_prepare_backport_readme|perform_prepare_backport_packages|perform_push_image)
+        build_docs|perform_static_checks|perform_generate_requirements|perform_prepare_backport_readme|perform_prepare_backport_packages)
             prepare_ci_build
             rebuild_ci_image_if_needed
+            ;;
+        perform_push_image)
+            if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
+                prepare_prod_build
+            else
+                prepare_ci_build
+                rebuild_ci_image_if_needed
+            fi
             ;;
         build_image)
             if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
