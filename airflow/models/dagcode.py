@@ -206,7 +206,7 @@ class DagCode(Base):
 
     @staticmethod
     def dag_fileloc_hash(full_filepath: str) -> int:
-        """"Hashing file location for indexing.
+        """Hashing file location for indexing.
 
         :param full_filepath: full filepath of DAG file
         :return: hashed full_filepath

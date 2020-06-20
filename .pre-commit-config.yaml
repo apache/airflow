@@ -175,6 +175,13 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         types: [python]
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^build/.*$|^.tox/.*$|^venv/.*$
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 5.0.2
+    hooks:
+      - id: pydocstyle
+        args:
+          - --select=D300,D301,D302
+        exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
   - repo: local
     hooks:
       - id: shellcheck

@@ -1121,7 +1121,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         return simple_dags
 
     def start_new_processes(self):
-        """"
+        """
         Start more processors if we have enough slots and files to process
         """
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:

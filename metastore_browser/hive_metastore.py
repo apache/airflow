@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-'''Plugins metabrowser'''
+"""Plugins metabrowser"""
 
 import json
 from datetime import datetime
