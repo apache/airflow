@@ -1680,7 +1680,7 @@
       default: "True"
     - name: sensitive_variable_fields
       description: |
-        Sensitive keywords to look for in variables names
+        A comma-separated list of sensitive keywords to look for in variables names.
       version_added: ~
       type: string
       example: ~
