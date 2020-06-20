@@ -38,10 +38,8 @@ def get_dag_run(dag_id, dag_run_id, session):
     """
     Get a DAG Run.
     """
-    query = session.query(DagRun)
-    query = query.filter(DagRun.dag_id == dag_id)
-    query = query.filter(DagRun.run_id == dag_run_id)
-    dag_run = query.one_or_none()
+    dag_run = session.query(DagRun).filter(
+        DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     if dag_run is None:
         raise NotFound("DAGRun not found")
     return dagrun_schema.dump(dag_run)

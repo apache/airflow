@@ -36,9 +36,7 @@ def get_pool(pool_name, session):
     """
     Get a pool
     """
-    pool_id = pool_name
-    query = session.query(Pool)
-    obj = query.filter(Pool.pool == pool_id).one_or_none()
+    obj = session.query(Pool).filter(Pool.pool == pool_name).one_or_none()
 
     if obj is None:
         raise NotFound("Pool not found")
@@ -54,9 +52,7 @@ def get_pools(session):
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
     total_entries = session.query(func.count(Pool.id)).scalar()
-    query = session.query(Pool).order_by(Pool.id).offset(offset).limit(limit)
-
-    pools = query.all()
+    pools = session.query(Pool).order_by(Pool.id).offset(offset).limit(limit).all()
     return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries)).data
 
 

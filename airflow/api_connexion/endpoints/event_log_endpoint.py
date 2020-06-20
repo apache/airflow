@@ -31,8 +31,7 @@ def get_event_log(event_log_id, session):
     """
     Get a log entry
     """
-    query = session.query(Log).filter(Log.id == event_log_id)
-    event_log = query.one_or_none()
+    event_log = session.query(Log).filter(Log.id == event_log_id).one_or_none()
     if event_log is None:
         raise NotFound("Event Log not found")
     return event_log_schema.dump(event_log)
@@ -45,8 +44,6 @@ def get_event_logs(session, limit, offset=None):
     """
 
     total_entries = session.query(func.count(Log.id)).scalar()
-    query = session.query(Log).order_by(Log.id).offset(offset).limit(limit)
-
-    event_logs = query.all()
+    event_logs = session.query(Log).order_by(Log.id).offset(offset).limit(limit).all()
     return event_log_collection_schema.dump(EventLogCollection(event_logs=event_logs,
                                                                total_entries=total_entries))

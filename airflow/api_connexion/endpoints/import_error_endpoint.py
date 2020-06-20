@@ -38,8 +38,7 @@ def get_import_error(import_error_id, session):
     """
     Get an import error
     """
-    query = session.query(ImportError)
-    error = query.filter(ImportError.id == import_error_id).one_or_none()
+    error = session.query(ImportError).filter(ImportError.id == import_error_id).one_or_none()
 
     if error is None:
         raise NotFound("Import error not found")
@@ -55,9 +54,7 @@ def get_import_errors(session):
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
     total_entries = session.query(func.count(ImportError.id)).scalar()
-    query = session.query(ImportError).order_by(ImportError.id).offset(offset).limit(limit)
-
-    import_errors = query.all()
+    import_errors = session.query(ImportError).order_by(ImportError.id).offset(offset).limit(limit).all()
     return import_error_collection_schema.dump(
         ImportErrorCollection(import_errors=import_errors, total_entries=total_entries)
     ).data

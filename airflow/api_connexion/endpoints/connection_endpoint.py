@@ -39,9 +39,7 @@ def get_connection(connection_id, session):
     """
     Get a connection entry
     """
-    query = session.query(Connection)
-    query = query.filter(Connection.conn_id == connection_id)
-    connection = query.one_or_none()
+    connection = session.query(Connection).filter(Connection.conn_id == connection_id).one_or_none()
     if connection is None:
         raise NotFound("Connection not found")
     return connection_collection_item_schema.dump(connection)
