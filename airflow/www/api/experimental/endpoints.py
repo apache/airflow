@@ -374,7 +374,7 @@ def get_lineage(dag_id: str, execution_date: str):
     """ Get Lineage details for a DagRun """
     # Convert string datetime into actual datetime
     try:
-        execution_date = timezone.parse(execution_date)
+        execution_dt = timezone.parse(execution_date)
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
@@ -387,7 +387,7 @@ def get_lineage(dag_id: str, execution_date: str):
         return response
 
     try:
-        lineage = get_lineage_api(dag_id=dag_id, execution_date=execution_date)
+        lineage = get_lineage_api(dag_id=dag_id, execution_date=execution_dt)
     except AirflowException as err:
         log.error(err)
         response = jsonify(error=f"{err}")

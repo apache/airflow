@@ -34,12 +34,13 @@ cron_presets = {
 }
 
 
+# pylint: disable=too-many-branches
 def date_range(
     start_date: datetime,
     end_date: Optional[datetime] = None,
     num: Optional[int] = None,
     delta: Optional[Union[str, timedelta, relativedelta]] = None,
-) -> List[datetime]:  # pylint: disable=too-many-branches
+) -> List[datetime]:
     """
     Get a set of dates as a list based on a start, end and delta, delta
     can be something that can be added to `datetime.datetime`
