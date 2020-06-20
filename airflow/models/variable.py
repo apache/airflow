@@ -113,7 +113,7 @@ class Variable(Base, LoggingMixin):
         key: str,
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
-    ):
+    ) -> Any:
         """
         Sets a value for an Airflow Key
 

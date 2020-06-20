@@ -170,7 +170,7 @@ def datetime(*args, **kwargs):
     return dt.datetime(*args, **kwargs)
 
 
-def parse(string, timezone=None):
+def parse(string, timezone=None) -> pendulum.instance:
     """
     Parse a time string and return an aware datetime
 

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Optional
 from unittest import mock
 
 
@@ -41,7 +42,7 @@ class MockStdOut:
 class MockSubProcess:
     PIPE = -1
     STDOUT = -2
-    returncode = None
+    returncode: Optional[int] = None
 
     def __init__(self, *args, **kwargs):
         self.stdout = MockStdOut(*args, **kwargs)
