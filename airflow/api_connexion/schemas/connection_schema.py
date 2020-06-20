@@ -39,6 +39,9 @@ class ConnectionCollectionItemSchema(SQLAlchemySchema):
     schema = auto_field()
     port = auto_field()
 
+    # Marshmallow 2 doesn't have support for excluding extra field
+    # We will be able to remove this when we upgrade to marshmallow 3.
+    # To remove it, we would need to set unknown=EXCLUDE in Meta
     @validates_schema(pass_original=True)
     def check_unknown_fields(self, data, original_data):
         """ Validates unknown field """

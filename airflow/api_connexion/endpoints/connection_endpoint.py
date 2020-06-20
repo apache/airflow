@@ -73,9 +73,6 @@ def patch_connection(connection_id, session, update_mask=None):
         body = connection_schema.load(request.json)
     except ValidationError as err:
         # If validation get to here, it is extra field validation.
-        # Marshmallow 2 doesn't have support for excluding extra field
-        # We will be able to remove this when we upgrade to marshmallow 3.
-        # To remove it, we would need to set unknown=EXCLUDE in schema Meta
         raise BadRequest(detail=err.messages.get('_schema', [err.messages])[0])
     data = body.data
     non_update_fields = ['connection_id', 'conn_id']
