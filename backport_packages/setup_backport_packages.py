@@ -952,7 +952,7 @@ def check_if_classes_are_properly_named(class_summary: Dict[str, List[str]]) -> 
     badly_named_class_number = 0
     for key, class_suffix in EXPECTED_SUFFIXES.items():
         for class_full_name in class_summary[key]:
-            module_name, class_name = class_full_name.rsplit(".", maxsplit=1)
+            _, class_name = class_full_name.rsplit(".", maxsplit=1)
             error_encountered = False
             if not is_camel_case_with_acronyms(class_name):
                 print(f"The class {class_full_name} is wrongly named. The "
@@ -1032,7 +1032,7 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
         with open(readme_file_path, "rt") as readme_file_read:
             old_text = readme_file_read.read()
     if old_text != readme:
-        file, temp_file_path = tempfile.mkstemp(".md")
+        _, temp_file_path = tempfile.mkstemp(".md")
         try:
             if os.path.isfile(readme_file_path):
                 copyfile(readme_file_path, temp_file_path)
