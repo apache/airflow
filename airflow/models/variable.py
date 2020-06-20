@@ -157,7 +157,7 @@ class Variable(Base, LoggingMixin):
             stored_value = str(value)
 
         Variable.delete(key, session=session)
-        session.add(Variable(key=key, val=stored_value))    # pylint: disable=unexpected-keyword-arg
+        session.add(Variable(key=key, val=stored_value))  # type: ignore  # pylint: disable=E1123
         session.flush()
 
     @classmethod
