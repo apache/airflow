@@ -493,6 +493,11 @@ dags:
     #     gitSshKey: <base64_encoded_data>
     # and specify the name of the secret below
     #sshKeySecret: airflow-ssh-secret
+    # If you are using an ssh private key, you can additionally
+    # specify the content of your known_hosts file, example:
+    #knownHosts: |
+    #    <host1>,<ip1> <key1>
+    #    <host2>,<ip2> <key2>
     # interval between git sync attempts in seconds
     wait: 60
     # git sync image details

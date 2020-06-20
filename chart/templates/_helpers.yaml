@@ -111,18 +111,25 @@
       value: "/etc/git-secret/ssh"
     - name: GIT_SYNC_SSH
       value: "true"
+    {{- if .Values.dags.gitSync.knownHosts }}
+    - name: GIT_KNOWN_HOSTS
+      value: "true"
+    - name: GIT_SSH_KNOWN_HOSTS_FILE
+      value: "/etc/git-secret/known_hosts"
+    {{- else }}
     - name: GIT_KNOWN_HOSTS
       value: "false"
+    {{- end }}
     {{ else if .Values.dags.gitSync.credentialsSecret }}
     - name: GIT_SYNC_USERNAME
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret }}
+          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GIT_SYNC_USERNAME
     - name: GIT_SYNC_PASSWORD
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret }}
+          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GIT_SYNC_PASSWORD
     {{- end }}
     - name: GIT_SYNC_REV
@@ -149,6 +156,12 @@
     mountPath: /etc/git-secret/ssh
     readOnly: true
     subPath: gitSshKey
+  {{- if .Values.dags.gitSync.knownHosts }}
+  - name: config
+    mountPath: /etc/git-secret/known_hosts
+    readOnly: true
+    subPath: known_hosts
+  {{- end }}
   {{- end }}
 {{- end }}
 

@@ -43,6 +43,9 @@ tests:
           depth: 1
           repo: https://github.com/apache/airflow.git
           branch: test-branch
+          sshKeySecret: ~
+          credentialsSecret: ~
+          knownHosts: ~
         persistence:
           enabled: true
     asserts:
@@ -78,6 +81,7 @@ tests:
           enabled: true
           containerName: git-sync-test
           sshKeySecret: ssh-secret
+          knownHosts: ~
           branch: test-branch
     asserts:
       - contains:
@@ -108,6 +112,7 @@ tests:
         gitSync:
           enabled: true
           credentialsSecret: user-pass-secret
+          sshKeySecret: ~
     asserts:
       - contains:
           path: spec.template.spec.containers[1].env

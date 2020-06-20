@@ -114,6 +114,9 @@ data:
     git_sync_container_tag = {{ .Values.dags.gitSync.containerTag }}
     git_sync_init_container_name = {{ .Values.dags.gitSync.containerName }}
     git_sync_run_as_user = {{ .Values.uid }}
+    {{- if  .Values.dags.gitSync.knownHosts }}
+    git_ssh_known_hosts_configmap_name = {{ include "airflow_config" . }}
+    {{- end }}
     {{- if .Values.dags.gitSync.sshKeySecret }}
     git_ssh_key_secret_name = {{ .Values.dags.gitSync.sshKeySecret }}
     {{- else if .Values.dags.gitSync.credentialsSecret }}
@@ -146,4 +149,8 @@ data:
 {{- if .Values.scheduler.airflowLocalSettings }}
   airflow_local_settings.py: |
     {{ .Values.scheduler.airflowLocalSettings | nindent 4 }}
+{{- end }}
+{{- if and .Values.dags.gitSync.enabled  .Values.dags.gitSync.knownHosts }}
+  known_hosts: |
+    {{ .Values.dags.gitSync.knownHosts | nindent 4 }}
 {{- end }}

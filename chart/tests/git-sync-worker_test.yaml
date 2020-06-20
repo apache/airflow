@@ -48,7 +48,7 @@ tests:
       dags:
         gitSync:
           enabled: true
-          container_name: git-sync
+          containerName: git-sync
         persistence:
           enabled: false
     asserts:
@@ -61,7 +61,7 @@ tests:
       dags:
         gitSync:
           enabled: true
-          container_name: git-sync
+          containerName: git-sync
         persistence:
           enabled: true
     asserts:
