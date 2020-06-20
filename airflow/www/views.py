@@ -1662,6 +1662,7 @@ class Airflow(AirflowViewMixin, BaseView):
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
         external_logs = conf.get('elasticsearch', 'frontend')
+        doc_md = wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
         return self.render(
             'airflow/tree.html',
             operators=sorted({op.task_type: op for op in dag.tasks}.values(),
@@ -1669,6 +1670,7 @@ class Airflow(AirflowViewMixin, BaseView):
             root=root,
             form=form,
             dag=dag, data=data, blur=blur, num_runs=num_runs,
+            doc_md=doc_md,
             show_external_logs=bool(external_logs))
 
     @expose('/graph')
