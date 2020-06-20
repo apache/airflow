@@ -19,6 +19,7 @@
 import json
 import logging
 import pickle
+from json import JSONDecodeError
 from typing import Any, Iterable, Optional, Union
 
 import pendulum
@@ -222,7 +223,7 @@ class BaseXCom(Base, LoggingMixin):
 
         try:
             return json.loads(result.value.decode('UTF-8'))
-        except ValueError:
+        except JSONDecodeError:
             log.error("Could not deserialize the XCOM value from JSON. "
                       "If you are using pickles instead of JSON "
                       "for XCOM, then you need to enable pickle "

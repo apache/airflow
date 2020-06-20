@@ -17,6 +17,7 @@
 # under the License.
 
 import json
+from json import JSONDecodeError
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String
@@ -284,7 +285,7 @@ class Connection(Base, LoggingMixin):
         if self.extra:
             try:
                 obj = json.loads(self.extra)
-            except Exception as e:
+            except JSONDecodeError as e:
                 self.log.exception(e)
                 self.log.error("Failed parsing the json for conn_id %s", self.conn_id)
 

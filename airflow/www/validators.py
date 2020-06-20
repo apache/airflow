@@ -17,6 +17,7 @@
 # under the License.
 
 import json
+from json import JSONDecodeError
 
 from wtforms.validators import EqualTo, ValidationError
 
@@ -73,7 +74,7 @@ class ValidJson:
         if field.data:
             try:
                 json.loads(field.data)
-            except Exception as ex:
+            except JSONDecodeError as ex:
                 message = self.message or 'JSON Validation Error: {}'.format(ex)
                 raise ValidationError(
                     message=field.gettext(message.format(field.data))

@@ -26,6 +26,7 @@ import socket
 import traceback
 from collections import defaultdict
 from datetime import datetime, timedelta
+from json import JSONDecodeError
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import quote, unquote
 
@@ -2259,7 +2260,7 @@ class ConnectionModelView(AirflowModelView):
     def prefill_form(self, form, pk):
         try:
             d = json.loads(form.data.get('extra', '{}'))
-        except Exception:
+        except JSONDecodeError:
             d = {}
 
         if not hasattr(d, 'get'):
