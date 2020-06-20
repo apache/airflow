@@ -169,7 +169,7 @@ unit of work and continuity.
 
 ## Backport packages
 
-### Context: Airflow 2.0 operators
+### Context: Airflow 2.0 operators, hooks, and secrets
 
 Currently, stable Apache Airflow versions are from the 1.10.* series.
 We are working on the future, major version of Airflow from the 2.0.* series.
