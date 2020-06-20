@@ -34,7 +34,6 @@
 #
 """Various security-related utils."""
 import re
-import socket
 
 from airflow.utils.net import get_hostname
 
@@ -56,26 +55,3 @@ def replace_hostname_pattern(components, host=None):
     if not fqdn or fqdn == '0.0.0.0':
         fqdn = get_hostname()
     return '%s/%s@%s' % (components[0], fqdn.lower(), components[2])
-
-
-def get_fqdn(hostname_or_ip=None):
-    """Retrieves FQDN - hostname for the IP or hostname."""
-    try:
-        if hostname_or_ip:
-            fqdn = socket.gethostbyaddr(hostname_or_ip)[0]
-            if fqdn == 'localhost':
-                fqdn = get_hostname()
-        else:
-            fqdn = get_hostname()
-    except OSError:
-        fqdn = hostname_or_ip
-
-    return fqdn
-
-
-def principal_from_username(username, realm):
-    """Retrieves principal from the user name and realm."""
-    if ('@' not in username) and realm:
-        username = "{}@{}".format(username, realm)
-
-    return username
