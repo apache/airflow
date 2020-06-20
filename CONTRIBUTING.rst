@@ -952,6 +952,8 @@ community are far more important than their contribution.
 
 This means that communication plays a big role in it, and this chapter is all about it.
 
+In our communication everyone is expected to follow the `ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`.
+
 We have various channels of communication - starting from the official devlist, comments
 in the Pull Requests, Slack, wiki.
 
