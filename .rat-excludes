@@ -83,3 +83,6 @@ PULL_REQUEST_TEMPLATE.md
 
 # the example notebook is ASF 2 licensed but RAT cannot read this
 input_notebook.ipynb
+
+# .git might be a file in case of worktree
+.git
