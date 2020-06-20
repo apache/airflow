@@ -447,7 +447,7 @@ discord                    http
 google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,postgres,presto,sftp
 hashicorp                  google
 microsoft.azure            oracle
-microsoft.mssql            odbc
+microsoft.mssql            odbc,oracle
 mysql                      amazon,presto,vertica
 opsgenie                   http
 postgres                   amazon
