@@ -199,8 +199,6 @@ In Airflow 1.10 and 2.0 there is an `airflow config` command but there is a diff
 it prints all config options while in Airflow 2.0, it's a command group. `airflow config` is now `airflow config list`.
 You can check other options by running the command `airflow config --help`
 
-
-
 The `conn_type` column in the `connection` table must contain content. Previously, this rule was enforced
 by application logic, but was not enforced by the database schema.
 
