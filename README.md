@@ -46,7 +46,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
 - [User Interface](#user-interface)
-- [Backport packages: Using providers from Airflow 2.0 in Airflow 1.10.*](#backport-packages-using-providers-from-airflow-20-in-airflow-110)
+- [Backport packages](#backport-packages)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -167,7 +167,9 @@ unit of work and continuity.
   ![](/docs/img/code.png)
 
 
-## Backport packages: Using providers from Airflow 2.0 in Airflow 1.10.*
+## Backport packages
+
+### Context: Airflow 2.0 operators
 
 Currently, stable Apache Airflow versions are from the 1.10.* series.
 We are working on the future, major version of Airflow from the 2.0.* series.
@@ -184,6 +186,8 @@ Thanks to that and automated backport effort we took, the operators from Airflow
 can be used in Airflow 1.10 as separately installable packages, with the constraint that
 those packages can only be used in python3.6+ environment.
 
+### Installing Airflow 2.0 operators in Airflow 1.10
+
 We released backport packages that can be installed for older Airflow versions.
 Those backport packages are going to be released more frequently that main Airflow 1.10.& releases.
 
@@ -195,7 +199,7 @@ Those packages are available now and can be used in the latest Airflow 1.10* ver
 packages are also installable and usable in most Airflow 1.10.* releases but there is no extensive testing
 done beyond the latest released version, so you might expect more problems in earlier Airflow versions.
 
-Releasing the backport packages is also a way to ease migration to 2.0.
+### An easier migration path to 2.0
 
 With backported providers package users can migrate their DAGs to the new providers package incrementally
 and once they convert to the new operators/sensors/hooks they can seamlessly migrate their
@@ -208,6 +212,9 @@ early to the Airflow 2.0 operators while still running Airflow 1.10 will make yo
 
 More information about the status and releases of the back-ported packages are available
 at [Backported providers package page](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
+
+
+### Installing backport packages
 
 Note that the backport packages might require extra dependencies. Pip installs the required dependencies
 automatically when it installs the backport package, but there are sometimes cross-dependencies between the
@@ -225,7 +232,7 @@ as well as in the README.md file available for each provider package. For exampl
 you can find the readme in [README.md](airflow/providers/google/README.md). You will also find there
 the summary of both - new classes and moved classes as well as requirement information.
 
-IMPORTANT NOTE!
+### Troubleshooting installing backport packages
 
 Backport providers only work when they are installed in the same namespace as the 'apache-airflow' 1.10
 package. This is majority of cases when you simply run `pip install` - it installs all packages
