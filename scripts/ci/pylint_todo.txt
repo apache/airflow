@@ -1,15 +1,12 @@
 ./airflow/configuration.py
 ./airflow/logging_config.py
-./airflow/macros/hive.py
 ./airflow/migrations/env.py
-./airflow/models/base.py
 ./airflow/models/connection.py
 ./airflow/models/crypto.py
 ./airflow/models/dag.py
 ./airflow/models/dagbag.py
 ./airflow/models/dagrun.py
 ./airflow/models/kubernetes.py
-./airflow/models/slamiss.py
 ./airflow/models/taskinstance.py
 ./airflow/models/xcom.py
 ./airflow/stats.py
