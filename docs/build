@@ -30,6 +30,8 @@ from subprocess import run
 from tempfile import NamedTemporaryFile
 from typing import Iterable, List, NamedTuple, Optional, Set
 
+import yaml
+
 if __name__ != "__main__":
     raise Exception(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
@@ -388,6 +390,232 @@ def check_gcp_guides():
         build_errors.append(DocBuildError(file_path=__file__, line_no=None, message=message))
 
 
+OPTIONS_WITHOUT_DOCS = {
+    "access_logfile",
+    "airflow_configmap",
+    "airflow_local_settings_configmap",
+    "allow_illegal_arguments",
+    "api_rev",
+    "basedn",
+    "bind_user",
+    "ccache",
+    "celery_app_name",
+    "celery_config_options",
+    "child_process_log_directory",
+    "cluster_address",
+    "cluster_context",
+    "colored_console_log",
+    "colored_formatter_class",
+    "colored_log_format",
+    "cookie_samesite",
+    "cookie_secure",
+    "dag_cleanup_interval",
+    "dag_default_view",
+    "dag_dir_list_interval",
+    "dag_discovery_safe_mode",
+    "dag_file_processor_timeout",
+    "dag_orientation",
+    "dag_processor_manager_log_location",
+    "dagbag_import_timeout",
+    "dags_are_paused_at_creation",
+    "dags_in_image",
+    "dags_volume_claim",
+    "dags_volume_host",
+    "dags_volume_mount_point",
+    "dags_volume_subpath",
+    "data_profiler_filter",
+    "default_cpus",
+    "default_disk",
+    "default_email_on_failure",
+    "default_email_on_retry",
+    "default_gpus",
+    "default_hive_mapred_queue",
+    "default_owner",
+    "default_ram",
+    "default_task_retries",
+    "default_wrap",
+    "delete_option_kwargs",
+    "delete_worker_pods",
+    "delete_worker_pods_on_failure",
+    "demo_mode",
+    "donot_pickle",
+    "enable_xcom_pickling",
+    "env_from_configmap_ref",
+    "env_from_secret_ref",
+    "error_logfile",
+    "expose_config",
+    "expose_hostname",
+    "expose_stacktrace",
+    "fab_logging_level",
+    "flower_host",
+    "flower_port",
+    "force_log_out_after",
+    "frontend",
+    "fs_group",
+    "git_branch",
+    "git_dags_folder_mount_point",
+    "git_repo",
+    "git_ssh_key_secret_name",
+    "git_ssh_known_hosts_configmap_name",
+    "git_subpath",
+    "git_sync_container_repository",
+    "git_sync_container_tag",
+    "git_sync_credentials_secret",
+    "git_sync_depth",
+    "git_sync_dest",
+    "git_sync_init_container_name",
+    "git_sync_rev",
+    "git_sync_root",
+    "git_sync_run_as_user",
+    "git_user",
+    "group_member_attr",
+    "hide_paused_dags_by_default",
+    "hide_sensitive_variable_fields",
+    "hostname_callable",
+    "ignore_malformed_schema",
+    "image_pull_secrets",
+    "job_heartbeat_sec",
+    "killed_task_cleanup_time",
+    "kinit_path",
+    "kube_client_request_args",
+    "load_default_connections",
+    "load_examples",
+    "log_animation_speed",
+    "log_auto_tailing_offset",
+    "log_fetch_delay_sec",
+    "log_fetch_timeout_sec",
+    "log_filename_template",
+    "log_format",
+    "log_processor_filename_template",
+    "logging_level",
+    "logs_volume_claim",
+    "logs_volume_host",
+    "logs_volume_subpath",
+    "mapred_job_name_template",
+    "max_num_rendered_ti_fields_per_task",
+    "max_tis_per_query",
+    "min_file_process_interval",
+    "navbar_color",
+    "num_runs",
+    "operation_timeout",
+    "page_size",
+    "plugins_folder",
+    "pod_template_file",
+    "print_stats_interval",
+    "proxy_fix_x_port",
+    "proxy_fix_x_prefix",
+    "proxy_fix_x_proto",
+    "sasl_enabled",
+    "scheduler_zombie_task_threshold",
+    "search_scope",
+    "secret_key",
+    "session_lifetime_days",
+    "simple_log_format",
+    "smtp_host",
+    "smtp_mail_from",
+    "smtp_port",
+    "smtp_ssl",
+    "smtp_starttls",
+    "smtp_user",
+    "sql_alchemy_connect_args",
+    "sql_alchemy_max_overflow",
+    "sql_alchemy_pool_enabled",
+    "sql_alchemy_pool_pre_ping",
+    "sql_alchemy_pool_recycle",
+    "sql_alchemy_pool_size",
+    "sql_alchemy_schema",
+    "sql_engine_collation_for_ids",
+    "sql_engine_encoding",
+    "statsd_datadog_enabled",
+    "statsd_datadog_tags",
+    "superuser_filter",
+    "sync_parallelism",
+    "task_log_prefix_template",
+    "task_log_reader",
+    "tls_ca",
+    "tls_cert",
+    "tls_key",
+    "use_job_schedule",
+    "user_filter",
+    "user_name_attr",
+    "visibility_timeout",
+    "web_server_host",
+    "web_server_master_timeout",
+    "web_server_worker_timeout",
+    "worker_annotations",
+    "worker_autoscale",
+    "worker_class",
+    "worker_container_image_pull_policy",
+    "worker_container_repository",
+    "worker_container_tag",
+    "worker_log_server_port",
+    "worker_pods_creation_batch_size",
+    "worker_precheck",
+    "worker_prefetch_multiplier",
+    "worker_refresh_batch_size",
+    "worker_refresh_interval",
+    "worker_resources",
+    "worker_service_account_name",
+}
+
+
+def check_config_options():
+    """
+    Checks that each option name appears in the documentation.
+
+    A primitive check is done (``option_name in fie_content``), but it should be good enough to
+    handle most cases
+    """
+    with open(f"{ROOT_PACKAGE_DIR}/config_templates/config.yml") as f:
+        config = yaml.safe_load(f)
+
+    options = (
+        option
+        for section in config
+        for option in section["options"]
+    )
+    option_names = {option["name"] for option in options}
+    doc_files = {
+        filepath
+        for filepath in glob(f"{ROOT_PROJECT_DIR}/**/*.rst", recursive=True)
+        if "/_api" not in filepath and "/_build" not in filepath
+    }
+    options_without_docs = set(option_names)
+    options_filepath = []
+    for doc_file in doc_files:
+        with open(doc_file) as f:
+            content = f.read()
+        described_options = {
+            option
+            for option in options_without_docs
+            if f"{option}" in content
+        }
+        options_without_docs -= described_options
+        options_filepath.extend(
+            (option, doc_file) for option in described_options
+        )
+    options_without_docs -= OPTIONS_WITHOUT_DOCS
+    if options_without_docs:
+        options_without_docs_text = " * " + "\n * ".join(sorted(options_without_docs))
+        message = (
+            "Missing description for options:\n"
+            f"{options_without_docs_text}"
+            "\n"
+            "Can you add documentation (/docs/ directory) for this options?\n"
+            "Reference documentation (/airflow/config_tempates/config.yaml file) is important, but it "
+            "does not easily find a this feature by new users.\n"
+        )
+        build_errors.append(DocBuildError(file_path=__file__, line_no=None, message=message))
+    for option, doc_fille in options_filepath:
+        if option not in OPTIONS_WITHOUT_DOCS:
+            continue
+        message = (
+            f"It looks like you added a description for option {option} for which documentation was missing. "
+            "Can you delete it from OPTIONS_WITHOUT_DOCS?"
+        )
+        build_errors.append(DocBuildError(file_path=None, line_no=None, message=message))
+
+
 def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int=5) -> str:
     def guess_lexer_for_filename(filename):
         from pygments.util import ClassNotFound
@@ -491,6 +719,7 @@ check_class_links_in_operators_and_hooks_ref()
 check_guide_links_in_operators_and_hooks_ref()
 check_exampleinclude_for_example_dags()
 check_gcp_guides()
+check_config_options()
 
 if build_errors:
     display_errors_summary()
