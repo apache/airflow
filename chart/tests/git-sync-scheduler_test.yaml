@@ -20,8 +20,9 @@ templates:
 tests:
   - it: should add dags volume
     set:
-      gitSync:
-        enabled: true
+      dags:
+        gitSync:
+          enabled: true
     asserts:
       - equal:
           path: spec.template.spec.volumes[1].name

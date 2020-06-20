@@ -442,8 +442,8 @@ api:
 # Git sync
 dags:
   persistence:
-    # Enable persistent volumes for storing dags
-    enabled: true
+    # Enable persistent volume for storing dags
+    enabled: false
     # Volume size for dags
     size: 1Gi
     # If using a custom storageClass, pass name here
@@ -453,7 +453,7 @@ dags:
     ## the name of an existing PVC to use
     existingClaim: ~
   gitSync:
-    enabled: true
+    enabled: false
     # git repo clone url
     # ssh examples ssh://git@github.com/apache/airflow.git
     # git@github.com:apache/airflow.git
