@@ -1490,7 +1490,7 @@ class Airflow(AirflowBaseView):
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
         external_logs = conf.get('elasticsearch', 'frontend')
-
+        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
 
@@ -1500,6 +1500,7 @@ class Airflow(AirflowBaseView):
             root=root,
             form=form,
             dag=dag,
+            doc_md=doc_md,
             data=data,
             blur=blur, num_runs=num_runs,
             show_external_logs=bool(external_logs))

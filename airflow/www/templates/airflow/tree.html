@@ -27,6 +27,9 @@
 
 {% block content %}
 {{ super() }}
+{% if doc_md %}
+{{ doc_md }}
+{% endif %}
 <div style="float: left" class="form-inline">
   <form method="get" style="float:left;">
     Base date: {{ form.base_date(class_="form-control") }}
