@@ -51,7 +51,6 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = [
 
 
 def get_sensitive_variables_fields():
-    # Default Sensitive Fields
     sensitive_fields = set(DEFAULT_SENSITIVE_VARIABLE_FIELDS)
     sensitive_variable_fields = conf.get('admin', 'sensitive_variable_fields')
     if sensitive_variable_fields:
