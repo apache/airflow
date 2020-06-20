@@ -40,7 +40,7 @@ from airflow.www.extensions.init_views import (
     init_api_connexion, init_api_experimental, init_appbuilder_views, init_error_handlers, init_flash_views,
     init_plugins,
 )
-from airflow.www.extensions.init_wsgi_middlewares import init_wsg_middleware
+from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 
 app: Optional[Flask] = None
 
@@ -85,7 +85,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
 
     csrf.init_app(flask_app)
 
-    init_wsg_middleware(flask_app)
+    init_wsgi_middleware(flask_app)
 
     db = SQLA()
     db.session = settings.Session

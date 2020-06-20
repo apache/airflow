@@ -29,7 +29,7 @@ def _root_app(_, resp):
     return [b'Apache Airflow is not at this location']
 
 
-def init_wsg_middleware(flask_app: Flask):
+def init_wsgi_middleware(flask_app: Flask):
     """Handle X-Forwarded-* headers and base_url support"""
     # Apply DispatcherMiddleware
     base_url = urlparse(conf.get('webserver', 'base_url'))[2]
