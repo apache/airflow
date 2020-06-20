@@ -333,6 +333,20 @@ def check_exampleinclude_for_example_dags():
         )
 
 
+def check_enforce_code_block():
+    all_docs_files = glob("**/*rst", recursive=True)
+
+    for doc_file in all_docs_files:
+        assert_file_not_contains(
+            file_path=doc_file,
+            pattern=r"^.. code::",
+            message=(
+                "We recommend using the code-block directive instead of the code directive. "
+                "The code-block directive is more feature-full."
+            )
+        )
+
+
 MISSING_GCP_DOC_GUIDES = {
     'adls_to_gcs',
     'bigquery_to_bigquery',
@@ -489,6 +503,7 @@ clean_files()
 check_guide_links_in_operator_descriptions()
 check_class_links_in_operators_and_hooks_ref()
 check_guide_links_in_operators_and_hooks_ref()
+check_enforce_code_block()
 check_exampleinclude_for_example_dags()
 check_gcp_guides()
 

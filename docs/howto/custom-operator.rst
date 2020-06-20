@@ -36,7 +36,7 @@ There are two methods that you need to override in a derived class:
 
 Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``:
 
-.. code::  python
+.. code-block:: python
 
         from airflow.models.baseoperator import BaseOperator
         from airflow.utils.decorators import apply_defaults
@@ -65,7 +65,7 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
 
 You can now use the derived custom operator as follows:
 
-.. code:: python
+.. code-block:: python
 
     from custom_operator.hello_operator import HelloOperator
 
@@ -94,7 +94,7 @@ See :doc:`connection/index` for how to create and manage connections.
 
 Let's extend our previous example to fetch name from MySQL:
 
-.. code:: python
+.. code-block:: python
 
     class HelloDBOperator(BaseOperator):
 
@@ -134,7 +134,7 @@ Airflow also allows the developer to control how the operator shows up in the DA
 Override ``ui_color`` to change the background color of the operator in UI.
 Override ``ui_fgcolor`` to change the color of the label.
 
-.. code::  python
+.. code-block:: python
 
         class HelloOperator(BaseOperator):
             ui_color = '#ff0000'
@@ -147,7 +147,7 @@ You can use :ref:`Jinja templates <jinja-templating>` to parameterize your opera
 Airflow considers the field names present in ``template_fields``  for templating while rendering
 the operator.
 
-.. code:: python
+.. code-block:: python
 
         class HelloOperator(BaseOperator):
 
@@ -168,7 +168,7 @@ the operator.
 
 You can use the template as follows:
 
-.. code:: python
+.. code-block:: python
 
         with dag:
             hello_task = HelloOperator(task_id='task_id_1', dag=dag, name='{{ task_instance.task_id }}')
@@ -182,7 +182,7 @@ the extension of your file in ``template_ext``. If a ``template_field`` contains
 the extension mentioned in ``template_ext``, Jinja reads the content of the file and replace the templates
 with actual value. Note that Jinja substitutes the operator attributes and not the args.
 
-.. code:: python
+.. code-block:: python
 
         class HelloOperator(BaseOperator):
 

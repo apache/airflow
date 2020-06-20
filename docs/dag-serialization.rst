@@ -89,7 +89,7 @@ Using a different JSON Library
 To use a different JSON library instead of the standard ``json`` library like ``ujson``, you need to
 define a ``json`` variable in local Airflow settings (``airflow_local_settings.py``) file as follows:
 
-.. code:: python
+.. code-block:: python
 
     import ujson
     json = ujson

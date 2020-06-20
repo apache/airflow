@@ -70,7 +70,7 @@ that means the DAG must appear in ``globals()``. Consider the following two
 DAGs. Only ``dag_1`` will be loaded; the other one only appears in a local
 scope.
 
-.. code:: python
+.. code-block:: python
 
     dag_1 = DAG('this_dag_will_be_discovered')
 
@@ -91,7 +91,7 @@ Default Arguments
 If a dictionary of ``default_args`` is passed to a DAG, it will apply them to
 any of its operators. This makes it easy to apply a common parameter to many operators without having to type it many times.
 
-.. code:: python
+.. code-block:: python
 
     default_args = {
         'start_date': datetime(2016, 1, 1),
@@ -109,7 +109,7 @@ Context Manager
 
 DAGs can be used as context managers to automatically assign new operators to that DAG.
 
-.. code:: python
+.. code-block:: python
 
     with DAG('my_dag', start_date=datetime(2016, 1, 1)) as dag:
         op = DummyOperator('op')
@@ -163,7 +163,7 @@ Relations between Tasks
 Consider the following DAG with two tasks.
 Each task is a node in our DAG, and there is a dependency from task_1 to task_2:
 
-.. code:: python
+.. code-block:: python
 
     with DAG('my_dag', start_date=datetime(2016, 1, 1)) as dag:
         task_1 = DummyOperator('task_1')
@@ -189,7 +189,7 @@ Relations between Task Instances
 
 Again consider the following tasks, defined for some DAG:
 
-.. code:: python
+.. code-block:: python
 
     with DAG('my_dag', start_date=datetime(2016, 1, 1)) as dag:
         task_1 = DummyOperator('task_1')
@@ -298,7 +298,7 @@ be transferred or unassigned. DAG assignment can be done explicitly when the
 operator is created, through deferred assignment, or even inferred from other
 operators.
 
-.. code:: python
+.. code-block:: python
 
     dag = DAG('my_dag', start_date=datetime(2016, 1, 1))
 
@@ -327,7 +327,7 @@ Traditionally, operator relationships are set with the ``set_upstream()`` and
 bitshift operators ``>>`` and ``<<``. The following four statements are all
 functionally equivalent:
 
-.. code:: python
+.. code-block:: python
 
     op1 >> op2
     op1.set_downstream(op2)
@@ -341,13 +341,13 @@ that ``op1`` runs first and ``op2`` runs second. Multiple operators can be
 composed -- keep in mind the chain is executed left-to-right and the rightmost
 object is always returned. For example:
 
-.. code:: python
+.. code-block:: python
 
     op1 >> op2 >> op3 << op4
 
 is equivalent to:
 
-.. code:: python
+.. code-block:: python
 
     op1.set_downstream(op2)
     op2.set_downstream(op3)
@@ -355,7 +355,7 @@ is equivalent to:
 
 We can put this all together to build a simple pipeline:
 
-.. code:: python
+.. code-block:: python
 
     with DAG('my_dag', start_date=datetime(2016, 1, 1)) as dag:
         (
@@ -370,20 +370,20 @@ We can put this all together to build a simple pipeline:
 
 Bitshift can also be used with lists. For example:
 
-.. code:: python
+.. code-block:: python
 
     op1 >> [op2, op3] >> op4
 
 is equivalent to:
 
-.. code:: python
+.. code-block:: python
 
     op1 >> op2 >> op4
     op1 >> op3 >> op4
 
 and equivalent to:
 
-.. code:: python
+.. code-block:: python
 
     op1.set_downstream([op2, op3])
     op4.set_upstream([op2, op3])
@@ -403,7 +403,7 @@ When setting a relationship between two lists,
 if we want all operators in one list to be upstream to all operators in the other,
 we cannot use a single bitshift composition. Instead we have to split one of the lists:
 
-.. code:: python
+.. code-block:: python
 
     [op1, op2, op3] >> op4
     [op1, op2, op3] >> op5
@@ -411,50 +411,50 @@ we cannot use a single bitshift composition. Instead we have to split one of the
 
 ``cross_downstream`` could handle list relationships easier.
 
-.. code:: python
+.. code-block:: python
 
     cross_downstream([op1, op2, op3], [op4, op5, op6])
 
 When setting single direction relationships to many operators, we could
 concat them with bitshift composition.
 
-.. code:: python
+.. code-block:: python
 
     op1 >> op2 >> op3 >> op4 >> op5
 
 This can be accomplished using ``chain``
 
-.. code:: python
+.. code-block:: python
 
     chain(op1, op2, op3, op4, op5)
 
 even without operator's name
 
-.. code:: python
+.. code-block:: python
 
     chain([DummyOperator(task_id='op' + i, dag=dag) for i in range(1, 6)])
 
 ``chain`` can handle a list of operators
 
-.. code:: python
+.. code-block:: python
 
     chain(op1, [op2, op3], op4)
 
 is equivalent to:
 
-.. code:: python
+.. code-block:: python
 
     op1 >> [op2, op3] >> op4
 
 When ``chain`` sets relationships between two lists of operators, they must have the same size.
 
-.. code:: python
+.. code-block:: python
 
     chain(op1, [op2, op3], [op4, op5], op6)
 
 is equivalent to:
 
-.. code:: python
+.. code-block:: python
 
     op1 >> [op2, op3]
     op2 >> op4
@@ -516,7 +516,7 @@ it a number of worker slots. Tasks can then be associated with
 one of the existing pools by using the ``pool`` parameter when
 creating tasks (i.e., instantiating operators).
 
-.. code:: python
+.. code-block:: python
 
     aggregate_db_message_job = BashOperator(
         task_id='aggregate_db_message_job',
@@ -626,7 +626,7 @@ If ``xcom_pull`` is passed a single string for ``task_ids``, then the most
 recent XCom value from that task is returned; if a list of ``task_ids`` is
 passed, then a corresponding list of XCom values is returned.
 
-.. code:: python
+.. code-block:: python
 
     # inside a PythonOperator called 'pushing_task'
     def push_function():
@@ -642,7 +642,7 @@ automatically passed to the function.
 It is also possible to pull XCom directly in a template, here's an example
 of what this may look like:
 
-.. code:: jinja
+.. code-block:: jinja
 
     SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
 
@@ -673,7 +673,7 @@ it can be useful to have some variables or configuration items
 accessible and modifiable through the UI.
 
 
-.. code:: python
+.. code-block:: python
 
     from airflow.models import Variable
     foo = Variable.get("foo")
@@ -689,13 +689,13 @@ doesn't exist and no default is provided.
 
 You can use a variable from a jinja template with the syntax :
 
-.. code:: bash
+.. code-block:: bash
 
     echo {{ var.value.<variable_name> }}
 
 or if you need to deserialize a json object from the variable :
 
-.. code:: bash
+.. code-block:: bash
 
     echo {{ var.json.<variable_name> }}
 
@@ -710,7 +710,7 @@ So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VA
 
 For example,
 
-.. code:: bash
+.. code-block:: bash
 
     export AIRFLOW_VAR_FOO=BAR
 
@@ -719,7 +719,7 @@ For example,
 
 You can use them in your DAGs as:
 
-.. code:: python
+.. code-block:: python
 
     from airflow.models import Variable
     foo = Variable.get("foo")
@@ -759,7 +759,7 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching
 context to dynamically decide what branch to follow based on upstream tasks.
 For example:
 
-.. code:: python
+.. code-block:: python
 
   def branch_func(ti):
       xcom_value = int(ti.xcom_pull(task_ids='start_task'))
@@ -791,7 +791,7 @@ an implementation of the method ``choose_branch``. As with the callable for
 ``BranchPythonOperator``, this method should return the ID of a downstream task,
 or a list of task IDs, which will be run, and all others will be skipped.
 
-.. code:: python
+.. code-block:: python
 
   class MyBranchOperator(BaseBranchOperator):
       def choose_branch(self, context):
@@ -933,7 +933,7 @@ in schedule level. Skipped tasks will cascade through trigger rules
 
 For example, consider the following DAG:
 
-.. code:: python
+.. code-block:: python
 
   #dags/branch_without_trigger.py
   import datetime as dt
@@ -974,7 +974,7 @@ skipped tasks will cascade through ``all_success``.
 
 By setting ``trigger_rule`` to ``none_failed_or_skipped`` in ``join`` task,
 
-.. code:: python
+.. code-block:: python
 
   #dags/branch_with_trigger.py
   ...
@@ -1066,7 +1066,7 @@ that no tasks run for more than 48 hours. Here's an example of what this
 may look like inside your ``airflow_local_settings.py``:
 
 
-.. code:: python
+.. code-block:: python
 
     def policy(task):
         if task.__class__.__name__ == 'HivePartitionSensor':
@@ -1090,7 +1090,7 @@ that mutates the task instance.
 For example, this function re-routes the task to execute in a different
 queue during retries:
 
-.. code:: python
+.. code-block:: python
 
     def task_instance_mutation_hook(ti):
         if ti.try_number >= 1:
@@ -1128,7 +1128,7 @@ This is especially useful if your tasks are built dynamically from
 configuration files, it allows you to expose the configuration that led
 to the related tasks in Airflow.
 
-.. code:: python
+.. code-block:: python
 
     """
     ### My great DAG
@@ -1158,7 +1158,7 @@ powerful tool to use in combination with macros (see the :doc:`macros-ref` secti
 For example, say you want to pass the execution date as an environment variable
 to a Bash script using the ``BashOperator``.
 
-.. code:: python
+.. code-block:: python
 
   # The execution date as YYYY-MM-DD
   date = "{{ ds }}"
@@ -1181,7 +1181,7 @@ are marked as templated in the structure they belong to: fields registered in
 ``template_fields`` property will be submitted to template substitution, like the
 ``path`` field in the example below:
 
-.. code:: python
+.. code-block:: python
 
   class MyDataReader:
     template_fields = ['path']
@@ -1205,7 +1205,7 @@ are marked as templated in the structure they belong to: fields registered in
 Deep nested fields can also be substituted, as long as all intermediate fields are
 marked as template fields:
 
-.. code:: python
+.. code-block:: python
 
   class MyDataTransformer:
     template_fields = ['reader']
@@ -1235,7 +1235,7 @@ You can pass custom options to the Jinja ``Environment`` when creating your DAG.
 One common usage is to avoid Jinja from dropping a trailing newline from a
 template string:
 
-.. code:: python
+.. code-block:: python
 
   my_dag = DAG(dag_id='my-dag',
                jinja_environment_kwargs={
@@ -1264,7 +1264,7 @@ behavior is desired:
 
 This example illustrates some possibilities
 
-.. code:: python
+.. code-block:: python
 
   from airflow.exceptions import AirflowFailException, AirflowSkipException
 
@@ -1355,7 +1355,7 @@ characters on a line following a ``#`` will be ignored.
 ``.airflowignore`` file should be put in your ``DAG_FOLDER``.
 For example, you can prepare a ``.airflowignore`` file with contents
 
-.. code::
+.. code-block::
 
     project_a
     tenant_[\d]

@@ -22,7 +22,7 @@ You can configure the email that is being sent in your ``airflow.cfg``
 by setting a ``subject_template`` and/or a ``html_content_template``
 in the ``email`` section.
 
-.. code::
+.. code-block::
 
   [email]
 
@@ -35,7 +35,7 @@ To access the task's information you use `Jinja Templating <http://jinja.pocoo.o
 
 For example a ``html_content_template`` file could look like this:
 
-.. code::
+.. code-block::
 
   Try {{try_number}} out of {{max_tries + 1}}<br>
   Exception:<br>{{exception_html}}<br>

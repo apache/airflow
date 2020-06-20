@@ -44,7 +44,7 @@ This could be used, for instance, to add sidecar or init containers
 to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
 
 
-.. code:: python
+.. code-block:: python
 
     def pod_mutation_hook(pod: Pod):
       pod.annotations['airflow.apache.org/launched-by'] = 'Tests'
