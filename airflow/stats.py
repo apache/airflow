@@ -32,6 +32,7 @@ log = logging.getLogger(__name__)
 
 
 class StatsLogger(Protocol):
+    """This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)"""
     def incr(cls, stat: str, count: int = 1, rate: int = 1) -> None:
         ...
 
@@ -46,6 +47,7 @@ class StatsLogger(Protocol):
 
 
 class DummyStatsLogger:
+    """If no StatsLogger is configured, DummyStatsLogger is used as a fallback"""
     @classmethod
     def incr(cls, stat, count=1, rate=1):
         pass
@@ -103,6 +105,7 @@ def validate_stat(fn):
 
 
 class AllowListValidator:
+    """Class to filter unwanted stats"""
 
     def __init__(self, allow_list=None):
         if allow_list:
@@ -118,6 +121,7 @@ class AllowListValidator:
 
 
 class SafeStatsdLogger:
+    """Statsd Logger"""
 
     def __init__(self, statsd_client, allow_list_validator=AllowListValidator()):
         self.statsd = statsd_client
@@ -145,6 +149,7 @@ class SafeStatsdLogger:
 
 
 class SafeDogStatsdLogger:
+    """DogStatsd Logger"""
 
     def __init__(self, dogstatsd_client, allow_list_validator=AllowListValidator()):
         self.dogstatsd = dogstatsd_client
@@ -243,5 +248,5 @@ class _Stats(type):
             return tags
 
 
-class Stats(metaclass=_Stats):
+class Stats(metaclass=_Stats):  # noqa: D101
     pass

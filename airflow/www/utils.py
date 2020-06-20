@@ -360,30 +360,30 @@ def get_chart_height(dag):
     return 600 + len(dag.tasks) * 10
 
 
-class UtcAwareFilterMixin:
+class UtcAwareFilterMixin:  # noqa: D101
     def apply(self, query, value):
         value = timezone.parse(value, timezone=timezone.utc)
 
         return super().apply(query, value)
 
 
-class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
+class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):  # noqa: D101
     pass
 
 
-class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):
+class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):  # noqa: D101
     pass
 
 
-class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):
+class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):  # noqa: D101
     pass
 
 
-class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):
+class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):  # noqa: D101
     pass
 
 
-class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
+class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):  # noqa: D101
 
     conversion_table = (
         (('is_utcdatetime', [UtcAwareFilterEqual,

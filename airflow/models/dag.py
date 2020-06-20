@@ -1708,6 +1708,7 @@ class DagTag(Base):
 
 
 class DagModel(Base):
+    """Table containing DAG propoerties"""
 
     __tablename__ = "dag"
     """

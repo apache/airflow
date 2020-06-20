@@ -165,7 +165,8 @@ def show_traceback(error):
 ######################################################################################
 
 
-class AirflowBaseView(BaseView):
+class AirflowBaseView(BaseView):  # noqa: D101
+    """Base View to set Airflow related properties"""
     from airflow import macros
     route_base = ''
 
@@ -183,7 +184,7 @@ class AirflowBaseView(BaseView):
         )
 
 
-class Airflow(AirflowBaseView):
+class Airflow(AirflowBaseView):  # noqa: D101
     @expose('/health')
     def health(self):
         """
@@ -2068,6 +2069,7 @@ class Airflow(AirflowBaseView):
 
 
 class VersionView(AirflowBaseView):
+    """View to show Airflow Version and optionally Git commit SHA"""
     default_view = 'version'
 
     @expose('/version')
@@ -2090,6 +2092,7 @@ class VersionView(AirflowBaseView):
 
 
 class ConfigurationView(AirflowBaseView):
+    """View to show Airflow Configurations"""
     default_view = 'conf'
 
     @expose('/configuration')
@@ -2134,6 +2137,7 @@ class ConfigurationView(AirflowBaseView):
 ######################################################################################
 
 class DagFilter(BaseFilter):
+    """Filter using DagIDs"""
     def apply(self, query, func): # noqa
         if current_app.appbuilder.sm.has_all_dags_access():
             return query
@@ -2141,7 +2145,7 @@ class DagFilter(BaseFilter):
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 
 
-class AirflowModelView(ModelView):
+class AirflowModelView(ModelView):  # noqa: D101
     list_widget = AirflowModelListWidget
     page_size = PAGE_SIZE
 
@@ -2149,6 +2153,7 @@ class AirflowModelView(ModelView):
 
 
 class SlaMissModelView(AirflowModelView):
+    """View to show SlaMiss table"""
     route_base = '/slamiss'
 
     datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)
@@ -2171,6 +2176,7 @@ class SlaMissModelView(AirflowModelView):
 
 
 class XComModelView(AirflowModelView):
+    """View to show records from XCom table"""
     route_base = '/xcom'
 
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
@@ -2209,6 +2215,7 @@ class XComModelView(AirflowModelView):
 
 
 class ConnectionModelView(AirflowModelView):
+    """View to show records from Connections table"""
     route_base = '/connection'
 
     datamodel = AirflowModelView.CustomSQLAInterface(Connection)
@@ -2277,6 +2284,7 @@ class ConnectionModelView(AirflowModelView):
 
 
 class PoolModelView(AirflowModelView):
+    """View to show records from Pool table"""
     route_base = '/pool'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Pool)
@@ -2339,6 +2347,7 @@ class PoolModelView(AirflowModelView):
 
 
 class VariableModelView(AirflowModelView):
+    """View to show records from Variable table"""
     route_base = '/variable'
 
     list_template = 'airflow/variable_list.html'
@@ -2432,6 +2441,7 @@ class VariableModelView(AirflowModelView):
 
 
 class JobModelView(AirflowModelView):
+    """View to show records from Job table"""
     route_base = '/job'
 
     datamodel = AirflowModelView.CustomSQLAInterface(BaseJob)
@@ -2459,6 +2469,7 @@ class JobModelView(AirflowModelView):
 
 
 class DagRunModelView(AirflowModelView):
+    """View to show records from DagRun table"""
     route_base = '/dagrun'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.DagRun)
@@ -2571,6 +2582,7 @@ class DagRunModelView(AirflowModelView):
 
 
 class LogModelView(AirflowModelView):
+    """View to show records from Log table"""
     route_base = '/log'
 
     datamodel = AirflowModelView.CustomSQLAInterface(Log)
@@ -2593,6 +2605,7 @@ class LogModelView(AirflowModelView):
 
 
 class TaskInstanceModelView(AirflowModelView):
+    """View to show records from TaskInstance table"""
     route_base = '/taskinstance'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.TaskInstance)
@@ -2708,6 +2721,7 @@ class TaskInstanceModelView(AirflowModelView):
 
 
 class DagModelView(AirflowModelView):
+    """View to show records from DAG table"""
     route_base = '/dagmodel'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.DagModel)

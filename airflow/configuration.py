@@ -110,6 +110,7 @@ def default_config_yaml() -> dict:
 
 
 class AirflowConfigParser(ConfigParser):
+    """Custom Airflow Configparser supporting defaults and deprecated options"""
 
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}__cmd" pattern, the idea behind this
