@@ -78,7 +78,7 @@ Apache Airflow is tested with:
 ### Additional notes on Python version requirements
 
 * Stable version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3 when using Python 3
-* Both versions are currently incompatible with Python 3.8 due to [a known compatibility issue](https://github.com/Tinche/cattrs/issues/77) with a dependent library
+* Stable version is currently incompatible with Python 3.8 due to [a known compatibility issue](https://github.com/Tinche/cattrs/issues/77) with a dependent library
 
 ## Getting started
 
