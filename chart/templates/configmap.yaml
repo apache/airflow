@@ -102,7 +102,7 @@ data:
     dags_volume_mount_point = {{ include "airflow_dags_mount_path" . }}
     {{- if .Values.dags.persistence.enabled }}
     dags_volume_claim = {{ .Release.Name }}-dags
-    dags_volume_subpath = {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subpath }}
+    dags_volume_subpath = {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
     {{- else }}
     git_repo = {{ .Values.dags.gitSync.repo }}
     git_branch = {{ .Values.dags.gitSync.branch }}
@@ -110,14 +110,14 @@ data:
     git_sync_depth = {{ .Values.dags.gitSync.depth }}
     git_sync_root = {{ .Values.dags.gitSync.root }}
     git_sync_dest = {{ .Values.dags.gitSync.dest }}
-    git_sync_container_repository = {{ .Values.dags.gitSync.container_repository }}
-    git_sync_container_tag = {{ .Values.dags.gitSync.container_tag }}
-    git_sync_init_container_name = {{ .Values.dags.gitSync.container_name }}
+    git_sync_container_repository = {{ .Values.dags.gitSync.containerRepository }}
+    git_sync_container_tag = {{ .Values.dags.gitSync.containerTag }}
+    git_sync_init_container_name = {{ .Values.dags.gitSync.containerName }}
     git_sync_run_as_user = {{ .Values.uid }}
-    {{- if .Values.dags.gitSync.ssh_key_secret }}
-    git_ssh_key_secret_name = {{ .Values.dags.gitSync.ssh_key_secret }}
-    {{- else if .Values.dags.gitSync.credentials_secret }}
-    git_sync_credentials_secret = {{ .Values.dags.gitSync.credentials_secret }}
+    {{- if .Values.dags.gitSync.sshKeySecret }}
+    git_ssh_key_secret_name = {{ .Values.dags.gitSync.sshKeySecret }}
+    {{- else if .Values.dags.gitSync.credentialsSecret }}
+    git_sync_credentials_secret = {{ .Values.dags.gitSync.credentialsSecret }}
     {{- end }}
     {{- end }}
     {{- end }}

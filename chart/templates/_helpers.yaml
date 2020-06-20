@@ -97,32 +97,32 @@
 {{- define "git_sync_ssh_key_volume"}}
 - name: git-sync-ssh-key
   secret:
-    secretName: {{ .Values.dags.gitSync.ssh_key_secret }}
+    secretName: {{ .Values.dags.gitSync.sshKeySecret }}
     defaultMode: 288
 {{- end }}
 
 {{/*  Git sync container */}}
 {{- define "git_sync_container"}}
-- name: {{ .Values.dags.gitSync.container_name }}
-  image: "{{ .Values.dags.gitSync.container_repository }}:{{ .Values.dags.gitSync.container_tag }}"
+- name: {{ .Values.dags.gitSync.containerName }}
+  image: "{{ .Values.dags.gitSync.containerRepository }}:{{ .Values.dags.gitSync.containerTag }}"
   env:
-    {{- if .Values.dags.gitSync.ssh_key_secret }}
+    {{- if .Values.dags.gitSync.sshKeySecret }}
     - name: GIT_SSH_KEY_FILE
       value: "/etc/git-secret/ssh"
     - name: GIT_SYNC_SSH
       value: "true"
     - name: GIT_KNOWN_HOSTS
       value: "false"
-    {{ else if .Values.dags.gitSync.credentials_secret }}
+    {{ else if .Values.dags.gitSync.credentialsSecret }}
     - name: GIT_SYNC_USERNAME
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentials_secret }}
+          name: {{ .Values.dags.gitSync.credentialsSecret }}
           key: GIT_SYNC_USERNAME
     - name: GIT_SYNC_PASSWORD
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentials_secret }}
+          name: {{ .Values.dags.gitSync.credentialsSecret }}
           key: GIT_SYNC_PASSWORD
     {{- end }}
     - name: GIT_SYNC_REV
@@ -144,7 +144,7 @@
   volumeMounts:
   - name: dags
     mountPath: {{ .Values.dags.gitSync.root }}
-  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.ssh_key_secret }}
+  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
   - name: git-sync-ssh-key
     mountPath: /etc/git-secret/ssh
     readOnly: true
@@ -246,7 +246,7 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
 
 {{ define "airflow_dags" -}}
 {{- if .Values.dags.gitSync.enabled -}}
-{{ (printf "%s/dags/%s/%s" .Values.airflowHome .Values.dags.gitSync.dest .Values.dags.gitSync.subpath ) }}
+{{ (printf "%s/dags/%s/%s" .Values.airflowHome .Values.dags.gitSync.dest .Values.dags.gitSync.subPath ) }}
 {{- else -}}
 {{ (printf "%s/dags" .Values.airflowHome) }}
 {{- end -}}

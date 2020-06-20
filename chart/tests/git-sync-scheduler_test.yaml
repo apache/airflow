@@ -31,11 +31,11 @@ tests:
       dags:
         gitSync:
           enabled: true
-          container_name: git-sync-test
-          container_tag: test-tag
-          container_repository: test-registry/test-repo
+          containerName: git-sync-test
+          containerTag: test-tag
+          containerRepository: test-registry/test-repo
           wait: 66
-          subpath: "path1/path2"
+          subPath: "path1/path2"
           dest: "test-dest"
           root: "/git-root"
           rev: HEAD
@@ -75,8 +75,8 @@ tests:
       dags:
         gitSync:
           enabled: true
-          container_name: git-sync-test
-          ssh_key_secret: ssh-secret
+          containerName: git-sync-test
+          sshKeySecret: ssh-secret
           branch: test-branch
     asserts:
       - contains:
@@ -106,7 +106,7 @@ tests:
       dags:
         gitSync:
           enabled: true
-          credentials_secret: user-pass-secret
+          credentialsSecret: user-pass-secret
     asserts:
       - contains:
           path: spec.template.spec.containers[1].env

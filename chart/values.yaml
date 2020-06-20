@@ -466,7 +466,7 @@ dags:
     depth: 1
     # subpath within the repo where dags are located
     # should be "" if dags are at repo root
-    subpath: "tests/dags"
+    subPath: "tests/dags"
     # if your repo needs a user name password
     # you can load them to a k8s secret like the one below
     #   ---
@@ -478,7 +478,7 @@ dags:
     #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
     #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
     # and specify the name of the secret below
-    #credentials_secret: git-credentials
+    #credentialsSecret: git-credentials
     #
     #
     # If you are using an ssh clone url, you can load
@@ -492,10 +492,10 @@ dags:
     #     # key needs to be gitSshKey
     #     gitSshKey: <base64_encoded_data>
     # and specify the name of the secret below
-    #ssh_key_secret: airflow-ssh-secret
+    #sshKeySecret: airflow-ssh-secret
     # interval between git sync attempts in seconds
     wait: 60
     # git sync image details
-    container_repository: k8s.gcr.io/git-sync
-    container_tag: v3.1.6
-    container_name: git-sync
+    containerRepository: k8s.gcr.io/git-sync
+    containerTag: v3.1.6
+    containerName: git-sync
