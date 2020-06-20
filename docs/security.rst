@@ -531,7 +531,7 @@ Viewer
 ^^^^^^
 ``Viewer`` users have limited viewer permissions
 
-.. code:: python
+.. code-block:: python
 
     VIEWER_PERMS = {
         'menu_access',
@@ -562,7 +562,7 @@ Viewer
 
 on limited web views
 
-.. code:: python
+.. code-block:: python
 
     VIEWER_VMS = {
         'Airflow',
@@ -590,7 +590,7 @@ User
 ^^^^
 ``User`` users have ``Viewer`` permissions plus additional user permissions
 
-.. code:: python
+.. code-block:: python
 
     USER_PERMS = {
         'can_dagrun_clear',
@@ -617,7 +617,7 @@ Op
 ^^
 ``Op`` users have ``User`` permissions plus additional op permissions
 
-.. code:: python
+.. code-block:: python
 
     OP_PERMS = {
         'can_conf',
@@ -626,7 +626,7 @@ Op
 
 on ``User`` web views plus these additional op web views
 
-.. code:: python
+.. code-block:: python
 
     OP_VMS = {
         'Admin',

@@ -73,7 +73,7 @@ you want to plug into Airflow. Here's what the class you need to derive
 looks like:
 
 
-.. code:: python
+.. code-block:: python
 
     class AirflowPlugin(object):
         # The name of your plugin (str)
@@ -122,7 +122,7 @@ After the plugin is imported into Airflow,
 you can invoke it using statement like
 
 
-.. code:: python
+.. code-block:: python
 
     from airflow.{type, like "operators", "sensors"}.{name specificed inside the plugin class} import *
 
@@ -145,7 +145,7 @@ Example
 The code below defines a plugin that injects a set of dummy object
 definitions in Airflow.
 
-.. code:: python
+.. code-block:: python
 
     # This is the class you derive to create a plugin
     from airflow.plugins_manager import AirflowPlugin

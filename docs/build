@@ -144,6 +144,16 @@ def find_modules(deprecated_only: bool = False) -> Set[str]:
     return modules_names
 
 
+def assert_file_not_contains(file_path: str, pattern: str, message: str) -> None:
+    with open(file_path, "rb", 0) as doc_file:
+        pattern_compiled = re.compile(pattern)
+
+        for num, line in enumerate(doc_file, 1):
+            line_decode = line.decode()
+            if re.search(pattern_compiled, line_decode):
+                build_errors.append(DocBuildError(file_path=file_path, line_no=num, message=message))
+
+
 def check_exampleinclude_for_example_dags():
     all_docs_files = glob("**/*rst", recursive=True)
 
@@ -154,6 +164,20 @@ def check_exampleinclude_for_example_dags():
             message=(
                 "literalinclude directive is is prohibited for example DAGs. \n"
                 "You should use a exampleinclude directive to include example DAGs."
+            )
+        )
+
+
+def check_enforce_code_block():
+    all_docs_files = glob("**/*rst", recursive=True)
+
+    for doc_file in all_docs_files:
+        assert_file_not_contains(
+            file_path=doc_file,
+            pattern=r"^.. code::",
+            message=(
+                "We recommend using the code-block directive instead of the code directive. "
+                "The code-block directive is more feature-full."
             )
         )
 
@@ -256,6 +280,7 @@ print("Current working directory: ", os.getcwd())
 prepare_directories()
 clean_files()
 
+check_enforce_code_block()
 check_exampleinclude_for_example_dags()
 
 if build_errors:

@@ -32,7 +32,7 @@ KubernetesPodOperator
 The :class:`~airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator` allows you to create Pods on Kubernetes. It works with
 any type of executor.
 
-.. code:: python
+.. code-block:: python
 
     from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
     from airflow.kubernetes.secret import Secret
@@ -148,7 +148,7 @@ This could be used, for instance, to add sidecar or init containers
 to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
 
 
-.. code:: python
+.. code-block:: python
 
     def pod_mutation_hook(pod: Pod):
       pod.annotations['airflow.apache.org/launched-by'] = 'Tests'

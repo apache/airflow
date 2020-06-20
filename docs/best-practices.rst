@@ -89,13 +89,13 @@ It can result in a lot of open connections.
 
 The best way of using variables is via a Jinja template which will delay reading the value until the task execution. The template synaxt to do this is:
 
-.. code::
+.. code-block::
 
     {{ var.value.<variable_name> }}
 
 or if you need to deserialize a json object from the variable :
 
-.. code::
+.. code-block::
 
     {{ var.json.<variable_name> }}
 
@@ -117,7 +117,7 @@ DAG Loader Test
 This test should ensure that your DAG does not contain a piece of code that raises error while loading.
 No additional code needs to be written by the user to run this test.
 
-.. code::
+.. code-block::
 
  python your-dag-file.py
 
@@ -132,7 +132,7 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write a u
 
 **Unit test for loading a DAG:**
 
-.. code::
+.. code-block::
 
  from airflow.models import DagBag
  import unittest
@@ -149,9 +149,9 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write a u
         self.assertEqual(len(dag.tasks), 1)
 
 **Unit test a DAG structure:**
-This is an example test want to verify the structure of a code-generated DAG against a dict object 
+This is an example test want to verify the structure of a code-generated DAG against a dict object
 
-.. code::
+.. code-block::
 
  import unittest
  class testClass(unittest.TestCase):
@@ -163,16 +163,16 @@ This is an example test want to verify the structure of a code-generated DAG aga
              self.assertEqual(task.downstream_task_ids, set(downstream_list),
                               msg="unexpected downstream link in {}".format(task_id))
      def test_dag(self):
-         self.assertDagDictEqual({   
-           "DummyInstruction_0": ["DummyInstruction_1"],   
-           "DummyInstruction_1": ["DummyInstruction_2"],   
-           "DummyInstruction_2": ["DummyInstruction_3"],   
-           "DummyInstruction_3": []   
-         },dag)   
+         self.assertDagDictEqual({
+           "DummyInstruction_0": ["DummyInstruction_1"],
+           "DummyInstruction_1": ["DummyInstruction_2"],
+           "DummyInstruction_2": ["DummyInstruction_3"],
+           "DummyInstruction_3": []
+         },dag)
 
 **Unit test for custom operator:**
 
-.. code::
+.. code-block::
 
  import unittest
  from airflow.utils.state import State
@@ -205,7 +205,7 @@ make sure that the partition is created in S3 and perform some simple checks to 
 
 Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.sensors.http_sensor.HttpSensor`.
 
-.. code::
+.. code-block::
 
  task = PushToS3(...)
  check = S3KeySensor(
@@ -227,7 +227,7 @@ Do not hard code values inside the DAG and then change them manually according t
 
 You can use environment variables  to parameterize the DAG.
 
-.. code::
+.. code-block::
 
  import os
 
@@ -252,7 +252,7 @@ If you want to run Airflow in production, make sure you :doc:`configure the back
 
 You can change the backend using the following config
 
-.. code:: ini
+.. code-block:: ini
 
  [core]
  sql_alchemy_conn = my_conn_string
@@ -261,7 +261,7 @@ Once you have changed the backend, airflow needs to create all the tables requir
 Create an empty DB and give airflow's user the permission to ``CREATE/ALTER`` it.
 Once that is done, you can run -
 
-.. code::
+.. code-block::
 
  airflow upgradedb
 
@@ -305,14 +305,14 @@ Airflow comes bundles with a default ``airflow.cfg`` configuration file.
 You should use environment variables for configurations that change across deployments
 e.g. metadata DB, password. You can do it using the format ``$AIRFLOW__{SECTION}__{KEY}``
 
-.. code::
+.. code-block::
 
  AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_id
  AIRFLOW__WEBSERVER__BASE_URL=http://host:port
 
 Some configurations such as Airflow Backend connection URI can be derived from bash commands as well:
 
-.. code::
+.. code-block::
 
  sql_alchemy_conn_cmd = bash_command_to_run
 

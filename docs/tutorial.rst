@@ -191,7 +191,7 @@ Setting up Dependencies
 We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
 you can define dependencies between them:
 
-.. code:: python
+.. code-block:: python
 
     t1.set_downstream(t2)
 
