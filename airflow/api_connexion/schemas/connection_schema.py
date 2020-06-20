@@ -32,7 +32,7 @@ class ConnectionCollectionItemSchema(SQLAlchemySchema):
         """ Meta """
         model = Connection
 
-    connection_id = auto_field('conn_id', required=True, can_update=False)
+    connection_id = auto_field('conn_id', required=True)
     conn_type = auto_field(required=True)
     host = auto_field()
     login = auto_field()
