@@ -18,6 +18,7 @@
 
 import functools
 import gzip
+import json
 from io import BytesIO as IO
 
 import pendulum
@@ -44,7 +45,7 @@ def action_logging(f):
                 event=f.__name__,
                 task_instance=None,
                 owner=user,
-                extra=str(list(request.values.items())),
+                extra=json.dumps(request.values),
                 task_id=request.values.get('task_id'),
                 dag_id=request.values.get('dag_id'))
 
