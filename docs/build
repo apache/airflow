@@ -492,10 +492,18 @@ check_guide_links_in_operators_and_hooks_ref()
 check_exampleinclude_for_example_dags()
 check_gcp_guides()
 
+CHANNEL_INVITATION = """\
+If you need help, write to #documentation channel on Airflow's Slack.
+Channel link: https://apache-airflow.slack.com/archives/CJ1LVREHX
+Invitation link: https://apache-airflow-slack.herokuapp.com/\
+"""
+
 if build_errors:
     display_errors_summary()
     print()
     print("The documentation has errors. Fix them to build documentation.")
+    print()
+    print(CHANNEL_INVITATION)
     sys.exit(1)
 
 build_sphinx_docs()
@@ -504,4 +512,6 @@ if build_errors:
     display_errors_summary()
     print()
     print("The documentation has errors.")
+    print()
+    print(CHANNEL_INVITATION)
     sys.exit(1)
