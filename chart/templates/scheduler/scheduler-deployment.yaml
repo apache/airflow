@@ -145,7 +145,7 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
 {{- end }}
-{{- if .Values.gitSync.enabled }}
+{{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
             - name: dags
               mountPath: {{ template "airflow_dags_mount_path" . }}
         {{- include "git_sync_container" . | indent 8 }}
@@ -182,18 +182,16 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- if and  .Values.gitSync.enabled  .Values.gitSync.ssh_key_secret }}
+        {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.ssh_key_secret }}
         {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
-        {{- if .Values.gitSync.enabled }}
-        {{- if .Values.gitSync.persistence.enabled }}
+        {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-dags
-        {{- else }}
+            claimName: {{ template "airflow_dags_volume_claim" . }}
+        {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {}
-        {{- end }}
         {{- end }}
 {{- if not $stateful }}
         - name: logs

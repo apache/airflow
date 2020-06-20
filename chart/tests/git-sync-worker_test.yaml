@@ -21,43 +21,47 @@ tests:
   - it: should add dags volume to the worker if git sync & peristence is enabled
     set:
       executor: CeleryExecutor
-      gitSync:
-        enabled: true
-      persistence:
-        enabled: true
+      dags:
+        persistence:
+          enabled: true
+        gitSync:
+          enabled: true
     asserts:
       - equal:
           path: spec.template.spec.volumes[1].name
           value: dags
-  - it: should add dags volume to the webserver if git sync is enabled & peristence is disabled
+  - it: should add dags volume to the worker if git sync is enabled & peristence is disabled
     set:
       executor: CeleryExecutor
-      gitSync:
-        enabled: true
-      persistence:
-        enabled: false
+      dags:
+        gitSync:
+          enabled: true
+        persistence:
+          enabled: false
     asserts:
       - equal:
           path: spec.template.spec.volumes[1].name
           value: dags
-  - it: should add git sync container to webserver if persistence is not enabled, but git sync is
+  - it: should add git sync container to worker if persistence is not enabled, but git sync is
     set:
       executor: CeleryExecutor
-      gitSync:
-        enabled: true
-        container_name: git-sync
+      dags:
+        gitSync:
+          enabled: true
+          container_name: git-sync
         persistence:
           enabled: false
     asserts:
       - equal:
           path: spec.template.spec.containers[0].name
           value: git-sync
-  - it: should not add sync container to webserver if git sync and persistence are enabled
+  - it: should not add sync container to worker if git sync and persistence are enabled
     set:
       executor: CeleryExecutor
-      gitSync:
-        enabled: true
-        container_name: git-sync
+      dags:
+        gitSync:
+          enabled: true
+          container_name: git-sync
         persistence:
           enabled: true
     asserts:

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-{{- if and .Values.gitSync.enabled .Values.gitSync.persistence.enabled }}
+{{- if and (not .Values.dags.persistence.existingClaim ) .Values.dags.persistence.enabled }}
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
@@ -27,15 +27,15 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
 spec:
-  accessModes: ["ReadWriteMany"]
+  accessModes: [{{ .Values.dags.persistence.accessMode | quote }}]
   resources:
     requests:
-      storage: {{ .Values.gitSync.persistence.size | quote }}
-  {{- if .Values.gitSync.persistence.storageClass }}
-  {{- if (eq "-" .Values.gitSync.persistence.storageClass) }}
+      storage: {{ .Values.dags.persistence.size | quote }}
+  {{- if .Values.dags.persistence.storageClass }}
+  {{- if (eq "-" .Values.dags.persistence.storageClass) }}
   storageClassName: ""
   {{- else }}
-  storageClassName: "{{ .Values.gitSync.persistence.storageClass }}"
+  storageClassName: "{{ .Values.dags.persistence.storageClass }}"
   {{- end }}
   {{- end }}
 {{- end }}

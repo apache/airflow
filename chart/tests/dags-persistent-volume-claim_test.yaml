@@ -20,38 +20,39 @@ templates:
 tests:
   - it: should  not generate a document if persistence is disabled
     set:
-      gitSync:
-        enabled: true
+      dags:
         persistence:
           enabled: false
     asserts:
       - hasDocuments:
           count: 0
-  - it: should  not generate a document if git sync is disabled
+  - it: should  not generate a document when using an existingClaim
     set:
-      gitSync:
-        enabled: false
+      dags:
         persistence:
           enabled: true
+          existingClaim: test-claim
     asserts:
       - hasDocuments:
           count: 0
-  - it: should  generate a document if git sync & persistence is enabled
+  - it: should  generate a document if persistence is enabled & not using an existingClaim
     set:
-      gitSync:
-        enabled: true
+      dags:
         persistence:
           enabled: true
+          existingClaim: ~
     asserts:
       - hasDocuments:
           count: 1
   - it: should set PVC details correctly
     set:
-      gitSync:
+      dags:
         persistence:
           enabled: true
           size: 1G
+          existingClaim: ~
           storageClass: "MyStorageClass"
+          accessMode: ReadWriteMany
     asserts:
       - equal:
           path: spec

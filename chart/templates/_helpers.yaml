@@ -97,54 +97,54 @@
 {{- define "git_sync_ssh_key_volume"}}
 - name: git-sync-ssh-key
   secret:
-    secretName: {{ .Values.gitSync.ssh_key_secret }}
+    secretName: {{ .Values.dags.gitSync.ssh_key_secret }}
     defaultMode: 288
 {{- end }}
 
 {{/*  Git sync container */}}
 {{- define "git_sync_container"}}
-- name: {{ .Values.gitSync.container_name }}
-  image: "{{ .Values.gitSync.container_repository }}:{{ .Values.gitSync.container_tag }}"
+- name: {{ .Values.dags.gitSync.container_name }}
+  image: "{{ .Values.dags.gitSync.container_repository }}:{{ .Values.dags.gitSync.container_tag }}"
   env:
-    {{- if .Values.gitSync.ssh_key_secret }}
+    {{- if .Values.dags.gitSync.ssh_key_secret }}
     - name: GIT_SSH_KEY_FILE
       value: "/etc/git-secret/ssh"
     - name: GIT_SYNC_SSH
       value: "true"
     - name: GIT_KNOWN_HOSTS
       value: "false"
-    {{ else if .Values.gitSync.credentials_secret }}
+    {{ else if .Values.dags.gitSync.credentials_secret }}
     - name: GIT_SYNC_USERNAME
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.gitSync.credentials_secret }}
+          name: {{ .Values.dags.gitSync.credentials_secret }}
           key: GIT_SYNC_USERNAME
     - name: GIT_SYNC_PASSWORD
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.gitSync.credentials_secret }}
+          name: {{ .Values.dags.gitSync.credentials_secret }}
           key: GIT_SYNC_PASSWORD
     {{- end }}
     - name: GIT_SYNC_REV
-      value: {{ .Values.gitSync.rev | quote }}
+      value: {{ .Values.dags.gitSync.rev | quote }}
     - name: GIT_SYNC_BRANCH
-      value: {{ .Values.gitSync.branch | quote }}
+      value: {{ .Values.dags.gitSync.branch | quote }}
     - name: GIT_SYNC_REPO
-      value: {{ .Values.gitSync.repo | quote }}
+      value: {{ .Values.dags.gitSync.repo | quote }}
     - name: GIT_SYNC_DEPTH
-      value: {{ .Values.gitSync.depth | quote }}
+      value: {{ .Values.dags.gitSync.depth | quote }}
     - name: GIT_SYNC_ROOT
-      value: {{ .Values.gitSync.root | quote }}
+      value: {{ .Values.dags.gitSync.root | quote }}
     - name: GIT_SYNC_DEST
-      value: {{ .Values.gitSync.dest | quote }}
+      value: {{ .Values.dags.gitSync.dest | quote }}
     - name: GIT_SYNC_ADD_USER
       value: "true"
     - name: GIT_SYNC_WAIT
-      value: {{ .Values.gitSync.wait | quote }}
+      value: {{ .Values.dags.gitSync.wait | quote }}
   volumeMounts:
   - name: dags
-    mountPath: {{ .Values.gitSync.root }}
-  {{- if and  .Values.gitSync.enabled  .Values.gitSync.ssh_key_secret }}
+    mountPath: {{ .Values.dags.gitSync.root }}
+  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.ssh_key_secret }}
   - name: git-sync-ssh-key
     mountPath: /etc/git-secret/ssh
     readOnly: true
@@ -245,10 +245,18 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
 {{- end }}
 
 {{ define "airflow_dags" -}}
-{{- if .Values.gitSync.enabled -}}
-{{ (printf "%s/dags/%s/%s" .Values.airflowHome .Values.gitSync.dest .Values.gitSync.subpath ) }}
+{{- if .Values.dags.gitSync.enabled -}}
+{{ (printf "%s/dags/%s/%s" .Values.airflowHome .Values.dags.gitSync.dest .Values.dags.gitSync.subpath ) }}
 {{- else -}}
 {{ (printf "%s/dags" .Values.airflowHome) }}
+{{- end -}}
+{{- end -}}
+
+{{ define "airflow_dags_volume_claim" -}}
+{{- if and .Values.dags.persistence.enabled .Values.dags.persistence.existingClaim -}}
+{{ .Values.dags.persistence.existingClaim }}
+{{- else -}}
+{{ .Release.Name }}-dags
 {{- end -}}
 {{- end -}}
 

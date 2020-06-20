@@ -93,32 +93,31 @@ data:
     worker_container_image_pull_policy = {{ .Values.images.airflow.pullPolicy }}
     worker_service_account_name = {{ .Release.Name }}-worker-serviceaccount
     image_pull_secrets = {{ template "registry_secret" . }}
-    dags_in_image = {{ if .Values.gitSync.enabled }}False{{ else }}True{{ end }}
+    dags_in_image = {{ if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}False{{ else }}True{{ end }}
     delete_worker_pods = True
     run_as_user = {{ .Values.uid }}
     fs_group = {{ .Values.gid }}
-    {{- if .Values.gitSync.enabled }}
+    {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
     git_dags_folder_mount_point = {{ include "airflow_dags_mount_path" . }}
     dags_volume_mount_point = {{ include "airflow_dags_mount_path" . }}
-
-    {{- if .Values.gitSync.persistence.enabled }}
+    {{- if .Values.dags.persistence.enabled }}
     dags_volume_claim = {{ .Release.Name }}-dags
-    dags_volume_subpath = {{.Values.gitSync.dest }}/{{ .Values.gitSync.subpath }}
+    dags_volume_subpath = {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subpath }}
     {{- else }}
-    git_repo = {{ .Values.gitSync.repo }}
-    git_branch = {{ .Values.gitSync.branch }}
-    git_sync_rev = {{ .Values.gitSync.rev }}
-    git_sync_depth = {{ .Values.gitSync.depth }}
-    git_sync_root = {{ .Values.gitSync.root }}
-    git_sync_dest = {{ .Values.gitSync.dest }}
-    git_sync_container_repository = {{ .Values.gitSync.container_repository }}
-    git_sync_container_tag = {{ .Values.gitSync.container_tag }}
-    git_sync_init_container_name = {{ .Values.gitSync.container_name }}
+    git_repo = {{ .Values.dags.gitSync.repo }}
+    git_branch = {{ .Values.dags.gitSync.branch }}
+    git_sync_rev = {{ .Values.dags.gitSync.rev }}
+    git_sync_depth = {{ .Values.dags.gitSync.depth }}
+    git_sync_root = {{ .Values.dags.gitSync.root }}
+    git_sync_dest = {{ .Values.dags.gitSync.dest }}
+    git_sync_container_repository = {{ .Values.dags.gitSync.container_repository }}
+    git_sync_container_tag = {{ .Values.dags.gitSync.container_tag }}
+    git_sync_init_container_name = {{ .Values.dags.gitSync.container_name }}
     git_sync_run_as_user = {{ .Values.uid }}
-    {{- if .Values.gitSync.ssh_key_secret }}
-    git_ssh_key_secret_name = {{ .Values.gitSync.ssh_key_secret }}
-    {{- else if .Values.gitSync.credentials_secret }}
-    git_sync_credentials_secret = {{ .Values.gitSync.credentials_secret }}
+    {{- if .Values.dags.gitSync.ssh_key_secret }}
+    git_ssh_key_secret_name = {{ .Values.dags.gitSync.ssh_key_secret }}
+    {{- else if .Values.dags.gitSync.credentials_secret }}
+    git_sync_credentials_secret = {{ .Values.dags.gitSync.credentials_secret }}
     {{- end }}
     {{- end }}
     {{- end }}

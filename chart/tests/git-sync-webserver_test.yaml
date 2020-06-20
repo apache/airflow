@@ -20,29 +20,32 @@ templates:
 tests:
   - it: should add dags volume to the webserver if git sync & peristence is enabled
     set:
-      gitSync:
-        enabled: true
-      persistence:
-        enabled: true
+      dags:
+        gitSync:
+          enabled: true
+        persistence:
+          enabled: true
     asserts:
       - equal:
           path: spec.template.spec.volumes[1].name
           value: dags
   - it: should add dags volume to the webserver if git sync is enabled & peristence is disabled
     set:
-      gitSync:
-        enabled: true
-      persistence:
-        enabled: false
+      dags:
+        gitSync:
+          enabled: true
+        persistence:
+          enabled: false
     asserts:
       - equal:
           path: spec.template.spec.volumes[1].name
           value: dags
   - it: should add git sync container to webserver if persistence is not enabled, but git sync is
     set:
-      gitSync:
-        enabled: true
-        container_name: git-sync
+      dags:
+        gitSync:
+          enabled: true
+          container_name: git-sync
         persistence:
           enabled: false
     asserts:
@@ -51,9 +54,10 @@ tests:
           value: git-sync
   - it: should not add sync container to webserver if git sync and persistence are enabled
     set:
-      gitSync:
-        enabled: true
-        container_name: git-sync
+      dags:
+        gitSync:
+          enabled: true
+          container_name: git-sync
         persistence:
           enabled: true
     asserts:

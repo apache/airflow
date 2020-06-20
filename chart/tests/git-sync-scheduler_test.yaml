@@ -28,19 +28,20 @@ tests:
           value: dags
   - it: validate the git sync container spec
     set:
-      gitSync:
-        enabled: true
-        container_name: git-sync-test
-        container_tag: test-tag
-        container_repository: test-registry/test-repo
-        wait: 66
-        subpath: "path1/path2"
-        dest: "test-dest"
-        root: "/git-root"
-        rev: HEAD
-        depth: 1
-        repo: https://github.com/apache/airflow.git
-        branch: test-branch
+      dags:
+        gitSync:
+          enabled: true
+          container_name: git-sync-test
+          container_tag: test-tag
+          container_repository: test-registry/test-repo
+          wait: 66
+          subpath: "path1/path2"
+          dest: "test-dest"
+          root: "/git-root"
+          rev: HEAD
+          depth: 1
+          repo: https://github.com/apache/airflow.git
+          branch: test-branch
         persistence:
           enabled: true
     asserts:
@@ -71,11 +72,12 @@ tests:
                 name: dags
   - it: validate if ssh params are added
     set:
-      gitSync:
-        enabled: true
-        container_name: git-sync-test
-        ssh_key_secret: ssh-secret
-        branch: test-branch
+      dags:
+        gitSync:
+          enabled: true
+          container_name: git-sync-test
+          ssh_key_secret: ssh-secret
+          branch: test-branch
     asserts:
       - contains:
           path: spec.template.spec.containers[1].env
@@ -101,9 +103,10 @@ tests:
               defaultMode: 288
   - it: should set username and pass env variables
     set:
-      gitSync:
-        enabled: true
-        credentials_secret: user-pass-secret
+      dags:
+        gitSync:
+          enabled: true
+          credentials_secret: user-pass-secret
     asserts:
       - contains:
           path: spec.template.spec.containers[1].env
