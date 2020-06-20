@@ -13,7 +13,6 @@
 ./airflow/models/pool.py
 ./airflow/models/slamiss.py
 ./airflow/models/taskinstance.py
-./airflow/models/variable.py
 ./airflow/models/xcom.py
 ./airflow/stats.py
 ./airflow/www/blueprints.py
