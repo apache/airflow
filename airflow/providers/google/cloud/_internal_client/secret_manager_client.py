@@ -31,7 +31,6 @@ SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
 
 class _SecretManagerClient(LoggingMixin):
-
     """
     Retrieves Secrets object from GCP Secrets Manager. This is a common class reused between SecretsManager
     and Secrets Hook that provides the shared authentication and verification mechanisms. This class should

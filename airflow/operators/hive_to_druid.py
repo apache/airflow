@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.apache.druid.transfers.hive_to_druid`."""
+"""This module is deprecated.
+
+Please use `airflow.providers.apache.druid.transfers.hive_to_druid`.
+"""
 
 import warnings
 
@@ -29,10 +32,11 @@ warnings.warn(
 
 
 class HiveToDruidTransfer(HiveToDruidOperator):
-    """
-    This class is deprecated.
+    """This class is deprecated.
+
     Please use:
-    `airflow.providers.apache.druid.transfers.hive_to_druid.HiveToDruidOperator`."""
+    `airflow.providers.apache.druid.transfers.hive_to_druid.HiveToDruidOperator`.
+    """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(

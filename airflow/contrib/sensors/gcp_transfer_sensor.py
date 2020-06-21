@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated.
-Please use `airflow.providers.google.cloud.sensors.cloud_storage_transfer_service`."""
+
+Please use `airflow.providers.google.cloud.sensors.cloud_storage_transfer_service`.
+"""
 
 import warnings
 
@@ -32,8 +34,8 @@ warnings.warn(
 
 
 class GCPTransferServiceWaitForJobStatusSensor(CloudDataTransferServiceJobStatusSensor):
-    """
-    This class is deprecated.
+    """This class is deprecated.
+
     Please use `airflow.providers.google.cloud.sensors.transfer.CloudDataTransferServiceJobStatusSensor`.
     """
     def __init__(self, *args, **kwargs):

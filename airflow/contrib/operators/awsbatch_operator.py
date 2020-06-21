@@ -19,9 +19,9 @@
 
 """This module is deprecated. Please use:
 
-  - `airflow.providers.amazon.aws.operators.batch`
-  - `airflow.providers.amazon.aws.hooks.batch_client`
-  - `airflow.providers.amazon.aws.hooks.batch_waiters`
+- `airflow.providers.amazon.aws.operators.batch`
+- `airflow.providers.amazon.aws.hooks.batch_client`
+- `airflow.providers.amazon.aws.hooks.batch_waiters``
 """
 
 import warnings

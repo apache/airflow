@@ -170,7 +170,7 @@ class HiveCliHook(BaseHook):
         ... "hive.exec.dynamic.partition.mode": "nonstrict"}
         >>> hh._prepare_hiveconf(hive_conf)
         ["-hiveconf", "hive.exec.dynamic.partition=true",\
- "-hiveconf", "hive.exec.dynamic.partition.mode=nonstrict"]
+        "-hiveconf", "hive.exec.dynamic.partition.mode=nonstrict"]
         """
         if not d:
             return []

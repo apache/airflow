@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.mysql.transfers.presto_to_mysql`."""
+"""This module is deprecated.
+
+Please use `airflow.providers.mysql.transfers.presto_to_mysql`.
+"""
 
 import warnings
 
@@ -29,10 +32,11 @@ warnings.warn(
 
 
 class PrestoToMySqlTransfer(PrestoToMySqlOperator):
-    """
-    This class is deprecated.
+    """This class is deprecated.
+
     Please use:
-    `airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`."""
+    `airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`.
+    """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
