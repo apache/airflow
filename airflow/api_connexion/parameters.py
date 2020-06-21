@@ -50,18 +50,12 @@ def check_limit(value: int):
     This checks the limit passed to view and raises BadRequest if
     limit exceed user configured value
     """
-    max_val = int(conf.get("api", "maximum_page_limit"))
-    spec = {'default': 100, 'maximum': max_val,
-            'minimum': 1, 'type': 'integer'}
+    max_val = conf.getint("api", "maximum_page_limit")
+
     if value > max_val:
-        # This message should not be formatted. If formatted please
-        # run tests
-        message = ("{value} is greater than the maximum of {max_val}\n"
-                   "\n"
-                   "Failed validating 'maximum' in schema:\n"
-                   "    {spec}\n"
-                   "\nOn instance:\n    {value}").format(value=value,
-                                                         max_val=max_val, spec=spec)
+        message = f"{value} is greater than the maximum limit of {max_val}" \
+            .format(value=value,
+                    max_val=max_val)
         raise BadRequest(title="Bad Request", detail=message)
     return value
 

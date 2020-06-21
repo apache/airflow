@@ -581,6 +581,13 @@
       type: string
       example: ~
       default: "airflow.api.auth.backend.deny_all"
+    - name: maximum_page_limit
+      description: |
+        Used to set the maximum page limit for API requests
+      version_added: ~
+      type: integer
+      example: ~
+      default: "100"
 - name: lineage
   description: ~
   options:

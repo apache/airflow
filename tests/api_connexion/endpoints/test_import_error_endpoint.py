@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-from unittest import mock
 
 from parameterized import parameterized
 
@@ -23,6 +22,7 @@ from airflow.models.errors import ImportError  # pylint: disable=redefined-built
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.www import app
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_import_errors
 
 
@@ -179,9 +179,8 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         self.assertEqual(len(response.json['import_errors']), 100)
 
     @provide_session
-    @mock.patch("airflow.api_connexion.parameters.conf.get")
-    def test_should_raise_when_page_size_limit_exceeded(self, mock_get, session):
-        mock_get.return_value = 100
+    @conf_vars({("api", "maximum_page_limit"): "100"})
+    def test_should_raise_when_page_size_limit_exceeded(self, session):
         import_errors = [
             ImportError(
                 filename=f"/tmp/file_{i}.py",
@@ -197,11 +196,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         self.assertEqual(
             response.json,
             {
-                'detail': "150 is greater than the maximum of 100\n"
-                          "\nFailed validating 'maximum' in schema:\n    "
-                          "{'default': 100, 'maximum': 100, "
-                          "'minimum': 1, 'type': 'integer'}\n"
-                          "\nOn instance:\n    150",
+                'detail': "150 is greater than the maximum limit of 100",
                 'status': 400,
                 'title': 'Bad Request',
                 'type': 'about:blank'
