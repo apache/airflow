@@ -1326,7 +1326,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
                  end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
                  incorrect-use-of-LoggingMixin insert-license isort language-matters lint-dockerfile
-                 mixed-line-ending mypy provide-create-sessions pydevd pylint pylint-tests
+                 mixed-line-ending mypy provide-create-sessions pydevd pydocstyle pylint pylint-tests
                  python-no-log-warn rst-backticks setup-order shellcheck stylelint
                  trailing-whitespace update-breeze-file update-extras update-local-yml-file
                  update-setup-cfg-file yamllint
