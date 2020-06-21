@@ -146,7 +146,9 @@ function setup_default_breeze_variables() {
 
     _BREEZE_DEFAULT_BACKEND="sqlite"
     _BREEZE_DEFAULT_KUBERNETES_MODE="image"
-    _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.15.3"
+    _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.18.2"
+    _BREEZE_DEFAULT_KIND_VERSION="v0.8.0"
+    _BREEZE_DEFAULT_HELM_VERSION="v3.2.4"
     _BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
     _BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
     _BREEZE_DEFAULT_MYSQL_VERSION="5.7"
@@ -607,6 +609,16 @@ function parse_arguments() {
           echo "Kubernetes version: ${KUBERNETES_VERSION}"
           echo
           shift 2 ;;
+        --kind-version)
+          export KIND_VERSION="${2}";
+          echo "Kind version: ${KIND_VERSION}"
+          echo
+          shift 2 ;;
+        --helm-version)
+          export HELM_VERSION="${2}";
+          echo "Helm version: ${HELM_VERSION}"
+          echo
+          shift 2 ;;
         --postgres-version)
           export POSTGRES_VERSION="${2}";
           echo "Postgres version: ${POSTGRES_VERSION}"
@@ -862,6 +874,9 @@ function parse_arguments() {
           shift ;;
         kind-cluster)
           LAST_SUBCOMMAND="${1}"
+          # Force local cache strategy for all kind-cluster operations
+          # this helps to iterate with production images
+          DOCKER_CACHE="local"
           COMMAND_TO_RUN="manage_kind_cluster"
           export KIND_CLUSTER_OPERATION="${2:-}"
           if [[ ${KIND_CLUSTER_OPERATION} != "" ]]; then
@@ -997,6 +1012,10 @@ function prepare_formatted_versions() {
     FORMATTED_KUBERNETES_MODES=$(echo "${_BREEZE_ALLOWED_KUBERNETES_MODES=""}" | tr '\n' ' ' | \
       fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
     FORMATTED_KUBERNETES_VERSIONS=$(echo "${_BREEZE_ALLOWED_KUBERNETES_VERSIONS=""}" | tr '\n' ' ' | \
+      fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+    FORMATTED_KIND_VERSIONS=$(echo "${_BREEZE_ALLOWED_KIND_VERSIONS=""}" | tr '\n' ' ' | \
+      fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+    FORMATTED_HELM_VERSIONS=$(echo "${_BREEZE_ALLOWED_HELM_VERSIONS=""}" | tr '\n' ' ' | \
       fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
     FORMATTED_KIND_OPERATIONS=$(echo "${_BREEZE_ALLOWED_KIND_OPERATIONS=""}" | tr '\n' ' ' | \
       fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
@@ -1521,6 +1540,23 @@ ${FORMATTED_KUBERNETES_MODES}
 ${FORMATTED_KUBERNETES_VERSIONS}
 
         Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
+
+--kind-version <KIND_VERSION>
+        Kind version - only used in case one of --kind-cluster-* commands is used.
+        One of:
+
+${FORMATTED_KIND_VERSIONS}
+
+        Default: ${_BREEZE_DEFAULT_KIND_VERSION:=}
+
+--helm-version <HELM_VERSION>
+        Helm version - only used in case one of --kind-cluster-* commands is used.
+        One of:
+
+${FORMATTED_HELM_VERSIONS}
+
+        Default: ${_BREEZE_DEFAULT_HELM_VERSION:=}
+
 "
 }
 
@@ -1794,6 +1830,12 @@ function read_saved_environment_variables {
     export KUBERNETES_VERSION="${KUBERNETES_VERSION:=$(read_from_file KUBERNETES_VERSION)}"
     export KUBERNETES_VERSION=${KUBERNETES_VERSION:=${_BREEZE_DEFAULT_KUBERNETES_VERSION}}
 
+    export KIND_VERSION="${KIND_VERSION:=$(read_from_file KIND_VERSION)}"
+    export KIND_VERSION=${KIND_VERSION:=${_BREEZE_DEFAULT_KIND_VERSION}}
+
+    export HELM_VERSION="${HELM_VERSION:=$(read_from_file HELM_VERSION)}"
+    export HELM_VERSION=${HELM_VERSION:=${_BREEZE_DEFAULT_HELM_VERSION}}
+
     export POSTGRES_VERSION="${POSTGRES_VERSION:=$(read_from_file POSTGRES_VERSION)}"
     export POSTGRES_VERSION=${POSTGRES_VERSION:=${_BREEZE_DEFAULT_POSTGRES_VERSION}}
 
@@ -1843,6 +1885,8 @@ function check_and_save_all_params() {
     check_and_save_allowed_param "BACKEND"  "backend" "--backend"
     check_and_save_allowed_param "KUBERNETES_MODE"  "Kubernetes mode" "--kubernetes-mode"
     check_and_save_allowed_param "KUBERNETES_VERSION"  "Kubernetes version" "--kubernetes-version"
+    check_and_save_allowed_param "KIND_VERSION"  "KinD version" "--kind-version"
+    check_and_save_allowed_param "HELM_VERSION"  "Helm version" "--helm-version"
     check_and_save_allowed_param "POSTGRES_VERSION"  "Postgres version" "--postgres-version"
     check_and_save_allowed_param "MYSQL_VERSION"  "Mysql version" "--mysql-version"
 
@@ -2031,6 +2075,8 @@ function run_build_command {
               echo "Deploys Airflow to KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "test" ]] ; then
               echo "Run Kubernetes tests with the KinD cluster "
+            elif [[ ${KIND_CLUSTER_OPERATION} == "shell" ]] ; then
+              echo "Enter an interactive shell for kubernetes testing"
             else
               echo "ERROR: Unknown Kind Kubernetes cluster operation: '${KIND_CLUSTER_OPERATION}'"
               echo
@@ -2122,7 +2168,8 @@ function run_breeze_command {
             setup_autocomplete
             ;;
         manage_kind_cluster)
-            check_kind_and_kubectl_are_installed
+            make_sure_kubernetes_tools_are_installed
+            initialize_kind_variables
             perform_kind_cluster_operation "${KIND_CLUSTER_OPERATION}"
             ;;
         build_docs)

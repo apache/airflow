@@ -28,7 +28,7 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 ## Prerequisites
 
-- Kubernetes 1.12+
+- Kubernetes 1.12+ cluster
 - Helm 2.11+ or Helm 3.0+
 - PV provisioner support in the underlying infrastructure
 
@@ -73,6 +73,9 @@ helm upgrade airflow . \
   --set images.airflow.repository=my-company/airflow \
   --set images.airflow.tag=8a0da78
 ```
+
+For local development purppose you can also u
+You can also build the image locally and use it via deployment method described by Breeze.
 
 ## Parameters
 

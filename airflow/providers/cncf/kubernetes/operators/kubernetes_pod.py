@@ -288,10 +288,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                               "Will attach to this pod and monitor instead of starting new one", labels)
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
             elif len(pod_list.items) == 1:
-                self.log.info("found a running pod with labels %s."
-                              "Will monitor this pod instead of starting new one", labels)
                 final_state, result = self.monitor_launched_pod(launcher, pod_list[0])
             else:
+                self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
             if final_state != State.SUCCESS:
                 raise AirflowException(
@@ -379,7 +378,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         )
 
         self.pod = pod
-
+        self.log.info("Starting pod %s", pod)
         try:
             launcher.start_pod(
                 pod,

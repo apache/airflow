@@ -270,7 +270,6 @@ Also - in case you run several different Breeze containers in parallel (from dif
 with different versions) - they docker images for CLI Cloud Providers tools are shared so if you update it
 for one Breeze container, they will also get updated for all the other containers.
 
-
 Using the Airflow Breeze Environment
 =====================================
 
@@ -280,22 +279,42 @@ environment.
 
 Breeze script allows performing the following tasks:
 
-Manage environments - CI (default) or Production - if ``--production-image`` flag is specified:
+Managing CI environment:
 
-    * Build docker images with ``breeze build-image`` command
-    * Enter interactive shell when no command are specified (default behaviour)
+    * Build CI docker image with ``breeze build-image`` command
+    * Enter interactive shell in CI container when ``shell`` (or no command) is specified
     * Join running interactive shell with ``breeze exec`` command
-    * Start/stops/restarts Kind Kubernetes cluster with ``kind-cluster`` command
     * Stop running interactive environment with ``breeze stop`` command
     * Restart running interactive environment with ``breeze restart`` command
-    * Optionally reset database if specified as extra ``--db-reset`` flag
-    * Optionally start integrations (separate images) if specified as extra ``--integration`` flags (only CI)
-
-Interact with CI environment:
-
-    * Run test target specified with ``breeze tests`` command
-    * Execute arbitrary command in the test environment with ``breeze execute-command`` command
+    * Run test specified with ``breeze tests`` command
+    * Execute arbitrary command in the test environment with ``breeze shell`` command
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
+    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
+
+You can optionally reset database if specified as extra ``--db-reset`` flag and for CI image you can also
+start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
+chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
+
+Managing Prod environment (with ``--production-image`` flag):
+
+    * Build CI docker image with ``breeze build-image`` command
+    * Enter interactive shell in PROD container when ``shell`` (or no command) is specified
+    * Join running interactive shell with ``breeze exec`` command
+    * Stop running interactive environment with ``breeze stop`` command
+    * Restart running interactive environment with ``breeze restart`` command
+    * Execute arbitrary command in the test environment with ``breeze shell`` command
+    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
+    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
+
+You can optionally reset database if specified as extra ``--db-reset`` flag. You can also
+chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
+
+
+Manage and Interact with Kubernetes tests environment:
+
+    * Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze kind-cluster`` commands
+    * Run Kubernetes tests  specified with ``breeze kind-cluster tests`` command
+    * Enter the interactive kubernetes test environment with ``breeze kind-cluster shell`` command
 
 Run static checks:
 
@@ -311,12 +330,6 @@ Set up local development environment:
     * Setup local virtualenv with ``breeze setup-virtualenv`` command
     * Setup autocomplete for itself with ``breeze setup-autocomplete`` command
 
-
-Note that the below environment interaction is by default with the CI image. If you want to use production
-image for those commands you need to add ``--production-image`` flag.
-
-Note that you also should not run both (CI and production) environments simultaneously, as they are using
-the same docker-compose configuration which for example contain the link to the database, port mapping, etc.
 
 Entering Breeze CI environment
 ------------------------------
@@ -617,20 +630,6 @@ If ``FORCE_ANSWER_TO_QUESTIONS`` is set to ``quit``, the whole script is aborted
 
 If more than one variable is set, ``yes`` takes precedence over ``no``, which takes precedence over ``quit``.
 
-Building the Documentation
---------------------------
-
-To build documentation in Breeze, use the ``build-docs`` command:
-
-.. code-block:: bash
-
-     ./breeze build-docs
-
-Results of the build can be found in the ``docs/_build`` folder.
-
-Often errors during documentation generation come from the docstrings of auto-api generated classes.
-During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
-easily identify the location the problems with documentation originated from.
 
 Using Your Host IDE
 ===================
@@ -1194,7 +1193,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         to the cluster so you can also pass appropriate build image flags that will influence
         rebuilding the production image. Operation is one of:
 
-                 start stop restart status deploy test
+                 start stop restart status deploy test shell
 
   Flags:
 
@@ -1527,9 +1526,25 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes version - only used in case one of --kind-cluster-* commands is used.
           One of:
 
-                 v1.15.3
+                 v1.18.2
 
-          Default: v1.15.3
+          Default: v1.18.2
+
+  --kind-version <KIND_VERSION>
+          Kind version - only used in case one of --kind-cluster-* commands is used.
+          One of:
+
+                 v0.8.0
+
+          Default: v0.8.0
+
+  --helm-version <HELM_VERSION>
+          Helm version - only used in case one of --kind-cluster-* commands is used.
+          One of:
+
+                 v3.2.4
+
+          Default: v3.2.4
 
   ****************************************************************************************************
    Manage mounting local files
