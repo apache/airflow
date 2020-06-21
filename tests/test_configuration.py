@@ -228,7 +228,8 @@ key8 = true #123
             re.escape(
                 'Failed to convert value to bool. Please check "key1" key in "type_validation" section. '
                 'Current value: "non_bool_value".'
-            )):
+            )
+        ):
             test_conf.getboolean('type_validation', 'key1')
         self.assertTrue(isinstance(test_conf.getboolean('true', 'key3'), bool))
         self.assertEqual(True, test_conf.getboolean('true', 'key2'))
