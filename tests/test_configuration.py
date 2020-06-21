@@ -223,7 +223,7 @@ key7 = 0
 key8 = true #123
 """
         test_conf = AirflowConfigParser(default_config=test_config)
-        with self.assertRaisesRegexp(
+        with self.assertRaisesRegex(
             AirflowConfigException,
             re.escape(
                 'Failed to convert value to bool. Please check "key1" key in "type_validation" section. '
