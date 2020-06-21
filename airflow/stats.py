@@ -71,6 +71,9 @@ ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + '_.-')
 
 
 def stat_name_default_handler(stat_name, max_length=250) -> str:
+    """A function that validate the statsd stat name, apply changes to the stat name
+    if necessary and return the transformed stat name.
+    """
     if not isinstance(stat_name, str):
         raise InvalidStatsNameException('The stat_name has to be a string')
     if len(stat_name) > max_length:
@@ -87,10 +90,14 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
 
 
 def get_current_handle_stat_name_func() -> Callable[[str], str]:
+    """Get Stat Name Handler from airflow.cfg"""
     return conf.getimport('scheduler', 'stat_name_handler') or stat_name_default_handler
 
 
 def validate_stat(fn):
+    """Check if stat name contains invalid characters.
+    Log and not emit stats if name is invalid
+    """
     @wraps(fn)
     def wrapper(_self, stat, *args, **kwargs):
         try:

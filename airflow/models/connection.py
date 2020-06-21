@@ -89,6 +89,7 @@ CONN_TYPE_TO_HOOK = {
 # Python automatically converts all letters to lowercase in hostname
 # See: https://issues.apache.org/jira/browse/AIRFLOW-3615
 def parse_netloc_to_hostname(uri_parts):
+    """Parse a URI string to get correct Hostname."""
     hostname = unquote(uri_parts.hostname or '')
     if '/' in hostname:
         hostname = uri_parts.netloc

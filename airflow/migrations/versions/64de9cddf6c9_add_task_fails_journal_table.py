@@ -35,7 +35,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     op.create_table(
         'task_fail',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -49,5 +49,5 @@ def upgrade():
     )
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_table('task_fail')

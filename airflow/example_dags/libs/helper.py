@@ -18,5 +18,5 @@
 
 
 # pylint: disable=missing-docstring
-def print_stuff():
+def print_stuff():  # noqa: D103
     print("annotated!")

@@ -83,6 +83,7 @@ FILTER_STATUS_COOKIE = 'dag_status_filter'
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
+    """Get Execution Data, Base Date & Number of runs from a Request """
     dttm = request.args.get('execution_date')
     if dttm:
         dttm = timezone.parse(dttm)
@@ -139,6 +140,7 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
 ######################################################################################
 
 def circles(error):
+    """Show Circles on screen for any error in the Webserver"""
     return render_template(
         'airflow/circles.html', hostname=socket.getfqdn() if conf.getboolean(
             'webserver',
@@ -147,6 +149,7 @@ def circles(error):
 
 
 def show_traceback(error):
+    """Show Traceback for a given error"""
     from airflow.utils import asciiart as ascii_
     return render_template(
         'airflow/traceback.html',

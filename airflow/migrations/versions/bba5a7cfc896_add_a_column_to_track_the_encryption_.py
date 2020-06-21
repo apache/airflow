@@ -34,10 +34,10 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     op.add_column('connection',
                   sa.Column('is_extra_encrypted', sa.Boolean, default=False))
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_column('connection', 'is_extra_encrypted')

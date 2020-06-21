@@ -33,9 +33,9 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     op.add_column('users', sa.Column('superuser', sa.Boolean(), default=False))
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_column('users', 'superuser')

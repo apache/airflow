@@ -182,7 +182,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D103,D104,D105,D106,D107,D200,D202,D204,D205,D207,D208,D210,D400,D401,D403
+          - --add-ignore=D100,D102,D104,D105,D106,D107,D200,D202,D204,D205,D207,D208,D210,D400,D401,D403
         exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
   - repo: local
     hooks:
