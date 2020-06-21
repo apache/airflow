@@ -1235,9 +1235,22 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
             context: Any,
             key: str,
             value: Any,
-            execution_date: Optional[datetime] = None) -> None:
+            execution_date: Optional[datetime] = None,
+    ) -> None:
         """
-        See TaskInstance.xcom_push()
+        Make an XCom available for tasks to pull.
+
+        :param context: Execution Context Dictionary
+        :type: Any
+        :param key: A key for the XCom
+        :type key: str
+        :param value: A value for the XCom. The value is pickled and stored
+            in the database.
+        :type value: any pickleable object
+        :param execution_date: if provided, the XCom will not be visible until
+            this date. This can be used, for example, to send a message to a
+            task on a future date without it being immediately visible.
+        :type execution_date: datetime
         """
         context['ti'].xcom_push(
             key=key,
@@ -1250,9 +1263,38 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
             task_ids: Optional[List[str]] = None,
             dag_id: Optional[str] = None,
             key: str = XCOM_RETURN_KEY,
-            include_prior_dates: Optional[bool] = None) -> Any:
+            include_prior_dates: Optional[bool] = None,
+    ) -> Any:
         """
-        See TaskInstance.xcom_pull()
+        Pull XComs that optionally meet certain criteria.
+
+        The default value for `key` limits the search to XComs
+        that were returned by other tasks (as opposed to those that were pushed
+        manually). To remove this filter, pass key=None (or any desired value).
+
+        If a single task_id string is provided, the result is the value of the
+        most recent matching XCom from that task_id. If multiple task_ids are
+        provided, a tuple of matching values is returned. None is returned
+        whenever no matches are found.
+
+        :param context: Execution Context Dictionary
+        :type: Any
+        :param key: A key for the XCom. If provided, only XComs with matching
+            keys will be returned. The default key is 'return_value', also
+            available as a constant XCOM_RETURN_KEY. This key is automatically
+            given to XComs returned by tasks (as opposed to being pushed
+            manually). To remove the filter, pass key=None.
+        :type key: str
+        :param task_ids: Only XComs from tasks with matching ids will be
+            pulled. Can pass None to remove the filter.
+        :type task_ids: str or iterable of strings (representing task_ids)
+        :param dag_id: If provided, only pulls XComs from this DAG.
+            If None (default), the DAG of the calling task is used.
+        :type dag_id: str
+        :param include_prior_dates: If False, only XComs from the current
+            execution_date are returned. If True, XComs from previous dates
+            are returned as well.
+        :type include_prior_dates: bool
         """
         return context['ti'].xcom_pull(
             key=key,

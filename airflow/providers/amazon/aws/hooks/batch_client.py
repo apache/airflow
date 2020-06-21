@@ -211,7 +211,7 @@ class AwsBatchClientHook(AwsBaseHook):
         self.status_retries = status_retries or self.STATUS_RETRIES
 
     @property
-    def client(self) -> Union[AwsBatchProtocol, botocore.client.BaseClient]:
+    def client(self) -> Union[AwsBatchProtocol, botocore.client.BaseClient]:   # noqa: D402
         """
         An AWS API client for batch services, like ``boto3.client('batch')``
 

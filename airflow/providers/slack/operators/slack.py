@@ -87,7 +87,6 @@ class SlackAPIOperator(BaseOperator):
 class SlackAPIPostOperator(SlackAPIOperator):
     """
     Posts messages to a slack channel
-
     Examples:
 
     .. code-block:: python
@@ -156,7 +155,6 @@ class SlackAPIPostOperator(SlackAPIOperator):
 class SlackAPIFileOperator(SlackAPIOperator):
     """
     Send a file to a slack channel
-
     Examples:
 
     .. code-block:: python
@@ -170,7 +168,6 @@ class SlackAPIFileOperator(SlackAPIOperator):
             filename="hello_world.csv",
             filetype="csv",
             content="hello,world,csv,file",
-
         )
 
     :param channel: channel in which to sent file on slack name (templated)

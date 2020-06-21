@@ -27,11 +27,9 @@ from airflow.hooks.base_hook import BaseHook
 # noinspection PyAbstractClass
 class SlackHook(BaseHook):
     """
-    Creates a Slack connection, to be used for calls.
-    Takes both Slack API token directly and connection that has Slack API token.
-    If both supplied, Slack API token will be used.
-    Exposes also the rest of slack.WebClient args.
-
+    Creates a Slack connection, to be used for calls. Takes both Slack API token directly and
+    connection that has Slack API token. If both supplied, Slack API token will be used.
+    Exposes also the rest of slack.WebClient args
     Examples:
 
     .. code-block:: python
