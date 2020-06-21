@@ -44,6 +44,11 @@ class Variable(Base, LoggingMixin):
     _val = Column('val', Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
 
+    def __init__(self, key: str, val: Any):
+        super().__init__()
+        self.key = key
+        self.val = val
+
     def __repr__(self):
         # Hiding the value
         return '{} : {}'.format(self.key, self._val)
@@ -157,7 +162,7 @@ class Variable(Base, LoggingMixin):
             stored_value = str(value)
 
         Variable.delete(key, session=session)
-        session.add(Variable(key=key, val=stored_value))  # type: ignore  # pylint: disable=E1123
+        session.add(Variable(key=key, val=stored_value))
         session.flush()
 
     @classmethod
