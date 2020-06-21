@@ -1157,9 +1157,6 @@ components:
         port:
           type: integer
           nullable: true
-      required:
-        - connection_id
-        - conn_type
 
     ConnectionCollection:
       type: object

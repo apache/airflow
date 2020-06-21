@@ -70,7 +70,7 @@ def patch_connection(connection_id, session, update_mask=None):
     Update a connection entry
     """
     try:
-        body = connection_schema.load(request.json)
+        body = connection_schema.load(request.json, partial=True)
     except ValidationError as err:
         # If validation get to here, it is extra field validation.
         raise BadRequest(detail=err.messages.get('_schema', [err.messages])[0])
@@ -79,7 +79,7 @@ def patch_connection(connection_id, session, update_mask=None):
     connection = session.query(Connection).filter_by(conn_id=connection_id).first()
     if connection is None:
         raise NotFound("Connection not found")
-    if connection.conn_id != data['conn_id']:
+    if data.get('conn_id', None) and connection.conn_id != data['conn_id']:
         raise BadRequest("The connection_id cannot be updated.")
     if update_mask:
         update_mask = [i.strip() for i in update_mask]
@@ -103,8 +103,10 @@ def post_connection(session):
     Create connection entry
     """
     body = request.json
-
-    result = connection_schema.load(body)
+    try:
+        result = connection_schema.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
     data = result.data
     conn_id = data['conn_id']
     query = session.query(Connection)

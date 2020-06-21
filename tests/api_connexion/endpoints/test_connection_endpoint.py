@@ -230,14 +230,26 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
 
 class TestPatchConnection(TestConnectionEndpoint):
 
+    @parameterized.expand(
+        [
+            (
+                {
+                    "connection_id": "test-connection-id",
+                    "conn_type": 'test_type',
+                    "extra": "{'key': 'var'}"
+                },
+            ),
+            (
+                {
+                    "extra": "{'key': 'var'}"
+                },
+            )
+        ]
+    )
     @provide_session
-    def test_patch_should_response_200(self, session):
+    def test_patch_should_response_200(self, payload, session):
         self._create_connection(session)
-        payload = {
-            "connection_id": "test-connection-id",
-            "conn_type": 'test_type',
-            "extra": "{'key': 'var'}"
-        }
+
         response = self.client.patch("/api/v1/connections/test-connection-id",
                                      json=payload)
         assert response.status_code == 200
@@ -357,7 +369,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "conn_type": "test-type",
                     "invalid_field": "invalid field",  # unknown field
                     "_password": "{}",  # _password not a known field
-                }, "Extra arguments passed: ['_password', 'invalid_field']"
+                }, "Extra arguments passed:"
             ),
         ]
     )
@@ -371,7 +383,7 @@ class TestPatchConnection(TestConnectionEndpoint):
             json=payload
         )
         assert response.status_code == 400
-        self.assertEqual(response.json['detail'], error_message)
+        self.assertIn(error_message, response.json['detail'])
 
     def test_patch_should_response_404_not_found(self):
         payload = {
@@ -416,7 +428,7 @@ class TestPostConnection(TestConnectionEndpoint):
         response = self.client.post("/api/v1/connections", json=payload)
         assert response.status_code == 400
         self.assertEqual(response.json,
-                         {'detail': "'conn_type' is a required property",
+                         {'detail': "{'conn_type': ['Missing data for required field.']}",
                           'status': 400,
                           'title': 'Bad Request',
                           'type': 'about:blank'}
