@@ -1742,10 +1742,17 @@ TRANSFERS = [
     ),
 ]
 
-ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS
+UTILS = [
+    (
+        'airflow.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter',
+        'airflow.contrib.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter',
+    )
+]
+
+ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS + UTILS
 
 RENAMED_ALL = [
     (old_class, new_class)
-    for old_class, new_class in HOOKS + OPERATORS + SECRETS + SENSORS
+    for old_class, new_class in HOOKS + OPERATORS + SECRETS + SENSORS + UTILS
     if old_class.rpartition(".")[2] != new_class.rpartition(".")[2]
 ]
