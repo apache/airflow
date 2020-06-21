@@ -89,7 +89,7 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
     return stat_name
 
 
-def get_current_handle_stat_name_func() -> Callable[[str], str]:
+def get_current_handler_stat_name_func() -> Callable[[str], str]:
     """Get Stat Name Handler from airflow.cfg"""
     return conf.getimport('scheduler', 'stat_name_handler') or stat_name_default_handler
 
@@ -101,8 +101,8 @@ def validate_stat(fn):
     @wraps(fn)
     def wrapper(_self, stat, *args, **kwargs):
         try:
-            handle_stat_name_func = get_current_handle_stat_name_func()
-            stat_name = handle_stat_name_func(stat)
+            handler_stat_name_func = get_current_handler_stat_name_func()
+            stat_name = handler_stat_name_func(stat)
             return fn(_self, stat_name, *args, **kwargs)
         except InvalidStatsNameException:
             log.error('Invalid stat name: %s.', stat, exc_info=True)
