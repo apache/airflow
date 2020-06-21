@@ -16,8 +16,8 @@
     under the License.
 
 
-REST API Reference
-==================
+REST API Documentation
+======================
 
 Airflow stable REST API exposes a lot of endpoints for working with Apache Airflow.
 
@@ -27,7 +27,7 @@ There are default configurations available for airflow REST API which can be cha
 ``airflow.cfg``.
 
 .. note::
-    For more information on setting the configuration, see :doc:`howto/set-config`
+    For more information on setting the configuration, see :doc:`../howto/set-config`
 
 The default configurations for the REST API are as follows:
 
