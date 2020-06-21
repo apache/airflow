@@ -773,19 +773,20 @@ class Airflow(AirflowBaseView):  # noqa: D101
         dttm = timezone.parse(execution_date)
         try_number = request.args.get('try_number', 1)
 
-        handler = self._get_log_handler()
-
         ti = session.query(models.TaskInstance).filter(
             models.TaskInstance.dag_id == dag_id,
             models.TaskInstance.task_id == task_id,
             models.TaskInstance.execution_date == dttm).first()
 
         try:
+            task_log_reader = TaskLogReader()
+            handler = task_log_reader.log_handler
             url = handler.get_external_log_url(ti, try_number)
             return redirect(url)
         except AttributeError as e:
-            error_message = ["Task log handler {} does not support external log redirects.\n{}\n"
-                             .format(handler.__class__.__name__, str(e))]
+            error_message = [
+                f"Task log handler does not support external log URLs.\n{str(e)}\n"
+            ]
             return jsonify(message=error_message, error=True)
 
     @expose('/task')
@@ -1363,14 +1364,6 @@ class Airflow(AirflowBaseView):  # noqa: D101
                                               confirmed, upstream, downstream,
                                               future, past, State.SUCCESS)
 
-    @staticmethod
-    def _get_log_handler():
-        logger = logging.getLogger('airflow.task')
-        task_log_reader = conf.get('logging', 'task_log_reader')
-        handler = next((handler for handler in logger.handlers
-                        if handler.name == task_log_reader), None)
-        return handler
-
     @expose('/tree')
     @has_dag_access(can_dag_read=True)
     @has_access
@@ -1515,7 +1508,8 @@ class Airflow(AirflowBaseView):  # noqa: D101
 
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
-        handler = self._get_log_handler()
+        task_log_reader = TaskLogReader()
+        handler = task_log_reader.log_handler
         show_external_log_redirect = isinstance(handler, ExternalLoggingMixin)
         external_log_name = handler.log_name() if show_external_log_redirect else None
 
@@ -1614,7 +1608,8 @@ class Airflow(AirflowBaseView):  # noqa: D101
         session.commit()
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
-        handler = self._get_log_handler()
+        task_log_reader = TaskLogReader()
+        handler = task_log_reader.log_handler
         show_external_log_redirect = isinstance(handler, ExternalLoggingMixin)
         external_log_name = handler.log_name() if show_external_log_redirect else None
 

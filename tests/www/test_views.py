@@ -1003,8 +1003,8 @@ class TestAirflowBaseViews(TestBase):
             self.assertIsNone(ctx['external_log_name'])
 
     @parameterized.expand(["graph", "tree"])
-    @mock.patch('airflow.www.views.Airflow._get_log_handler')
-    def test_show_external_log_redirect_link_external_logger(self, endpoint, get_log_handler_function):
+    @mock.patch('airflow.utils.log.log_reader.TaskLogReader.log_handler', new_callable=PropertyMock)
+    def test_show_external_log_redirect_link_external_logger(self, endpoint, mock_log_handler):
         """Show external links if log handler is external."""
         class ExternalHandler(ExternalLoggingMixin):
             LOG_NAME = 'ExternalLog'
@@ -1012,7 +1012,8 @@ class TestAirflowBaseViews(TestBase):
             def log_name(self):
                 return self.LOG_NAME
 
-        get_log_handler_function.return_value = ExternalHandler()
+        mock_log_handler.return_value = ExternalHandler()
+
         url = f'{endpoint}?dag_id=example_bash_operator'
         with self.capture_templates() as templates:
             self.client.get(url, follow_redirects=True)
@@ -1311,17 +1312,17 @@ class TestLogView(TestBase):
 
         self.assertEqual(200, response.status_code)
         self.assertIn('"error":true', response.data.decode('utf-8'))
-        self.assertIn('Task log handler FileTaskHandler does not support', response.data.decode('utf-8'))
+        self.assertIn('Task log handler does not support external log URLs', response.data.decode('utf-8'))
 
-    @mock.patch('airflow.www.views.Airflow._get_log_handler')
-    def test_redirect_to_external_log_external_logger(self, get_log_handler_function):
+    @mock.patch('airflow.utils.log.log_reader.TaskLogReader.log_handler', new_callable=PropertyMock)
+    def test_redirect_to_external_log_external_logger(self, mock_log_handler):
         class ExternalHandler(ExternalLoggingMixin):
             EXTERNAL_URL = 'http://external-service.com'
 
             def get_external_log_url(self, *args, **kwargs):
                 return self.EXTERNAL_URL
 
-        get_log_handler_function.return_value = ExternalHandler()
+        mock_log_handler.return_value = ExternalHandler()
 
         url_template = "redirect_to_external_log?dag_id={}&" \
                        "task_id={}&execution_date={}&" \
