@@ -430,7 +430,7 @@ class TestPostConnection(TestConnectionEndpoint):
         self.assertEqual(response.json,
                          {'detail': "{'conn_type': ['Missing data for required field.']}",
                           'status': 400,
-                          'title': 'Bad Request',
+                          'title': 'Bad request',
                           'type': 'about:blank'}
                          )
 
