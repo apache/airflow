@@ -136,7 +136,241 @@ class TestGetPool(TestBasePoolEndpoints):
             {
                 "detail": None,
                 "status": 404,
-                "title": "Pool not found",
+                "title": "Pool with name:'invalid_pool' not found",
+                "type": "about:blank",
+            },
+            response.json,
+        )
+
+
+class TestDeletePool(TestBasePoolEndpoints):
+    @provide_session
+    def test_response_204(self, session):
+        pool_name = "test_pool"
+        pool_instance = Pool(pool=pool_name, slots=3)
+        session.add(pool_instance)
+        session.commit()
+
+        response = self.client.delete(f"api/v1/pools/{pool_name}")
+        assert response.status_code == 204
+        # Check if the pool is deleted from the db
+        response = self.client.get(f"api/v1/pools/{pool_name}")
+        self.assertEqual(response.status_code, 404)
+
+    def test_response_404(self):
+        response = self.client.delete("api/v1/pools/invalid_pool")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            {
+                "detail": None,
+                "status": 404,
+                "title": "Pool with name:'invalid_pool' not found",
+                "type": "about:blank",
+            },
+            response.json,
+        )
+
+
+class TestPostPool(TestBasePoolEndpoints):
+    def test_response_200(self):
+        response = self.client.post(
+            "api/v1/pools", json={"name": "test_pool_a", "slots": 3}
+        )
+        assert response.status_code == 200
+        self.assertEqual(
+            {
+                "name": "test_pool_a",
+                "slots": 3,
+                "occupied_slots": 0,
+                "running_slots": 0,
+                "queued_slots": 0,
+                "open_slots": 3,
+            },
+            response.json,
+        )
+
+    @provide_session
+    def test_response_409(self, session):
+        pool_name = "test_pool_a"
+        pool_instance = Pool(pool=pool_name, slots=3)
+        session.add(pool_instance)
+        session.commit()
+        response = self.client.post(
+            "api/v1/pools", json={"name": "test_pool_a", "slots": 3}
+        )
+        assert response.status_code == 409
+        self.assertEqual(
+            {
+                "detail": None,
+                "status": 409,
+                "title": f"Pool: {pool_name} already exists",
+                "type": "about:blank",
+            },
+            response.json,
+        )
+
+    @parameterized.expand(
+        [
+            ("for missing pool name", {"slots": 3}, "name"),
+            ("for missing slots", {"name": "invalid_pool"}, "slots"),
+        ]
+    )
+    def test_response_400(self, name, request_json, missing_field):
+        del name
+        response = self.client.post("api/v1/pools", json=request_json)
+        assert response.status_code == 400
+        self.assertEqual(
+            {
+                "detail": f"'{missing_field}' is a required property",
+                "status": 400,
+                "title": "Bad Request",
+                "type": "about:blank",
+            },
+            response.json,
+        )
+
+
+class TestPatchPool(TestBasePoolEndpoints):
+    @provide_session
+    def test_response_200(self, session):
+        pool = Pool(pool="test_pool", slots=3)
+        session.add(pool)
+        session.commit()
+        response = self.client.patch(
+            "api/v1/pools/test_pool", json={"name": "test_pool_a", "slots": 3}
+        )
+        assert response.status_code == 200
+        self.assertEqual(
+            {
+                "occupied_slots": 0,
+                "queued_slots": 0,
+                "name": "test_pool_a",
+                "open_slots": 3,
+                "running_slots": 0,
+                "slots": 3,
+            },
+            response.json,
+        )
+
+    def test_response_404(self):
+        response = self.client.patch(
+            "api/v1/pools/test_pool", json={"name": "test_pool_a", "slots": 3}
+        )
+        assert response.status_code == 404
+        self.assertEqual(
+            {
+                "detail": None,
+                "status": 404,
+                "title": "Pool with name:'test_pool' not found",
+                "type": "about:blank",
+            },
+            response.json,
+        )
+
+    @provide_session
+    def test_response_400(self, session):
+        pool = Pool(pool="test_pool", slots=3)
+        session.add(pool)
+        session.commit()
+        response = self.client.patch("api/v1/pools/test_pool", json={"slots": 3})
+        assert response.status_code == 400
+        self.assertEqual(
+            {
+                "detail": "'name' is a required property",
+                "status": 400,
+                "title": "Bad Request",
+                "type": "about:blank",
+            },
+            response.json,
+        )
+
+
+class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
+    @parameterized.expand(
+        [
+            (
+                "api/v1/pools/test_pool?update_mask=name, slots",
+                {"name": "test_pool_a", "slots": 2},
+                "test_pool_a",
+                2,
+            ),
+            (
+                "api/v1/pools/test_pool?update_mask=name",
+                {"name": "test_pool_a", "slots": 2},
+                "test_pool_a",
+                3,
+            ),
+            (
+                "api/v1/pools/test_pool?update_mask=slots",
+                {"name": "test_pool_a", "slots": 2},
+                "test_pool",
+                2,
+            ),
+        ]
+    )
+    @provide_session
+    def test_response_200(
+        self, url, patch_json, expected_name, expected_slots, session
+    ):
+        pool = Pool(pool="test_pool", slots=3)
+        session.add(pool)
+        session.commit()
+        response = self.client.patch(url, json=patch_json)
+        assert response.status_code == 200
+        self.assertEqual(
+            {
+                "name": expected_name,
+                "slots": expected_slots,
+                "occupied_slots": 0,
+                "running_slots": 0,
+                "queued_slots": 0,
+                "open_slots": expected_slots,
+            },
+            response.json,
+        )
+
+    @parameterized.expand(
+        [
+            (
+                "Patching read only field",
+                "Property is read-only - 'occupied_slots'",
+                "api/v1/pools/test_pool?update_mask=slots, name, occupied_slots",
+                {"name": "test_pool_a", "slots": 2, "occupied_slots": 1},
+            ),
+            (
+                "Patching read only field",
+                "Property is read-only - 'queued_slots'",
+                "api/v1/pools/test_pool?update_mask=slots, name, queued_slots",
+                {"name": "test_pool_a", "slots": 2, "queued_slots": 1},
+            ),
+            (
+                "Invalid update mask",
+                "'names' is not a valid Pool field",
+                "api/v1/pools/test_pool?update_mask=slots, names,",
+                {"name": "test_pool_a", "slots": 2},
+            ),
+            (
+                "Invalid update mask",
+                "'slot' is not a valid Pool field",
+                "api/v1/pools/test_pool?update_mask=slot, name,",
+                {"name": "test_pool_a", "slots": 2},
+            ),
+        ]
+    )
+    @provide_session
+    def test_response_400(self, name, error_detail, url, patch_json, session):
+        del name
+        pool = Pool(pool="test_pool", slots=3)
+        session.add(pool)
+        session.commit()
+        response = self.client.patch(url, json=patch_json)
+        assert response.status_code == 400
+        self.assertEqual
+        (
+            {
+                "detail": error_detail,
+                "status": 400,
+                "title": "Bad Request",
                 "type": "about:blank",
             },
             response.json,

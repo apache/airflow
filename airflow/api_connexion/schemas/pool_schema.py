@@ -30,7 +30,6 @@ class PoolSchema(SQLAlchemySchema):
         """Meta"""
 
         model = Pool
-        load_instance = True
         exclude = ("pool",)
 
     name = auto_field("pool")
