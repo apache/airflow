@@ -19,6 +19,7 @@
 Implements Docker operator
 """
 import ast
+from collections import deque
 from tempfile import TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Union
 
@@ -127,10 +128,10 @@ class DockerOperator(BaseOperator):
     :type cap_add: list[str]
     """
 
-    template_fields = ('command', 'environment', 'container_name')
+    template_fields = ("command", "environment", "container_name")
     template_ext = (
-        '.sh',
-        '.bash',
+        ".sh",
+        ".bash",
     )
 
     # pylint: disable=too-many-arguments,too-many-locals
@@ -143,7 +144,7 @@ class DockerOperator(BaseOperator):
         command: Optional[Union[str, List[str]]] = None,
         container_name: Optional[str] = None,
         cpus: float = 1.0,
-        docker_url: str = 'unix://var/run/docker.sock',
+        docker_url: str = "unix://var/run/docker.sock",
         environment: Optional[Dict] = None,
         private_environment: Optional[Dict] = None,
         force_pull: bool = False,
@@ -225,10 +226,10 @@ class DockerOperator(BaseOperator):
         """
         Run a Docker container with the provided image
         """
-        self.log.info('Starting docker container from image %s', self.image)
+        self.log.info("Starting docker container from image %s", self.image)
 
-        with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
-            self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
+        with TemporaryDirectory(prefix="airflowtmp", dir=self.host_tmp_dir) as host_tmp_dir:
+            self.volumes.append("{0}:{1}".format(host_tmp_dir, self.tmp_dir))
 
             if not self.cli:
                 raise Exception("The 'cli' should be initialized before!")
@@ -256,29 +257,34 @@ class DockerOperator(BaseOperator):
 
             lines = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
 
-            self.cli.start(self.container['Id'])
+            def gen_output(stdout=False, stderr=False):
+                return (
+                    templ.decode("utf-8").strip() if hasattr(templ, "decode") else str(templ)
+                    for templ in self.cli.logs(
+                        self.container["Id"], stream=True, stdout=stdout, stderr=stderr
+                    )
+                )
 
-            line = ''
-            for line in lines:
-                line = line.strip()
-                if hasattr(line, 'decode'):
-                    # Note that lines returned can also be byte sequences so we have to handle decode here
-                    line = line.decode('utf-8')
+            for line in gen_output(stdout=True, stderr=True):
                 self.log.info(line)
 
-            result = self.cli.wait(self.container['Id'])
-            if result['StatusCode'] != 0:
-                raise AirflowException('docker container failed: ' + repr(result))
-
-            # duplicated conditional logic because of expensive operation
-            ret = None
+            return_value = None
             if self.do_xcom_push:
-                ret = self.cli.logs(container=self.container['Id']) if self.xcom_all else line.encode('utf-8')
+                lines = gen_output(stdout=True)
+                if self.xcom_all:
+                    return_value = "\n".join(lines)
+                else:
+                    line_deque = deque(lines, maxlen=1)
+                    return_value = line_deque.pop()
+
+            result = self.cli.wait(self.container["Id"])
+            if result["StatusCode"] != 0:
+                raise AirflowException("docker container failed: " + repr(result))
 
             if self.auto_remove:
-                self.cli.remove_container(self.container['Id'])
+                self.cli.remove_container(self.container["Id"])
 
-            return ret
+            return return_value
 
     def execute(self, context) -> Optional[str]:
         self.cli = self._get_cli()
@@ -287,12 +293,12 @@ class DockerOperator(BaseOperator):
 
         # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or not self.cli.images(name=self.image):
-            self.log.info('Pulling docker image %s', self.image)
+            self.log.info("Pulling docker image %s", self.image)
             for output in self.cli.pull(self.image, stream=True, decode=True):
                 if isinstance(output, str):
                     self.log.info("%s", output)
-                if isinstance(output, dict) and 'status' in output:
-                    self.log.info("%s", output['status'])
+                if isinstance(output, dict) and "status" in output:
+                    self.log.info("%s", output["status"])
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         return self._run_image()
@@ -311,7 +317,7 @@ class DockerOperator(BaseOperator):
         :return: the command (or commands)
         :rtype: str | List[str]
         """
-        if isinstance(self.command, str) and self.command.strip().find('[') == 0:
+        if isinstance(self.command, str) and self.command.strip().find("[") == 0:
             commands = ast.literal_eval(self.command)
         else:
             commands = self.command
@@ -319,8 +325,8 @@ class DockerOperator(BaseOperator):
 
     def on_kill(self) -> None:
         if self.cli is not None:
-            self.log.info('Stopping docker container')
-            self.cli.stop(self.container['Id'])
+            self.log.info("Stopping docker container")
+            self.cli.stop(self.container["Id"])
 
     def __get_tls_config(self) -> Optional[tls.TLSConfig]:
         tls_config = None
@@ -334,5 +340,5 @@ class DockerOperator(BaseOperator):
                 ssl_version=self.tls_ssl_version,  # noqa
                 assert_hostname=self.tls_hostname,
             )
-            self.docker_url = self.docker_url.replace('tcp://', 'https://')
+            self.docker_url = self.docker_url.replace("tcp://", "https://")
         return tls_config
