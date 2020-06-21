@@ -30,8 +30,6 @@ from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 
 from airflow.configuration import conf
-from airflow.models.baseoperator import BaseOperator
-from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
@@ -341,23 +339,6 @@ def get_attr_renderer():
         'doc_md': wrapped_markdown,
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
     }
-
-
-def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):    # noqa: D103
-    if isinstance(tasks, list):
-        for task in tasks:
-            recurse_tasks(task, task_ids, dag_ids, task_id_to_dag)
-        return
-    if isinstance(tasks, SubDagOperator):
-        subtasks = tasks.subdag.tasks
-        dag_ids.append(tasks.subdag.dag_id)
-        for subtask in subtasks:
-            if subtask.task_id not in task_ids:
-                task_ids.append(subtask.task_id)
-                task_id_to_dag[subtask.task_id] = tasks.subdag
-        recurse_tasks(subtasks, task_ids, dag_ids, task_id_to_dag)
-    if isinstance(tasks, BaseOperator):
-        task_id_to_dag[tasks.task_id] = tasks.dag
 
 
 def get_chart_height(dag):
