@@ -25,7 +25,7 @@ class NotFound(ProblemException):
 
 class BadRequest(ProblemException):
     """Raise when the server processes a bad request"""
-    def __init__(self, title='Bad request', detail=None):
+    def __init__(self, title='Bad request', detail=None):  #FIXME:Connexion by default throws a 404:Bad Request
         super().__init__(status=400, title=title, detail=detail)
 
 

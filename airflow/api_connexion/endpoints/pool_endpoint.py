@@ -30,9 +30,12 @@ def delete_pool(pool_name: str, session):
     """
     Delete a pool
     """
-    if session.query(Pool).filter(Pool.pool == pool_name).delete() == 0:
-        raise NotFound(f"Pool with name:'{pool_name}' not found")
-    return Response(status=204)
+    if pool_name == "default_pool":
+        raise BadRequest(detail="Default Pool can't be deleted")
+    elif session.query(Pool).filter(Pool.pool == pool_name).delete() == 0:
+        raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
+    else:
+        return Response(status=204)
 
 
 @provide_session
@@ -42,7 +45,7 @@ def get_pool(pool_name, session):
     """
     obj = session.query(Pool).filter(Pool.pool == pool_name).one_or_none()
     if obj is None:
-        raise NotFound(f"Pool with name:'{pool_name}' not found")
+        raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
     return pool_schema.dump(obj)
 
 
@@ -64,11 +67,18 @@ def get_pools(session):
 @provide_session
 def patch_pool(pool_name, session, update_mask=None):
     """
-    Update a pool
+    Update a pool, slots
     """
+    # Only slots can be modified in 'default_pool'
+    if pool_name == "default_pool": 
+        if update_mask and len(update_mask) == 1 and update_mask[0].strip() == "slots":
+            pass
+        else:
+            raise BadRequest(detail="Default Pool's name can't be modified")
+
     pool = session.query(Pool).filter(Pool.pool == pool_name).first()
     if not pool:
-        raise NotFound(f"Pool with name:'{pool_name}' not found")
+        raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
 
     patch_body = pool_schema.load(request.json).data
     if update_mask:
@@ -82,7 +92,7 @@ def patch_pool(pool_name, session, update_mask=None):
                 for field in update_mask
             ]
         except KeyError as err:
-            raise BadRequest(f"Invalid field: {err.args[0]} in update mask")
+            raise BadRequest(detail=f"Invalid field: {err.args[0]} in update mask")
         _patch_body = {field: patch_body[field] for field in update_mask}
         patch_body = _patch_body
 
@@ -104,4 +114,4 @@ def post_pool(session):
         session.commit()
         return pool_schema.dump(pool)
     except IntegrityError:
-        raise AlreadyExists(f"Pool: {post_body['pool']} already exists")
+        raise AlreadyExists(detail=f"Pool: {post_body['pool']} already exists")

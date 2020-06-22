@@ -134,9 +134,9 @@ class TestGetPool(TestBasePoolEndpoints):
         assert response.status_code == 404
         self.assertEqual(
             {
-                "detail": None,
+                "detail": "Pool with name:'invalid_pool' not found",
                 "status": 404,
-                "title": "Pool with name:'invalid_pool' not found",
+                "title": "Object not found",
                 "type": "about:blank",
             },
             response.json,
@@ -162,14 +162,13 @@ class TestDeletePool(TestBasePoolEndpoints):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(
             {
-                "detail": None,
+                "detail": "Pool with name:'invalid_pool' not found",
                 "status": 404,
-                "title": "Pool with name:'invalid_pool' not found",
+                "title": "Object not found",
                 "type": "about:blank",
             },
             response.json,
         )
-
 
 class TestPostPool(TestBasePoolEndpoints):
     def test_response_200(self):
@@ -201,9 +200,9 @@ class TestPostPool(TestBasePoolEndpoints):
         assert response.status_code == 409
         self.assertEqual(
             {
-                "detail": None,
+                "detail": f"Pool: {pool_name} already exists",
                 "status": 409,
-                "title": f"Pool: {pool_name} already exists",
+                "title": "Object already exists",
                 "type": "about:blank",
             },
             response.json,
@@ -252,21 +251,6 @@ class TestPatchPool(TestBasePoolEndpoints):
             response.json,
         )
 
-    def test_response_404(self):
-        response = self.client.patch(
-            "api/v1/pools/test_pool", json={"name": "test_pool_a", "slots": 3}
-        )
-        assert response.status_code == 404
-        self.assertEqual(
-            {
-                "detail": None,
-                "status": 404,
-                "title": "Pool with name:'test_pool' not found",
-                "type": "about:blank",
-            },
-            response.json,
-        )
-
     @provide_session
     def test_response_400(self, session):
         pool = Pool(pool="test_pool", slots=3)
@@ -283,6 +267,69 @@ class TestPatchPool(TestBasePoolEndpoints):
             },
             response.json,
         )
+
+
+class TestModifyDefaultPool(TestBasePoolEndpoints):
+    def test_delete_400(self):
+        response = self.client.delete("api/v1/pools/default_pool")
+        assert response.status_code == 400
+        self.assertEqual(
+            {
+                "detail": "Default Pool can't be deleted",
+                "status": 400,
+                "title": "Bad request",
+                "type": "about:blank",
+            },
+            response.json,
+        )
+
+    @parameterized.expand(
+        [
+            (   
+                "400 No update mask",
+                400,
+                "api/v1/pools/default_pool",
+                {"name": "test_pool_a", "slots": 3},
+                {
+                    "detail": "Default Pool's name can't be modified",
+                    "status": 400,
+                    "title": "Bad request",
+                    "type": "about:blank",
+                },
+            ),
+            (   
+                "400 Update mask with both fields",
+                400,
+                "api/v1/pools/default_pool?update_mask=name, slots",
+                {"name": "test_pool_a", "slots": 3},
+                {
+                    "detail": "Default Pool's name can't be modified",
+                    "status": 400,
+                    "title": "Bad request",
+                    "type": "about:blank",
+                },
+            ),
+            (   
+                "200 Update mask with slots",
+                200,
+                "api/v1/pools/default_pool?update_mask=slots",
+                {"name": "test_pool_a", "slots": 3},
+                {
+                    "occupied_slots": 0,
+                    "queued_slots": 0,
+                    "name": "default_pool",
+                    "open_slots": 3,
+                    "running_slots": 0,
+                    "slots": 3,
+               },
+            )
+        ]
+    )
+    def test_patch(self, name, status_code, url, json, expected_response):
+        del name
+        response = self.client.patch(url, json=json)
+        assert response.status_code == status_code
+        self.assertEqual(response.json,expected_response)
 
 
 class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
