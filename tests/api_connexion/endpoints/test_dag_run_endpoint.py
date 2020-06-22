@@ -282,7 +282,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
                 ["TEST_START_EXEC_DAY_10", "TEST_START_EXEC_DAY_11"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-15T18:00:00+00:00"
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte= 2020-06-15T18:00:00+00:00"
                 "&start_date_gte=2020-06-12T18:00:00Z",
                 ["TEST_START_EXEC_DAY_12", "TEST_START_EXEC_DAY_13",
                  "TEST_START_EXEC_DAY_14", "TEST_START_EXEC_DAY_15"],

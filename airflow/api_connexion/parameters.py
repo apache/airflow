@@ -35,6 +35,7 @@ def format_datetime(value: str):
 
     This should only be used within connection views because it raises 400
     """
+    value = value.strip()
     if value[-1] != 'Z':
         value = value.replace(" ", '+')
     try:
