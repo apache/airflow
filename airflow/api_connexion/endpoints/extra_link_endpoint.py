@@ -29,7 +29,7 @@ from airflow.utils.session import provide_session
 
 
 @provide_session
-def get_extra_links(dag_id, dag_run_id, task_id, session):
+def get_extra_links(dag_id: str, dag_run_id: str, task_id: str, session):
     """
     Get extra links for task instance
     """
@@ -41,16 +41,13 @@ def get_extra_links(dag_id, dag_run_id, task_id, session):
     try:
         task = dag.get_task(task_id)
     except TaskNotFound:
-        raise NotFound("DAG Run not found")
-    print("dag_id=", dag_id)
-    print("dag_run_id=", dag_run_id)
-    print("task_id=", task_id)
+        raise NotFound("Task not found")
+
     execution_date = (
         session.query(DR.execution_date).filter(DR.dag_id == dag_id).filter(DR.run_id == dag_run_id).scalar()
     )
-
     if not execution_date:
-        raise NotFound(f"DAG Run not found, execution_date={execution_date}")
+        raise NotFound(f"DAG Run not found")
 
     all_extra_link_pairs = (
         (link_name, task.get_extra_links(execution_date, link_name)) for link_name in task.extra_links
