@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from flask import request
+from sqlalchemy import func
 
 from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
@@ -25,20 +26,12 @@ from airflow.models.errors import ImportError  # pylint: disable=redefined-built
 from airflow.utils.session import provide_session
 
 
-def delete_import_error():
-    """
-    Delete an import error
-    """
-    raise NotImplementedError("Not implemented yet.")
-
-
 @provide_session
 def get_import_error(import_error_id, session):
     """
     Get an import error
     """
-    query = session.query(ImportError)
-    error = query.filter(ImportError.id == import_error_id).one_or_none()
+    error = session.query(ImportError).filter(ImportError.id == import_error_id).one_or_none()
 
     if error is None:
         raise NotFound("Import error not found")
@@ -53,10 +46,8 @@ def get_import_errors(session):
     offset = request.args.get(parameters.page_offset, 0)
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
-    query = session.query(ImportError)
-    total_entries = query.count()
-    query_list = query.offset(offset).limit(limit).all()
-
+    total_entries = session.query(func.count(ImportError.id)).scalar()
+    import_errors = session.query(ImportError).order_by(ImportError.id).offset(offset).limit(limit).all()
     return import_error_collection_schema.dump(
-        ImportErrorCollection(import_errors=query_list, total_entries=total_entries)
+        ImportErrorCollection(import_errors=import_errors, total_entries=total_entries)
     ).data

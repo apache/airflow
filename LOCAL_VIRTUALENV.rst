@@ -147,6 +147,13 @@ Activate your virtualenv, e.g. by using ``workon``, and once you are in it, run:
 
   ./breeze initialize-local-virtualenv
 
+5. (optionally) run yarn build if you plan to run the webserver
+
+.. code-block:: bash
+
+    cd airflow/www
+    yarn build
+
 Running Tests
 -------------
 

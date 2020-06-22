@@ -36,7 +36,7 @@ from backport_packages.import_all_provider_classes import import_all_provider_cl
 from setup import PROVIDERS_REQUIREMENTS
 from setuptools import Command, find_packages, setup as setuptools_setup
 
-from tests.test_core_to_contrib import HOOKS, OPERATORS, SECRETS, SENSORS, TRANSFERS
+from tests.deprecated_classes import HOOKS, OPERATORS, SECRETS, SENSORS, TRANSFERS
 
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
@@ -817,7 +817,7 @@ def check_if_release_version_ok(
         if previous_release_version:
             current_release_version = previous_release_version
         else:
-            current_release_version = (datetime.today() + timedelta(days=5)).strftime('%Y-%m-%d')
+            current_release_version = (datetime.today() + timedelta(days=5)).strftime('%Y.%m.%d')
     if previous_release_version and previous_release_version > current_release_version:
         print(f"The release {current_release_version} must be not less than "
               f"{previous_release_version} - last release for the package", file=sys.stderr)
@@ -952,7 +952,7 @@ def check_if_classes_are_properly_named(class_summary: Dict[str, List[str]]) -> 
     badly_named_class_number = 0
     for key, class_suffix in EXPECTED_SUFFIXES.items():
         for class_full_name in class_summary[key]:
-            module_name, class_name = class_full_name.rsplit(".", maxsplit=1)
+            _, class_name = class_full_name.rsplit(".", maxsplit=1)
             error_encountered = False
             if not is_camel_case_with_acronyms(class_name):
                 print(f"The class {class_full_name} is wrongly named. The "
@@ -1032,15 +1032,17 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
         with open(readme_file_path, "rt") as readme_file_read:
             old_text = readme_file_read.read()
     if old_text != readme:
-        file, temp_file_path = tempfile.mkstemp(".md")
+        _, temp_file_path = tempfile.mkstemp(".md")
         try:
-            copyfile(readme_file_path, temp_file_path)
+            if os.path.isfile(readme_file_path):
+                copyfile(readme_file_path, temp_file_path)
             with open(readme_file_path, "wt") as readme_file:
                 readme_file.write(readme)
             print()
             print(f"Generated {readme_file_path} file for the {provider_package_id} provider")
             print()
-            subprocess.call(["diff", "--color=always", temp_file_path, readme_file_path])
+            if old_text != "":
+                subprocess.call(["diff", "--color=always", temp_file_path, readme_file_path])
         finally:
             os.remove(temp_file_path)
     total, bad = check_if_classes_are_properly_named(class_summary)

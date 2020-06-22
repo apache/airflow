@@ -37,6 +37,6 @@ class AdlsToGoogleCloudStorageOperator(ADLSToGCSOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

@@ -19,6 +19,7 @@
 import json
 import os
 import sys
+from json import JSONDecodeError
 
 from airflow.models import Variable
 from airflow.utils import cli as cli_utils
@@ -86,7 +87,7 @@ def _import_helper(filepath):
 
     try:
         var_json = json.loads(data)
-    except Exception:  # pylint: disable=broad-except
+    except JSONDecodeError:
         print("Invalid variables file.")
     else:
         suc_count = fail_count = 0

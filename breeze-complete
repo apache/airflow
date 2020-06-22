@@ -73,6 +73,7 @@ mixed-line-ending
 mypy
 provide-create-sessions
 pydevd
+pydocstyle
 pylint
 pylint-tests
 python-no-log-warn

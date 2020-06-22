@@ -32,7 +32,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     conn = op.get_bind()
     if conn.dialect.name == 'mysql':
         conn.execute("SET time_zone = '+00:00'")
@@ -41,7 +41,7 @@ def upgrade():
         op.alter_column('xcom', 'timestamp', existing_type=mysql.TIMESTAMP(fsp=6), nullable=False)
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     conn = op.get_bind()
     if conn.dialect.name == 'mysql':
         conn.execute("SET time_zone = '+00:00'")

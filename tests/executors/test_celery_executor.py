@@ -21,14 +21,13 @@ import json
 import os
 import sys
 import unittest
-from multiprocessing import Pool
 from unittest import mock
 
 # leave this it is used by the test worker
 # noinspection PyUnresolvedReferences
 import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=unused-import
 import pytest
-from celery import Celery, states as celery_states
+from celery import Celery
 from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
@@ -116,7 +115,6 @@ class TestCeleryExecutor(unittest.TestCase):
             with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
                 execute_date = datetime.datetime.now()
 
-                cached_celery_backend = celery_executor.execute_command.backend
                 task_tuples_to_send = [
                     (('success', 'fake_simple_ti', execute_date, 0),
                      None, success_command, celery_executor.celery_configuration['task_default_queue'],
@@ -126,25 +124,11 @@ class TestCeleryExecutor(unittest.TestCase):
                      celery_executor.execute_command)
                 ]
 
-                chunksize = executor._num_tasks_per_send_process(len(task_tuples_to_send))
-                num_processes = min(len(task_tuples_to_send), executor._sync_parallelism)
+                # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
+                for (key, simple_ti, command, queue, task) in task_tuples_to_send:
+                    executor.queued_tasks[key] = (command, 1, queue, simple_ti)
 
-                with Pool(processes=num_processes) as send_pool:
-                    key_and_async_results = send_pool.map(
-                        celery_executor.send_task_to_executor,
-                        task_tuples_to_send,
-                        chunksize=chunksize)
-
-                for task_instance_key, _, result in key_and_async_results:
-                    # Only pops when enqueued successfully, otherwise keep it
-                    # and expect scheduler loop to deal with it.
-                    result.backend = cached_celery_backend
-                    executor.running.add(task_instance_key)
-                    executor.tasks[task_instance_key] = result
-                    executor.last_state[task_instance_key] = celery_states.PENDING
-
-                executor.running.add(('success', 'fake_simple_ti', execute_date, 0))
-                executor.running.add(('fail', 'fake_simple_ti', execute_date, 0))
+                executor._process_tasks(task_tuples_to_send)
 
                 executor.end(synchronous=True)
 

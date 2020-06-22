@@ -19,6 +19,7 @@
 import datetime as dt
 
 import pendulum
+from pendulum.datetime import DateTime
 
 from airflow.settings import TIMEZONE
 
@@ -170,10 +171,10 @@ def datetime(*args, **kwargs):
     return dt.datetime(*args, **kwargs)
 
 
-def parse(string, timezone=None):
+def parse(string: str, timezone=None) -> DateTime:
     """
     Parse a time string and return an aware datetime
 
     :param string: time string
     """
-    return pendulum.parse(string, tz=timezone or TIMEZONE, strict=False)
+    return pendulum.parse(string, tz=timezone or TIMEZONE, strict=False)  # type: ignore

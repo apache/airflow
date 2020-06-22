@@ -21,8 +21,10 @@ from datetime import datetime
 from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup
+from parameterized import parameterized
 
 from airflow.www import utils
+from tests.test_utils.config import conf_vars
 
 
 class TestUtils(unittest.TestCase):
@@ -38,6 +40,34 @@ class TestUtils(unittest.TestCase):
 
     def test_sensitive_variable_should_be_hidden_ic(self):
         self.assertTrue(utils.should_hide_value_for_key("GOOGLE_API_KEY"))
+
+    @parameterized.expand(
+        [
+            ('key', 'TRELLO_KEY', True),
+            ('key', 'TRELLO_API_KEY', True),
+            ('key', 'GITHUB_APIKEY', True),
+            ('key, token', 'TRELLO_TOKEN', True),
+            ('mysecretword, mysensitivekey', 'GITHUB_mysecretword', True),
+        ],
+    )
+    def test_sensitive_variable_fields_should_be_hidden(
+        self, sensitive_variable_fields, key, expected_result
+    ):
+        with conf_vars({('admin', 'sensitive_variable_fields'): str(sensitive_variable_fields)}):
+            self.assertEqual(expected_result, utils.should_hide_value_for_key(key))
+
+    @parameterized.expand(
+        [
+            (None, 'TRELLO_API', False),
+            ('token', 'TRELLO_KEY', False),
+            ('token, mysecretword', 'TRELLO_KEY', False)
+        ],
+    )
+    def test_normal_variable_fields_should_not_be_hidden(
+        self, sensitive_variable_fields, key, expected_result
+    ):
+        with conf_vars({('admin', 'sensitive_variable_fields'): str(sensitive_variable_fields)}):
+            self.assertEqual(expected_result, utils.should_hide_value_for_key(key))
 
     def check_generate_pages_html(self, current_page, total_pages,
                                   window=7, check_middle=False):

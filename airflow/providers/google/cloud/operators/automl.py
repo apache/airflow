@@ -58,7 +58,7 @@ class AutoMLTrainModelOperator(BaseOperator):
     :type metadata: Optional[Sequence[Tuple[str, str]]]
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-     """
+    """
 
     template_fields = ("model", "location", "project_id")
 

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from flask import request
+from sqlalchemy import func
 
 from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
@@ -35,9 +36,7 @@ def get_pool(pool_name, session):
     """
     Get a pool
     """
-    pool_id = pool_name
-    query = session.query(Pool)
-    obj = query.filter(Pool.pool == pool_id).one_or_none()
+    obj = session.query(Pool).filter(Pool.pool == pool_name).one_or_none()
 
     if obj is None:
         raise NotFound("Pool not found")
@@ -52,11 +51,9 @@ def get_pools(session):
     offset = request.args.get(parameters.page_offset, 0)
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
-    query = session.query(Pool)
-    total_entries = query.count()
-    query_list = query.offset(offset).limit(limit).all()
-
-    return pool_collection_schema.dump(PoolCollection(pools=query_list, total_entries=total_entries)).data
+    total_entries = session.query(func.count(Pool.id)).scalar()
+    pools = session.query(Pool).order_by(Pool.id).offset(offset).limit(limit).all()
+    return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries)).data
 
 
 def patch_pool():

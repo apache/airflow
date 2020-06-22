@@ -45,7 +45,7 @@ def import_all_provider_classes(source_path: str,
 
     imported_classes = []
     tracebacks = []
-    for root, dirs, files in os.walk(source_path):
+    for root, _, files in os.walk(source_path):
         if all([not root.startswith(prefix_provider_path)
                 for prefix_provider_path in prefixed_provider_paths]) or root.endswith("__pycache__"):
             # Skip loading module if it is not in the list of providers that we are looking for

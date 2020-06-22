@@ -92,15 +92,16 @@ def init_error_handlers(app: Flask):
     app.register_error_handler(404, views.circles)
 
 
-def init_api_connexion(app: Flask):
+def init_api_connexion(app: Flask) -> None:
     """Initialize Stable API"""
     spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
     connexion_app = connexion.App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
     connexion_app.app = app
-    connexion_app.add_api(
-        specification='v1.yaml', base_path='/api/v1', validate_responses=True, strict_validation=False
-    )
+    api_bp = connexion_app.add_api(
+        specification='v1.yaml', base_path='/api/v1', validate_responses=True, strict_validation=True
+    ).blueprint
     app.register_error_handler(ProblemException, connexion_app.common_error_handler)
+    app.extensions['csrf'].exempt(api_bp)
 
 
 def init_api_experimental(app):

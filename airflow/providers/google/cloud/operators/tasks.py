@@ -271,7 +271,6 @@ class CloudTasksQueueGetOperator(BaseOperator):
 
 
 class CloudTasksQueuesListOperator(BaseOperator):
-
     """
     Lists queues from Cloud Tasks.
 

@@ -20,7 +20,7 @@
 
 # Package apache-airflow-backport-providers-google
 
-Release: 2020.5.20
+Release: 2020.6.24
 
 **Table of contents**
 
@@ -45,7 +45,7 @@ Release: 2020.5.20
     - [Secrets](#secrets)
         - [Moved secrets](#moved-secrets)
 - [Releases](#releases)
-    - [Release 2020.5.20](#release-2020520)
+    - [Release 2020.6.24](#release-2020624)
 
 ## Backport package
 
@@ -57,13 +57,6 @@ are in `airflow.providers.google` python package.
 While Airflow 1.10.* continues to support Python 2.7+ - you need to upgrade python to 3.6+ if you
 want to use this backport package.
 
-
-## Additional notes
-
-The BigQuery classes are undergoing heavy rewriting. The implementation in Airflow 2.0 will not
-be fully backwards compatible with the old BigQuery operators. Therefore, the BigQuery classes
-have been stripped out of the current release of the backport packages. We will add the
-BigQuery Classes back in one of the future releases of the provider&#39;s package.
 
 
 ## Installation
@@ -134,9 +127,11 @@ pip install apache-airflow-backport-providers-google[amazon]
 | [apache-airflow-backport-providers-presto](https://github.com/apache/airflow/tree/master/airflow/providers/presto)                     | presto           |
 | [apache-airflow-backport-providers-sftp](https://github.com/apache/airflow/tree/master/airflow/providers/sftp)                         | sftp             |
 
-# Provider class summary
+# Provider classes summary
 
-All classes in Airflow 2.0 are in `airflow.providers.google` package.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `google` provider
+are in the `airflow.providers.google` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators
@@ -507,6 +502,7 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 | [cloud.hooks.datacatalog.CloudDataCatalogHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/datacatalog.py)                                          |
 | [cloud.hooks.datafusion.DataFusionHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/datafusion.py)                                                  |
 | [cloud.hooks.life_sciences.LifeSciencesHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/life_sciences.py)                                          |
+| [cloud.hooks.secret_manager.SecretsManagerHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/secret_manager.py)                                      |
 | [cloud.hooks.stackdriver.StackdriverHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/hooks/stackdriver.py)                                               |
 | [common.hooks.discovery_api.GoogleDiscoveryApiHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/common/hooks/discovery_api.py)                                  |
 | [firebase.hooks.firestore.CloudFirestoreHook](https://github.com/apache/airflow/blob/master/airflow/providers/google/firebase/hooks/firestore.py)                                          |
@@ -558,19 +554,25 @@ All classes in Airflow 2.0 are in `airflow.providers.google` package.
 
 ### Moved secrets
 
-| Airflow 2.0 protocols: `airflow.providers.google` package                                                                                                           | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                         |
-|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [cloud.secrets.secrets_manager.CloudSecretsManagerBackend](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/secrets/secrets_manager.py) | [contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/secrets/gcp_secrets_manager.py) |
+| Airflow 2.0 protocols: `airflow.providers.google` package                                                                                                        | Airflow 1.10.* previous location (usually `airflow.contrib`)                                                                                                         |
+|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [cloud.secrets.secret_manager.CloudSecretManagerBackend](https://github.com/apache/airflow/blob/master/airflow/providers/google/cloud/secrets/secret_manager.py) | [contrib.secrets.gcp_secrets_manager.CloudSecretsManagerBackend](https://github.com/apache/airflow/blob/v1-10-stable/airflow/contrib/secrets/gcp_secrets_manager.py) |
 
 
 
 
 ## Releases
 
-### Release 2020.5.20
+### Release 2020.6.24
 
 | Commit                                                                                         | Committed   | Subject                                                                                                                                                            |
 |:-----------------------------------------------------------------------------------------------|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [416334e2e](https://github.com/apache/airflow/commit/416334e2ecd21d8a532af6102f1cfa9ac921a97a) | 2020-06-19  | Properly propagated warnings in operators (#9348)                                                                                                                  |
+| [12af6a080](https://github.com/apache/airflow/commit/12af6a08009b8776e00d8a0aab92363eb8c4e8b1) | 2020-06-19  | Final cleanup for 2020.6.23rc1 release preparation (#9404)                                                                                                         |
+| [c7e5bce57](https://github.com/apache/airflow/commit/c7e5bce57fe7f51cefce4f8a41ce408ac5675d13) | 2020-06-19  | Prepare backport release candidate for 2020.6.23rc1 (#9370)                                                                                                        |
+| [4e09c6442](https://github.com/apache/airflow/commit/4e09c64423bfaabd02a18b5fe7757dc15451ab73) | 2020-06-18  | Adds GCP Secret Manager Hook (#9368)                                                                                                                               |
+| [40bf8f28f](https://github.com/apache/airflow/commit/40bf8f28f97f17f40d993d207ea740eba54593ee) | 2020-06-18  | Detect automatically the lack of reference to the guide in the operator descriptions (#9290)                                                                       |
+| [f6bd817a3](https://github.com/apache/airflow/commit/f6bd817a3aac0a16430fc2e3d59c1f17a69a15ac) | 2020-06-16  | Introduce &#39;transfers&#39; packages (#9320)                                                                                                                             |
 | [639972d99](https://github.com/apache/airflow/commit/639972d995d848b16a3f283576efdbde28b8fdef) | 2020-06-16  | Add support for latest Apache Beam SDK in Dataflow operators (#9323)                                                                                               |
 | [1459970b3](https://github.com/apache/airflow/commit/1459970b3b9780e139ce029ae889fd8f69a37bc7) | 2020-06-15  | Rename CloudBuildCreateBuildOperator to CloudBuildCreateOperator (#9314)                                                                                           |
 | [431ea3291](https://github.com/apache/airflow/commit/431ea3291c9bf236bccdf8446d753c630ada2b25) | 2020-06-15  | Resolve upstream tasks when template field is XComArg (#8805)                                                                                                      |

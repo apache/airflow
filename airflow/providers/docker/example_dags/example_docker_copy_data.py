@@ -61,6 +61,7 @@ t_view = BashOperator(
 
 
 def is_data_available(*args, **kwargs):
+    """Return True if data exists in XCom table for view_file task, false otherwise."""
     ti = kwargs["ti"]
     data = ti.xcom_pull(key=None, task_ids="view_file")
     return not data == ""

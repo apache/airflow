@@ -281,6 +281,7 @@ RUN chmod a+x /entrypoint
 
 # Copy selected subdirectories only
 COPY .github/ ${AIRFLOW_SOURCES}/.github/
+COPY metastore_browser/ ${AIRFLOW_SOURCES}/metastore_browser/
 COPY dags/ ${AIRFLOW_SOURCES}/dags/
 COPY common/ ${AIRFLOW_SOURCES}/common/
 COPY licenses/ ${AIRFLOW_SOURCES}/licenses/
@@ -308,11 +309,12 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         pip install ${ADDITIONAL_PYTHON_DEPS}; \
     fi
 
-RUN source <(bash scripts/ci/run_cli_tool.sh)
-
 WORKDIR ${AIRFLOW_SOURCES}
 
 ENV PATH="${HOME}:${PATH}"
+
+# Needed to stop Gunicorn from crashing when /tmp is now mounted from host
+ENV GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm/"
 
 EXPOSE 8080
 

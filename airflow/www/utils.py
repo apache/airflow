@@ -39,7 +39,7 @@ from airflow.utils.state import State
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
-DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
+DEFAULT_SENSITIVE_VARIABLE_FIELDS = [
     'password',
     'secret',
     'passwd',
@@ -47,20 +47,31 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'api_key',
     'apikey',
     'access_token',
-)
+]
+
+
+def get_sensitive_variables_fields():
+    """Get comma-separated sensitive Variable Fields from airflow.cfg."""
+    sensitive_fields = set(DEFAULT_SENSITIVE_VARIABLE_FIELDS)
+    sensitive_variable_fields = conf.get('admin', 'sensitive_variable_fields')
+    if sensitive_variable_fields:
+        sensitive_fields.update(set(field.strip() for field in sensitive_variable_fields.split(',')))
+    return sensitive_fields
 
 
 def should_hide_value_for_key(key_name):
+    """Returns True if hide_sensitive_variable_fields is True, else False """
     # It is possible via importing variables from file that a key is empty.
     if key_name:
-        config_set = conf.getboolean('admin',
-                                     'hide_sensitive_variable_fields')
-        field_comp = any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS)
+        config_set = conf.getboolean('admin', 'hide_sensitive_variable_fields')
+
+        field_comp = any(s in key_name.strip().lower() for s in get_sensitive_variables_fields())
         return config_set and field_comp
     return False
 
 
 def get_params(**kwargs):
+    """Return URL-encoded params"""
     return urlencode({d: v for d, v in kwargs.items() if v is not None})
 
 
@@ -197,6 +208,7 @@ def make_cache_key(*args, **kwargs):
 
 
 def task_instance_link(attr):
+    """Generates a URL to the Graph View for a TaskInstance."""
     dag_id = attr.get('dag_id')
     task_id = attr.get('task_id')
     execution_date = attr.get('execution_date')
@@ -223,6 +235,7 @@ def task_instance_link(attr):
 
 
 def state_token(state):
+    """Returns a formatted string with HTML for a given State"""
     color = State.color(state)
     return Markup(
         '<span class="label" style="background-color:{color};">'
@@ -230,11 +243,13 @@ def state_token(state):
 
 
 def state_f(attr):
+    """Gets 'state' & returns a formatted string with HTML for a given State"""
     state = attr.get('state')
     return state_token(state)
 
 
 def nobr_f(attr_name):
+    """Returns a formatted string with HTML with a Non-breaking Text element"""
     def nobr(attr):
         f = attr.get(attr_name)
         return Markup("<nobr>{}</nobr>").format(f)
@@ -242,6 +257,7 @@ def nobr_f(attr_name):
 
 
 def datetime_f(attr_name):
+    """Returns a formatted string with HTML for given DataTime"""
     def dt(attr):
         f = attr.get(attr_name)
         as_iso = f.isoformat() if f else ''
@@ -256,6 +272,7 @@ def datetime_f(attr_name):
 
 
 def dag_link(attr):
+    """Generates a URL to the Graph View for a Dag."""
     dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
     url = url_for(
@@ -267,6 +284,7 @@ def dag_link(attr):
 
 
 def dag_run_link(attr):
+    """Generates a URL to the Graph View for a DagRun."""
     dag_id = attr.get('dag_id')
     run_id = attr.get('run_id')
     execution_date = attr.get('execution_date')
@@ -280,14 +298,12 @@ def dag_run_link(attr):
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):
-    return highlight(
-        s,
-        lexer(),
-        HtmlFormatter(linenos=True),
-    )
+    """Highlight text using a given Lexer"""
+    return highlight(s, lexer(), HtmlFormatter(linenos=True))
 
 
 def render(obj, lexer):
+    """Render a given Python object with a given Pygments lexer"""
     out = ""
     if isinstance(obj, str):
         out = Markup(pygment_html_render(obj, lexer))
@@ -303,6 +319,7 @@ def render(obj, lexer):
 
 
 def wrapped_markdown(s, css_class=None):
+    """Convert a Markdown string to HTML."""
     if s is None:
         return None
 
@@ -312,6 +329,7 @@ def wrapped_markdown(s, css_class=None):
 
 
 def get_attr_renderer():
+    """Return Dictionary containing different Pygements Lexers for Rendering & Highlighting"""
     return {
         'bash_command': lambda x: render(x, lexers.BashLexer),
         'hql': lambda x: render(x, lexers.SqlLexer),
@@ -325,7 +343,7 @@ def get_attr_renderer():
     }
 
 
-def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):
+def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):    # noqa: D103
     if isinstance(tasks, list):
         for task in tasks:
             recurse_tasks(task, task_ids, dag_ids, task_id_to_dag)
@@ -352,30 +370,30 @@ def get_chart_height(dag):
     return 600 + len(dag.tasks) * 10
 
 
-class UtcAwareFilterMixin:
+class UtcAwareFilterMixin:  # noqa: D101
     def apply(self, query, value):
         value = timezone.parse(value, timezone=timezone.utc)
 
         return super().apply(query, value)
 
 
-class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
+class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):  # noqa: D101
     pass
 
 
-class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):
+class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):  # noqa: D101
     pass
 
 
-class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):
+class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):  # noqa: D101
     pass
 
 
-class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):
+class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):  # noqa: D101
     pass
 
 
-class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
+class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):  # noqa: D101
 
     conversion_table = (
         (('is_utcdatetime', [UtcAwareFilterEqual,

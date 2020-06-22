@@ -36,7 +36,7 @@ def is_tty():
 
 
 def is_terminal_support_colors() -> bool:
-    """"
+    """
     Try to determine if the current terminal supports colors.
     """
     if sys.platform == "win32":

@@ -18,7 +18,6 @@
 import unittest
 from datetime import timedelta
 
-import pytest
 from mock import patch
 
 from airflow import AirflowException, example_dags as example_dags_module, models
@@ -99,24 +98,23 @@ class TestDagCode(unittest.TestCase):
         with self.assertRaises(AirflowException):
             self._write_two_example_dags()
 
-    @pytest.mark.quarantined
     def test_remove_unused_code(self):
         example_dags = make_example_dags(example_dags_module)
         self._write_example_dags()
 
-        _, remove_dag = example_dags.popitem()
+        bash_dag = example_dags['example_bash_operator']
         with create_session() as session:
             for model in models.base.Base._decl_class_registry.values():  # pylint: disable=protected-access
                 if hasattr(model, "dag_id"):
                     session.query(model) \
-                        .filter(model.dag_id == remove_dag.dag_id) \
+                        .filter(model.dag_id == bash_dag.dag_id) \
                         .delete(synchronize_session='fetch')
 
-            self.assertEqual(session.query(DagCode).filter(DagCode.fileloc == remove_dag.fileloc).count(), 1)
+            self.assertEqual(session.query(DagCode).filter(DagCode.fileloc == bash_dag.fileloc).count(), 1)
 
             DagCode.remove_unused_code()
 
-            self.assertEqual(session.query(DagCode).filter(DagCode.fileloc == remove_dag.fileloc).count(), 0)
+            self.assertEqual(session.query(DagCode).filter(DagCode.fileloc == bash_dag.fileloc).count(), 0)
 
     def _compare_example_dags(self, example_dags):
         with create_session() as session:

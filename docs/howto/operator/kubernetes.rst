@@ -40,7 +40,7 @@ The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.Kubernet
 * Enables task-level resource configuration
 * Allow you to pass Kubernetes specific parameters into the task
 
-.. code:: python
+.. code-block:: python
 
     import kubernetes.client.models as k8s
 

@@ -23,7 +23,7 @@ import json
 import logging
 import tempfile
 from contextlib import ExitStack, contextmanager
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Collection, Dict, Optional, Sequence, Tuple
 from urllib.parse import urlencode
 
 import google.auth
@@ -179,7 +179,8 @@ def provide_gcp_conn_and_credentials(
 def get_credentials_and_project_id(
     key_path: Optional[str] = None,
     keyfile_dict: Optional[Dict[str, str]] = None,
-    scopes: Optional[Sequence[str]] = None,
+    # See: https://github.com/PyCQA/pylint/issues/2377
+    scopes: Optional[Collection[str]] = None,  # pylint: disable=unsubscriptable-object
     delegate_to: Optional[str] = None
 ) -> Tuple[google.auth.credentials.Credentials, str]:
     """

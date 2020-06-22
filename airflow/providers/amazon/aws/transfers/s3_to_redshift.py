@@ -27,6 +27,10 @@ class S3ToRedshiftOperator(BaseOperator):
     """
     Executes an COPY command to load files from s3 to Redshift
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3ToRedshiftOperator`
+
     :param schema: reference to a specific schema in redshift database
     :type schema: str
     :param table: reference to a specific table in redshift database

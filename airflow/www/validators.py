@@ -17,6 +17,7 @@
 # under the License.
 
 import json
+from json import JSONDecodeError
 
 from wtforms.validators import EqualTo, ValidationError
 
@@ -44,22 +45,23 @@ class GreaterEqualThan(EqualTo):
             return
 
         if field.data < other.data:
-            d = {
+            message_args = {
                 'other_label':
                     hasattr(other, 'label') and other.label.text or self.fieldname,
                 'other_name': self.fieldname,
             }
             message = self.message
             if message is None:
-                message = field.gettext('Field must be greater than or equal '
-                                        'to %(other_label)s.' % d)
+                message = field.gettext(
+                    'Field must be greater than or equal to %(other_label)s.' % message_args
+                )
             else:
-                message = message % d
+                message = message % message_args
 
             raise ValidationError(message)
 
 
-class ValidJson(object):
+class ValidJson:
     """Validates data is valid JSON.
 
     :param message:
@@ -72,7 +74,7 @@ class ValidJson(object):
         if field.data:
             try:
                 json.loads(field.data)
-            except Exception as ex:
+            except JSONDecodeError as ex:
                 message = self.message or 'JSON Validation Error: {}'.format(ex)
                 raise ValidationError(
                     message=field.gettext(message.format(field.data))

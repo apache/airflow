@@ -280,7 +280,7 @@ class PathsInfo:
 
 
 class ConfigInfo:
-    """"Most critical config properties"""
+    """Most critical config properties"""
 
     def __init__(self, anonymizer: Anonymizer):
         self.executor = configuration.conf.get("core", "executor")

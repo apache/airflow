@@ -17,6 +17,7 @@
 # under the License.
 
 import json
+from json import JSONDecodeError
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String
@@ -88,6 +89,7 @@ CONN_TYPE_TO_HOOK = {
 # Python automatically converts all letters to lowercase in hostname
 # See: https://issues.apache.org/jira/browse/AIRFLOW-3615
 def parse_netloc_to_hostname(uri_parts):
+    """Parse a URI string to get correct Hostname."""
     hostname = unquote(uri_parts.hostname or '')
     if '/' in hostname:
         hostname = uri_parts.netloc
@@ -119,62 +121,6 @@ class Connection(Base, LoggingMixin):
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', String(5000))
-
-    _types = [
-        ('docker', 'Docker Registry'),
-        ('elasticsearch', 'Elasticsearch'),
-        ('exasol', 'Exasol'),
-        ('facebook_social', 'Facebook Social'),
-        ('fs', 'File (path)'),
-        ('ftp', 'FTP'),
-        ('google_cloud_platform', 'Google Cloud Platform'),
-        ('hdfs', 'HDFS'),
-        ('http', 'HTTP'),
-        ('pig_cli', 'Pig Client Wrapper'),
-        ('hive_cli', 'Hive Client Wrapper'),
-        ('hive_metastore', 'Hive Metastore Thrift'),
-        ('hiveserver2', 'Hive Server 2 Thrift'),
-        ('jdbc', 'JDBC Connection'),
-        ('odbc', 'ODBC Connection'),
-        ('jenkins', 'Jenkins'),
-        ('mysql', 'MySQL'),
-        ('postgres', 'Postgres'),
-        ('oracle', 'Oracle'),
-        ('vertica', 'Vertica'),
-        ('presto', 'Presto'),
-        ('s3', 'S3'),
-        ('samba', 'Samba'),
-        ('sqlite', 'Sqlite'),
-        ('ssh', 'SSH'),
-        ('cloudant', 'IBM Cloudant'),
-        ('mssql', 'Microsoft SQL Server'),
-        ('mesos_framework-id', 'Mesos Framework ID'),
-        ('jira', 'JIRA'),
-        ('redis', 'Redis'),
-        ('wasb', 'Azure Blob Storage'),
-        ('databricks', 'Databricks'),
-        ('aws', 'Amazon Web Services'),
-        ('emr', 'Elastic MapReduce'),
-        ('snowflake', 'Snowflake'),
-        ('segment', 'Segment'),
-        ('sqoop', 'Sqoop'),
-        ('azure_batch', 'Azure Batch Service'),
-        ('azure_data_lake', 'Azure Data Lake'),
-        ('azure_container_instances', 'Azure Container Instances'),
-        ('azure_cosmos', 'Azure CosmosDB'),
-        ('azure_data_explorer', 'Azure Data Explorer'),
-        ('cassandra', 'Cassandra'),
-        ('qubole', 'Qubole'),
-        ('mongo', 'MongoDB'),
-        ('gcpcloudsql', 'Google Cloud SQL'),
-        ('grpc', 'GRPC Connection'),
-        ('yandexcloud', 'Yandex Cloud'),
-        ('livy', 'Apache Livy'),
-        ('tableau', 'Tableau'),
-        ('kubernetes', 'Kubernetes cluster Connection'),
-        ('spark', 'Spark'),
-        ('imap', 'IMAP')
-    ]
 
     def __init__(
             self, conn_id=None, conn_type=None,
@@ -340,7 +286,7 @@ class Connection(Base, LoggingMixin):
         if self.extra:
             try:
                 obj = json.loads(self.extra)
-            except Exception as e:
+            except JSONDecodeError as e:
                 self.log.exception(e)
                 self.log.error("Failed parsing the json for conn_id %s", self.conn_id)
 

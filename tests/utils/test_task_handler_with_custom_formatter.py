@@ -29,7 +29,7 @@ from tests.test_utils.config import conf_vars
 DEFAULT_DATE = datetime(2019, 1, 1)
 TASK_LOGGER = 'airflow.task'
 TASK_HANDLER = 'task'
-TASK_HANDLER_CLASS = 'airflow.contrib.utils.log.task_handler_with_custom_formatter.' \
+TASK_HANDLER_CLASS = 'airflow.utils.log.task_handler_with_custom_formatter.' \
                      'TaskHandlerWithCustomFormatter'
 PREV_TASK_HANDLER = DEFAULT_LOGGING_CONFIG['handlers']['task']
 

@@ -21,10 +21,12 @@ from wtforms.widgets import HTMLString, html_params
 
 
 class AirflowModelListWidget(RenderTemplateWidget):
+    """Airflow model list"""
     template = 'airflow/model_list.html'
 
 
 class AirflowDateTimePickerWidget:
+    """Airflow date time picker widget"""
     data_template = (
         '<div class="input-group datetime datetimepicker">'
         '<span class="input-group-addon"><i class="fa fa-calendar cursor-hand"></i>'

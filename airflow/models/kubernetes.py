@@ -26,6 +26,7 @@ from airflow.utils.session import provide_session
 
 
 class KubeResourceVersion(Base):
+    """Table containing Kubernetes Resource versions"""
     __tablename__ = "kube_resource_version"
     one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)
     resource_version = Column(String(255))
@@ -56,6 +57,7 @@ class KubeResourceVersion(Base):
 
 
 class KubeWorkerIdentifier(Base):
+    """Table containing Kubernetes Worker Identified"""
     __tablename__ = "kube_worker_uuid"
     one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)
     worker_uuid = Column(String(255))

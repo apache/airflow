@@ -139,7 +139,7 @@ these guidelines:
 
 -   Follow our project's `Coding style and best practices`_.
 
-    These are things that aren't currently enforced programtically (either because they are too hard or just
+    These are things that aren't currently enforced programmatically (either because they are too hard or just
     not yet done.)
 
 -   `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__, squash
@@ -453,7 +453,7 @@ Here is the list of packages and their extras:
 ========================== ===========================
 Package                    Extras
 ========================== ===========================
-amazon                     apache.hive,google,imap,mongo,postgres,ssh
+amazon                     apache.hive,google,imap,mongo,mysql,postgres,ssh
 apache.druid               apache.hive
 apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
 apache.livy                http
@@ -951,6 +951,8 @@ the Apache Software Foundation states "Community over Code" - people in the
 community are far more important than their contribution.
 
 This means that communication plays a big role in it, and this chapter is all about it.
+
+In our communication, everyone is expected to follow the `ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`_.
 
 We have various channels of communication - starting from the official devlist, comments
 in the Pull Requests, Slack, wiki.

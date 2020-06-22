@@ -1054,7 +1054,6 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
 
 class MLEngineTrainingCancelJobOperator(BaseOperator):
-
     """
     Operator for cleaning up failed MLEngine training job.
 

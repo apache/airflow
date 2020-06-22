@@ -25,6 +25,10 @@ class SparkSqlOperator(BaseOperator):
     """
     Execute Spark SQL query
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SparkSqlOperator`
+
     :param sql: The SQL query to execute. (templated)
     :type sql: str
     :param conf: arbitrary Spark configuration property

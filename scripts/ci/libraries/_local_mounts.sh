@@ -55,6 +55,7 @@ function generate_local_mounts_list {
         "$prefix"tests:/opt/airflow/tests:cached
         "$prefix"kubernetes_tests:/opt/airflow/kubernetes_tests:cached
         "$prefix"tmp:/tmp:cached
+        "$prefix"metastore_browser:/opt/airflow/metastore_browser:cached
     )
 }
 

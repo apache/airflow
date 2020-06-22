@@ -34,9 +34,9 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     op.add_column('dag', sa.Column('schedule_interval', sa.Text(), nullable=True))
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_column('dag', 'schedule_interval')

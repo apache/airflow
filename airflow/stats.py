@@ -32,6 +32,7 @@ log = logging.getLogger(__name__)
 
 
 class StatsLogger(Protocol):
+    """This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)"""
     def incr(cls, stat: str, count: int = 1, rate: int = 1) -> None:
         ...
 
@@ -46,6 +47,7 @@ class StatsLogger(Protocol):
 
 
 class DummyStatsLogger:
+    """If no StatsLogger is configured, DummyStatsLogger is used as a fallback"""
     @classmethod
     def incr(cls, stat, count=1, rate=1):
         pass
@@ -69,6 +71,9 @@ ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + '_.-')
 
 
 def stat_name_default_handler(stat_name, max_length=250) -> str:
+    """A function that validate the statsd stat name, apply changes to the stat name
+    if necessary and return the transformed stat name.
+    """
     if not isinstance(stat_name, str):
         raise InvalidStatsNameException('The stat_name has to be a string')
     if len(stat_name) > max_length:
@@ -84,16 +89,20 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
     return stat_name
 
 
-def get_current_handle_stat_name_func() -> Callable[[str], str]:
+def get_current_handler_stat_name_func() -> Callable[[str], str]:
+    """Get Stat Name Handler from airflow.cfg"""
     return conf.getimport('scheduler', 'stat_name_handler') or stat_name_default_handler
 
 
 def validate_stat(fn):
+    """Check if stat name contains invalid characters.
+    Log and not emit stats if name is invalid
+    """
     @wraps(fn)
     def wrapper(_self, stat, *args, **kwargs):
         try:
-            handle_stat_name_func = get_current_handle_stat_name_func()
-            stat_name = handle_stat_name_func(stat)
+            handler_stat_name_func = get_current_handler_stat_name_func()
+            stat_name = handler_stat_name_func(stat)
             return fn(_self, stat_name, *args, **kwargs)
         except InvalidStatsNameException:
             log.error('Invalid stat name: %s.', stat, exc_info=True)
@@ -103,6 +112,7 @@ def validate_stat(fn):
 
 
 class AllowListValidator:
+    """Class to filter unwanted stats"""
 
     def __init__(self, allow_list=None):
         if allow_list:
@@ -118,6 +128,7 @@ class AllowListValidator:
 
 
 class SafeStatsdLogger:
+    """Statsd Logger"""
 
     def __init__(self, statsd_client, allow_list_validator=AllowListValidator()):
         self.statsd = statsd_client
@@ -145,6 +156,7 @@ class SafeStatsdLogger:
 
 
 class SafeDogStatsdLogger:
+    """DogStatsd Logger"""
 
     def __init__(self, dogstatsd_client, allow_list_validator=AllowListValidator()):
         self.dogstatsd = dogstatsd_client
@@ -243,5 +255,5 @@ class _Stats(type):
             return tags
 
 
-class Stats(metaclass=_Stats):
+class Stats(metaclass=_Stats):  # noqa: D101
     pass

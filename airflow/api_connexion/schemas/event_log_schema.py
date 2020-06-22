@@ -53,5 +53,5 @@ class EventLogCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-event_log_schema = EventLogSchema()
-event_log_collection_schema = EventLogCollectionSchema()
+event_log_schema = EventLogSchema(strict=True)
+event_log_collection_schema = EventLogCollectionSchema(strict=True)

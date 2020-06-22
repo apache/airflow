@@ -83,5 +83,5 @@ class PoolCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-pool_collection_schema = PoolCollectionSchema()
-pool_schema = PoolSchema()
+pool_collection_schema = PoolCollectionSchema(strict=True)
+pool_schema = PoolSchema(strict=True)

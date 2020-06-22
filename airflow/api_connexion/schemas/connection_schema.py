@@ -61,6 +61,6 @@ class ConnectionCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-connection_schema = ConnectionSchema()
-connection_collection_item_schema = ConnectionCollectionItemSchema()
-connection_collection_schema = ConnectionCollectionSchema()
+connection_schema = ConnectionSchema(strict=True)
+connection_collection_item_schema = ConnectionCollectionItemSchema(strict=True)
+connection_collection_schema = ConnectionCollectionSchema(strict=True)

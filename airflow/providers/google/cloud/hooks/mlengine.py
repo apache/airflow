@@ -151,7 +151,6 @@ class MLEngineHook(GoogleBaseHook):
         job_id: str,
         project_id: str,
     ) -> Dict:
-
         """
         Cancels a MLEngine job.
 

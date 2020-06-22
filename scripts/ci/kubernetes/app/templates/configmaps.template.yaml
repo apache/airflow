@@ -326,6 +326,9 @@ data:
     # UI to hide sensitive variable fields when set to True
     hide_sensitive_variable_fields = True
 
+    # A comma-separated list of sensitive keywords to look for in variables names.
+    sensitive_variable_fields =
+
     [elasticsearch]
     host =
   # yamllint enable rule:line-length

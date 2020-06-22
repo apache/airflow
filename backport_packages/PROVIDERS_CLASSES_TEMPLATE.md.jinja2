@@ -17,9 +17,11 @@
  under the License.
 #}
 
-# Provider class summary
+# Provider classes summary
 
-All classes in Airflow 2.0 are in `{{FULL_PACKAGE_NAME}}` package.
+In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `{{PROVIDER_PACKAGE_ID}}` provider
+are in the `{{FULL_PACKAGE_NAME}}` package. You can read more about the naming conventions used
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 {% if NEW_OPERATORS or MOVED_OPERATORS %}
 ## Operators

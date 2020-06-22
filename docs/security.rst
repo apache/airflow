@@ -421,3 +421,15 @@ the new key to the ``fernet_key`` setting, run
 #. Set ``fernet_key`` to ``new_fernet_key,old_fernet_key``
 #. Run ``airflow rotate_fernet_key`` to re-encrypt existing credentials with the new fernet key
 #. Set ``fernet_key`` to ``new_fernet_key``
+
+Sensitive Variable fields
+-------------------------
+
+By default, Airflow Value of a variable will be hidden if the key contains any words in
+(‘password’, ‘secret’, ‘passwd’, ‘authorization’, ‘api_key’, ‘apikey’, ‘access_token’), but can be configured
+to extend this list by using the following configurations option:
+
+.. code-block:: ini
+
+    [admin]
+    hide_sensitive_variable_fields = comma_seperated_sensitive_variable_fields_list

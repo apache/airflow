@@ -253,12 +253,12 @@ def validate_session():
         check_session = sessionmaker(bind=engine)
         session = check_session()
         try:
-            session.execute("select 1")
+            session.execute("select 1")  # pylint: disable=no-member
             conn_status = True
         except exc.DBAPIError as err:
             log.error(err)
             conn_status = False
-        session.close()
+        session.close()  # pylint: disable=no-member
         return conn_status
 
 

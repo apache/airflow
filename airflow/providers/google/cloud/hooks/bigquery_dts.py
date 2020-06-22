@@ -42,12 +42,11 @@ def get_object_id(obj: dict) -> str:
 
 class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     """
-     Hook for Google Bigquery Transfer API.
+    Hook for Google Bigquery Transfer API.
 
-     All the methods in the hook where ``project_id`` is used must be called with
-     keyword arguments rather than positional.
-
-     """
+    All the methods in the hook where ``project_id`` is used must be called with
+    keyword arguments rather than positional.
+    """
 
     _conn = None  # type: Optional[Resource]
 

@@ -75,7 +75,7 @@ class StreamLogWriter:
         self._buffer = str()
 
     @property
-    def closed(self):
+    def closed(self):   # noqa: D402
         """
         Returns False to indicate that the stream is not closed (as it will be
         open for the duration of Airflow's lifecycle).

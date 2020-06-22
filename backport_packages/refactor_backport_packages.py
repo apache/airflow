@@ -212,7 +212,7 @@ class RefactorBackportPackages:
         )
 
     def remove_super_init_call(self):
-        """
+        r"""
         Removes super().__init__() call from Hooks.
 
         In airflow 1.10 almost none of the Hooks call super().init(). It was always broken in Airflow 1.10 -
@@ -314,7 +314,7 @@ class RefactorBackportPackages:
         self.qry.select_method("DAG").is_call().modify(remove_tags_modifier)
 
     def remove_poke_mode_only_decorator(self):
-        """
+        r"""
         Removes @poke_mode_only decorator. The decorator is only available in Airflow 2.0.
 
         Example diff generated:
@@ -424,7 +424,7 @@ class RefactorBackportPackages:
         )
 
     def refactor_google_package(self):
-        """
+        r"""
         Fixes to "google" providers package.
 
         Copies some of the classes used from core Airflow to "common.utils" package of the

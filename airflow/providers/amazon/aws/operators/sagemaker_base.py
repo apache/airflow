@@ -81,7 +81,7 @@ class SageMakerBaseOperator(BaseOperator):
         for field in self.integer_fields:
             self.parse_integer(self.config, field)
 
-    def expand_role(self):
+    def expand_role(self):   # noqa: D402
         """Placeholder for calling boto3's expand_role(), which expands an IAM role name into an ARN."""
 
     def preprocess_config(self):

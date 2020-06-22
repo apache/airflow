@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated.
-Please use `airflow.providers.google.cloud.operators.pubsub`."""
+
+Please use `airflow.providers.google.cloud.operators.pubsub`.
+"""
 
 import warnings
 
@@ -34,8 +36,8 @@ warnings.warn(
 
 
 class PubSubPublishOperator(PubSubPublishMessageOperator):
-    """
-    This class is deprecated.
+    """This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.pubsub.PubSubPublishMessageOperator`.
     """
 
@@ -44,14 +46,14 @@ class PubSubPublishOperator(PubSubPublishMessageOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.pubsub.PubSubPublishMessageOperator`.""",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
 
 class PubSubSubscriptionCreateOperator(PubSubCreateSubscriptionOperator):
-    """
-    This class is deprecated.
+    """This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.pubsub.PubSubCreateSubscriptionOperator`.
     """
 
@@ -60,14 +62,14 @@ class PubSubSubscriptionCreateOperator(PubSubCreateSubscriptionOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.pubsub.PubSubCreateSubscriptionOperator`.""",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
 
 class PubSubSubscriptionDeleteOperator(PubSubDeleteSubscriptionOperator):
-    """
-    This class is deprecated.
+    """This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.pubsub.PubSubDeleteSubscriptionOperator`.
     """
 
@@ -76,14 +78,14 @@ class PubSubSubscriptionDeleteOperator(PubSubDeleteSubscriptionOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.pubsub.PubSubDeleteSubscriptionOperator`.""",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
 
 class PubSubTopicCreateOperator(PubSubCreateTopicOperator):
-    """
-    This class is deprecated.
+    """This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.pubsub.PubSubCreateTopicOperator`.
     """
 
@@ -92,14 +94,14 @@ class PubSubTopicCreateOperator(PubSubCreateTopicOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.pubsub.PubSubCreateTopicOperator`.""",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)
 
 
 class PubSubTopicDeleteOperator(PubSubDeleteTopicOperator):
-    """
-    This class is deprecated.
+    """This class is deprecated.
+
     Please use `airflow.providers.google.cloud.operators.pubsub.PubSubDeleteTopicOperator`.
     """
 
@@ -108,6 +110,6 @@ class PubSubTopicDeleteOperator(PubSubDeleteTopicOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.pubsub.PubSubDeleteTopicOperator`.""",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         super().__init__(*args, **kwargs)

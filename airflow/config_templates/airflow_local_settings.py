@@ -218,7 +218,7 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(WASB_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('stackdriver://'):
-        gcp_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID', fallback=None)
+        key_path = conf.get('logging', 'STACKDRIVER_KEY_PATH', fallback=None)
         # stackdriver:///airflow-tasks => airflow-tasks
         log_name = urlparse(REMOTE_BASE_LOG_FOLDER).path[1:]
         STACKDRIVER_REMOTE_HANDLERS = {
@@ -226,7 +226,7 @@ if REMOTE_LOGGING:
                 'class': 'airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler',
                 'formatter': 'airflow',
                 'name': log_name,
-                'gcp_conn_id': gcp_conn_id
+                'gcp_key_path': key_path
             }
         }
 

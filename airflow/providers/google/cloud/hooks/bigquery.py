@@ -2820,8 +2820,7 @@ def _cleanse_time_partitioning(
 
 
 def _validate_value(key: Any, value: Any, expected_type: Type) -> None:
-    """ function to check expected type and raise
-    error if type is not correct """
+    """ Function to check expected type and raise error if type is not correct. """
     if not isinstance(value, expected_type):
         raise TypeError("{} argument must have a type {} not {}".format(
             key, expected_type, type(value)))

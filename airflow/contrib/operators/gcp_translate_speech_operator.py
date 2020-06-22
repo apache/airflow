@@ -40,6 +40,6 @@ class GcpTranslateSpeechOperator(CloudTranslateSpeechOperator):
             Please use
             `airflow.providers.google.cloud.operators.translate_speech.CloudTranslateSpeechOperator`.
             """,
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

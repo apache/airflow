@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 from datetime import timedelta
 from typing import Optional
 
@@ -30,6 +31,7 @@ from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
+from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_security import init_api_experimental_auth, init_xframe_protection
@@ -38,9 +40,13 @@ from airflow.www.extensions.init_views import (
     init_api_connexion, init_api_experimental, init_appbuilder_views, init_error_handlers, init_flash_views,
     init_plugins,
 )
-from airflow.www.extensions.init_wsgi_middlewares import init_wsg_middleware
+from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 
 app: Optional[Flask] = None
+
+# Initializes at the module level, so plugins can access it.
+# See: /docs/plugins.rst
+csrf = CSRFProtect()
 
 
 def sync_appbuilder_roles(flask_app):
@@ -77,13 +83,15 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     # Configure the JSON encoder used by `|tojson` filter from Flask
     flask_app.json_encoder = AirflowJsonEncoder
 
-    CSRFProtect(flask_app)
+    csrf.init_app(flask_app)
 
-    init_wsg_middleware(flask_app)
+    init_wsgi_middleware(flask_app)
 
     db = SQLA()
     db.session = settings.Session
     db.init_app(flask_app)
+
+    init_dagbag(flask_app)
 
     init_api_experimental_auth(flask_app)
 

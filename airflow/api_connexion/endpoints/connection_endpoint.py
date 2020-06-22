@@ -16,6 +16,7 @@
 # under the License.
 
 from flask import request
+from sqlalchemy import func
 
 from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
@@ -38,9 +39,7 @@ def get_connection(connection_id, session):
     """
     Get a connection entry
     """
-    query = session.query(Connection)
-    query = query.filter(Connection.conn_id == connection_id)
-    connection = query.one_or_none()
+    connection = session.query(Connection).filter(Connection.conn_id == connection_id).one_or_none()
     if connection is None:
         raise NotFound("Connection not found")
     return connection_collection_item_schema.dump(connection)
@@ -54,9 +53,8 @@ def get_connections(session):
     offset = request.args.get(parameters.page_offset, 0)
     limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
 
-    query = session.query(Connection)
-    total_entries = query.count()
-    query = query.offset(offset).limit(limit)
+    total_entries = session.query(func.count(Connection.id)).scalar()
+    query = session.query(Connection).order_by(Connection.id).offset(offset).limit(limit)
 
     connections = query.all()
     return connection_collection_schema.dump(ConnectionCollection(connections=connections,

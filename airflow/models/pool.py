@@ -19,6 +19,7 @@
 from typing import Dict, Iterable, Tuple
 
 from sqlalchemy import Column, Integer, String, Text, func
+from sqlalchemy.orm.session import Session
 
 from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
@@ -28,6 +29,7 @@ from airflow.utils.state import State
 
 
 class PoolStats(TypedDict):
+    """ Dictionary containing Pool Stats """
     total: int
     running: int
     queued: int
@@ -52,39 +54,42 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_pool(pool_name, session=None):
+    def get_pool(pool_name, session: Session = None):
         """
         Get the Pool with specific pool name from the Pools.
 
         :param pool_name: The pool name of the Pool to get.
+        :param session: SQLAlchemy ORM Session
         :return: the pool object
         """
         return session.query(Pool).filter(Pool.pool == pool_name).first()
 
     @staticmethod
     @provide_session
-    def get_default_pool(session=None):
+    def get_default_pool(session: Session = None):
         """
         Get the Pool of the default_pool from the Pools.
 
+        :param session: SQLAlchemy ORM Session
         :return: the pool object
         """
         return Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session)
 
     @staticmethod
     @provide_session
-    def slots_stats(session=None) -> Dict[str, PoolStats]:
+    def slots_stats(session: Session = None) -> Dict[str, PoolStats]:
+        """
+        Get Pool stats (Number of Running, Queued & Total tasks)
+
+        :param session: SQLAlchemy ORM Session
+        """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         pools: Dict[str, PoolStats] = {}
 
         pool_rows: Iterable[Tuple[str, int]] = session.query(Pool.pool, Pool.slots).all()
         for (pool_name, total_slots) in pool_rows:
-            pools[pool_name] = PoolStats({
-                "total": total_slots,
-                State.RUNNING: 0,
-                State.QUEUED: 0,
-            })
+            pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0)
 
         state_count_by_pool = (
             session.query(TaskInstance.pool, TaskInstance.state, func.count())
@@ -123,10 +128,11 @@ class Pool(Base):
         }
 
     @provide_session
-    def occupied_slots(self, session):
+    def occupied_slots(self, session: Session):
         """
         Get the number of slots used by running/queued tasks at the moment.
 
+        :param session: SQLAlchemy ORM Session
         :return: the used number of slots
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
@@ -139,10 +145,11 @@ class Pool(Base):
         ) or 0
 
     @provide_session
-    def running_slots(self, session):
+    def running_slots(self, session: Session):
         """
         Get the number of slots used by running tasks at the moment.
 
+        :param session: SQLAlchemy ORM Session
         :return: the used number of slots
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
@@ -156,10 +163,11 @@ class Pool(Base):
         ) or 0
 
     @provide_session
-    def queued_slots(self, session):
+    def queued_slots(self, session: Session):
         """
         Get the number of slots used by queued tasks at the moment.
 
+        :param session: SQLAlchemy ORM Session
         :return: the used number of slots
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
@@ -173,10 +181,11 @@ class Pool(Base):
         ) or 0
 
     @provide_session
-    def open_slots(self, session):
+    def open_slots(self, session: Session):
         """
         Get the number of slots open at the moment.
 
+        :param session: SQLAlchemy ORM Session
         :return: the number of slots
         """
         if self.slots == -1:

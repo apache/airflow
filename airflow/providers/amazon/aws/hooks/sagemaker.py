@@ -744,7 +744,7 @@ class SageMakerHook(AwsBaseHook):
 
     def list_training_jobs(
         self, name_contains: Optional[str] = None, max_results: Optional[int] = None, **kwargs
-    ) -> List[Dict]:
+    ) -> List[Dict]:   # noqa: D402
         """
         This method wraps boto3's list_training_jobs(). The training job name and max results are configurable
         via arguments. Other arguments are not, and should be provided via kwargs. Note boto3 expects these in

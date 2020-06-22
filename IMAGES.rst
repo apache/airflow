@@ -291,10 +291,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | additional python dependencies to        |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_DEV_DEPS``                  | ````                                     | additional apt dev dependencies to       |
+| ``ADDITIONAL_DEV_DEPS``                  |                                          | additional apt dev dependencies to       |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_DEPS``              | ````                                     | additional apt runtime dependencies to   |
+| ``ADDITIONAL_RUNTIME_DEPS``              |                                          | additional apt runtime dependencies to   |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 
@@ -388,10 +388,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | Optional python packages to extend       |
 |                                          |                                          | the image with some extra dependencies   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_DEV_DEPS``                  | ````                                     | additional apt dev dependencies to       |
+| ``ADDITIONAL_DEV_DEPS``                  |                                          | additional apt dev dependencies to       |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_RUNTIME_DEPS``              | ````                                     | additional apt runtime dependencies to   |
+| ``ADDITIONAL_RUNTIME_DEPS``              |                                          | additional apt runtime dependencies to   |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and    |

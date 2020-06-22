@@ -20,19 +20,15 @@ Objects relating to sourcing connections & variables from Hashicorp Vault
 """
 from typing import Optional
 
-import hvac
-from cached_property import cached_property
-from hvac.exceptions import InvalidPath, VaultError
-
-from airflow.exceptions import AirflowException
+from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient  # noqa
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-instance-attributes,too-many-locals
 class VaultBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connections and Variables from Hashicorp Vault
+    Retrieves Connections and Variables from Hashicorp Vault.
 
     Configurable via ``airflow.cfg`` as follows:
 
@@ -50,41 +46,63 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     would be accessible if you provide ``{"connections_path": "connections"}`` and request
     conn_id ``smtp_default``.
 
-    :param connections_path: Specifies the path of the secret to read to get Connections.
-        (default: 'connections')
+    :param connections_path: Specifies the path of the secret to read to get Connections
+        (default: 'connections').
     :type connections_path: str
-    :param variables_path: Specifies the path of the secret to read to get Variables.
-        (default: 'variables')
+    :param variables_path: Specifies the path of the secret to read to get Variables
+        (default: 'variables').
     :type variables_path: str
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
-    :param auth_type: Authentication Type for Vault (one of 'token', 'ldap', 'userpass', 'approle',
-        'github', 'gcp', 'kubernetes'). Default is ``token``.
+    :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are:
+        ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
     :type auth_type: str
-    :param mount_point: The "path" the secret engine was mounted on. (Default: ``secret``)
+    :param auth_mount_point: It can be used to define mount_point for authentication chosen
+          Default depends on the authentication method used.
+    :type auth_mount_point: str
+    :param mount_point: The "path" the secret engine was mounted on. Default is "secret". Note that
+         this mount_point is not used for authentication if authentication is done via a
+         different engine. For authentication mount_points see, auth_mount_point.
     :type mount_point: str
+    :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``, default: ``2``).
+    :type kv_engine_version: int
     :param token: Authentication token to include in requests sent to Vault.
         (for ``token`` and ``github`` auth_type)
     :type token: str
-    :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``, default: ``2``)
-    :type kv_engine_version: int
-    :param username: Username for Authentication (for ``ldap`` and ``userpass`` auth_type)
+    :param username: Username for Authentication (for ``ldap`` and ``userpass`` auth_type).
     :type username: str
-    :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_type)
+    :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_type).
     :type password: str
-    :param role_id: Role ID for Authentication (for ``approle`` auth_type)
-    :type role_id: str
-    :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type)
-    :type kubernetes_role: str
-    :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, deafult:
-        ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
-    :type kubernetes_jwt_path: str
-    :param secret_id: Secret ID for Authentication (for ``approle`` auth_type)
+    :param key_id: Key ID for Authentication (for ``aws_iam`` and ''azure`` auth_type).
+    :type key_id: str
+    :param secret_id: Secret ID for Authentication (for ``approle``, ``aws_iam`` and ``azure`` auth_types).
     :type secret_id: str
-    :param gcp_key_path: Path to GCP Credential JSON file (for ``gcp`` auth_type)
+    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types).
+    :type role_id: str
+    :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
+    :type kubernetes_role: str
+    :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
+        ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
+    :type kubernetes_jwt_path: str
+    :param gcp_key_path: Path to GCP Credential JSON file (for ``gcp`` auth_type).
+           Mutually exclusive with gcp_keyfile_dict.
     :type gcp_key_path: str
-    :param gcp_scopes: Comma-separated string containing GCP scopes (for ``gcp`` auth_type)
+    :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
+           Mutually exclusive with gcp_key_path.
+    :type gcp_keyfile_dict: dict
+    :param gcp_scopes: Comma-separated string containing GCP scopes (for ``gcp`` auth_type).
     :type gcp_scopes: str
+    :param azure_tenant_id: The tenant id for the Azure Active Directory (for ``azure`` auth_type).
+    :type azure_tenant_id: str
+    :param azure_resource: The configured URL for the application registered in Azure Active Directory
+           (for ``azure`` auth_type).
+    :type azure_resource: str
+    :param radius_host: Host for radius (for ``radius`` auth_type).
+    :type radius_host: str
+    :param radius_secret: Secret for radius (for ``radius`` auth_type).
+    :type radius_secret: str
+    :param radius_port: Port for radius (for ``radius`` auth_type).
+    :type radius_port: str
     """
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -92,87 +110,68 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         variables_path: str = 'variables',
         url: Optional[str] = None,
         auth_type: str = 'token',
+        auth_mount_point: Optional[str] = None,
         mount_point: str = 'secret',
         kv_engine_version: int = 2,
         token: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
+        key_id: Optional[str] = None,
+        secret_id: Optional[str] = None,
         role_id: Optional[str] = None,
         kubernetes_role: Optional[str] = None,
         kubernetes_jwt_path: str = '/var/run/secrets/kubernetes.io/serviceaccount/token',
-        secret_id: Optional[str] = None,
         gcp_key_path: Optional[str] = None,
+        gcp_keyfile_dict: Optional[dict] = None,
         gcp_scopes: Optional[str] = None,
+        azure_tenant_id: Optional[str] = None,
+        azure_resource: Optional[str] = None,
+        radius_host: Optional[str] = None,
+        radius_secret: Optional[str] = None,
+        radius_port: Optional[int] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
         self.connections_path = connections_path.rstrip('/')
         self.variables_path = variables_path.rstrip('/')
-        self.url = url
-        self.auth_type = auth_type
-        self.kwargs = kwargs
-        self.token = token
-        self.username = username
-        self.password = password
-        self.role_id = role_id
-        self.kubernetes_role = kubernetes_role
-        self.kubernetes_jwt_path = kubernetes_jwt_path
-        self.secret_id = secret_id
         self.mount_point = mount_point
         self.kv_engine_version = kv_engine_version
-        self.gcp_key_path = gcp_key_path
-        self.gcp_scopes = gcp_scopes
-
-    @cached_property
-    def client(self) -> hvac.Client:
-        """
-        Return an authenticated Hashicorp Vault client
-        """
-
-        _client = hvac.Client(url=self.url, **self.kwargs)
-        if self.auth_type == "token":
-            if not self.token:
-                raise VaultError("token cannot be None for auth_type='token'")
-            _client.token = self.token
-        elif self.auth_type == "ldap":
-            _client.auth.ldap.login(
-                username=self.username, password=self.password)
-        elif self.auth_type == "userpass":
-            _client.auth_userpass(username=self.username, password=self.password)
-        elif self.auth_type == "approle":
-            _client.auth_approle(role_id=self.role_id, secret_id=self.secret_id)
-        elif self.auth_type == "kubernetes":
-            if not self.kubernetes_role:
-                raise VaultError("kubernetes_role cannot be None for auth_type='kubernetes'")
-            with open(self.kubernetes_jwt_path) as f:
-                jwt = f.read()
-                _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt)
-        elif self.auth_type == "github":
-            _client.auth.github.login(token=self.token)
-        elif self.auth_type == "gcp":
-            from airflow.providers.google.cloud.utils.credentials_provider import (
-                get_credentials_and_project_id,
-                _get_scopes
-            )
-            scopes = _get_scopes(self.gcp_scopes)
-            credentials, _ = get_credentials_and_project_id(key_path=self.gcp_key_path, scopes=scopes)
-            _client.auth.gcp.configure(credentials=credentials)
-        else:
-            raise AirflowException(f"Authentication type '{self.auth_type}' not supported")
-
-        if _client.is_authenticated():
-            return _client
-        else:
-            raise VaultError("Vault Authentication Error!")
+        self.vault_client = _VaultClient(
+            url=url,
+            auth_type=auth_type,
+            auth_mount_point=auth_mount_point,
+            mount_point=mount_point,
+            kv_engine_version=kv_engine_version,
+            token=token,
+            username=username,
+            password=password,
+            key_id=key_id,
+            secret_id=secret_id,
+            role_id=role_id,
+            kubernetes_role=kubernetes_role,
+            kubernetes_jwt_path=kubernetes_jwt_path,
+            gcp_key_path=gcp_key_path,
+            gcp_keyfile_dict=gcp_keyfile_dict,
+            gcp_scopes=gcp_scopes,
+            azure_tenant_id=azure_tenant_id,
+            azure_resource=azure_resource,
+            radius_host=radius_host,
+            radius_secret=radius_secret,
+            radius_port=radius_port,
+            **kwargs
+        )
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
         Get secret value from Vault. Store the secret in the form of URI
 
-        :param conn_id: connection id
+        :param conn_id: The connection id
         :type conn_id: str
+        :rtype: str
+        :return: The connection uri retrieved from the secret
         """
-        response = self._get_secret(self.connections_path, conn_id)
+        secret_path = self.build_path(self.connections_path, conn_id)
+        response = self.vault_client.get_secret(secret_path=secret_path)
         return response.get("conn_uri") if response else None
 
     def get_variable(self, key: str) -> Optional[str]:
@@ -180,33 +179,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         Get Airflow Variable from Environment Variable
 
         :param key: Variable Key
-        :return: Variable Value
+        :type key: str
+        :rtype: str
+        :return: Variable Value retrieved from the vault
         """
-        response = self._get_secret(self.variables_path, key)
+        secret_path = self.build_path(self.variables_path, key)
+        response = self.vault_client.get_secret(secret_path=secret_path)
         return response.get("value") if response else None
-
-    def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[dict]:
-        """
-        Get secret value from Vault.
-
-        :param path_prefix: Prefix for the Path to get Secret
-        :type path_prefix: str
-        :param secret_id: Secret Key
-        :type secret_id: str
-        """
-        secret_path = self.build_path(path_prefix, secret_id)
-
-        try:
-            if self.kv_engine_version == 1:
-                response = self.client.secrets.kv.v1.read_secret(
-                    path=secret_path, mount_point=self.mount_point
-                )
-            else:
-                response = self.client.secrets.kv.v2.read_secret_version(
-                    path=secret_path, mount_point=self.mount_point)
-        except InvalidPath:
-            self.log.debug("Secret %s not found in Path: %s", secret_id, secret_path)
-            return None
-
-        return_data = response["data"] if self.kv_engine_version == 1 else response["data"]["data"]
-        return return_data

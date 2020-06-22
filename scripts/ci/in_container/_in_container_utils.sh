@@ -94,13 +94,24 @@ function in_container_cleanup_pycache() {
 #
 function in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "Linux" ]]; then
-        set +o pipefail
-        echo "Fixing ownership of mounted files"
-        sudo find "${AIRFLOW_SOURCES}" -print0 -user root \
-        | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
-        sudo find "/root/.aws" "/root/.azure" "/root/.config" "/root/.docker" -print0 -user root \
-        | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
-        set -o pipefail
+        DIRECTORIES_TO_FIX=(
+            "/tmp"
+            "/files"
+            "/root/.aws"
+            "/root/.azure"
+            "/root/.config/gcloud"
+            "/root/.docker"
+            "${AIRFLOW_SOURCES}"
+        )
+        if [[ ${VERBOSE} == "true" ]]; then
+            echo "Fixing ownership of mounted files"
+        fi
+        sudo find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null \
+            | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference ||
+                true >/dev/null 2>&1
+        if [[ ${VERBOSE} == "true" ]]; then
+            echo "Fixed ownership of mounted files"
+        fi
     fi
 }
 

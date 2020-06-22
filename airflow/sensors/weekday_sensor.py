@@ -16,10 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.utils.weekday import WeekDay
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.weekday import WeekDay
 
 
 class DayOfWeekSensor(BaseSensorOperator):
@@ -44,10 +44,10 @@ class DayOfWeekSensor(BaseSensorOperator):
             use_task_execution_day=True,
             dag=dag)
 
-    **Example** (with :class:`~airflow.contrib.utils.weekday.WeekDay` enum): ::
+    **Example** (with :class:`~airflow.utils.weekday.WeekDay` enum): ::
 
         # import WeekDay Enum
-        from airflow.contrib.utils.weekday import WeekDay
+        from airflow.utils.weekday import WeekDay
 
         weekend_check = DayOfWeekSensor(
             task_id='weekend_check',
@@ -64,7 +64,7 @@ class DayOfWeekSensor(BaseSensorOperator):
             * ``{WeekDay.TUESDAY}``
             * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
 
-    :type week_day: set or str or airflow.contrib.utils.weekday.WeekDay
+    :type week_day: set or str or airflow.utils.weekday.WeekDay
     :param use_task_execution_day: If ``True``, uses task's execution day to compare
         with week_day. Execution Date is Useful for backfilling.
         If ``False``, uses system's day of the week. Useful when you

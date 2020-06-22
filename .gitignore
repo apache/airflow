@@ -197,3 +197,8 @@ log.txt*
 
 # Terraform variables
 *.tfvars
+
+Chart.lock
+
+# Chart dependencies
+**/charts/*.tgz

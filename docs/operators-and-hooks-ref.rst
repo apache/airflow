@@ -57,10 +57,6 @@ Fundamentals
 
    * - :mod:`airflow.operators.branch_operator`
      -
-
-   * - :mod:`airflow.operators.check_operator`
-     -
-
    * - :mod:`airflow.operators.dagrun_operator`
      -
 
@@ -76,7 +72,7 @@ Fundamentals
    * - :mod:`airflow.operators.subdag_operator`
      -
 
-   * - :mod:`airflow.operators.sql_branch_operator`
+   * - :mod:`airflow.operators.sql`
      -
 
 **Sensors:**
@@ -194,7 +190,6 @@ Foundation.
      - :mod:`airflow.providers.apache.hdfs.hooks.webhdfs`
      -
      - :mod:`airflow.providers.apache.hdfs.sensors.web_hdfs`
-
 
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
@@ -317,7 +312,6 @@ These integrations allow you to perform various operations within the Microsoft 
      - :mod:`airflow.providers.microsoft.azure.hooks.azure_fileshare`
      -
      -
-
 
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
@@ -588,6 +582,11 @@ These integrations allow you to copy data from/to Amazon Web Services.
      -
      - :mod:`airflow.providers.amazon.aws.transfers.sftp_to_s3`
 
+   * - `MySQL <https://www.mysql.com/>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     -
+     - :mod:`airflow.providers.amazon.aws.transfers.mysql_to_s3`
+
 :ref:`[1] <integration:AWS-Discovery-ref>` Those discovery-based operators use
 :class:`~airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
 Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
@@ -764,6 +763,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.pubsub`
      - :mod:`airflow.providers.google.cloud.sensors.pubsub`
 
+   * - `Cloud Secret Manager <https://cloud.google.com/secret-manager/>`__
+     -
+     - :mod:`airflow.providers.google.cloud.hooks.secret_manager`
+     -
+     -
+
    * - `Cloud Spanner <https://cloud.google.com/spanner/>`__
      - :doc:`How to use <howto/operator/gcp/spanner>`
      - :mod:`airflow.providers.google.cloud.hooks.spanner`
@@ -829,7 +834,6 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.hooks.vision`
      - :mod:`airflow.providers.google.cloud.operators.vision`
      -
-
 
 Transfer operators and hooks
 """"""""""""""""""""""""""""
@@ -1245,6 +1249,7 @@ These integrations allow you to perform various operations within various servic
      -
      -
 
+
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
 
@@ -1322,6 +1327,12 @@ These integrations allow you to perform various operations using various softwar
      -
      - :mod:`airflow.operators.bash`
      - :mod:`airflow.sensors.bash`
+
+   * - `Hashicorp Vault <https://www.vaultproject.io/>`__
+     -
+     - :mod:`airflow.providers.hashicorp.hooks.vault`
+     -
+     -
 
    * - `Kubernetes <https://kubernetes.io/>`__
      - :doc:`How to use <howto/operator/kubernetes>`

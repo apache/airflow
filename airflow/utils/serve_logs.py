@@ -37,5 +37,5 @@ def serve_logs():
             mimetype="application/json",
             as_attachment=False)
 
-    worker_log_server_port = int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
+    worker_log_server_port = conf.getint('celery', 'WORKER_LOG_SERVER_PORT')
     flask_app.run(host='0.0.0.0', port=worker_log_server_port)

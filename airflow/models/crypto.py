@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 
 
 class FernetProtocol(Protocol):
+    """This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)"""
     def decrypt(self, b):
         ...
 

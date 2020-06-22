@@ -179,7 +179,7 @@ amazon = [
     'watchtower~=0.7.3',
 ]
 apache_beam = [
-    'apache-beam[gcp]<2.20.0',
+    'apache-beam[gcp]',
 ]
 async_packages = [
     'eventlet>= 0.9.7',
@@ -227,6 +227,7 @@ doc = [
     'sphinx>=2.1.2',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
+    'sphinx-copybutton',
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',

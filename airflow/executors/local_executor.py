@@ -237,7 +237,7 @@ class LocalExecutor(BaseExecutor):
             :param command: the command to execute
             :param queue: name of the queue
             :param executor_config: configuration for the executor
-           """
+            """
             if not self.queue:
                 raise AirflowException(NOT_STARTED_MESSAGE)
             self.queue.put((key, command))
