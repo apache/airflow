@@ -218,28 +218,28 @@ When a DAG Run is created, task_1 will start running and task_2 waits for task_1
 Python task decorator
 ---------------------
 
-Airflow ``task`` decorator converts any Python decorated function to a Python Airflow operator.
+Airflow ``task`` decorator converts any Python function to an Airflow operator.
 The decorated function can be called once to set the arguments and key arguments for operator execution.
 
 
 .. code:: python
 
   with DAG('my_dag', start_date=datetime(2020, 5, 15)) as dag:
-
-    @dag.task
-    def hello_world():
-      print('hello world!')
-
-
-    # Also...
-
-    from airflow.decorators import task
-
-    @task
-    def hello_name(name: str):
-      print(f'hello {name}!')
-
-    hello_name('Airflow users')
+      @dag.task
+      def hello_world():
+          print('hello world!')
+  
+  
+      # Also...
+      from airflow.decorators import task
+  
+  
+      @task
+      def hello_name(name: str):
+          print(f'hello {name}!')
+  
+  
+      hello_name('Airflow users')
 
 Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default, returned
 value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True`` to unroll dictionaries,
@@ -249,8 +249,8 @@ lists or tuples into seprate XCom values. This can be used with regular operator
 Calling a decorated function returns an ``XComArg`` instance. You can use it to set templated fields on downstream
 operators.
 
-You can call a decorated function more than once in a DAG. The decorated function will automatically generate unique
-a ``task_id`` for each generated operator.
+You can call a decorated function more than once in a DAG. The decorated function will automatically generate
+a unique ``task_id`` for each generated operator.
 
 .. code:: python
 
@@ -260,7 +260,7 @@ a ``task_id`` for each generated operator.
     def update_user(user_id: int):
       ...
 
-    # Avoid generating this list dynamically to keep dag topology stable between DAG runs
+    # Avoid generating this list dynamically to keep DAG topology stable between DAG runs
     for user_id in user_ids:
       update_current(user_id)
 
