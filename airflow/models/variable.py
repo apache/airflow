@@ -44,7 +44,7 @@ class Variable(Base, LoggingMixin):
     _val = Column('val', Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
 
-    def __init__(self, key: str, val: Any):
+    def __init__(self, key: str = None, val: Any = None):
         super().__init__()
         self.key = key
         self.val = val
