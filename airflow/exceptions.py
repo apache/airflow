@@ -182,3 +182,7 @@ class AirflowFileParseException(AirflowException):
                     result += "\n" + prepare_code_snippet(self.file_path, parse_error.line_no) + "\n"
 
         return result
+
+
+class ConnectionNotUnique(AirflowException):
+    """Raise when multiple values are found for the same conn_id"""
