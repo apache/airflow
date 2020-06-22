@@ -64,11 +64,14 @@ https://developers.google.com/style/inclusive-documentation
 
 ### Deprecated method in Connection
 
-The Connection class has new deprecated methods.
+The connection module has new deprecated methods:
 
 - `Connection.parse_from_uri`
 - `Connection.log_info`
 - `Connection.debug_info`
+
+and one deprecated function:
+- `parse_netloc_to_hostname`
 
 Previously, users could create a connection object in two ways
 ```

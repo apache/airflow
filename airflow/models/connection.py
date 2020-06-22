@@ -88,6 +88,15 @@ CONN_TYPE_TO_HOOK = {
 # PLEASE KEEP ABOVE LIST IN ALPHABETICAL ORDER.
 
 
+def parse_netloc_to_hostname(*args, **kwargs):
+    """This method is deprecated."""
+    warnings.warn(
+        "This method is deprecated.",
+        DeprecationWarning
+    )
+    return _parse_netloc_to_hostname(*args, **kwargs)
+
+
 # Python automatically converts all letters to lowercase in hostname
 # See: https://issues.apache.org/jira/browse/AIRFLOW-3615
 def _parse_netloc_to_hostname(uri_parts):
