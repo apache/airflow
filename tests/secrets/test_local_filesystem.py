@@ -16,12 +16,12 @@
 # under the License.
 
 import json
-import yaml
 import re
 import unittest
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 from unittest import mock
+import yaml
 
 from parameterized import parameterized
 

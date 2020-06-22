@@ -19,13 +19,13 @@
 Objects relating to retrieving connections and variables from local file
 """
 import json
-import yaml
 import logging
 import os
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
 from typing import Any, Dict, List, Optional, Set, Tuple
+import yaml
 
 from airflow.exceptions import AirflowException, AirflowFileParseException, FileSyntaxError
 from airflow.secrets.base_secrets import BaseSecretsBackend
