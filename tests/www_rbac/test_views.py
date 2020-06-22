@@ -2525,7 +2525,10 @@ class TestDagRunModelView(TestBase):
         self.assertEqual(dr.conf, {"include": "me"})
 
         resp = self.client.get('/dagrun/list', follow_redirects=True)
-        self.check_content_in_response("{&#39;include&#39;: &#39;me&#39;}", resp)
+        if PY2:
+            self.check_content_in_response("{u&#39;include&#39;: u&#39;me&#39;}", resp)
+        else:
+            self.check_content_in_response("{&#39;include&#39;: &#39;me&#39;}", resp)
 
 
 class TestDecorators(TestBase):
