@@ -170,6 +170,7 @@ class TestDeletePool(TestBasePoolEndpoints):
             response.json,
         )
 
+
 class TestPostPool(TestBasePoolEndpoints):
     def test_response_200(self):
         response = self.client.post(
@@ -285,7 +286,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
 
     @parameterized.expand(
         [
-            (   
+            (
                 "400 No update mask",
                 400,
                 "api/v1/pools/default_pool",
@@ -297,7 +298,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "type": "about:blank",
                 },
             ),
-            (   
+            (
                 "400 Update mask with both fields",
                 400,
                 "api/v1/pools/default_pool?update_mask=name, slots",
@@ -309,7 +310,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "type": "about:blank",
                 },
             ),
-            (   
+            (
                 "200 Update mask with slots",
                 200,
                 "api/v1/pools/default_pool?update_mask=slots",
@@ -321,15 +322,15 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "open_slots": 3,
                     "running_slots": 0,
                     "slots": 3,
-               },
-            )
+                },
+            ),
         ]
     )
     def test_patch(self, name, status_code, url, json, expected_response):
         del name
         response = self.client.patch(url, json=json)
         assert response.status_code == status_code
-        self.assertEqual(response.json,expected_response)
+        self.assertEqual(response.json, expected_response)
 
 
 class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
