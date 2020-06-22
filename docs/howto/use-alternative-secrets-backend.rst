@@ -387,17 +387,14 @@ and if you want to retrieve both Variables and connections use the following sam
     backend_kwargs = {"connections_prefix": "airflow-connections", "variables_prefix": "airflow-variables", "sep": "-"}
 
 
-When ``gcp_key_path`` is not provided, it will use the Application Default Credentials in the current environment. You can set up the credentials with:
+When ``gcp_key_path`` is not provided, it will use the Application Default Credentials (ADC) to obtain credentials.
 
-.. code-block:: ini
+.. note::
 
-    # 1. GOOGLE_APPLICATION_CREDENTIALS environment variable
-    export GOOGLE_APPLICATION_CREDENTIALS=path/to/key-file.json
+    For more information about the Application Default Credentials (ADC), see:
 
-    # 2. Set with SDK
-    gcloud auth application-default login
-    # If the Cloud SDK has an active project, the project ID is returned. The active project can be set using:
-    gcloud config set project
+      * `google.auth.default <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`__
+      * `Setting Up Authentication for Server to Server Production Applications <https://cloud.google.com/docs/authentication/production>`__
 
 The value of the Secrets Manager secret id must be the :ref:`connection URI representation <generating_connection_uri>`
 of the connection object.
