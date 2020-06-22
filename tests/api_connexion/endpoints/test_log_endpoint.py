@@ -145,7 +145,7 @@ class TestGetLog(unittest.TestCase):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
-        headers = {'Content-Type': 'application/json'}
+        headers = {'Accept': 'application/json'}
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
@@ -166,16 +166,9 @@ class TestGetLog(unittest.TestCase):
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            headers={'Accept': 'text/plain'}
         )
         assert response.status_code == 200
-        expected_filename = '{}/{}/{}/{}.log'.format(self.DAG_ID,
-                                                     self.TASK_ID,
-                                                     self.default_time,
-                                                     self.TRY_NUMBER)
-
-        content_disposition = response.headers.get('Content-Disposition')
-        self.assertTrue(content_disposition.startswith('attachment'))
-        self.assertTrue(expected_filename in content_disposition)
         self.assertEqual(200, response.status_code)
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
 
@@ -207,7 +200,8 @@ class TestGetLog(unittest.TestCase):
 
             response = self.client.get(
                 f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
-                f"taskInstances/{self.TASK_ID}/logs/1?full_content=True"
+                f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
+                headers={"Accept": 'text/plain'}
             )
 
             self.assertIn('1st line', response.data.decode('utf-8'))
@@ -222,7 +216,7 @@ class TestGetLog(unittest.TestCase):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
-        headers = {'Content-Type': 'application/json'}
+        headers = {'Content-Type': 'application/jso'}  # check guessing
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
@@ -239,7 +233,7 @@ class TestGetLog(unittest.TestCase):
     def test_bad_signature_raises(self, session):
         self._create_dagrun(session)
         token = {"download_logs": False}
-        headers = {'Content-Type': 'application/json'}
+        headers = {'Accept': 'application/json'}
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
@@ -256,7 +250,7 @@ class TestGetLog(unittest.TestCase):
         )
 
     def test_raises_404_for_invalid_dag_run_id(self):
-        headers = {'Content-Type': 'application/json'}
+        headers = {'Accept': 'application/json'}
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN/"  # invalid dagrun_id
             f"taskInstances/{self.TASK_ID}/logs/1?",
@@ -267,7 +261,7 @@ class TestGetLog(unittest.TestCase):
             {
                 'detail': None,
                 'status': 404,
-                'title': "Specified DagRun not found",
+                'title': "DAG Run not found",
                 'type': 'about:blank'
             }
         )

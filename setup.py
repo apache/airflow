@@ -683,6 +683,7 @@ EXTRAS_REQUIREMENTS.update(
 # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
 #####################################################################################################
 INSTALL_REQUIREMENTS = [
+    'accept-types>=0.4.1',
     'alembic>=1.2, <2.0',
     'argcomplete~=1.10',
     'attrs~=19.3',

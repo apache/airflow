@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 
@@ -23,6 +24,12 @@ class LogsSchema(Schema):
 
     content = fields.Str()
     continuation_token = fields.Str()
+
+
+class LogResponseObject(NamedTuple):
+    """ Log Response Object """
+    content: str
+    continuation_token: str
 
 
 logs_schema = LogsSchema(strict=True)
