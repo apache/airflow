@@ -19,13 +19,13 @@
 
 import unittest
 from datetime import datetime
-from unittest.mock import Mock
 
 from airflow.models import BaseOperator, TaskInstance
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils.db import create_session
 from airflow.utils.state import State
+from tests.compat import Mock
 
 
 class TriggerRuleDepTest(unittest.TestCase):
