@@ -2675,7 +2675,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, timezone.datetime(2018, 7, 6, 5, 4, 3))
+        self.assertEqual(dr.execution_date, timezone.datetime(2018, 7, 6, 9, 4, 3))
 
     def test_create_dagrun_execution_date_without_timezone_default_utc(self):
         data = {
