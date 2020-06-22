@@ -17,7 +17,7 @@
 # under the License.
 from airflow.models import (
     Connection, DagModel, DagRun, DagTag, Pool, RenderedTaskInstanceFields, SlaMiss, TaskInstance, Variable,
-    errors,
+    XCom, errors,
 )
 from airflow.models.dagcode import DagCode
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections
@@ -82,3 +82,8 @@ def clear_rendered_ti_fields():
 def clear_db_import_errors():
     with create_session() as session:
         session.query(errors.ImportError).delete()
+
+
+def clear_db_xcom():
+    with create_session() as session:
+        session.query(XCom).delete()
