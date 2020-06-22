@@ -103,13 +103,6 @@ def get_dag_runs_batch():
     raise NotImplementedError("Not implemented yet.")
 
 
-def patch_dag_run():
-    """
-    Update a DAG Run
-    """
-    raise NotImplementedError("Not implemented yet.")
-
-
 def post_dag_run():
     """
     Trigger a DAG.

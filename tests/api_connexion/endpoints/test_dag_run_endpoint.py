@@ -346,13 +346,6 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
         self.assertEqual(dag_run_ids, expected_dag_run_ids)
 
 
-class TestPatchDagRun(TestDagRunEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.patch("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID")
-        assert response.status_code == 200
-
-
 class TestPostDagRun(TestDagRunEndpoint):
     @pytest.mark.skip(reason="Not implemented yet")
     def test_should_response_200(self):

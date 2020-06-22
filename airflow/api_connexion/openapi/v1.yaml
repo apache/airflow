@@ -369,36 +369,6 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-    patch:
-      summary: Update a DAG Run
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: patch_dag_run
-      tags: [DAGRun]
-      parameters:
-        - $ref: '#/components/parameters/UpdateMask'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DAGRun'
-
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGRun'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
     delete:
       summary: Delete a DAG Run
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
