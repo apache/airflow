@@ -48,7 +48,6 @@ class DAGRunSchema(SQLAlchemySchema):
         """ Meta """
         model = DagRun
         dateformat = 'iso'
-        ordered = True
 
     run_id = auto_field(dump_to='dag_run_id', load_from='dag_run_id')
     dag_id = auto_field(dump_only=True)
@@ -69,10 +68,6 @@ class DAGRunCollection(NamedTuple):
 
 class DAGRunCollectionSchema(Schema):
     """DAGRun Collection schema"""
-    class Meta:
-        """ Meta """
-        ordered = True
-
     dag_runs = fields.List(fields.Nested(DAGRunSchema))
     total_entries = fields.Int()
 
