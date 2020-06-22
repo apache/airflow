@@ -20,8 +20,8 @@ Tagging DAGs and tasks
 ======================
 
 
-Add tags to DAGs and tasks and use it for filtering in the UI
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Add tags to DAGs and use it for filtering in the UI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. versionadded:: 1.10.8
 
