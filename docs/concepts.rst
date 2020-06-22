@@ -128,7 +128,7 @@ tasks to ensure that XCom messages are available when operators are executed.
 
 Example DAG with functional abstraction
 
-.. code:: python
+.. code-block:: python
 
   with DAG(
       'send_server_ip', default_args=default_args, schedule_interval=None
@@ -222,23 +222,23 @@ Airflow ``task`` decorator converts any Python function to an Airflow operator.
 The decorated function can be called once to set the arguments and key arguments for operator execution.
 
 
-.. code:: python
+.. code-block:: python
 
   with DAG('my_dag', start_date=datetime(2020, 5, 15)) as dag:
       @dag.task
       def hello_world():
           print('hello world!')
-  
-  
+
+
       # Also...
       from airflow.decorators import task
-  
-  
+
+
       @task
       def hello_name(name: str):
           print(f'hello {name}!')
-  
-  
+
+
       hello_name('Airflow users')
 
 Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default, returned
@@ -252,7 +252,7 @@ operators.
 You can call a decorated function more than once in a DAG. The decorated function will automatically generate
 a unique ``task_id`` for each generated operator.
 
-.. code:: python
+.. code-block:: python
 
   with DAG('my_dag', start_date=datetime(2020, 5, 15)) as dag:
 
