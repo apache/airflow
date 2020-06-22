@@ -52,15 +52,11 @@ function initialize_common_environment {
     # Temporary dir used well ... temporarily
     export TMP_DIR="${AIRFLOW_SOURCES}/tmp"
 
-    # Create those folders above in case they do not exist
+    # Create useful directories if not yet created
     mkdir -p "${TMP_DIR}"
     mkdir -p "${FILES_DIR}"
-
-    # Create useful directories if not yet created
     mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
     mkdir -p "${AIRFLOW_SOURCES}/logs"
-    mkdir -p "${AIRFLOW_SOURCES}/tmp"
-    mkdir -p "${AIRFLOW_SOURCES}/files"
     mkdir -p "${AIRFLOW_SOURCES}/dist"
 
     # Read common values used across Breeze and CI scripts
