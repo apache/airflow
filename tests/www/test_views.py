@@ -29,7 +29,7 @@ import tempfile
 import unittest
 import urllib
 from contextlib import contextmanager
-from datetime import datetime as dt, timedelta, timezone as tz
+from datetime import datetime as dt, timedelta
 from typing import Any, Dict, Generator, List, NamedTuple
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -2626,7 +2626,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz.utc))
+        self.assertEqual(dr.execution_date, timezone.datetime(2018, 7, 6, 5, 4, 3))
 
     def test_create_dagrun_execution_date_with_timezone_edt(self):
         data = {
@@ -2642,7 +2642,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-4))))
+        self.assertEqual(dr.execution_date, timezone.datetime(2018, 7, 6, 9, 4, 3))
 
     def test_create_dagrun_execution_date_with_timezone_pst(self):
         data = {
@@ -2658,7 +2658,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-8))))
+        self.assertEqual(dr.execution_date, timezone.datetime(2018, 7, 6, 13, 4, 3))
 
     @conf_vars({("core", "default_timezone"): "America/Toronto"})
     def test_create_dagrun_execution_date_without_timezone_default_edt(self):
@@ -2675,7 +2675,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-4))))
+        self.assertEqual(dr.execution_date, timezone.datetime(2018, 7, 6, 5, 4, 3))
 
     def test_create_dagrun_execution_date_without_timezone_default_utc(self):
         data = {
@@ -2691,7 +2691,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz.utc))
+        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=timezone.TIMEZONE))
 
     def test_create_dagrun_valid_conf(self):
         conf_value = dict(Valid=True)
