@@ -383,6 +383,9 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
             self.hook.table_exists(str(random.randint(1, 10000)))
         )
 
+    def test_drop_partition(self):
+        self.assertTrue(True, self.hook.drop_partitions(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]))
+
 
 class TestHiveServer2Hook(unittest.TestCase):
 
