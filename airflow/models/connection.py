@@ -25,7 +25,6 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
-from sqlalchemy.sql.schema import UniqueConstraint
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
@@ -145,12 +144,9 @@ class Connection(Base, LoggingMixin):
     :type uri: str
     """
     __tablename__ = "connection"
-    __table_args__ = (
-        UniqueConstraint('conn_id', name='unique_conn_id'),
-    )
 
     id = Column(Integer(), primary_key=True)
-    conn_id = Column(String(ID_LEN))
+    conn_id = Column(String(ID_LEN), unique=True)
     conn_type = Column(String(500), nullable=False)
     host = Column(String(500))
     schema = Column(String(500))
