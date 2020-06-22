@@ -262,7 +262,7 @@ a unique ``task_id`` for each generated operator.
 
     # Avoid generating this list dynamically to keep DAG topology stable between DAG runs
     for user_id in user_ids:
-      update_current(user_id)
+      update_user(user_id)
 
     # This will generate an operator for each user_id
 
