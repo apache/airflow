@@ -54,6 +54,11 @@ def mock_plugin_manager(**kwargs):
     Use this context if you want your test to not have side effects in airflow.plugins_manager, and
     other tests do not affect the results of this test.
     """
+    illegal_arguments = set(kwargs.keys()) - set(PLUGINS_MANAGER_NULLABLE_ATTRIBUTES) - {"import_errors"}
+    if illegal_arguments:
+        raise TypeError(
+            f"TypeError: mock_plugin_manager got an unexpected keyword arguments: {illegal_arguments}"
+        )
     with ExitStack() as exit_stack:
         for attr in PLUGINS_MANAGER_NULLABLE_ATTRIBUTES:
             exit_stack.enter_context(  # pylint: disable=no-member

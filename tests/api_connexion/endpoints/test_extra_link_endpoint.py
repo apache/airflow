@@ -16,10 +16,9 @@
 # under the License.
 import unittest
 from unittest import mock
-from urllib.parse import quote
+from urllib.parse import quote_plus
 
 from parameterized import parameterized
-from test_utils.mock_plugins import mock_plugin_manager
 
 from airflow import DAG
 from airflow.models.baseoperator import BaseOperatorLink
@@ -33,30 +32,31 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
+from tests.test_utils.mock_plugins import mock_plugin_manager
 
 
 class TestGetExtraLinks(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with mock.patch.dict('os.environ', SKIP_DAGS_PARSING='True'):
+        with mock.patch.dict("os.environ", SKIP_DAGS_PARSING="True"):
             cls.app = app.create_app(testing=True)  # type:ignore
 
     @provide_session
     def setUp(self, session) -> None:
-        self.now = datetime(2020, 1, 1)
+        self.default_time = datetime(2020, 1, 1)
 
         clear_db_runs()
         clear_db_xcom()
 
         self.dag = self._create_dag()
         self.app.dag_bag.dags = {self.dag.dag_id: self.dag}  # type: ignore  # pylint: disable=no-member
-        self.app.dag_bag.sync_to_db()   # type: ignore  # pylint: disable=no-member
+        self.app.dag_bag.sync_to_db()  # type: ignore  # pylint: disable=no-member
 
         dr = DagRun(
             dag_id=self.dag.dag_id,
             run_id="TEST_DAG_RUN_ID",
-            execution_date=self.now,
+            execution_date=self.default_time,
             run_type=DagRunType.MANUAL.value,
         )
         session.add(dr)
@@ -79,31 +79,41 @@ class TestGetExtraLinks(unittest.TestCase):
     @parameterized.expand(
         [
             (
+                "missing_dag",
                 "/api/v1/dags/INVALID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-                'DAG not found'
+                "DAG not found",
+                'DAG with ID = "INVALID" not found',
             ),
             (
+                "missing_dag_run",
                 "/api/v1/dags/TEST_DAG_ID/dagRuns/INVALID/taskInstances/TEST_SINGLE_QUERY/links",
-                "DAG Run not found"
+                "DAG Run not found",
+                'DAG Run with ID = "INVALID" not found',
             ),
             (
+                "missing_task",
                 "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/INVALID/links",
-                "Task not found"
+                "Task not found",
+                'Task with ID = "INVALID" not found',
             ),
         ]
     )
-    def test_should_response_404_on_invalid_task_id(self, url, expected_title):
+    def test_should_response_404(self, name, url, expected_title, expected_detail):
+        del name
         response = self.client.get(url)
 
         self.assertEqual(404, response.status_code)
-        self.assertEqual({'detail': None, 'status': 404, 'title': expected_title, 'type': 'about:blank'}, response.json)
+        self.assertEqual(
+            {"detail": expected_detail, "status": 404, "title": expected_title, "type": "about:blank"},
+            response.json,
+        )
 
     @mock_plugin_manager(plugins=[])
     def test_should_response_200(self):
         XCom.set(
             key="job_id",
             value="TEST_JOB_ID",
-            execution_date=self.now,
+            execution_date=self.default_time,
             task_id="TEST_SINGLE_QUERY",
             dag_id=self.dag.dag_id,
         )
@@ -113,10 +123,7 @@ class TestGetExtraLinks(unittest.TestCase):
 
         self.assertEqual(200, response.status_code, response.data)
         self.assertEqual(
-            {
-                "BigQuery Console": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID",
-            },
-            response.json,
+            {"BigQuery Console": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID"}, response.json
         )
 
     @mock_plugin_manager(plugins=[])
@@ -127,10 +134,7 @@ class TestGetExtraLinks(unittest.TestCase):
 
         self.assertEqual(200, response.status_code, response.data)
         self.assertEqual(
-            {
-                "BigQuery Console": None,
-            },
-            response.json,
+            {"BigQuery Console": None}, response.json,
         )
 
     @mock_plugin_manager(plugins=[])
@@ -138,7 +142,7 @@ class TestGetExtraLinks(unittest.TestCase):
         XCom.set(
             key="job_id",
             value=["TEST_JOB_ID_1", "TEST_JOB_ID_2"],
-            execution_date=self.now,
+            execution_date=self.default_time,
             task_id="TEST_MULTIPLE_QUERY",
             dag_id=self.dag.dag_id,
         )
@@ -163,11 +167,7 @@ class TestGetExtraLinks(unittest.TestCase):
 
         self.assertEqual(200, response.status_code, response.data)
         self.assertEqual(
-            {
-                "BigQuery Console #1": None,
-                "BigQuery Console #2": None,
-            },
-            response.json,
+            {"BigQuery Console #1": None, "BigQuery Console #2": None}, response.json,
         )
 
     def test_should_response_200_support_plugins(self):
@@ -178,20 +178,24 @@ class TestGetExtraLinks(unittest.TestCase):
                 return "https://www.google.com"
 
         class S3LogLink(BaseOperatorLink):
-            name = 'S3'
+            name = "S3"
             operators = [BigQueryExecuteQueryOperator]
 
             def get_link(self, operator, dttm):
-                return 'https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}'.format(
+                return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}".format(
                     dag_id=operator.dag_id,
                     task_id=operator.task_id,
-                    execution_date=quote(dttm.isoformat()),
+                    execution_date=quote_plus(dttm.isoformat()),
                 )
 
         class AirflowTestPlugin(AirflowPlugin):
             name = "test_plugin"
-            global_operator_extra_links = [GoogleLink(), ]
-            operator_extra_links = [S3LogLink(), ]
+            global_operator_extra_links = [
+                GoogleLink(),
+            ]
+            operator_extra_links = [
+                S3LogLink(),
+            ]
 
         with mock_plugin_manager(plugins=[AirflowTestPlugin]):
             response = self.client.get(
@@ -201,12 +205,12 @@ class TestGetExtraLinks(unittest.TestCase):
             self.assertEqual(200, response.status_code, response.data)
             self.assertEqual(
                 {
-                    'BigQuery Console': None,
-                    'Google': 'https://www.google.com',
-                    'S3': (
-                        'https://s3.amazonaws.com/airflow-logs/'
-                        'TEST_DAG_ID/TEST_SINGLE_QUERY/2020-01-01T00%3A00%3A00%2B00%3A00'
-                    )
+                    "BigQuery Console": None,
+                    "Google": "https://www.google.com",
+                    "S3": (
+                        "https://s3.amazonaws.com/airflow-logs/"
+                        "TEST_DAG_ID/TEST_SINGLE_QUERY/2020-01-01T00%3A00%3A00%2B00%3A00"
+                    ),
                 },
                 response.json,
             )
