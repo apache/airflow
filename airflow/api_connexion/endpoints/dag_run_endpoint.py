@@ -67,40 +67,72 @@ def get_dag_runs(session, dag_id, start_date_gte=None, start_date_lte=None,
     if dag_id != '~':
         query = query.filter(DagRun.dag_id == dag_id)
 
-    # filter start date
-    if start_date_gte:
-        query = query.filter(DagRun.start_date >= start_date_gte)
-
-    if start_date_lte:
-        query = query.filter(DagRun.start_date <= start_date_lte)
-
-    # filter execution date
-    if execution_date_gte:
-        query = query.filter(DagRun.execution_date >= execution_date_gte)
-
-    if execution_date_lte:
-        query = query.filter(DagRun.execution_date <= execution_date_lte)
-
-    # filter end date
-    if end_date_gte:
-        query = query.filter(DagRun.end_date >= end_date_gte)
-
-    if end_date_lte:
-        query = query.filter(DagRun.end_date <= end_date_lte)
-
-    # apply offset and limit
-    dag_run = query.order_by(DagRun.id).offset(offset).limit(limit).all()
-    total_entries = session.query(func.count(DagRun.id)).scalar()
+    dag_run, total_entries = _fetch_dag_runs(query, session, end_date_gte, end_date_lte, execution_date_gte,
+                                             execution_date_lte, start_date_gte, start_date_lte,
+                                             limit, offset)
 
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run,
                                                           total_entries=total_entries))
 
 
-def get_dag_runs_batch():
+def _fetch_dag_runs(query, session, end_date_gte, end_date_lte,
+                    execution_date_gte, execution_date_lte,
+                    start_date_gte, start_date_lte, limit, offset):
+
+    query = _apply_date_filters_to_query(query, end_date_gte, end_date_lte, execution_date_gte,
+                                         execution_date_lte, start_date_gte, start_date_lte)
+    # apply offset and limit
+    dag_run = query.order_by(DagRun.id).offset(offset).limit(limit).all()
+    total_entries = session.query(func.count(DagRun.id)).scalar()
+    return dag_run, total_entries
+
+
+def _apply_date_filters_to_query(query, end_date_gte, end_date_lte, execution_date_gte,
+                                 execution_date_lte, start_date_gte, start_date_lte):
+    # filter start date
+    if start_date_gte:
+        query = query.filter(DagRun.start_date >= start_date_gte)
+    if start_date_lte:
+        query = query.filter(DagRun.start_date <= start_date_lte)
+    # filter execution date
+    if execution_date_gte:
+        query = query.filter(DagRun.execution_date >= execution_date_gte)
+    if execution_date_lte:
+        query = query.filter(DagRun.execution_date <= execution_date_lte)
+    # filter end date
+    if end_date_gte:
+        query = query.filter(DagRun.end_date >= end_date_gte)
+    if end_date_lte:
+        query = query.filter(DagRun.end_date <= end_date_lte)
+    return query
+
+
+@format_parameters({
+    'start_date_gte': format_datetime,
+    'start_date_lte': format_datetime,
+    'execution_date_gte': format_datetime,
+    'execution_date_lte': format_datetime,
+    'end_date_gte': format_datetime,
+    'end_date_lte': format_datetime,
+})
+@provide_session
+def get_dag_runs_batch(session, dag_ids, start_date_gte=None, start_date_lte=None,
+                       execution_date_gte=None, execution_date_lte=None,
+                       end_date_gte=None, end_date_lte=None, offset=None, limit=None):
     """
     Get list of DAG Runs
     """
-    raise NotImplementedError("Not implemented yet.")
+    query = session.query(DagRun)
+
+    if dag_ids:
+        query = query.filter(DagRun.dag_id.in_(dag_ids))
+
+    dag_runs, total_entries = _fetch_dag_runs(query, session, end_date_gte, end_date_lte, execution_date_gte,
+                                              execution_date_lte, start_date_gte, start_date_lte,
+                                              limit, offset)
+
+    return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs,
+                                                          total_entries=total_entries))
 
 
 def patch_dag_run():
