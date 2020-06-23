@@ -21,8 +21,8 @@ import unittest
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 from unittest import mock
-import yaml
 
+import yaml
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException, AirflowFileParseException
@@ -104,7 +104,6 @@ class TestLoadVariables(unittest.TestCase):
             re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
         ):
             local_filesystem.load_variables("a.json")
-
 
     @parameterized.expand(
         (

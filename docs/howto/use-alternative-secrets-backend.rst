@@ -129,7 +129,7 @@ The following is a sample YAML file.
     CONN_B:
       - 'mysq://host_a'
       - 'mysq://host_b'
-    
+
     CONN_C:
       conn_type: scheme
       host: host
@@ -167,9 +167,9 @@ the variable value. The following is a sample JSON file.
 
 The YAML file structure is similar to that of JSON, with key containing the variable key and the value containing
 the variable value. The following is a sample YAML file.
-  
+
   .. code-block:: yaml
-  
+
     VAR_A: some_value
     VAR_B: different_value
 
