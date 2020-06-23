@@ -67,21 +67,21 @@ class DateTimeWithTimezoneField(Field):
             # default timezone
             if len(date_str) == 19:
                 parsed_datetime = dt.strptime(date_str, '%Y-%m-%d %H:%M:%S')
-                defualt_timezone = self._get_defualt_timezone()
-                self.data = defualt_timezone.convert(parsed_datetime)
+                default_timezone = self._get_default_timezone()
+                self.data = default_timezone.convert(parsed_datetime)
             else:
                 self.data = pendulum.parse(date_str)
         except ValueError:
             self.data = None
             raise ValueError(self.gettext('Not a valid datetime value'))
 
-    def _get_defualt_timezone(self):
+    def _get_default_timezone(self):
         current_timezone = conf.get("core", "default_timezone")
         if current_timezone == "system":
-            defualt_timezone = pendulum.local_timezone()
+            default_timezone = pendulum.local_timezone()
         else:
-            defualt_timezone = pendulum.timezone(current_timezone)
-        return defualt_timezone
+            default_timezone = pendulum.timezone(current_timezone)
+        return default_timezone
 
 
 class DateTimeForm(FlaskForm):
