@@ -38,6 +38,7 @@ depends_on = None
 
 
 def get_execution_date_type():
+    """ Get timestamp in correct format """
     conn = op.get_bind()
     if conn.dialect.name == 'mysql':
         return mysql.TIMESTAMP(fsp=6)

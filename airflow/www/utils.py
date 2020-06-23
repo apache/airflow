@@ -379,6 +379,11 @@ class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual
 
 
 class TagContainsFilter(fab_sqlafilters.BaseFilter):
+    """
+    Filter for checking if any of the tags for this TaskInstance
+    contain the specified value
+    """
+
     name = lazy_gettext('Contains')
     arg_name = 'tagct'
 
@@ -391,6 +396,10 @@ class TagContainsFilter(fab_sqlafilters.BaseFilter):
 
 
 class TagNotContainsFilter(fab_sqlafilters.BaseFilter):
+    """
+    Filter for checking if none of the tags for this TaskInstance
+    contain the specified value
+    """
     name = lazy_gettext('Not Contains')
     arg_name = 'tagnct'
 
