@@ -16,7 +16,7 @@
 # under the License.
 from typing import List, NamedTuple
 
-from marshmallow import Schema, fields
+from marshmallow import Schema, ValidationError, fields, validates_schema
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.models import XCom
@@ -36,6 +36,13 @@ class XComCollectionItemSchema(SQLAlchemySchema):
     execution_date = auto_field()
     task_id = auto_field()
     dag_id = auto_field()
+
+    @validates_schema(pass_original=True)
+    def check_unknown_fields(self, data, original_data):
+        """ Validates unknown field """
+        unknown = set(original_data) - set(self.fields)
+        if unknown:
+            raise ValidationError(f'Extra arguments passed: {list(unknown)}')
 
 
 class XComSchema(XComCollectionItemSchema):

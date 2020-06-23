@@ -49,12 +49,9 @@ def delete_xcom_entry(
     if not dag_run:
         raise NotFound(f'DAGRun with dag_id:{dag_id} and run_id:{dag_run_id} not found')
 
-    query = session.query(XCom)
-    query = query.filter(XCom.dag_id == dag_id,
-                         XCom.task_id == task_id,
-                         XCom.key == xcom_key)
-    entry = query.delete()
-
+    entry = session.query(XCom).filter(XCom.dag_id == dag_id,
+                                       XCom.task_id == task_id,
+                                       XCom.key == xcom_key).delete()
     if not entry:
         raise NotFound("XCom entry not found")
 
@@ -117,27 +114,31 @@ def get_xcom_entry(
 
 @provide_session
 def patch_xcom_entry(
+    session: Session,
     dag_id: str,
     dag_run_id: str,
     task_id: str,
     xcom_key: str,
-    update_mask: Optional[List[str]],
-    session: Session
+    update_mask: Optional[List[str]] = None
 ):
     """
     Update an XCom entry
     """
+    dag_run = session.query(DR).filter(DR.run_id == dag_run_id,
+                                       DR.dag_id == dag_id).first()
+    if not dag_run:
+        raise NotFound(f'DAGRun with dag_id:{dag_id} and run_id:{dag_run_id} not found')
 
-    query = session.query(XCom).filter(XCom.dag_id == dag_id,
-                                       XCom.key == xcom_key,
-                                       XCom.task_id == task_id)
-    xcom_entry = query.join(DR).filter(DR.run_id == dag_run_id).first()
+    xcom_entry = session.query(XCom).filter(XCom.dag_id == dag_id,
+                                            XCom.task_id == task_id,
+                                            XCom.key == xcom_key).first()
+
     if not xcom_entry:
-        raise NotFound(f"Xcom not found")
+        raise NotFound("XCom not found")
     try:
         body = xcom_schema.load(request.json)
     except ValidationError as err:
-        raise BadRequest()
+        raise BadRequest(detail=str(err.messages.get('_schema', err.messages)))
     data = body.data
     if update_mask:
         update_mask = [i.strip() for i in update_mask]
@@ -152,7 +153,7 @@ def patch_xcom_entry(
         setattr(xcom_entry, key, data[key])
     session.add(xcom_entry)
     session.commit()
-    return xcom_schema.dumps(xcom_entry)
+    return xcom_schema.dump(xcom_entry)
 
 
 @provide_session
@@ -164,12 +165,15 @@ def post_xcom_entries(dag_id: str,
     """
     Create an XCom entry
     """
-    dag_run = session.query(DR).filter(DR.run_id == dag_run_id,
-                                       DR.dag_id == dag_id).first()
+    # TODO add 409 to spec?
+
+    dag_run = session.query(DR).filter(DR.run_id == dag_run_id, DR.dag_id == dag_id).first()
     if not dag_run:
         raise NotFound(f'DAGRun with dag_id:{dag_id} and run_id:{dag_run_id} not found')
-
-    xcom_entry = xcom_schema.load(request.json)
+    try:
+        xcom_entry = xcom_schema.load(request.json)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages.get('_schema', err.messages)))
 
     xcom = session.query(XCom).filter(XCom.dag_id == dag_id,
                                       XCom.task_id == task_id).first()
@@ -177,6 +181,6 @@ def post_xcom_entries(dag_id: str,
         data = xcom_entry.data
         xcom = XCom(**data)
         session.add(xcom)
-        session.flush()
+        session.commit()
         return xcom_schema.dump(xcom)
     raise AlreadyExists("XCom entry already exists")
