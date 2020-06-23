@@ -324,6 +324,34 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "slots": 3,
                 },
             ),
+            (
+                "200 Update mask with slots and name",
+                200,
+                "api/v1/pools/default_pool?update_mask=name,slots",
+                {"name": "default_pool", "slots": 3},
+                {
+                    "occupied_slots": 0,
+                    "queued_slots": 0,
+                    "name": "default_pool",
+                    "open_slots": 3,
+                    "running_slots": 0,
+                    "slots": 3,
+                },
+            ),
+            (
+                "200 no update mask",
+                200,
+                "api/v1/pools/default_pool?update_mask=name,slots",
+                {"name": "default_pool", "slots": 3},
+                {
+                    "occupied_slots": 0,
+                    "queued_slots": 0,
+                    "name": "default_pool",
+                    "open_slots": 3,
+                    "running_slots": 0,
+                    "slots": 3,
+                },
+            ),
         ]
     )
     def test_patch(self, name, status_code, url, json, expected_response):

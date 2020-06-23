@@ -70,7 +70,7 @@ def patch_pool(pool_name, session, update_mask=None):
     Update a pool
     """
     # Only slots can be modified in 'default_pool'
-    if pool_name == "default_pool":
+    if pool_name == Pool.DEFAULT_POOL_NAME and request.json["name"] != Pool.DEFAULT_POOL_NAME:
         if update_mask and len(update_mask) == 1 and update_mask[0].strip() == "slots":
             pass
         else:
