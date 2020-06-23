@@ -58,4 +58,5 @@ def append_to_pod(pod, k8s_objects):
     """
     if not k8s_objects:
         return pod
-    return reduce(lambda p, o: o.attach_to_pod(p), k8s_objects, pod)
+    new_pod = reduce(lambda p, o: o.attach_to_pod(p), k8s_objects, pod)
+    return new_pod

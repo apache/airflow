@@ -17,6 +17,7 @@
 
 import unittest
 from tests.compat import mock
+import uuid
 import kubernetes.client.models as k8s
 from kubernetes.client import ApiClient
 from airflow.kubernetes.secret import Secret
@@ -42,11 +43,12 @@ class TestPodGenerator(unittest.TestCase):
         ]
         self.resources = Resources('1Gi', 1, '2Gi', 2, 1)
         self.k8s_client = ApiClient()
+        self.static_uuid = uuid.UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
         self.expected = {
             'apiVersion': 'v1',
             'kind': 'Pod',
             'metadata': {
-                'name': 'myapp-pod-0',
+                'name': 'myapp-pod-' + self.static_uuid.hex,
                 'labels': {'app': 'myapp'},
                 'namespace': 'default'
             },
@@ -101,13 +103,13 @@ class TestPodGenerator(unittest.TestCase):
                     'ports': [{'name': 'foo', 'containerPort': 1234}],
                     'volumeMounts': [{
                         'mountPath': '/etc/foo',
-                        'name': 'secretvol0',
+                        'name': 'secretvol' + str(self.static_uuid),
                         'readOnly': True
                     }]
                 }],
                 'restartPolicy': 'Never',
                 'volumes': [{
-                    'name': 'secretvol0',
+                    'name': 'secretvol' + str(self.static_uuid),
                     'secret': {
                         'secretName': 'secret_b'
                     }
@@ -126,7 +128,7 @@ class TestPodGenerator(unittest.TestCase):
 
     @mock.patch('uuid.uuid4')
     def test_gen_pod(self, mock_uuid):
-        mock_uuid.return_value = '0'
+        mock_uuid.return_value = self.static_uuid
         pod_generator = PodGenerator(
             labels={'app': 'myapp'},
             name='myapp-pod',
@@ -155,7 +157,7 @@ class TestPodGenerator(unittest.TestCase):
 
     @mock.patch('uuid.uuid4')
     def test_gen_pod_extract_xcom(self, mock_uuid):
-        mock_uuid.return_value = '0'
+        mock_uuid.return_value = self.static_uuid
         pod_generator = PodGenerator(
             labels={'app': 'myapp'},
             name='myapp-pod',
@@ -201,7 +203,7 @@ class TestPodGenerator(unittest.TestCase):
 
     @mock.patch('uuid.uuid4')
     def test_from_obj(self, mock_uuid):
-        mock_uuid.return_value = '0'
+        mock_uuid.return_value = self.static_uuid
         result = PodGenerator.from_obj({
             "KubernetesExecutor": {
                 "annotations": {"test": "annotation"},
@@ -253,7 +255,7 @@ class TestPodGenerator(unittest.TestCase):
 
     def test_reconcile_pods(self):
         with mock.patch('uuid.uuid4') as mock_uuid:
-            mock_uuid.return_value = '0'
+            mock_uuid.return_value = self.static_uuid
             base_pod = PodGenerator(
                 image='image1',
                 name='name1',
@@ -290,7 +292,7 @@ class TestPodGenerator(unittest.TestCase):
             self.assertEqual(result, {
                 'apiVersion': 'v1',
                 'kind': 'Pod',
-                'metadata': {'name': 'name2-0'},
+                'metadata': {'name': 'name2-' + self.static_uuid.hex},
                 'spec': {
                     'containers': [{
                         'args': [],

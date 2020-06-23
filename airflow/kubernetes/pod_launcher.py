@@ -89,13 +89,16 @@ class PodLauncher(LoggingMixin):
             if e.status != 404:
                 raise
 
-    def run_pod(self, pod, startup_timeout=120, get_logs=True):
+    def start_pod(
+            self,
+            pod,
+            startup_timeout):
         """
         Launches the pod synchronously and waits for completion.
-        Args:
-            pod (Pod):
-            startup_timeout (int): Timeout for startup of the pod (if pod is pending for
-             too long, considers task a failure
+
+        :param pod:
+        :param startup_timeout: Timeout for startup of the pod (if pod is pending for too long, fails task)
+        :return:
         """
         resp = self.run_pod_async(pod)
         curr_time = dt.now()
@@ -107,9 +110,13 @@ class PodLauncher(LoggingMixin):
                 time.sleep(1)
             self.log.debug('Pod not yet started')
 
-        return self._monitor_pod(pod, get_logs)
-
-    def _monitor_pod(self, pod, get_logs):
+    def monitor_pod(self, pod, get_logs):
+        """
+        :param pod: pod spec that will be monitored
+        :type pod : V1Pod
+        :param get_logs: whether to read the logs locally
+        :return:  Tuple[State, Optional[str]]
+        """
 
         if get_logs:
             logs = self.read_pod_logs(pod)
@@ -169,6 +176,23 @@ class PodLauncher(LoggingMixin):
                 follow=True,
                 tail_lines=10,
                 _preload_content=False
+            )
+        except BaseHTTPError as e:
+            raise AirflowException(
+                'There was an error reading the kubernetes API: {}'.format(e)
+            )
+
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(),
+        reraise=True
+    )
+    def read_pod_events(self, pod):
+        """Reads events from the POD"""
+        try:
+            return self._client.list_namespaced_event(
+                namespace=pod.metadata.namespace,
+                field_selector="involvedObject.name={}".format(pod.metadata.name)
             )
         except BaseHTTPError as e:
             raise AirflowException(
