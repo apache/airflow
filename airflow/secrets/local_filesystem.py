@@ -101,7 +101,7 @@ def _parse_yaml_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyn
     try:
         secrets = yaml.safe_load(content)
     except yaml.YAMLError as e:
-        return {}, [FileSyntaxError(line_no=int(e.lineno), message=e.msg)]
+        return {}, [FileSyntaxError(line_no=1, message=str(e))]
     if not isinstance(secrets, dict):
         return {}, [FileSyntaxError(line_no=1, message="The file should contain the object.")]
 
