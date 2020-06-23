@@ -1595,7 +1595,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
         task_instances = {}
-        for ti in dag.get_task_instances(dttm, dttm):
+        for ti in dag.get_task_instances(dttm, dttm, load_task_tags=True):
             task_instances[ti.task_id] = alchemy_to_dict(ti)
             task_instances[ti.task_id]['tags'] = [tag.name for tag in ti.task_tags]
         tasks = {
@@ -2704,7 +2704,7 @@ class TaskInstanceModelView(TaskTagModelView):
         if tags:
             return ', '.join(tags_str)
         else:
-            return ''
+            return ' '
 
     formatters_columns = {
         'log_url': log_url_formatter,
