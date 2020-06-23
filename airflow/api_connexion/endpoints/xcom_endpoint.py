@@ -14,25 +14,51 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import request
 from sqlalchemy import and_, func
-from sqlalchemy.orm.session import Session
+from typing import List, Optional
 
 from airflow.api_connexion import parameters
-from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.xcom_schema import (
     XComCollection, XComCollectionItemSchema, XComCollectionSchema, xcom_collection_item_schema,
     xcom_collection_schema,
 )
+from flask import Response, request
+from marshmallow import ValidationError
+from sqlalchemy.orm.session import Session
+
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.api_connexion.schemas.xcom_schema import xcom_schema
 from airflow.models import DagRun as DR, XCom
 from airflow.utils.session import provide_session
 
 
-def delete_xcom_entry():
+@provide_session
+def delete_xcom_entry(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    xcom_key: str,
+    session: Session
+) -> Response:
     """
     Delete an XCom entry
     """
-    raise NotImplementedError("Not implemented yet.")
+
+    dag_run = session.query(DR).filter(DR.run_id == dag_run_id,
+                                       DR.dag_id == dag_id).first()
+    if not dag_run:
+        raise NotFound(f'DAGRun with dag_id:{dag_id} and run_id:{dag_run_id} not found')
+
+    query = session.query(XCom)
+    query = query.filter(XCom.dag_id == dag_id,
+                         XCom.task_id == task_id,
+                         XCom.key == xcom_key)
+    entry = query.delete()
+
+    if not entry:
+        raise NotFound("XCom entry not found")
+
+    return Response('', 204)
 
 
 @provide_session
@@ -89,15 +115,68 @@ def get_xcom_entry(
     return xcom_collection_item_schema.dump(query_object)
 
 
-def patch_xcom_entry():
+@provide_session
+def patch_xcom_entry(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    xcom_key: str,
+    update_mask: Optional[List[str]],
+    session: Session
+):
     """
     Update an XCom entry
     """
-    raise NotImplementedError("Not implemented yet.")
+
+    query = session.query(XCom).filter(XCom.dag_id == dag_id,
+                                       XCom.key == xcom_key,
+                                       XCom.task_id == task_id)
+    xcom_entry = query.join(DR).filter(DR.run_id == dag_run_id).first()
+    if not xcom_entry:
+        raise NotFound(f"Xcom not found")
+    try:
+        body = xcom_schema.load(request.json)
+    except ValidationError as err:
+        raise BadRequest()
+    data = body.data
+    if update_mask:
+        update_mask = [i.strip() for i in update_mask]
+        data_ = {}
+        for field in update_mask:
+            if field in data:
+                data_[field] = data[field]
+            else:
+                raise BadRequest(f"Unknown field {field} in update_mask")
+        data = data_
+    for key in data:
+        setattr(xcom_entry, key, data[key])
+    session.add(xcom_entry)
+    session.commit()
+    return xcom_schema.dumps(xcom_entry)
 
 
-def post_xcom_entries():
+@provide_session
+def post_xcom_entries(dag_id: str,
+                      dag_run_id: str,
+                      task_id: str,
+                      session: Session
+                      ):
     """
     Create an XCom entry
     """
-    raise NotImplementedError("Not implemented yet.")
+    dag_run = session.query(DR).filter(DR.run_id == dag_run_id,
+                                       DR.dag_id == dag_id).first()
+    if not dag_run:
+        raise NotFound(f'DAGRun with dag_id:{dag_id} and run_id:{dag_run_id} not found')
+
+    xcom_entry = xcom_schema.load(request.json)
+
+    xcom = session.query(XCom).filter(XCom.dag_id == dag_id,
+                                      XCom.task_id == task_id).first()
+    if not xcom:
+        data = xcom_entry.data
+        xcom = XCom(**data)
+        session.add(xcom)
+        session.flush()
+        return xcom_schema.dump(xcom)
+    raise AlreadyExists("XCom entry already exists")
