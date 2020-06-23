@@ -14,20 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from marshmallow import post_dump
+from typing import List, NamedTuple
+
+from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.models import XCom
 
 
 class XComCollectionItemSchema(SQLAlchemySchema):
+    """
+    Schema for a xcom item
+    """
 
     class Meta:
         """ Meta """
         model = XCom
-
-    COLLECTION_NAME = 'xcom_entries'
-    FIELDS_FROM_NONE_TO_EMPTY_STRING = ['key', 'task_id', 'dag_id']
 
     key = auto_field()
     timestamp = auto_field()
@@ -35,33 +37,27 @@ class XComCollectionItemSchema(SQLAlchemySchema):
     task_id = auto_field()
     dag_id = auto_field()
 
-    @post_dump(pass_many=True)
-    def wrap_with_envelope(self, data, many, **kwargs):
-        """
-        :param data: Deserialized data
-        :param many: Collection or an item
-        """
-        if many:
-            data = self._process_list_data(data)
-            return {self.COLLECTION_NAME: data, 'total_entries': len(data)}
-        data = self._process_data(data)
-        return data
-
-    def _process_list_data(self, data):
-        return [self._process_data(x) for x in data]
-
-    def _process_data(self, data):
-        for key in self.FIELDS_FROM_NONE_TO_EMPTY_STRING:
-            if not data[key]:
-                data.update({key: ''})
-        return data
-
 
 class XComSchema(XComCollectionItemSchema):
+    """
+    XCom schema
+    """
 
     value = auto_field()
 
 
-xcom_schema = XComSchema()
-xcom_collection_item_schema = XComCollectionItemSchema()
-xcom_collection_schema = XComCollectionItemSchema(many=True)
+class XComCollection(NamedTuple):
+    """ List of XComs with meta"""
+    xcom_entries: List[XCom]
+    total_entries: int
+
+
+class XComCollectionSchema(Schema):
+    """ XCom Collection Schema"""
+    xcom_entries = fields.List(fields.Nested(XComCollectionItemSchema))
+    total_entries = fields.Int()
+
+
+xcom_schema = XComSchema(strict=True)
+xcom_collection_item_schema = XComCollectionItemSchema(strict=True)
+xcom_collection_schema = XComCollectionSchema(strict=True)

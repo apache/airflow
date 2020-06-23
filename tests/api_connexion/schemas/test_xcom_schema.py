@@ -19,26 +19,43 @@ import unittest
 from sqlalchemy import or_
 
 from airflow.api_connexion.schemas.xcom_schema import (
-    xcom_collection_item_schema, xcom_collection_schema, xcom_schema,
+    XComCollection, xcom_collection_item_schema, xcom_collection_schema, xcom_schema,
 )
 from airflow.models import XCom
-from airflow.utils import timezone
+from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session, provide_session
 
 
-class TestXComCollectionItemSchema(unittest.TestCase):
+class TestXComSchemaBase(unittest.TestCase):
 
-    def setUp(self) -> None:
-        self.now = timezone.utcnow()
+    def setUp(self):
+        """
+        Clear Hanging XComs pre test
+        """
         with create_session() as session:
             session.query(XCom).delete()
+
+    def tearDown(self) -> None:
+        """
+        Clear Hanging XComs post test
+        """
+        with create_session() as session:
+            session.query(XCom).delete()
+
+
+class TestXComCollectionItemSchema(TestXComSchemaBase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.default_time = '2005-04-02T21:00:00+00:00'
+        self.default_time_parsed = parse_execution_date(self.default_time)
 
     @provide_session
     def test_serialize(self, session):
         xcom_model = XCom(
             key='test_key',
-            timestamp=self.now,
-            execution_date=self.now,
+            timestamp=self.default_time_parsed,
+            execution_date=self.default_time_parsed,
             task_id='test_task_id',
             dag_id='test_dag',
         )
@@ -50,19 +67,18 @@ class TestXComCollectionItemSchema(unittest.TestCase):
             deserialized_xcom[0],
             {
                 'key': 'test_key',
-                'timestamp': self.now.isoformat(),
-                'execution_date': self.now.isoformat(),
+                'timestamp': self.default_time,
+                'execution_date': self.default_time,
                 'task_id': 'test_task_id',
                 'dag_id': 'test_dag',
             }
         )
 
-    @provide_session
-    def test_deserialize(self, session):
+    def test_deserialize(self):
         xcom_dump = {
             'key': 'test_key',
-            'timestamp': self.now.isoformat(),
-            'execution_date': self.now.isoformat(),
+            'timestamp': self.default_time,
+            'execution_date': self.default_time,
             'task_id': 'test_task_id',
             'dag_id': 'test_dag',
         }
@@ -71,82 +87,87 @@ class TestXComCollectionItemSchema(unittest.TestCase):
             result[0],
             {
                 'key': 'test_key',
-                'timestamp': self.now,
-                'execution_date': self.now,
+                'timestamp': self.default_time_parsed,
+                'execution_date': self.default_time_parsed,
                 'task_id': 'test_task_id',
                 'dag_id': 'test_dag',
             }
         )
 
 
-class TestXComCollectionSchema(unittest.TestCase):
+class TestXComCollectionSchema(TestXComSchemaBase):
 
     def setUp(self) -> None:
-        self.t1 = timezone.utcnow()
-        self.t2 = timezone.utcnow()
-        with create_session() as session:
-            session.query(XCom).delete()
+        super().setUp()
+        self.default_time_1 = '2005-04-02T21:00:00+00:00'
+        self.default_time_2 = '2005-04-02T21:01:00+00:00'
+        self.time_1 = parse_execution_date(self.default_time_1)
+        self.time_2 = parse_execution_date(self.default_time_2)
 
     @provide_session
     def test_serialize(self, session):
         xcom_model_1 = XCom(
             key='test_key_1',
-            timestamp=self.t1,
-            execution_date=self.t1,
+            timestamp=self.time_1,
+            execution_date=self.time_1,
             task_id='test_task_id_1',
             dag_id='test_dag_1',
         )
         xcom_model_2 = XCom(
             key='test_key_2',
-            timestamp=self.t2,
-            execution_date=self.t2,
+            timestamp=self.time_2,
+            execution_date=self.time_2,
             task_id='test_task_id_2',
             dag_id='test_dag_2',
         )
         xcom_models = [xcom_model_1, xcom_model_2]
         session.add_all(xcom_models)
         session.commit()
-        xcom_models_queried = session.query(XCom).filter(
-            or_(XCom.execution_date == self.t1, XCom.execution_date == self.t2)
-        ).all()
-        deserialized_xcoms = xcom_collection_schema.dump(xcom_models_queried)
+        xcom_models_query = session.query(XCom).filter(
+            or_(XCom.execution_date == self.time_1, XCom.execution_date == self.time_2)
+        )
+        xcom_models_queried = xcom_models_query.all()
+        deserialized_xcoms = xcom_collection_schema.dump(XComCollection(
+            xcom_entries=xcom_models_queried,
+            total_entries=xcom_models_query.count(),
+        ))
         self.assertEqual(
             deserialized_xcoms[0],
             {
                 'xcom_entries': [
                     {
                         'key': 'test_key_1',
-                        'timestamp': self.t1.isoformat(),
-                        'execution_date': self.t1.isoformat(),
+                        'timestamp': self.default_time_1,
+                        'execution_date': self.default_time_1,
                         'task_id': 'test_task_id_1',
                         'dag_id': 'test_dag_1',
                     },
                     {
                         'key': 'test_key_2',
-                        'timestamp': self.t2.isoformat(),
-                        'execution_date': self.t2.isoformat(),
+                        'timestamp': self.default_time_2,
+                        'execution_date': self.default_time_2,
                         'task_id': 'test_task_id_2',
                         'dag_id': 'test_dag_2',
                     }
                 ],
-                'total_entries': 2
+                'total_entries': len(xcom_models),
             }
         )
 
 
-class TestXComSchema(unittest.TestCase):
+class TestXComSchema(TestXComSchemaBase):
 
     def setUp(self) -> None:
-        self.now = timezone.utcnow()
-        with create_session() as session:
-            session.query(XCom).delete()
+        super().setUp()
+        self.default_time = '2005-04-02T21:00:00+00:00'
+        self.default_time_parsed = parse_execution_date(self.default_time)
 
     @provide_session
     def test_serialize(self, session):
         xcom_model = XCom(
             key='test_key',
-            timestamp=self.now,
-            execution_date=self.now,
+            timestamp=self.default_time_parsed,
+            execution_date=self.default_time_parsed,
             task_id='test_task_id',
             dag_id='test_dag',
             value=b'test_binary',
@@ -159,20 +180,19 @@ class TestXComSchema(unittest.TestCase):
             deserialized_xcom[0],
             {
                 'key': 'test_key',
-                'timestamp': self.now.isoformat(),
-                'execution_date': self.now.isoformat(),
+                'timestamp': self.default_time,
+                'execution_date': self.default_time,
                 'task_id': 'test_task_id',
                 'dag_id': 'test_dag',
                 'value': 'test_binary',
             }
         )
 
-    @provide_session
-    def test_deserialize(self, session):
+    def test_deserialize(self):
         xcom_dump = {
             'key': 'test_key',
-            'timestamp': self.now.isoformat(),
-            'execution_date': self.now.isoformat(),
+            'timestamp': self.default_time,
+            'execution_date': self.default_time,
             'task_id': 'test_task_id',
             'dag_id': 'test_dag',
             'value': b'test_binary',
@@ -182,8 +202,8 @@ class TestXComSchema(unittest.TestCase):
             result[0],
             {
                 'key': 'test_key',
-                'timestamp': self.now,
-                'execution_date': self.now,
+                'timestamp': self.default_time_parsed,
+                'execution_date': self.default_time_parsed,
                 'task_id': 'test_task_id',
                 'dag_id': 'test_dag',
                 'value': 'test_binary',

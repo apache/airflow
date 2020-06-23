@@ -2193,17 +2193,6 @@ components:
       required: true
       description: The Variable Key.
 
-    ExecutionDate:
-      in: path
-      name: execution_date
-      schema:
-        type: string
-        format: date-time
-      required: true
-      description: The date-time notation as defined by
-        [RFC 3339, section 5.6](https://tools.ietf.org/html/rfc3339#section-5.6),
-        E.G. `2017-07-21T17:32:28Z`
-
     # Logs
     FullContent:
       in: query
