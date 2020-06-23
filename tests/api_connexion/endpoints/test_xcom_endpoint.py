@@ -347,7 +347,8 @@ class TestPostXComEntry(TestXComEndpoint):
             'execution_date': EXECUTION_DATE,
             'key': XCOM_KEY,
             'task_id': TASK_ID,
-            'timestamp': EXECUTION_DATE
+            'timestamp': EXECUTION_DATE,
+            'value': "{'key':'val'}"
         }
 
         dag_run_id = self._create_dag_run(session)
@@ -371,15 +372,17 @@ class TestPostXComEntry(TestXComEndpoint):
                     'execution_date': EXECUTION_DATE,
                     'key': XCOM_KEY,
                     'task_id': TASK_ID,
+                    'value': 'someval',
                     'var': 'Unknown'  # unknown field
                 },
-                '["Extra arguments passed: [\'var\']"]'
+                "Extra arguments passed: ['var']"
             ),
             (
                 {
                     'dag_id': DAG_ID,
                     'execution_date': EXECUTION_DATE,
                     'key': XCOM_KEY,
+                    'value': 'someval'
                     # task_id missing
                 },
                 "{'task_id': ['Missing data for required field.']}"
@@ -431,6 +434,7 @@ class TestPostXComEntry(TestXComEndpoint):
             'execution_date': EXECUTION_DATE,
             'key': XCOM_KEY,
             'task_id': TASK_ID,
+            'value': "value"
         }
         response = self.client.post(url, json=payload)
         self.assertEqual(response.status_code, 200)

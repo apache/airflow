@@ -50,7 +50,7 @@ class XComSchema(XComCollectionItemSchema):
     XCom schema
     """
 
-    value = auto_field()
+    value = auto_field(required=True)
 
 
 class XComCollection(NamedTuple):

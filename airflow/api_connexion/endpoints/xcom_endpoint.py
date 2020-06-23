@@ -138,7 +138,7 @@ def patch_xcom_entry(
     try:
         body = xcom_schema.load(request.json)
     except ValidationError as err:
-        raise BadRequest(detail=str(err.messages.get('_schema', err.messages)))
+        raise BadRequest(detail=err.messages.get('_schema', [str(err.messages)])[0])
     data = body.data
     if update_mask:
         update_mask = [i.strip() for i in update_mask]
@@ -149,6 +149,7 @@ def patch_xcom_entry(
             else:
                 raise BadRequest(f"Unknown field {field} in update_mask")
         data = data_
+    data['value'] = XCom.serialize_value(data['value'])
     for key in data:
         setattr(xcom_entry, key, data[key])
     session.add(xcom_entry)
@@ -173,13 +174,14 @@ def post_xcom_entries(dag_id: str,
     try:
         xcom_entry = xcom_schema.load(request.json)
     except ValidationError as err:
-        raise BadRequest(detail=str(err.messages.get('_schema', err.messages)))
+        raise BadRequest(detail=err.messages.get('_schema', [str(err.messages)])[0])
 
     xcom = session.query(XCom).filter(XCom.dag_id == dag_id,
                                       XCom.task_id == task_id).first()
     if not xcom:
         data = xcom_entry.data
-        xcom = XCom(**data)
+        data['value'] = XCom.serialize_value(data['value'])
+        xcom=XCom(**data)
         session.add(xcom)
         session.commit()
         return xcom_schema.dump(xcom)
