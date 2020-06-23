@@ -3547,9 +3547,9 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
             # One DAG with one task per DAG file
             (13, 1, 1),  # noqa
             # One DAG with five tasks per DAG  file
-            (25, 1, 5),  # noqa
+            (21, 1, 5),  # noqa
             # 10 DAGs with 10 tasks per DAG file
-            (108, 10, 10),  # noqa
+            (77, 10, 10),  # noqa
         ]
     )
     def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
