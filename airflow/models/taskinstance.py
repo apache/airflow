@@ -33,7 +33,7 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
-from sqlalchemy.orm import backref, joinedload, reconstructor, relationship
+from sqlalchemy.orm import backref, reconstructor, relationship
 from sqlalchemy.orm.session import Session
 from sqlalchemy.schema import ForeignKeyConstraint, PrimaryKeyConstraint
 from sqlalchemy.sql.elements import BooleanClauseList
@@ -240,7 +240,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
-    task_tags = relationship('TaskTag', backref=backref('task_instance'), lazy='joined')
+    task_tags = relationship('TaskTag', backref=backref('task_instance'), passive_deletes=True, lazy='raise')
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
 
@@ -541,7 +541,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """
         self.log.debug("Refreshing TaskInstance %s from DB", self)
 
-        qry = session.query(TaskInstance).options(joinedload(TaskInstance.task_tags)).filter(
+        qry = session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.execution_date == self.execution_date)

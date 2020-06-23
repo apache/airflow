@@ -843,17 +843,20 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def get_task_instances(
-            self, start_date=None, end_date=None, state=None, session=None):
+            self, start_date=None, end_date=None, state=None, session=None, load_task_tags=False):
         if not start_date:
             start_date = (timezone.utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
 
-        tis = session.query(TaskInstance).options(joinedload(TaskInstance.task_tags)).filter(
+        tis = session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.execution_date >= start_date,
             TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
         )
+
+        if load_task_tags:
+            tis = tis.options(joinedload(TaskInstance.task_tags))
 
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:
