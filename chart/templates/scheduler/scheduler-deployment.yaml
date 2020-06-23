@@ -96,7 +96,7 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           # Support running against 1.10.x and 2.0.0dev/master
-          args: ["bash", "-c", "airflow upgradedb || airfow db upgrade"]
+          args: ["bash", "-c", "airflow upgradedb || airflow db upgrade"]
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
