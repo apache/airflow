@@ -32,9 +32,7 @@ from sqlalchemy.orm import joinedload
 from wtforms.fields import StringField
 
 from airflow.configuration import conf
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskTag
-from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
@@ -380,6 +378,11 @@ class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual
 
 
 class TagContainsFilter(fab_sqlafilters.BaseFilter):
+    """
+    Filter for checking if any of the tags for this TaskInstance
+    contain the specified value
+    """
+
     name = lazy_gettext('Contains')
     arg_name = 'tagct'
 
@@ -392,6 +395,10 @@ class TagContainsFilter(fab_sqlafilters.BaseFilter):
 
 
 class TagNotContainsFilter(fab_sqlafilters.BaseFilter):
+    """
+    Filter for checking if none of the tags for this TaskInstance
+    contain the specified value
+    """
     name = lazy_gettext('Not Contains')
     arg_name = 'tagnct'
 
