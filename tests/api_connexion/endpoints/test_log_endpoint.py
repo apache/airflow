@@ -151,9 +151,20 @@ class TestGetLog(unittest.TestCase):
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers=headers
         )
-        self.assertIn('content', response.json)
-        self.assertIn('continuation_token', response.json)
-        self.assertIn('Log for testing.', response.json.get('content'))
+        expected_filename = "{}/{}/{}/{}/1.log".format(
+            self.log_dir,
+            self.DAG_ID,
+            self.TASK_ID,
+            self.default_time.replace(":", ".")
+        )
+        self.assertEqual(
+            response.json['content'],
+            f"*** Reading local file: {expected_filename}\nLog for testing."
+        )
+        self.assertIn(
+            response.json['continuation_token'],
+            "{'end_of_log': True}"
+        )
         self.assertEqual(200, response.status_code)
 
     @provide_session
@@ -168,9 +179,17 @@ class TestGetLog(unittest.TestCase):
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'text/plain'}
         )
-        assert response.status_code == 200
+        expected_filename = "{}/{}/{}/{}/1.log".format(
+            self.log_dir,
+            self.DAG_ID,
+            self.TASK_ID,
+            self.default_time.replace(':', '.')
+        )
         self.assertEqual(200, response.status_code)
-        self.assertIn('Log for testing.', response.data.decode('utf-8'))
+        self.assertEqual(
+            response.data.decode('utf-8'),
+            f"*** Reading local file: {expected_filename}\nLog for testing.\n"
+        )
 
     @provide_session
     def test_get_logs_response_with_ti_equal_to_none(self, session):
@@ -183,8 +202,10 @@ class TestGetLog(unittest.TestCase):
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/Invalid-Task-ID/logs/1?token={token}",
         )
-        self.assertIn('content', response.json)
-        self.assertIn('continuation_token', response.json)
+        self.assertEqual(
+            "{'download_logs': True, 'end_of_log': True}",
+            response.json['continuation_token']
+        )
         self.assertEqual("[*** Task instance did not exist in the DB\n]",
                          response.json['content'])
 
