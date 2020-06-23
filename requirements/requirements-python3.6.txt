@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.14.7
+boto3==1.14.8
 boto==2.49.0
-botocore==1.17.7
+botocore==1.17.8
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.0
@@ -101,7 +101,7 @@ cryptography==2.9.2
 curlify==2.2.1
 cx-Oracle==7.3.0
 dask==2.19.0
-datadog==0.36.0
+datadog==0.37.0
 decorator==4.4.2
 defusedxml==0.6.0
 dill==0.3.2
@@ -120,8 +120,8 @@ email-validator==1.1.1
 entrypoints==0.3
 eventlet==0.25.2
 execnet==1.7.1
-facebook-business==7.0.2
-fastavro==0.23.4
+facebook-business==7.0.3
+fastavro==0.23.5
 filelock==3.0.12
 fissix==20.5.1
 flake8-colors==0.1.6
@@ -180,7 +180,7 @@ hmsclient==0.1.1
 httplib2==0.18.1
 humanize==0.5.1
 hvac==0.10.4
-identify==1.4.19
+identify==1.4.20
 idna-ssl==1.1.0
 idna==2.9
 ijson==2.6.1
@@ -201,7 +201,7 @@ jira==2.0.0
 jmespath==0.10.0
 json-merge-patch==0.2
 jsondiff==1.1.2
-jsonpatch==1.25
+jsonpatch==1.26
 jsonpickle==1.4.1
 jsonpointer==2.0
 jsonschema==3.2.0
@@ -239,7 +239,7 @@ networkx==2.4
 nodeenv==1.4.0
 nteract-scrapbook==0.4.1
 ntlm-auth==1.5.0
-numpy==1.18.5
+numpy==1.19.0
 oauthlib==2.1.0
 openapi-spec-validator==0.2.8
 oscrypto==1.2.0
@@ -380,14 +380,14 @@ uritemplate==3.0.1
 urllib3==1.25.9
 vertica-python==0.10.4
 vine==1.3.0
-virtualenv==20.0.23
+virtualenv==20.0.24
 watchtower==0.7.3
 wcwidth==0.2.4
 websocket-client==0.57.0
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.23.0
-yandexcloud==0.41.0
+yandexcloud==0.42.0
 yarl==1.4.2
 zdesk==2.7.1
 zict==2.0.0

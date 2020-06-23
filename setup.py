@@ -709,6 +709,7 @@ INSTALL_REQUIREMENTS = [
     'lazy_object_proxy~=1.3',
     'lockfile>=0.12.2',
     'markdown>=2.5.2, <3.0',
+    'markupsafe>=1.1.1, <2.0',
     'pandas>=0.17.1, <2.0',
     'pendulum~=2.0',
     'pep562~=1.0;python_version<"3.7"',

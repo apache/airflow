@@ -17,7 +17,8 @@
 # under the License.
 
 from flask_appbuilder.widgets import RenderTemplateWidget
-from wtforms.widgets import HTMLString, html_params
+from markupsafe import Markup
+from wtforms.widgets import html_params
 
 
 class AirflowModelListWidget(RenderTemplateWidget):
@@ -43,6 +44,6 @@ class AirflowDateTimePickerWidget:
             field.data = ""
         template = self.data_template
 
-        return HTMLString(
+        return Markup(
             template % {"text": html_params(type="text", value=field.data, **kwargs)}
         )
