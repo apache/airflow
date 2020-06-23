@@ -279,7 +279,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         print(logs)     # In case of a test failures this line would show detailed log
         logs_list = logs.splitlines()
 
-        ltj_exit_code_log_line = [log for log in logs_list if "Task exited with return code 0" in log]
+        ltj_exit_code_log_line = [log for log in logs_list if "Task exited with return code" in log]
         self.assertEqual(len(ltj_exit_code_log_line), 1)
         self.assertIn("local_task_job.py", ltj_exit_code_log_line[0])
         self.assertNotIn("logging_mixin.py", ltj_exit_code_log_line[0])
@@ -303,7 +303,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         print(logs)     # In case of a test failures this line would show detailed log
         logs_list = logs.splitlines()
 
-        ltj_exit_code_log_line = [log for log in logs_list if "Task exited with return code 0" in log]
+        ltj_exit_code_log_line = [log for log in logs_list if "Task exited with return code" in log]
         self.assertEqual(len(ltj_exit_code_log_line), 1)
         self.assertIn("local_task_job.py", ltj_exit_code_log_line[0])
         self.assertNotIn("logging_mixin.py", ltj_exit_code_log_line[0])
