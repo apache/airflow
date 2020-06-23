@@ -40,7 +40,6 @@ from tests.test_utils.db import clear_db_runs
 
 class TestGetLog(unittest.TestCase):
     DAG_ID = 'dag_for_testing_log_endpoint'
-    DAG_ID_REMOVED = 'removed_dag_for_testing_log_endpoint'
     TASK_ID = 'task_for_testing_log_endpoint'
     TRY_NUMBER = 1
 
@@ -98,8 +97,6 @@ class TestGetLog(unittest.TestCase):
         dagbag = self.app.dag_bag  # pylint: disable=no-member
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
         dag.sync_to_db()
-        dag_removed = DAG(self.DAG_ID_REMOVED, start_date=timezone.parse(self.default_time))
-        dag_removed.sync_to_db()
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
         with create_session() as session:
             self.ti = TaskInstance(
@@ -107,14 +104,7 @@ class TestGetLog(unittest.TestCase):
                 execution_date=timezone.parse(self.default_time)
             )
             self.ti.try_number = 1
-            self.ti_removed_dag = TaskInstance(
-                task=DummyOperator(task_id=self.TASK_ID, dag=dag_removed),
-                execution_date=timezone.parse(self.default_time)
-            )
-            self.ti_removed_dag.try_number = 1
-
             session.merge(self.ti)
-            session.merge(self.ti_removed_dag)
 
     def _prepare_log_files(self):
         dir_path = f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/" \
