@@ -1,0 +1,33 @@
+# ref: https://docs.gitlab.com/ee/ci/README.html
+
+stages:
+  - test
+
+.nosetest:
+  stage: test
+  script:
+   - pip install -r requirements.txt
+   - pip install -r test-requirements.txt
+   - pytest --cov=airflow_client
+
+nosetest-2.7:
+  extends: .nosetest
+  image: python:2.7-alpine
+nosetest-3.3:
+  extends: .nosetest
+  image: python:3.3-alpine
+nosetest-3.4:
+  extends: .nosetest
+  image: python:3.4-alpine
+nosetest-3.5:
+  extends: .nosetest
+  image: python:3.5-alpine
+nosetest-3.6:
+  extends: .nosetest
+  image: python:3.6-alpine
+nosetest-3.7:
+  extends: .nosetest
+  image: python:3.7-alpine
+nosetest-3.8:
+  extends: .nosetest
+  image: python:3.8-alpine

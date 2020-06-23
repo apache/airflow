@@ -1,0 +1,66 @@
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+
+group = 'org.apache.airflow'
+version = '1.0.0'
+
+buildscript {
+    repositories {
+        maven { url "https://repo1.maven.org/maven2" }
+        jcenter()
+    }
+}
+
+repositories {
+    maven { url "https://repo1.maven.org/maven2" }
+    jcenter()
+}
+
+apply plugin: 'java'
+apply plugin: 'maven'
+
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+
+install {
+    repositories.mavenInstaller {
+        pom.artifactId = 'airflow-java-client'
+    }
+}
+
+task execute(type:JavaExec) {
+   main = System.getProperty('mainClass')
+   classpath = sourceSets.main.runtimeClasspath
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives sourcesJar
+    archives javadocJar
+}
+
+
+ext {
+    swagger_annotations_version = "1.5.22"
+    jackson_version = "2.9.9"
+    junit_version = "4.13"
+}
+
+dependencies {
+    compile "io.swagger:swagger-annotations:$swagger_annotations_version"
+    compile "com.google.code.findbugs:jsr305:3.0.2"
+    compile "com.fasterxml.jackson.core:jackson-core:$jackson_version"
+    compile "com.fasterxml.jackson.core:jackson-annotations:$jackson_version"
+    compile "com.fasterxml.jackson.core:jackson-databind:$jackson_version"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson_version"
+    testCompile "junit:junit:$junit_version"
+}

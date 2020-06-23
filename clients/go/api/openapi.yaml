@@ -1,0 +1,4120 @@
+openapi: 3.0.3
+info:
+  contact:
+    email: dev@airflow.apache.org
+    name: Apache Software Foundation
+    url: https://airflow.apache.org
+  description: Apache Airflow management API.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: Airflow API (Stable)
+  version: 1.0.0
+externalDocs:
+  url: http://airflow.apache.org/docs/stable/
+servers:
+- description: Apache Airflow Stable API.
+  url: /api/v1
+tags:
+- name: Config
+- name: Connection
+- name: DAG
+- name: DAGRun
+- name: EventLog
+- name: ImportError
+- name: Monitoring
+- name: Pool
+- name: TaskInstance
+- name: Variable
+- name: XCom
+paths:
+  /connections:
+    get:
+      operationId: get_connections
+      parameters:
+      - description: The numbers of items to return.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ConnectionCollection'
+                - $ref: '#/components/schemas/CollectionInfo'
+          description: List of connection entry.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Get all connection entries
+      tags:
+      - Connection
+      x-swagger-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+    post:
+      operationId: post_connection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Connection'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: Successful response.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Create connection entry
+      tags:
+      - Connection
+      x-swagger-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+  /connections/{connection_id}:
+    delete:
+      operationId: delete_connection
+      parameters:
+      - description: The Connection ID.
+        explode: false
+        in: path
+        name: connection_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: No content.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Delete a connection entry
+      tags:
+      - Connection
+      x-swagger-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+    get:
+      operationId: get_connection
+      parameters:
+      - description: The Connection ID.
+        explode: false
+        in: path
+        name: connection_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get a connection entry
+      tags:
+      - Connection
+      x-swagger-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+    patch:
+      operationId: patch_connection
+      parameters:
+      - description: The Connection ID.
+        explode: false
+        in: path
+        name: connection_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: |
+          The fields to update on the connection (connection, pool etc). If absent or empty, all modifiable fields are updated. A comma-separated list of fully qualified names of fields.
+        explode: false
+        in: query
+        name: update_mask
+        required: false
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Connection'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: Successful response.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Update a connection entry
+      tags:
+      - Connection
+      x-swagger-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+  /dags:
+    get:
+      operationId: get_dags
+      parameters:
+      - description: The numbers of items to return.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/DAGCollection'
+                - $ref: '#/components/schemas/CollectionInfo'
+          description: List of DAGs.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+      summary: Get all DAGs
+      tags:
+      - DAG
+      x-swagger-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+  /dags/{dag_id}:
+    get:
+      description: |
+        Presents only information available in database (DAGModel).
+        If you need detailed information, consider using GET /dags/{dag_id}/detail.
+      operationId: get_dag
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAG'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get basic information about a DAG
+      tags:
+      - DAG
+      x-swagger-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+    patch:
+      operationId: patch_dag
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAG'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAG'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Update a DAG
+      tags:
+      - DAG
+      x-swagger-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+  /dags/{dag_id}/clearTaskInstances:
+    post:
+      operationId: post_clear_task_instances
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClearTaskInstance'
+        description: Parameters of action
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceReferenceCollection'
+          description: A list of cleared task references
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Clears a set of task instances associated with the DAG for a specified
+        date range.
+      tags:
+      - DAG
+      x-swagger-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+  /dags/{dag_id}/dagRuns:
+    get:
+      description: |
+        This endpoint allows specifying `~` as the dag_id to retrieve DAG Runs for all DAGs.
+      operationId: get_dag_runs
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The numbers of items to return.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+        style: form
+      - description: |
+          Returns objects greater or equal to the specified date.
+          This can be combined with execution_date_lte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: execution_date_gte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: |
+          Returns objects less than or equal to the specified date.
+          This can be combined with execution_date_gte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: execution_date_lte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: |
+          Returns objects greater or equal the specified date.
+          This can be combined with startd_ate_lte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: start_date_gte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: |
+          Returns objects less or equal the specified date.
+          This can be combined with start_date_gte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: start_date_lte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: |
+          Returns objects greater or equal the specified date.
+          This can be combined with start_date_lte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: end_date_gte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: |
+          Returns objects less than or equal to the specified date.
+          This can be combined with start_date_gte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: end_date_lte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/DAGRunCollection'
+                - $ref: '#/components/schemas/CollectionInfo'
+          description: List of DAG Runs.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+      summary: Get all DAG Runs
+      tags:
+      - DAGRun
+      x-swagger-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+  /dags/~/dagRuns/list:
+    post:
+      description: |
+        This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it would run in to maximum HTTP request URL lengthlimits
+      operationId: get_dag_runs_batch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListDagRunsForm'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/DAGRunCollection'
+                - $ref: '#/components/schemas/CollectionInfo'
+          description: List of DAG Runs.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Get all DAG Runs from aall DAGs.
+      tags:
+      - DAGRun
+      x-swagger-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+  /dags/{dag_id}/dagRuns/{dag_run_id}:
+    delete:
+      operationId: delete_dag_run
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: No content.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Delete a DAG Run
+      tags:
+      - DAGRun
+      x-swagger-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+    get:
+      operationId: get_dag_run
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get a DAG Run
+      tags:
+      - DAGRun
+      x-swagger-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+    patch:
+      operationId: patch_dag_run
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: |
+          The fields to update on the connection (connection, pool etc). If absent or empty, all modifiable fields are updated. A comma-separated list of fully qualified names of fields.
+        explode: false
+        in: query
+        name: update_mask
+        required: false
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRun'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+          description: Successful response.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Update a DAG Run
+      tags:
+      - DAGRun
+      x-swagger-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+    post:
+      operationId: post_dag_run
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRun'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+          description: Successful response.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: The resource that a client tried to create already exists.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Trigger a DAG Run
+      tags:
+      - DAGRun
+      x-swagger-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+  /eventLogs:
+    get:
+      operationId: get_event_logs
+      parameters:
+      - description: The numbers of items to return.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/EventLogCollection'
+                - $ref: '#/components/schemas/CollectionInfo'
+          description: List of log entries.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Get all log entries from event log
+      tags:
+      - EventLog
+      x-swagger-router-controller: airflow.api_connexion.endpoints.event_log_endpoint
+  /eventLogs/{event_log_id}:
+    get:
+      operationId: get_event_log
+      parameters:
+      - description: The Event Log ID.
+        explode: false
+        in: path
+        name: event_log_id
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventLog'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get a log entry
+      tags:
+      - EventLog
+      x-swagger-router-controller: airflow.api_connexion.endpoints.event_log_endpoint
+  /importErrors:
+    get:
+      operationId: get_import_errors
+      parameters:
+      - description: The numbers of items to return.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ImportErrorCollection'
+                - $ref: '#/components/schemas/CollectionInfo'
+          description: List of import errors.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Get all import errors
+      tags:
+      - ImportError
+      x-swagger-router-controller: airflow.api_connexion.endpoints.import_error_endpoint
+  /importErrors/{import_error_id}:
+    get:
+      operationId: get_import_error
+      parameters:
+      - description: The Import Error ID.
+        explode: false
+        in: path
+        name: import_error_id
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportError'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get an import error
+      tags:
+      - ImportError
+      x-swagger-router-controller: airflow.api_connexion.endpoints.import_error_endpoint
+  /pools:
+    get:
+      operationId: get_pools
+      parameters:
+      - description: The numbers of items to return.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/PoolCollection'
+                - $ref: '#/components/schemas/CollectionInfo'
+          description: List of pools.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Get all pools
+      tags:
+      - Pool
+      x-swagger-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+    post:
+      operationId: post_pool
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pool'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+          description: Successful response.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Create a pool
+      tags:
+      - Pool
+      x-swagger-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+  /pools/{pool_name}:
+    delete:
+      operationId: delete_pool
+      parameters:
+      - description: The Pool name.
+        explode: false
+        in: path
+        name: pool_name
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: No content.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Delete a pool
+      tags:
+      - Pool
+      x-swagger-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+    get:
+      operationId: get_pool
+      parameters:
+      - description: The Pool name.
+        explode: false
+        in: path
+        name: pool_name
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get a pool
+      tags:
+      - Pool
+      x-swagger-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+    patch:
+      operationId: patch_pool
+      parameters:
+      - description: The Pool name.
+        explode: false
+        in: path
+        name: pool_name
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: |
+          The fields to update on the connection (connection, pool etc). If absent or empty, all modifiable fields are updated. A comma-separated list of fully qualified names of fields.
+        explode: false
+        in: query
+        name: update_mask
+        required: false
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pool'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pool'
+          description: Successful response.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Update a pool
+      tags:
+      - Pool
+      x-swagger-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
+    get:
+      description: |
+        This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve DAG Runs for all DAGs and DAG Runs.
+      operationId: get_task_instances
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: |
+          Returns objects greater or equal to the specified date.
+          This can be combined with execution_date_lte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: execution_date_gte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: |
+          Returns objects less than or equal to the specified date.
+          This can be combined with execution_date_gte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: execution_date_lte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: |
+          Returns objects greater or equal the specified date.
+          This can be combined with startd_ate_lte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: start_date_gte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: |
+          Returns objects less or equal the specified date.
+          This can be combined with start_date_gte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: start_date_lte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: |
+          Returns objects greater or equal the specified date.
+          This can be combined with start_date_lte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: end_date_gte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: |
+          Returns objects less than or equal to the specified date.
+          This can be combined with start_date_gte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: end_date_lte
+        required: false
+        schema:
+          format: date-time
+          type: string
+        style: form
+      - description: |
+          Returns objects greater than or equal to the specified values.
+          This can be combined with duration_lte parameter to receive only the selected period.
+        explode: true
+        in: query
+        name: duration_gte
+        required: false
+        schema:
+          type: number
+        style: form
+      - description: |
+          Returns objects less than or equal to the specified values.
+          This can be combined with duration_gte parameter to receive only the selected range.
+        explode: true
+        in: query
+        name: duration_lte
+        required: false
+        schema:
+          type: number
+        style: form
+      - description: The value can be repeated to retrieve multiple matching values
+          (OR condition).
+        explode: true
+        in: query
+        name: state
+        required: false
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: The value can be repeated to retrieve multiple matching values
+          (OR condition).
+        explode: true
+        in: query
+        name: pool
+        required: false
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: The value can be repeated to retrieve multiple matching values
+          (OR condition).
+        explode: true
+        in: query
+        name: queue
+        required: false
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: The numbers of items to return.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/TaskInstanceCollection'
+                - $ref: '#/components/schemas/CollectionInfo'
+          description: List of task instances.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Get a list of task instance of DAG.
+      tags:
+      - TaskInstance
+      x-swagger-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}:
+    get:
+      operationId: get_task_instance
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The Task ID.
+        explode: false
+        in: path
+        name: task_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstance'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get a task instance
+      tags:
+      - TaskInstance
+      x-swagger-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+  /dags/~/dagRuns/~/taskInstances/list:
+    post:
+      description: |
+        This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it would run in to maximum HTTP request URL lengthlimits
+      operationId: get_task_instances_batch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListTaskInstanceForm'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/TaskInstanceCollection'
+                - $ref: '#/components/schemas/CollectionInfo'
+          description: List of task instances.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get list of task instances from all DAGs and DAG Runs.
+      tags:
+      - TaskInstance
+      x-swagger-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+  /variables:
+    get:
+      description: The collection does not contain data. To get data, you must get
+        a single entity.
+      operationId: get_variables
+      parameters:
+      - description: The numbers of items to return.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/VariableCollection'
+                - $ref: '#/components/schemas/CollectionInfo'
+          description: List of variables.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Get all variables
+      tags:
+      - Variable
+      x-swagger-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+    post:
+      operationId: post_variables
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Variable'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Variable'
+          description: Successful response.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Create a variable
+      tags:
+      - Variable
+      x-swagger-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+  /variables/{variable_key}:
+    delete:
+      operationId: delete_variable
+      parameters:
+      - description: The Variable Key.
+        explode: false
+        in: path
+        name: variable_key
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: No content.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Delete variable
+      tags:
+      - Variable
+      x-swagger-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+    get:
+      operationId: get_variable
+      parameters:
+      - description: The Variable Key.
+        explode: false
+        in: path
+        name: variable_key
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Variable'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get a variable by key
+      tags:
+      - Variable
+      x-swagger-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+    patch:
+      operationId: patch_variable
+      parameters:
+      - description: The Variable Key.
+        explode: false
+        in: path
+        name: variable_key
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: |
+          The fields to update on the connection (connection, pool etc). If absent or empty, all modifiable fields are updated. A comma-separated list of fully qualified names of fields.
+        explode: false
+        in: query
+        name: update_mask
+        required: false
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Variable'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Variable'
+          description: Successful response.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Update a variable by key
+      tags:
+      - Variable
+      x-swagger-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
+    get:
+      description: This endpoint allows specifying `~` as the dag_id, dag_run_id,
+        task_id to retrieve XCOM entries for for all DAGs, DAG Runs and task instances.
+      operationId: get_xcom_entries
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The Task ID.
+        explode: false
+        in: path
+        name: task_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The numbers of items to return.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/XComCollection'
+                - $ref: '#/components/schemas/CollectionInfo'
+          description: List of XCom entries.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Get all XCom entries
+      tags:
+      - XCom
+      x-swagger-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+    post:
+      operationId: post_xcom_entries
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The Task ID.
+        explode: false
+        in: path
+        name: task_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XCom'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XCom'
+          description: Successful response.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Create an XCom entry
+      tags:
+      - XCom
+      x-swagger-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
+    delete:
+      operationId: delete_xcom_entry
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The Task ID.
+        explode: false
+        in: path
+        name: task_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The XCom Key.
+        explode: false
+        in: path
+        name: xcom_key
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: No content.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Delete an XCom entry
+      tags:
+      - XCom
+      x-swagger-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+    get:
+      operationId: get_xcom_entry
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The Task ID.
+        explode: false
+        in: path
+        name: task_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The XCom Key.
+        explode: false
+        in: path
+        name: xcom_key
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XCom'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get an XCom entry
+      tags:
+      - XCom
+      x-swagger-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+    patch:
+      operationId: patch_xcom_entry
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The Task ID.
+        explode: false
+        in: path
+        name: task_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The XCom Key.
+        explode: false
+        in: path
+        name: xcom_key
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: |
+          The fields to update on the connection (connection, pool etc). If absent or empty, all modifiable fields are updated. A comma-separated list of fully qualified names of fields.
+        explode: false
+        in: query
+        name: update_mask
+        required: false
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XCom'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XCom'
+          description: Successful response.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Update an XCom entry
+      tags:
+      - XCom
+      x-swagger-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links:
+    get:
+      operationId: get_extra_links
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The Task ID.
+        explode: false
+        in: path
+        name: task_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtraLinkCollection'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get extra links for task instance
+      tags:
+      - TaskInstance
+      x-swagger-router-controller: airflow.api_connexion.endpoints.extra_link_endpoint
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}:
+    get:
+      description: Get logs for a specific task instance and its try number
+      operationId: get_log
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The DAG Run ID.
+        explode: false
+        in: path
+        name: dag_run_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The Task ID.
+        explode: false
+        in: path
+        name: task_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The Task Try Number.
+        explode: false
+        in: path
+        name: task_try_number
+        required: true
+        schema:
+          type: integer
+        style: simple
+      - description: |
+          A full content will be returned. By default, only the first fragment will be returned.
+        explode: true
+        in: query
+        name: full_content
+        required: false
+        schema:
+          type: boolean
+        style: form
+      - description: |
+          A token that allows you to continue fetching logs. If passed, it will specify the location from which the download should be continued.
+        explode: true
+        in: query
+        name: token
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_200'
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/inline_response_200'
+          description: Content of logs.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client specified an invalid argument.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get logs for a task instance
+      tags:
+      - TaskInstance
+      x-swagger-router-controller: airflow.api_connexion.endpoints.log_endpoint
+  /dags/{dag_id}/details:
+    get:
+      description: |
+        The response contains many DAG attributes, so the response can be large. If possible, consider using GET /dags/{dag_id}.
+      operationId: get_dag_details
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGDetail'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get a simplified representation of DAG.
+      tags:
+      - DAG
+      x-swagger-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+  /dags/{dag_id}/tasks:
+    get:
+      operationId: get_tasks
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskCollection'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get tasks for DAG
+      tags:
+      - DAG
+      x-swagger-router-controller: airflow.api_connexion.endpoints.task_endpoint
+  /dags/{dag_id}/tasks/{task_id}:
+    get:
+      operationId: get_task
+      parameters:
+      - description: The DAG ID.
+        explode: false
+        in: path
+        name: dag_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: The Task ID.
+        explode: false
+        in: path
+        name: task_id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get simplified representation of a task.
+      tags:
+      - DAG
+      x-swagger-router-controller: airflow.api_connexion.endpoints.task_endpoint
+  /dagSources/{file_token}:
+    get:
+      operationId: get_dag_source
+      parameters:
+      - description: |
+          The key containing the encrypted path to the file. Encryption and decryption take place only on the server. This prevents the client from reading an non-DAG file. This also ensures API extensibility, because the format of encrypted data may change.
+        explode: false
+        in: path
+        name: file_token
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/inline_response_200_1'
+          description: Successful response.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: A specified resource is not found.
+      summary: Get source code using file token
+      tags:
+      - DAG
+      x-swagger-router-controller: airflow.api_connexion.endpoints.dag_source_endpoint
+  /config:
+    get:
+      operationId: get_config
+      parameters:
+      - description: The numbers of items to return.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+        style: form
+      - description: The number of items to skip before starting to collect the result
+          set.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+            text/plain:
+              schema:
+                type: string
+          description: Return current configuration.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request not authenticated due to missing, invalid, authentication
+            info.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Client does not have sufficient permission.
+      summary: Get current configuration
+      tags:
+      - Config
+      x-swagger-router-controller: airflow.api_connexion.endpoints.config_endpoint
+  /health:
+    get:
+      operationId: get_health
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: It should always return "OK"
+      summary: Checks if the API works
+      tags:
+      - Monitoring
+      x-swagger-router-controller: airflow.api_connexion.endpoints.health_endpoint
+  /version:
+    get:
+      operationId: get_version
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionInfo'
+          description: Return current configuration.
+      summary: Get version information
+      tags:
+      - Monitoring
+      x-swagger-router-controller: airflow.api_connexion.endpoints.version_endpoint
+components:
+  callbacks: {}
+  examples: {}
+  headers: {}
+  links: {}
+  parameters:
+    PageOffset:
+      description: The number of items to skip before starting to collect the result
+        set.
+      explode: true
+      in: query
+      name: offset
+      required: false
+      schema:
+        minimum: 0
+        type: integer
+      style: form
+    PageLimit:
+      description: The numbers of items to return.
+      explode: true
+      in: query
+      name: limit
+      required: false
+      schema:
+        default: 100
+        minimum: 1
+        type: integer
+      style: form
+    ConnectionID:
+      description: The Connection ID.
+      explode: false
+      in: path
+      name: connection_id
+      required: true
+      schema:
+        type: string
+      style: simple
+    DAGID:
+      description: The DAG ID.
+      explode: false
+      in: path
+      name: dag_id
+      required: true
+      schema:
+        type: string
+      style: simple
+    TaskID:
+      description: The Task ID.
+      explode: false
+      in: path
+      name: task_id
+      required: true
+      schema:
+        type: string
+      style: simple
+    DAGRunID:
+      description: The DAG Run ID.
+      explode: false
+      in: path
+      name: dag_run_id
+      required: true
+      schema:
+        type: string
+      style: simple
+    TaskTryNumber:
+      description: The Task Try Number.
+      explode: false
+      in: path
+      name: task_try_number
+      required: true
+      schema:
+        type: integer
+      style: simple
+    EventLogID:
+      description: The Event Log ID.
+      explode: false
+      in: path
+      name: event_log_id
+      required: true
+      schema:
+        type: integer
+      style: simple
+    ImportErrorID:
+      description: The Import Error ID.
+      explode: false
+      in: path
+      name: import_error_id
+      required: true
+      schema:
+        type: integer
+      style: simple
+    PoolName:
+      description: The Pool name.
+      explode: false
+      in: path
+      name: pool_name
+      required: true
+      schema:
+        type: string
+      style: simple
+    VariableKey:
+      description: The Variable Key.
+      explode: false
+      in: path
+      name: variable_key
+      required: true
+      schema:
+        type: string
+      style: simple
+    FullContent:
+      description: |
+        A full content will be returned. By default, only the first fragment will be returned.
+      explode: true
+      in: query
+      name: full_content
+      required: false
+      schema:
+        type: boolean
+      style: form
+    ContinuationToken:
+      description: |
+        A token that allows you to continue fetching logs. If passed, it will specify the location from which the download should be continued.
+      explode: true
+      in: query
+      name: token
+      required: false
+      schema:
+        type: string
+      style: form
+    XComKey:
+      description: The XCom Key.
+      explode: false
+      in: path
+      name: xcom_key
+      required: true
+      schema:
+        type: string
+      style: simple
+    FilterExecutionDateGTE:
+      description: |
+        Returns objects greater or equal to the specified date.
+        This can be combined with execution_date_lte parameter to receive only the selected period.
+      explode: true
+      in: query
+      name: execution_date_gte
+      required: false
+      schema:
+        format: date-time
+        type: string
+      style: form
+    FilterExecutionDateLTE:
+      description: |
+        Returns objects less than or equal to the specified date.
+        This can be combined with execution_date_gte parameter to receive only the selected period.
+      explode: true
+      in: query
+      name: execution_date_lte
+      required: false
+      schema:
+        format: date-time
+        type: string
+      style: form
+    FilterStartDateGTE:
+      description: |
+        Returns objects greater or equal the specified date.
+        This can be combined with startd_ate_lte parameter to receive only the selected period.
+      explode: true
+      in: query
+      name: start_date_gte
+      required: false
+      schema:
+        format: date-time
+        type: string
+      style: form
+    FilterStartDateLTE:
+      description: |
+        Returns objects less or equal the specified date.
+        This can be combined with start_date_gte parameter to receive only the selected period.
+      explode: true
+      in: query
+      name: start_date_lte
+      required: false
+      schema:
+        format: date-time
+        type: string
+      style: form
+    FilterEndDateGTE:
+      description: |
+        Returns objects greater or equal the specified date.
+        This can be combined with start_date_lte parameter to receive only the selected period.
+      explode: true
+      in: query
+      name: end_date_gte
+      required: false
+      schema:
+        format: date-time
+        type: string
+      style: form
+    FilterEndDateLTE:
+      description: |
+        Returns objects less than or equal to the specified date.
+        This can be combined with start_date_gte parameter to receive only the selected period.
+      explode: true
+      in: query
+      name: end_date_lte
+      required: false
+      schema:
+        format: date-time
+        type: string
+      style: form
+    FilterDurationGTE:
+      description: |
+        Returns objects greater than or equal to the specified values.
+        This can be combined with duration_lte parameter to receive only the selected period.
+      explode: true
+      in: query
+      name: duration_gte
+      required: false
+      schema:
+        type: number
+      style: form
+    FilterDurationLTE:
+      description: |
+        Returns objects less than or equal to the specified values.
+        This can be combined with duration_gte parameter to receive only the selected range.
+      explode: true
+      in: query
+      name: duration_lte
+      required: false
+      schema:
+        type: number
+      style: form
+    FilterState:
+      description: The value can be repeated to retrieve multiple matching values
+        (OR condition).
+      explode: true
+      in: query
+      name: state
+      required: false
+      schema:
+        items:
+          type: string
+        type: array
+      style: form
+    FilterPool:
+      description: The value can be repeated to retrieve multiple matching values
+        (OR condition).
+      explode: true
+      in: query
+      name: pool
+      required: false
+      schema:
+        items:
+          type: string
+        type: array
+      style: form
+    FilterQueue:
+      description: The value can be repeated to retrieve multiple matching values
+        (OR condition).
+      explode: true
+      in: query
+      name: queue
+      required: false
+      schema:
+        items:
+          type: string
+        type: array
+      style: form
+    FileToken:
+      description: |
+        The key containing the encrypted path to the file. Encryption and decryption take place only on the server. This prevents the client from reading an non-DAG file. This also ensures API extensibility, because the format of encrypted data may change.
+      explode: false
+      in: path
+      name: file_token
+      required: true
+      schema:
+        type: string
+      style: simple
+    UpdateMask:
+      description: |
+        The fields to update on the connection (connection, pool etc). If absent or empty, all modifiable fields are updated. A comma-separated list of fully qualified names of fields.
+      explode: false
+      in: query
+      name: update_mask
+      required: false
+      schema:
+        items:
+          type: string
+        type: array
+      style: form
+  requestBodies: {}
+  responses:
+    BadRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: Client specified an invalid argument.
+    Unauthenticated:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: Request not authenticated due to missing, invalid, authentication
+        info.
+    PermissionDenied:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: Client does not have sufficient permission.
+    NotFound:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: A specified resource is not found.
+    AlreadyExists:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: The resource that a client tried to create already exists.
+    Unknown:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      description: Unknown server error.
+  schemas:
+    ConnectionCollectionItem:
+      properties:
+        connection_id:
+          type: string
+        conn_type:
+          type: string
+        host:
+          nullable: true
+          type: string
+        login:
+          nullable: true
+          type: string
+        schema:
+          nullable: true
+          type: string
+        port:
+          nullable: true
+          type: integer
+      required:
+      - conn_type
+      - connection_id
+      type: object
+    ConnectionCollection:
+      properties:
+        connections:
+          items:
+            $ref: '#/components/schemas/ConnectionCollectionItem'
+          type: array
+      type: object
+    Connection:
+      allOf:
+      - $ref: '#/components/schemas/ConnectionCollectionItem'
+      - $ref: '#/components/schemas/Connection_allOf'
+    DAG:
+      example:
+        root_dag_id: root_dag_id
+        is_paused: true
+        description: description
+        file_token: file_token
+        owners:
+        - owners
+        - owners
+        dag_id: dag_id
+        is_subdag: true
+        fileloc: fileloc
+        tags:
+        - name: name
+        - name: name
+      properties:
+        dag_id:
+          readOnly: true
+          type: string
+        root_dag_id:
+          readOnly: true
+          type: string
+        is_paused:
+          type: boolean
+        is_subdag:
+          readOnly: true
+          type: boolean
+        fileloc:
+          readOnly: true
+          type: string
+        file_token:
+          description: |
+            The key containing the encrypted path to the file. Encryption and decryption take place only on the server. This prevents the client from reading an non-DAG file. This also ensures API extensibility, because the format of encrypted data may change.
+          readOnly: true
+          type: string
+        owners:
+          items:
+            type: string
+          readOnly: true
+          type: array
+        description:
+          readOnly: true
+          type: string
+        schedule_interval:
+          $ref: '#/components/schemas/ScheduleInterval'
+        tags:
+          items:
+            $ref: '#/components/schemas/Tag'
+          readOnly: true
+          type: array
+      type: object
+    DAGCollection:
+      properties:
+        dags:
+          items:
+            $ref: '#/components/schemas/DAG'
+          type: array
+      type: object
+    DAGRun:
+      example:
+        end_date: 2000-01-23T04:56:07.000+00:00
+        execution_date: 2000-01-23T04:56:07.000+00:00
+        dag_run_id: dag_run_id
+        external_trigger: true
+        conf: '{}'
+        dag_id: dag_id
+        start_date: 2000-01-23T04:56:07.000+00:00
+      properties:
+        dag_run_id:
+          description: |
+            Run ID.
+            The value of this field can be set only when creating the object. If you try to modify the field of an existing object, the request fails with an BAD_REQUEST error.
+            If not provided, a value will be generated based on execution_date.
+            If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
+            This together with DAG_ID are a unique key.
+          type: string
+        dag_id:
+          readOnly: true
+          type: string
+        execution_date:
+          description: |
+            The execution date. This is the time when the DAG run should be started according to the DAG definition.
+            The value of this field can be set only when creating the object. If you try to modify the field of an existing object, the request fails with an BAD_REQUEST error.
+            This together with DAG_ID are a unique key.
+          format: date-time
+          type: string
+        start_date:
+          description: |
+            The start time. The time when DAG Run was actually created..
+          format: date-time
+          readOnly: true
+          type: string
+        end_date:
+          format: date-time
+          nullable: true
+          readOnly: true
+          type: string
+        state:
+          $ref: '#/components/schemas/DagState'
+        external_trigger:
+          default: true
+          readOnly: true
+          type: boolean
+        conf:
+          description: |
+            JSON object describing additional configuration parameters.
+            The value of this field can be set only when creating the object. If you try to modify the field of an existing object, the request fails with an BAD_REQUEST error.
+          type: object
+      required:
+      - dag_id
+      type: object
+    DAGRunCollection:
+      properties:
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/DAGRun'
+          type: array
+      type: object
+    EventLog:
+      example:
+        owner: owner
+        execution_date: execution_date
+        extra: extra
+        event_log_id: 0
+        task_id: task_id
+        dag_id: dag_id
+        event: event
+        when: when
+      properties:
+        event_log_id:
+          readOnly: true
+          type: integer
+        when:
+          readOnly: true
+          type: string
+        dag_id:
+          readOnly: true
+          type: string
+        task_id:
+          readOnly: true
+          type: string
+        event:
+          readOnly: true
+          type: string
+        execution_date:
+          readOnly: true
+          type: string
+        owner:
+          readOnly: true
+          type: string
+        extra:
+          nullable: true
+          readOnly: true
+          type: string
+      type: object
+    EventLogCollection:
+      properties:
+        event_logs:
+          items:
+            $ref: '#/components/schemas/EventLog'
+          type: array
+      type: object
+    ImportError:
+      example:
+        filename: filename
+        stack_trace: stack_trace
+        import_error_id: 0
+        timestamp: timestamp
+      properties:
+        import_error_id:
+          readOnly: true
+          type: integer
+        timestamp:
+          format: datetime
+          readOnly: true
+          type: string
+        filename:
+          readOnly: true
+          type: string
+        stack_trace:
+          readOnly: true
+          type: string
+      type: object
+    ImportErrorCollection:
+      properties:
+        import_errors:
+          items:
+            $ref: '#/components/schemas/ImportError'
+          type: array
+      type: object
+    Pool:
+      example:
+        queued_slots: 5
+        open_slots: 5
+        slots: 0
+        name: name
+        used_slots: 1
+        occupied_slots: 6
+      properties:
+        name:
+          type: string
+        slots:
+          type: integer
+        occupied_slots:
+          readOnly: true
+          type: integer
+        used_slots:
+          readOnly: true
+          type: integer
+        queued_slots:
+          readOnly: true
+          type: integer
+        open_slots:
+          readOnly: true
+          type: integer
+      type: object
+    PoolCollection:
+      properties:
+        pools:
+          items:
+            $ref: '#/components/schemas/Pool'
+          type: array
+      type: object
+    SLAMiss:
+      example:
+        notification_sent: true
+        email_sent: true
+        execution_date: execution_date
+        description: description
+        task_id: task_id
+        dag_id: dag_id
+        timestamp: timestamp
+      properties:
+        task_id:
+          readOnly: true
+          type: string
+        dag_id:
+          type: string
+        execution_date:
+          format: datetime
+          type: string
+        email_sent:
+          type: boolean
+        timestamp:
+          format: datetime
+          type: string
+        description:
+          type: string
+        notification_sent:
+          type: boolean
+      type: object
+    SLAMissCollection:
+      properties:
+        sla_misses:
+          items:
+            $ref: '#/components/schemas/SLAMiss'
+          type: array
+      type: object
+    TaskFail:
+      properties:
+        task_id:
+          type: string
+        dag_id:
+          type: string
+        execution_date:
+          format: datetime
+          type: string
+        start_date:
+          format: datetime
+          type: string
+        end_date:
+          format: datetime
+          type: string
+        duration:
+          type: integer
+      type: object
+    TaskInstance:
+      example:
+        end_date: end_date
+        unixname: unixname
+        execution_date: execution_date
+        pool_slots: 5
+        pool: pool
+        task_id: task_id
+        pid: 2
+        max_tries: 1
+        operator: operator
+        sla_miss:
+          notification_sent: true
+          email_sent: true
+          execution_date: execution_date
+          description: description
+          task_id: task_id
+          dag_id: dag_id
+          timestamp: timestamp
+        duration: 0.8008281904610115
+        hostname: hostname
+        executor_config: executor_config
+        try_number: 6
+        dag_id: dag_id
+        priority_weight: 5
+        queue: queue
+        start_date: start_date
+        queued_when: queued_when
+      properties:
+        task_id:
+          type: string
+        dag_id:
+          type: string
+        execution_date:
+          format: datetime
+          type: string
+        start_date:
+          format: datetime
+          type: string
+        end_date:
+          format: datetime
+          type: string
+        duration:
+          type: number
+        state:
+          $ref: '#/components/schemas/TaskState'
+        try_number:
+          type: integer
+        max_tries:
+          type: integer
+        hostname:
+          type: string
+        unixname:
+          type: string
+        pool:
+          type: string
+        pool_slots:
+          type: integer
+        queue:
+          type: string
+        priority_weight:
+          type: integer
+        operator:
+          type: string
+        queued_when:
+          type: string
+        pid:
+          type: integer
+        executor_config:
+          type: string
+        sla_miss:
+          $ref: '#/components/schemas/SLAMiss'
+      type: object
+    TaskInstanceCollection:
+      properties:
+        task_instances:
+          items:
+            $ref: '#/components/schemas/TaskInstance'
+          type: array
+      type: object
+    TaskInstanceReference:
+      example:
+        execution_date: execution_date
+        dag_run_id: dag_run_id
+        task_id: task_id
+        dag_id: dag_id
+      properties:
+        task_id:
+          readOnly: true
+          type: string
+        dag_id:
+          readOnly: true
+          type: string
+        execution_date:
+          format: datetime
+          readOnly: true
+          type: string
+        dag_run_id:
+          readOnly: true
+          type: string
+      type: object
+    TaskInstanceReferenceCollection:
+      example:
+        task_instances:
+        - execution_date: execution_date
+          dag_run_id: dag_run_id
+          task_id: task_id
+          dag_id: dag_id
+        - execution_date: execution_date
+          dag_run_id: dag_run_id
+          task_id: task_id
+          dag_id: dag_id
+      properties:
+        task_instances:
+          items:
+            $ref: '#/components/schemas/TaskInstanceReference'
+          type: array
+      type: object
+    VariableCollectionItem:
+      properties:
+        key:
+          type: string
+      type: object
+    VariableCollection:
+      properties:
+        variables:
+          items:
+            $ref: '#/components/schemas/VariableCollectionItem'
+          type: array
+      type: object
+    Variable:
+      allOf:
+      - $ref: '#/components/schemas/VariableCollectionItem'
+      - $ref: '#/components/schemas/Variable_allOf'
+    XComCollectionItem:
+      properties:
+        key:
+          type: string
+        timestamp:
+          format: datetime
+          type: string
+        execution_date:
+          format: datetime
+          type: string
+        task_id:
+          type: string
+        dag_id:
+          type: string
+      type: object
+    XComCollection:
+      properties:
+        xcom_entries:
+          items:
+            $ref: '#/components/schemas/XComCollectionItem'
+          type: array
+      type: object
+    XCom:
+      allOf:
+      - $ref: '#/components/schemas/XComCollectionItem'
+      - $ref: '#/components/schemas/Variable_allOf'
+    DAGDetail:
+      allOf:
+      - $ref: '#/components/schemas/DAG'
+      - $ref: '#/components/schemas/DAGDetail_allOf'
+    ExtraLink:
+      example:
+        name: name
+        href: href
+        class_ref:
+          class_name: class_name
+          module_path: module_path
+      properties:
+        class_ref:
+          $ref: '#/components/schemas/ClassReference'
+        name:
+          readOnly: true
+          type: string
+        href:
+          readOnly: true
+          type: string
+      type: object
+    ExtraLinkCollection:
+      example:
+        extra_links:
+        - name: name
+          href: href
+          class_ref:
+            class_name: class_name
+            module_path: module_path
+        - name: name
+          href: href
+          class_ref:
+            class_name: class_name
+            module_path: module_path
+      properties:
+        extra_links:
+          items:
+            $ref: '#/components/schemas/ExtraLink'
+          type: array
+      type: object
+    Task:
+      example:
+        owner: owner
+        end_date: 2000-01-23T04:56:07.000+00:00
+        ui_fgcolor: ui_fgcolor
+        extra_links:
+        - class_ref:
+            class_name: class_name
+            module_path: module_path
+        - class_ref:
+            class_name: class_name
+            module_path: module_path
+        depends_on_past: true
+        ui_color: ui_color
+        pool_slots: 6.027456183070403
+        pool: pool
+        task_id: task_id
+        retry_exponential_backoff: true
+        downstream_task_ids:
+        - downstream_task_ids
+        - downstream_task_ids
+        sub_dag:
+          root_dag_id: root_dag_id
+          is_paused: true
+          description: description
+          file_token: file_token
+          owners:
+          - owners
+          - owners
+          dag_id: dag_id
+          is_subdag: true
+          fileloc: fileloc
+          tags:
+          - name: name
+          - name: name
+        retries: 0.8008281904610115
+        template_fields:
+        - template_fields
+        - template_fields
+        retry_delay:
+          seconds: 5
+          microsecond: 5
+          __type: __type
+          days: 1
+        wait_for_downstream: true
+        priority_weight: 2.3021358869347655
+        class_ref:
+          class_name: class_name
+          module_path: module_path
+        execution_timeout:
+          seconds: 5
+          microsecond: 5
+          __type: __type
+          days: 1
+        queue: queue
+        start_date: 2000-01-23T04:56:07.000+00:00
+      properties:
+        class_ref:
+          $ref: '#/components/schemas/ClassReference'
+        task_id:
+          readOnly: true
+          type: string
+        owner:
+          readOnly: true
+          type: string
+        start_date:
+          format: date-time
+          readOnly: true
+          type: string
+        end_date:
+          format: date-time
+          readOnly: true
+          type: string
+        trigger_rule:
+          $ref: '#/components/schemas/TriggerRule'
+        extra_links:
+          items:
+            $ref: '#/components/schemas/Task_extra_links'
+          readOnly: true
+          type: array
+        depends_on_past:
+          readOnly: true
+          type: boolean
+        wait_for_downstream:
+          readOnly: true
+          type: boolean
+        retries:
+          readOnly: true
+          type: number
+        queue:
+          readOnly: true
+          type: string
+        pool:
+          readOnly: true
+          type: string
+        pool_slots:
+          readOnly: true
+          type: number
+        execution_timeout:
+          $ref: '#/components/schemas/TimeDelta'
+        retry_delay:
+          $ref: '#/components/schemas/TimeDelta'
+        retry_exponential_backoff:
+          readOnly: true
+          type: boolean
+        priority_weight:
+          readOnly: true
+          type: number
+        weight_rule:
+          $ref: '#/components/schemas/WeightRule'
+        ui_color:
+          pattern: ^#[a-fA-F0-9]{3,6}$
+          type: string
+        ui_fgcolor:
+          pattern: ^#[a-fA-F0-9]{3,6}$
+          type: string
+        template_fields:
+          items:
+            type: string
+          readOnly: true
+          type: array
+        sub_dag:
+          $ref: '#/components/schemas/DAG'
+        downstream_task_ids:
+          items:
+            type: string
+          readOnly: true
+          type: array
+      type: object
+    TaskCollection:
+      example:
+        tasks:
+        - owner: owner
+          end_date: 2000-01-23T04:56:07.000+00:00
+          ui_fgcolor: ui_fgcolor
+          extra_links:
+          - class_ref:
+              class_name: class_name
+              module_path: module_path
+          - class_ref:
+              class_name: class_name
+              module_path: module_path
+          depends_on_past: true
+          ui_color: ui_color
+          pool_slots: 6.027456183070403
+          pool: pool
+          task_id: task_id
+          retry_exponential_backoff: true
+          downstream_task_ids:
+          - downstream_task_ids
+          - downstream_task_ids
+          sub_dag:
+            root_dag_id: root_dag_id
+            is_paused: true
+            description: description
+            file_token: file_token
+            owners:
+            - owners
+            - owners
+            dag_id: dag_id
+            is_subdag: true
+            fileloc: fileloc
+            tags:
+            - name: name
+            - name: name
+          retries: 0.8008281904610115
+          template_fields:
+          - template_fields
+          - template_fields
+          retry_delay:
+            seconds: 5
+            microsecond: 5
+            __type: __type
+            days: 1
+          wait_for_downstream: true
+          priority_weight: 2.3021358869347655
+          class_ref:
+            class_name: class_name
+            module_path: module_path
+          execution_timeout:
+            seconds: 5
+            microsecond: 5
+            __type: __type
+            days: 1
+          queue: queue
+          start_date: 2000-01-23T04:56:07.000+00:00
+        - owner: owner
+          end_date: 2000-01-23T04:56:07.000+00:00
+          ui_fgcolor: ui_fgcolor
+          extra_links:
+          - class_ref:
+              class_name: class_name
+              module_path: module_path
+          - class_ref:
+              class_name: class_name
+              module_path: module_path
+          depends_on_past: true
+          ui_color: ui_color
+          pool_slots: 6.027456183070403
+          pool: pool
+          task_id: task_id
+          retry_exponential_backoff: true
+          downstream_task_ids:
+          - downstream_task_ids
+          - downstream_task_ids
+          sub_dag:
+            root_dag_id: root_dag_id
+            is_paused: true
+            description: description
+            file_token: file_token
+            owners:
+            - owners
+            - owners
+            dag_id: dag_id
+            is_subdag: true
+            fileloc: fileloc
+            tags:
+            - name: name
+            - name: name
+          retries: 0.8008281904610115
+          template_fields:
+          - template_fields
+          - template_fields
+          retry_delay:
+            seconds: 5
+            microsecond: 5
+            __type: __type
+            days: 1
+          wait_for_downstream: true
+          priority_weight: 2.3021358869347655
+          class_ref:
+            class_name: class_name
+            module_path: module_path
+          execution_timeout:
+            seconds: 5
+            microsecond: 5
+            __type: __type
+            days: 1
+          queue: queue
+          start_date: 2000-01-23T04:56:07.000+00:00
+      properties:
+        tasks:
+          items:
+            $ref: '#/components/schemas/Task'
+          type: array
+      type: object
+    ConfigOption:
+      example:
+        value: value
+        key: key
+      properties:
+        key:
+          readOnly: true
+          type: string
+        value:
+          readOnly: true
+          type: string
+      type: object
+    ConfigSection:
+      example:
+        name: name
+        options:
+        - value: value
+          key: key
+        - value: value
+          key: key
+      properties:
+        name:
+          readOnly: true
+          type: string
+        options:
+          items:
+            $ref: '#/components/schemas/ConfigOption'
+          type: array
+      type: object
+    Config:
+      example:
+        sections:
+        - name: name
+          options:
+          - value: value
+            key: key
+          - value: value
+            key: key
+        - name: name
+          options:
+          - value: value
+            key: key
+          - value: value
+            key: key
+      properties:
+        sections:
+          items:
+            $ref: '#/components/schemas/ConfigSection'
+          type: array
+      type: object
+    VersionInfo:
+      description: Version information.
+      example:
+        git_version: git_version
+        version: version
+      properties:
+        version:
+          description: The version of Airflow
+          type: string
+        git_version:
+          description: The git version (including git commit hash)
+          nullable: true
+          type: string
+      type: object
+    ClearTaskInstance:
+      example:
+        end_date: end_date
+        only_running: only_running
+        reset_dag_runs: true
+        include_parentdag: true
+        include_subdags: true
+        dry_run: true
+        only_failed: only_failed
+        start_date: start_date
+      properties:
+        dry_run:
+          default: true
+          description: |
+            If set, don't actually run this operation. The response will contain a list of task instances planned to be cleaned, but not modified in any way.
+          type: boolean
+        start_date:
+          description: The minimum execution date to clear.
+          format: datetime
+          type: string
+        end_date:
+          description: The maximum execution date to clear.
+          format: datetime
+          type: string
+        only_failed:
+          description: Only clear failed tasks.
+          format: datetime
+          type: string
+        only_running:
+          description: Only clear running tasks.
+          format: datetime
+          type: string
+        include_subdags:
+          description: Clear tasks in subdags and clear external tasks indicated by
+            ExternalTaskMarker.
+          type: boolean
+        include_parentdag:
+          description: Clear tasks in the parent dag of the subdag.
+          type: boolean
+        reset_dag_runs:
+          description: Set state of DAG Runs to RUNNING.
+          type: boolean
+      type: object
+    ListDagRunsForm:
+      example:
+        start_date_gte: 2000-01-23T04:56:07.000+00:00
+        end_date_lte: 2000-01-23T04:56:07.000+00:00
+        execution_date_gte: 2000-01-23T04:56:07.000+00:00
+        page_limit: 1
+        execution_date_lte: 2000-01-23T04:56:07.000+00:00
+        page_offset: 0
+        end_date_gte: 2000-01-23T04:56:07.000+00:00
+        start_date_lte: 2000-01-23T04:56:07.000+00:00
+        dag_ids:
+        - dag_ids
+        - dag_ids
+      properties:
+        page_offset:
+          description: The number of items to skip before starting to collect the
+            result set.
+          minimum: 0
+          type: integer
+        page_limit:
+          default: 100
+          description: The numbers of items to return.
+          minimum: 1
+          type: integer
+        dag_ids:
+          description: |-
+            Return objects with specific DAG IDs.
+            The value can be repeated to retrieve multiple matching values (OR condition).
+          items:
+            type: string
+          type: array
+        execution_date_gte:
+          description: |
+            Returns objects greater or equal to the specified date.
+            This can be combined with execution_date_lte key to receive only the selected period.
+          format: date-time
+          type: string
+        execution_date_lte:
+          description: |
+            Returns objects less than or equal to the specified date.
+            This can be combined with execution_date_gte key to receive only the selected period.
+          format: date-time
+          type: string
+        start_date_gte:
+          description: |
+            Returns objects greater or equal the specified date.
+            This can be combined with start_date_lte key to receive only the selected period.
+          format: date-time
+          type: string
+        start_date_lte:
+          description: |
+            Returns objects less or equal the specified date.
+            This can be combined with start_date_gte parameter to receive only the selected period
+          format: date-time
+          type: string
+        end_date_gte:
+          description: |
+            Returns objects greater or equal the specified date.
+            This can be combined with end_date_lte parameter to receive only the selected period.
+          format: date-time
+          type: string
+        end_date_lte:
+          description: |
+            Returns objects less than or equal to the specified date.
+            This can be combined with end_date_gte parameter to receive only the selected period.
+          format: date-time
+          type: string
+      type: object
+    ListTaskInstanceForm:
+      example:
+        start_date_gte: 2000-01-23T04:56:07.000+00:00
+        end_date_lte: 2000-01-23T04:56:07.000+00:00
+        execution_date_gte: 2000-01-23T04:56:07.000+00:00
+        duration_gte: 0.8008281904610115
+        State:
+        - State
+        - State
+        execution_date_lte: 2000-01-23T04:56:07.000+00:00
+        duration_lte: 6.027456183070403
+        Pool:
+        - Pool
+        - Pool
+        end_date_gte: 2000-01-23T04:56:07.000+00:00
+        start_date_lte: 2000-01-23T04:56:07.000+00:00
+        Queue:
+        - Queue
+        - Queue
+        dag_ids:
+        - dag_ids
+        - dag_ids
+      properties:
+        dag_ids:
+          description: |-
+            Return objects with specific DAG IDs.
+            The value can be repeated to retrieve multiple matching values (OR condition).
+          items:
+            type: string
+          type: array
+        execution_date_gte:
+          description: |
+            Returns objects greater or equal to the specified date.
+            This can be combined with execution_date_lte parameter to receive only the selected period.
+          format: date-time
+          type: string
+        execution_date_lte:
+          description: |
+            Returns objects less than or equal to the specified date.
+            This can be combined with execution_date_gte parameter to receive only the selected period.
+          format: date-time
+          type: string
+        start_date_gte:
+          description: |
+            Returns objects greater or equal the specified date.
+            This can be combined with startd_ate_lte parameter to receive only the selected period.
+          format: date-time
+          type: string
+        start_date_lte:
+          description: |
+            Returns objects less or equal the specified date.
+            This can be combined with start_date_gte parameter to receive only the selected period.
+          format: date-time
+          type: string
+        end_date_gte:
+          description: |
+            Returns objects greater or equal the specified date.
+            This can be combined with start_date_lte parameter to receive only the selected period.
+          format: date-time
+          type: string
+        end_date_lte:
+          description: |
+            Returns objects less than or equal to the specified date.
+            This can be combined with start_date_gte parameter to receive only the selected period.
+          format: date-time
+          type: string
+        duration_gte:
+          description: |
+            Returns objects greater than or equal to the specified values.
+            This can be combined with duration_lte parameter to receive only the selected period.
+          type: number
+        duration_lte:
+          description: |
+            Returns objects less than or equal to the specified values.
+            This can be combined with duration_gte parameter to receive only the selected range.
+          type: number
+        State:
+          description: The value can be repeated to retrieve multiple matching values
+            (OR condition).
+          items:
+            type: string
+          type: array
+        Pool:
+          description: The value can be repeated to retrieve multiple matching values
+            (OR condition).
+          items:
+            type: string
+          type: array
+        Queue:
+          description: The value can be repeated to retrieve multiple matching values
+            (OR condition).
+          items:
+            type: string
+          type: array
+      type: object
+    ScheduleInterval:
+      discriminator:
+        propertyName: __type
+      oneOf:
+      - $ref: '#/components/schemas/TimeDelta'
+      - $ref: '#/components/schemas/RelativeDelta'
+      - $ref: '#/components/schemas/CronExpression'
+    TimeDelta:
+      example:
+        seconds: 5
+        microsecond: 5
+        __type: __type
+        days: 1
+      properties:
+        __type:
+          type: string
+        days:
+          type: integer
+        seconds:
+          type: integer
+        microsecond:
+          type: integer
+      required:
+      - __type
+      type: object
+    RelativeDelta:
+      properties:
+        __type:
+          type: string
+        years:
+          type: integer
+        months:
+          type: integer
+        days:
+          type: integer
+        leapdays:
+          type: integer
+        hours:
+          type: integer
+        minutes:
+          type: integer
+        seconds:
+          type: integer
+        microseconds:
+          type: integer
+        year:
+          type: integer
+        month:
+          type: integer
+        day:
+          type: integer
+        hour:
+          type: integer
+        minute:
+          type: integer
+        second:
+          type: integer
+        microsecond:
+          type: integer
+      required:
+      - __type
+      type: object
+    CronExpression:
+      properties:
+        __type:
+          type: string
+        value:
+          type: string
+      required:
+      - __type
+      type: object
+    Timezone:
+      type: string
+    Tag:
+      example:
+        name: name
+      properties:
+        name:
+          type: string
+      type: object
+    Color:
+      pattern: ^#[a-fA-F0-9]{3,6}$
+      type: string
+    ClassReference:
+      example:
+        class_name: class_name
+        module_path: module_path
+      properties:
+        module_path:
+          readOnly: true
+          type: string
+        class_name:
+          readOnly: true
+          type: string
+      type: object
+    Error:
+      description: |
+        [RFC7807](https://tools.ietf.org/html/rfc7807) compliant response
+      properties:
+        type:
+          description: |
+            A URI reference [RFC3986] that identifies the problem type. This specification encourages that, when dereferenced, it provide human-readable documentation for the problem type.
+          type: string
+        title:
+          description: A short, human-readable summary of the problem  type.
+          type: string
+        status:
+          description: The HTTP status code generated by the API server for this occurrence
+            of the problem.
+          type: number
+        detail:
+          description: A human-readable explanation specific to this occurrence of
+            the problem.
+          type: string
+        instance:
+          description: |
+            A URI reference that identifies the specific occurrence of the problem. It may or may not yield further information if dereferenced.
+          type: string
+      required:
+      - status
+      - title
+      - type
+      type: object
+    CollectionInfo:
+      properties:
+        total_entries:
+          description: Total count for all collection items.
+          type: integer
+      type: object
+    TaskState:
+      enum:
+      - succcess
+      - running
+      - failed
+      - upstream_failed
+      - skipped
+      - up_for_retry
+      - up_for_reschedule
+      - queued
+      - none
+      - scheduled
+      type: string
+    DagState:
+      enum:
+      - success
+      - running
+      - failed
+      type: string
+    TriggerRule:
+      enum:
+      - all_success
+      - all_failed
+      - all_done
+      - one_success
+      - one_failed
+      - none_failed
+      - none_skipped
+      - none_failed_or_skipped
+      - dummy
+      type: string
+    WeightRule:
+      enum:
+      - downstream
+      - upstream
+      - absolute
+      type: string
+    inline_response_200:
+      example:
+        continuation_token: continuation_token
+        content: content
+      properties:
+        continuation_token:
+          type: string
+        content:
+          type: string
+    inline_response_200_1:
+      example:
+        content: content
+      properties:
+        content:
+          type: string
+    Connection_allOf:
+      properties:
+        password:
+          format: password
+          type: string
+          writeOnly: true
+        extra:
+          nullable: true
+          type: string
+    Variable_allOf:
+      properties:
+        value:
+          type: string
+    DAGDetail_allOf:
+      properties:
+        timezone:
+          type: string
+        catchup:
+          readOnly: true
+          type: boolean
+        orientation:
+          readOnly: true
+          type: string
+        concurrency:
+          readOnly: true
+          type: number
+        start_date:
+          format: date-time
+          readOnly: true
+          type: string
+        dag_run_timeout:
+          $ref: '#/components/schemas/TimeDelta'
+        doc_md:
+          readOnly: true
+          type: string
+        default_view:
+          readOnly: true
+          type: string
+    Task_extra_links:
+      example:
+        class_ref:
+          class_name: class_name
+          module_path: module_path
+      properties:
+        class_ref:
+          $ref: '#/components/schemas/ClassReference'
