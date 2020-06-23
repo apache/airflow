@@ -2160,7 +2160,6 @@ components:
       required: false
       schema:
         type: integer
-        minimum: 1
         default: 100
       description: The numbers of items to return.
 

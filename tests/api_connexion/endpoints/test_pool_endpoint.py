@@ -121,25 +121,28 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         self.assertEqual(len(response.json['pools']), 100)
 
     @provide_session
-    @conf_vars({("api", "maximum_page_limit"): "100"})
-    def test_should_raise_when_page_size_limit_exceeded(self, session):
-        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
+    @conf_vars({("api", "maximum_page_limit"): "150"})
+    def test_should_return_conf_max_if_req_max_above_conf(self, session):
+        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 200)]
         session.add_all(pools)
         session.commit()
         result = session.query(Pool).count()
-        self.assertEqual(result, 121)
-        response = self.client.get("/api/v1/pools?limit=150")
-        assert response.status_code == 400
-        self.assertEqual(
-            response.json,
-            {
-                'detail': "150 is greater than the maximum limit of 100",
-                'status': 400,
-                'title': 'Bad Request',
-                'type': 'about:blank'
-            }
+        self.assertEqual(result, 200)
+        response = self.client.get("/api/v1/pools?limit=180")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['pools']), 150)
 
-        )
+    @provide_session
+    @conf_vars({("api", "maximum_page_limit"): "1500"})
+    def test_should_return_site_max_if_conf_max_above_site_max(self, session):
+        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 2000)]
+        session.add_all(pools)
+        session.commit()
+        result = session.query(Pool).count()
+        self.assertEqual(result, 2000)
+        response = self.client.get("/api/v1/pools?limit=1500")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['pools']), 1000)
 
 
 class TestGetPool(TestBasePoolEndpoints):

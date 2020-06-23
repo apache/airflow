@@ -23,6 +23,9 @@ from airflow.api_connexion.exceptions import BadRequest
 from airflow.configuration import conf
 from airflow.utils import timezone
 
+MAXIMUM_PAGE_LIMIT = 1000
+PAGE_LIMIT_DEFAULT = 100
+
 # Database entity fields
 dag_id = "dag_id"
 pool_id = "pool_id"
@@ -51,13 +54,14 @@ def check_limit(value: int):
     This checks the limit passed to view and raises BadRequest if
     limit exceed user configured value
     """
-    max_val = conf.getint("api", "maximum_page_limit")
+    max_val = conf.getint("api", "maximum_page_limit")  # user configured page limit
 
-    if value > max_val:
-        message = f"{value} is greater than the maximum limit of {max_val}" \
-            .format(value=value,
-                    max_val=max_val)
-        raise BadRequest(title="Bad Request", detail=message)
+    if value >= max_val:
+        if max_val > MAXIMUM_PAGE_LIMIT:
+            return MAXIMUM_PAGE_LIMIT
+        return max_val
+    if value <= 0:
+        return PAGE_LIMIT_DEFAULT
     return value
 
 

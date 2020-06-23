@@ -179,27 +179,35 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         self.assertEqual(len(response.json['import_errors']), 100)
 
     @provide_session
-    @conf_vars({("api", "maximum_page_limit"): "100"})
-    def test_should_raise_when_page_size_limit_exceeded(self, session):
+    @conf_vars({("api", "maximum_page_limit"): "150"})
+    def test_should_return_conf_max_if_req_max_above_conf(self, session):
         import_errors = [
             ImportError(
                 filename=f"/tmp/file_{i}.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
             )
-            for i in range(1, 110)
+            for i in range(200)
         ]
         session.add_all(import_errors)
         session.commit()
-        response = self.client.get("/api/v1/importErrors?limit=150")
-        assert response.status_code == 400
-        self.assertEqual(
-            response.json,
-            {
-                'detail': "150 is greater than the maximum limit of 100",
-                'status': 400,
-                'title': 'Bad Request',
-                'type': 'about:blank'
-            }
+        response = self.client.get("/api/v1/importErrors?limit=180")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['import_errors']), 150)
 
-        )
+    @provide_session
+    @conf_vars({("api", "maximum_page_limit"): "1500"})
+    def test_should_return_site_max_if_conf_max_above_site_max(self, session):
+        import_errors = [
+            ImportError(
+                filename=f"/tmp/file_{i}.py",
+                stacktrace="Lorem ipsum",
+                timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+            )
+            for i in range(2000)
+        ]
+        session.add_all(import_errors)
+        session.commit()
+        response = self.client.get("/api/v1/importErrors?limit=1500")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['import_errors']), 1000)

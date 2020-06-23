@@ -110,22 +110,16 @@ class TestGetVariables(TestVariableEndpoint):
         assert response.json["total_entries"] == 101
         assert len(response.json["variables"]) == 100
 
-    @conf_vars({("api", "maximum_page_limit"): "100"})
-    def test_should_raise_when_page_size_limit_exceeded(self):
+    @conf_vars({("api", "maximum_page_limit"): "150"})
+    def test_should_return_conf_max_if_req_max_above_conf(self):
         for i in range(200):
             Variable.set(f"var{i}", i)
-        response = self.client.get("/api/v1/variables?limit=150")
-        assert response.status_code == 400
-        self.assertEqual(
-            response.json,
-            {
-                'detail': "150 is greater than the maximum limit of 100",
-                'status': 400,
-                'title': 'Bad Request',
-                'type': 'about:blank'
-            }
+        response = self.client.get("/api/v1/variables?limit=180")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['variables']), 150)
 
-        )
+    # Takes a lot of time for variable to get added. so no test
+    # for test_should_return_site_max_if_conf_max_above_site_max
 
 
 class TestPatchVariable(TestVariableEndpoint):

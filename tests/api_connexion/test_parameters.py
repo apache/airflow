@@ -59,9 +59,19 @@ class TestMaximumPagelimit(unittest.TestCase):
         self.assertEqual(limit, 300)
 
     @conf_vars({("api", "maximum_page_limit"): "320"})
-    def test_maximum_limit_raises_on_limit_exceeding(self):
-        with self.assertRaises(BadRequest):
-            check_limit(350)
+    def test_maximum_limit_returns_configured_if_limit_above_conf(self):
+        limit = check_limit(350)
+        self.assertEqual(limit, 320)
+
+    @conf_vars({("api", "maximum_page_limit"): "1500"})
+    def test_limit_returns_site_max_if_current_app_max_is_above_site_max(self):
+        limit = check_limit(1500)
+        self.assertEqual(limit, 1000)
+
+    @conf_vars({("api", "maximum_page_limit"): "200"})
+    def test_limit_of_zero_returns_default(self):
+        limit = check_limit(0)
+        self.assertEqual(limit, 100)
 
 
 class TestFormatParameters(unittest.TestCase):
@@ -89,11 +99,3 @@ class TestFormatParameters(unittest.TestCase):
         decorated_endpoint = decorator(endpoint)
         decorated_endpoint(limit=89)
         endpoint.assert_called_once_with(limit=89)
-
-    @conf_vars({("api", "maximum_page_limit"): "100"})
-    def test_should_raise_exception_for_max_val_exceeded(self):
-        decorator = format_parameters({"limit": check_limit})
-        endpoint = mock.MagicMock()
-        decorated_endpoint = decorator(endpoint)
-        with self.assertRaises(BadRequest):
-            decorated_endpoint(limit=101)
