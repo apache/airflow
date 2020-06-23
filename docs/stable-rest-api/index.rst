@@ -19,26 +19,12 @@
 REST API Documentation
 ======================
 
-Airflow stable REST API exposes a lot of endpoints for working with Apache Airflow.
+Airflow has a REST API that allows third-party application to perform a wide wide range of operations.
 
-Configuration
--------------
-There are default configurations available for airflow REST API which can be changed in
-``airflow.cfg``.
+Page size limit
+---------------
+
+To protect against requests that may lead to application instability, the API has a limit of items in response. The default is 100 items, but you can change it using `maximum_page_limit`  option in `[api]` section in the `airflow.cfg` file. 
 
 .. note::
     For more information on setting the configuration, see :doc:`../howto/set-config`
-
-The default configurations for the REST API are as follows:
-
-.. list-table:: REST API CONFIGURATION DEFAULTS
-   :widths: 25, 25, 50
-   :header-rows: 1
-
-   * - Configuration
-     - Default
-     - Description
-
-   * - maximum_page_limit
-     - 100
-     - A positive integer, used to set the maximum page limit for API requests

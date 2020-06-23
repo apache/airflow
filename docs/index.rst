@@ -109,5 +109,5 @@ Content
     CLI <cli-ref>
     Macros <macros-ref>
     Python API <_api/index>
-    EXPERIMENTAL REST API <rest-api-ref>
+    Experimental REST API <rest-api-ref>
     Configurations <configurations-ref>
