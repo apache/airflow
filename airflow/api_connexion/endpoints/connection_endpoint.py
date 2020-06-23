@@ -20,7 +20,7 @@ from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import func
 
-from airflow.api_connexion.exceptions import NotFound, BadRequest, AlreadyExists
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection, connection_collection_item_schema, connection_collection_schema, connection_schema,

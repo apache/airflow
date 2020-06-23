@@ -24,7 +24,9 @@ Airflow has a REST API that allows third-party application to perform a wide wid
 Page size limit
 ---------------
 
-To protect against requests that may lead to application instability, the API has a limit of items in response. The default is 100 items, but you can change it using `maximum_page_limit`  option in `[api]` section in the `airflow.cfg` file. 
+To protect against requests that may lead to application instability, the API has a limit of items in response.
+The default is 100 items, but you can change it using ``maximum_page_limit``  option in ``[api]``
+section in the ``airflow.cfg`` file.
 
 .. note::
     For more information on setting the configuration, see :doc:`../howto/set-config`
