@@ -132,7 +132,7 @@ jobs:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
         with:
-          python-version: '3.x'
+          python-version: '3.6'
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build PROD image ${{ matrix.python-version }}"

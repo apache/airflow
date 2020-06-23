@@ -37,7 +37,9 @@ class TestPod(unittest.TestCase):
 
     @mock.patch('uuid.uuid4')
     def test_port_attach_to_pod(self, mock_uuid):
-        mock_uuid.return_value = '0'
+        import uuid
+        static_uuid = uuid.UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
+        mock_uuid.return_value = static_uuid
         pod = PodGenerator(image='airflow-worker:latest', name='base').gen_pod()
         ports = [
             Port('https', 443),
@@ -49,7 +51,7 @@ class TestPod(unittest.TestCase):
         self.assertEqual({
             'apiVersion': 'v1',
             'kind': 'Pod',
-            'metadata': {'name': 'base-0'},
+            'metadata': {'name': 'base-' + static_uuid.hex},
             'spec': {
                 'containers': [{
                     'args': [],

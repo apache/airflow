@@ -22,9 +22,17 @@ is supported and no serialization need be written.
 """
 
 import copy
-import kubernetes.client.models as k8s
-from airflow.executors import Executors
+import hashlib
+import re
 import uuid
+
+import kubernetes.client.models as k8s
+
+from airflow.executors import Executors
+
+MAX_LABEL_LEN = 63
+
+MAX_POD_ID_LEN = 253
 
 
 class PodDefaults:
@@ -53,6 +61,25 @@ class PodDefaults:
             }
         ),
     )
+
+
+def make_safe_label_value(string):
+    """
+    Valid label values must be 63 characters or less and must be empty or begin and
+    end with an alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_),
+    dots (.), and alphanumerics between.
+
+    If the label value is greater than 63 chars once made safe, or differs in any
+    way from the original value sent to this function, then we need to truncate to
+    53 chars, and append it with a unique hash.
+    """
+    safe_label = re.sub(r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$", "", string)
+
+    if len(safe_label) > MAX_LABEL_LEN or string != safe_label:
+        safe_hash = hashlib.md5(string.encode()).hexdigest()[:9]
+        safe_label = safe_label[:MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
+
+    return safe_label
 
 
 class PodGenerator:
@@ -130,7 +157,7 @@ class PodGenerator:
         # Pod Metadata
         self.metadata = k8s.V1ObjectMeta()
         self.metadata.labels = labels
-        self.metadata.name = name + "-" + str(uuid.uuid4())[:8] if name else None
+        self.metadata.name = name
         self.metadata.namespace = namespace
         self.metadata.annotations = annotations
 
@@ -201,7 +228,26 @@ class PodGenerator:
         if self.extract_xcom:
             result = self.add_sidecar(result)
 
+        result.metadata.name = self.make_unique_pod_id(result.metadata.name)
         return result
+
+    @staticmethod
+    def make_unique_pod_id(dag_id):
+        """
+        Kubernetes pod names must be <= 253 chars and must pass the following regex for
+        validation
+        ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
+        :param dag_id: a dag_id with only alphanumeric characters
+        :return: ``str`` valid Pod name of appropriate length
+        """
+        if not dag_id:
+            return None
+
+        safe_uuid = uuid.uuid4().hex
+        safe_pod_id = dag_id[:MAX_POD_ID_LEN - len(safe_uuid) - 1]
+        safe_pod_id = safe_pod_id + "-" + safe_uuid
+
+        return safe_pod_id
 
     @staticmethod
     def add_sidecar(pod):
