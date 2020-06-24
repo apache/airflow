@@ -36,9 +36,13 @@ from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.cli import get_dag
 from airflow.utils.state import State
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
 DEFAULT_DATE = timezone.make_aware(datetime(2016, 1, 1))
+ROOT_FOLDER = os.path.realpath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
+)
 
 
 def reset(dag_id):
@@ -250,10 +254,12 @@ class TestCliTasks(unittest.TestCase):
 class TestLogsfromTaskRunCommand(unittest.TestCase):
 
     def setUp(self) -> None:
-        reset("example_bash_operator")
+        self.dag_id = "test_logging_dag"
+        self.task_id = "test_task"
+        reset(self.dag_id)
         self.execution_date_str = timezone.make_aware(datetime(2017, 1, 1)).isoformat()
         self.log_dir = conf.get('logging', 'base_log_folder')
-        self.log_filename = f"example_bash_operator/runme_0/{self.execution_date_str}/1.log"
+        self.log_filename = f"{self.dag_id}/{self.task_id}/{self.execution_date_str}/1.log"
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
         self.parser = cli_parser.get_parser()
         try:
@@ -262,7 +268,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             pass
 
     def tearDown(self) -> None:
-        reset("example_bash_operator")
+        reset(self.dag_id)
         try:
             os.remove(self.ti_log_file_path)
         except OSError:
@@ -270,8 +276,9 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
 
     @unittest.skipIf(not hasattr(os, 'fork'), "Forking not available")
     def test_logging_with_run_task(self):
-        task_command.task_run(self.parser.parse_args([
-            'tasks', 'run', 'example_bash_operator', 'runme_0', '--local', self.execution_date_str]))
+        with conf_vars({('core', 'dags_folder'): os.path.join(ROOT_FOLDER, f"tests/dags/{self.dag_id}")}):
+            task_command.task_run(self.parser.parse_args([
+                'tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
 
         with open(self.ti_log_file_path) as l_file:
             logs = l_file.read()
@@ -279,23 +286,26 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         print(logs)     # In case of a test failures this line would show detailed log
         logs_list = logs.splitlines()
 
-        ltj_exit_code_log_line = [log for log in logs_list if "Task exited with return code" in log]
-        self.assertEqual(len(ltj_exit_code_log_line), 1)
-        self.assertIn("local_task_job.py", ltj_exit_code_log_line[0])
-        self.assertNotIn("logging_mixin.py", ltj_exit_code_log_line[0])
-
         self.assertIn("INFO - Started process", logs)
-        self.assertIn("INFO - Running: ['airflow', 'tasks', 'run', 'example_bash_operator', "
-                      "'runme_0', '2017-01-01T00:00:00+00:00',", logs)
-        self.assertIn("INFO - Running command: "
-                      "echo \"example_bash_operator__runme_0__20170101\" && sleep 1", logs)
-        self.assertIn("INFO - Marking task as SUCCESS.dag_id=example_bash_operator, "
-                      "task_id=runme_0, execution_date=20170101T000000", logs)
+        self.assertIn(f"Subtask {self.task_id}", logs)
+        self.assertIn("standard_task_runner.py", logs)
+        self.assertIn(f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
+                      f"'{self.task_id}', '{self.execution_date_str}',", logs)
+
+        start_logs = [log for log in logs_list if "START before sleep" in log]
+        end_logs = [log for log in logs_list if "END after sleep" in log]
+        self.assertIn(f"INFO - {self.task_id} START before sleep", start_logs[0])
+        self.assertIn(f"INFO - {self.task_id} END after sleep", end_logs[0])
+        self.assertNotIn("logging_mixin.py", start_logs)
+        self.assertNotIn("logging_mixin.py", end_logs)
+        self.assertIn(f"INFO - Marking task as SUCCESS.dag_id={self.dag_id}, "
+                      f"task_id={self.task_id}, execution_date=20170101T000000", logs)
 
     @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
     def test_logging_with_run_task_subprocess(self):
-        task_command.task_run(self.parser.parse_args([
-            'tasks', 'run', 'example_bash_operator', 'runme_0', '--local', self.execution_date_str]))
+        with conf_vars({('core', 'dags_folder'): os.path.join(ROOT_FOLDER, f"tests/dags/{self.dag_id}")}):
+            task_command.task_run(self.parser.parse_args([
+                'tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
 
         with open(self.ti_log_file_path) as l_file:
             logs = l_file.read()
@@ -303,18 +313,19 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         print(logs)     # In case of a test failures this line would show detailed log
         logs_list = logs.splitlines()
 
-        ltj_exit_code_log_line = [log for log in logs_list if "Task exited with return code" in log]
-        self.assertEqual(len(ltj_exit_code_log_line), 1)
-        self.assertIn("local_task_job.py", ltj_exit_code_log_line[0])
-        self.assertNotIn("logging_mixin.py", ltj_exit_code_log_line[0])
+        self.assertIn(f"Subtask {self.task_id}", logs)
+        self.assertIn("base_task_runner.py", logs)
+        start_logs = [log for log in logs_list if "START before sleep" in log]
+        end_logs = [log for log in logs_list if "END after sleep" in log]
+        self.assertIn(f"INFO - {self.task_id} START before sleep", start_logs[0])
+        self.assertIn(f"INFO - {self.task_id} END after sleep", end_logs[0])
+        self.assertNotIn("logging_mixin.py", start_logs)
+        self.assertNotIn("logging_mixin.py", end_logs)
 
-        # self.assertIn("INFO - subprocess", logs)
-        self.assertIn("INFO - Running: ['airflow', 'tasks', 'run', 'example_bash_operator', "
-                      "'runme_0', '2017-01-01T00:00:00+00:00',", logs)
-        self.assertIn("INFO - Running command: "
-                      "echo \"example_bash_operator__runme_0__20170101\" && sleep 1", logs)
-        self.assertIn("INFO - Marking task as SUCCESS.dag_id=example_bash_operator, "
-                      "task_id=runme_0, execution_date=20170101T000000", logs)
+        self.assertIn(f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
+                      f"'{self.task_id}', '{self.execution_date_str}',", logs)
+        self.assertIn(f"INFO - Marking task as SUCCESS.dag_id={self.dag_id}, "
+                      f"task_id={self.task_id}, execution_date=20170101T000000", logs)
 
 
 class TestCliTaskBackfill(unittest.TestCase):

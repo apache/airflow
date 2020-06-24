@@ -16,15 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """Standard task runner"""
+import logging
 import os
 
 import psutil
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.process_utils import reap_process_group
 
-CAN_FORK = hasattr(os, 'fork')
+CAN_FORK = True
 
 
 class StandardTaskRunner(BaseTaskRunner):
@@ -48,7 +50,7 @@ class StandardTaskRunner(BaseTaskRunner):
 
     def _start_by_fork(self):  # pylint: disable=inconsistent-return-statements
         pid = os.fork()
-        if pid:
+        if pid:     # pylint: disable=too-many-nested-blocks
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
@@ -80,6 +82,16 @@ class StandardTaskRunner(BaseTaskRunner):
                 proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))
 
+            # Get all the Handlers from 'airflow.task' logger
+            # Add these handlers to the root logger so that we can get logs from
+            # any custom loggers defined in the DAG
+            airflow_logger_handlers = logging.getLogger('airflow.task').handlers
+            root_logger = logging.getLogger()
+            for handler in airflow_logger_handlers:
+                if isinstance(handler, FileTaskHandler):
+                    root_logger.addHandler(handler)
+            root_logger.setLevel(logging.getLogger('airflow.task').level)
+
             try:
                 args.func(args, dag=self.dag)
                 return_code = 0
@@ -89,6 +101,10 @@ class StandardTaskRunner(BaseTaskRunner):
                 # Explicitly flush any pending exception to Sentry if enabled
                 Sentry.flush()
                 os._exit(return_code)  # pylint: disable=protected-access
+
+                for handler in airflow_logger_handlers:
+                    if isinstance(handler, FileTaskHandler):
+                        root_logger.removeHandler(handler)
 
     def return_code(self, timeout=0):
         # We call this multiple times, but we can only wait on the process once
