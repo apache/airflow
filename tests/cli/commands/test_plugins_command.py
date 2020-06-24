@@ -18,14 +18,12 @@
 import io
 import unittest
 from contextlib import redirect_stdout
-from unittest import mock
-
-from test_utils.mock_plugins import mock_plugin_manager
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import plugins_command
 from airflow.models.baseoperator import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
+from tests.test_utils.mock_plugins import mock_plugin_manager
 
 
 class PluginOperator(BaseOperator):
