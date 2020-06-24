@@ -1133,9 +1133,6 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
       operationId: get_config
       tags: [Config]
-      parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
           description: Return current configuration.
