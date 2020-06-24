@@ -192,12 +192,8 @@ class TestGetLog(unittest.TestCase):
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/Invalid-Task-ID/logs/1?token={token}",
         )
-        self.assertEqual(
-            "{'download_logs': True, 'end_of_log': True}",
-            response.json['continuation_token']
-        )
-        self.assertEqual("[*** Task instance did not exist in the DB\n]",
-                         response.json['content'])
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json['detail'], "Task instance did not exist in the DB")
 
     @provide_session
     def test_get_logs_with_metadata_as_download_large_file(self, session):
@@ -233,12 +229,10 @@ class TestGetLog(unittest.TestCase):
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers=headers
         )
-        self.assertEqual(200, response.status_code)
-        self.assertIn('content', response.json)
-        self.assertIn('continuation_token', response.json)
+        self.assertEqual(400, response.status_code)
         self.assertIn(
             'Task log handler does not support read logs.',
-            response.json['content'])
+            response.data.decode('utf-8'))
 
     @provide_session
     def test_bad_signature_raises(self, session):

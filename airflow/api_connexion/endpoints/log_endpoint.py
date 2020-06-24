@@ -52,11 +52,7 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
 
     task_log_reader = TaskLogReader()
     if not task_log_reader.is_supported:
-        metadata = {"end_of_log": True}
-        return logs_schema.dump(LogResponseObject(
-            content="[Task log handler does not support read logs.]",
-            continuation_token=str(metadata)
-        ))
+        raise BadRequest("Task log handler does not support read logs.")
 
     query = session.query(DagRun).filter(DagRun.dag_id == dag_id)
     dag_run = query.filter(DagRun.run_id == dag_run_id).first()
@@ -66,11 +62,8 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
     ti = dag_run.get_task_instance(task_id, session)
     if ti is None:
         metadata['end_of_log'] = True
-        return logs_schema.dump(
-            LogResponseObject(
-                content="[*** Task instance did not exist in the DB\n]",
-                continuation_token=str(metadata))
-        )
+        raise BadRequest(detail="Task instance did not exist in the DB")
+
     try:
         dag = current_app.dag_bag.get_dag(dag_id)
         if dag:
