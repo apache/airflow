@@ -32,7 +32,6 @@ MISSING_TEST_FILES = {
     'tests/providers/apache/cassandra/sensors/test_record.py',
     'tests/providers/apache/cassandra/sensors/test_table.py',
     'tests/providers/apache/hdfs/sensors/test_web_hdfs.py',
-    'tests/providers/apache/spark/hooks/test_spark_jdbc_script.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
     'tests/providers/google/cloud/transfers/test_sql_to_gcs.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
