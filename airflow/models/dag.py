@@ -49,6 +49,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
+from airflow.models.dagparam import DagParam
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
 from airflow.security import permissions
@@ -693,6 +694,9 @@ class DAG(BaseDag, LoggingMixin):
     @pickle_id.setter
     def pickle_id(self, value: int) -> None:
         self._pickle_id = value
+
+    def param(self, name, default):
+        return DagParam(self, name, default)
 
     @property
     def tasks(self) -> List[BaseOperator]:
