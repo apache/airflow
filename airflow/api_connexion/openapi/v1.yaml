@@ -38,7 +38,8 @@ paths:
   /connections:
     get:
       summary: Get all connection entries
-      operationId: airflow.api_connexion.endpoints.connection_endpoint.get_connections
+      x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+      operationId: get_connections
       tags: [Connection]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -59,7 +60,8 @@ paths:
 
     post:
       summary: Create connection entry
-      operationId: airflow.api_connexion.endpoints.connection_endpoint.post_connection
+      x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+      operationId: post_connection
       tags: [Connection]
       requestBody:
         required: true
@@ -87,7 +89,8 @@ paths:
 
     get:
       summary: Get a connection entry
-      operationId: airflow.api_connexion.endpoints.connection_endpoint.get_connection
+      x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+      operationId: get_connection
       tags: [Connection]
       responses:
         '200':
@@ -105,7 +108,8 @@ paths:
 
     patch:
       summary: Update a connection entry
-      operationId: airflow.api_connexion.endpoints.connection_endpoint.patch_connection
+      x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+      operationId: patch_connection
       tags: [Connection]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -134,7 +138,8 @@ paths:
 
     delete:
       summary: Delete a connection entry
-      operationId: airflow.api_connexion.endpoints.connection_endpoint.delete_connection
+      x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+      operationId: delete_connection
       tags: [Connection]
       responses:
         '204':
@@ -149,7 +154,8 @@ paths:
   /dags:
     get:
       summary: Get all DAGs
-      operationId: airflow.api_connexion.endpoints.dag_endpoint.get_dags
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+      operationId: get_dags
       tags: [DAG]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -176,7 +182,8 @@ paths:
         Presents only information available in database (DAGModel).
 
         If you need detailed information, consider using GET /dags/{dag_id}/detail.
-      operationId: airflow.api_connexion.endpoints.dag_endpoint.get_dag
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+      operationId: get_dag
       tags: [DAG]
       responses:
         '200':
@@ -194,7 +201,8 @@ paths:
 
     patch:
       summary: Update a DAG
-      operationId: airflow.api_connexion.endpoints.dag_endpoint.patch_dag
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+      operationId: patch_dag
       tags: [DAG]
       requestBody:
         required: true
@@ -222,7 +230,8 @@ paths:
 
     post:
       summary: Clears a set of task instances associated with the DAG for a specified date range.
-      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.post_clear_task_instances
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: post_clear_task_instances
       tags: [DAG]
       requestBody:
         description: Parameters of action
@@ -254,7 +263,8 @@ paths:
       summary: Get all DAG Runs
       description: >
         This endpoint allows specifying `~` as the dag_id to retrieve DAG Runs for all DAGs.
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.get_dag_runs
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: get_dag_runs
       tags: [DAGRun]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -283,7 +293,8 @@ paths:
       description: >
         This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
         would run in to maximum HTTP request URL lengthlimits
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.get_dag_runs_batch
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: get_dag_runs_batch
       tags: [DAGRun]
       requestBody:
         required: true
@@ -314,7 +325,8 @@ paths:
 
     get:
       summary: Get a DAG Run
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.get_dag_run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: get_dag_run
       tags: [DAGRun]
       responses:
         '200':
@@ -332,7 +344,8 @@ paths:
 
     post:
       summary: Trigger a DAG Run
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.post_dag_run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: post_dag_run
       tags: [DAGRun]
       requestBody:
         required: true
@@ -358,7 +371,8 @@ paths:
 
     patch:
       summary: Update a DAG Run
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.patch_dag_run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: patch_dag_run
       tags: [DAGRun]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -387,7 +401,8 @@ paths:
 
     delete:
       summary: Delete a DAG Run
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.delete_dag_run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: delete_dag_run
       tags: [DAGRun]
       responses:
         '204':
@@ -402,7 +417,8 @@ paths:
   /eventLogs:
     get:
       summary: Get all log entries from event log
-      operationId: airflow.api_connexion.endpoints.event_log_endpoint.get_event_logs
+      x-openapi-router-controller: airflow.api_connexion.endpoints.event_log_endpoint
+      operationId: get_event_logs
       tags: [EventLog]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -427,7 +443,8 @@ paths:
 
     get:
       summary: Get a log entry
-      operationId: airflow.api_connexion.endpoints.event_log_endpoint.get_event_log
+      x-openapi-router-controller: airflow.api_connexion.endpoints.event_log_endpoint
+      operationId: get_event_log
       tags: [EventLog]
       responses:
         '200':
@@ -446,7 +463,8 @@ paths:
   /importErrors:
     get:
       summary: Get all import errors
-      operationId: airflow.api_connexion.endpoints.import_error_endpoint.get_import_errors
+      x-openapi-router-controller: airflow.api_connexion.endpoints.import_error_endpoint
+      operationId: get_import_errors
       tags: [ImportError]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -471,7 +489,8 @@ paths:
 
     get:
       summary: Get an import error
-      operationId: airflow.api_connexion.endpoints.import_error_endpoint.get_import_error
+      x-openapi-router-controller: airflow.api_connexion.endpoints.import_error_endpoint
+      operationId: get_import_error
       tags: [ImportError]
       responses:
         '200':
@@ -490,7 +509,8 @@ paths:
   /pools:
     get:
       summary: Get all pools
-      operationId: airflow.api_connexion.endpoints.pool_endpoint.get_pools
+      x-openapi-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+      operationId: get_pools
       tags: [Pool]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -511,7 +531,8 @@ paths:
 
     post:
       summary: Create a pool
-      operationId: airflow.api_connexion.endpoints.pool_endpoint.post_pool
+      x-openapi-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+      operationId: post_pool
       tags: [Pool]
       requestBody:
         required: true
@@ -539,7 +560,8 @@ paths:
 
     get:
       summary: Get a pool
-      operationId: airflow.api_connexion.endpoints.pool_endpoint.get_pool
+      x-openapi-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+      operationId: get_pool
       tags: [Pool]
       responses:
         '200':
@@ -557,7 +579,8 @@ paths:
 
     patch:
       summary: Update a pool
-      operationId: airflow.api_connexion.endpoints.pool_endpoint.patch_pool
+      x-openapi-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+      operationId: patch_pool
       tags: [Pool]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -586,7 +609,8 @@ paths:
 
     delete:
       summary: Delete a pool
-      operationId: airflow.api_connexion.endpoints.pool_endpoint.delete_pool
+      x-openapi-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+      operationId: delete_pool
       tags: [Pool]
       responses:
         '204':
@@ -618,7 +642,8 @@ paths:
       description: >
         This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve DAG Runs for all DAGs
         and DAG Runs.
-      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.get_task_instances
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instances
       tags: [TaskInstance]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -645,7 +670,8 @@ paths:
 
     get:
       summary: Get a task instance
-      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.get_task_instance
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instance
       tags: [TaskInstance]
       responses:
         '200':
@@ -667,7 +693,8 @@ paths:
       description: >
         This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
         would run in to maximum HTTP request URL lengthlimits
-      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.get_task_instances_batch
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instances_batch
       tags: [TaskInstance]
       requestBody:
         required: true
@@ -696,7 +723,8 @@ paths:
     get:
       summary: Get all variables
       description: The collection does not contain data. To get data, you must get a single entity.
-      operationId: airflow.api_connexion.endpoints.variable_endpoint.get_variables
+      x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+      operationId: get_variables
       tags: [Variable]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -717,7 +745,8 @@ paths:
 
     post:
       summary: Create a variable
-      operationId: airflow.api_connexion.endpoints.variable_endpoint.post_variables
+      x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+      operationId: post_variables
       tags: [Variable]
       requestBody:
         required: true
@@ -745,7 +774,8 @@ paths:
 
     get:
       summary: Get a variable by key
-      operationId: airflow.api_connexion.endpoints.variable_endpoint.get_variable
+      x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+      operationId: get_variable
       tags: [Variable]
       responses:
         '200':
@@ -763,7 +793,8 @@ paths:
 
     patch:
       summary: Update a variable by key
-      operationId: airflow.api_connexion.endpoints.variable_endpoint.patch_variable
+      x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+      operationId: patch_variable
       tags: [Variable]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -792,7 +823,8 @@ paths:
 
     delete:
       summary: Delete variable
-      operationId: airflow.api_connexion.endpoints.variable_endpoint.delete_variable
+      x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+      operationId: delete_variable
       tags: [Variable]
       responses:
         '204':
@@ -815,7 +847,8 @@ paths:
       description:
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCOM entries for
         for all DAGs, DAG Runs and task instances.
-      operationId: airflow.api_connexion.endpoints.xcom_endpoint.get_xcom_entries
+      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+      operationId: get_xcom_entries
       tags: [XCom]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -836,7 +869,8 @@ paths:
 
     post:
       summary: Create an XCom entry
-      operationId: airflow.api_connexion.endpoints.xcom_endpoint.post_xcom_entries
+      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+      operationId: post_xcom_entries
       tags: [XCom]
       requestBody:
         required: true
@@ -867,7 +901,8 @@ paths:
 
     get:
       summary: Get an XCom entry
-      operationId: airflow.api_connexion.endpoints.xcom_endpoint.get_xcom_entry
+      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+      operationId: get_xcom_entry
       tags: [XCom]
       responses:
         '200':
@@ -885,7 +920,8 @@ paths:
 
     patch:
       summary: Update an XCom entry
-      operationId: airflow.api_connexion.endpoints.xcom_endpoint.patch_xcom_entry
+      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+      operationId: patch_xcom_entry
       tags: [XCom]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -914,7 +950,8 @@ paths:
 
     delete:
       summary: Delete an XCom entry
-      operationId: airflow.api_connexion.endpoints.xcom_endpoint.delete_xcom_entry
+      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+      operationId: delete_xcom_entry
       tags: [XCom]
       responses:
         '204':
@@ -935,7 +972,8 @@ paths:
 
     get:
       summary: Get extra links for task instance
-      operationId: airflow.api_connexion.endpoints.extra_link_endpoint.get_extra_links
+      x-openapi-router-controller: airflow.api_connexion.endpoints.extra_link_endpoint
+      operationId: get_extra_links
       tags: [TaskInstance]
       responses:
         '200':
@@ -963,7 +1001,8 @@ paths:
     get:
       summary: Get logs for a task instance
       description: Get logs for a specific task instance and its try number
-      operationId: airflow.api_connexion.endpoints.log_endpoint.get_log
+      x-openapi-router-controller: airflow.api_connexion.endpoints.log_endpoint
+      operationId: get_log
       tags: [TaskInstance]
       responses:
         '200':
@@ -995,7 +1034,8 @@ paths:
 
     get:
       summary: Get a simplified representation of DAG.
-      operationId: airflow.api_connexion.endpoints.dag_endpoint.get_dag_details
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+      operationId: get_dag_details
       description: >
         The response contains many DAG attributes, so the response can be large.
         If possible, consider using GET /dags/{dag_id}.
@@ -1020,7 +1060,8 @@ paths:
 
     get:
       summary: Get tasks for DAG
-      operationId: airflow.api_connexion.endpoints.task_endpoint.get_tasks
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_endpoint
+      operationId: get_tasks
       tags: [DAG]
       responses:
         '200':
@@ -1043,7 +1084,8 @@ paths:
 
     get:
       summary: Get simplified representation of a task.
-      operationId: airflow.api_connexion.endpoints.task_endpoint.get_task
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_endpoint
+      operationId: get_task
       tags: [DAG]
       responses:
         '200':
@@ -1065,7 +1107,8 @@ paths:
 
     get:
       summary: Get source code using file token
-      operationId: airflow.api_connexion.endpoints.dag_source_endpoint.get_dag_source
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_source_endpoint
+      operationId: get_dag_source
       tags: [DAG]
       responses:
         '200':
@@ -1087,7 +1130,8 @@ paths:
   /config:
     get:
       summary: Get current configuration
-      operationId: airflow.api_connexion.endpoints.config_endpoint.get_config
+      x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
+      operationId: get_config
       tags: [Config]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -1110,7 +1154,8 @@ paths:
   /health:
     get:
       summary: Checks if the API works
-      operationId: airflow.api_connexion.endpoints.health_endpoint.get_health
+      x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
+      operationId: get_health
       tags: [Monitoring]
       responses:
         '200':
@@ -1123,7 +1168,8 @@ paths:
   /version:
     get:
       summary: Get version information
-      operationId: airflow.api_connexion.endpoints.version_endpoint.get_version
+      x-openapi-router-controller: airflow.api_connexion.endpoints.version_endpoint
+      operationId: get_version
       tags: [Monitoring]
       responses:
         '200':
