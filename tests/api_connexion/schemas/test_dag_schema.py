@@ -115,7 +115,7 @@ class TestDAGDetailSchema:
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',
-            'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'seconds': 0},
+            'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'seconds': 0, 'microseconds': 0},
             'start_date': '2020-06-19T00:00:00+00:00',
             'tags': None,
             'timezone': "Timezone('UTC')"

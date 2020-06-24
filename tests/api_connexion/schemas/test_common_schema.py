@@ -30,10 +30,13 @@ class TestTimeDeltaSchema(unittest.TestCase):
         instance = datetime.timedelta(days=12)
         schema_instance = TimeDeltaSchema()
         result = schema_instance.dump(instance)
-        self.assertEqual({"__type": "TimeDelta", "days": 12, "seconds": 0}, result.data)
+        self.assertEqual(
+            {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0},
+            result.data
+        )
 
     def test_should_deserialize(self):
-        instance = {"__type": "TimeDelta", "days": 12, "seconds": 0}
+        instance = {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0}
         schema_instance = TimeDeltaSchema()
         result = schema_instance.load(instance)
         expected_instance = datetime.timedelta(days=12)
@@ -68,7 +71,7 @@ class TestRelativeDeltaSchema(unittest.TestCase):
         )
 
     def test_should_deserialize(self):
-        instance = {"__type": "TimeDelta", "days": 12, "seconds": 0}
+        instance = {"__type": "RelativeDelta", "days": 12, "seconds": 0}
         schema_instance = RelativeDeltaSchema()
         result = schema_instance.load(instance)
         expected_instance = relativedelta.relativedelta(days=+12)
@@ -89,10 +92,13 @@ class TestScheduleIntervalSchema(unittest.TestCase):
         instance = datetime.timedelta(days=12)
         schema_instance = ScheduleIntervalSchema()
         result = schema_instance.dump(instance)
-        self.assertEqual({"__type": "TimeDelta", "days": 12, "seconds": 0}, result.data)
+        self.assertEqual(
+            {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0},
+            result.data
+        )
 
     def test_should_deserialize_timedelta(self):
-        instance = {"__type": "TimeDelta", "days": 12, "seconds": 0}
+        instance = {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0}
         schema_instance = ScheduleIntervalSchema()
         result = schema_instance.load(instance)
         expected_instance = datetime.timedelta(days=12)
