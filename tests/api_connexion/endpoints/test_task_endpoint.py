@@ -41,24 +41,18 @@ class TestTaskEndpoint(unittest.TestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.app = app.create_app(testing=True)  # type:ignore
-        cls.app_serialized = app.create_app(testing=True)  # type:ignore
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
 
         cls.dag = dag  # type:ignore
-
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {dag.dag_id: dag}
         cls.app.dag_bag = dag_bag  # type:ignore
 
-        dag_bag = DagBag(os.devnull, include_examples=False, store_serialized_dags=True)
-        cls.app_serialized.dag_bag = dag_bag  # type:ignore
-
     def setUp(self) -> None:
         self.clean_db()
         self.client = self.app.test_client()  # type:ignore
-        self.client_serialized = self.app_serialized.test_client()  # type:ignore
 
     def tearDown(self) -> None:
         self.clean_db()
@@ -99,6 +93,12 @@ class TestGetTask(TestTaskEndpoint):
 
     @conf_vars({("core", "store_serialized_dags"): "True"})
     def test_should_response_200_serialized(self):
+        # Create empty app with empty dagbag to check if DAG is read from db
+        app_serialized = app.create_app(testing=True)  # type:ignore
+        dag_bag = DagBag(os.devnull, include_examples=False, store_serialized_dags=True)
+        app_serialized.dag_bag = dag_bag  # type:ignore
+        client = app_serialized.test_client()
+
         SerializedDagModel.write_dag(self.dag)
 
         expected = {
@@ -128,7 +128,7 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
         }
-        response = self.client_serialized.get(f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}")
+        response = client.get(f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}")
         assert response.status_code == 200
         assert response.json == expected
 
