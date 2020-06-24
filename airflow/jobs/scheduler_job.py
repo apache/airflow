@@ -1242,8 +1242,9 @@ class SchedulerJob(BaseJob):
                         open_slots, pool
                     )
                     # Can't schedule any more since there are no more open slots.
-                    num_starving_tasks = len(priority_sorted_task_instances) - current_index
-                    num_starving_tasks_total += num_starving_tasks
+                    num_unhandled = len(priority_sorted_task_instances) - current_index
+                    num_starving_tasks += num_unhandled
+                    num_starving_tasks_total += num_unhandled
                     break
 
                 # Check to make sure that the task concurrency of the DAG hasn't been
@@ -1286,8 +1287,17 @@ class SchedulerJob(BaseJob):
                     num_tasks_in_executor += 1
                     continue
 
+                if task_instance.pool_slots > open_slots:
+                    self.log.info("Not executing %s since it requires %s slots "
+                                  "but there are %s open slots in the pool %s.",
+                                  task_instance, task_instance.pool_slots, open_slots, pool)
+                    num_starving_tasks += 1
+                    num_starving_tasks_total += 1
+                    # Though we can execute tasks with lower priority if there's enough room
+                    continue
+
                 executable_tis.append(task_instance)
-                open_slots -= 1
+                open_slots -= task_instance.pool_slots
                 dag_concurrency_map[dag_id] += 1
                 task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
 
