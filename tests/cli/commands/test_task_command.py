@@ -274,8 +274,23 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         except OSError:
             pass
 
+    def assert_log_line(self, text, logs_list):
+        """
+        Get Log Line and assert only 1 Entry exists with the given text. Also check that
+        "logging_mixin" line does not appear in that log line to avoid duplicate loggigng as below:
+
+        [2020-06-24 16:47:23,537] {logging_mixin.py:91} INFO - [2020-06-24 16:47:23,536] {python.py:135}
+        """
+        log_line = [log for log in logs_list if text in log]
+        self.assertEqual(len(log_line), 1)
+        self.assertNotIn("logging_mixin.py", log_line)
+        return log_line[0]
+
     @unittest.skipIf(not hasattr(os, 'fork'), "Forking not available")
     def test_logging_with_run_task(self):
+        #  We are not using self.assertLogs as we want to verify what actually is stored in the Log file
+        # as that is what gets displayed
+
         with conf_vars({('core', 'dags_folder'): os.path.join(ROOT_FOLDER, f"tests/dags/{self.dag_id}")}):
             task_command.task_run(self.parser.parse_args([
                 'tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
@@ -292,17 +307,17 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.assertIn(f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
                       f"'{self.task_id}', '{self.execution_date_str}',", logs)
 
-        start_logs = [log for log in logs_list if "START before sleep" in log]
-        end_logs = [log for log in logs_list if "END after sleep" in log]
-        self.assertIn(f"INFO - {self.task_id} START before sleep", start_logs[0])
-        self.assertIn(f"INFO - {self.task_id} END after sleep", end_logs[0])
-        self.assertNotIn("logging_mixin.py", start_logs)
-        self.assertNotIn("logging_mixin.py", end_logs)
+        self.assert_log_line("Log from DAG Logger", logs_list)
+        self.assert_log_line("Log from TI Logger", logs_list)
+        self.assert_log_line("Log from Print statement", logs_list)
+
         self.assertIn(f"INFO - Marking task as SUCCESS.dag_id={self.dag_id}, "
                       f"task_id={self.task_id}, execution_date=20170101T000000", logs)
 
     @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
     def test_logging_with_run_task_subprocess(self):
+        # We are not using self.assertLogs as we want to verify what actually is stored in the Log file
+        # as that is what gets displayed
         with conf_vars({('core', 'dags_folder'): os.path.join(ROOT_FOLDER, f"tests/dags/{self.dag_id}")}):
             task_command.task_run(self.parser.parse_args([
                 'tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
@@ -315,12 +330,9 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
 
         self.assertIn(f"Subtask {self.task_id}", logs)
         self.assertIn("base_task_runner.py", logs)
-        start_logs = [log for log in logs_list if "START before sleep" in log]
-        end_logs = [log for log in logs_list if "END after sleep" in log]
-        self.assertIn(f"INFO - {self.task_id} START before sleep", start_logs[0])
-        self.assertIn(f"INFO - {self.task_id} END after sleep", end_logs[0])
-        self.assertNotIn("logging_mixin.py", start_logs)
-        self.assertNotIn("logging_mixin.py", end_logs)
+        self.assert_log_line("Log from DAG Logger", logs_list)
+        self.assert_log_line("Log from TI Logger", logs_list)
+        self.assert_log_line("Log from Print statement", logs_list)
 
         self.assertIn(f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
                       f"'{self.task_id}', '{self.execution_date_str}',", logs)

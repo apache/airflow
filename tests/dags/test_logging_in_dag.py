@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 
 
 def test_logging_fn(**kwargs):
-    logger.info('test_task START before sleep')
-    sleep(1)
-    logger.info('test_task END after sleep')
+    logger.info("Log from DAG Logger")
+    kwargs["ti"].log.info("Log from TI Logger")
+    print("Log from Print statement")
 
 
 dag = DAG(
