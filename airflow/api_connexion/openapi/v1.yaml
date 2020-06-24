@@ -1278,16 +1278,16 @@ components:
 
             This together with DAG_ID are a unique key.
           type: string
-          format: timezone-datetime
+          format: date-time
         start_date:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             The start time. The time when DAG Run was actually created..
           readOnly: True
         end_date:
           type: string
-          format: timezone-datetime
+          format: date-time
           readOnly: True
           nullable: true
         state:
@@ -1610,7 +1610,7 @@ components:
               readOnly: true
             start_date:
               type: string
-              format: 'timezone-datetime'
+              format: 'date-time'
               readOnly: true
             dag_run_timeout:
               nullable: true
@@ -1655,11 +1655,11 @@ components:
           readOnly: true
         start_date:
           type: string
-          format: 'timezone-datetime'
+          format: 'date-time'
           readOnly: true
         end_date:
           type: string
-          format: 'timezone-datetime'
+          format: 'date-time'
           readOnly: true
           nullable: true
         trigger_rule:
@@ -1839,7 +1839,7 @@ components:
 
         execution_date_gte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects greater or equal to the specified date.
 
@@ -1847,7 +1847,7 @@ components:
 
         execution_date_lte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects less than or equal to the specified date.
 
@@ -1855,7 +1855,7 @@ components:
 
         start_date_gte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects greater or equal the specified date.
 
@@ -1863,7 +1863,7 @@ components:
 
         start_date_lte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects less or equal the specified date.
 
@@ -1871,14 +1871,14 @@ components:
 
         end_date_gte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects greater or equal the specified date.
 
             This can be combined with end_date_lte parameter to receive only the selected period.
         end_date_lte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects less than or equal to the specified date.
 
@@ -1898,42 +1898,42 @@ components:
 
         execution_date_gte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects greater or equal to the specified date.
 
             This can be combined with execution_date_lte parameter to receive only the selected period.
         execution_date_lte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects less than or equal to the specified date.
 
             This can be combined with execution_date_gte parameter to receive only the selected period.
         start_date_gte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects greater or equal the specified date.
 
             This can be combined with startd_ate_lte parameter to receive only the selected period.
         start_date_lte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects less or equal the specified date.
 
             This can be combined with start_date_gte parameter to receive only the selected period.
         end_date_gte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects greater or equal the specified date.
 
             This can be combined with start_date_lte parameter to receive only the selected period.
         end_date_lte:
           type: string
-          format: timezone-datetime
+          format: date-time
           description: >
             Returns objects less than or equal to the specified date.
 
@@ -2270,7 +2270,7 @@ components:
       name: execution_date_gte
       schema:
         type: string
-        format: timezone-datetime
+        format: date-time
       required: false
       description: >
         Returns objects greater or equal to the specified date.
@@ -2281,7 +2281,7 @@ components:
       name: execution_date_lte
       schema:
         type: string
-        format: timezone-datetime
+        format: date-time
       required: false
       description: >
         Returns objects less than or equal to the specified date.
@@ -2292,7 +2292,7 @@ components:
       name: start_date_gte
       schema:
         type: string
-        format: timezone-datetime
+        format: date-time
       required: false
       description: >
         Returns objects greater or equal the specified date.
@@ -2303,7 +2303,7 @@ components:
       name: start_date_lte
       schema:
         type: string
-        format: timezone-datetime
+        format: date-time
       required: false
       description: >
         Returns objects less or equal the specified date.
@@ -2314,7 +2314,7 @@ components:
       name: end_date_gte
       schema:
         type: string
-        format: timezone-datetime
+        format: date-time
       required: false
       description: >
         Returns objects greater or equal the specified date.
@@ -2325,7 +2325,7 @@ components:
       name: end_date_lte
       schema:
         type: string
-        format: timezone-datetime
+        format: date-time
       required: false
       description: >
         Returns objects less than or equal to the specified date.

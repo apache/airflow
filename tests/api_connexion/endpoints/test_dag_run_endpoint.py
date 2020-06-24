@@ -312,15 +312,15 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
         [
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18:00:00+00:00",
-                "'2020-06-18T18:00:00 00:00' is not a 'timezone-datetime'"
+                "'2020-06-18T18:00:00 00:00' is not a 'date-time'"
             ),
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-18T18:00:00+00:00",
-                "'2020-06-18T18:00:00 00:00' is not a 'timezone-datetime'"
+                "'2020-06-18T18:00:00 00:00' is not a 'date-time'"
             ),
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte=20209080:00+00:00",
-                "'20209080:00 00:00' is not a 'timezone-datetime'"
+                "'20209080:00 00:00' is not a 'date-time'"
             ),
         ]
     )
