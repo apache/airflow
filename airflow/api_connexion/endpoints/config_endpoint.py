@@ -28,24 +28,25 @@ def get_config() -> Response:
     response_types = ['text/plain', 'application/json']
     content_type = request.accept_mimetypes.best_match(response_types)
     conf_dict = conf.as_dict(display_source=True, display_sensitive=True)
+    config = Config(
+        sections=[
+            ConfigSection(
+                name=section,
+                options=[
+                    ConfigOption(key=key, value=value, source=source)
+                    for key, (value, source) in parameters.items()
+                ]
+            )
+            for section, parameters in conf_dict.items()
+        ]
+    )
     if content_type == 'text/plain':
-        config = ''
-        for section, parameters in conf_dict.items():
-            config += f'[{section}]\n'
-            for key, (value, source) in parameters.items():
-                config += f'{key} = {value}  # source: {source}\n'
-    else:
-        config = Config(
-            sections=[
-                ConfigSection(
-                    name=section,
-                    options=[
-                        ConfigOption(key=key, value=value, source=source)
-                        for key, (value, source) in parameters.items()
-                    ]
-                )
-                for section, parameters in conf_dict.items()
-            ]
+        config_text = '\n'.join(
+            f'[{config_section.name}]\n' +
+            ''.join(f'{config_option.key} = {config_option.value}  # source: {config_option.source}\n'
+                    for config_option in config_section.options)
+            for config_section in config.sections
         )
-        config = config_schema.dump(config)
-    return config
+        return config_text
+    else:
+        return config_schema.dump(config)
