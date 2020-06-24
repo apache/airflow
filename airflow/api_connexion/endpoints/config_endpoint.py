@@ -17,7 +17,7 @@
 
 from flask import Response, request
 
-from airflow.api_connexion.schemas.config_schema import config_schema
+from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
 from airflow.configuration import conf
 
 
@@ -35,21 +35,17 @@ def get_config() -> Response:
             for key, (value, source) in parameters.items():
                 config += f'{key} = {value}  # source: {source}\n'
     else:
-        config = {
-            'sections': [
-                {
-                    'name': section,
-                    'options': [
-                        {
-                            'key': key,
-                            'value': value,
-                            'source': source,
-                        }
+        config = Config(
+            sections=[
+                ConfigSection(
+                    name=section,
+                    options=[
+                        ConfigOption(key=key, value=value, source=source)
                         for key, (value, source) in parameters.items()
-                    ],
-                }
+                    ]
+                )
                 for section, parameters in conf_dict.items()
             ]
-        }
+        )
         config = config_schema.dump(config)
     return config
