@@ -85,12 +85,21 @@ class StandardTaskRunner(BaseTaskRunner):
             # Get all the Handlers from 'airflow.task' logger
             # Add these handlers to the root logger so that we can get logs from
             # any custom loggers defined in the DAG
-            airflow_logger_handlers = logging.getLogger('airflow.task').handlers
+            # airflow_logger = logging.getLogger('airflow')
+            default_logger = logging.getLogger('airflow.task')
             root_logger = logging.getLogger()
+
+            airflow_logger_handlers = default_logger.handlers
+            # default_logger.propagate = True
+            # airflow_logger.propagate = True
+
             for handler in airflow_logger_handlers:
                 if isinstance(handler, FileTaskHandler):
+                    # airflow_logger.addHandler(handler)
+                    default_logger.removeHandler(handler)
                     root_logger.addHandler(handler)
-            root_logger.setLevel(logging.getLogger('airflow.task').level)
+            root_logger.setLevel(default_logger.level)
+            # airflow_logger.setLevel(default_logger.level)
 
             try:
                 args.func(args, dag=self.dag)
@@ -104,6 +113,8 @@ class StandardTaskRunner(BaseTaskRunner):
 
                 for handler in airflow_logger_handlers:
                     if isinstance(handler, FileTaskHandler):
+                        # root_logger.removeHandler(handler)
+                        default_logger.addHandler(handler)
                         root_logger.removeHandler(handler)
 
     def return_code(self, timeout=0):
