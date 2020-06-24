@@ -2092,7 +2092,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
             return "Error: Invalid execution_date"
 
         task_instances = {}
-        for ti in dag.get_task_instances(dttm, dttm):
+        for ti in dag.get_task_instances(dttm, dttm, load_task_tags=True):
             task_instances[ti.task_id] = alchemy_to_dict(ti)
             task_instances[ti.task_id]['tags'] = [tag.name for tag in ti.task_tags]
 
