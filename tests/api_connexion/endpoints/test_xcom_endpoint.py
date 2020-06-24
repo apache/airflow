@@ -341,6 +341,35 @@ class TestPatchXComEntry(TestXComEndpoint):
 
         self.assertEqual(response.json['value'], expected_value)
 
+    @provide_session
+    def test_patch_should_response_404(self, session):
+        self._create_xcom(session)
+        dag_run_id = self._create_dag_run(session)
+        payload = {"value": "new-val"}
+        url = (f"/api/v1/dags/{DAG_ID}/dagRuns/{dag_run_id}/taskInstances"
+               f"/{TASK_ID}/xcomEntries/INVALID_XCOMKEY")
+
+        response = self.client.patch(
+            url,
+            json=payload
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    @provide_session
+    def test_patch_should_response_404_invalid_dagrun(self, session):
+        self._create_xcom(session)
+        payload = {"value": "new-val"}
+        url = (f"/api/v1/dags/{DAG_ID}/dagRuns/INVALID_DAGRUN_ID/taskInstances"
+               f"/{TASK_ID}/xcomEntries/{XCOM_KEY}")
+
+        response = self.client.patch(
+            url,
+            json=payload
+        )
+
+        self.assertEqual(response.status_code, 404)
+
     @parameterized.expand(
         [
             (
