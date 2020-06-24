@@ -101,8 +101,8 @@ def _parse_yaml_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyn
         return {}, [FileSyntaxError(line_no=1, message="The file is empty.")]
     try:
         secrets = yaml.safe_load(content)
-    except yaml.YAMLError as e:
-        return {}, [FileSyntaxError(line_no=1, message=str(e))]
+    except yaml.MarkedYAMLError as e:
+        return {}, [FileSyntaxError(line_no=e.problem_mark.line, message=str(e))]
     if not isinstance(secrets, dict):
         return {}, [FileSyntaxError(line_no=1, message="The file should contain the object.")]
 
