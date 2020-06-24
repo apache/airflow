@@ -118,9 +118,6 @@ class TestGetVariables(TestVariableEndpoint):
         assert response.status_code == 200
         self.assertEqual(len(response.json['variables']), 150)
 
-    # Takes a lot of time for variable to get added. so no test
-    # for test_should_return_site_max_if_conf_max_above_site_max
-
 
 class TestPatchVariable(TestVariableEndpoint):
     def test_should_update_variable(self):

@@ -132,18 +132,6 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         assert response.status_code == 200
         self.assertEqual(len(response.json['pools']), 150)
 
-    @provide_session
-    @conf_vars({("api", "maximum_page_limit"): "1500"})
-    def test_should_return_site_max_if_conf_max_above_site_max(self, session):
-        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 2000)]
-        session.add_all(pools)
-        session.commit()
-        result = session.query(Pool).count()
-        self.assertEqual(result, 2000)
-        response = self.client.get("/api/v1/pools?limit=1500")
-        assert response.status_code == 200
-        self.assertEqual(len(response.json['pools']), 1000)
-
 
 class TestGetPool(TestBasePoolEndpoints):
     @provide_session

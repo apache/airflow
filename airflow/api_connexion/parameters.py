@@ -54,14 +54,15 @@ def check_limit(value: int):
     This checks the limit passed to view and raises BadRequest if
     limit exceed user configured value
     """
-    max_val = conf.getint("api", "maximum_page_limit")  # user configured page limit
+    max_val = conf.getint("api", "maximum_page_limit")  # user configured max page limit
+    fallback = conf.getint("api", "fallback_page_limit")
 
-    if value >= max_val:
-        if max_val > MAXIMUM_PAGE_LIMIT:
-            return MAXIMUM_PAGE_LIMIT
+    if value > max_val:
         return max_val
-    if value <= 0:
-        return PAGE_LIMIT_DEFAULT
+    if value == 0:
+        return fallback
+    if value < 0:
+        raise BadRequest("Page limit must be a positive integer")
     return value
 
 

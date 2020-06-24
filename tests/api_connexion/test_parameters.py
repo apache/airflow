@@ -63,15 +63,20 @@ class TestMaximumPagelimit(unittest.TestCase):
         limit = check_limit(350)
         self.assertEqual(limit, 320)
 
-    @conf_vars({("api", "maximum_page_limit"): "1500"})
-    def test_limit_returns_site_max_if_current_app_max_is_above_site_max(self):
+    @conf_vars({("api", "maximum_page_limit"): "1000"})
+    def test_limit_returns_set_max_if_give_limit_is_exceeded(self):
         limit = check_limit(1500)
         self.assertEqual(limit, 1000)
 
-    @conf_vars({("api", "maximum_page_limit"): "200"})
+    @conf_vars({("api", "fallback_page_limit"): "100"})
     def test_limit_of_zero_returns_default(self):
         limit = check_limit(0)
         self.assertEqual(limit, 100)
+
+    @conf_vars({("api", "maximum_page_limit"): "1500"})
+    def test_negative_limit_raises(self):
+        with self.assertRaises(BadRequest):
+            check_limit(-1)
 
 
 class TestFormatParameters(unittest.TestCase):

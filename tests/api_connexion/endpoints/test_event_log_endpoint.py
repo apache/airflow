@@ -212,17 +212,6 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         assert response.status_code == 200
         self.assertEqual(len(response.json['event_logs']), 150)
 
-    @provide_session
-    @conf_vars({("api", "maximum_page_limit"): "1500"})
-    def test_should_return_site_max_if_conf_max_above_site_max(self, session):
-        log_models = self._create_event_logs(2000)
-        session.add_all(log_models)
-        session.commit()
-
-        response = self.client.get("/api/v1/eventLogs?limit=1500")
-        assert response.status_code == 200
-        self.assertEqual(len(response.json['event_logs']), 1000)
-
     def _create_event_logs(self, count):
         return [
             Log(

@@ -162,6 +162,7 @@ class TestGetConnections(TestConnectionEndpoint):
 
 
 class TestGetConnectionsPagination(TestConnectionEndpoint):
+
     @parameterized.expand(
         [
             ("/api/v1/connections?limit=1", ['TEST_CONN_ID1']),
@@ -244,17 +245,6 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         response = self.client.get("/api/v1/connections?limit=180")
         assert response.status_code == 200
         self.assertEqual(len(response.json['connections']), 150)
-
-    @provide_session
-    @conf_vars({("api", "maximum_page_limit"): "1500"})  # current_app conf 1500
-    def test_should_return_site_max_if_conf_max_above_site_max(self, session):
-        connection_models = self._create_connections(2000)
-        session.add_all(connection_models)
-        session.commit()
-
-        response = self.client.get("/api/v1/connections?limit=1500")  # requesting 1500
-        assert response.status_code == 200
-        self.assertEqual(len(response.json['connections']), 1000)  # site max is 1000
 
     def _create_connections(self, count):
         return [Connection(
@@ -452,3 +442,39 @@ class TestPostConnection(TestConnectionEndpoint):
         }
         response = self.client.post("/api/v1/connections", json=payload)
         assert response.status_code == 200
+        connection = session.query(Connection).all()
+        assert len(connection) == 1
+        self.assertEqual(connection[0].conn_id, 'test-connection-id')
+
+    def test_post_should_response_400_for_invalid_payload(self):
+        payload = {
+            "connection_id": "test-connection-id",
+        }  # conn_type missing
+        response = self.client.post("/api/v1/connections", json=payload)
+        assert response.status_code == 400
+        self.assertEqual(response.json,
+                         {'detail': "{'conn_type': ['Missing data for required field.']}",
+                          'status': 400,
+                          'title': 'Bad request',
+                          'type': 'about:blank'}
+                         )
+
+    def test_post_should_response_409_already_exist(self):
+        payload = {
+            "connection_id": "test-connection-id",
+            "conn_type": 'test_type'
+        }
+        response = self.client.post("/api/v1/connections", json=payload)
+        assert response.status_code == 200
+        # Another request
+        response = self.client.post("/api/v1/connections", json=payload)
+        assert response.status_code == 409
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 409,
+                'title': 'Connection already exist. ID: test-connection-id',
+                'type': 'about:blank'
+            }
+        )
