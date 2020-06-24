@@ -1616,7 +1616,6 @@ components:
           properties:
             value:
               type: string
-              nullable: true
 
     # Python objects
     # Based on
