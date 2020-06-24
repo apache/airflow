@@ -15,12 +15,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8136
+from flask import Response
+
+from airflow.api_connexion.schemas.config_schema import config_schema
+from airflow.configuration import conf
 
 
-def get_config():
+def get_config() -> Response:
     """
     Get current configuration.
     """
-    raise NotImplementedError("Not implemented yet.")
+    config = {
+        'sections': [
+            {
+                'name': section,
+                'options': [
+                    {
+                        'key': key,
+                        'value': value,
+                        'source': source,
+                    }
+                    for key, (value, source) in parameters.items()
+                ],
+            }
+            for section, parameters in conf.as_dict(display_source=True, display_sensitive=True).items()
+        ]
+    }
+    return config_schema.dump(config)
