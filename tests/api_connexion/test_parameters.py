@@ -18,37 +18,9 @@
 import unittest
 from unittest import mock
 
-from pendulum import DateTime
-from pendulum.tz.timezone import Timezone
-
 from airflow.api_connexion.exceptions import BadRequest
-from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
-from airflow.utils import timezone
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from tests.test_utils.config import conf_vars
-
-
-class TestDateTimeParser(unittest.TestCase):
-
-    def setUp(self) -> None:
-        self.default_time = '2020-06-13T22:44:00+00:00'
-        self.default_time_2 = '2020-06-13T22:44:00Z'
-
-    def test_works_with_datestring_ending_00_00(self):
-        datetime = format_datetime(self.default_time)
-        datetime2 = timezone.parse(self.default_time)
-        assert datetime == datetime2
-        assert datetime.isoformat() == self.default_time
-
-    def test_works_with_datestring_ending_with_zed(self):
-        datetime = format_datetime(self.default_time_2)
-        datetime2 = timezone.parse(self.default_time_2)
-        assert datetime == datetime2
-        assert datetime.isoformat() == self.default_time  # python uses +00:00 instead of Z
-
-    def test_raises_400_for_invalid_arg(self):
-        invalid_datetime = '2020-06-13T22:44:00P'
-        with self.assertRaises(BadRequest):
-            format_datetime(invalid_datetime)
 
 
 class TestMaximumPagelimit(unittest.TestCase):
@@ -80,22 +52,6 @@ class TestMaximumPagelimit(unittest.TestCase):
 
 
 class TestFormatParameters(unittest.TestCase):
-
-    def test_should_works_with_datetime_formatter(self):
-        decorator = format_parameters({"param_a": format_datetime})
-        endpoint = mock.MagicMock()
-        decorated_endpoint = decorator(endpoint)
-
-        decorated_endpoint(param_a='2020-01-01T0:0:00+00:00')
-
-        endpoint.assert_called_once_with(param_a=DateTime(2020, 1, 1, 0, tzinfo=Timezone('UTC')))
-
-    def test_should_propagate_exceptions(self):
-        decorator = format_parameters({"param_a": format_datetime})
-        endpoint = mock.MagicMock()
-        decorated_endpoint = decorator(endpoint)
-        with self.assertRaises(BadRequest):
-            decorated_endpoint(param_a='XXXXX')
 
     @conf_vars({("api", "maximum_page_limit"): "100"})
     def test_should_work_with_limit(self):

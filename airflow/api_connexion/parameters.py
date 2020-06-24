@@ -17,36 +17,32 @@
 from functools import wraps
 from typing import Callable, Dict
 
+from jsonschema import draft4_format_checker
 from pendulum.parsing import ParserError
 
 from airflow.api_connexion.exceptions import BadRequest
 from airflow.configuration import conf
 from airflow.utils import timezone
 
-MAXIMUM_PAGE_LIMIT = 1000
-PAGE_LIMIT_DEFAULT = 100
-
 # Database entity fields
 dag_id = "dag_id"
 pool_id = "pool_id"
 
 
-def format_datetime(value: str):
-    """
-    Datetime format parser for args since connexion doesn't parse datetimes
-    https://github.com/zalando/connexion/issues/476
-
-    This should only be used within connection views because it raises 400
-    """
-    value = value.strip()
-    if value[-1] != 'Z':
-        value = value.replace(" ", '+')
+@draft4_format_checker.checks('timezone-datetime')
+def is_custom_date(val):
+    """ Custom datetime format"""
+    if val is None:  # this avoids validating nullable fields
+        return True
+    if not isinstance(val, str):
+        return False
+    if ' ' in val:
+        return False
     try:
-        return timezone.parse(value)
-    except (ParserError, TypeError) as err:
-        raise BadRequest(
-            "Incorrect datetime argument", detail=str(err)
-        )
+        _ = timezone.parse(val)
+    except (ParserError, TypeError):
+        return False
+    return True
 
 
 def check_limit(value: int):
