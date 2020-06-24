@@ -2014,6 +2014,9 @@ components:
       type: object
       required:
         - __type
+        - days
+        - seconds
+        - microseconds
       properties:
         __type: {type: string}
         days: {type: integer}
@@ -2026,6 +2029,20 @@ components:
       required:
         - __type
         - years
+        - months
+        - days
+        - leapdays
+        - hours
+        - minutes
+        - seconds
+        - microseconds
+        - year
+        - month
+        - day
+        - hour
+        - minute
+        - second
+        - microsecond
       properties:
         __type: {type: string}
         years: {type: integer}

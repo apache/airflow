@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 import mock
 import pytest
 
-from airflow import DAG, settings
+from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
@@ -60,7 +60,7 @@ class TestCliDags(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
-        DAG.bulk_sync_to_db([d[1] for d in cls.dagbag.dags.items()])
+        cls.dagbag.sync_to_db()
         cls.parser = cli_parser.get_parser()
 
     @classmethod
