@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import logging
-from time import sleep
 
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator

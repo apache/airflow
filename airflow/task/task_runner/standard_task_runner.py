@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Standard task runner"""
-import logging
 import os
 
 import psutil
@@ -49,7 +48,7 @@ class StandardTaskRunner(BaseTaskRunner):
 
     def _start_by_fork(self):  # pylint: disable=inconsistent-return-statements
         pid = os.fork()
-        if pid:     # pylint: disable=too-many-nested-blocks
+        if pid:
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
