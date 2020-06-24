@@ -23,8 +23,6 @@ import psutil
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
-from airflow.utils.log.file_task_handler import FileTaskHandler
-from airflow.utils.log.logging_mixin import RedirectStdHandler
 from airflow.utils.process_utils import reap_process_group
 
 CAN_FORK = hasattr(os, "fork")
@@ -83,20 +81,6 @@ class StandardTaskRunner(BaseTaskRunner):
                 proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))
 
-            # Get all the Handlers from 'airflow.task' logger
-            # Add these handlers to the root logger so that we can get logs from
-            # any custom loggers defined in the DAG
-            airflow_logger_handlers = logging.getLogger('airflow.task').handlers
-            root_logger = logging.getLogger()
-            root_logger_handlers =root_logger.handlers
-            for handler in root_logger_handlers:
-                if isinstance(handler, RedirectStdHandler):
-                    root_logger.removeHandler(handler)
-            for handler in airflow_logger_handlers:
-                if isinstance(handler, FileTaskHandler):
-                    root_logger.addHandler(handler)
-            root_logger.setLevel(logging.getLogger('airflow.task').level)
-
             try:
                 args.func(args, dag=self.dag)
                 return_code = 0
@@ -106,13 +90,6 @@ class StandardTaskRunner(BaseTaskRunner):
                 # Explicitly flush any pending exception to Sentry if enabled
                 Sentry.flush()
                 os._exit(return_code)  # pylint: disable=protected-access
-
-                for handler in airflow_logger_handlers:
-                    if isinstance(handler, FileTaskHandler):
-                        root_logger.removeHandler(handler)
-                for handler in root_logger_handlers:
-                    if isinstance(handler, RedirectStdHandler):
-                        root_logger.addHandler(handler)
 
     def return_code(self, timeout=0):
         # We call this multiple times, but we can only wait on the process once

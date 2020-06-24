@@ -281,10 +281,14 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
 
         [2020-06-24 16:47:23,537] {logging_mixin.py:91} INFO - [2020-06-24 16:47:23,536] {python.py:135}
         """
-        log_line = [log for log in logs_list if text in log]
-        self.assertEqual(len(log_line), 1)
-        self.assertNotIn("logging_mixin.py", log_line)
-        return log_line[0]
+        log_lines = [log for log in logs_list if text in log]
+        self.assertEqual(len(log_lines), 1)
+        log_line = log_lines[0]
+        if "Print" not in log_line:
+            # Logs from print statement still show with logging_mixing as filename
+            # Example: [2020-06-24 17:07:00,482] {logging_mixin.py:91} INFO - Log from Print statement
+            self.assertNotIn("logging_mixin.py", log_line)
+        return log_line
 
     @unittest.skipIf(not hasattr(os, 'fork'), "Forking not available")
     def test_logging_with_run_task(self):

@@ -37,7 +37,8 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, get_dag_by_pickle, get_dags
-from airflow.utils.log.logging_mixin import StreamLogWriter
+from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.logging_mixin import StreamLogWriter, RedirectStdHandler
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
@@ -177,6 +178,24 @@ def task_run(args, dag=None):
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
+
+    # Get all the Handlers from 'airflow.task' logger
+    # Add these handlers to the root logger so that we can get logs from
+    # any custom loggers defined in the DAG
+    airflow_logger_handlers = logging.getLogger('airflow.task').handlers
+    root_logger = logging.getLogger()
+    root_logger_handlers = root_logger.handlers
+
+    # Remove 'console' handler from Root Logger to avoid duplicate logs
+    for handler in root_logger_handlers:
+        if isinstance(handler, RedirectStdHandler):
+            root_logger.removeHandler(handler)
+
+    for handler in airflow_logger_handlers:
+        if isinstance(handler, FileTaskHandler):
+            root_logger.addHandler(handler)
+    root_logger.setLevel(logging.getLogger('airflow.task').level)
+
     print(f"Running {ti} on host {hostname}")
 
     if args.interactive:
@@ -185,6 +204,13 @@ def task_run(args, dag=None):
         with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
                 redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
             _run_task_by_selected_method(args, dag, ti)
+
+    for handler in airflow_logger_handlers:
+        if isinstance(handler, FileTaskHandler):
+            root_logger.removeHandler(handler)
+    for handler in root_logger_handlers:
+        if isinstance(handler, RedirectStdHandler):
+            root_logger.addHandler(handler)
 
     logging.shutdown()
 
