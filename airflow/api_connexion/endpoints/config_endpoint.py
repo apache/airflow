@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from flask import Response
+from flask import Response, request
 
 from airflow.api_connexion.schemas.config_schema import config_schema
 from airflow.configuration import conf
@@ -25,20 +25,31 @@ def get_config() -> Response:
     """
     Get current configuration.
     """
-    config = {
-        'sections': [
-            {
-                'name': section,
-                'options': [
-                    {
-                        'key': key,
-                        'value': value,
-                        'source': source,
-                    }
-                    for key, (value, source) in parameters.items()
-                ],
-            }
-            for section, parameters in conf.as_dict(display_source=True, display_sensitive=True).items()
-        ]
-    }
-    return config_schema.dump(config)
+    response_types = ['text/plain', 'application/json']
+    content_type = request.accept_mimetypes.best_match(response_types)
+    conf_dict = conf.as_dict(display_source=True, display_sensitive=True)
+    if content_type == 'text/plain':
+        config = ''
+        for section, parameters in conf_dict.items():
+            config += f'[{section}]\n'
+            for key, (value, source) in parameters.items():
+                config += f'{key} = {value}  # source: {source}\n'
+    else:
+        config = {
+            'sections': [
+                {
+                    'name': section,
+                    'options': [
+                        {
+                            'key': key,
+                            'value': value,
+                            'source': source,
+                        }
+                        for key, (value, source) in parameters.items()
+                    ],
+                }
+                for section, parameters in conf_dict.items()
+            ]
+        }
+        config = config_schema.dump(config)
+    return config
