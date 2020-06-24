@@ -1760,6 +1760,9 @@ components:
         value:
           type: string
           readOnly: true
+        source:
+          type: string
+          readOnly: true
 
     ConfigSection:
       type: object
