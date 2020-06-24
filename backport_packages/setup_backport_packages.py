@@ -27,10 +27,11 @@ import sys
 import tempfile
 import textwrap
 from datetime import datetime, timedelta
+from enum import Enum
 from os import listdir
 from os.path import dirname
 from shutil import copyfile
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
 from backport_packages.import_all_provider_classes import import_all_provider_classes
 from setup import PROVIDERS_REQUIREMENTS
@@ -53,12 +54,51 @@ AIRFLOW_PATH = os.path.join(SOURCE_DIR_PATH, "airflow")
 PROVIDERS_PATH = os.path.join(AIRFLOW_PATH, "providers")
 
 
+class EntityType(Enum):
+    Operators = "Operators"
+    Transfers = "Transfers"
+    Sensors = "Sensors"
+    Hooks = "Hooks"
+    Secrets = "Secrets"
+
+
+class EntityTypeSummary(NamedTuple):
+    entities: Set[str]
+    new_entities: List[str]
+    moved_entities: Dict[str, str]
+    new_entities_table: str
+    moved_entities_table: str
+    wrong_entities: List[Tuple[type, str]]
+
+
+class VerifiedEntities(NamedTuple):
+    all_entities: Set[str]
+    wrong_entities: List[Tuple[type, str]]
+
+
+ENTITY_NAMES = {
+    EntityType.Operators: "Operators",
+    EntityType.Transfers: "Transfer Operators",
+    EntityType.Sensors: "Sensors",
+    EntityType.Hooks: "Hooks",
+    EntityType.Secrets: "Secrets",
+}
+
+TOTALS: Dict[EntityType, List[int]] = {
+    EntityType.Operators: [0, 0],
+    EntityType.Hooks: [0, 0],
+    EntityType.Sensors: [0, 0],
+    EntityType.Transfers: [0, 0],
+    EntityType.Secrets: [0, 0],
+}
+
 OPERATORS_PATTERN = r".*Operator$"
 SENSORS_PATTERN = r".*Sensor$"
 HOOKS_PATTERN = r".*Hook$"
 SECRETS_PATTERN = r".*Backend$"
 TRANSFERS_PATTERN = r".*To[A-Z0-9].*Operator$"
 WRONG_TRANSFERS_PATTERN = r".*Transfer$|.*TransferOperator$"
+
 
 ALL_PATTERNS = {
     OPERATORS_PATTERN,
@@ -67,6 +107,14 @@ ALL_PATTERNS = {
     SECRETS_PATTERN,
     TRANSFERS_PATTERN,
     WRONG_TRANSFERS_PATTERN,
+}
+
+EXPECTED_SUFFIXES: Dict[EntityType, str] = {
+    EntityType.Operators: "Operator",
+    EntityType.Hooks: "Hook",
+    EntityType.Sensors: "Sensor",
+    EntityType.Secrets: "Backend",
+    EntityType.Transfers: "Operator",
 }
 
 
@@ -135,11 +183,13 @@ import setup  # From AIRFLOW_SOURCES/setup.py # noqa  # isort:skip
 
 DEPENDENCIES_JSON_FILE = os.path.join(PROVIDERS_PATH, "dependencies.json")
 
-MOVED_OPERATORS_DICT = {value[0]: value[1] for value in OPERATORS}
-MOVED_SENSORS_DICT = {value[0]: value[1] for value in SENSORS}
-MOVED_HOOKS_DICT = {value[0]: value[1] for value in HOOKS}
-MOVED_SECRETS_DICT = {value[0]: value[1] for value in SECRETS}
-MOVED_TRANSFERS_DICT = {value[0]: value[1] for value in TRANSFERS}
+MOVED_ENTITIES: Dict[EntityType, Dict[str, str]] = {
+    EntityType.Operators: {value[0]: value[1] for value in OPERATORS},
+    EntityType.Sensors: {value[0]: value[1] for value in SENSORS},
+    EntityType.Hooks: {value[0]: value[1] for value in HOOKS},
+    EntityType.Secrets: {value[0]: value[1] for value in SECRETS},
+    EntityType.Transfers: {value[0]: value[1] for value in TRANSFERS},
+}
 
 
 def get_pip_package_name(provider_package_id: str) -> str:
@@ -357,20 +407,20 @@ def package_name_matches(the_class: Type, expected_pattern: Optional[str]) -> bo
     return expected_pattern is None or re.match(expected_pattern, the_class.__module__)
 
 
-def find_all_classes(imported_classes: List[str],
-                     base_package: str,
-                     ancestor_match: Type,
-                     sub_package_pattern_match: str,
-                     expected_class_name_pattern: str,
-                     unexpected_class_name_patterns: Set[str],
-                     exclude_class_type: Type = None,
-                     false_positive_class_names: Optional[Set[str]] = None,
-                     ) -> Tuple[Set[str], List[Tuple[type, str]]]:
+def find_all_entities(
+        imported_classes: List[str],
+        base_package: str,
+        ancestor_match: Type,
+        sub_package_pattern_match: str,
+        expected_class_name_pattern: str,
+        unexpected_class_name_patterns: Set[str],
+        exclude_class_type: Type = None,
+        false_positive_class_names: Optional[Set[str]] = None) -> VerifiedEntities:
     """
-    Returns set of classes containing all subclasses in package specified.
+    Returns set of entities containing all subclasses in package specified.
 
-    :param imported_classes: classes imported from providers
-    :param base_package: base package name where to start looking for the classes
+    :param imported_classes: entities imported from providers
+    :param base_package: base package name where to start looking for the entities
     :param sub_package_pattern_match: this string is expected to appear in the sub-package name
     :param ancestor_match: type of the object the method looks for
     :param expected_class_name_pattern: regexp of class name pattern to expect
@@ -379,8 +429,8 @@ def find_all_classes(imported_classes: List[str],
            they should be excluded from the list)
     :param false_positive_class_names: set of class names that are wrongly recognised as badly named
     """
-    found_classes: Set[str] = set()
-    wrong_classes: List[Tuple[type, str]] = []
+    found_entities: Set[str] = set()
+    wrong_entities: List[Tuple[type, str]] = []
     for imported_name in imported_classes:
         module, class_name = imported_name.rsplit(".", maxsplit=1)
         the_class = getattr(importlib.import_module(module), class_name)
@@ -394,42 +444,104 @@ def find_all_classes(imported_classes: List[str],
 
             if not false_positive_class_names or class_name not in false_positive_class_names:
                 if not re.match(expected_class_name_pattern, class_name):
-                    wrong_classes.append(
+                    wrong_entities.append(
                         (the_class, f"The class name {class_name} is wrong. "
                                     f"It should match {expected_class_name_pattern}"))
                     continue
                 if unexpected_class_name_patterns:
                     for unexpected_class_name_pattern in unexpected_class_name_patterns:
                         if re.match(unexpected_class_name_pattern, class_name):
-                            wrong_classes.append(
+                            wrong_entities.append(
                                 (the_class,
                                  f"The class name {class_name} is wrong. "
                                  f"It should not match {unexpected_class_name_pattern}"))
                         continue
-            found_classes.add(imported_name)
-    return found_classes, wrong_classes
+            found_entities.add(imported_name)
+    return VerifiedEntities(all_entities=found_entities, wrong_entities=wrong_entities)
 
 
-def get_new_and_moved_classes(classes: Set[str],
-                              dict_of_moved_classes: Dict[str, str]) -> Tuple[List[str], Dict[str, str]]:
+def convert_new_classes_to_table(entity_type: EntityType,
+                                 new_entities: List[str],
+                                 full_package_name: str) -> str:
     """
-    Splits the set of classes into new and moved, depending on their presence in the dict of objects
-    retrieved from the test_contrib_to_core.
+    Converts new entities tp a markdown table.
 
-    :param classes: set of classes found
-    :param dict_of_moved_classes: dictionary of classes that were moved from contrib to core
+    :param entity_type: list of entities to convert to markup
+    :param new_entities: list of new entities
+    :param full_package_name: name of the provider package
+    :return: table of new classes
+    """
+    from tabulate import tabulate
+    headers = [f"New Airflow 2.0 {entity_type.value.lower()}: `{full_package_name}` package"]
+    table = [(get_class_code_link(full_package_name, class_name, "master"),)
+             for class_name in new_entities]
+    return tabulate(table, headers=headers, tablefmt="pipe")
+
+
+def convert_moved_classes_to_table(entity_type: EntityType,
+                                   moved_entities: Dict[str, str],
+                                   full_package_name: str) -> str:
+    """
+    Converts moved entities to a markdown table
+    :param entity_type: type of entities -> operators, sensors etc.
+    :param moved_entities: dictionary of moved entities `to -> from`
+    :param full_package_name: name of the provider package
+    :return: table of moved classes
+    """
+    from tabulate import tabulate
+    headers = [f"Airflow 2.0 {entity_type.value.lower()}: `{full_package_name}` package",
+               "Airflow 1.10.* previous location (usually `airflow.contrib`)"]
+    table = [
+        (get_class_code_link(full_package_name, to_class, "master"),
+         get_class_code_link("airflow", moved_entities[to_class], "v1-10-stable"))
+        for to_class in sorted(moved_entities.keys())
+    ]
+    return tabulate(table, headers=headers, tablefmt="pipe")
+
+
+def get_details_about_classes(
+        entity_type: EntityType,
+        entities: Set[str],
+        wrong_entities: List[Tuple[type, str]],
+        full_package_name: str) -> EntityTypeSummary:
+    """
+    Splits the set of entities into new and moved, depending on their presence in the dict of objects
+    retrieved from the test_contrib_to_core. Updates all_entities with the split class.
+
+    :param entity_type: type of entity (Operators, Hooks etc.)
+    :param entities: set of entities found
+    :param wrong_entities: wrong entities found for that type
+    :param full_package_name: full package name
     :return:
     """
-    new_objects = []
-    moved_objects = {}
-    for obj in classes:
+    dict_of_moved_classes = MOVED_ENTITIES[entity_type]
+    new_entities = []
+    moved_entities = {}
+    for obj in entities:
         if obj in dict_of_moved_classes:
-            moved_objects[obj] = dict_of_moved_classes[obj]
+            moved_entities[obj] = dict_of_moved_classes[obj]
             del dict_of_moved_classes[obj]
         else:
-            new_objects.append(obj)
-    new_objects.sort()
-    return new_objects, moved_objects
+            new_entities.append(obj)
+    new_entities.sort()
+    TOTALS[entity_type][0] += len(new_entities)
+    TOTALS[entity_type][1] += len(moved_entities)
+    return EntityTypeSummary(
+        entities=entities,
+        new_entities=new_entities,
+        moved_entities=moved_entities,
+        new_entities_table=convert_new_classes_to_table(
+            entity_type=entity_type,
+            new_entities=new_entities,
+            full_package_name=full_package_name,
+        ),
+        moved_entities_table=convert_moved_classes_to_table(
+            entity_type=entity_type,
+            moved_entities=moved_entities,
+            full_package_name=full_package_name,
+        ),
+        wrong_entities=wrong_entities
+    )
 
 
 def strip_package_from_class(base_package: str, class_name: str) -> str:
@@ -467,67 +579,33 @@ def get_class_code_link(base_package: str, class_name: str, git_tag: str) -> str
            f'({convert_class_name_to_url(url_prefix, class_name)})'
 
 
-def convert_new_classes_to_table(class_list: List[str], full_package_name: str, class_type: str) -> str:
+def print_wrong_naming(entity_type: EntityType, wrong_classes: List[Tuple[type, str]]):
     """
-    Converts new classes tp a markdown table.
-
-    :param class_list: list of classes to convert to markup
-    :param full_package_name: name of the provider package
-    :param class_type: type of classes -> operators, sensors etc.
-    :return:
-    """
-    from tabulate import tabulate
-    headers = [f"New Airflow 2.0 {class_type}: `{full_package_name}` package"]
-    table = [(get_class_code_link(full_package_name, obj, "master"),) for obj in class_list]
-    return tabulate(table, headers=headers, tablefmt="pipe")
-
-
-def convert_moved_objects_to_table(class_dict: Dict[str, str],
-                                   full_package_name: str, class_type: str) -> str:
-    """
-    Converts moved classes to a markdown table
-    :param class_dict: dictionary of classes (to -> from)
-    :param full_package_name: name of the provider package
-    :param class_type: type of classes -> operators, sensors etc.
-    :return:
-    """
-    from tabulate import tabulate
-    headers = [f"Airflow 2.0 {class_type}: `{full_package_name}` package",
-               "Airflow 1.10.* previous location (usually `airflow.contrib`)"]
-    table = [
-        (get_class_code_link(full_package_name, obj, "master"),
-         get_class_code_link("airflow", class_dict[obj], "v1-10-stable"))
-        for obj in sorted(class_dict.keys())
-    ]
-    return tabulate(table, headers=headers, tablefmt="pipe")
-
-
-def print_wrong_naming(class_type: str, wrong_classes: List[Tuple[type, str]]):
-    """
-    Prints wrong classes of a given type if there are any
-    :param class_type: type of the class to print
-    :param wrong_classes: list of wrong classes
+    Prints wrong entities of a given entity type if there are any
+    :param entity_type: type of the class to print
+    :param wrong_classes: list of wrong entities
     """
     if wrong_classes:
-        print(f"\nThere are wrongly named classes of type {class_type}:\n", file=sys.stderr)
-        for class_type, message in wrong_classes:
-            print(f"{class_type}: {message}", file=sys.stderr)
+        print(f"\nThere are wrongly named entities of type {entity_type}:\n", file=sys.stderr)
+        for entity_type, message in wrong_classes:
+            print(f"{entity_type}: {message}", file=sys.stderr)
 
 
 def get_package_class_summary(full_package_name: str, imported_classes: List[str]) \
-        -> Tuple[Dict[str, Any], int]:
+        -> Dict[EntityType, EntityTypeSummary]:
     """
-    Gets summary of the package in the form of dictionary containing all types of classes
+    Gets summary of the package in the form of dictionary containing all types of entities
     :param full_package_name: full package name
-    :param imported_classes: classes imported_from providers
-    :return: dictionary of objects usable as context for Jinja2 templates - or None if there are some errors
+    :param imported_classes: entities imported_from providers
+    :return: dictionary of objects usable as context for JINJA2 templates - or None if there are some errors
     """
     from airflow.secrets import BaseSecretsBackend
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
     from airflow.hooks.base_hook import BaseHook
     from airflow.models.baseoperator import BaseOperator
 
-    operators, wrong_operators = find_all_classes(
+    all_verified_entities: Dict[EntityType, VerifiedEntities] = dict()
+    all_verified_entities[EntityType.Operators] = find_all_entities(
         imported_classes=imported_classes,
         base_package=full_package_name,
         sub_package_pattern_match=r".*\.operators\..*",
@@ -544,7 +622,7 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
             'CloudSpeechToTextRecognizeSpeechOperator',
         }
     )
-    sensors, wrong_sensors = find_all_classes(
+    all_verified_entities[EntityType.Sensors] = find_all_entities(
         imported_classes=imported_classes,
         base_package=full_package_name,
         sub_package_pattern_match=r".*\.sensors\..*",
@@ -552,7 +630,7 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
         expected_class_name_pattern=SENSORS_PATTERN,
         unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN, SENSORS_PATTERN}
     )
-    hooks, wrong_hooks = find_all_classes(
+    all_verified_entities[EntityType.Hooks] = find_all_entities(
         imported_classes=imported_classes,
         base_package=full_package_name,
         sub_package_pattern_match=r".*\.hooks\..*",
@@ -560,7 +638,7 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
         expected_class_name_pattern=HOOKS_PATTERN,
         unexpected_class_name_patterns=ALL_PATTERNS - {HOOKS_PATTERN}
     )
-    secrets, wrong_secrets = find_all_classes(
+    all_verified_entities[EntityType.Secrets] = find_all_entities(
         imported_classes=imported_classes,
         sub_package_pattern_match=r".*\.secrets\..*",
         base_package=full_package_name,
@@ -568,7 +646,7 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
         expected_class_name_pattern=SECRETS_PATTERN,
         unexpected_class_name_patterns=ALL_PATTERNS - {SECRETS_PATTERN},
     )
-    transfers, wrong_transfers = find_all_classes(
+    all_verified_entities[EntityType.Transfers] = find_all_entities(
         imported_classes=imported_classes,
         base_package=full_package_name,
         sub_package_pattern_match=r".*\.transfers\..*",
@@ -576,58 +654,19 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
         expected_class_name_pattern=TRANSFERS_PATTERN,
         unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN, TRANSFERS_PATTERN},
     )
-    print_wrong_naming("Operators", wrong_operators)
-    print_wrong_naming("Sensors", wrong_sensors)
-    print_wrong_naming("Hooks", wrong_hooks)
-    print_wrong_naming("Secrets", wrong_secrets)
-    print_wrong_naming("Transfers", wrong_transfers)
+    for entity in EntityType:
+        print_wrong_naming(entity, all_verified_entities[entity].wrong_entities)
 
-    num_errors = len(wrong_operators) + len(wrong_sensors) + len(wrong_hooks) + \
-        len(wrong_secrets) + len(wrong_transfers)
+    entities_summary: Dict[EntityType, EntityTypeSummary] = dict() # noqa
 
-    new_operators, moved_operators = get_new_and_moved_classes(operators, MOVED_OPERATORS_DICT)
-    new_sensors, moved_sensors = get_new_and_moved_classes(sensors, MOVED_SENSORS_DICT)
-    new_hooks, moved_hooks = get_new_and_moved_classes(hooks, MOVED_HOOKS_DICT)
-    new_secrets, moved_secrets = get_new_and_moved_classes(secrets, MOVED_SECRETS_DICT)
-    new_transfers, moved_transfers = get_new_and_moved_classes(transfers, MOVED_TRANSFERS_DICT)
-    class_summary = {
-        "NEW_OPERATORS": new_operators,
-        "MOVED_OPERATORS": moved_operators,
-        "NEW_SENSORS": new_sensors,
-        "MOVED_SENSORS": moved_sensors,
-        "NEW_HOOKS": new_hooks,
-        "MOVED_HOOKS": moved_hooks,
-        "NEW_SECRETS": new_secrets,
-        "MOVED_SECRETS": moved_secrets,
-        "NEW_TRANSFERS": new_transfers,
-        "MOVED_TRANSFERS": moved_transfers,
-        "OPERATORS": operators,
-        "HOOKS": hooks,
-        "SENSORS": sensors,
-        "SECRETS": secrets,
-        "TRANSFERS": transfers,
-    }
-    for from_name, to_name, object_type in [
-        ("NEW_OPERATORS", "NEW_OPERATORS_TABLE", "operators"),
-        ("NEW_SENSORS", "NEW_SENSORS_TABLE", "sensors"),
-        ("NEW_HOOKS", "NEW_HOOKS_TABLE", "hooks"),
-        ("NEW_SECRETS", "NEW_SECRETS_TABLE", "secrets"),
-        ("NEW_TRANSFERS", "NEW_TRANSFERS_TABLE", "transfers"),
-    ]:
-        class_summary[to_name] = convert_new_classes_to_table(class_summary[from_name],
-                                                              full_package_name,
-                                                              object_type)
-    for from_name, to_name, object_type in [
-        ("MOVED_OPERATORS", "MOVED_OPERATORS_TABLE", "operators"),
-        ("MOVED_SENSORS", "MOVED_SENSORS_TABLE", "sensors"),
-        ("MOVED_HOOKS", "MOVED_HOOKS_TABLE", "hooks"),
-        ("MOVED_SECRETS", "MOVED_SECRETS_TABLE", "protocols"),
-        ("MOVED_TRANSFERS", "MOVED_TRANSFERS_TABLE", "transfers"),
-    ]:
-        class_summary[to_name] = convert_moved_objects_to_table(class_summary[from_name],
-                                                                full_package_name,
-                                                                object_type)
-    return class_summary, num_errors
+    for entity_type in EntityType:
+        entities_summary[entity_type] = get_details_about_classes(
+            entity_type,
+            all_verified_entities[entity_type].all_entities,
+            all_verified_entities[entity_type].wrong_entities,
+            full_package_name)
+
+    return entities_summary
 
 
 def render_template(template_name: str, context: Dict[str, Any]) -> str:
@@ -922,15 +961,6 @@ def get_additional_package_info(provider_package_path: str) -> str:
     return ""
 
 
-EXPECTED_SUFFIXES: Dict[str, str] = {
-    "OPERATORS": "Operator",
-    "HOOKS": "Hook",
-    "SENSORS": "Sensor",
-    "SECRETS": "Backend",
-    "TRANSFERS": "Operator",
-}
-
-
 def is_camel_case_with_acronyms(s: str):
     """
     Checks if the string passed is Camel Case (with capitalised acronyms allowed).
@@ -940,18 +970,19 @@ def is_camel_case_with_acronyms(s: str):
     return s != s.lower() and s != s.upper() and "_" not in s and s[0].upper() == s[0]
 
 
-def check_if_classes_are_properly_named(class_summary: Dict[str, List[str]]) -> Tuple[int, int]:
+def check_if_classes_are_properly_named(
+        entity_summary: Dict[EntityType, EntityTypeSummary]) -> Tuple[int, int]:
     """
-    Check if all classes in the dictionary are named properly. It prints names at the output
+    Check if all entities in the dictionary are named properly. It prints names at the output
     and returns the status of class names.
 
-    :param class_summary: dictionary of class names to check, grouped by types.
-    :return: Tuple of 2 ints = total number of classes and number of badly named classes
+    :param entity_summary: dictionary of class names to check, grouped by types.
+    :return: Tuple of 2 ints = total number of entities and number of badly named entities
     """
     total_class_number = 0
     badly_named_class_number = 0
-    for key, class_suffix in EXPECTED_SUFFIXES.items():
-        for class_full_name in class_summary[key]:
+    for entity_type, class_suffix in EXPECTED_SUFFIXES.items():
+        for class_full_name in entity_summary[entity_type].entities:
             _, class_name = class_full_name.rsplit(".", maxsplit=1)
             error_encountered = False
             if not is_camel_case_with_acronyms(class_name):
@@ -959,8 +990,8 @@ def check_if_classes_are_properly_named(class_summary: Dict[str, List[str]]) -> 
                       f"class name should be CamelCaseWithACRONYMS !")
                 error_encountered = True
             if not class_name.endswith(class_suffix):
-                print(f"The class {class_full_name} is wrongly named. It is one of the {key} so "
-                      f"it should end with {class_suffix}")
+                print(f"The class {class_full_name} is wrongly named. It is one of the {entity_type.value}"
+                      f" so it should end with {class_suffix}")
                 error_encountered = True
             total_class_number += 1
             if error_encountered:
@@ -971,18 +1002,18 @@ def check_if_classes_are_properly_named(class_summary: Dict[str, List[str]]) -> 
 def update_release_notes_for_package(provider_package_id: str, current_release_version: str,
                                      imported_classes: List[str]) -> Tuple[int, int]:
     """
-    Updates release notes (README.md) for the package. returns Tuple of total number of classes
-    and badly named classes.
+    Updates release notes (README.md) for the package. returns Tuple of total number of entities
+    and badly named entities.
 
     :param provider_package_id: id of the package
     :param current_release_version: release version
-    :param imported_classes - classes that have been imported from providers
+    :param imported_classes - entities that have been imported from providers
 
-    :return: Tuple of total/bad number of classes
+    :return: Tuple of total/bad number of entities
     """
     full_package_name = f"airflow.providers.{provider_package_id}"
     provider_package_path = get_package_path(provider_package_id)
-    class_summary, num_errors = get_package_class_summary(full_package_name, imported_classes)
+    entity_summaries = get_package_class_summary(full_package_name, imported_classes)
     past_releases = get_all_releases(provider_package_path=provider_package_path)
     current_release_version, previous_release = check_if_release_version_ok(
         past_releases, current_release_version)
@@ -1002,6 +1033,7 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
             cross_providers_dependencies,
             base_url="https://github.com/apache/airflow/tree/master/airflow/providers/")
     context: Dict[str, Any] = {
+        "ENTITY_TYPES": [entity_type for entity_type in EntityType],
         "PROVIDER_PACKAGE_ID": provider_package_id,
         "PACKAGE_PIP_NAME": f"apache-airflow-backport-providers-{provider_package_id.replace('.', '-')}",
         "FULL_PACKAGE_NAME": full_package_name,
@@ -1018,7 +1050,8 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
     store_current_changes(provider_package_path=provider_package_path,
                           current_release_version=current_release_version,
                           current_changes=current_changes)
-    context.update(class_summary)
+    context['ENTITIES'] = entity_summaries
+    context['ENTITY_NAMES'] = ENTITY_NAMES
     all_releases = get_all_releases(provider_package_path)
     context["RELEASES"] = all_releases
     readme = LICENCE
@@ -1045,11 +1078,11 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
                 subprocess.call(["diff", "--color=always", temp_file_path, readme_file_path])
         finally:
             os.remove(temp_file_path)
-    total, bad = check_if_classes_are_properly_named(class_summary)
-    bad = bad + num_errors
+    total, bad = check_if_classes_are_properly_named(entity_summaries)
+    bad = bad + sum([len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values()])
     if bad != 0:
         print()
-        print(f"ERROR! There are {bad} errors of {total} classes for {provider_package_id}")
+        print(f"ERROR! There are {bad} errors of {total} entities for {provider_package_id}")
         print()
     return total, bad
 
@@ -1069,7 +1102,7 @@ def update_release_notes_for_packages(provider_ids: List[str], release_version: 
     total = 0
     bad = 0
     print()
-    print("Generating README files and checking if classes are correctly named.")
+    print("Generating README files and checking if entities are correctly named.")
     print()
     print("Providers to generate:")
     for provider_id in provider_ids:
@@ -1081,11 +1114,23 @@ def update_release_notes_for_packages(provider_ids: List[str], release_version: 
         bad += inc_bad
     if bad == 0:
         print()
-        print(f"All good! All {total} classes are properly named")
+        print(f"All good! All {total} entities are properly named")
+        print()
+        print("Totals:")
+        print()
+        print("New:")
+        print()
+        for entity in EntityType:
+            print(f"{entity.value}: {TOTALS[entity][0]}")
+        print()
+        print("Moved:")
+        print()
+        for entity in EntityType:
+            print(f"{entity.value}: {TOTALS[entity][1]}")
         print()
     else:
         print()
-        print(f"ERROR! There are in total: {bad} classes badly named out of {total} classes ")
+        print(f"ERROR! There are in total: {bad} entities badly named out of {total} entities ")
         print()
         exit(1)
 

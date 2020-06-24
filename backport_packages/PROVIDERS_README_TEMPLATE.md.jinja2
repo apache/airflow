@@ -33,51 +33,20 @@ Release: {{ RELEASE_NO_LEADING_ZEROS }}
 - [Cross provider package dependencies](#cross-provider-package-dependencies)
 {%- endif %}
 - [Provider class summary](#provider-class-summary)
-{%- if NEW_OPERATORS or MOVED_OPERATORS %}
-    - [Operators](#operators)
-    {%- if NEW_OPERATORS %}
-        - [New operators](#new-operators)
+{%- for entity_type in ENTITY_TYPES %}
+{%- set entity_type_string = entity_type.value %}
+{%- set entity_name = ENTITY_NAMES.get(entity_type) %}
+{%- set entity_summary = ENTITIES.get(entity_type) %}
+{%- if entity_summary.new_entities or entity_summary.moved_entities %}
+    - [{{ entity_name.capitalize() }}](#{{ entity_type_string.lower() }})
+    {%- if entity_summary.new_entities %}
+        - [New {{ entity_name.lower() }}](#new-{{ entity_type_string.lower() }})
     {%- endif %}
-    {%- if MOVED_OPERATORS %}
-        - [Moved operators](#moved-operators)
-    {%- endif %}
-{%- endif %}
-{%- if NEW_TRANSFERS or MOVED_TRANSFERS %}
-    - [Transfer operators](#transfers)
-    {%- if NEW_TRANSFERS %}
-        - [New transfer operators](#new-transfers)
-    {%- endif %}
-    {%- if MOVED_TRANSFERS %}
-        - [Moved transfer operators](#moved-transfers)
+    {%- if entity_summary.moved_entities %}
+        - [Moved {{ entity_name.lower() }}](#moved-{{ entity_type_string.lower() }})
     {%- endif %}
 {%- endif %}
-{%- if NEW_SENSORS or MOVED_SENSORS %}
-    - [Sensors](#sensors)
-    {%- if NEW_SENSORS %}
-        - [New sensors](#new-sensors)
-    {%- endif %}
-    {%- if MOVED_SENSORS %}
-        - [Moved sensors](#moved-sensors)
-    {%- endif %}
-{%- endif %}
-{%- if NEW_HOOKS or MOVED_HOOKS %}
-    - [Hooks](#hooks)
-    {%- if NEW_HOOKS %}
-        - [New hooks](#new-hooks)
-    {%- endif %}
-    {%- if MOVED_HOOKS %}
-        - [Moved hooks](#moved-hooks)
-    {%- endif %}
-{%- endif %}
-{%- if NEW_SECRETS or MOVED_SECRETS %}
-    - [Secrets](#secrets)
-    {%- if NEW_SECRETS %}
-        - [New secrets](#new-secrets)
-    {%- endif %}
-    {%- if MOVED_SECRETS %}
-        - [Moved secrets](#moved-secrets)
-    {%- endif %}
-{%- endif %}
+{%- endfor %}
 - [Releases](#releases)
     {%- for release in RELEASES %}
     - [Release {{release.release_version_no_leading_zeros}}](#release-{{release.release_version_no_leading_zeros.replace(".","")}})

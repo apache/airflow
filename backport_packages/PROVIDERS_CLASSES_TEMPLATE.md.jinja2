@@ -23,79 +23,24 @@ In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `{{PRO
 are in the `{{FULL_PACKAGE_NAME}}` package. You can read more about the naming conventions used
 in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
-{% if NEW_OPERATORS or MOVED_OPERATORS %}
-## Operators
+{% for entity_type in ENTITY_TYPES %}
+{%- set entity_type_string = entity_type.value %}
+{%- set entity_name = ENTITY_NAMES.get(entity_type) %}
+{%- set entity_summary = ENTITIES.get(entity_type) %}
+{%- if entity_summary.new_entities or entity_summary.moved_entities %}
+## {{  entity_name.capitalize() }}
 
-{% if NEW_OPERATORS %}
-### New operators
+{% if entity_summary.new_entities %}
+### New {{  entity_name.lower() }}
 
-{{NEW_OPERATORS_TABLE}}
+{{ entity_summary.new_entities_table }}
 {% endif %}
+{% if entity_summary.moved_entities %}
+### Moved {{  entity_name.lower() }}
 
-{% if MOVED_OPERATORS %}
-### Moved operators
-
-{{MOVED_OPERATORS_TABLE}}
-{% endif %}
-{% endif %}
-
-{% if NEW_TRANSFERS or MOVED_TRANSFERS %}
-{% if NEW_TRANSFERS %}
-### New transfer operators
-
-{{NEW_TRANSFERS_TABLE}}
-{% endif %}
-
-{% if MOVED_TRANSFERS %}
-### Moved transfer operators
-
-{{MOVED_TRANSFERS_TABLE}}
+{{ entity_summary.moved_entities_table }}
 {% endif %}
 {% endif %}
-
-{% if NEW_SENSORS or MOVED_SENSORS %}
-## Sensors
-
-{% if NEW_SENSORS %}
-### New sensors
-
-{{NEW_SENSORS_TABLE}}
-{% endif %}
-{% if MOVED_SENSORS %}
-### Moved sensors
-
-{{MOVED_SENSORS_TABLE}}
-{% endif %}
-{% endif %}
-{% if NEW_HOOKS or MOVED_HOOKS %}
-## Hooks
-
-{% if NEW_HOOKS %}
-### New hooks
-
-{{NEW_HOOKS_TABLE}}
-{% endif %}
-{% if MOVED_HOOKS %}
-### Moved hooks
-
-{{MOVED_HOOKS_TABLE}}
-{% endif %}
-{% endif %}
-
-{% if NEW_SECRETS or MOVED_SECRETS %}
-## Secrets
-
-{% if NEW_SECRETS %}
-### New secrets
-
-{{NEW_SECRETS_TABLE}}
-{% endif %}
-{% if MOVED_SECRETS %}
-### Moved secrets
-
-{{MOVED_SECRETS_TABLE}}
-{% endif %}
-{% endif %}
-
+{%- endfor %}
 
 ## Releases
