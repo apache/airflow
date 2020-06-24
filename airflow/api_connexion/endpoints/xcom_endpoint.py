@@ -26,7 +26,7 @@ from flask import Response, request
 from marshmallow import ValidationError
 from sqlalchemy.orm.session import Session
 
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.xcom_schema import xcom_schema
 from airflow.models import DagRun as DR, XCom
 from airflow.utils.session import provide_session
@@ -136,22 +136,28 @@ def patch_xcom_entry(
     if not xcom_entry:
         raise NotFound("XCom not found")
     try:
-        body = xcom_schema.load(request.json)
+        body = xcom_schema.load(request.json, partial=("dag_id", "task_id",
+                                                       "key", "execution_date"))
     except ValidationError as err:
         raise BadRequest(detail=err.messages.get('_schema', [str(err.messages)])[0])
     data = body.data
+    # Check that other attributes are not being updated
+    for field in data:
+        if field != 'value' and data[field] != getattr(xcom_entry, field):
+            raise BadRequest(detail=f"'{field}' cannot be updated")
     if update_mask:
         update_mask = [i.strip() for i in update_mask]
         data_ = {}
         for field in update_mask:
-            if field in data:
+            if field in data and field != 'value':
+                raise BadRequest(detail=f"{field} cannot be updated")
+            elif field in data and field == 'value':
                 data_[field] = data[field]
             else:
-                raise BadRequest(f"Unknown field {field} in update_mask")
+                raise BadRequest(detail=f"Unknown field '{field}' in update_mask")
         data = data_
     data['value'] = XCom.serialize_value(data['value'])
-    for key in data:
-        setattr(xcom_entry, key, data[key])
+    xcom_entry.value = data['value']
     session.add(xcom_entry)
     session.commit()
     return xcom_schema.dump(xcom_entry)
@@ -166,7 +172,6 @@ def post_xcom_entries(dag_id: str,
     """
     Create an XCom entry
     """
-    # TODO add 409 to spec?
 
     dag_run = session.query(DR).filter(DR.run_id == dag_run_id, DR.dag_id == dag_id).first()
     if not dag_run:
@@ -175,14 +180,10 @@ def post_xcom_entries(dag_id: str,
         xcom_entry = xcom_schema.load(request.json)
     except ValidationError as err:
         raise BadRequest(detail=err.messages.get('_schema', [str(err.messages)])[0])
-
-    xcom = session.query(XCom).filter(XCom.dag_id == dag_id,
-                                      XCom.task_id == task_id).first()
-    if not xcom:
-        data = xcom_entry.data
-        data['value'] = XCom.serialize_value(data['value'])
-        xcom=XCom(**data)
-        session.add(xcom)
-        session.commit()
-        return xcom_schema.dump(xcom)
-    raise AlreadyExists("XCom entry already exists")
+    session.query(XCom).filter(XCom.dag_id == dag_id, XCom.task_id == task_id).delete()
+    data = xcom_entry.data
+    data['value'] = XCom.serialize_value(data['value'])
+    xcom = XCom(**data)
+    session.add(xcom)
+    session.commit()
+    return xcom_schema.dump(xcom)

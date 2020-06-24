@@ -58,6 +58,7 @@ class TestXComEndpoint(unittest.TestCase):
 
     def _create_xcom(self, session):
         xcom_model = XCom(key=XCOM_KEY,
+                          value=XCom.serialize_value("value"),
                           execution_date=self.execution_date_parsed,
                           task_id=TASK_ID,
                           dag_id=DAG_ID,
@@ -308,23 +309,23 @@ class TestPatchXComEntry(TestXComEndpoint):
             (
                 {
                     'dag_id': DAG_ID,
-                    'execution_date': EXECUTION_DATE_2,
-                    'key': XCOM_KEY,
-                    'task_id': TASK_ID,
-                },
-            ),
-            (
-                {
-                    'dag_id': "CHANGED_DAG_ID",
                     'execution_date': EXECUTION_DATE,
                     'key': XCOM_KEY,
                     'task_id': TASK_ID,
+                    'value': "{'key': 'value'}"
                 },
+                '"{\'key\': \'value\'}"'
+            ),
+            (
+                {
+                    'value': "new_value"
+                },
+                '"new_value"'
             ),
         ]
     )
     @provide_session
-    def test_patch_should_response_200(self, payload, session):
+    def test_patch_should_response_200(self, payload, expected_value, session):
         self._create_xcom(session)
         dag_run_id = self._create_dag_run(session)
 
@@ -335,7 +336,145 @@ class TestPatchXComEntry(TestXComEndpoint):
             url,
             json=payload
         )
+
         self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(response.json['value'], expected_value)
+
+    @parameterized.expand(
+        [
+            (
+                {
+                    'dag_id': 'DAG_ID',
+                    "value": 'new_value'
+                },
+                "'dag_id' cannot be updated"
+            ),
+            (
+                {
+                    'task_id': 'TASK_ID',
+                    "value": 'new_value'
+                },
+                "'task_id' cannot be updated"
+            ),
+            (
+                {
+                    'key': 'XCOM_KEY',
+                    'value': 'new_value',
+                },
+                "'key' cannot be updated"
+            ),
+            (
+                {
+                    'execution_date': EXECUTION_DATE_2,  # trying to change the execution date
+                    'value': "new_value"
+                },
+                "'execution_date' cannot be updated"
+            ),
+            (
+                {
+                    'timestamp': EXECUTION_DATE_2,  # trying to change the timestamp
+                    'value': "new_value"
+                },
+                "'timestamp' cannot be updated"
+            ),
+        ]
+    )
+    @provide_session
+    def test_patch_should_response_400_for_invalid_payload(self, payload, expected_message, session):
+        self._create_xcom(session)
+        dag_run_id = self._create_dag_run(session)
+
+        url = (f"/api/v1/dags/{DAG_ID}/dagRuns/{dag_run_id}/taskInstances"
+               f"/{TASK_ID}/xcomEntries/{XCOM_KEY}")
+
+        response = self.client.patch(
+            url,
+            json=payload
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json['detail'], expected_message)
+
+    @provide_session
+    def test_patch_should_response_400_for_missing_value_field(self, session):
+        self._create_xcom(session)
+        dag_run_id = self._create_dag_run(session)
+
+        payload = {
+            'dag_id': DAG_ID,
+            'execution_date': EXECUTION_DATE,
+            'key': XCOM_KEY,
+            'task_id': TASK_ID
+        }
+
+        url = (f"/api/v1/dags/{DAG_ID}/dagRuns/{dag_run_id}/taskInstances"
+               f"/{TASK_ID}/xcomEntries/{XCOM_KEY}")
+
+        response = self.client.patch(
+            url,
+            json=payload
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json['detail'],
+                         "{'value': ['Missing data for required field.']}"
+                         )
+
+    @provide_session
+    def test_patch_should_response_200_with_update_mask(self, session):
+        self._create_xcom(session)
+        dag_run_id = self._create_dag_run(session)
+
+        payload = {
+            "value": "{'key':'var'}"
+        }
+
+        url = (f"/api/v1/dags/{DAG_ID}/dagRuns/{dag_run_id}/taskInstances"
+               f"/{TASK_ID}/xcomEntries/{XCOM_KEY}?update_mask=value")
+
+        response = self.client.patch(
+            url,
+            json=payload
+        )
+        self.assertEqual(response.status_code, 200)
+
+    @parameterized.expand(
+        [
+            (
+                {
+                    "value": 'new_value'
+                },
+                "update_mask=dags, value",
+                "Unknown field 'dags' in update_mask"
+            ),
+            (
+
+                {
+                    "execution_date": EXECUTION_DATE,
+                    "value": 'new_value'
+                },
+                "update_mask=value, execution_date",
+                "execution_date cannot be updated"
+            )
+        ]
+    )
+    @provide_session
+    def test_patch_should_response_400_for_invalid_fields_in_update_mask(
+        self, payload, update_mask, error_message, session
+    ):
+        self._create_xcom(session)
+        dag_run_id = self._create_dag_run(session)
+
+        url = (f"/api/v1/dags/{DAG_ID}/dagRuns/{dag_run_id}/taskInstances"
+               f"/{TASK_ID}/xcomEntries/{XCOM_KEY}?{update_mask}")
+
+        response = self.client.patch(
+            url,
+            json=payload
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json['detail'],
+                         error_message
+                         )
 
 
 class TestPostXComEntry(TestXComEndpoint):
@@ -413,6 +552,7 @@ class TestPostXComEntry(TestXComEndpoint):
             'execution_date': EXECUTION_DATE,
             'key': XCOM_KEY,
             'task_id': TASK_ID,
+            'value': "value"
         }
         response = self.client.post(url, json=payload)
         self.assertEqual(response.status_code, 404)
@@ -421,28 +561,5 @@ class TestPostXComEntry(TestXComEndpoint):
                           'status': 404,
                           'title': f'DAGRun with dag_id:{DAG_ID} and'
                                    ' run_id:INVALID_DAG_RUN_ID not found',
-                          'type': 'about:blank'}
-                         )
-
-    @provide_session
-    def test_post_should_response_409_for_already_exist(self, session):
-        dag_run_id = self._create_dag_run(session)
-        url = (f"/api/v1/dags/{DAG_ID}/dagRuns/{dag_run_id}/taskInstances"
-               f"/{TASK_ID}/xcomEntries")
-        payload = {
-            'dag_id': DAG_ID,
-            'execution_date': EXECUTION_DATE,
-            'key': XCOM_KEY,
-            'task_id': TASK_ID,
-            'value': "value"
-        }
-        response = self.client.post(url, json=payload)
-        self.assertEqual(response.status_code, 200)
-        # Another requesst
-        response = self.client.post(url, json=payload)
-        self.assertEqual(response.json,
-                         {'detail': None,
-                          'status': 409,
-                          'title': "XCom entry already exists",
                           'type': 'about:blank'}
                          )
