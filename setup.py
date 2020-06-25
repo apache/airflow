@@ -665,11 +665,11 @@ def is_package_excluded(package: str, exclusion_list: List[str]):
 devel_all = [package for package in devel_all if not is_package_excluded(
     package=package,
     exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
-             ]
+]
 devel_ci = [package for package in devel_all if not is_package_excluded(
     package=package,
     exclusion_list=PACKAGES_EXCLUDED_FOR_CI + PACKAGES_EXCLUDED_FOR_ALL)
-            ]
+]
 
 EXTRAS_REQUIREMENTS.update(
     {

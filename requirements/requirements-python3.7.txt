@@ -380,7 +380,7 @@ virtualenv==20.0.25
 watchtower==0.7.3
 wcwidth==0.2.5
 websocket-client==0.57.0
-wrapt==1.12.1
+wrapt==1.11.2
 xmltodict==0.12.0
 yamllint==1.23.0
 yandexcloud==0.42.0
