@@ -37,8 +37,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, get_dag_by_pickle, get_dags
-from airflow.utils.log.file_task_handler import FileTaskHandler
-from airflow.utils.log.logging_mixin import RedirectStdHandler, StreamLogWriter
+from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
@@ -181,7 +180,7 @@ def task_run(args, dag=None):
 
     print(f"Running {ti} on host {hostname}")
 
-    if args.interactive:  # pylint: disable=too-many-nested-blocks
+    if args.interactive:
         _run_task_by_selected_method(args, dag, ti)
     else:
         if settings.DONOT_MODIFY_HANDLERS:
@@ -196,26 +195,25 @@ def task_run(args, dag=None):
             root_logger = logging.getLogger()
             root_logger_handlers = root_logger.handlers
 
-            # Remove 'console' handler from Root Logger to avoid duplicate logs
+            # Remove all handlers from Root Logger to avoid duplicate logs
             for handler in root_logger_handlers:
-                if isinstance(handler, RedirectStdHandler) and handler.name == 'console':
-                    root_logger.removeHandler(handler)
+                root_logger.removeHandler(handler)
 
             for handler in airflow_logger_handlers:
-                if isinstance(handler, FileTaskHandler) and handler.name == 'task':
-                    root_logger.addHandler(handler)
+                root_logger.addHandler(handler)
             root_logger.setLevel(logging.getLogger('airflow.task').level)
 
             with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
                  redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
                 _run_task_by_selected_method(args, dag, ti)
 
+            # We need to restore the handlers to the loggers as celery worker process
+            # can call this command multiple times,
+            # so if we don't reset this then logs from next task would go to the wrong place
             for handler in airflow_logger_handlers:
-                if isinstance(handler, FileTaskHandler) and handler.name == 'task':
-                    root_logger.removeHandler(handler)
+                root_logger.removeHandler(handler)
             for handler in root_logger_handlers:
-                if isinstance(handler, RedirectStdHandler) and handler.name == 'console':
-                    root_logger.addHandler(handler)
+                root_logger.addHandler(handler)
 
     logging.shutdown()
 
