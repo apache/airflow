@@ -157,7 +157,6 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `webserver.resources.limits.memory`                   | Memory Limit of webserver                                                                                    | `~`                                               |
 | `webserver.resources.requests.cpu`                    | CPU Request of webserver                                                                                     | `~`                                               |
 | `webserver.resources.requests.memory`                 | Memory Request of webserver                                                                                  | `~`                                               |
-| `webserver.jwtSigningCertificateSecretName`           | Name of secret to mount Airflow Webserver JWT singing certificate from                                       | `~`                                               |
 | `webserver.defaultUser`                               | Optional default airflow user information                                                                    | `{}`                                              |
 
 
