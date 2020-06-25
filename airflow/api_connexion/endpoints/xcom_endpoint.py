@@ -14,20 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from sqlalchemy import and_, func
 from typing import List, Optional
 
-from airflow.api_connexion import parameters
-from airflow.api_connexion.schemas.xcom_schema import (
-    XComCollection, XComCollectionItemSchema, XComCollectionSchema, xcom_collection_item_schema,
-    xcom_collection_schema,
-)
 from flask import Response, request
 from marshmallow import ValidationError
+from sqlalchemy import and_, func
 from sqlalchemy.orm.session import Session
 
+from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import BadRequest, NotFound
-from airflow.api_connexion.schemas.xcom_schema import xcom_schema
+from airflow.api_connexion.schemas.xcom_schema import (
+    XComCollection, XComCollectionItemSchema, XComCollectionSchema, xcom_collection_item_schema,
+    xcom_collection_schema, xcom_schema,
+)
 from airflow.models import DagRun as DR, XCom
 from airflow.utils.session import provide_session
 
