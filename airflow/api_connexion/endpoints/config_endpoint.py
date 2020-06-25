@@ -19,6 +19,7 @@ from flask import Response, request
 
 from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
 from airflow.configuration import conf
+from airflow.settings import json
 
 
 def get_config() -> Response:
@@ -26,7 +27,7 @@ def get_config() -> Response:
     Get current configuration.
     """
     response_types = ['text/plain', 'application/json']
-    content_type = request.accept_mimetypes.best_match(response_types)
+    return_type = request.accept_mimetypes.best_match(response_types)
     conf_dict = conf.as_dict(display_source=True, display_sensitive=True)
     config = Config(
         sections=[
@@ -40,13 +41,16 @@ def get_config() -> Response:
             for section, parameters in conf_dict.items()
         ]
     )
-    if content_type == 'text/plain':
+    if return_type == 'text/plain':
         config_text = '\n'.join(
             f'[{config_section.name}]\n' +
             ''.join(f'{config_option.key} = {config_option.value}  # source: {config_option.source}\n'
                     for config_option in config_section.options)
             for config_section in config.sections
         )
-        return config_text
+        return Response(config_text, headers={'Content-Type': return_type})
+    elif return_type == 'application/json':
+        config_text = json.dumps(config_schema.dumps({"sections": []}).data, indent=4)
+        return Response(config_text, headers={'Content-Type': return_type})
     else:
-        return config_schema.dump(config)
+        return Response(status=406)

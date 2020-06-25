@@ -14,11 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import textwrap
 import unittest
+from unittest import mock
 
 import pytest
 
 from airflow.www import app
+
+FAKE_CONFIG_DATA = {
+    'smtp': {
+        'smtp_host': ('localhost', 'airflow.cfg'),
+        'smtp_starttls': ('True', 'airflow.cfg'),
+        'smtp_ssl': ('False', 'airflow.cfg'),
+        'smtp_port': ('25', 'airflow.cfg'),
+        'smtp_mail_from': ('airflow@example.com', 'airflow.cfg')
+    },
+}
 
 
 class TestGetConfig(unittest.TestCase):
@@ -30,7 +42,37 @@ class TestGetConfig(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
 
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.get("/api/v1/config")
+    @mock.patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=FAKE_CONFIG_DATA
+    )
+    def test_should_response_200_text_plain(self, mock_as_dict):
+        response = self.client.get("/api/v1/config", headers={'Accept': 'text/plain'})
         assert response.status_code == 200
+        expected_response = textwrap.dedent("""\
+        [smtp]
+        smtp_host = localhost  # source: airflow.cfg
+        smtp_starttls = True  # source: airflow.cfg
+        smtp_ssl = False  # source: airflow.cfg
+        smtp_port = 25  # source: airflow.cfg
+        smtp_mail_from = airflow@example.com  # source: airflow.cfg
+        """)
+        assert expected_response == response.data.decode()
+
+    @mock.patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=FAKE_CONFIG_DATA
+    )
+    def test_should_response_200_application_json(self, mock_as_dict):
+        response = self.client.get("/api/v1/config", headers={'Accept': 'application/json'})
+        assert response.status_code == 200
+        expected_response = {}
+        assert expected_response == response.data.json()
+
+    @mock.patch(
+        "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+        return_value=FAKE_CONFIG_DATA
+    )
+    def test_should_response_409(self, mock_as_dict):
+        response = self.client.get("/api/v1/config", headers={'Accept': 'application/octet-stream'})
+        assert response.status_code == 406
