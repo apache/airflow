@@ -24,7 +24,7 @@ from mock import MagicMock
 from airflow.providers.microsoft.mssql.operators.mssql_to_oracle import MSSQLToOracleTransferOperator
 
 
-class TestOracleToOracleTransfer(unittest.TestCase):
+class TestMsSqlToOracleOperator(unittest.TestCase):
 
     @staticmethod
     def test_execute():
