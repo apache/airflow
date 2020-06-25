@@ -128,6 +128,32 @@ data:
 fernetKey: ~
 fernetKeySecretName: ~
 
+# Airflow DAG Config
+dags:
+  # the airflow dag folder
+  path: /opt/airflow/dags
+
+  gitSync:
+    enabled: true
+
+    # git-sync image
+    image: k8s.gcr.io/git-sync:v3.1.6
+
+    # the git repository to clone
+    repo: ""
+
+    # the root directory for git-sync operations, under which --dest will be created
+    root: /usr/share/airflow
+
+    # the name of (a symlink to) a directory in which to check-out files under --root (defaults to the leaf dir of --repo)
+    dest: dags
+
+    # the number of seconds between syncs
+    wait: 10
+
+    # use a shallow clone with a history truncated to the specified number of commits
+    depth: 1
+
 # Airflow Worker Config
 workers:
   # Number of airflow celery workers in StatefulSet

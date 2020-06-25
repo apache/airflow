@@ -105,6 +105,13 @@ spec:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
       containers:
+{{- if .Values.dags.gitSync.enabled }}
+        - name: git-sync
+          image: {{ .Values.dags.gitSync.image }}
+          volumeMounts:
+          - name: dags
+            mountPath: /usr/share/airflow
+{{- end }}
         - name: worker
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
@@ -127,6 +134,10 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
 {{- end }}
+{{- if .Values.dags.gitSync.enabled }}
+            - name: dags
+              mountPath: /usr/local/airflow
+{{- end }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
@@ -142,6 +153,10 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+{{- if .Values.dags.gitSync.enabled }}
+        - name: dags
+          emptyDir: {}
+{{- end }}
 {{- if not $persistence }}
         - name: logs
           emptyDir: {}
