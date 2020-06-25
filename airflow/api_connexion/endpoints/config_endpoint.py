@@ -21,14 +21,11 @@ from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, Co
 from airflow.configuration import conf
 from airflow.settings import json
 
+LINE_SEP = '\n'  # `\n` cannot appear in f-strings
 
-def get_config() -> Response:
-    """
-    Get current configuration.
-    """
-    response_types = ['text/plain', 'application/json']
-    return_type = request.accept_mimetypes.best_match(response_types)
-    conf_dict = conf.as_dict(display_source=True, display_sensitive=True)
+
+def _conf_dict_to_config(conf_dict: dict) -> Config:
+    """Convert config dict to a Config object"""
     config = Config(
         sections=[
             ConfigSection(
@@ -41,16 +38,44 @@ def get_config() -> Response:
             for section, parameters in conf_dict.items()
         ]
     )
-    if return_type == 'text/plain':
-        config_text = '\n'.join(
-            f'[{config_section.name}]\n' +
-            ''.join(f'{config_option.key} = {config_option.value}  # source: {config_option.source}\n'
-                    for config_option in config_section.options)
-            for config_section in config.sections
-        )
-        return Response(config_text, headers={'Content-Type': return_type})
-    elif return_type == 'application/json':
-        config_text = json.dumps(config_schema.dump(config).data, indent=4)
-        return Response(config_text, headers={'Content-Type': return_type})
-    else:
+    return config
+
+
+def _option_to_text(config_option: ConfigOption) -> str:
+    """Convert a single config option to text"""
+    return f'{config_option.key} = {config_option.value}  # source: {config_option.source}'
+
+
+def _section_to_text(config_section: ConfigSection) -> str:
+    """Convert a single config section to text"""
+    return (f'[{config_section.name}]{LINE_SEP}'
+            f'{LINE_SEP.join(_option_to_text(option) for option in config_section.options)}{LINE_SEP}')
+
+
+def _config_to_text(config: Config) -> str:
+    """Convert the entire config to text"""
+    return LINE_SEP.join(_section_to_text(s) for s in config.sections)
+
+
+def _config_to_json(config: Config) -> str:
+    """Convert a Config object to a JSON formatted string"""
+    return json.dumps(config_schema.dump(config).data, indent=4)
+
+
+def get_config() -> Response:
+    """
+    Get current configuration.
+    """
+    serializer = {
+        'text/plain': _config_to_text,
+        'application/json': _config_to_json,
+    }
+    response_types = serializer.keys()
+    return_type = request.accept_mimetypes.best_match(response_types)
+    conf_dict = conf.as_dict(display_source=True, display_sensitive=True)
+    config = _conf_dict_to_config(conf_dict)
+    if return_type not in serializer:
         return Response(status=406)
+    else:
+        config_text = serializer[return_type](config)
+        return Response(config_text, headers={'Content-Type': return_type})
