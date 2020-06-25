@@ -274,7 +274,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         except OSError:
             pass
 
-    def assert_log_line(self, text, logs_list):
+    def assert_log_line(self, text, logs_list, expect_from_logging_mixin=False):
         """
         Get Log Line and assert only 1 Entry exists with the given text. Also check that
         "logging_mixin" line does not appear in that log line to avoid duplicate loggigng as below:
@@ -284,7 +284,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         log_lines = [log for log in logs_list if text in log]
         self.assertEqual(len(log_lines), 1)
         log_line = log_lines[0]
-        if "Print" not in log_line:
+        if not expect_from_logging_mixin:
             # Logs from print statement still show with logging_mixing as filename
             # Example: [2020-06-24 17:07:00,482] {logging_mixin.py:91} INFO - Log from Print statement
             self.assertNotIn("logging_mixin.py", log_line)
@@ -313,7 +313,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
 
         self.assert_log_line("Log from DAG Logger", logs_list)
         self.assert_log_line("Log from TI Logger", logs_list)
-        self.assert_log_line("Log from Print statement", logs_list)
+        self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
 
         self.assertIn(f"INFO - Marking task as SUCCESS.dag_id={self.dag_id}, "
                       f"task_id={self.task_id}, execution_date=20170101T000000", logs)
@@ -336,7 +336,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.assertIn("base_task_runner.py", logs)
         self.assert_log_line("Log from DAG Logger", logs_list)
         self.assert_log_line("Log from TI Logger", logs_list)
-        self.assert_log_line("Log from Print statement", logs_list)
+        self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
 
         self.assertIn(f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
                       f"'{self.task_id}', '{self.execution_date_str}',", logs)
