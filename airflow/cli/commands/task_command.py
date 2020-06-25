@@ -185,7 +185,7 @@ def task_run(args, dag=None):
     else:
         if settings.DONOT_MODIFY_HANDLERS:
             with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
-                 redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
+                    redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
                 _run_task_by_selected_method(args, dag, ti)
         else:
             # Get all the Handlers from 'airflow.task' logger
@@ -204,7 +204,7 @@ def task_run(args, dag=None):
             root_logger.setLevel(logging.getLogger('airflow.task').level)
 
             with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
-                 redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
+                    redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
                 _run_task_by_selected_method(args, dag, ti)
 
             # We need to restore the handlers to the loggers as celery worker process
