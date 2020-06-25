@@ -555,8 +555,35 @@ def run(args, dag=None):
     if args.interactive:
         _run(args, dag, ti)
     else:
-        with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
-            _run(args, dag, ti)
+        if settings.DONOT_MODIFY_HANDLERS:
+            with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
+                _run(args, dag, ti)
+        else:
+            # Get all the Handlers from 'airflow.task' logger
+            # Add these handlers to the root logger so that we can get logs from
+            # any custom loggers defined in the DAG
+            airflow_logger_handlers = logging.getLogger('airflow.task').handlers
+            root_logger = logging.getLogger()
+            root_logger_handlers = root_logger.handlers
+
+            # Remove all handlers from Root Logger to avoid duplicate logs
+            for handler in root_logger_handlers:
+                root_logger.removeHandler(handler)
+
+            for handler in airflow_logger_handlers:
+                root_logger.addHandler(handler)
+            root_logger.setLevel(logging.getLogger('airflow.task').level)
+
+            with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
+                _run(args, dag, ti)
+
+            # We need to restore the handlers to the loggers as celery worker process
+            # can call this command multiple times,
+            # so if we don't reset this then logs from next task would go to the wrong place
+            for handler in airflow_logger_handlers:
+                root_logger.removeHandler(handler)
+            for handler in root_logger_handlers:
+                root_logger.addHandler(handler)
     logging.shutdown()
 
 

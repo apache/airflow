@@ -400,3 +400,10 @@ STORE_SERIALIZED_DAGS = conf.getboolean('core', 'store_serialized_dags', fallbac
 # write rate.
 MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
     'core', 'min_serialized_dag_update_interval', fallback=30)
+
+# If donot_modify_handlers=True, we do not modify logging handlers in task_run command
+# If the flag is set to False, we remove all handlers from the root logger
+# and add all handlers from 'airflow.task' logger to the root Logger. This is done
+# to get all the logs from the print & log statements in the DAG files before a task is run
+# The handlers are restored after the task completes execution.
+DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
