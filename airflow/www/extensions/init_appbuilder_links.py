@@ -34,6 +34,4 @@ def init_appbuilder_links(app):
     appbuilder.add_link(
         "REST API Reference (Swagger UI)", href='/api/v1./api/v1_swagger_ui_index', category="Docs"
     )
-    appbuilder.add_link(
-        "REST API Reference (Redoc)", href='routes.redoc', category="Docs"
-    )
+    appbuilder.add_link("REST API Reference (Redoc)", href="RedocView.redoc", category='Docs')

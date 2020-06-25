@@ -430,7 +430,7 @@ class TestAirflowBaseViews(TestBase):
             state=State.RUNNING)
 
     def test_index(self):
-        with assert_queries_count(38):
+        with assert_queries_count(39):
             resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
@@ -1009,6 +1009,19 @@ class TestConfigurationView(TestBase):
             resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', 'Running Configuration'], resp)
+
+
+class TestRedocView(TestBase):
+    def test_should_render_template(self):
+        with self.capture_templates() as templates:
+            resp = self.client.get('redoc')
+            self.check_content_in_response('Redoc', resp)
+
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0].name, 'airflow/redoc.html')
+        self.assertEqual(templates[0].local_context, {
+            'openapi_spec_url': '/api/v1/openapi.yaml'
+        })
 
 
 class TestLogView(TestBase):

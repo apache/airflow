@@ -2135,6 +2135,16 @@ class ConfigurationView(AirflowBaseView):
                 table=table)
 
 
+class RedocView(AirflowBaseView):
+    """Redoc Open API documentation"""
+    default_view = 'redoc'
+
+    @expose('/redoc')
+    def redoc(self):
+        openapi_spec_url = url_for("/api/v1./api/v1_openapi_yaml")
+        return self.render_template('airflow/redoc.html', openapi_spec_url=openapi_spec_url)
+
+
 ######################################################################################
 #                                    ModelViews
 ######################################################################################
