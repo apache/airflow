@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from accept_types import get_best_match
 from flask import Response, current_app, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
@@ -69,8 +68,7 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
         if dag:
             ti.task = dag.get_task(ti.task_id)
 
-        return_type = get_best_match(request.headers.get('ACCEPT'),
-                                     ['text/plain', 'application/json'])
+        return_type = request.accept_mimetypes.best_match(['text/plain', 'application/json'])
 
         # return_type would be either the above two or None
 
