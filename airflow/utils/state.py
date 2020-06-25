@@ -77,7 +77,7 @@ class State:
         SCHEDULED: 'tan',
         NONE: 'lightblue',
     }
-    state_color.update(STATE_COLORS)
+    state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod
     def color(cls, state):
