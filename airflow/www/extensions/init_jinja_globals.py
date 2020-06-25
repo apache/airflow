@@ -20,7 +20,7 @@ import socket
 import pendulum
 
 from airflow.configuration import conf
-from airflow.utils.state import State
+from airflow.settings import STATE_COLORS
 
 
 def init_jinja_globals(app):
@@ -42,10 +42,6 @@ def init_jinja_globals(app):
     expose_hostname = conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
     hosstname = socket.getfqdn() if expose_hostname else 'redact'
 
-    state_color_mapping = State.state_color.copy()
-    del state_color_mapping[State.NONE], state_color_mapping[State.SHUTDOWN], \
-        state_color_mapping[State.REMOVED]
-
     def prepare_jinja_globals():
         extra_globals = {
             'server_timezone': server_timezone,
@@ -55,7 +51,7 @@ def init_jinja_globals(app):
             'log_fetch_delay_sec': conf.getint('webserver', 'log_fetch_delay_sec', fallback=2),
             'log_auto_tailing_offset': conf.getint('webserver', 'log_auto_tailing_offset', fallback=30),
             'log_animation_speed': conf.getint('webserver', 'log_animation_speed', fallback=1000),
-            'state_color_mapping': state_color_mapping
+            'state_color_mapping': STATE_COLORS
         }
 
         if 'analytics_tool' in conf.getsection('webserver'):
