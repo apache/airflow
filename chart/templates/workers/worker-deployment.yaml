@@ -111,6 +111,8 @@ spec:
           volumeMounts:
           - name: dags
             mountPath: /usr/share/airflow
+          env:
+          {{- include "git_sync_environment" . | indent 10 }}
 {{- end }}
         - name: worker
           image: {{ template "airflow_image" . }}
@@ -136,7 +138,7 @@ spec:
 {{- end }}
 {{- if .Values.dags.gitSync.enabled }}
             - name: dags
-              mountPath: /usr/local/airflow
+              mountPath: {{ .Values.airflowHome }}
 {{- end }}
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}

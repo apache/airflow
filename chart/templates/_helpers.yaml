@@ -258,3 +258,14 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
   {{- $_ := set $config "auths" $auth -}}
   {{ $config | toJson | print }}
 {{- end }}
+
+{{ define "git_sync_environment" }}
+  - name: GIT_SYNC_REPO
+    value: {{ .Values.dags.gitSync.repo }}
+  - name: GIT_SYNC_DEST
+    value: {{ .Values.dags.gitSync.dest }}
+  - name: GIT_SYNC_WAIT
+    value: {{ .Values.dags.gitSync.wait }}
+  - name: GIT_SYNC_DEPTH
+    value: {{ .Values.dags.gitSync.depth }}
+{{- end }}

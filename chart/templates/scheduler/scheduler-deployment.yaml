@@ -101,6 +101,15 @@ spec:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
       containers:
+{{- if .Values.dags.gitSync.enabled }}
+        - name: git-sync
+          image: {{ .Values.dags.gitSync.image }}
+          volumeMounts:
+          - name: dags
+            mountPath: /usr/share/airflow
+          env:
+          {{- include "git_sync_environment" . | indent 10 }}
+{{- end }}
         # Always run the main scheduler container.
         - name: scheduler
           image: {{ template "airflow_image" . }}
@@ -145,6 +154,10 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
 {{- end }}
+{{- if .Values.dags.gitSync.enabled }}
+            - name: dags
+              mountPath: {{ .Values.airflowHome }}
+{{- end }}
         # Always start the garbage collector sidecar.
         - name: scheduler-gc
           image: {{ template "airflow_image" . }}
@@ -181,6 +194,10 @@ spec:
         - name: logs
           emptyDir: {}
 {{- else }}
+{{- if .Values.dags.gitSync.enabled }}
+        - name: dags
+          emptyDir: {}
+{{- end }}
   volumeClaimTemplates:
     - metadata:
         name: logs
