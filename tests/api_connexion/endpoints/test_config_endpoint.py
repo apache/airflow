@@ -40,6 +40,7 @@ class TestGetConfig:
     @classmethod
     def setup_class(cls) -> None:
         cls.app = app.create_app(testing=True)  # type:ignore
+        cls.client = None
 
     def setup_method(self) -> None:
         self.client = self.app.test_client()  # type:ignore
