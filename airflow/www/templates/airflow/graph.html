@@ -24,6 +24,13 @@
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/graph.css') }}">
+<style type="text/css">
+  {% for state, state_color in state_color_mapping.items() %}
+    g.node.{{state}} rect {
+      stroke: {{state_color}};
+    }
+  {% endfor %}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -61,14 +68,9 @@
 
   <div>
     <div class="legend_item state" style="border-color:white;">no_status</div>
-    <div class="legend_item state" style="border-color:grey;">queued</div>
-    <div class="legend_item state" style="border-color:gold;">up_for_retry</div>
-    <div class="legend_item state" style="border-color:turquoise;">up_for_reschedule</div>
-    <div class="legend_item state" style="border-color:orange;">upstream_failed</div>
-    <div class="legend_item state" style="border-color:pink;">skipped</div>
-    <div class="legend_item state" style="border-color:red;">failed</div>
-    <div class="legend_item state" style="border-color:lime;">running</div>
-    <div class="legend_item state" style="border-color:green;">success</div>
+  {% for state, state_color in state_color_mapping.items() %}
+    <div class="legend_item state" style="border-color:{{state_color}};">{{state}}</div>
+  {% endfor %}
   </div>
   <div style="clear:both;"></div>
 </div>

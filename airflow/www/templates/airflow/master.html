@@ -28,6 +28,13 @@
   {% endif %}
   <link href="{{ url_for_asset('main.css') }}" rel="stylesheet">
   <link href="{{ url_for_asset('bootstrap-datetimepicker.min.css') }}" rel="stylesheet">
+  <style type="text/css">
+  {% for state, state_color in state_color_mapping.items() %}
+    span.{{state}} {
+      background-color: {{state_color}};
+    }
+  {% endfor %}
+  </style>
 
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
 {% endblock %}
