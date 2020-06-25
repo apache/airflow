@@ -22,7 +22,6 @@ import time
 import unittest
 import urllib
 from typing import List, Optional, Union, cast
-from unittest import mock
 from unittest.mock import call, mock_open, patch
 
 import pendulum
@@ -1708,9 +1707,8 @@ def test_refresh_from_task(pool_override):
 
 class TestRunRawTaskQueriesCount(unittest.TestCase):
     """
-    These tests are designed to detect changes in the number of queries for
-    different DAG files. These tests allow easy detection when a change is
-    made that affects the performance of the SchedulerJob.
+    These tests are designed to detect changes in the number of queries executed
+    when calling _run_raw_task
     """
 
     @staticmethod
@@ -1733,25 +1731,25 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
         (5, True),
     ])
     def test_execute_queries_count(self, expected_query_count, mark_success):
-        with create_session() as s:
+        with create_session() as session:
             dag = DAG('test_queries', start_date=DEFAULT_DATE)
             task = DummyOperator(task_id='op', dag=dag)
             ti = TI(task=task, execution_date=datetime.datetime.now())
             ti.state = State.RUNNING
-            s.merge(ti)
+            session.merge(ti)
 
         with assert_queries_count(expected_query_count):
             ti._run_raw_task(mark_success=mark_success)
 
     def test_execute_queries_count_store_serialized(self):
-        with create_session() as s:
+        with create_session() as session:
             dag = DAG('test_queries', start_date=DEFAULT_DATE)
             task = DummyOperator(task_id='op', dag=dag)
             ti = TI(task=task, execution_date=datetime.datetime.now())
             ti.state = State.RUNNING
-            s.merge(ti)
+            session.merge(ti)
 
-        with assert_queries_count(10), mock.patch(
+        with assert_queries_count(10), patch(
             "airflow.models.taskinstance.STORE_SERIALIZED_DAGS", True
         ):
             ti._run_raw_task()
