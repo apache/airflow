@@ -145,6 +145,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
+      - id: check-builtin-literals
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: mixed-line-ending

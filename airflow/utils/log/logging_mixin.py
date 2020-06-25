@@ -72,7 +72,7 @@ class StreamLogWriter:
         """
         self.logger = logger
         self.level = level
-        self._buffer = str()
+        self._buffer = ''
 
     @property
     def closed(self):   # noqa: D402
@@ -101,7 +101,7 @@ class StreamLogWriter:
         else:
             self._buffer += message
             self._propagate_log(self._buffer.rstrip())
-            self._buffer = str()
+            self._buffer = ''
 
     def flush(self):
         """
@@ -109,7 +109,7 @@ class StreamLogWriter:
         """
         if len(self._buffer) > 0:
             self._propagate_log(self._buffer)
-            self._buffer = str()
+            self._buffer = ''
 
     def isatty(self):
         """
