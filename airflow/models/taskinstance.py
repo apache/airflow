@@ -933,7 +933,8 @@ class TaskInstance(Base, LoggingMixin):
     def _date_or_empty(self, attr):
         if hasattr(self, attr):
             date = getattr(self, attr)
-            return date.strftime('%Y%m%dT%H%M%S') if date else ''
+            if date:
+                return date.strftime('%Y%m%dT%H%M%S')
         return ''
 
     @provide_session
