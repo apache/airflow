@@ -55,7 +55,7 @@ from sqlalchemy import (
 from sqlalchemy import func, or_, and_
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.dialects.mysql import LONGTEXT
-from sqlalchemy.orm import reconstructor, relationship, synonym
+from sqlalchemy.orm import backref, reconstructor, relationship, synonym
 
 from croniter import croniter
 import six
@@ -2717,6 +2717,13 @@ class BaseOperator(object):
             dag_id=dag_id,
             include_prior_dates=include_prior_dates)
 
+class DagTag(Base):
+    """
+    A tag name per dag, to allow quick filtering in the DAG view.
+    """
+    __tablename__ = "dag_tag"
+    name = Column(String(100), primary_key=True)
+    dag_id = Column(String(ID_LEN), ForeignKey('dag.dag_id'), primary_key=True)
 
 class DagModel(Base):
 
@@ -2749,6 +2756,8 @@ class DagModel(Base):
     fileloc = Column(String(2000))
     # String representing the owners
     owners = Column(String(2000))
+    # Tags for view filter
+    tags = relationship('DagTag', cascade='all,delete-orphan', backref=backref('dag'))
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -2843,6 +2852,8 @@ class DAG(BaseDag, LoggingMixin):
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
     :type on_success_callback: callable
+    :param tags: List of tags to help filtering DAGS in the UI.
+    :type tags: List[str]
     """
 
     def __init__(
@@ -2866,7 +2877,9 @@ class DAG(BaseDag, LoggingMixin):
             on_failure_callback=None,  # type: Optional[Callable]
             doc_md=None,  # type: Optional[str]
             params=None,
-            access_control=None):
+            access_control=None,
+            tags=None,  # type: Optional[List[str]]
+    ):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -2939,6 +2952,7 @@ class DAG(BaseDag, LoggingMixin):
             # just make sure it looks like a dict
             for role, perms in access_control.items():
                 pass
+        self.tags = tags
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -3735,9 +3749,8 @@ class DAG(BaseDag, LoggingMixin):
 
         return run
 
-    @staticmethod
     @provide_session
-    def sync_to_db(dag, owner, sync_time, session=None):
+    def sync_to_db(self, owner, sync_time, session=None):
         """
         Save attributes about this DAG to the DB. Note that this method
         can be called for both DAGs and SubDAGs. A SubDag is actually a
@@ -3751,24 +3764,47 @@ class DAG(BaseDag, LoggingMixin):
         :return: None
         """
         orm_dag = session.query(
-            DagModel).filter(DagModel.dag_id == dag.dag_id).first()
+            DagModel).filter(DagModel.dag_id == self.dag_id).first()
         if not orm_dag:
-            orm_dag = DagModel(dag_id=dag.dag_id)
+            orm_dag = DagModel(dag_id=self.dag_id)
             logging.info("Creating ORM DAG for %s",
-                         dag.dag_id)
-        if dag.is_subdag:
-            orm_dag.fileloc = dag.fileloc
+                         self.dag_id)
+            session.add(orm_dag)
+        if self.is_subdag:
+            orm_dag.fileloc = self.fileloc
         else:
-            orm_dag.fileloc = dag.full_filepath
-        orm_dag.is_subdag = dag.is_subdag
+            orm_dag.fileloc = self.full_filepath
+        orm_dag.is_subdag = self.is_subdag
         orm_dag.owners = owner
         orm_dag.is_active = True
         orm_dag.last_scheduler_run = sync_time
-        session.merge(orm_dag)
+
+        orm_dag.tags = self.get_dagtags(session=session)
         session.commit()
 
-        for subdag in dag.subdags:
-            DAG.sync_to_db(subdag, owner, sync_time, session=session)
+        for subdag in self.subdags:
+            subdag.sync_to_db(owner, sync_time, session=session)
+
+    @provide_session
+    def get_dagtags(self, session=None):
+        """
+        Creating a list of DagTags, if one is missing from the DB, will insert.
+        :return: The DagTag list.
+        :rtype: list
+        """
+        tags = []
+        if not self.tags:
+            return tags
+
+        for name in set(self.tags):
+            tag = session.query(
+                DagTag).filter(DagTag.name == name).filter(DagTag.dag_id == self.dag_id).first()
+            if not tag:
+                tag = DagTag(name=name, dag_id=self.dag_id)
+                session.add(tag)
+            tags.append(tag)
+        session.commit()
+        return tags
 
     @staticmethod
     @provide_session
