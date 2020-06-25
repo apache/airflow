@@ -1042,7 +1042,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
 
-        self.src_fmt_configs = src_fmt_configs or dict()
+        self.src_fmt_configs = src_fmt_configs or {}
         self.labels = labels
         self.encryption_configuration = encryption_configuration
         self.location = location

@@ -208,7 +208,7 @@ class ClusterGenerator:
         self.custom_image = custom_image
         self.custom_image_project_id = custom_image_project_id
         self.image_version = image_version
-        self.properties = properties or dict()
+        self.properties = properties or {}
         self.optional_components = optional_components
         self.master_machine_type = master_machine_type
         self.master_disk_type = master_disk_type

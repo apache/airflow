@@ -604,7 +604,7 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
     from airflow.hooks.base_hook import BaseHook
     from airflow.models.baseoperator import BaseOperator
 
-    all_verified_entities: Dict[EntityType, VerifiedEntities] = dict()
+    all_verified_entities: Dict[EntityType, VerifiedEntities] = {}
     all_verified_entities[EntityType.Operators] = find_all_entities(
         imported_classes=imported_classes,
         base_package=full_package_name,
@@ -657,7 +657,7 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
     for entity in EntityType:
         print_wrong_naming(entity, all_verified_entities[entity].wrong_entities)
 
-    entities_summary: Dict[EntityType, EntityTypeSummary] = dict() # noqa
+    entities_summary: Dict[EntityType, EntityTypeSummary] = {} # noqa
 
     for entity_type in EntityType:
         entities_summary[entity_type] = get_details_about_classes(

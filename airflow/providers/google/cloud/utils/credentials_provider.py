@@ -59,7 +59,7 @@ def build_gcp_conn(
     conn = "google-cloud-platform://?{}"
     extras = "extra__google_cloud_platform"
 
-    query_params = dict()
+    query_params = {}
     if key_file_path:
         query_params["{}__key_path".format(extras)] = key_file_path
     if scopes:

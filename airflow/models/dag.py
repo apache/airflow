@@ -257,7 +257,7 @@ class DAG(BaseDag, LoggingMixin):
         # set file location to caller source path
         back = sys._getframe().f_back
         self.fileloc = back.f_code.co_filename if back else ""
-        self.task_dict: Dict[str, BaseOperator] = dict()
+        self.task_dict: Dict[str, BaseOperator] = {}
 
         # set timezone from start_date
         if start_date and start_date.tzinfo:
@@ -1277,7 +1277,7 @@ class DAG(BaseDag, LoggingMixin):
         raise TaskNotFound("Task {task_id} not found".format(task_id=task_id))
 
     def pickle_info(self):
-        d = dict()
+        d = {}
         d['is_picklable'] = True
         try:
             dttm = timezone.utcnow()

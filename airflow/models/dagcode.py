@@ -92,7 +92,7 @@ class DagCode(Base):
                 orm_dag_code.fileloc: orm_dag_code for orm_dag_code in existing_orm_dag_codes
             }
         else:
-            existing_orm_dag_codes_map = dict()
+            existing_orm_dag_codes_map = {}
 
         existing_orm_dag_codes_by_fileloc_hashes = {
             orm.fileloc_hash: orm for orm in existing_orm_dag_codes

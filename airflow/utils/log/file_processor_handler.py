@@ -84,7 +84,7 @@ class FileProcessorHandler(logging.Handler):
 
     def _render_filename(self, filename):
         filename = os.path.relpath(filename, self.dag_dir)
-        ctx = dict()
+        ctx = {}
         ctx['filename'] = filename
 
         if self.filename_jinja_template:

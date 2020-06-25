@@ -763,7 +763,7 @@ class SageMakerHook(AwsBaseHook):
         :return: results of the list_training_jobs request
         """
 
-        config = dict()
+        config = {}
 
         if name_contains:
             if "NameContains" in kwargs:
@@ -806,7 +806,7 @@ class SageMakerHook(AwsBaseHook):
         next_token = None
 
         while True:
-            kwargs = dict()
+            kwargs = {}
             if next_token is not None:
                 kwargs["NextToken"] = next_token
 

@@ -104,7 +104,7 @@ class BackfillJob(BaseJob):
                      total_runs=0,
                      ):
             self.to_run = to_run or OrderedDict()
-            self.running = running or dict()
+            self.running = running or {}
             self.skipped = skipped or set()
             self.succeeded = succeeded or set()
             self.failed = failed or set()
