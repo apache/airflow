@@ -57,7 +57,7 @@ rbacEnabled: true
 
 # Airflow executor
 # Options: SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor
-executor: "KubernetesExecutor"
+executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheudler's
 # service account will have access to communicate with the api-server and launch pods.
@@ -139,11 +139,11 @@ dags:
     # git-sync image
     image: k8s.gcr.io/git-sync:v3.1.6
 
-    # the git repository to clone
-    repo: ""
+    # use SSH for git operations TODO
+    ssh: false
 
-    # the root directory for git-sync operations, under which --dest will be created
-    root: /usr/share/airflow
+    # the git repository to clone (Must be set when git-sync is enabled)
+    repo: ""
 
     # the name of (a symlink to) a directory in which to check-out files under --root (defaults to the leaf dir of --repo)
     dest: dags
