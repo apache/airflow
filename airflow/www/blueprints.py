@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask import Blueprint, redirect, url_for
+from flask import Blueprint, redirect, render_template, url_for
 
 routes = Blueprint('routes', __name__)
 
@@ -25,3 +25,10 @@ routes = Blueprint('routes', __name__)
 def index():
     """Main Airflow page"""
     return redirect(url_for('Airflow.index'))
+
+
+@routes.route('/redoc')
+def redoc():
+    """Redoc Open API documentation"""
+    openapi_spec_url = url_for("/api/v1./api/v1_openapi_yaml")
+    return render_template('airflow/redoc.html', openapi_spec_url=openapi_spec_url)

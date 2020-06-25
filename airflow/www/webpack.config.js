@@ -133,6 +133,7 @@ const config = {
       { from: 'node_modules/datatables.net-bs/**/**.min.*', flatten: true },
       { from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css', flatten: true },
       { from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js', flatten: true },
+      { from: 'node_modules/redoc/bundles/redoc.standalone.*', flatten: true },
     ], { copyUnmodified: true }),
   ],
 };
