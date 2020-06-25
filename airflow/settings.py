@@ -36,7 +36,6 @@ from airflow import api
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
-from airflow.utils.state import State
 
 log = logging.getLogger(__name__)
 
@@ -83,15 +82,15 @@ json = json  # pylint: disable=self-assigning-variable
 # Dictionary containing State and colors associated to each state to
 # display on the Webserver
 STATE_COLORS = {
-    State.QUEUED: 'gray',
-    State.RUNNING: 'lime',
-    State.SUCCESS: 'green',
-    State.FAILED: 'red',
-    State.UP_FOR_RETRY: 'gold',
-    State.UP_FOR_RESCHEDULE: 'turquoise',
-    State.UPSTREAM_FAILED: 'orange',
-    State.SKIPPED: 'pink',
-    State.SCHEDULED: 'tan',
+    "queued": "gray",
+    "running": "lime",
+    "success": "green",
+    "failed": "red",
+    "up_for_retry": "gold",
+    "up_for_reschedule": "turquoise",
+    "upstream_failed": "orange",
+    "skipped": "pink",
+    "scheduled": "tan",
 }
 
 
