@@ -77,7 +77,7 @@ class TestGetConfig:
                 },
             ]
         }
-        assert expected == response.data.json()
+        assert expected == response.json
 
     def test_should_response_406(self, mock_as_dict):
         response = self.client.get("/api/v1/config", headers={'Accept': 'application/octet-stream'})

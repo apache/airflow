@@ -50,7 +50,7 @@ def get_config() -> Response:
         )
         return Response(config_text, headers={'Content-Type': return_type})
     elif return_type == 'application/json':
-        config_text = json.dumps(config_schema.dumps({"sections": []}).data, indent=4)
+        config_text = json.dumps(config_schema.dump(config).data, indent=4)
         return Response(config_text, headers={'Content-Type': return_type})
     else:
         return Response(status=406)
