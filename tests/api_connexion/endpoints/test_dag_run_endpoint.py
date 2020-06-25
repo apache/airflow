@@ -16,6 +16,7 @@
 # under the License.
 import unittest
 from datetime import timedelta
+from urllib.parse import quote_plus
 
 import pytest
 from parameterized import parameterized
@@ -253,26 +254,31 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
     @parameterized.expand(
         [
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18:00:00+00:00",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte="
+                f"{quote_plus('2020-06-18T18:00:00+00:00')}",
                 ["TEST_START_EXEC_DAY_18", "TEST_START_EXEC_DAY_19"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-11T18:00:00+00:00",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte="
+                f"{quote_plus('2020-06-11T18:00:00+00:00')}",
                 ["TEST_START_EXEC_DAY_10", "TEST_START_EXEC_DAY_11"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-15T18:00:00+00:00"
-                "&start_date_gte=2020-06-12T18:00:00Z",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?"
+                f"start_date_lte={quote_plus('2020-06-15T18:00:00+00:00')}"
+                f"&start_date_gte={quote_plus('2020-06-12T18:00:00Z')}",
                 ["TEST_START_EXEC_DAY_12", "TEST_START_EXEC_DAY_13",
                  "TEST_START_EXEC_DAY_14", "TEST_START_EXEC_DAY_15"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte=2020-06-13T18:00:00+00:00",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte="
+                f"{quote_plus('2020-06-13T18:00:00+00:00')}",
                 ["TEST_START_EXEC_DAY_10", "TEST_START_EXEC_DAY_11",
                  "TEST_START_EXEC_DAY_12", "TEST_START_EXEC_DAY_13"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-16T18:00:00+00:00",
+                "api/v1/dags/TEST_DAG_ID/dagRuns?"
+                f"execution_date_gte={quote_plus('2020-06-16T18:00:00+00:00')}",
                 ["TEST_START_EXEC_DAY_16", "TEST_START_EXEC_DAY_17",
                  "TEST_START_EXEC_DAY_18", "TEST_START_EXEC_DAY_19"],
             ),
@@ -289,6 +295,32 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
         self.assertEqual(response.json["total_entries"], 10)
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
         self.assertEqual(dag_run_ids, expected_dag_run_ids)
+
+    @parameterized.expand(
+        [
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_gte=2020-06-18T18:00:00+00:00",
+                "'2020-06-18T18:00:00 00:00' is not a 'date-time'"
+            ),
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-18T18:00:00+00:00",
+                "'2020-06-18T18:00:00 00:00' is not a 'date-time'"
+            ),
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte=20209080:00+00:00",
+                "'20209080:00 00:00' is not a 'date-time'"
+            ),
+        ]
+    )
+    @provide_session
+    def test_invalid_date_filters_gte_and_lte_raises(self, url, error_message, session):
+        dagrun_models = self._create_dag_runs()
+        session.add_all(dagrun_models)
+        session.commit()
+        response = self.client.get(url)
+
+        assert response.status_code == 400
+        self.assertIn(error_message, response.json['detail'])
 
     def _create_dag_runs(self):
         dates = [
@@ -323,12 +355,12 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
         [
             (
                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
-                f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
+                f"{quote_plus((timezone.utcnow() + timedelta(days=1)).isoformat())}",
                 [],
             ),
             (
                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
-                f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
+                f"{quote_plus((timezone.utcnow() + timedelta(days=1)).isoformat())}",
                 ["TEST_DAG_RUN_ID_1"],
             ),
         ]
