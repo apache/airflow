@@ -273,7 +273,7 @@ class GCSHook(GoogleBaseHook):
         self,
         bucket_name: Optional[str] = None,
         object_name: Optional[str] = None,
-        object_url: Optional[str] = None
+        object_url: Optional[str] = None    # pylint: disable=unused-argument
     ):
         """
         Downloads the file to a temporary directory and returns a file handle
