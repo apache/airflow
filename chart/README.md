@@ -122,8 +122,17 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `data.resultBakcnedConnection`                        | Field separated connection data (alternative to secret name)                                                 | `{}`                                              |
 | `fernetKey`                                           | String representing an Airflow fernet key                                                                    | `~`                                               |
 | `fernetKeySecretName`                                 | Secret name for Airlow fernet key                                                                            | `~`                                               |
+| `dags.git.repo`                                       | The git repository to clone                                                                                  | `/opt/airflow/dags`                               |
+| `dags.git.ssh`                                        | Use SSH for git operations                                                                                   | `false`                                           |
+| `dags.git.id_rsa`                                     | Private key for SSH                                                                                          | `false`                                           |
+| `dags.git.known_hosts`                                | The known_hosts file for SSH                                                                                 | `false`                                           |
+| `dags.git.gitSync.enabled`                            | Enable git-sync                                                                                              | `false`                                           |
+| `dags.git.gitSync.image`                              | Image for git-sync                                                                                           | `k8s.gcr.io/git-sync:v3.1.6`                      |
+| `dags.git.gitSync.dest`                               | The name of (a symlink to) a directory in which to check-out files under --root                              | `dags`                                            |
+| `dags.git.gitSync.wait`                               | The number of seconds between syncs                                                                          | `10`                                              |
+| `dags.git.gitSync.depth`                              | Use a shallow clone with a history truncated to the specified number of commits                              | `1`                                               |
 | `workers.replicas`                                    | Replica count for Celery workers (if applicable)                                                             | `1`                                               |
-| `workers.keda.enabled`                                 | Enable KEDA autoscaling features                                                                             | `false`                                           |
+| `workers.keda.enabled`                                | Enable KEDA autoscaling features                                                                             | `false`                                           |
 | `workers.keda.pollingInverval`                        | How often KEDA should poll the backend database for metrics in seconds                                       | `5`                                               |
 | `workers.keda.cooldownPeriod`                         | How often KEDA should wait before scaling down in seconds                                                    | `30`                                              |
 | `workers.keda.maxReplicaCount`                        | Maximum number of Celery workers KEDA can scale to                                                           | `10`                                              |
@@ -263,6 +272,26 @@ to port-forward the Airflow UI to http://localhost:8080/ to cofirm Airflow is wo
             --set images.airflow.repository=my-dags \
             --set images.airflow.tag=0.0.1 \
             astronomer/airflow
+
+## Updating DAG
+#### Option 1 - Git-Sync Sidecar (Recommended)
+
+This method places a git sidecar in each worker/scheduler/web Kubernetes Pod, that perpetually syncs your git repo into the dag folder every `dags.git.gitSync.refreshTime` seconds.
+
+For example:
+```yaml
+dags:
+  git:
+    repo: ssh://git@repo.example.com/example.git
+    ssh: true
+    id_rsa: <private_key>
+    known_hosts: <known_hosts>
+
+    gitSync:
+      enabled: true
+```
+
+More info on git-sync is available in this [doc](https://github.com/kubernetes/git-sync)
 
 ## Contributing
 
