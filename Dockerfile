@@ -349,6 +349,7 @@ RUN chmod a+x /entrypoint /clean-logs
 USER airflow
 
 ENV PATH="/home/airflow/.local/bin:${PATH}"
+ENV GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm"
 
 WORKDIR ${AIRFLOW_HOME}
 
