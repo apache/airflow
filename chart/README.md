@@ -66,6 +66,7 @@ The command removes all the Kubernetes components associated with the chart and 
 
 ## Updating DAGs
 
+#### Option 1 - Build New Airflow Docker Image
 The recommended way to update your DAGs with this chart is to build a new docker image with the latest code (`docker build -t my-company/airflow:8a0da78 .`), push it to an accessible registry (`docker push my-company/airflow:8a0da78`), then update the Airflow pods with that image:
 
 ```bash
@@ -73,6 +74,25 @@ helm upgrade airflow . \
   --set images.airflow.repository=my-company/airflow \
   --set images.airflow.tag=8a0da78
 ```
+
+#### Option 2 - Git-Sync Sidecar (Recommended)
+
+This method places a git sidecar in each worker/scheduler/web Kubernetes Pod, that perpetually syncs your git repo into the dag folder every `dags.git.gitSync.refreshTime` seconds.
+
+For example:
+```yaml
+dags:
+  git:
+    repo: ssh://git@repo.example.com/example.git
+    ssh: true
+    id_rsa: <private_key>
+    known_hosts: <known_hosts>
+
+    gitSync:
+      enabled: true
+```
+
+More info on git-sync is available in this [doc](https://github.com/kubernetes/git-sync)
 
 ## Parameters
 
@@ -272,26 +292,6 @@ to port-forward the Airflow UI to http://localhost:8080/ to cofirm Airflow is wo
             --set images.airflow.repository=my-dags \
             --set images.airflow.tag=0.0.1 \
             astronomer/airflow
-
-## Updating DAG
-#### Option 1 - Git-Sync Sidecar (Recommended)
-
-This method places a git sidecar in each worker/scheduler/web Kubernetes Pod, that perpetually syncs your git repo into the dag folder every `dags.git.gitSync.refreshTime` seconds.
-
-For example:
-```yaml
-dags:
-  git:
-    repo: ssh://git@repo.example.com/example.git
-    ssh: true
-    id_rsa: <private_key>
-    known_hosts: <known_hosts>
-
-    gitSync:
-      enabled: true
-```
-
-More info on git-sync is available in this [doc](https://github.com/kubernetes/git-sync)
 
 ## Contributing
 
