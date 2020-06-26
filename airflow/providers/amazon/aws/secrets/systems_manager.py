@@ -59,7 +59,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         profile_name: Optional[str] = None,
         **kwargs
     ):
-        super().__init__(**kwargs)
+        super().__init__()
         self.connections_prefix = connections_prefix.rstrip("/")
         self.variables_prefix = variables_prefix.rstrip('/')
         self.profile_name = profile_name
