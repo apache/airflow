@@ -1321,15 +1321,16 @@ This is the current syntax for  `./breeze <./breeze>`_:
         you would like to run or 'all' to run all checks. One of:
 
                  all all-but-pylint airflow-config-yaml base-operator bat-tests build
-                 build-providers-dependencies check-apache-license check-executables-have-shebangs
-                 check-hooks-apply check-integrations check-merge-conflict check-xml
-                 consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
-                 end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
-                 incorrect-use-of-LoggingMixin insert-license isort language-matters lint-dockerfile
-                 mixed-line-ending mypy provide-create-sessions pydevd pydocstyle pylint pylint-tests
-                 python-no-log-warn rst-backticks setup-order shellcheck stylelint
-                 trailing-whitespace update-breeze-file update-extras update-local-yml-file
-                 update-setup-cfg-file yamllint
+                 build-providers-dependencies check-apache-license check-builtin-literals
+                 check-executables-have-shebangs check-hooks-apply check-integrations
+                 check-merge-conflict check-xml consistent-pylint daysago-import-check
+                 debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
+                 fix-encoding-pragma flake8 forbid-tabs incorrect-use-of-LoggingMixin insert-license
+                 isort language-matters lint-dockerfile lint-openapi mixed-line-ending mypy
+                 provide-create-sessions pydevd pydocstyle pylint pylint-tests python-no-log-warn
+                 rst-backticks setup-order shellcheck stylelint trailing-whitespace
+                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
