@@ -37,6 +37,12 @@ or by creating a corresponding environment variable:
 .. code-block:: bash
 
     export AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_string
+    
+For setting boolean configuration values use ``true``/``false``:
+
+.. code-block:: bask
+
+    export AIRFLOW__CORE__REMOTE_LOGGING=true
 
 You can also derive the connection string at run time by appending ``_cmd`` to
 the key like this:
