@@ -21,7 +21,8 @@ from unittest import mock
 
 from mock import MagicMock
 
-from airflow.providers.microsoft.mssql.operators.mssql_to_oracle import MSSQLToOracleTransferOperator
+from airflow.providers.microsoft.mssql.operators.mssql_to_oracle import MsSqlToOracleOperator
+
 
 
 class TestMsSqlToOracleOperator(unittest.TestCase):
