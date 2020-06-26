@@ -1299,7 +1299,6 @@ class TestVersionView(TestBase):
             airflow_version=version.version,
             git_version=mock.ANY,
             title='Version Info',
-            state_color_mapping=mock.ANY
         ))
 
 
