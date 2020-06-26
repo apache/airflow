@@ -214,8 +214,7 @@ RUN pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_I
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r && \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r
 
-RUN \
-    AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow"; \
+RUN AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow"; \
     if [[ -f "${AIRFLOW_SITE_PACKAGE}/www_rbac/package.json" ]]; then \
         WWW_DIR="${AIRFLOW_SITE_PACKAGE}/www_rbac"; \
     elif [[ -f "${AIRFLOW_SITE_PACKAGE}/www/package.json" ]]; then \
@@ -226,6 +225,10 @@ RUN \
         yarn --cwd "${WWW_DIR}" run prod; \
         rm -rf "${WWW_DIR}/node_modules"; \
     fi
+
+# make sure that all directories and files in .local are also group accessible
+RUN find /root/.local -executable -print0 | xargs --null chmod g+x && \
+    find /root/.local -print0 | xargs --null chmod g+rw
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
@@ -325,36 +328,47 @@ RUN pip install --upgrade pip==${PIP_VERSION}
 ENV AIRFLOW_UID=${AIRFLOW_UID}
 ENV AIRFLOW_GID=${AIRFLOW_GID}
 
+ENV AIRFLOW__CORE__LOAD_EXAMPLES="false"
+
+ARG AIRFLOW_USER_HOME_DIR=/home/airflow
+ENV AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR}
+
 RUN addgroup --gid "${AIRFLOW_GID}" "airflow" && \
     adduser --quiet "airflow" --uid "${AIRFLOW_UID}" \
-        --ingroup "airflow" \
-        --home /home/airflow
+        --gid "${AIRFLOW_GID}" \
+        --home "${AIRFLOW_USER_HOME_DIR}"
 
 ARG AIRFLOW_HOME
 ENV AIRFLOW_HOME=${AIRFLOW_HOME}
 
+# Make Airflow files belong to the root group and are accessible. This is to accomodate the guidelines from
+# OpenShift https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html
 RUN mkdir -pv "${AIRFLOW_HOME}"; \
     mkdir -pv "${AIRFLOW_HOME}/dags"; \
     mkdir -pv "${AIRFLOW_HOME}/logs"; \
-    chown -R "airflow" "${AIRFLOW_HOME}"
+    chown -R "airflow:root" "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}"; \
+    find "${AIRFLOW_HOME}" -executable -print0 | xargs --null chmod g+x && \
+        find "${AIRFLOW_HOME}" -print0 | xargs --null chmod g+rw
 
-COPY --chown=airflow:airflow --from=airflow-build-image /root/.local "/home/airflow/.local"
+COPY --chown=airflow:root --from=airflow-build-image /root/.local "${AIRFLOW_USER_HOME_DIR}/.local"
 
 COPY scripts/prod/entrypoint_prod.sh /entrypoint
 COPY scripts/prod/clean-logs.sh /clean-logs
 
 RUN chmod a+x /entrypoint /clean-logs
 
-USER airflow
+# Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
+# See https://github.com/apache/airflow/issues/9248
+RUN chmod g=u /etc/passwd
 
-ENV PATH="/home/airflow/.local/bin:${PATH}"
+ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}"
 ENV GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm"
 
 WORKDIR ${AIRFLOW_HOME}
 
-ENV AIRFLOW__CORE__LOAD_EXAMPLES="false"
-
 EXPOSE 8080
+
+USER ${AIRFLOW_UID}
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD ["--help"]
