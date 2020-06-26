@@ -226,12 +226,13 @@ class LocalExecutor(BaseExecutor):
                 worker.start()
 
         # noinspection PyUnusedLocal
+        # pylint: disable=unused-argument
         def execute_async(self,
                           key: TaskInstanceKeyType,
                           command: CommandType,
                           queue: Optional[str] = None,
-                          executor_config: Optional[Any] = None) -> None: \
-                # pylint: disable=unused-argument # pragma: no cover
+                          executor_config: Optional[Any] = None) -> None:
+            # pylint: enable=unused-argument # pragma: no cover
             """
             Executes task asynchronously.
 

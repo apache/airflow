@@ -43,7 +43,7 @@ class ConnectionCollectionItemSchema(SQLAlchemySchema):
     # We will be able to remove this when we upgrade to marshmallow 3.
     # To remove it, we would need to set unknown=EXCLUDE in Meta
     @validates_schema(pass_original=True)
-    def check_unknown_fields(self, data, original_data):
+    def check_unknown_fields(self, data, original_data):    # pylint: disable=unused-argument
         """ Validates unknown field """
         unknown = set(original_data) - set(self.fields)
         if unknown:
