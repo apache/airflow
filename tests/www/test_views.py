@@ -99,6 +99,7 @@ class TemplateWithContext(NamedTuple):
             'log_fetch_delay_sec',
             'log_auto_tailing_offset',
             'log_animation_speed',
+            'state_color_mapping',
             # airflow.www.static_config.configure_manifest_files
             'url_for_asset',
             # airflow.www.views.AirflowBaseView.render_template
@@ -1297,7 +1298,8 @@ class TestVersionView(TestBase):
         self.assertEqual(templates[0].local_context, dict(
             airflow_version=version.version,
             git_version=mock.ANY,
-            title='Version Info'
+            title='Version Info',
+            state_color_mapping=mock.ANY
         ))
 
 
