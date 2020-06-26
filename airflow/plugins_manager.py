@@ -181,6 +181,7 @@ def load_plugins_from_plugin_directory():
             for subdir in dirs
             if not any(p.search(os.path.join(root, subdir)) for p in patterns)
         ]
+
         for subdir in dirs:
             patterns_by_dir[os.path.join(root, subdir)] = patterns.copy()
 
