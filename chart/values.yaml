@@ -130,29 +130,31 @@ fernetKeySecretName: ~
 
 # Airflow DAG Config
 dags:
-  # the airflow dag folder
-  path: /opt/airflow/dags
-
-  gitSync:
-    enabled: true
-
-    # git-sync image
-    image: k8s.gcr.io/git-sync:v3.1.6
+  git:
+    # the git repository to clone (Must be set when git-sync is enabled)
+    repo: ""
 
     # use SSH for git operations TODO
     ssh: false
 
-    # the git repository to clone (Must be set when git-sync is enabled)
-    repo: ""
+    # SSH credentials
+    id_rsa: ""
+    known_hosts: ""
 
-    # the name of (a symlink to) a directory in which to check-out files under --root (defaults to the leaf dir of --repo)
-    dest: dags
+    gitSync:
+      enabled: true
 
-    # the number of seconds between syncs
-    wait: 10
+      # git-sync image
+      image: k8s.gcr.io/git-sync:v3.1.6
 
-    # use a shallow clone with a history truncated to the specified number of commits
-    depth: 1
+      # the name of (a symlink to) a directory in which to check-out files under --root (defaults to the leaf dir of --repo)
+      dest: ""
+
+      # the number of seconds between syncs
+      wait: 10
+
+      # use a shallow clone with a history truncated to the specified number of commits
+      depth: 1
 
 # Airflow Worker Config
 workers:
