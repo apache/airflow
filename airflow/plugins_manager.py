@@ -25,7 +25,8 @@ import logging
 import os
 import sys
 import types
-from typing import Any, Dict, List, Optional, Type
+import re
+from typing import Any, Dict, List, Optional, Type, Pattern
 
 import pkg_resources
 
@@ -164,8 +165,28 @@ def load_plugins_from_plugin_directory():
     global plugins  # pylint: disable=global-statement
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
+    patterns_by_dir: Dict[str,List[Pattern[str]]] = {}
+
     # Crawl through the plugins folder to find AirflowPlugin derivatives
-    for root, _, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):  # noqa # pylint: disable=too-many-nested-blocks
+    for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):  # noqa # pylint: disable=too-many-nested-blocks
+
+        patterns: List[Pattern[str]] = patterns_by_dir.get(root,[])
+        ignore_file = os.path.join(root,'.pluginignore')
+
+        if os.path.isfile(ignore_file):
+            with open(ignore_file,'r') as file:
+                lines_no_comments = [re.compile(r"\s*#.*").sub("", line) for line in file.read().split("\n")]
+                patterns += [re.compile(line) for line in lines_no_comments if line]
+
+        dirs[:] = [
+            subdir
+            for subdir in dirs 
+            if not any(p.search(os.path.join(root, subdir)) for p in patterns)
+        ]
+        for subdir in dirs:
+            patterns_by_dir[os.path.join(root, subdir)] = patterns.copy()
+
+
         for f in files:
             filepath = os.path.join(root, f)
             try:
@@ -174,6 +195,9 @@ def load_plugins_from_plugin_directory():
                 mod_name, file_ext = os.path.splitext(
                     os.path.split(filepath)[-1])
                 if file_ext != '.py':
+                    continue
+
+                if any([re.findall(p, filepath) for p in patterns]):
                     continue
 
                 log.debug('Importing plugin module %s', filepath)

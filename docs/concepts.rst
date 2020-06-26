@@ -1465,3 +1465,14 @@ would not be scanned by Airflow at all. This improves efficiency of DAG finding)
 The scope of a ``.airflowignore`` file is the directory it is in plus all its subfolders.
 You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` and it
 would only be applicable for that subfolder.
+
+
+.pluginignore
+''''''''''''''
+
+A ``.pluginignore`` file specifies the directories or files in ``PLUGIN_FOLDER``
+that Airflow should intentionally ignore. 
+``.pluginignore`` file should be put in your ``PLUGIN_FOLDER``.
+
+Users can take the same approach as using ``.airflowignore``.
+
