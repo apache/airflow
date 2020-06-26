@@ -2617,6 +2617,41 @@ class LogModelView(AirflowModelView):
     }
 
 
+class TaskRescheduleModelView(AirflowModelView):
+    """View to show records from Task Reschedule table"""
+    route_base = '/taskreschedule'
+
+    datamodel = AirflowModelView.CustomSQLAInterface(models.TaskReschedule)
+
+    base_permissions = ['can_list']
+
+    list_columns = ['id', 'dag_id', 'task_id', 'execution_date', 'try_number',
+                    'start_date', 'end_date', 'duration', 'reschedule_date']
+
+    search_columns = ['dag_id', 'task_id', 'execution_date', 'start_date', 'end_date',
+                      'reschedule_date']
+
+    base_order = ('id', 'desc')
+
+    base_filters = [['dag_id', DagFilter, lambda: []]]
+
+    def duration_f(attr):
+        end_date = attr.get('end_date')
+        duration = attr.get('duration')
+        if end_date and duration:
+            return timedelta(seconds=duration)
+
+    formatters_columns = {
+        'dag_id': wwwutils.dag_link,
+        'task_id': wwwutils.task_instance_link,
+        'start_date': wwwutils.datetime_f('start_date'),
+        'end_date': wwwutils.datetime_f('end_date'),
+        'execution_date': wwwutils.datetime_f('execution_date'),
+        'reschedule_date': wwwutils.datetime_f('reschedule_date'),
+        'duration': duration_f,
+    }
+
+
 class TaskInstanceModelView(AirflowModelView):
     """View to show records from TaskInstance table"""
     route_base = '/taskinstance'
