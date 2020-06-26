@@ -23,11 +23,11 @@ from airflow.www import app
 
 MOCK_CONF = {
     'core': {
-        'parallelism': ('1024', 'env var'),
+        'parallelism': '1024',
     },
     'smtp': {
-        'smtp_host': ('localhost', 'default'),
-        'smtp_mail_from': ('airflow@example.com', 'airflow.cfg'),
+        'smtp_host': 'localhost',
+        'smtp_mail_from': 'airflow@example.com',
     },
 }
 
@@ -50,11 +50,11 @@ class TestGetConfig:
         assert response.status_code == 200
         expected = textwrap.dedent("""\
         [core]
-        parallelism = 1024  # source: env var
+        parallelism = 1024
 
         [smtp]
-        smtp_host = localhost  # source: default
-        smtp_mail_from = airflow@example.com  # source: airflow.cfg
+        smtp_host = localhost
+        smtp_mail_from = airflow@example.com
         """)
         assert expected == response.data.decode()
 
@@ -66,14 +66,14 @@ class TestGetConfig:
                 {
                     'name': 'core',
                     'options': [
-                        {'key': 'parallelism', 'value': '1024', 'source': 'env var'},
+                        {'key': 'parallelism', 'value': '1024'},
                     ]
                 },
                 {
                     'name': 'smtp',
                     'options': [
-                        {'key': 'smtp_host', 'value': 'localhost', 'source': 'default'},
-                        {'key': 'smtp_mail_from', 'value': 'airflow@example.com', 'source': 'airflow.cfg'},
+                        {'key': 'smtp_host', 'value': 'localhost'},
+                        {'key': 'smtp_mail_from', 'value': 'airflow@example.com'},
                     ]
                 },
             ]

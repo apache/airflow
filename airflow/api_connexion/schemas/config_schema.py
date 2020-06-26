@@ -24,14 +24,12 @@ class ConfigOptionSchema(Schema):
     """ Config Option Schema """
     key = fields.String(required=True)
     value = fields.String(required=True)
-    source = fields.String(required=True)
 
 
 class ConfigOption(NamedTuple):
     """ Config option """
     key: str
     value: str
-    source: str
 
 
 class ConfigSectionSchema(Schema):

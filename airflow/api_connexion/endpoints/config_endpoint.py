@@ -31,11 +31,11 @@ def _conf_dict_to_config(conf_dict: dict) -> Config:
             ConfigSection(
                 name=section,
                 options=[
-                    ConfigOption(key=key, value=value, source=source)
-                    for key, (value, source) in parameters.items()
+                    ConfigOption(key=key, value=value)
+                    for key, value in options.items()
                 ]
             )
-            for section, parameters in conf_dict.items()
+            for section, options in conf_dict.items()
         ]
     )
     return config
@@ -43,7 +43,7 @@ def _conf_dict_to_config(conf_dict: dict) -> Config:
 
 def _option_to_text(config_option: ConfigOption) -> str:
     """Convert a single config option to text"""
-    return f'{config_option.key} = {config_option.value}  # source: {config_option.source}'
+    return f'{config_option.key} = {config_option.value}'
 
 
 def _section_to_text(config_section: ConfigSection) -> str:
@@ -72,7 +72,7 @@ def get_config() -> Response:
     }
     response_types = serializer.keys()
     return_type = request.accept_mimetypes.best_match(response_types)
-    conf_dict = conf.as_dict(display_source=True, display_sensitive=True)
+    conf_dict = conf.as_dict(display_source=False, display_sensitive=True)
     config = _conf_dict_to_config(conf_dict)
     if return_type not in serializer:
         return Response(status=406)

@@ -25,14 +25,14 @@ class TestConfigSchema:
                 ConfigSection(
                     name='sec1',
                     options=[
-                        ConfigOption(key='apache', value='airflow', source='airflow.cfg'),
-                        ConfigOption(key='hello', value='world', source='default'),
+                        ConfigOption(key='apache', value='airflow'),
+                        ConfigOption(key='hello', value='world'),
                     ]
                 ),
                 ConfigSection(
                     name='sec2',
                     options=[
-                        ConfigOption(key='foo', value='bar', source='env var'),
+                        ConfigOption(key='foo', value='bar'),
                     ]
                 ),
             ]
@@ -43,14 +43,14 @@ class TestConfigSchema:
                 {
                     'name': 'sec1',
                     'options': [
-                        {'key': 'apache', 'value': 'airflow', 'source': 'airflow.cfg'},
-                        {'key': 'hello', 'value': 'world', 'source': 'default'},
+                        {'key': 'apache', 'value': 'airflow'},
+                        {'key': 'hello', 'value': 'world'},
                     ]
                 },
                 {
                     'name': 'sec2',
                     'options': [
-                        {'key': 'foo', 'value': 'bar', 'source': 'env var'},
+                        {'key': 'foo', 'value': 'bar'},
                     ]
                 },
             ]
