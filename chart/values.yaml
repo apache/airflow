@@ -57,7 +57,7 @@ rbacEnabled: true
 
 # Airflow executor
 # Options: SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor
-executor: "CeleryExecutor"
+executor: "KubernetesExecutor"
 
 # If this is true and using LocalExecutor/SequentialExecutor/KubernetesExecutor, the scheudler's
 # service account will have access to communicate with the api-server and launch pods.
