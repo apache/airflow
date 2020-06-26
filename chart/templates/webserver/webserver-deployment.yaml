@@ -158,6 +158,7 @@ spec:
         - name: git-secret
           secret:
             secretName: git-secret
+            defaultMode: 0400
         {{- end}}
 {{- end }}
 {{- if .Values.webserver.extraVolumes }}
