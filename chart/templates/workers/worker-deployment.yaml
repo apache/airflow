@@ -105,12 +105,16 @@ spec:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
       containers:
-{{- if .Values.dags.gitSync.enabled }}
+{{- if .Values.dags.git.gitSync.enabled }}
         - name: git-sync
-          image: {{ .Values.dags.gitSync.image }}
+          image: {{ .Values.dags.git.gitSync.image }}
           volumeMounts:
           - name: dags
             mountPath: /usr/share/airflow
+          {{- if .Values.dags.git.ssh }}
+          - name: git-secret
+            mountPath: /etc/git-secret/ssh
+          {{- end }}
           env:
           {{- include "git_sync_environment" . | indent 10 }}
 {{- end }}
@@ -136,7 +140,7 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
 {{- end }}
-{{- if .Values.dags.gitSync.enabled }}
+{{- if .Values.dags.git.gitSync.enabled }}
             - name: dags
               mountPath: {{ .Values.airflowHome }}
 {{- end }}
@@ -155,9 +159,14 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-{{- if .Values.dags.gitSync.enabled }}
+{{- if .Values.dags.git.gitSync.enabled }}
         - name: dags
           emptyDir: {}
+        {{- if .Values.dags.git.ssh }}
+        - name: git-secret
+          secret:
+            secretName: git-secret
+        {{- end}}
 {{- end }}
 {{- if not $persistence }}
         - name: logs

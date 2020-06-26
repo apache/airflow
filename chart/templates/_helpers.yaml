@@ -261,11 +261,11 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
 
 {{ define "git_sync_environment" }}
   - name: GIT_SYNC_REPO
-    value: {{ .Values.dags.gitSync.repo }}
+    value: {{ .Values.dags.git.repo }}
   - name: GIT_SYNC_DEST
-    value: {{ .Values.dags.gitSync.dest }}
+    value: {{ .Values.dags.git.gitSync.dest }}
   - name: GIT_SYNC_WAIT
-    value: {{ .Values.dags.gitSync.wait }}
+    value: {{ .Values.dags.git.gitSync.wait }}
   - name: GIT_SYNC_DEPTH
-    value: {{ .Values.dags.gitSync.depth }}
+    value: {{ .Values.dags.git.gitSync.depth }}
 {{- end }}
