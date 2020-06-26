@@ -50,6 +50,7 @@ bat-tests
 build
 build-providers-dependencies
 check-apache-license
+check-builtin-literals
 check-executables-have-shebangs
 check-hooks-apply
 check-integrations
@@ -60,6 +61,7 @@ daysago-import-check
 debug-statements
 detect-private-key
 doctoc
+dont-use-safe-filter
 end-of-file-fixer
 fix-encoding-pragma
 flake8
@@ -69,6 +71,7 @@ insert-license
 isort
 language-matters
 lint-dockerfile
+lint-openapi
 mixed-line-ending
 mypy
 provide-create-sessions
