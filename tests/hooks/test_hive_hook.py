@@ -389,11 +389,13 @@ class TestHiveMetastoreHook(HiveEnvironmentTest):
         self.assertFalse(
             self.hook.table_exists(str(random.randint(1, 10000)))
         )
-
-    @mock.patch('random.shuffle')
-    def test_check_hms_clients_load_balance(self, mock_shuffle):
+        
+    @mock.patch('airflow.hooks.hive_hooks.random.shuffle')
+    @mock.patch('airflow.hooks.hive_hooks.HiveMetastoreHook.get_connections')
+    @mock.patch('airflow.hooks.hive_hooks.HiveMetastoreHook.get_metastore_client')
+    def test_check_hms_clients_load_balance(self, mock_client, mock_get_conn, mock_shuffle):
         HiveMetastoreHook()._find_valid_server()
-        mock_shuffle.has_calls()
+        mock_shuffle.assert_called_once_with(mock_get_conn.return_value)
 
 
 class TestHiveServer2Hook(unittest.TestCase):
