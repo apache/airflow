@@ -95,7 +95,7 @@ class TestPluginsRBAC(unittest.TestCase):
             assert "Traceback (most recent call last):" in received_logs
             assert "Version Conflict" in received_logs
             assert "Failed to import plugin test-entrypoint" in received_logs
-            assert "Version Conflict", "test.plugins.test_plugins_manager" in import_errors.items()
+            assert ("Version Conflict", "test.plugins.test_plugins_manager") in import_errors.items()
 
 
 class TestPluginsManager(unittest.TestCase):
