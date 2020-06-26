@@ -1505,7 +1505,7 @@ class TestGraphView(TestBase):
     def test_dt_nr_dr_form_with_execution_date_parameter_only(self):
         self.tester.test_with_execution_date_parameter_only()
 
-    def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_parameters_only(self):
         self.tester.test_with_base_date_and_num_runs_parameters_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
@@ -1544,7 +1544,7 @@ class TestGanttView(TestBase):
     def test_dt_nr_dr_form_with_execution_date_parameter_only(self):
         self.tester.test_with_execution_date_parameter_only()
 
-    def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_parameters_only(self):
         self.tester.test_with_base_date_and_num_runs_parameters_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
