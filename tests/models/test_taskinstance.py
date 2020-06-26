@@ -1727,8 +1727,8 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
 
     @parameterized.expand([
         # Expected queries, mark_success
-        (7, False),
-        (5, True),
+        (6, False),
+        (4, True),
     ])
     def test_execute_queries_count(self, expected_query_count, mark_success):
         with create_session() as session:
@@ -1749,7 +1749,7 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
             ti.state = State.RUNNING
             session.merge(ti)
 
-        with assert_queries_count(10), patch(
+        with assert_queries_count(9), patch(
             "airflow.models.taskinstance.STORE_SERIALIZED_DAGS", True
         ):
             ti._run_raw_task()

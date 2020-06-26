@@ -1112,7 +1112,14 @@ class TaskInstance(Base, LoggingMixin):
         self.set_duration()
         if not test_mode:
             session.add(Log(self.state, self))
-            session.merge(self)
+            session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.execution_date == self.execution_date
+            ).update(
+                values={TaskInstance.state: self.state, TaskInstance.end_date: self.end_date},
+                synchronize_session=False,
+            )
         session.commit()
 
     @provide_session
