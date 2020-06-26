@@ -1115,9 +1115,13 @@ class TaskInstance(Base, LoggingMixin):
             session.query(TaskInstance).filter(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
-                TaskInstance.execution_date == self.execution_date
+                TaskInstance.execution_date == self.execution_date,
             ).update(
-                values={TaskInstance.state: self.state, TaskInstance.end_date: self.end_date},
+                values={
+                    TaskInstance.state: self.state,
+                    TaskInstance.end_date: self.end_date,
+                    TaskInstance.duration: self.duration,
+                },
                 synchronize_session=False,
             )
         session.commit()
