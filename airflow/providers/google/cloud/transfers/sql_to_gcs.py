@@ -115,7 +115,6 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.parameters = parameters
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-        self.parameters = parameters
 
     def execute(self, context):
         self.log.info("Executing query")
