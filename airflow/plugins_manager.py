@@ -155,6 +155,47 @@ def load_entrypoint_plugins():
             import_errors[entry_point.module_name] = str(e)
 
 
+def find_plugins_from_plugin_directory(base_dir_path: str, ignore_list_file: str) -> str:
+
+    """
+    Search the file and return the path of the file that should not be ignored.
+
+    :param base_dir_path: the base path to be searched for.
+    :param ignore_file_list_name: the file name in which specifies a regular expression pattern is written.
+
+    :return : file path not to be ignored
+    """
+
+    patterns_by_dir: Dict[str, List[Pattern[str]]] = {}
+
+    for root, dirs, files in os.walk(base_dir_path, followlinks=True):
+        patterns: List[Pattern[str]] = patterns_by_dir.get(root, [])
+
+        ignore_list_file_path = os.path.join(root, ignore_list_file)
+        if os.path.isfile(ignore_list_file_path):
+            with open(ignore_list_file_path, 'r') as file:
+                lines_no_comments = [re.compile(r"\s*#.*").sub("", line) for line in file.read().split("\n")]
+                patterns += [re.compile(line) for line in lines_no_comments if line]
+                patterns = list(set(patterns))
+
+        dirs[:] = [
+            subdir
+            for subdir in dirs
+            if not any(p.search(os.path.join(os.path.relpath(root, base_dir_path), subdir)) for p in patterns)
+        ]
+
+        for subdir in dirs:
+            patterns_by_dir[os.path.join(root, subdir)] = patterns.copy()
+
+        for file in files:
+            if file == ignore_list_file:
+                continue
+            file_path = os.path.join(root, file)
+            if any([re.findall(p, file_path) for p in patterns]):
+                continue
+            yield file_path
+
+
 def load_plugins_from_plugin_directory():
     """
     Load and register Airflow Plugins from plugins directory.
@@ -163,57 +204,34 @@ def load_plugins_from_plugin_directory():
     global plugins  # pylint: disable=global-statement
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
-    patterns_by_dir: Dict[str, List[Pattern[str]]] = {}
+    ignore_list_file = ".pluginignore"
 
-    # Crawl through the plugins folder to find AirflowPlugin derivatives
-    for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):  # noqa # pylint: disable=too-many-nested-blocks
+    for file_path in find_plugins_from_plugin_directory(  # pylint: disable=too-many-nested-blocks
+            settings.PLUGINS_FOLDER, ignore_list_file):
 
-        patterns: List[Pattern[str]] = patterns_by_dir.get(root, [])
-        ignore_file = os.path.join(root, '.pluginignore')
+        try:
+            if not os.path.isfile(file_path):
+                continue
+            mod_name, file_ext = os.path.splitext(
+                os.path.split(file_path)[-1])
+            if file_ext != '.py':
+                continue
 
-        if os.path.isfile(ignore_file):
-            with open(ignore_file, 'r') as file:
-                lines_no_comments = [re.compile(r"\s*#.*").sub("", line) for line in file.read().split("\n")]
-                patterns += [re.compile(line) for line in lines_no_comments if line]
+            log.debug('Importing plugin module %s', file_path)
 
-        dirs[:] = [
-            subdir
-            for subdir in dirs
-            if not any(p.search(os.path.join(root, subdir)) for p in patterns)
-        ]
-
-        for subdir in dirs:
-            patterns_by_dir[os.path.join(root, subdir)] = patterns.copy()
-
-        for f in files:
-            filepath = os.path.join(root, f)
-            try:
-                if not os.path.isfile(filepath):
-                    continue
-                mod_name, file_ext = os.path.splitext(
-                    os.path.split(filepath)[-1])
-                if file_ext != '.py':
-                    continue
-
-                if any([re.findall(p, filepath) for p in patterns]):
-                    continue
-
-                log.debug('Importing plugin module %s', filepath)
-
-                loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
-                spec = importlib.util.spec_from_loader(mod_name, loader)
-                mod = importlib.util.module_from_spec(spec)
-                sys.modules[spec.name] = mod
-                loader.exec_module(mod)
-                for mod_attr_value in list(mod.__dict__.values()):
-                    if is_valid_plugin(mod_attr_value):
-                        plugin_instance = mod_attr_value()
-                        plugins.append(plugin_instance)
-            except Exception as e:  # pylint: disable=broad-except
-                log.exception(e)
-                path = filepath or str(f)
-                log.error('Failed to import plugin %s', path)
-                import_errors[path] = str(e)
+            loader = importlib.machinery.SourceFileLoader(mod_name, file_path)
+            spec = importlib.util.spec_from_loader(mod_name, loader)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = mod
+            loader.exec_module(mod)
+            for mod_attr_value in list(mod.__dict__.values()):
+                if is_valid_plugin(mod_attr_value):
+                    plugin_instance = mod_attr_value()
+                    plugins.append(plugin_instance)
+        except Exception as e:  # pylint: disable=broad-except
+            log.exception(e)
+            log.error('Failed to import plugin %s', file_path)
+            import_errors[file_path] = str(e)
 
 
 # pylint: disable=protected-access
