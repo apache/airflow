@@ -346,6 +346,55 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
         self.assertEqual(dag_run_ids, expected_dag_run_ids)
 
 
+class TestGetDagRunBatch(TestDagRunEndpoint):
+    @provide_session
+    def test_should_respond_200(self, session):
+        dag_runs = self._create_test_dag_run()
+        session.add_all(dag_runs)
+        session.commit()
+        payload = {
+            "page_offset": 0,
+            "page_limit": 10,
+            "dag_ids": ["TEST_DAG_I"],
+            "execution_date_gte": "2020-06-24T19:54:56Z",
+            "execution_date_lte": self.default_time,
+            "start_date_gte": "2020-06-24T19:54:56Z",
+            "start_date_lte": self.default_time,
+            "end_date_gte": "2020-06-24T19:54:56Z",
+            "end_date_lte": self.default_time
+        }
+        response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
+        assert response.status_code == 200
+        self.assertEqual(
+            response.json,
+            {
+                "dag_runs": [
+                    {
+                        'dag_id': 'TEST_DAG_ID',
+                        'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                        'end_date': None,
+                        'state': 'running',
+                        'execution_date': self.default_time,
+                        'external_trigger': True,
+                        'start_date': self.default_time,
+                        'conf': {},
+                    },
+                    {
+                        'dag_id': 'TEST_DAG_ID',
+                        'dag_run_id': 'TEST_DAG_RUN_ID_2',
+                        'end_date': None,
+                        'state': 'running',
+                        'execution_date': self.default_time_2,
+                        'external_trigger': True,
+                        'start_date': self.default_time,
+                        'conf': {},
+                    },
+                ],
+                "total_entries": 2,
+            }
+        )
+
+
 class TestPatchDagRun(TestDagRunEndpoint):
     @pytest.mark.skip(reason="Not implemented yet")
     def test_should_response_200(self):
