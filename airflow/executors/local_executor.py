@@ -159,8 +159,7 @@ class LocalExecutor(BaseExecutor):
                           key: TaskInstanceKeyType,
                           command: CommandType,
                           queue: Optional[str] = None,
-                          executor_config: Optional[Any] = None) -> None:  \
-
+                          executor_config: Optional[Any] = None) -> None:
             """
             Executes task asynchronously.
 
