@@ -131,6 +131,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.TaskInstanceModelView,
                                 "Task Instances",
                                 category="Browse")
+            appbuilder.add_view(views.TaskRescheduleModelView,
+                                "Task Reschedules",
+                                category="Browse")
             appbuilder.add_view(views.ConfigurationView,
                                 "Configurations",
                                 category="Admin",
