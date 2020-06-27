@@ -44,8 +44,6 @@
 !pylintrc
 !pytest.ini
 !CHANGELOG.txt
-!Dockerfile.ci
-!Dockerfile
 !LICENSE
 !MANIFEST.in
 !NOTICE

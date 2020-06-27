@@ -161,11 +161,6 @@ function initialize_common_environment {
         done
     fi
 
-    # We use pulled docker image cache by default to speed up the builds
-    # but we can also set different docker caching strategy (for example we can use local cache
-    # to build the images in case we iterate with the image
-    export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
-
     # By default we are not upgrading to latest requirements when building Docker CI image
     # This will only be done in cron jobs
     export UPGRADE_TO_LATEST_REQUIREMENTS=${UPGRADE_TO_LATEST_REQUIREMENTS:="false"}

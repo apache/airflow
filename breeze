@@ -376,7 +376,7 @@ EOF
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             cat <<EOF
 
-   Use production image.
+   Production image.
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_PROD_IMAGE}
@@ -384,7 +384,7 @@ EOF
         else
             cat <<EOF
 
-   Use CI image.
+   CI image.
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_CI_IMAGE}
@@ -674,10 +674,20 @@ function parse_arguments() {
           export DOCKER_CACHE="no-cache"
           export FORCE_BUILD_IMAGES="true"
           shift ;;
-        -L|--use-local-cache)
+        -L|--build-cache-local)
           echo "Use local cache to build images"
           echo
           export DOCKER_CACHE="local"
+          shift ;;
+        -U|--build-cache-pulled)
+          echo "Use pulled cache to build images"
+          echo
+          export DOCKER_CACHE="pulled"
+          shift ;;
+        -X|--build-cache-disabled)
+          echo "Use disabled cache to build images"
+          echo
+          export DOCKER_CACHE="disabled"
           shift ;;
         -P|--force-pull-images)
           echo "Force pulling images before build. Uses pulled images as cache."
@@ -1083,7 +1093,9 @@ ${CMDNAME} build-image [FLAGS]
 
       Builds docker image (CI or production) without entering the container. You can pass
       additional options to this command, such as '--force-build-image',
-      '--force-pull-image' '--python' '--use-local-cache'' in order to modify build behaviour.
+      '--force-pull-image', '--python', '--build-cache-local' or '-build-cache-pulled'
+      in order to modify build behaviour.
+
       You can also pass '--production-image' flag to build production image rather than CI image.
 
 Flags:
@@ -1614,9 +1626,33 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
         Force build images with cache disabled. This will remove the pulled or build images
         and start building images from scratch. This might take a long time.
 
--L, --use-local-cache
+-L, --build-cache-local
         Uses local cache to build images. No pulled images will be used, but results of local
-        builds in the Docker cache are used instead.
+        builds in the Docker cache are used instead. This will take longer than when the pulled
+        cache is used for the first time, but subsequent '--build-cache-local' builds will be
+        faster as they will use mostly the locally build cache.
+
+        This is default strategy used by the Production image builds.
+
+-U, --build-cache-pulled
+        Uses images pulled from registry (either DockerHub or GitHub depending on
+        --github-registry flag) to build images. The pulled images will be used as cache.
+        Those builds are usually faster than when ''--build-cache-local'' with the exception if
+        the registry images are not yet updated. The DockerHub images are updated nightly and the
+        GitHub images are updated after merges to master so it might be that the images are still
+        outdated vs. the latest version of the Dockerfiles you are using. In this case, the
+        ''--build-cache-local'' might be faster, especially if you iterate and change the
+        Dockerfiles yourself.
+
+        This is default strategy used by the CI image builds.
+
+-X, --build-cache-disabled
+        Disables cache during docker builds. This is useful if you want to make sure you want to
+        rebuild everything from scratch.
+
+        This strategy is used by default for both Production and CI images for the scheduled
+        (nightly) builds in CI.
+
 "
 }
 

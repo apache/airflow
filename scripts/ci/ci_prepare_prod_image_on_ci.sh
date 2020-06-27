@@ -18,7 +18,4 @@
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-export UPGRADE_TO_LATEST_REQUIREMENTS="false"
-export SKIP_CI_IMAGE_CHECK="false"
-
-build_ci_image_on_ci
+build_prod_image_on_ci
