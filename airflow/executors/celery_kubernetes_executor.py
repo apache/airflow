@@ -170,3 +170,10 @@ class CeleryKubernetesExecutor(LoggingMixin):
         if simple_task_instance.queue == self.KUBERNETES_QUEUE:
             return self.kubernetes_executor
         return self.celery_executor
+
+    def debug_dump(self):
+        """Called in response to SIGUSR2 by the scheduler"""
+        self.log.info("Dumping CeleryExecutor state")
+        self.celery_executor.debug_dump()
+        self.log.info("Dumping KubernetesExecutor state")
+        self.kubernetes_executor.debug_dump()

@@ -563,6 +563,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """Register signals that stop child processes"""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
+        signal.signal(signal.SIGUSR2, signal.SIG_DFL)
 
     def _exit_gracefully(self, signum, frame):  # pylint: disable=unused-argument
         """Helper method to clean up DAG file processors to avoid leaving orphan processes."""

@@ -298,6 +298,7 @@ class CeleryExecutor(BaseExecutor):
 
             signal.signal(signal.SIGINT, signal.SIG_DFL)
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
+            signal.signal(signal.SIGUSR2, signal.SIG_DFL)
 
         with Pool(processes=num_processes, initializer=reset_signals) as send_pool:
             key_and_async_results = send_pool.map(
@@ -352,6 +353,18 @@ class CeleryExecutor(BaseExecutor):
                 self.event_buffer[key] = (State.FAILED, None)
                 del self.tasks[key]
                 del self.adopted_task_timeouts[key]
+
+    def debug_dump(self) -> None:
+        """Called in response to SIGUSR2 by the scheduler"""
+        super().debug_dump()
+        self.log.info(
+            "executor.tasks (%d)\n\t%s", len(self.tasks), "\n\t".join(map(repr, self.tasks.items()))
+        )
+        self.log.info(
+            "executor.adopted_task_timeouts (%d)\n\t%s",
+            len(self.adopted_task_timeouts),
+            "\n\t".join(map(repr, self.adopted_task_timeouts.items())),
+        )
 
     def update_all_task_states(self) -> None:
         """Updates states of the tasks."""
