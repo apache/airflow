@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import abc
 import logging
 import re
 import sys
@@ -60,18 +61,17 @@ class LoggingMixin:
 
 class ExternalLoggingMixin:
     """
-    Define a logging handler based on a remote service (e.g. ELK, StackDriver). Subclasses must override
-    "log_name" and "get_external_log_url".
+    Define a log handler based on an external service (e.g. ELK, StackDriver).
     """
+    @abc.abstractproperty
     def log_name(self) -> str:
         """Return log name"""
-        raise NotImplementedError('External logger must provide a name')
 
+    @abc.abstractmethod
     def get_external_log_url(self, task_instance, try_number) -> str:
         """
-        Return the URL for log visualization in the remote service.
+        Return the URL for log visualization in the external service.
         """
-        raise NotImplementedError('External logger must provide remote URL')
 
 
 # TODO: Formally inherit from io.IOBase

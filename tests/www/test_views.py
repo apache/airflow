@@ -1009,6 +1009,7 @@ class TestAirflowBaseViews(TestBase):
         class ExternalHandler(ExternalLoggingMixin):
             LOG_NAME = 'ExternalLog'
 
+            @property
             def log_name(self):
                 return self.LOG_NAME
 

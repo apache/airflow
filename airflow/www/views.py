@@ -1510,7 +1510,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
         task_log_reader = TaskLogReader()
-        external_log_name = task_log_reader.log_handler.log_name() if task_log_reader.is_external else None
+        external_log_name = task_log_reader.log_handler.log_name if task_log_reader.is_external else None
 
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
@@ -1608,7 +1608,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
         task_log_reader = TaskLogReader()
-        external_log_name = task_log_reader.log_handler.log_name() if task_log_reader.is_external else None
+        external_log_name = task_log_reader.log_handler.log_name if task_log_reader.is_external else None
 
         return self.render_template(
             'airflow/graph.html',

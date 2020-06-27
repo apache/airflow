@@ -268,6 +268,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin, ExternalLoggingMix
 
         self.closed = True
 
+    @property
     def log_name(self):
         return self.LOG_NAME
 
