@@ -17,7 +17,6 @@
 #
 
 import unittest
-
 import six
 
 from tests.compat import mock
@@ -94,6 +93,9 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_folder = None
         self.kube_config.git_dags_folder_mount_point = None
         self.kube_config.kube_labels = {'dag_id': 'original_dag_id', 'my_label': 'label_id'}
+        self.kube_config.pod_template_file = ''
+        self.kube_config.restart_policy = ''
+        self.kube_config.image_pull_policy = ''
         self.api_client = ApiClient()
 
     @conf_vars({
@@ -358,7 +360,6 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             worker_config.as_pod(),
             "default",
             "sample-uuid",
-
         )
         expected_labels = {
             'airflow-worker': 'sample-uuid',
@@ -671,6 +672,15 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='secretref_a')),
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='secretref_b'))
         ], configmaps)
+
+    def test_pod_template_file(self):
+        fixture = 'tests/kubernetes/pod.yaml'
+        self.kube_config.pod_template_file = fixture
+        worker_config = WorkerConfiguration(self.kube_config)
+        result = worker_config.as_pod()
+        expected = PodGenerator.deserialize_model_file(fixture)
+        expected.metadata.name = mock.ANY
+        self.assertEqual(expected, result)
 
     def test_get_labels(self):
         worker_config = WorkerConfiguration(self.kube_config)

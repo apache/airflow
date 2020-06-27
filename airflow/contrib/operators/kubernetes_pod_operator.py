@@ -130,8 +130,18 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type schedulername: str
     :param full_pod_spec: The complete podSpec
     :type full_pod_spec: kubernetes.client.models.V1Pod
+    :param init_containers: init container for the launched Pod
+    :type init_containers: list[kubernetes.client.models.V1Container]
+    :param log_events_on_failure: Log the pod's events if a failure occurs
+    :type log_events_on_failure: bool
+    :param do_xcom_push: If True, the content of the file
+        /airflow/xcom/return.json in the container will also be pushed to an
+        XCom when the container completes.
+    :type do_xcom_push: bool
+    :param pod_template_file: path to pod template file
+    :type pod_template_file: str
     """
-    template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
+    template_fields = ('cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
@@ -215,8 +225,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.full_pod_spec = full_pod_spec
         self.init_containers = init_containers or []
         self.log_events_on_failure = log_events_on_failure
-        self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
+        self.priority_class_name = priority_class_name
         self.name = self._set_name(name)
 
     @staticmethod
@@ -348,6 +358,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             init_containers=self.init_containers,
             restart_policy='Never',
             schedulername=self.schedulername,
+            pod_template_file=self.pod_template_file,
             priority_class_name=self.priority_class_name,
             pod=self.full_pod_spec,
         ).gen_pod()

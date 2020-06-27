@@ -20,7 +20,6 @@ import json
 import multiprocessing
 import time
 from queue import Empty
-from uuid import uuid4
 
 import kubernetes
 from dateutil import parser
@@ -72,6 +71,9 @@ class KubeConfig:
         )
         self.kube_node_selectors = configuration_dict.get('kubernetes_node_selectors', {})
         self.kube_annotations = configuration_dict.get('kubernetes_annotations', {}) or None
+        self.pod_template_file = conf.get(self.kubernetes_section, 'pod_template_file',
+                                          fallback=None)
+
         self.kube_labels = configuration_dict.get('kubernetes_labels', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
@@ -220,6 +222,8 @@ class KubeConfig:
             return int(val)
 
     def _validate(self):
+        if self.pod_template_file:
+            return
         # TODO: use XOR for dags_volume_claim and git_dags_folder_mount_point
         if not self.dags_volume_claim \
             and not self.dags_volume_host \
@@ -498,10 +502,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             dag_id)
         safe_task_id = AirflowKubernetesScheduler._strip_unsafe_kubernetes_special_chars(
             task_id)
-        safe_uuid = AirflowKubernetesScheduler._strip_unsafe_kubernetes_special_chars(
-            uuid4().hex)
-        return AirflowKubernetesScheduler._make_safe_pod_id(safe_dag_id, safe_task_id,
-                                                            safe_uuid)
+        return safe_dag_id + safe_task_id
 
     @staticmethod
     def _label_safe_datestring_to_datetime(string):

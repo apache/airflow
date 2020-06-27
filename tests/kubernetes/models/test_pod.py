@@ -59,7 +59,6 @@ class TestPod(unittest.TestCase):
                     'env': [],
                     'envFrom': [],
                     'image': 'airflow-worker:latest',
-                    'imagePullPolicy': 'IfNotPresent',
                     'name': 'base',
                     'ports': [{
                         'name': 'https',
@@ -72,7 +71,6 @@ class TestPod(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
-                'restartPolicy': 'Never',
                 'volumes': []
             }
         }, result)

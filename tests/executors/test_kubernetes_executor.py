@@ -33,8 +33,8 @@ try:
     from airflow.configuration import conf  # noqa: F401
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig
     from airflow.executors.kubernetes_executor import KubernetesExecutor
-    from airflow.kubernetes import pod_generator
     from airflow.kubernetes.pod_generator import PodGenerator
+    from airflow.kubernetes import pod_generator
     from airflow.utils.state import State
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
