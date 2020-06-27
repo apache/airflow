@@ -1748,8 +1748,8 @@ UTILS = [
         'airflow.contrib.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter',
     ),
     (
-        'airflow.utils.weekday.Weekday',
-        'airflow.contrib.utils.weekday.Weekday',
+        'airflow.utils.weekday.WeekDay',
+        'airflow.contrib.utils.weekday.WeekDay',
     )
 ]
 
