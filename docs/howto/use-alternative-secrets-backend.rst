@@ -117,7 +117,7 @@ The following is a sample JSON file.
     }
 
 The YAML file structure is similar to that of a JSON. The key-value pair of connection ID and the definitions of one or more connections.
-The connection can be defined as a URI (string) or JSON object.
+The connection can be defined as a URI (string) or JSON object. Any extra json parameters can be provided with the key extra.
 For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.
 For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
 The following is a sample YAML file.
@@ -137,6 +137,10 @@ The following is a sample YAML file.
       login: Login
       password: None
       port: 1234
+      extra:
+        a: b
+        nestedblock_dict:
+          x: y
 
 You can also define connections using a ``.env`` file. Then the key is the connection ID, and
 the value should describe the connection using the URI. If the connection ID is repeated, all values will

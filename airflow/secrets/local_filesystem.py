@@ -101,6 +101,11 @@ def _parse_yaml_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyn
         return {}, [FileSyntaxError(line_no=1, message="The file is empty.")]
     try:
         secrets = yaml.safe_load(content)
+        for key in list(secrets.keys()):
+            secret_values = secrets[key]
+            if(isinstance(secret_values, dict) and 'extra' in secret_values.keys()):
+                secrets[key]['extra'] = json.dumps(secrets[key]['extra'])
+
     except yaml.MarkedYAMLError as e:
         return {}, [FileSyntaxError(line_no=e.problem_mark.line, message=str(e))]
     if not isinstance(secrets, dict):
