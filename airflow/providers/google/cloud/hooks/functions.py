@@ -145,8 +145,9 @@ class CloudFunctionsHook(GoogleBaseHook):
         :return: The upload URL that was returned by generateUploadUrl method.
         :rtype: str
         """
+        # pylint: disable=no-member # noqa
         response = \
-            self.get_conn().projects().locations().functions().generateUploadUrl(  # pylint: disable=no-member # noqa
+            self.get_conn().projects().locations().functions().generateUploadUrl(
                 parent=self._full_location(project_id, location)
             ).execute(num_retries=self.num_retries)
 
