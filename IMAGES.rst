@@ -399,7 +399,12 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_UID``                          | ``50000``                                | Airflow user UID                         |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_GID``                          | ``50000``                                | Airflow group GID                        |
+| ``AIRFLOW_GID``                          | ``50000``                                | Airflow group GID. Note that most files  |
+|                                          |                                          | created on behalf of airflow user belong |
+|                                          |                                          | to the ``root`` group (0) to keep        |
+|                                          |                                          | OpenShift Guidelines compatibility       |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user       |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_VERSION``                          | ``19.0.2``                               | version of PIP to use                    |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -620,6 +625,11 @@ Using the PROD image
 ====================
 
 The PROD image entrypoint works as follows:
+
+* In case the user is not "airflow" (with undefined user id) and the group id of the user is set to 0 (root),
+  then the user is dynamically added to /etc/passwd at entry using USER_NAME variable to define the user name.
+  This is in order to accommodate the
+  `OpenShift Guidelines<https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html>`_
 
 * If ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable is passed to the container and it is either mysql or postgres
   SQL alchemy connection, then the connection is checked and the script waits until the database is reachable.

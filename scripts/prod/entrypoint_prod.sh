@@ -90,6 +90,15 @@ function verify_db_connection {
     fi
 }
 
+if ! whoami &> /dev/null; then
+  if [[ -w /etc/passwd ]]; then
+    echo "${USER_NAME:-default}:x:$(id -u):0:${USER_NAME:-default} user:${AIRFLOW_USER_HOME_DIR}:/sbin/nologin" \
+        >> /etc/passwd
+  fi
+  export HOME="${AIRFLOW_USER_HOME_DIR}"
+fi
+
+
 # if no DB configured - use sqlite db by default
 AIRFLOW__CORE__SQL_ALCHEMY_CONN="${AIRFLOW__CORE__SQL_ALCHEMY_CONN:="sqlite:///${AIRFLOW_HOME}/airflow.db"}"
 
