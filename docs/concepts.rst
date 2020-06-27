@@ -1471,8 +1471,7 @@ would only be applicable for that subfolder.
 ''''''''''''''
 
 A ``.pluginignore`` file specifies the directories or files in ``PLUGINS_FOLDER``
-that Airflow should intentionally ignore. 
+that Airflow should intentionally ignore.
 ``.pluginignore`` file should be put in your ``PLUGINS_FOLDER``.
 
 Users can take the same approach as using ``.airflowignore``.
-

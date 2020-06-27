@@ -23,11 +23,13 @@ import importlib.util
 import inspect
 import logging
 import os
+import re
 import sys
 import types
-import re
-from typing import Any, Dict, List, Optional, Type, Pattern
+from typing import Any, Dict, Generator, List, Optional, Pattern, Type
+
 import pkg_resources
+
 from airflow import settings
 
 log = logging.getLogger(__name__)
@@ -155,11 +157,11 @@ def load_entrypoint_plugins():
             import_errors[entry_point.module_name] = str(e)
 
 
-def find_plugins_from_plugin_directory(base_dir_path: str, ignore_list_file: str) -> str:
-
+def find_plugins_from_plugin_directory(
+        base_dir_path: str,
+        ignore_list_file: str) -> Generator[str, None, None]:
     """
     Search the file and return the path of the file that should not be ignored.
-
     :param base_dir_path: the base path to be searched for.
     :param ignore_file_list_name: the file name in which specifies a regular expression pattern is written.
 
@@ -168,7 +170,7 @@ def find_plugins_from_plugin_directory(base_dir_path: str, ignore_list_file: str
 
     patterns_by_dir: Dict[str, List[Pattern[str]]] = {}
 
-    for root, dirs, files in os.walk(base_dir_path, followlinks=True):
+    for root, dirs, files in os.walk(str(base_dir_path), followlinks=True):
         patterns: List[Pattern[str]] = patterns_by_dir.get(root, [])
 
         ignore_list_file_path = os.path.join(root, ignore_list_file)
@@ -181,19 +183,20 @@ def find_plugins_from_plugin_directory(base_dir_path: str, ignore_list_file: str
         dirs[:] = [
             subdir
             for subdir in dirs
-            if not any(p.search(os.path.join(os.path.relpath(root, base_dir_path), subdir)) for p in patterns)
+            if not any(p.search(
+                os.path.join(os.path.relpath(root, str(base_dir_path)), subdir)) for p in patterns)
         ]
 
         for subdir in dirs:
             patterns_by_dir[os.path.join(root, subdir)] = patterns.copy()
 
-        for file in files:
+        for file in files:  # type: ignore
             if file == ignore_list_file:
                 continue
-            file_path = os.path.join(root, file)
+            file_path = os.path.join(root, str(file))
             if any([re.findall(p, file_path) for p in patterns]):
                 continue
-            yield file_path
+            yield str(file_path)
 
 
 def load_plugins_from_plugin_directory():
@@ -207,7 +210,7 @@ def load_plugins_from_plugin_directory():
     ignore_list_file = ".pluginignore"
 
     for file_path in find_plugins_from_plugin_directory(  # pylint: disable=too-many-nested-blocks
-            settings.PLUGINS_FOLDER, ignore_list_file):
+            str(settings.PLUGINS_FOLDER), str(ignore_list_file)):
 
         try:
             if not os.path.isfile(file_path):
