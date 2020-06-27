@@ -993,7 +993,7 @@ class TestAirflowBaseViews(TestBase):
         self.session.commit()
 
     @parameterized.expand(["graph", "tree"])
-    def test_show_external_log_redirect_link_local_logger(self, endpoint):
+    def test_show_external_log_redirect_link_with_local_log_handler(self, endpoint):
         """Do not show external links if log handler is local."""
         url = f'{endpoint}?dag_id=example_bash_operator'
         with self.capture_templates() as templates:
@@ -1004,7 +1004,7 @@ class TestAirflowBaseViews(TestBase):
 
     @parameterized.expand(["graph", "tree"])
     @mock.patch('airflow.utils.log.log_reader.TaskLogReader.log_handler', new_callable=PropertyMock)
-    def test_show_external_log_redirect_link_external_logger(self, endpoint, mock_log_handler):
+    def test_show_external_log_redirect_link_with_external_log_handler(self, endpoint, mock_log_handler):
         """Show external links if log handler is external."""
         class ExternalHandler(ExternalLoggingMixin):
             LOG_NAME = 'ExternalLog'
@@ -1299,23 +1299,27 @@ class TestLogView(TestBase):
             'Task log handler does not support read logs.',
             response.json['message'])
 
-    def test_redirect_to_external_log_local_logger(self):
+    @parameterized.expand([
+        ('inexistent', ),
+        (TASK_ID, ),
+    ])
+    def test_redirect_to_external_log_with_local_log_handler(self, task_id):
+        """Redirect to home if TI does not exist or if log handler is local"""
         url_template = "redirect_to_external_log?dag_id={}&" \
                        "task_id={}&execution_date={}&" \
                        "try_number={}"
         try_number = 1
         url = url_template.format(self.DAG_ID,
-                                  self.TASK_ID,
+                                  task_id,
                                   quote_plus(self.DEFAULT_DATE.isoformat()),
                                   try_number)
         response = self.client.get(url)
 
-        self.assertEqual(200, response.status_code)
-        self.assertIn('"error":true', response.data.decode('utf-8'))
-        self.assertIn('Task log handler does not support external log URLs', response.data.decode('utf-8'))
+        self.assertEqual(302, response.status_code)
+        self.assertEqual('http://localhost/home', response.headers['Location'])
 
     @mock.patch('airflow.utils.log.log_reader.TaskLogReader.log_handler', new_callable=PropertyMock)
-    def test_redirect_to_external_log_external_logger(self, mock_log_handler):
+    def test_redirect_to_external_log_with_external_log_handler(self, mock_log_handler):
         class ExternalHandler(ExternalLoggingMixin):
             EXTERNAL_URL = 'http://external-service.com'
 

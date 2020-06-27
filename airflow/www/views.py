@@ -67,7 +67,6 @@ from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log.log_reader import TaskLogReader
-from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.platform import get_airflow_git_version
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -778,16 +777,18 @@ class Airflow(AirflowBaseView):  # noqa: D101
             models.TaskInstance.task_id == task_id,
             models.TaskInstance.execution_date == dttm).first()
 
+        if not ti:
+            flash(f"Task [{dag_id}.{task_id}] does not exist", "error")
+            return redirect(url_for('Airflow.index'))
+
         try:
             task_log_reader = TaskLogReader()
             handler = task_log_reader.log_handler
             url = handler.get_external_log_url(ti, try_number)
             return redirect(url)
-        except AttributeError as e:
-            error_message = [
-                f"Task log handler does not support external log URLs.\n{str(e)}\n"
-            ]
-            return jsonify(message=error_message, error=True)
+        except AttributeError:
+            flash("Cannot redirect to external log, task log handler is not external", "error")
+            return redirect(url_for('Airflow.index'))
 
     @expose('/task')
     @has_dag_access(can_dag_read=True)
@@ -1509,9 +1510,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
         task_log_reader = TaskLogReader()
-        handler = task_log_reader.log_handler
-        show_external_log_redirect = isinstance(handler, ExternalLoggingMixin)
-        external_log_name = handler.log_name() if show_external_log_redirect else None
+        external_log_name = task_log_reader.log_handler.log_name() if task_log_reader.is_external else None
 
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
@@ -1525,7 +1524,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
             doc_md=doc_md,
             data=data,
             blur=blur, num_runs=num_runs,
-            show_external_log_redirect=show_external_log_redirect,
+            show_external_log_redirect=task_log_reader.is_external,
             external_log_name=external_log_name)
 
     @expose('/graph')
@@ -1609,9 +1608,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
         task_log_reader = TaskLogReader()
-        handler = task_log_reader.log_handler
-        show_external_log_redirect = isinstance(handler, ExternalLoggingMixin)
-        external_log_name = handler.log_name() if show_external_log_redirect else None
+        external_log_name = task_log_reader.log_handler.log_name() if task_log_reader.is_external else None
 
         return self.render_template(
             'airflow/graph.html',
@@ -1630,7 +1627,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
             tasks=tasks,
             nodes=nodes,
             edges=edges,
-            show_external_log_redirect=show_external_log_redirect,
+            show_external_log_redirect=task_log_reader.is_external,
             external_log_name=external_log_name)
 
     @expose('/duration')
