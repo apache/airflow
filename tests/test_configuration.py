@@ -22,9 +22,10 @@ import tempfile
 import unittest
 import warnings
 from collections import OrderedDict
+from importlib import reload
 from unittest import mock
 
-from airflow import configuration
+from airflow import configuration, settings
 from airflow.configuration import (
     DEFAULT_CONFIG, AirflowConfigException, AirflowConfigParser, conf, expand_env_var, get_airflow_config,
     get_airflow_home, parameterized_config, run_command,
@@ -40,6 +41,9 @@ from tests.test_utils.reset_warning_registry import reset_warning_registry
     'AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD': 'echo -n "NOT OK"'
 })
 class TestConf(unittest.TestCase):
+
+    def tearDown(self) -> None:
+        reload(settings)
 
     def test_airflow_home_default(self):
         with unittest.mock.patch.dict('os.environ'):
@@ -599,3 +603,20 @@ notacommand = OK
 
     def test_confirm_unittest_mod(self):
         self.assertTrue(conf.get('core', 'unit_test_mode'))
+
+    @conf_vars({("core", "store_serialized_dags"): "True"})
+    def test_store_dag_code_default_config(self):
+        reload(settings)
+        self.assertFalse(conf.has_option("core", "store_dag_code"))
+        self.assertTrue(settings.STORE_SERIALIZED_DAGS)
+        self.assertTrue(settings.STORE_DAG_CODE)
+
+    @conf_vars({
+        ("core", "store_serialized_dags"): "True",
+        ("core", "store_dag_code"): "False"
+    })
+    def test_store_dag_code_config_when_set(self):
+        reload(settings)
+        self.assertTrue(conf.has_option("core", "store_dag_code"))
+        self.assertTrue(settings.STORE_SERIALIZED_DAGS)
+        self.assertFalse(settings.STORE_DAG_CODE)

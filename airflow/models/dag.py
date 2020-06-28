@@ -1589,7 +1589,7 @@ class DAG(BaseDag, LoggingMixin):
                         orm_dag.tags.append(dag_tag_orm)
                         session.add(dag_tag_orm)
 
-        if conf.getboolean('core', 'store_dag_code', fallback=False):
+        if settings.STORE_DAG_CODE:
             DagCode.bulk_sync_to_db([dag.fileloc for dag in orm_dags])
 
         session.commit()
