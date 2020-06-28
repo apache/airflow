@@ -275,6 +275,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin, ExternalLoggingMix
     def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
         """
         Creates an address for an external log collecting service.
+
         :param task_instance: task instance object
         :type: task_instance: TaskInstance
         :param try_number: task instance try_number to read logs from.
