@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,8 +18,8 @@
 
 """
 This module is deprecated.
-Please use `airflow.providers.sendgrid.utils.emailer`
-."""
+Please use `airflow.providers.sendgrid.utils.emailer`.
+"""
 
 import warnings
 
