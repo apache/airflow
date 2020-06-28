@@ -1441,12 +1441,13 @@ do the same, but then it is more suitable to use a virtualenv and pip.
 ''''''''''''''
 
 A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
-that Airflow should intentionally ignore. Each line in ``.airflowignore``
-specifies a regular expression pattern, and directories or files whose names
-(not DAG id) match any of the patterns would be ignored (under the hood,
-``re.findall()`` is used to match the pattern). Overall it works like a
-``.gitignore`` file. Use the ``#`` character to indicate a comment; all
-characters on a line following a ``#`` will be ignored.
+or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore.
+Each line in ``.airflowignore`` specifies a regular expression pattern,
+and directories or files whose names (not DAG id) match any of the patterns
+would be ignored (under the hood,``re.findall()`` is used to match the pattern).
+Overall it works like a ``.gitignore`` file.
+Use the ``#`` character to indicate a comment; all characters
+on a line following a ``#`` will be ignored.
 
 ``.airflowignore`` file should be put in your ``DAG_FOLDER``.
 For example, you can prepare a ``.airflowignore`` file with contents
@@ -1465,13 +1466,3 @@ would not be scanned by Airflow at all. This improves efficiency of DAG finding)
 The scope of a ``.airflowignore`` file is the directory it is in plus all its subfolders.
 You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` and it
 would only be applicable for that subfolder.
-
-
-.pluginignore
-''''''''''''''
-
-A ``.pluginignore`` file specifies the directories or files in ``PLUGINS_FOLDER``
-that Airflow should intentionally ignore.
-``.pluginignore`` file should be put in your ``PLUGINS_FOLDER``.
-
-Users can take the same approach as using ``.airflowignore``.
