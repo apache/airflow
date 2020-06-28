@@ -24,7 +24,7 @@ from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.utils.decorators import apply_defaults
 
 
-class MsSqlToOracleOperator(BaseOperator):
+class MsSqlToOracle(BaseOperator):
     """
     Moves data from Oracle to MSSQL.
 
