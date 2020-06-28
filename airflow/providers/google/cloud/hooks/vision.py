@@ -385,7 +385,7 @@ class CloudVisionHook(GoogleBaseHook):
     ) -> str:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateReferenceImageOperator`
         """
         client = self.get_conn()
         self.log.info('Creating ReferenceImage')

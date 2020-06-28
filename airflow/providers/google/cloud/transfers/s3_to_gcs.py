@@ -214,7 +214,7 @@ class S3ToGCSOperator(S3ListOperator):
         return files
 
     # Following functionality may be better suited in
-    # airflow/contrib/hooks/gcs.py
+    # airflow/providers/google/cloud/hooks/gcs.py
     @staticmethod
     def _gcs_object_is_directory(bucket):
         _, blob = _parse_gcs_url(bucket)

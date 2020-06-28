@@ -500,9 +500,6 @@ autoapi_template_dir = 'autoapi_templates'
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
     '*/airflow/kubernetes/kubernetes_request_factory/*',
-    '*/airflow/contrib/sensors/*',
-    '*/airflow/contrib/hooks/*',
-    '*/airflow/contrib/operators/*',
     '*/_internal*',
     '*/node_modules/*',
     '*/migrations/*',

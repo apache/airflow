@@ -69,8 +69,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all JINJA template files
-        files: "^airflow/www/templates/.*\\.html$|^docs/templates/.*\\.html$|^airflow/contrib/plugins/\
-metastore_browser/templates/.*\\.html$|.*\\.jinja2"
+        files: "^airflow/www/templates/.*\\.html$|^docs/templates/.*\\.html$.*\\.jinja2"
         exclude: ^\.github/.*$
         args:
           - --comment-style
@@ -296,7 +295,6 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
-          ^airflow/contrib/.*$|
           ^backport_packages/.*$
       - id: base-operator
         language: pygrep
@@ -309,8 +307,7 @@ metastore_browser/templates/.*\\.html$|.*\\.jinja2"
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
           ^airflow/sensors/.*$|
-          ^airflow/providers/.*\.py$|
-          ^airflow/contrib/.*\.py$
+          ^airflow/providers/.*\.py$
       - id: provide-create-sessions
         language: pygrep
         name: To avoid import cycles make sure provide_session and create_session are imported from
