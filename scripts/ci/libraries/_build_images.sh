@@ -316,6 +316,11 @@ function print_build_info() {
 # Prepares all variables needed by the CI build. Depending on the configuration used (python version
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function prepare_ci_build() {
+    # We use pulled docker image cache by default for CI images to  speed up the builds
+    export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
+    echo
+    echo "Using ${DOCKER_CACHE} cache strategy for the build."
+    echo
     export AIRFLOW_CI_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
     export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
@@ -473,25 +478,39 @@ function rebuild_ci_image_if_needed_and_confirmed() {
     fi
 }
 
+# Determines the strategy to be used for caching based on the type of CI job run.
+# In case of CRON jobs we run builds without cache and upgrade to latest requirements
+function determine_cache_strategy() {
+    if [[ "${CI_EVENT_TYPE:=}" == "schedule" ]]; then
+        echo
+        echo "Disabling cache for scheduled jobs"
+        echo
+        export DOCKER_CACHE="disabled"
+        echo
+        echo "Requirements are upgraded to latest for scheduled CI build"
+        echo
+        export UPGRADE_TO_LATEST_REQUIREMENTS="true"
+    else
+        echo
+        echo "Pull cache used for regular CI builds"
+        echo
+        export DOCKER_CACHE="pulled"
+        echo
+        echo "Requirements are not upgraded to latest ones for regular CI builds"
+        echo
+        export UPGRADE_TO_LATEST_REQUIREMENTS="false"
+    fi
+}
+
 
 # Builds the CI image in the CI environment.
 # Depending on the type of build (push/pr/scheduled) it will either build it incrementally or
 # from the scratch without cache (the latter for scheduled builds only)
 function build_ci_image_on_ci() {
+    export SKIP_CI_IMAGE_CHECK="false"
+
     get_ci_environment
-
-    # In case of CRON jobs we run builds without cache and upgrade to latest requirements
-    if [[ "${CI_EVENT_TYPE:=}" == "schedule" ]]; then
-        echo
-        echo "Disabling cache for scheduled jobs"
-        echo
-        export DOCKER_CACHE="no-cache"
-        echo
-        echo "Requirements are upgraded to latest while running Docker build"
-        echo
-        export UPGRADE_TO_LATEST_REQUIREMENTS="true"
-    fi
-
+    determine_cache_strategy
     prepare_ci_build
 
     rm -rf "${BUILD_CACHE_DIR}"
@@ -500,12 +519,14 @@ function build_ci_image_on_ci() {
     rebuild_ci_image_if_needed
 
     # Disable force pulling forced above this is needed for the subsequent scripts so that
-    # They do not try to pull/build images again
+    # They do not try to pull/build images again. Also skip the image check entirely for
+    # the rest of the script
     unset FORCE_PULL_IMAGES
     unset FORCE_BUILD
+    export SKIP_CI_IMAGE_CHECK="true"
 }
 
-# Builds CI image - depending on the caching strategy (pulled, local, no-cache) it
+# Builds CI image - depending on the caching strategy (pulled, local, disabled) it
 # passes the necessary docker build flags via DOCKER_CACHE_CI_DIRECTIVE array
 # it also passes the right Build args depending on the configuration of the build
 # selected by Breeze flags or environment variables.
@@ -521,7 +542,7 @@ function build_ci_image() {
     fi
     pull_ci_image_if_needed
 
-    if [[ "${DOCKER_CACHE}" == "no-cache" ]]; then
+    if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
         export DOCKER_CACHE_CI_DIRECTIVE=("--no-cache")
     elif [[ "${DOCKER_CACHE}" == "local" ]]; then
         export DOCKER_CACHE_CI_DIRECTIVE=()
@@ -570,6 +591,11 @@ Docker building ${AIRFLOW_CI_IMAGE}.
 # Prepares all variables needed by the CI build. Depending on the configuration used (python version
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function prepare_prod_build() {
+    # We use local docker image cache by default for Production images
+    export DOCKER_CACHE=${DOCKER_CACHE:="local"}
+    echo
+    echo "Using ${DOCKER_CACHE} cache strategy for the build."
+    echo
     if [[ "${INSTALL_AIRFLOW_REFERENCE:=}" != "" ]]; then
         # When --install-airflow-reference is used then the image is build from github tag
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
@@ -638,7 +664,29 @@ function prepare_prod_build() {
 }
 
 
-# Builds PROD image - depending on the caching strategy (pulled, local, no-cache) it
+# Builds the prod image in the CI environment.
+# Depending on the type of build (push/pr/scheduled) it will either build it incrementally or
+# from the scratch without cache (the latter for scheduled builds only)
+function build_prod_image_on_ci() {
+    get_prod_environment
+
+    determine_cache_strategy
+
+    prepare_prod_build
+
+    rm -rf "${BUILD_CACHE_DIR}"
+    mkdir -pv "${BUILD_CACHE_DIR}"
+
+    build_prod_image
+
+    # Disable force pulling forced above this is needed for the subsequent scripts so that
+    # They do not try to pull/build images again
+    unset FORCE_PULL_IMAGES
+    unset FORCE_BUILD
+}
+
+
+# Builds PROD image - depending on the caching strategy (pulled, local, disabled) it
 # passes the necessary docker build flags via DOCKER_CACHE_PROD_DIRECTIVE and
 # DOCKER_CACHE_PROD_BUILD_DIRECTIVE (separate caching options are needed for "build" segment of the image)
 # it also passes the right Build args depending on the configuration of the build
@@ -647,7 +695,7 @@ function build_prod_image() {
     print_build_info
     pull_prod_images_if_needed
 
-    if [[ "${DOCKER_CACHE}" == "no-cache" ]]; then
+    if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
         export DOCKER_CACHE_PROD_DIRECTIVE=("--cache-from" "${AIRFLOW_PROD_BUILD_IMAGE}")
         export DOCKER_CACHE_PROD_BUILD_DIRECTIVE=("--no-cache")
     elif [[ "${DOCKER_CACHE}" == "local" ]]; then
