@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import ast
 import os
 import unittest
 
@@ -49,6 +50,13 @@ class TestGetSource(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
 
+    def _get_dag_file_docstring(self, fileloc: str) -> str:
+        with open(fileloc) as fd:
+            file_contents = fd.read()
+        module = ast.parse(file_contents)
+        docstring = ast.get_docstring(module)
+        return docstring
+
     @parameterized.expand([("True",), ("False",)])
     def test_should_response_200_text(self, store_serialized_dags):
         serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
@@ -58,6 +66,7 @@ class TestGetSource(unittest.TestCase):
             dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
             dagbag.sync_to_db()
             first_dag: DAG = next(iter(dagbag.dags.values()))
+            dag_docstring = self._get_dag_file_docstring(first_dag.fileloc)
 
             url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
             response = self.client.get(url, headers={
@@ -65,7 +74,7 @@ class TestGetSource(unittest.TestCase):
             })
 
             self.assertEqual(200, response.status_code)
-            self.assertIn("Example DAG demonstrating the usage of the BashOperator.", response.data.decode())
+            self.assertIn(dag_docstring, response.data.decode())
             self.assertEqual('text/plain', response.headers['Content-Type'])
 
     @parameterized.expand([("True",), ("False",)])
@@ -77,6 +86,7 @@ class TestGetSource(unittest.TestCase):
             dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
             dagbag.sync_to_db()
             first_dag: DAG = next(iter(dagbag.dags.values()))
+            dag_docstring = self._get_dag_file_docstring(first_dag.fileloc)
 
             url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
             response = self.client.get(url, headers={
@@ -85,7 +95,7 @@ class TestGetSource(unittest.TestCase):
 
             self.assertEqual(200, response.status_code)
             self.assertIn(
-                "Example DAG demonstrating the usage of the BashOperator.",
+                dag_docstring,
                 response.json['content']
             )
             self.assertEqual('application/json', response.headers['Content-Type'])

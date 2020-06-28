@@ -38,8 +38,7 @@ def get_dag_source(file_token: str):
     except (BadSignature, FileNotFoundError):
         raise NotFound("Dag Source not found")
 
-    from accept_types import get_best_match
-    return_type = get_best_match(request.headers.get('Accept'), ['text/plain', 'application/json'])
+    return_type = request.accept_mimetypes.best_match(['text/plain', 'application/json'])
     if return_type == 'text/plain':
         return Response(dag_source, headers={'Content-Type': return_type})
     if return_type == 'application/json':
