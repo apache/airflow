@@ -116,11 +116,10 @@ class TestMovingCoreToContrib(TestCase):
         }
 
         for new, old in ALL:
-            # Using if statements allows you to create a developer-friendly message only when we need it.
+            # Using if statement allows us to create a developer-friendly message only when we need it.
             # Otherwise, it wouldn't always be possible - KeyError
             if new in all_classes_by_old:
-                self.assertTrue(
-                    False,
+                raise AssertionError(
                     f'Deprecation "{old}" to "{new}" is incorrect. '
                     f'Please use \"{all_classes_by_old[new]}\" instead of "{old}".'
                 )
