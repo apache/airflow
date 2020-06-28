@@ -52,7 +52,7 @@ class TestMsSqlToOracleOperator(unittest.TestCase):
             task_id='copy_data',
             oracle_destination_conn_id=oracle_destination_conn_id,
             destination_table=destination_table,
-            oracle_source_conn_id=mssql_source_conn_id,
+            mssql_source_conn_id=mssql_source_conn_id,
             source_sql=source_sql,
             source_sql_params=source_sql_params,
             rows_chunk=rows_chunk)
