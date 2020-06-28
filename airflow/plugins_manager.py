@@ -23,14 +23,14 @@ import importlib.util
 import inspect
 import logging
 import os
-import re
 import sys
 import types
-from typing import Any, Dict, Generator, List, Optional, Pattern, Type
+from typing import Any, Dict, List, Optional, Type
 
 import pkg_resources
 
-from airflow import settings
+from airflow import settings  # type: ignore
+from airflow.utils.file import find_path_from_directory  # type: ignore
 
 log = logging.getLogger(__name__)
 
@@ -157,48 +157,6 @@ def load_entrypoint_plugins():
             import_errors[entry_point.module_name] = str(e)
 
 
-def find_plugins_from_plugin_directory(
-        base_dir_path: str,
-        ignore_list_file: str) -> Generator[str, None, None]:
-    """
-    Search the file and return the path of the file that should not be ignored.
-    :param base_dir_path: the base path to be searched for.
-    :param ignore_file_list_name: the file name in which specifies a regular expression pattern is written.
-
-    :return : file path not to be ignored
-    """
-
-    patterns_by_dir: Dict[str, List[Pattern[str]]] = {}
-
-    for root, dirs, files in os.walk(str(base_dir_path), followlinks=True):
-        patterns: List[Pattern[str]] = patterns_by_dir.get(root, [])
-
-        ignore_list_file_path = os.path.join(root, ignore_list_file)
-        if os.path.isfile(ignore_list_file_path):
-            with open(ignore_list_file_path, 'r') as file:
-                lines_no_comments = [re.compile(r"\s*#.*").sub("", line) for line in file.read().split("\n")]
-                patterns += [re.compile(line) for line in lines_no_comments if line]
-                patterns = list(set(patterns))
-
-        dirs[:] = [
-            subdir
-            for subdir in dirs
-            if not any(p.search(
-                os.path.join(os.path.relpath(root, str(base_dir_path)), subdir)) for p in patterns)
-        ]
-
-        for subdir in dirs:
-            patterns_by_dir[os.path.join(root, subdir)] = patterns.copy()
-
-        for file in files:  # type: ignore
-            if file == ignore_list_file:
-                continue
-            file_path = os.path.join(root, str(file))
-            if any([re.findall(p, file_path) for p in patterns]):
-                continue
-            yield str(file_path)
-
-
 def load_plugins_from_plugin_directory():
     """
     Load and register Airflow Plugins from plugins directory.
@@ -207,9 +165,9 @@ def load_plugins_from_plugin_directory():
     global plugins  # pylint: disable=global-statement
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
-    ignore_list_file = ".pluginignore"
+    ignore_list_file = ".airflowignore"
 
-    for file_path in find_plugins_from_plugin_directory(  # pylint: disable=too-many-nested-blocks
+    for file_path in find_path_from_directory(  # pylint: disable=too-many-nested-blocks
             str(settings.PLUGINS_FOLDER), str(ignore_list_file)):
 
         try:
@@ -220,7 +178,7 @@ def load_plugins_from_plugin_directory():
             if file_ext != '.py':
                 continue
 
-            log.debug('Importing plugin module %s', file_path)
+            log.info('Importing plugin module %s', file_path)
 
             loader = importlib.machinery.SourceFileLoader(mod_name, file_path)
             spec = importlib.util.spec_from_loader(mod_name, loader)
