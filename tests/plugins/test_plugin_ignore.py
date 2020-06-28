@@ -23,8 +23,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from airflow import settings
-from airflow.utils.file import find_path_from_directory
+from airflow import settings  # type: ignore
+from airflow.utils.file import find_path_from_directory  # type: ignore
 
 
 class TestIgnorePluginFile(unittest.TestCase):
@@ -39,7 +39,17 @@ class TestIgnorePluginFile(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
         self.test_file = os.path.join(self.test_dir, 'test_file.txt')
         self.plugin_folder_path = os.path.join(self.test_dir, 'test_ignore')
-        shutil.copytree('test_ignore', self.plugin_folder_path)
+        shutil.copytree(os.path.join(settings.PLUGINS_FOLDER, 'test_ignore'), self.plugin_folder_path)
+        file = open(os.path.join(self.plugin_folder_path, "test_notload_sub.py"), 'w')
+        file.write('raise Exception("This file should have been ignored!")')
+        file.close()
+        file = open(os.path.join(self.plugin_folder_path, "subdir1/test_noneload_sub1.py"), 'w')
+        file.write('raise Exception("This file should have been ignored!")')
+        file.close()
+        os.mkdir(os.path.join(self.plugin_folder_path, "subdir2"))
+        file = open(os.path.join(self.plugin_folder_path, "subdir2/test_shouldignore.py"), 'w')
+        file.write('raise Exception("This file should have been ignored!")')
+        file.close()
         self.mock_plugins_folder = patch.object(
             settings, 'PLUGINS_FOLDER', return_value=self.plugin_folder_path
         )
