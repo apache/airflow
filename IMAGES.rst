@@ -115,36 +115,56 @@ parameter to Breeze:
 Using cache during builds
 =========================
 
-Default mechanism used in Breeze for building images uses - as base - images puled from DockerHub or
-GitHub Image Registry. This is in order to speed up local builds and CI builds - instead of 15 minutes
+Default mechanism used in Breeze for building CI images uses images pulled from DockerHub or
+GitHub Image Registry. This is done to speed up local builds and CI builds - instead of 15 minutes
 for rebuild of CI images, it takes usually less than 3 minutes when cache is used. For CI builds this is
-usually the best strategy - to use default "pull" cache - same for Production Image - it's better to rely
-on the "pull" mechanism rather than rebuild the image from the scratch.
+usually the best strategy - to use default "pull" cache. This is default strategy when
+`<BREEZE.rst>`_ builds are performed.
 
-However when you are iterating on the images and want to rebuild them quickly and often you can provide the
-``--use-local-cache`` flag to build commands - this way the standard docker mechanism based on local cache
-will be used. The first time you run it, it will take considerably longer time than if you use the
-default pull mechanism, but then when you do small, incremental changes to local sources, Dockerfile image
-and scripts further rebuilds with --use-local-cache will be considerably faster.
+For Production Image - which is far smaller and faster to build, it's better to use local build cache (the
+standard mechanism that docker uses. This is the default strategy for production images when
+`<BREEZE.rst>`_ builds are performed. The first time you run it, it will take considerably longer time than
+if you use the pull mechanism, but then when you do small, incremental changes to local sources,
+Dockerfile image= and scripts further rebuilds with local build cache will be considerably faster.
+
+You can also disable build cache altogether. This is the strategy used by the scheduled builds in CI - they
+will always rebuild all the images from scratch.
+
+You can change the strategy by providing one of the ``--build-cache-local``, ``--build-cache-pulled`` or
+even ``--build-cache-disabled`` flags when you run Breeze commands. For example:
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.7 --production-image --use-local-cache
+  ./breeze build-image --python 3.7 --build-cache-local
 
-You can also turn local docker caching by setting DOCKER_CACHE variable to "local" instead of the default
-"pulled" and export it to Breeze.
+Will build the CI image using local build cache (note that it will take quite a long time the first
+time you run it).
+
+.. code-block:: bash
+
+  ./breeze build-image --python 3.7 --production-image --build-cache-pulled
+
+Will build the production image with pulled images as cache.
+
+
+.. code-block:: bash
+
+  ./breeze build-image --python 3.7 --production-image --build-cache-disabled
+
+Will build the production image from the scratch.
+
+You can also turn local docker caching by setting ``DOCKER_CACHE`` variable to "local", "pulled",
+"disabled" and exporting it.
 
 .. code-block:: bash
 
   export DOCKER_CACHE="local"
 
-You can also - if you really want - disable caching altogether by setting this variable to "no-cache".
-This is how "scheduled" builds in our CI are run - those builds take a long time because they
-always rebuild everything from scratch.
+or
 
 .. code-block:: bash
 
-  export DOCKER_CACHE="no-cache"
+  export DOCKER_CACHE="disabled"
 
 
 Choosing image registry

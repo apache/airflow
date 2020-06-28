@@ -62,7 +62,7 @@ jobs:
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build CI image"
-        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
       - name: "Static checks"
         if: success()
         run: |
@@ -83,7 +83,7 @@ jobs:
         with:
           python-version: '3.6'
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
         run: ./scripts/ci/ci_docs.sh
 
@@ -200,7 +200,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/ci_run_airflow_testing.sh
 
@@ -232,7 +232,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/ci_run_airflow_testing.sh
 
@@ -262,7 +262,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/ci_run_airflow_testing.sh
 
@@ -293,7 +293,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/ci_run_airflow_testing.sh
 
@@ -316,7 +316,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
       - name: "Generate requirements"
         run: ./scripts/ci/ci_generate_requirements.sh
 
@@ -374,6 +374,6 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build CI image"
-        run: ./scripts/ci/ci_prepare_image_on_ci.sh
+        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
       - name: "Push CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/ci_push_ci_image.sh
