@@ -38,7 +38,7 @@ def delete_xcom_entry(
     task_id: str,
     xcom_key: str,
     session: Session
-) -> Response:
+):
     """
     Delete an XCom entry
     """
