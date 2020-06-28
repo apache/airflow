@@ -96,7 +96,7 @@ class TaskLogReader:
         return handler
 
     @property
-    def is_supported(self):
+    def supports_read(self):
         """Checks if a read operation is supported by a current log handler."""
 
         return hasattr(self.log_handler, 'read')

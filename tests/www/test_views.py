@@ -1281,7 +1281,7 @@ class TestLogView(TestBase):
 
     @mock.patch("airflow.www.views.TaskLogReader")
     def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
-        type(mock_log_reader.return_value).is_supported = PropertyMock(return_value=False)
+        type(mock_log_reader.return_value).supports_read = PropertyMock(return_value=False)
 
         url_template = "get_logs_with_metadata?dag_id={}&" \
                        "task_id={}&execution_date={}&" \

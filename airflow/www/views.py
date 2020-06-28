@@ -678,7 +678,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
             return response
 
         task_log_reader = TaskLogReader()
-        if not task_log_reader.is_supported:
+        if not task_log_reader.supports_read:
             return jsonify(
                 message="Task log handler does not support read logs.",
                 error=True,
