@@ -1148,15 +1148,15 @@ OPERATORS = [
         'airflow.operators.papermill_operator.PapermillOperator',
     ),
     (
-        'airflow.operators.check_operator.CheckOperator',
+        'airflow.operators.sql.SQLCheckOperator',
         'airflow.operators.presto_check_operator.PrestoCheckOperator',
     ),
     (
-        'airflow.operators.check_operator.IntervalCheckOperator',
+        'airflow.operators.sql.SQLIntervalCheckOperator',
         'airflow.operators.presto_check_operator.PrestoIntervalCheckOperator',
     ),
     (
-        'airflow.operators.check_operator.ValueCheckOperator',
+        'airflow.operators.sql.SQLValueCheckOperator',
         'airflow.operators.presto_check_operator.PrestoValueCheckOperator',
     ),
     (
