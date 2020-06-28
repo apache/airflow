@@ -102,8 +102,8 @@ class TaskLogReader:
         return hasattr(self.log_handler, 'read')
 
     @property
-    def is_external(self):
-        """Check if the logging handler is external (e.g. Elasticsearch, Stackdriver, etc)."""
+    def supports_external_link(self):
+        """Check if the logging handler supports external links (e.g. to Elasticsearch, Stackdriver, etc)."""
         return isinstance(self.log_handler, ExternalLoggingMixin)
 
     def render_log_filename(self, ti: TaskInstance, try_number: Optional[int] = None):

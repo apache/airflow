@@ -782,8 +782,8 @@ class Airflow(AirflowBaseView):  # noqa: D101
             return redirect(url_for('Airflow.index'))
 
         task_log_reader = TaskLogReader()
-        if not task_log_reader.supports_external_links:
-            flash("Ttask log handler is not support external links", "error")
+        if not task_log_reader.supports_external_link:
+            flash("Task log handler does not support external links", "error")
             return redirect(url_for('Airflow.index'))
 
         handler = task_log_reader.log_handler
@@ -1510,7 +1510,10 @@ class Airflow(AirflowBaseView):  # noqa: D101
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
         task_log_reader = TaskLogReader()
-        external_log_name = task_log_reader.log_handler.log_name if task_log_reader.is_external else None
+        if task_log_reader.supports_external_link:
+            external_log_name = task_log_reader.log_handler.log_name
+        else:
+            external_log_name = None
 
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
@@ -1524,7 +1527,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
             doc_md=doc_md,
             data=data,
             blur=blur, num_runs=num_runs,
-            show_external_log_redirect=task_log_reader.is_external,
+            show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name)
 
     @expose('/graph')
@@ -1608,7 +1611,10 @@ class Airflow(AirflowBaseView):  # noqa: D101
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
         task_log_reader = TaskLogReader()
-        external_log_name = task_log_reader.log_handler.log_name if task_log_reader.is_external else None
+        if task_log_reader.supports_external_link:
+            external_log_name = task_log_reader.log_handler.log_name
+        else:
+            external_log_name = None
 
         return self.render_template(
             'airflow/graph.html',
@@ -1627,7 +1633,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
             tasks=tasks,
             nodes=nodes,
             edges=edges,
-            show_external_log_redirect=task_log_reader.is_external,
+            show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name)
 
     @expose('/duration')
