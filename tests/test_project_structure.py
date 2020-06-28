@@ -54,14 +54,13 @@ class TestProjectStructure(unittest.TestCase):
             self.assert_file_not_contains(filename, "providers")
 
     def test_deprecated_packages(self):
-        for directory in ["hooks", "operators", "secrets", "sensors", "task_runner"]:
-            path_pattern = f"{ROOT_FOLDER}/airflow/contrib/{directory}/*.py"
+        path_pattern = f"{ROOT_FOLDER}/airflow/contrib/**/*.py"
 
-            for filename in glob.glob(path_pattern, recursive=True):
-                if filename.endswith("/__init__.py"):
-                    self.assert_file_contains(filename, "This package is deprecated.")
-                else:
-                    self.assert_file_contains(filename, "This module is deprecated.")
+        for filename in glob.glob(path_pattern, recursive=True):
+            if filename.endswith("/__init__.py"):
+                self.assert_file_contains(filename, "This package is deprecated.")
+            else:
+                self.assert_file_contains(filename, "This module is deprecated.")
 
     def assert_file_not_contains(self, filename: str, pattern: str):
         with open(filename, 'rb', 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
