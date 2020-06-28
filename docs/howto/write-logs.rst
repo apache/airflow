@@ -318,3 +318,27 @@ be used.
 By using the ``logging_config_class`` option you can get :ref:`advanced features <write-logs-advanced>` of
 this handler. Details are available in the handler's documentation -
 :class:`~airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler`.
+
+External Links
+==============
+
+When using remote logging, users can configure Airflow to show a link to an external UI within the Airflow Web UI. Clicking the link redirects a user to the external UI.
+
+Some external systems require specific configuration in Airflow for redirection to work but others do not.
+
+.. _log-link-elasticsearch:
+
+Elasticsearch External Link
+------------------------------------
+
+A user can configure Airflow to show a link to an Elasticsearch log viewing system (e.g. Kibana).
+
+To enable it, ``airflow.cfg`` must be configured as in the example below. Note the required ``{log_id}`` in the URL, when constructing the external link, Airflow replaces this parameter with the same ``log_id_template`` used for writing logs (see `Writing Logs to Elasticsearch`_).
+
+.. code-block:: ini
+
+    [elasticsearch]
+    # Qualified URL for an elasticsearch frontend (like Kibana) with a template argument for log_id
+    # Code will construct log_id using the log_id template from the argument above.
+    # NOTE: The code will prefix the https:// automatically, don't include that here.
+    frontend = <host_port>/{log_id}
