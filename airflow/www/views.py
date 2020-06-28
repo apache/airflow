@@ -781,14 +781,14 @@ class Airflow(AirflowBaseView):  # noqa: D101
             flash(f"Task [{dag_id}.{task_id}] does not exist", "error")
             return redirect(url_for('Airflow.index'))
 
-        try:
-            task_log_reader = TaskLogReader()
-            handler = task_log_reader.log_handler
-            url = handler.get_external_log_url(ti, try_number)
-            return redirect(url)
-        except AttributeError:
-            flash("Cannot redirect to external log, task log handler is not external", "error")
+        task_log_reader = TaskLogReader()
+        if not task_log_reader.supports_external_links:
+            flash("Ttask log handler is not support external links", "error")
             return redirect(url_for('Airflow.index'))
+
+        handler = task_log_reader.log_handler
+        url = handler.get_external_log_url(ti, try_number)
+        return redirect(url)
 
     @expose('/task')
     @has_dag_access(can_dag_read=True)
