@@ -303,7 +303,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         # If .json is passed then we have to read the file
         if isinstance(self.report, str) and self.report.endswith('.json'):
             with open(self.report, 'r') as file:
-                self.report = json.loads(file.read())
+                self.report = json.loads(file)
 
     def execute(self, context: Dict):
         hook = GoogleCampaignManagerHook(
