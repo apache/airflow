@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import contextlib
+import errno
 import io
 
 import logging
@@ -28,8 +29,8 @@ from six import StringIO, PY2
 import sys
 
 from datetime import datetime, timedelta, time
-from mock import patch, Mock, MagicMock
-from time import sleep
+from mock import patch, MagicMock
+from time import sleep, time as timetime
 import psutil
 import pytz
 import subprocess
@@ -37,9 +38,10 @@ import pytest
 from argparse import Namespace
 from airflow import settings
 import airflow.bin.cli as cli
-from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
+from airflow.bin.cli import run, get_dag
 from airflow.models import TaskInstance
 from airflow.utils import timezone
+from airflow.utils.file import TemporaryDirectory
 from airflow.utils.state import State
 from airflow.settings import Session
 from airflow import models
@@ -153,39 +155,6 @@ class TestCLI(unittest.TestCase):
     def setUpClass(cls):
         cls.dagbag = models.DagBag(include_examples=True)
         cls.parser = cli.CLIFactory.get_parser()
-
-    def setUp(self):
-        self.gunicorn_master_proc = Mock(pid=None)
-        self.children = MagicMock()
-        self.child = MagicMock()
-        self.process = MagicMock()
-
-    def test_ready_prefix_on_cmdline(self):
-        self.child.cmdline.return_value = [settings.GUNICORN_WORKER_READY_PREFIX]
-        self.process.children.return_value = [self.child]
-
-        with patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 1)
-
-    def test_ready_prefix_on_cmdline_no_children(self):
-        self.process.children.return_value = []
-
-        with patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
-
-    def test_ready_prefix_on_cmdline_zombie(self):
-        self.child.cmdline.return_value = []
-        self.process.children.return_value = [self.child]
-
-        with patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
-
-    def test_ready_prefix_on_cmdline_dead_process(self):
-        self.child.cmdline.side_effect = psutil.NoSuchProcess(11347)
-        self.process.children.return_value = [self.child]
-
-        with patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
 
     def test_cli_webserver_debug(self):
         env = os.environ.copy()
@@ -847,3 +816,195 @@ class TestShowInfo(unittest.TestCase):
         self.assertIn("https://file.io/TEST", temp_stdout.getvalue())
         content = mock_requests.post.call_args[1]["files"]["file"][1]
         self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", content)
+
+
+class TestGunicornMonitor(unittest.TestCase):
+
+    def setUp(self):
+        self.gunicorn_master_proc = mock.Mock(pid=2137)
+        self.monitor = cli.GunicornMonitor(
+            gunicorn_master_proc=self.gunicorn_master_proc,
+            num_workers_expected=4,
+            master_timeout=60,
+            worker_refresh_interval=60,
+            worker_refresh_batch_size=2,
+            reload_on_plugin_change=True,
+        )
+        mock.patch.object(self.monitor, '_generate_plugin_state', return_value={}).start()
+        mock.patch.object(self.monitor, '_get_num_ready_workers_running', return_value=4).start()
+        mock.patch.object(self.monitor, '_get_num_workers_running', return_value=4).start()
+        mock.patch.object(self.monitor, '_spawn_new_workers', return_value=None).start()
+        mock.patch.object(self.monitor, '_kill_old_workers', return_value=None).start()
+        mock.patch.object(self.monitor, '_reload_gunicorn', return_value=None).start()
+
+    @mock.patch('airflow.bin.cli.time.sleep')
+    def test_should_wait_for_workers_to_start(self, mock_sleep):
+        self.monitor._get_num_ready_workers_running.return_value = 0
+        self.monitor._get_num_workers_running.return_value = 4
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+    @mock.patch('airflow.bin.cli.time.sleep')
+    def test_should_kill_excess_workers(self, mock_sleep):
+        self.monitor._get_num_ready_workers_running.return_value = 10
+        self.monitor._get_num_workers_running.return_value = 10
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_called_once_with(2)  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+    @mock.patch('airflow.bin.cli.time.sleep')
+    def test_should_start_new_workers_when_missing(self, mock_sleep):
+        self.monitor._get_num_ready_workers_running.return_value = 2
+        self.monitor._get_num_workers_running.return_value = 2
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_called_once_with(2)  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+    @mock.patch('airflow.bin.cli.time.sleep')
+    def test_should_start_new_workers_when_refresh_interval_has_passed(self, mock_sleep):
+        self.monitor._last_refresh_time -= 200
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_called_once_with(2)  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+        self.assertAlmostEqual(self.monitor._last_refresh_time, timetime(), delta=5)
+
+    @mock.patch('airflow.bin.cli.time.sleep')
+    def test_should_reload_when_plugin_has_been_changed(self, mock_sleep):
+        self.monitor._generate_plugin_state.return_value = {'AA': 12}
+
+        self.monitor._check_workers()
+
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+        self.monitor._generate_plugin_state.return_value = {'AA': 32}
+
+        self.monitor._check_workers()
+
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+        self.monitor._generate_plugin_state.return_value = {'AA': 32}
+
+        self.monitor._check_workers()
+
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_called_once_with()  # pylint: disable=no-member
+        self.assertAlmostEqual(self.monitor._last_refresh_time, timetime(), delta=5)
+
+
+class TestGunicornMonitorGeneratePluginState(unittest.TestCase):
+    @staticmethod
+    def _prepare_test_file(filepath, size):
+        try:
+            os.makedirs(os.path.dirname(filepath))
+        except OSError as e:
+            # be happy if someone already created the path
+            if e.errno != errno.EEXIST:
+                raise
+        with open(filepath, "w") as file:
+            file.write("A" * size)
+            file.flush()
+
+    def test_should_detect_changes_in_directory(self):
+        with TemporaryDirectory(prefix="tmp") as tempdir, \
+                mock.patch("airflow.bin.cli.settings.PLUGINS_FOLDER", tempdir):
+            self._prepare_test_file("{}/file1.txt".format(tempdir), 100)
+            self._prepare_test_file("{}/nested/nested/nested/nested/file2.txt".format(tempdir), 200)
+            self._prepare_test_file("{}/file3.txt".format(tempdir), 300)
+
+            monitor = cli.GunicornMonitor(
+                gunicorn_master_proc=mock.MagicMock(),
+                num_workers_expected=4,
+                master_timeout=60,
+                worker_refresh_interval=60,
+                worker_refresh_batch_size=2,
+                reload_on_plugin_change=True,
+            )
+
+            # When the files have not changed, the result should be constant
+            state_a = monitor._generate_plugin_state()
+            state_b = monitor._generate_plugin_state()
+
+            self.assertEqual(state_a, state_b)
+            self.assertEqual(3, len(state_a))
+
+            # Should detect new file
+            self._prepare_test_file("{}/file4.txt".format(tempdir), 400)
+
+            state_c = monitor._generate_plugin_state()
+
+            self.assertNotEqual(state_b, state_c)
+            self.assertEqual(4, len(state_c))
+
+            # Should detect changes in files
+            self._prepare_test_file("{}/file4.txt".format(tempdir), 450)
+
+            state_d = monitor._generate_plugin_state()
+
+            self.assertNotEqual(state_c, state_d)
+            self.assertEqual(4, len(state_d))
+
+            # Should support large files
+            self._prepare_test_file("{}/file4.txt".format(tempdir), 4000000)
+
+            state_d = monitor._generate_plugin_state()
+
+            self.assertNotEqual(state_c, state_d)
+            self.assertEqual(4, len(state_d))
+
+
+class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.get_parser()
+
+    def setUp(self):
+        self.gunicorn_master_proc = mock.Mock(pid=2137)
+        self.children = mock.MagicMock()
+        self.child = mock.MagicMock()
+        self.process = mock.MagicMock()
+        self.monitor = cli.GunicornMonitor(
+            gunicorn_master_proc=self.gunicorn_master_proc,
+            num_workers_expected=4,
+            master_timeout=60,
+            worker_refresh_interval=60,
+            worker_refresh_batch_size=2,
+            reload_on_plugin_change=True,
+        )
+
+    def test_ready_prefix_on_cmdline(self):
+        self.child.cmdline.return_value = [settings.GUNICORN_WORKER_READY_PREFIX]
+        self.process.children.return_value = [self.child]
+
+        with mock.patch('psutil.Process', return_value=self.process):
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 1)
+
+    def test_ready_prefix_on_cmdline_no_children(self):
+        self.process.children.return_value = []
+
+        with mock.patch('psutil.Process', return_value=self.process):
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 0)
+
+    def test_ready_prefix_on_cmdline_zombie(self):
+        self.child.cmdline.return_value = []
+        self.process.children.return_value = [self.child]
+
+        with mock.patch('psutil.Process', return_value=self.process):
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 0)
+
+    def test_ready_prefix_on_cmdline_dead_process(self):
+        self.child.cmdline.side_effect = psutil.NoSuchProcess(11347)
+        self.process.children.return_value = [self.child]
+
+        with mock.patch('psutil.Process', return_value=self.process):
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 0)
