@@ -32,7 +32,7 @@ import airflow
 from airflow import models, version, LoggingMixin
 from airflow.configuration import conf
 from airflow.models.connection import Connection
-from airflow.settings import Session
+from airflow.settings import Session, STATE_COLORS
 
 from airflow.www.blueprints import routes
 from airflow.logging_config import configure_logging
@@ -188,7 +188,8 @@ def create_app(config=None, testing=False):
                 'log_auto_tailing_offset': conf.getint(
                     'webserver', 'log_auto_tailing_offset', fallback=30),
                 'log_animation_speed': conf.getint(
-                    'webserver', 'log_animation_speed', fallback=1000)
+                    'webserver', 'log_animation_speed', fallback=1000),
+                'state_color_mapping': STATE_COLORS
             }
 
         @app.before_request

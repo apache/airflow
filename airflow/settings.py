@@ -153,6 +153,20 @@ Session = None
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
 
+# Dictionary containing State and colors associated to each state to
+# display on the Webserver
+STATE_COLORS = {
+    "queued": "gray",
+    "running": "lime",
+    "success": "green",
+    "failed": "red",
+    "up_for_retry": "gold",
+    "up_for_reschedule": "turquoise",
+    "upstream_failed": "orange",
+    "skipped": "pink",
+    "scheduled": "tan",
+}
+
 
 def policy(task_instance):
     """
