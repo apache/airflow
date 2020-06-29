@@ -56,6 +56,7 @@ class TestDagCode(unittest.TestCase):
         return [bash_dag, xcom_dag]
 
     @conf_vars({('core', 'store_dag_code'): 'True'})
+    @patch("airflow.models.dag.settings.STORE_DAG_CODE", True)
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
@@ -68,6 +69,7 @@ class TestDagCode(unittest.TestCase):
 
         self._compare_example_dags(example_dags)
 
+    @conf_vars({('core', 'store_dag_code'): 'True'})
     def test_bulk_sync_to_db(self):
         """Dg code can be bulk written into database."""
         example_dags = make_example_dags(example_dags_module)
@@ -78,6 +80,7 @@ class TestDagCode(unittest.TestCase):
 
         self._compare_example_dags(example_dags)
 
+    @conf_vars({('core', 'store_dag_code'): 'True'})
     def test_bulk_sync_to_db_half_files(self):
         """Dg code can be bulk written into database."""
         example_dags = make_example_dags(example_dags_module)
@@ -119,6 +122,8 @@ class TestDagCode(unittest.TestCase):
                 self.assertEqual(result.source_code, source_code)
 
     @conf_vars({('core', 'store_dag_code'): 'True'})
+    @patch("airflow.models.dag.settings.STORE_DAG_CODE", True)
+    @patch("airflow.models.dagcode.STORE_DAG_CODE", True)
     def test_code_can_be_read_when_no_access_to_file(self):
         """
         Test that code can be retrieved from DB when you do not have access to Code file.
@@ -140,6 +145,7 @@ class TestDagCode(unittest.TestCase):
                 self.assertIn(test_string, dag_code)
 
     @conf_vars({('core', 'store_dag_code'): 'True'})
+    @patch("airflow.models.dag.settings.STORE_DAG_CODE", True)
     def test_db_code_updated_on_dag_file_change(self):
         """Test if DagCode is updated in DB when DAG file is changed"""
         example_dag = make_example_dags(example_dags_module).get('example_bash_operator')
