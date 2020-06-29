@@ -130,7 +130,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: "Build PROD image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_build_production_images.sh
+        run: ./scripts/ci/ci_prepare_prod_image_on_ci.sh
 
   prepare-backport-packages:
     timeout-minutes: 60
@@ -204,7 +204,7 @@ jobs:
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build PROD image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_build_production_images.sh
+        run: ./scripts/ci/ci_prepare_prod_image_on_ci.sh
       - name: "Setup KinD cluster"
         run: ./scripts/ci/ci_perform_kind_cluster_operation.sh start
       - name: "Deploy app to cluster"
@@ -400,7 +400,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build PROD images ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_build_production_images.sh
+        run: ./scripts/ci/ci_prepare_prod_image_on_ci.sh
       - name: "Push PROD images ${{ matrix.python-version }}"
         run: ./scripts/ci/ci_push_production_images.sh
 

@@ -158,7 +158,7 @@ function perform_kind_cluster_operation() {
             echo
             echo "Deploying Airflow to KinD"
             echo
-            get_ci_environment
+            get_environment_for_builds_on_ci
             check_kind_and_kubectl_are_installed
             build_kubernetes_image
             load_image_to_kind_cluster

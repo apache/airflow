@@ -30,7 +30,7 @@ HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
 # shellcheck disable=SC2064
 trap "${HANDLERS}${HANDLERS:+;}dump_kind_logs" EXIT
 
-get_ci_environment
+get_environment_for_builds_on_ci
 check_kind_and_kubectl_are_installed
 build_kubernetes_image
 load_image_to_kind_cluster

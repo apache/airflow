@@ -27,7 +27,7 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     exit
 fi
 
-get_ci_environment
+get_environment_for_builds_on_ci
 
 prepare_ci_build
 

@@ -234,7 +234,7 @@ function initialize_common_environment {
 # (This makes it easy to move between different CI systems)
 # This function maps CI-specific variables into a generic ones (prefixed with CI_) that
 # we used in other scripts
-function get_ci_environment() {
+function get_environment_for_builds_on_ci() {
     export CI_EVENT_TYPE="manual"
     export CI_TARGET_REPO="apache/airflow"
     export CI_TARGET_BRANCH="master"

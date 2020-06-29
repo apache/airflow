@@ -509,7 +509,7 @@ function determine_cache_strategy() {
 function build_ci_image_on_ci() {
     export SKIP_CI_IMAGE_CHECK="false"
 
-    get_ci_environment
+    get_environment_for_builds_on_ci
     determine_cache_strategy
     prepare_ci_build
 
@@ -668,7 +668,7 @@ function prepare_prod_build() {
 # Depending on the type of build (push/pr/scheduled) it will either build it incrementally or
 # from the scratch without cache (the latter for scheduled builds only)
 function build_prod_image_on_ci() {
-    get_prod_environment
+    get_environment_for_builds_on_ci
 
     determine_cache_strategy
 

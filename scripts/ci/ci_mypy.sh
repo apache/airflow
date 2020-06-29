@@ -43,7 +43,7 @@ function run_mypy() {
         | tee -a "${OUTPUT_LOG}"
 }
 
-get_ci_environment
+get_environment_for_builds_on_ci
 
 prepare_ci_build
 

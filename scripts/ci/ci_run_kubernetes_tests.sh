@@ -70,7 +70,7 @@ else
 
 fi
 
-get_ci_environment
+get_environment_for_builds_on_ci
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
