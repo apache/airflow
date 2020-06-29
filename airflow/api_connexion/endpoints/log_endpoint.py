@@ -32,14 +32,14 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
     """
     Get logs for specific task instance
     """
+    key = current_app.config["SECRET_KEY"]
     if not token:
         metadata = {}
     else:
-        key = current_app.config["SECRET_KEY"]
         try:
             metadata = URLSafeSerializer(key).loads(token)
         except BadSignature:
-            raise BadRequest("Bad Signature. Please sign your token with URLSafeSerializer")
+            raise BadRequest("Bad Signature. Please use only the tokens provided by the API.")
 
     if metadata.get('download_logs', None) and metadata['download_logs']:
         full_content = True
@@ -63,35 +63,25 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
         metadata['end_of_log'] = True
         raise BadRequest(detail="Task instance did not exist in the DB")
 
-    try:
-        dag = current_app.dag_bag.get_dag(dag_id)
-        if dag:
-            ti.task = dag.get_task(ti.task_id)
+    dag = current_app.dag_bag.get_dag(dag_id)
+    if dag:
+        ti.task = dag.get_task(ti.task_id)
 
-        return_type = request.accept_mimetypes.best_match(['text/plain', 'application/json'])
+    return_type = request.accept_mimetypes.best_match(['text/plain', 'application/json'])
 
-        # return_type would be either the above two or None
+    # return_type would be either the above two or None
 
-        if return_type == 'application/json' or return_type is None:  # default
-            logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
-            logs = logs[0] if task_try_number is not None else logs
-            return logs_schema.dump(LogResponseObject(continuation_token=str(metadata),
-                                                      content=logs)
-                                    )
-        # text/plain. Stream
-        logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
+    if return_type == 'application/json' or return_type is None:  # default
+        logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
+        logs = logs[0] if task_try_number is not None else logs
+        token = URLSafeSerializer(key).dumps(metadata)
+        return logs_schema.dump(LogResponseObject(continuation_token=token,
+                                                  content=logs)
+                                )
+    # text/plain. Stream
+    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
 
-        return Response(
-            logs,
-            headers={"Content-Type": return_type}
-        )
-
-    except AttributeError as err:
-        error_message = [
-            f"Task log handler {task_log_reader} does not support read logs.\n{str(err)}\n"
-        ]
-        metadata['end_of_log'] = True
-        return logs_schema.dump(
-            LogResponseObject(continuation_token=str(metadata),
-                              content=str(error_message))
-        )
+    return Response(
+        logs,
+        headers={"Content-Type": return_type}
+    )

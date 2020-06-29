@@ -151,9 +151,10 @@ class TestGetLog(unittest.TestCase):
             response.json['content'],
             f"*** Reading local file: {expected_filename}\nLog for testing."
         )
-        self.assertIn(
-            response.json['continuation_token'],
-            "{'end_of_log': True}"
+        info = serializer.loads(response.json['continuation_token'])
+        self.assertEqual(
+            info,
+            {'end_of_log': True}
         )
         self.assertEqual(200, response.status_code)
 
@@ -249,7 +250,7 @@ class TestGetLog(unittest.TestCase):
             {
                 'detail': None,
                 'status': 400,
-                'title': "Bad Signature. Please sign your token with URLSafeSerializer",
+                'title': "Bad Signature. Please use only the tokens provided by the API.",
                 'type': 'about:blank'
             }
         )
