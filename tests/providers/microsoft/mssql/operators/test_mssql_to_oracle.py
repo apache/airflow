@@ -24,7 +24,7 @@ from mock import MagicMock
 from airflow.providers.microsoft.mssql.operators.mssql_to_oracle import MsSqlToOracle
 
 
-class TestMsSqlToOracleOperator(unittest.TestCase):
+class TestMsSqlToOracle(unittest.TestCase):
 
     @staticmethod
     def test_execute():
@@ -47,7 +47,7 @@ class TestMsSqlToOracleOperator(unittest.TestCase):
         mock_cursor.description.__iter__.return_value = cursor_description
         mock_cursor.fetchmany.side_effect = [cursor_rows, []]
 
-        op = MsSqlToOracleOperator(
+        op = MsSqlToOracle(
             task_id='copy_data',
             oracle_destination_conn_id=oracle_destination_conn_id,
             destination_table=destination_table,
