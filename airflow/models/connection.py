@@ -130,7 +130,7 @@ class Connection(Base, LoggingMixin):
     :type host: str
     :param login: The login.
     :type login: str
-    :param password: The pasword.
+    :param password: The password.
     :type password: str
     :param schema: The schema.
     :type schema: str
