@@ -1308,7 +1308,7 @@ class TestTaskStats(unittest.TestCase):
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_xcom', stats)
         self.assertEqual(set(stats['example_bash_operator'][0].keys()),
-                         {'state', 'count', 'color'})
+                         {'state', 'count'})
 
     def test_selected_dags(self):
         resp = self.app.get(
@@ -1336,7 +1336,7 @@ class TestTaskStats(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertEqual(set(list(stats.items())[0][1][0].keys()),
-                         {'state', 'count', 'color'})
+                         {'state', 'count'})
 
 
 if __name__ == '__main__':
