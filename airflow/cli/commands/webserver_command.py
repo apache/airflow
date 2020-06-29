@@ -84,7 +84,7 @@ class GunicornMonitor(LoggingMixin):
         worker_refresh_batch_size: int,
         reload_on_plugin_change: bool
     ):
-        super(GunicornMonitor, self).__init__()
+        super().__init__()
         self.gunicorn_master_proc = gunicorn_master_proc
         self.num_workers_expected = num_workers_expected
         self.master_timeout = master_timeout
@@ -208,7 +208,7 @@ class GunicornMonitor(LoggingMixin):
                 timeout=self.master_timeout
             )
             while True:
-                while self.gunicorn_master_proc.poll() is not None:
+                if self.gunicorn_master_proc.poll() is not None:
                     sys.exit(self.gunicorn_master_proc.returncode)
                 self._check_workers()
                 # Throttle loop
