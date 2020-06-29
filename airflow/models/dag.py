@@ -1529,7 +1529,7 @@ class DAG(BaseDag, LoggingMixin):
         orm_dag.schedule_interval = self.schedule_interval
         orm_dag.tags = self.get_dagtags(session=session)
 
-        if conf.getboolean('core', 'store_dag_code', fallback=False):
+        if settings.STORE_DAG_CODE:
             DagCode.bulk_sync_to_db([orm_dag.fileloc])
 
         session.commit()
