@@ -729,10 +729,6 @@ with redirect_stdout(StreamLogWriter(logger, logging.INFO)), \
     print("I Love Airflow")
 ```
 
-### Removal of XCom.get_one()
-
-This one is superseded by `XCom.get_many().first()` which will return the same result.
-
 ### Changes to SQLSensor
 
 SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.

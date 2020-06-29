@@ -265,6 +265,34 @@ class TestClearTasks(unittest.TestCase):
 
         self.assertEqual(ret_value, json_obj)
 
+    @conf_vars({("core", "enable_xcom_pickling"): "False"})
+    def test_xcom_get_one_disable_pickle_type(self):
+        json_obj = {"key": "value"}
+        execution_date = timezone.utcnow()
+        key = "xcom_test1"
+        dag_id = "test_dag1"
+        task_id = "test_task1"
+        XCom.set(key=key,
+                 value=json_obj,
+                 dag_id=dag_id,
+                 task_id=task_id,
+                 execution_date=execution_date)
+
+        ret_value = XCom.get_one(key=key,
+                                 dag_id=dag_id,
+                                 task_id=task_id,
+                                 execution_date=execution_date)
+
+        self.assertEqual(ret_value, json_obj)
+
+        session = settings.Session()
+        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
+                                               XCom.task_id == task_id,
+                                               XCom.execution_date == execution_date
+                                               ).first().value
+
+        self.assertEqual(ret_value, json_obj)
+
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_xcom_enable_pickle_type(self):
         json_obj = {"key": "value"}
@@ -282,6 +310,34 @@ class TestClearTasks(unittest.TestCase):
                                   dag_ids=dag_id,
                                   task_ids=task_id,
                                   execution_date=execution_date).first().value
+
+        self.assertEqual(ret_value, json_obj)
+
+        session = settings.Session()
+        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
+                                               XCom.task_id == task_id,
+                                               XCom.execution_date == execution_date
+                                               ).first().value
+
+        self.assertEqual(ret_value, json_obj)
+
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
+    def test_xcom_get_one_enable_pickle_type(self):
+        json_obj = {"key": "value"}
+        execution_date = timezone.utcnow()
+        key = "xcom_test3"
+        dag_id = "test_dag"
+        task_id = "test_task3"
+        XCom.set(key=key,
+                 value=json_obj,
+                 dag_id=dag_id,
+                 task_id=task_id,
+                 execution_date=execution_date)
+
+        ret_value = XCom.get_one(key=key,
+                                 dag_id=dag_id,
+                                 task_id=task_id,
+                                 execution_date=execution_date)
 
         self.assertEqual(ret_value, json_obj)
 
