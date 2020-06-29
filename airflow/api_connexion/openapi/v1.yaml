@@ -1381,9 +1381,6 @@ components:
         open_slots:
           type: integer
           readOnly: true
-      required:
-        - name
-        - slots
 
     PoolCollection:
       type: object

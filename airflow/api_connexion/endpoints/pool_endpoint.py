@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from flask import Response, request
+from marshmallow import ValidationError
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
@@ -70,17 +71,24 @@ def patch_pool(pool_name, session, update_mask=None):
     Update a pool
     """
     # Only slots can be modified in 'default_pool'
-    if pool_name == Pool.DEFAULT_POOL_NAME and request.json["name"] != Pool.DEFAULT_POOL_NAME:
-        if update_mask and len(update_mask) == 1 and update_mask[0].strip() == "slots":
-            pass
-        else:
-            raise BadRequest(detail="Default Pool's name can't be modified")
+    try:
+        if pool_name == Pool.DEFAULT_POOL_NAME and request.json["name"] != Pool.DEFAULT_POOL_NAME:
+            if update_mask and len(update_mask) == 1 and update_mask[0].strip() == "slots":
+                pass
+            else:
+                raise BadRequest(detail="Default Pool's name can't be modified")
+    except KeyError:
+        pass
 
     pool = session.query(Pool).filter(Pool.pool == pool_name).first()
     if not pool:
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
 
-    patch_body = pool_schema.load(request.json).data
+    try:
+        patch_body = pool_schema.load(request.json).data
+    except ValidationError as err:
+        raise BadRequest(detail=err.messages.get("_schema", [err.messages])[0])
+
     if update_mask:
         update_mask = [i.strip() for i in update_mask]
         _patch_body = {}
@@ -96,6 +104,11 @@ def patch_pool(pool_name, session, update_mask=None):
         _patch_body = {field: patch_body[field] for field in update_mask}
         patch_body = _patch_body
 
+    else:
+        for field in ["name", "slots"]:
+            if field not in request.json.keys():
+                raise BadRequest(detail=f"'{field}' is a required property")
+
     for key, value in patch_body.items():
         setattr(pool, key, value)
     session.commit()
@@ -107,7 +120,16 @@ def post_pool(session):
     """
     Create a pool
     """
-    post_body = pool_schema.load(request.json, session=session).data
+    required_fields = ["name", "slots"]  # Pool would require both fields in the post request
+    for field in required_fields:
+        if field not in request.json.keys():
+            raise BadRequest(detail=f"'{field}' is a required property")
+
+    try:
+        post_body = pool_schema.load(request.json, session=session).data
+    except ValidationError as err:
+        raise BadRequest(detail=err.messages.get("_schema", [err.messages])[0])
+
     pool = Pool(**post_body)
     try:
         session.add(pool)

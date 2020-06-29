@@ -211,19 +211,28 @@ class TestPostPool(TestBasePoolEndpoints):
 
     @parameterized.expand(
         [
-            ("for missing pool name", {"slots": 3}, "name"),
-            ("for missing slots", {"name": "invalid_pool"}, "slots"),
+            ("for missing pool name", {"slots": 3}, "'name' is a required property",),
+            (
+                "for missing slots",
+                {"name": "invalid_pool"},
+                "'slots' is a required property",
+            ),
+            (
+                "for extra fields",
+                {"name": "invalid_pool", "slots": 3, "extra_field_1": "extra"},
+                "Extra arguments passed: ['extra_field_1']",
+            ),
         ]
     )
-    def test_response_400(self, name, request_json, missing_field):
+    def test_response_400(self, name, request_json, error_detail):
         del name
         response = self.client.post("api/v1/pools", json=request_json)
         assert response.status_code == 400
-        self.assertEqual(
+        self.assertDictEqual(
             {
-                "detail": f"'{missing_field}' is a required property",
+                "detail": error_detail,
                 "status": 400,
-                "title": "Bad Request",
+                "title": "Bad request",
                 "type": "about:blank",
             },
             response.json,
@@ -233,13 +242,13 @@ class TestPostPool(TestBasePoolEndpoints):
 class TestPatchPool(TestBasePoolEndpoints):
     @provide_session
     def test_response_200(self, session):
-        pool = Pool(pool="test_pool", slots=3)
+        pool = Pool(pool="test_pool", slots=2)
         session.add(pool)
         session.commit()
         response = self.client.patch(
             "api/v1/pools/test_pool", json={"name": "test_pool_a", "slots": 3}
         )
-        assert response.status_code == 200
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(
             {
                 "occupied_slots": 0,
@@ -252,18 +261,30 @@ class TestPatchPool(TestBasePoolEndpoints):
             response.json,
         )
 
+    @parameterized.expand(
+        [
+            # Missing properties
+            ("'name' is a required property", {"slots": 3}),
+            ("'slots' is a required property", {"name": "test_pool_a"}),
+            # Extra properties
+            (
+                "Extra arguments passed: ['extra_field']",
+                {"name": "test_pool_a", "slots": 3, "extra_field": "extra"},
+            ),
+        ]
+    )
     @provide_session
-    def test_response_400(self, session):
-        pool = Pool(pool="test_pool", slots=3)
+    def test_response_400(self, error_detail, request_json, session):
+        pool = Pool(pool="test_pool", slots=2)
         session.add(pool)
         session.commit()
-        response = self.client.patch("api/v1/pools/test_pool", json={"slots": 3})
+        response = self.client.patch("api/v1/pools/test_pool", json=request_json)
         assert response.status_code == 400
         self.assertEqual(
             {
-                "detail": "'name' is a required property",
+                "detail": error_detail,
                 "status": 400,
-                "title": "Bad Request",
+                "title": "Bad request",
                 "type": "about:blank",
             },
             response.json,
@@ -341,7 +362,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
             (
                 "200 no update mask",
                 200,
-                "api/v1/pools/default_pool?update_mask=name,slots",
+                "api/v1/pools/default_pool",
                 {"name": "default_pool", "slots": 3},
                 {
                     "occupied_slots": 0,

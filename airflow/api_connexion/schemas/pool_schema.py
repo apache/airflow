@@ -17,7 +17,7 @@
 
 from typing import List, NamedTuple
 
-from marshmallow import Schema, fields
+from marshmallow import Schema, ValidationError, fields, validates_schema
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.models.pool import Pool
@@ -66,6 +66,12 @@ class PoolSchema(SQLAlchemySchema):
         Returns the open slots of the pool.
         """
         return obj.open_slots()
+
+    @validates_schema(pass_original=True)
+    def check_unknown_fields(self, data, original_data):
+        unknown = set(original_data) - set(self.fields)
+        if unknown:
+            raise ValidationError(f"Extra arguments passed: {list(unknown)}")
 
 
 class PoolCollection(NamedTuple):
