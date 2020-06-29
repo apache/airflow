@@ -780,7 +780,7 @@ class HiveMetastoreHook(BaseHook):
         Drop partitions matching param_names input
         >>> hh = HiveMetastoreHook()
         >>> hh.drop_partitions(db='airflow', table_name='static_babynames', 
-                               part_vals="['2020-05-01']")
+        part_vals="['2020-05-01']")
         True
         """
         if self.table_exists(table_name, db):
