@@ -22,10 +22,9 @@ import tempfile
 import unittest
 import warnings
 from collections import OrderedDict
-from importlib import reload
 from unittest import mock
 
-from airflow import configuration, settings
+from airflow import configuration
 from airflow.configuration import (
     DEFAULT_CONFIG, AirflowConfigException, AirflowConfigParser, conf, expand_env_var, get_airflow_config,
     get_airflow_home, parameterized_config, run_command,
@@ -41,9 +40,6 @@ from tests.test_utils.reset_warning_registry import reset_warning_registry
     'AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD': 'echo -n "NOT OK"'
 })
 class TestConf(unittest.TestCase):
-
-    def tearDown(self) -> None:
-        reload(settings)
 
     def test_airflow_home_default(self):
         with unittest.mock.patch.dict('os.environ'):
@@ -606,17 +602,19 @@ notacommand = OK
 
     @conf_vars({("core", "store_serialized_dags"): "True"})
     def test_store_dag_code_default_config(self):
-        reload(settings)
+        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
+        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
         self.assertFalse(conf.has_option("core", "store_dag_code"))
-        self.assertTrue(settings.STORE_SERIALIZED_DAGS)
-        self.assertTrue(settings.STORE_DAG_CODE)
+        self.assertTrue(store_serialized_dags)
+        self.assertTrue(store_dag_code)
 
     @conf_vars({
         ("core", "store_serialized_dags"): "True",
         ("core", "store_dag_code"): "False"
     })
     def test_store_dag_code_config_when_set(self):
-        reload(settings)
+        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
+        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
         self.assertTrue(conf.has_option("core", "store_dag_code"))
-        self.assertTrue(settings.STORE_SERIALIZED_DAGS)
-        self.assertFalse(settings.STORE_DAG_CODE)
+        self.assertTrue(store_serialized_dags)
+        self.assertFalse(store_dag_code)
