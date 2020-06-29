@@ -772,7 +772,7 @@
       version_added: ~
       type: boolean
       example: ~
-      default: False
+      default: "False"
     - name: secret_key
       description: |
         Secret key used to run your flask app

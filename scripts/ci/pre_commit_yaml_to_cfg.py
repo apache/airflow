@@ -82,46 +82,61 @@ def write_config(yaml_config_file_path: str, default_cfg_file_path: str):
         config_yaml = read_default_config_yaml(yaml_config_file_path)
 
         for section in config_yaml:  # pylint: disable=too-many-nested-blocks
-            section_name = section["name"]
-            configfile.write(f"\n[{section_name}]\n")
+            _write_section(configfile, section)
 
-            section_description = None
-            if section["description"] is not None:
-                section_description = list(
-                    filter(lambda x: (x is not None) or x != "", section["description"].splitlines()))
-            if section_description:
-                configfile.write("\n")
-                for single_line_desc in section_description:
-                    if single_line_desc == "":
-                        configfile.write("#\n")
-                    else:
-                        configfile.write(f"# {single_line_desc}\n")
 
-            for idx, option in enumerate(section["options"]):
-                option_description = None
-                if option["description"] is not None:
-                    option_description = list(
-                        filter(lambda x: x is not None, option["description"].splitlines()))
+def _write_section(configfile, section):
+    section_name = section["name"]
+    configfile.write(f"\n[{section_name}]\n")
+    section_description = None
+    if section["description"] is not None:
+        section_description = list(
+            filter(lambda x: (x is not None) or x != "", section["description"].splitlines()))
+    if section_description:
+        configfile.write("\n")
+        for single_line_desc in section_description:
+            if single_line_desc == "":
+                configfile.write("#\n")
+            else:
+                configfile.write(f"# {single_line_desc}\n")
+    for idx, option in enumerate(section["options"]):
+        _write_option(configfile, idx, option)
 
-                if option_description:
-                    if idx != 0:
-                        configfile.write("\n")
-                    for single_line_desc in option_description:
-                        if single_line_desc == "":
-                            configfile.write("#\n")
-                        else:
-                            configfile.write(f"# {single_line_desc}\n")
 
-                if option["example"]:
-                    if not str(option["name"]).endswith("_template"):
-                        option["example"] = option["example"].replace("{", "{{").replace("}", "}}")
-                    configfile.write("# Example: {} = {}\n".format(option["name"], option["example"]))
+def _write_option(configfile, idx, option):
+    option_description = None
+    if option["description"] is not None:
+        option_description = list(
+            filter(lambda x: x is not None, option["description"].splitlines()))
 
-                configfile.write("{}{} ={}\n".format(
-                    "# " if option["default"] is None else "",
-                    option["name"],
-                    " " + option["default"] if option["default"] else "")
-                )
+    if option_description:
+        if idx != 0:
+            configfile.write("\n")
+        for single_line_desc in option_description:
+            if single_line_desc == "":
+                configfile.write("#\n")
+            else:
+                configfile.write(f"# {single_line_desc}\n")
+
+    if option["example"]:
+        if not str(option["name"]).endswith("_template"):
+            option["example"] = option["example"].replace("{", "{{").replace("}", "}}")
+        configfile.write("# Example: {} = {}\n".format(option["name"], option["example"]))
+
+    if option["default"] is not None:
+        if not isinstance(option["default"], str):
+            raise Exception(
+                "Key \"default\" in element with name=\"{}\" has an invalid type. "
+                "Current type: {}".format(option["name"], type(option["default"]))
+            )
+        # Remove trailing whitespace on empty string
+        if option["default"]:
+            value = " " + option["default"]
+        else:
+            value = ""
+        configfile.write("{} ={}\n".format(option["name"], value))
+    else:
+        configfile.write("# {} =\n".format(option["name"]))
 
 
 if __name__ == '__main__':
