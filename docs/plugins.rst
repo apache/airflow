@@ -318,3 +318,12 @@ This will create a hook, and an operator accessible at:
 
 - ``airflow.hooks.my_namespace.MyHook``
 - ``airflow.operators.my_namespace.MyOperator``
+
+Automatic reloading webserver
+-----------------------------
+
+To enable automatic reloading of the webserver, when changes in a directory with plugins has been detected,
+you should set ``reload_on_plugin_change`` option in ``[webserver]`` section to ``True``.
+
+.. note::
+    For more information on setting the configuration, see :doc:`/howto/set-config`
