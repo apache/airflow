@@ -785,11 +785,11 @@ class HiveMetastoreHook(BaseHook):
         """
         if self.table_exists(table_name, db):
             with self.metastore as client:
-                self.log.info("Dropping partition of table {}.{} matching the spec: {}"
-                              .format(db, table_name, part_vals))
+                self.log.info("Dropping partition of table %s.%s matching the spec: %s", 
+                              db, table_name, part_vals)
                 return client.drop_partition(db, table_name, part_vals, delete_data)
         else:
-            self.log.info("Table {}.{} does not exist!".format(db, table_name))
+            self.log.info("Table %s.%s does not exist!", db, table_name)
             return False
 
 
