@@ -16,6 +16,7 @@
 # under the License.
 
 """Webserver command"""
+import hashlib
 import os
 import signal
 import subprocess
@@ -104,12 +105,21 @@ class GunicornMonitor(LoggingMixin):
         """
         if not settings.PLUGINS_FOLDER:
             return {}
+
         all_filenames: List[str] = []
         for (root, _, filenames) in os.walk(settings.PLUGINS_FOLDER):
-            # filenames: List[str] = cast(List[str], filenames)
             all_filenames.extend(os.path.join(root, f) for f in filenames)
-        plugin_state = {f: os.path.getmtime(f) for f in sorted(all_filenames)}
+        plugin_state = {f: self._get_file_hash(f) for f in sorted(all_filenames)}
         return plugin_state
+
+    @staticmethod
+    def _get_file_hash(fname: str):
+        """Calculate MD5 hash for file"""
+        hash_md5 = hashlib.md5()
+        with open(fname, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
 
     def _get_num_ready_workers_running(self) -> int:
         """Returns number of ready Gunicorn workers by looking for READY_PREFIX in process name"""
@@ -175,7 +185,7 @@ class GunicornMonitor(LoggingMixin):
                 timeout=self.master_timeout)
 
     def _reload_gunicorn(self) -> None:
-        """"
+        """
         Send signal to reload the gunciron configuration. When gunciorn receive signals, it reload the
         configuration, start the new worker processes with a new configuration and gracefully
         shutdown older workers.

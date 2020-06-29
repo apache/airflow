@@ -116,6 +116,62 @@ class TestGunicornMonitor(unittest.TestCase):
         self.assertAlmostEqual(self.monitor._last_refresh_time, time(), delta=5)
 
 
+class TestGunicornMonitorGeneratePluginState(unittest.TestCase):
+    @staticmethod
+    def _prepare_test_file(filepath: str, size: int):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, "w") as file:
+            file.write("A" * size)
+            file.flush()
+
+    def test_should_detect_changes_in_directory(self):
+        with tempfile.TemporaryDirectory() as tempdir,\
+             mock.patch("airflow.cli.commands.webserver_command.settings.PLUGINS_FOLDER", tempdir):
+            self._prepare_test_file(f"{tempdir}/file1.txt", 100)
+            self._prepare_test_file(f"{tempdir}/nested/nested/nested/nested/file2.txt", 200)
+            self._prepare_test_file(f"{tempdir}/file3.txt", 300)
+
+            monitor = GunicornMonitor(
+                gunicorn_master_proc=mock.MagicMock(),
+                num_workers_expected=4,
+                master_timeout=60,
+                worker_refresh_interval=60,
+                worker_refresh_batch_size=2,
+                reload_on_plugin_change=True,
+            )
+
+            # When the files have not changed, the result should be constant
+            state_a = monitor._generate_plugin_state()
+            state_b = monitor._generate_plugin_state()
+
+            self.assertEqual(state_a, state_b)
+            self.assertEqual(3, len(state_a))
+
+            # Should detect new file
+            self._prepare_test_file(f"{tempdir}/file4.txt", 400)
+
+            state_c = monitor._generate_plugin_state()
+
+            self.assertNotEqual(state_b, state_c)
+            self.assertEqual(4, len(state_c))
+
+            # Should detect changes in files
+            self._prepare_test_file(f"{tempdir}/file4.txt", 450)
+
+            state_d = monitor._generate_plugin_state()
+
+            self.assertNotEqual(state_c, state_d)
+            self.assertEqual(4, len(state_d))
+
+            # Should support large files
+            self._prepare_test_file(f"{tempdir}/file4.txt", 4000000)
+
+            state_d = monitor._generate_plugin_state()
+
+            self.assertNotEqual(state_c, state_d)
+            self.assertEqual(4, len(state_d))
+
+
 class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
 
     @classmethod
