@@ -1529,11 +1529,6 @@ class SchedulerJob(BaseJob):
                         f"task says its {ti.state}. (Info: {info}) Was the task killed externally?"
                 )
 
-        # Report missing task instances
-        for key in event_buffer.keys():
-            dag_id, task_id, _, _ = key
-            self.log.warning("TaskInstance %s.%s went missing from the database", dag_id, task_id)
-
     def _execute(self):
         self.log.info("Starting the scheduler")
 
