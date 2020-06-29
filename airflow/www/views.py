@@ -61,7 +61,6 @@ from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.settings import STATE_COLORS
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import timezone
@@ -337,7 +336,6 @@ class Airflow(AirflowBaseView):  # noqa: D101
 
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
-        state_color_mapping.update(STATE_COLORS)
 
         return self.render_template(
             'airflow/dags.html',
