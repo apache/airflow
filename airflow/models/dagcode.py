@@ -21,9 +21,9 @@ from datetime import datetime
 
 from sqlalchemy import BigInteger, Column, String, UnicodeText, and_, exists
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagCodeNotFound
 from airflow.models import Base
+from airflow.settings import STORE_DAG_CODE
 from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.db import provide_session
@@ -178,7 +178,7 @@ class DagCode(Base):
 
         :return: source code as string
         """
-        if conf.getboolean('core', 'store_dag_code', fallback=False):
+        if STORE_DAG_CODE:
             return cls._get_code_from_db(fileloc)
         else:
             return cls._get_code_from_file(fileloc)
