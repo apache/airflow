@@ -68,7 +68,8 @@ class PoolSchema(SQLAlchemySchema):
         return obj.open_slots()
 
     @validates_schema(pass_original=True)
-    def check_unknown_fields(self, data, original_data):
+    def check_unknown_fields(self, data, original_data):  # pylint: disable=unused-argument
+        """ Validates unknown field """
         unknown = set(original_data) - set(self.fields)
         if unknown:
             raise ValidationError(f"Extra arguments passed: {list(unknown)}")
