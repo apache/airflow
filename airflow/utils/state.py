@@ -21,6 +21,8 @@ from __future__ import unicode_literals
 
 from builtins import object
 
+from airflow.settings import STATE_COLORS
+
 
 class State(object):
     """
@@ -80,6 +82,7 @@ class State(object):
         SCHEDULED: 'tan',
         NONE: 'lightblue',
     }
+    state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod
     def color(cls, state):

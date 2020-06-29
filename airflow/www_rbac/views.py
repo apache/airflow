@@ -63,7 +63,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_suc
 from airflow.models import Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.exceptions import AirflowException
 from airflow.models.dagcode import DagCode
-from airflow.settings import STORE_SERIALIZED_DAGS
+from airflow.settings import STATE_COLORS, STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -334,6 +334,7 @@ class Airflow(AirflowBaseView):
 
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
+        state_color_mapping.update(STATE_COLORS)
 
         return self.render_template(
             'airflow/dags.html',
