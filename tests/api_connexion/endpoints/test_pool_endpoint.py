@@ -403,6 +403,12 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
                 "test_pool",
                 2,
             ),
+            (
+                "api/v1/pools/test_pool?update_mask=slots",
+                {"slots": 2},
+                "test_pool",
+                2,
+            ),
         ]
     )
     @provide_session
