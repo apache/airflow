@@ -263,13 +263,13 @@ Once that is done, you can run -
 
 .. code-block::
 
- airflow db upgrade
+ airflow upgradedb
 
-``upgrade`` keeps track of migrations already applies, so it's safe to run as often as you need.
+``upgradedb`` keeps track of migrations already applies, so it's safe to run as often as you need.
 
 .. note::
 
- Do not use ``airflow db init`` as it can create a lot of default connections, charts, etc. which are not required in production DB.
+ Do not use ``airflow initdb`` as it can create a lot of default connections, charts, etc. which are not required in production DB.
 
 
 Multi-Node Cluster
