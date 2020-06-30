@@ -401,7 +401,7 @@ def webserver(args):
                 gunicorn_master_proc=gunicorn_master_proc,
                 num_workers_expected=num_workers,
                 master_timeout=conf.getint('webserver', 'web_server_master_timeout'),
-                worker_refresh_interval=conf.getint('webserver', 'worker_refresh_interval', fallback=10),
+                worker_refresh_interval=conf.getint('webserver', 'worker_refresh_interval', fallback=30),
                 worker_refresh_batch_size=conf.getint('webserver', 'worker_refresh_batch_size', fallback=1),
                 reload_on_plugin_change=conf.getboolean(
                     'webserver', 'reload_on_plugin_change', fallback=False
