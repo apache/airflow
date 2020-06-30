@@ -264,4 +264,4 @@ to port-forward the Airflow UI to http://localhost:8080/ to cofirm Airflow is wo
 
 ## Contributing
 
-Check out [our contributing guide!](CONTRIBUTING.md)
+Check out [our contributing guide!](../CONTRIBUTING.rst)
