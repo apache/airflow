@@ -297,7 +297,8 @@ class TestCliWebServer(unittest.TestCase):
         proc.wait()
 
     # Patch for causing webserver timeout
-    @mock.patch("airflow.cli.commands.webserver_command.get_num_workers_running", return_value=0)
+    @mock.patch("airflow.cli.commands.webserver_command.GunicornMonitor._get_num_workers_running",
+                return_value=0)
     def test_cli_webserver_shutdown_when_gunicorn_master_is_killed(self, _):
         # Shorten timeout so that this test doesn't take too long time
         args = self.parser.parse_args(['webserver'])
