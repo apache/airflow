@@ -189,7 +189,7 @@ azure_blob_storage = [
     'azure-storage-blob<12.0',
 ]
 azure_container_instances = [
-    'azure-mgmt-containerinstance>=1.5.0'
+    'azure-mgmt-containerinstance>=1.5.0,<2'
 ]
 azure_cosmos = [
     'azure-cosmos>=3.0.1,<4',
@@ -580,7 +580,7 @@ INSTALL_REQUIREMENTS = [
     'pendulum==1.4.4',
     'psutil>=4.2.0, <6.0.0',
     'pygments>=2.0.1, <3.0',
-    'python-daemon>=2.1.1, <2.2',
+    'python-daemon>=2.1.1',
     'python-dateutil>=2.3, <3',
     'python-nvd3~=0.15.0',
     'python-slugify>=3.0.0,<5.0',
