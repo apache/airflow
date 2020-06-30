@@ -126,9 +126,10 @@ class BaseXCom(Base, LoggingMixin):
                 task_id: Optional[Union[str, Iterable[str]]] = None,
                 dag_id: Optional[Union[str, Iterable[str]]] = None,
                 include_prior_dates: bool = False,
-                session: Session = None):
+                session: Session = None) -> Optional[Any]:
         """
-        Retrieve an XCom value, optionally meeting certain criteria.
+        Retrieve an XCom value, optionally meeting certain criteria. Returns None
+        of there are no results.
 
         :param execution_date: Execution date for the task
         :type execution_date: pendulum.datetime
@@ -156,6 +157,7 @@ class BaseXCom(Base, LoggingMixin):
                               session=session).first()
         if result:
             return result.value
+        return None
 
     @classmethod
     @provide_session
