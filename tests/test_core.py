@@ -26,6 +26,8 @@ import multiprocessing
 import os
 import re
 import signal
+
+import pytest
 import sqlalchemy
 import subprocess
 import tempfile
@@ -1673,6 +1675,7 @@ class CliTests(unittest.TestCase):
         if os.path.exists(pidfile_monitor):
             os.remove(pidfile_monitor)
 
+    @pytest.mark.quarantined
     def test_cli_webserver_foreground(self):
         self._check_processes()
         self._clean_pidfiles()
@@ -1696,6 +1699,7 @@ class CliTests(unittest.TestCase):
 
     @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
                      "Skipping test due to lack of required file permission")
+    @pytest.mark.quarantined
     def test_cli_webserver_foreground_with_pid(self):
         # Run webserver in foreground with --pid option
         pidfile = tempfile.mkstemp()[1]
@@ -1710,6 +1714,7 @@ class CliTests(unittest.TestCase):
 
     @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
                      "Skipping test due to lack of required file permission")
+    @pytest.mark.quarantined
     def test_cli_webserver_background(self):
         import psutil
         self._check_processes()
