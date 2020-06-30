@@ -2048,7 +2048,10 @@ class CLIFactory(object):
             ("-e", "--end_date"), "Override end_date YYYY-MM-DD",
             type=parsedate),
         'dry_run': Arg(
-            ("-dr", "--dry_run"), "Perform a dry run", "store_true"),
+            ("-dr", "--dry_run"),
+            "Perform a dry run for each task. Only renders Template Fields "
+            "for each task, nothing else",
+            "store_true"),
         'pid': Arg(
             ("--pid",), "PID file location",
             nargs='?'),
