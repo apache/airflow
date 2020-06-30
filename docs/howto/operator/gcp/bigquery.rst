@@ -269,6 +269,7 @@ For more information on types of BigQuery job please check
 
 If you want to include some files in your configuration you can use ``include`` clause of Jinja template
 language as follow:
+
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
     :dedent: 8
