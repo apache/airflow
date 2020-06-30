@@ -379,6 +379,7 @@ segment = [
 ]
 sendgrid = [
     'sendgrid>=6.0.0,<7',
+    'starkbank-ecdsa>=1.0.0'  # PR 901 on sendgrid
 ]
 sentry = [
     'blinker>=1.1',
