@@ -1669,6 +1669,7 @@ components:
           format: datetime
         description:
           type: string
+          nullable: true
         notification_sent:
           type: boolean
 
@@ -1712,12 +1713,14 @@ components:
           type: string
         queued_when:
           type: string
+          nullable: True
         pid:
           type: integer
         executor_config:
           type: string
         sla_miss:
           $ref: '#/components/schemas/SLAMiss'
+          nullable: true
 
     TaskInstanceCollection:
       type: object
@@ -2045,13 +2048,13 @@ components:
 
         only_failed:
           description: Only clear failed tasks.
-          type: string
-          format: datetime
+          type: boolean
+          default: true
 
         only_running:
           description: Only clear running tasks.
-          type: string
-          format: datetime
+          type: boolean
+          default: false
 
         include_subdags:
           description: Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker.
@@ -2200,19 +2203,19 @@ components:
             Returns objects less than or equal to the specified values.
 
             This can be combined with duration_gte parameter to receive only the selected range.
-        State:
+        state:
           type: array
           items:
             type: string
           description:
             The value can be repeated to retrieve multiple matching values (OR condition).
-        Pool:
+        pool:
           type: array
           items:
             type: string
           description:
             The value can be repeated to retrieve multiple matching values (OR condition).
-        Queue:
+        queue:
           type: array
           items:
             type: string

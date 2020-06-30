@@ -15,22 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from marshmallow import fields, validate
-
-from airflow.utils.state import State
-
-
-class DagStateField(fields.String):
-    """Schema for DagState Enum"""
-
-    def __init__(self, **metadata):
-        super().__init__(**metadata)
-        self.validators = [validate.OneOf(State.dag_states)] + list(self.validators)
+from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+from airflow.models import SlaMiss
 
 
-class TaskInstanceStateField(fields.String):
-    """Schema for TaskInstanceState Enum"""
+class SlaMissSchema(SQLAlchemySchema):
+    """Sla Miss Schema"""
 
-    def __init__(self, **metadata):
-        super().__init__(**metadata)
-        self.validators = [validate.OneOf(State.task_states)] + list(self.validators)
+    class Meta:
+        """Meta"""
+
+        model = SlaMiss
+
+    task_id = auto_field(dump_only=True)
+    dag_id = auto_field(dump_only=True)
+    execution_date = auto_field(dump_only=True)
+    email_sent = auto_field(dump_only=True)
+    timestamp = auto_field(dump_only=True)
+    description = auto_field(dump_only=True)
+    notification_sent = auto_field(dump_only=True)
