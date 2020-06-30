@@ -101,10 +101,6 @@ def _parse_yaml_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyn
         return {}, [FileSyntaxError(line_no=1, message="The file is empty.")]
     try:
         secrets = yaml.safe_load(content)
-        for key in list(secrets.keys()):
-            secret_values = secrets[key]
-            if(isinstance(secret_values, dict) and 'extra' in secret_values.keys()):
-                secrets[key]['extra'] = json.dumps(secrets[key]['extra'])
 
     except yaml.MarkedYAMLError as e:
         return {}, [FileSyntaxError(line_no=e.problem_mark.line, message=str(e))]
@@ -185,7 +181,7 @@ def _create_connection(conn_id: str, value: Any):
     if isinstance(value, str):
         return Connection(conn_id=conn_id, uri=value)
     if isinstance(value, dict):
-        connection_parameter_names = get_connection_parameter_names()
+        connection_parameter_names = get_connection_parameter_names() | {"extra_dejson"}
         current_keys = set(value.keys())
         if not current_keys.issubset(connection_parameter_names):
             illegal_keys = current_keys - connection_parameter_names
@@ -194,6 +190,14 @@ def _create_connection(conn_id: str, value: Any):
                 f"The object have illegal keys: {illegal_keys_list}. "
                 f"The dictionary can only contain the following keys: {connection_parameter_names}"
             )
+        if "extra" in value and "extra_dejson" in value:
+            raise AirflowException(
+                "The extra and extra_dejson parameters are mutually exclusive. "
+                "Please provide only one parameter."
+            )
+        if "extra_dejson" in value:
+            value["extra"] = json.dumps(value["extra_dejson"])
+            del value["extra_dejson"]
 
         if "conn_id" in current_keys and conn_id != value["conn_id"]:
             raise AirflowException(

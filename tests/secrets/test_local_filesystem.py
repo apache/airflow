@@ -227,7 +227,7 @@ class TestLoadConnection(unittest.TestCase):
                login: Login
                password: None
                port: 1234
-               extra:
+               extra_dejson:
                  extra__google_cloud_platform__keyfile_dict:
                    a: b
                  extra__google_cloud_platform__keyfile_path: asaa""",
@@ -256,7 +256,7 @@ class TestLoadConnection(unittest.TestCase):
                login: Login
                password: None
                port: 1234
-               extra:
+               extra_dejson:
                  aws_conn_id: bbb
                  region_name: ccc
                  """, {"conn_c": [{"aws_conn_id": "bbb", "region_name": "ccc"}]}),
@@ -267,7 +267,7 @@ class TestLoadConnection(unittest.TestCase):
                login: Login
                password: None
                port: 1234
-               extra:
+               extra_dejson:
                  extra__google_cloud_platform__keyfile_dict:
                    a: b
                  extra__google_cloud_platform__key_path: xxx
@@ -284,6 +284,28 @@ class TestLoadConnection(unittest.TestCase):
                 for conn_id, connections in connections_by_conn_id.items()
             }
             self.assertEqual(expected_extras, connection_uris_by_conn_id)
+
+    @parameterized.expand(
+        (
+            ("""conn_c:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra:
+                 abc: xyz
+               extra_dejson:
+                 aws_conn_id: bbb
+                 region_name: ccc
+                 """, "The extra and extra_dejson parameters are mutually exclusive."),
+        )
+    )
+    def test_yaml_invalid_extra(self, file_content, expected_message):
+        with mock_local_file(file_content):
+            with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
+                local_filesystem.load_connections("a.yaml")
 
 
 class TestLocalFileBackend(unittest.TestCase):
