@@ -50,6 +50,7 @@ from flask_admin.tools import iterdecode
 import lazy_object_proxy
 from jinja2 import escape
 from jinja2.sandbox import ImmutableSandboxedEnvironment
+from jinja2.utils import pformat
 from past.builtins import basestring
 from pygments import highlight, lexers
 import six
@@ -822,7 +823,7 @@ class Airflow(AirflowViewMixin, BaseView):
             if template_field in attr_renderer:
                 html_dict[template_field] = attr_renderer[template_field](content)
             else:
-                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(str(content))
+                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(pformat(content))
 
         return self.render(
             'airflow/ti_code.html',
