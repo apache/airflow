@@ -41,7 +41,7 @@ from flask_appbuilder import BaseView, ModelView, expose, has_access, permission
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
-from jinja2.utils import htmlsafe_json_dumps  # type: ignore
+from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import and_, desc, func, or_, union_all
@@ -631,7 +631,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
             if template_field in wwwutils.get_attr_renderer():
                 html_dict[template_field] = wwwutils.get_attr_renderer()[template_field](content)
             else:
-                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(str(content))
+                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(pformat(content))
 
         return self.render_template(
             'airflow/ti_code.html',
