@@ -17,6 +17,7 @@
 
 """Webserver command"""
 import hashlib
+import logging
 import os
 import signal
 import subprocess
@@ -39,6 +40,8 @@ from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
 from airflow.www.app import cached_app, create_app
+
+log = logging.getLogger(__name__)
 
 
 class GunicornMonitor(LoggingMixin):
@@ -64,8 +67,8 @@ class GunicornMonitor(LoggingMixin):
     respectively. Gunicorn guarantees that on TTOU workers are terminated
     gracefully and that the oldest worker is terminated.
 
-    :param gunicorn_master_proc:  handle for the main Gunicorn process
-    :param num_workers_expected:  Number of workers to run the Gunicorn web server
+    :param gunicorn_master_pid: PID for the main Gunicorn process
+    :param num_workers_expected: Number of workers to run the Gunicorn web server
     :param master_timeout: Number of seconds the webserver waits before killing gunicorn master that
         doesn't respond
     :param worker_refresh_interval: Number of seconds to wait before refreshing a batch of workers.
@@ -77,7 +80,7 @@ class GunicornMonitor(LoggingMixin):
     """
     def __init__(
         self,
-        gunicorn_master_proc: psutil.Process,
+        gunicorn_master_pid: int,
         num_workers_expected: int,
         master_timeout: int,
         worker_refresh_interval: int,
@@ -85,7 +88,7 @@ class GunicornMonitor(LoggingMixin):
         reload_on_plugin_change: bool
     ):
         super().__init__()
-        self.gunicorn_master_proc = gunicorn_master_proc
+        self.gunicorn_master_proc = psutil.Process(gunicorn_master_pid)
         self.num_workers_expected = num_workers_expected
         self.master_timeout = master_timeout
         self.worker_refresh_interval = worker_refresh_interval
@@ -208,8 +211,8 @@ class GunicornMonitor(LoggingMixin):
                 timeout=self.master_timeout
             )
             while True:
-                if self.gunicorn_master_proc.poll() is not None:
-                    sys.exit(self.gunicorn_master_proc.returncode)
+                if not self.gunicorn_master_proc.is_running():
+                    sys.exit(1)
                 self._check_workers()
                 # Throttle loop
                 sleep(1)
@@ -386,19 +389,20 @@ def webserver(args):
 
         gunicorn_master_proc = None
 
-        def kill_proc(dummy_signum, dummy_frame):  # pylint: disable=unused-argument
+        def kill_proc(signum, _):  # pylint: disable=unused-argument
+            log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             gunicorn_master_proc.wait()
             sys.exit(0)
 
-        def monitor_gunicorn(gunicorn_master_proc):
+        def monitor_gunicorn(gunicorn_master_pid: int):
             # Register signal handlers
             signal.signal(signal.SIGINT, kill_proc)
             signal.signal(signal.SIGTERM, kill_proc)
 
             # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
             GunicornMonitor(
-                gunicorn_master_proc=gunicorn_master_proc,
+                gunicorn_master_pid=gunicorn_master_pid,
                 num_workers_expected=num_workers,
                 master_timeout=conf.getint('webserver', 'web_server_master_timeout'),
                 worker_refresh_interval=conf.getint('webserver', 'worker_refresh_interval', fallback=30),
@@ -432,8 +436,8 @@ def webserver(args):
 
                     # Run Gunicorn monitor
                     gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
-                    monitor_gunicorn(gunicorn_master_proc)
+                    monitor_gunicorn(gunicorn_master_proc.pid)
 
         else:
             gunicorn_master_proc = subprocess.Popen(run_args, close_fds=True)
-            monitor_gunicorn(gunicorn_master_proc)
+            monitor_gunicorn(gunicorn_master_proc.pid)
