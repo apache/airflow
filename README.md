@@ -53,6 +53,42 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
+## 环境搭建
+1. `git clone https://github.com/masami10/airflow.git`
+1. `cd airflow`
+1. 创建python3.7虚拟环境
+1. 安装依赖：`pip install -r ./requirements/requirements-python3.7.txt`
+1. 初始化数据库：`python ./airflow/bin/airflow init db`
+
+## admin用户创建
+airflow create_user -r Admin -u admin -f admin -l admin -p admin -e admin
+
+## 运行
+
+* 启动webserver `python ./airflow/bin/airflow webserver --debug`
+* 启动scheduler `python ./airflow/bin/airflow scheduler`
+
+
+## i18n
+
+官方文档：https://flask-appbuilder.readthedocs.io/en/latest/i18n.html#introduction
+
+
+* 在HTML文件中使用`_()`翻译文本
+
+
+在`airflow/airflow`目录下：
+* 首次创建翻译时运行`flask fab babel-extract --target ./www_rbac/translations`
+* 运行`pybabel update -i ./babel/messages.pot -d ./www_rbac/translations  -l zh`
+* 在`./www_rbac/translations`目录下的po文件中添加中文翻译
+* 运行`flask fab babel-compile --target ./www_rbac/translations`应用翻译
+
+## 打包airflow
+
+`pip install setuptools  wheel gitpython`
+
+`python setup.py sdist bdist_wheel`
+
 ## Requirements
 
 Apache Airflow is tested with:
