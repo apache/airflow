@@ -66,7 +66,7 @@ Add the following settings in ``airflow.cfg``:
 *   ``store_dag_code``: This flag decides whether to persist DAG files code in DB.
     If set to True, Webserver reads file contents from DB instead of trying to access files in a DAG folder.
 
-If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
+If you are updating Airflow from <1.10.7, please do not forget to run ``airflow upgradedb``.
 
 
 Limitations
