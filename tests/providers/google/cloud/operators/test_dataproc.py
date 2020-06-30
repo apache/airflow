@@ -21,9 +21,10 @@ from datetime import datetime
 from typing import Any
 from unittest import mock
 
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 
+from airflow import AirflowException
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator, DataprocCreateClusterOperator, DataprocDeleteClusterOperator,
     DataprocInstantiateInlineWorkflowTemplateOperator, DataprocInstantiateWorkflowTemplateOperator,
@@ -225,6 +226,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_if_cluster_exists(self, mock_hook):
         mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
+        mock_hook.return_value.get_cluster.return_value.status.state = 0
         op = DataprocCreateClusterOperator(
             task_id=TASK_ID,
             region=GCP_LOCATION,
@@ -254,6 +256,97 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+        )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_if_cluster_exists_do_not_use(self, mock_hook):
+        mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
+        mock_hook.return_value.get_cluster.return_value.status.state = 0
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster=CLUSTER,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+            use_if_exists=False
+        )
+        with self.assertRaises(AlreadyExists):
+            op.execute(context={})
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_if_cluster_exists_in_error_state(self, mock_hook):
+        mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
+        cluster_status = mock_hook.return_value.get_cluster.return_value.status
+        cluster_status.state = 0
+        cluster_status.ERROR = 0
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster=CLUSTER,
+            delete_on_error=True,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+        )
+        with self.assertRaises(AirflowException):
+            op.execute(context={})
+
+        mock_hook.return_value.diagnose_cluster.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+        )
+        mock_hook.return_value.delete_cluster.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+        )
+
+    @mock.patch(DATAPROC_PATH.format("exponential_sleep_generator"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._create_cluster"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_if_cluster_exists_in_deleting_state(
+        self, mock_hook, mock_get_cluster, mock_create_cluster, mock_generator
+    ):
+        cluster = mock.MagicMock()
+        cluster.status.state = 0
+        cluster.status.DELETING = 0
+
+        cluster2 = mock.MagicMock()
+        cluster2.status.state = 0
+        cluster2.status.ERROR = 0
+
+        mock_create_cluster.side_effect = [AlreadyExists("test"), cluster2]
+        mock_generator.return_value = [0]
+        mock_get_cluster.side_effect = [cluster, NotFound("test")]
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster=CLUSTER,
+            delete_on_error=True,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+        with self.assertRaises(AirflowException):
+            op.execute(context={})
+
+        calls = [mock.call(mock_hook.return_value), mock.call(mock_hook.return_value)]
+        mock_get_cluster.assert_has_calls(calls)
+        mock_create_cluster.assert_has_calls(calls)
+        mock_hook.return_value.diagnose_cluster.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
         )
 
 
