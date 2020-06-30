@@ -34,7 +34,7 @@ class TestIgnorePluginFile(unittest.TestCase):
 
     def setUp(self):
         """
-        Make tmp folder and set base path
+        Make tmp folder and files that should be ignored. And set base path.
         """
         self.test_dir = tempfile.mkdtemp()
         self.test_file = os.path.join(self.test_dir, 'test_file.txt')
