@@ -141,7 +141,7 @@ ARG_END_DATE = Arg(
     type=parsedate)
 ARG_DRY_RUN = Arg(
     ("-n", "--dry-run"),
-    help="Perform a dry run",
+    help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
     action="store_true")
 ARG_PID = Arg(
     ("--pid",),
