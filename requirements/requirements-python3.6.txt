@@ -159,7 +159,7 @@ google-cloud-monitoring==1.0.0
 google-cloud-pubsub==1.6.0
 google-cloud-redis==1.0.0
 google-cloud-secret-manager==1.0.0
-google-cloud-spanner==1.17.1
+google-cloud-spanner==1.17.0
 google-cloud-speech==1.3.2
 google-cloud-storage==1.29.0
 google-cloud-tasks==1.5.0
@@ -357,7 +357,6 @@ sphinxcontrib-serializinghtml==1.1.4
 spython==0.0.84
 sshpubkeys==3.1.0
 sshtunnel==0.1.5
-starkbank-ecdsa==1.0.0
 statsd==3.3.0
 swagger-ui-bundle==0.0.6
 tableauserverclient==0.9
