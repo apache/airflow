@@ -71,8 +71,7 @@ Now use NULL as default value for dag.description in dag table
 Before 1.10.11 it was possible to edit DagRun State in the `/admin/dagrun/` page
  to any text.
 
-From Airflow 1.10.11, you would still be able to set from dropdown to a pre-defined option
- but would not allow setting it to any text.
+In Airflow 1.10.11+, the user can only choose the states from the list.
 
 ## Airflow 1.10.10
 
