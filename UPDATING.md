@@ -293,10 +293,10 @@ plugins =
   airflow.mypy.plugin.decorators
 ```
 
-### Xcom Values can no longer be edited in the UI
+### XCom Values can no longer be changed from the Webserver
 
-Since XCom values can contain pickled data, we would no longer allow editing
-Xcom values from the UI.
+Since XCom values can contain pickled data, we would no longer allow changing
+XCom values from the UI.
 
 ### Use project_id argument consistently across GCP hooks and operators
 
