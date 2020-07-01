@@ -334,11 +334,10 @@ For your testing you manage Kind cluster with ``kind-cluster`` breeze command:
 
 .. code-block:: bash
 
-    ./breeze kind-cluster [ start | stop | recreate | status ]
+    ./breeze kind-cluster [ start | stop | recreate | status | deploy | test | shell ]
 
-
-The command allows you to start/stop/recreate/status Kind Kubernetes cluster
-in your docker engine as well as deploy airflow to use it for testing (with ``deploy`` command).
+The command allows you to start/stop/recreate/status Kind Kubernetes cluster, deploy Airflow via Helm
+chart as well as interact with the cluster (via test and shell commands).
 
 Setting up the Kind Kubernetes cluster takes some time so once you started it, the cluster continues running
 until it is stopped with the ``kind-cluster stop`` command or until ``kind-cluster recreate``
@@ -348,48 +347,32 @@ The cluster name follows the pattern ``airflow-python-X.Y-vA.B.C`` where X.Y is 
 and A.B.C is a Kubernetes version. This way you can have multiple clusters set up and running at the same
 time for different Python versions and different Kubernetes versions.
 
-The Control Plane is available from inside the Docker image via ``<KIND_CLUSTER_NAME>-control-plane:6443``
-host:port, the worker of the Kind Cluster is available at  <KIND_CLUSTER_NAME>-worker
-and the webserver port for the worker is 30809.
 
 Deploying Airflow to Kubernetes Cluster
 ---------------------------------------
 
-Deploying Airflow to the Kubernetes cluster created is also done via ``kind-cluster`` breeze command:
+Deploying Airflow to the Kubernetes cluster created is also done via ``kind-cluster deploy`` breeze command:
 
-.. code-block:: bash
+.. code-block:: bash`
 
     ./breeze kind-cluster deploy
 
-
 The deploy commands performs tthose steps:
 
-1. If needed, it rebuilds the latest ``apache/airflow:master-pythonX.Y`` production images using the
-   latest sources. You can also force the build with ``--force-build-image`` flag.
-2. Builds a new Kubernetes image based on the  ``apache/airflow:master-pythonX.Y`` using
-   necessary scripts added to run in Kubernetes. The image is tagged as
-   ``apache/airflow:master-pythonX.Y-kubernetes``.
-3. Loads the image to the Kind Cluster using the ``kind load`` command.
-4. Prepares Kubernetes resources by processing a template from the ``template`` directory and replacing
-   variables with the right images and locations:
-   - configmaps.yaml
-   - airflow.yaml
-5. Uses the existing resources without replacing any variables inside:
-   - secrets.yaml
-   - postgres.yaml
-   - volumes.yaml
-6. Applies all the resources to the Kind Cluster.
-7. Waits for all the applications to be ready and reachable.
-
+1. It rebuilds the latest ``apache/airflow:master-pythonX.Y`` production images using the
+   latest sources using local cachine. It also adds example DAGs to the image, so that they do not
+   have to be mounted inside.
+2. Loads the image to the Kind Cluster using the ``kind load`` command.
+3. Starts airflow in the cluster using the official helm chart (in ``airflow`` namespace)
+4. Forwards Local 8080 port to the webserver running in the cluster
+5. Applies the volumes.yaml to get the volumes deployed to ``default`` namespace - this is where
+   KubernetesExecutor starts its pods.
 
 Running tests with Kubernetes Cluster
 -------------------------------------
 
-After the deployment is finished, you can run Kubernetes tests via ``scripts/ci/ci_run_kubernetes_tests.sh``.
-
 You can either run all tests or you can select which tests to run. You can also enter interactive virtualenv
 to run the tests manually one by one.
-
 
 .. code-block:: bash
 
@@ -399,6 +382,11 @@ to run the tests manually one by one.
       ./scripts/ci/ci_run_kubernetes_tests.sh TEST [TEST ...]      - runs selected kubernetes tests (from kubernetes_tests folder)
       ./scripts/ci/ci_run_kubernetes_tests.sh [-i|--interactive]   - Activates virtual environment ready to run tests and drops you in
       ./scripts/ci/ci_run_kubernetes_tests.sh [--help]             - Prints this help message
+
+
+You can also run the same tests command with Breeze, using ``kind-cluster test`` command (to run all
+kubernetes tests) and with ``kind-cluster shell`` command you can enter interactive shell when you can
+run tests.
 
 
 Typical testing pattern for Kubernetes tests
@@ -484,24 +472,23 @@ communicate with the Kubernetes-run Airflow deployed via the production image.
 Those Kubernetes tests require virtualenv to be created locally with airflow installed.
 The virtualenv required will be created automatically when the scripts are run.
 
-
-Either run all the tests:
-
+4a) You can run all the tests
 
 .. code-block:: bash
 
     ./breeze kind-cluster test
 
 
-Or enter the interactive virtualenv (the environment is in ``.build/.kubernetes_venv`` folder:
+4b) You can enter an interactive shell to run tests one-by-one
 
+This prepares and enters the virtualenv in ``.build/.kubernetes_venv`` folder:
 
 .. code-block:: bash
 
-     ./scripts/ci/ci_run_kubernetes_tests.sh -i
+    ./breeze kind-cluster shell
 
 
-Once you enter the environment you get this information:
+Once you enter the environment you receive this information:
 
 
 .. code-block:: bash
@@ -513,12 +500,14 @@ Once you enter the environment you get this information:
 
     The webserver is available at http://localhost:30809/
 
-    User/password: airflow/airflow
+    User/password: admin/admin
 
     You are entering the virtualenv now. Type exit to exit back to the original shell
 
 
-You can iterate with tests while you are in the virtualenv:
+You can iterate with tests while you are in the virtualenv. All the tests requiring kubernetes cluster
+are in "kubernetes_tests" folder. You can add extra ``pytest`` parameters then (for example ``-s`` will
+print output generated test logs and print statements to the terminal immediately.
 
 
 .. code-block:: bash
@@ -529,7 +518,7 @@ You can iterate with tests while you are in the virtualenv:
 You can modify the tests or KubernetesPodOperator and re-run them without re-deploying
 airflow to KinD cluster.
 
-However when you change the Airflow Kubernetes executor implementation you need to redeploy
+However when you change Airflow Kubernetes executor implementation you need to redeploy
 Airflow to the cluster.
 
 .. code-block:: bash

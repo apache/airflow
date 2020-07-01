@@ -24,9 +24,9 @@ HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
 # shellcheck disable=SC2064
 trap "${HANDLERS}${HANDLERS:+;}dump_kind_logs" EXIT
 
-get_ci_environment
-check_kind_and_kubectl_are_installed
-
+get_environment_for_builds_on_ci
+make_sure_kubernetes_tools_are_installed
+initialize_kind_variables
 perform_kind_cluster_operation "${@}"
 
 check_cluster_ready_for_airflow

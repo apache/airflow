@@ -19,7 +19,7 @@
 ## Airflow Pod Launcher Role
 #################################
 {{- if and .Values.rbacEnabled .Values.allowPodLaunching }}
-kind: Role
+kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: {{ .Release.Name }}-pod-launcher-role

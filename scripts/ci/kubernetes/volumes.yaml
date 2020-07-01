@@ -18,62 +18,15 @@
 kind: PersistentVolume
 apiVersion: v1
 metadata:
-  name: airflow-dags
-spec:
-  accessModes:
-    - ReadWriteMany
-  capacity:
-    storage: 2Gi
-  hostPath:
-    path: /airflow-dags/
----
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: airflow-dags
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 2G
----
-kind: PersistentVolume
-apiVersion: v1
-metadata:
-  name: airflow-logs
-  annotations:
-    pv.beta.kubernetes.io/gid: "50000"
-spec:
-  accessModes:
-    - ReadWriteMany
-  capacity:
-    storage: 2Gi
-  hostPath:
-    path: /airflow-logs/
----
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: airflow-logs
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 2Gi
----
-kind: PersistentVolume
-apiVersion: v1
-metadata:
   name: test-volume
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   capacity:
     storage: 2Gi
   hostPath:
-    path: /airflow-dags/
+    path: /opt/airflow/dags/
+  storageClassName: standard
 ---
 kind: PersistentVolumeClaim
 apiVersion: v1
@@ -81,7 +34,8 @@ metadata:
   name: test-volume
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: 2Gi
+  storageClassName: standard

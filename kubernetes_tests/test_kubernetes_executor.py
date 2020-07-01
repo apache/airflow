@@ -16,8 +16,10 @@
 # under the License.
 import os
 import re
+import subprocess
 import time
 import unittest
+from datetime import datetime
 from subprocess import check_call, check_output
 
 import requests
@@ -25,7 +27,7 @@ import requests.exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-KUBERNETES_HOST_PORT = (os.environ.get('CLUSTER_HOST') or "localhost") + ":30809"
+KUBERNETES_HOST_PORT = (os.environ.get('CLUSTER_HOST') or "localhost") + ":8080"
 
 print()
 print("Cluster host/port used: ${KUBERNETES_HOST_PORT}".format(KUBERNETES_HOST_PORT=KUBERNETES_HOST_PORT))
@@ -33,6 +35,25 @@ print()
 
 
 class TestKubernetesExecutor(unittest.TestCase):
+
+    @staticmethod
+    def _describe_resources(namespace):
+        print("=" * 80)
+        print("Describe resources for namespace {}".format(namespace))
+        print("Datetime: {}".format(datetime.utcnow()))
+        print("=" * 80)
+        print("Describing pods")
+        print("-" * 80)
+        subprocess.call(["kubectl", "describe", "pod", "--namespace", namespace])
+        print("=" * 80)
+        print("Describing persistent volumes")
+        print("-" * 80)
+        subprocess.call(["kubectl", "describe", "pv", "--namespace", namespace])
+        print("=" * 80)
+        print("Describing persistent volume claims")
+        print("-" * 80)
+        subprocess.call(["kubectl", "describe", "pvc", "--namespace", namespace])
+        print("=" * 80)
 
     @staticmethod
     def _num_pods_in_namespace(namespace):
@@ -79,7 +100,6 @@ class TestKubernetesExecutor(unittest.TestCase):
         # Wait some time for the operator to complete
         while tries < max_tries:
             time.sleep(5)
-
             # Trigger a new dagrun
             try:
                 get_string = \
@@ -96,6 +116,8 @@ class TestKubernetesExecutor(unittest.TestCase):
 
                 if state == expected_final_state:
                     break
+                self._describe_resources(namespace="airflow")
+                self._describe_resources(namespace="default")
                 tries += 1
             except requests.exceptions.ConnectionError as e:
                 check_call(["echo", "api call failed. trying again. error {}".format(e)])
@@ -112,7 +134,6 @@ class TestKubernetesExecutor(unittest.TestCase):
         # Wait some time for the operator to complete
         while tries < max_tries:
             time.sleep(5)
-
             get_string = \
                 'http://{host}/api/experimental/dags/{dag_id}/' \
                 'dag_runs/{execution_date}'.format(host=host,
@@ -130,8 +151,9 @@ class TestKubernetesExecutor(unittest.TestCase):
 
             if state == expected_final_state:
                 break
+            self._describe_resources("airflow")
+            self._describe_resources("default")
             tries += 1
-
         self.assertEqual(state, expected_final_state)
 
         # Maybe check if we can retrieve the logs, but then we need to extend the API
@@ -197,12 +219,12 @@ class TestKubernetesExecutor(unittest.TestCase):
                           execution_date=execution_date,
                           dag_id=dag_id,
                           task_id='start_task',
-                          expected_final_state='success', timeout=100)
+                          expected_final_state='success', timeout=300)
 
         self.ensure_dag_expected_state(host=host,
                                        execution_date=execution_date,
                                        dag_id=dag_id,
-                                       expected_final_state='success', timeout=200)
+                                       expected_final_state='success', timeout=300)
 
     def test_integration_run_dag_with_scheduler_failure(self):
         host = KUBERNETES_HOST_PORT
@@ -219,18 +241,18 @@ class TestKubernetesExecutor(unittest.TestCase):
                           execution_date=execution_date,
                           dag_id=dag_id,
                           task_id='start_task',
-                          expected_final_state='success', timeout=200)
+                          expected_final_state='success', timeout=300)
 
         self.monitor_task(host=host,
                           execution_date=execution_date,
                           dag_id=dag_id,
                           task_id='other_namespace_task',
-                          expected_final_state='success', timeout=200)
+                          expected_final_state='success', timeout=300)
 
         self.ensure_dag_expected_state(host=host,
                                        execution_date=execution_date,
                                        dag_id=dag_id,
-                                       expected_final_state='success', timeout=200)
+                                       expected_final_state='success', timeout=300)
 
         self.assertEqual(self._num_pods_in_namespace('test-namespace'),
                          0,
