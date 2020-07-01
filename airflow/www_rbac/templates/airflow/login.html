@@ -22,7 +22,9 @@ under the License.
 {% block title %}{{ title }}{% endblock %}
 
 {% block body %}
-<img class="loading-task-stats" width="100%" height="100%"  style="position:fixed; object-fit: contain" src='{{ url_for("static", filename="desoutter.jpg") }}'/>
+<img class="loading-task-stats" width="100%" height="100%"
+     style="position:fixed; object-fit: contain;pointer-events:none"
+     src='{{ url_for("static", filename="desoutter.jpg") }}'/>
 {{ super() }}
 
 {% endblock %}
