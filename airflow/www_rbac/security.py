@@ -22,6 +22,7 @@ from flask import g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from sqlalchemy import or_, and_
+from flask_appbuilder.security.views import AuthDBView
 
 from airflow import models
 from airflow.exceptions import AirflowException
@@ -38,6 +39,11 @@ EXISTING_ROLES = {
     'Op',
     'Public',
 }
+
+
+class CustomAuthDBView(AuthDBView):
+    login_template = "airflow/login.html"
+
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
@@ -172,6 +178,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             'vms': VIEWER_VMS | DAG_VMS | USER_VMS | OP_VMS,
         },
     ]
+
+    authdbview = CustomAuthDBView
 
     def __init__(self, appbuilder):
         super(AirflowSecurityManager, self).__init__(appbuilder)
