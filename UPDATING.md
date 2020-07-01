@@ -69,6 +69,10 @@ The `S3TaskHandler` class from `airflow.utils.log.s3_task_handler` has been move
 The `ElasticsearchTaskHandler` class from `airflow.utils.log.es_task_handler` has been moved to
 `airflow.providers.elasticsearch.log.es_task_handler`. This is because it has items specific to `elasticsearch`.
 
+### CloudwatchTaskHandler have moved
+The `CloudwatchTaskHandler` class from `airflow.utils.log.cloudwatch_task_handler` has been moved to
+`airflow.providers.amazon.aws.log.cloudwatch_task_handler`. This is because it has items specific to `aws`.
+
 ### SendGrid emailer has been moved
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
 package was supported by the community. The project was passed to the Apache community and currently the
