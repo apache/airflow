@@ -80,10 +80,10 @@ If you wish to have the experimental API work, and aware of the risks of enablin
 (or if you have your own authentication layer in front of Airflow) you can get
 the previous behaviour on a new install by setting this in your airflow.cfg:
 
-```
-[api]
-auth_backend = airflow.api.auth.backend.default
-```
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.default
 
 Kerberos authentication is currently supported for the API.
 
