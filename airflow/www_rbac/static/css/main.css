@@ -26,7 +26,7 @@ div.container {
 }
 
 a.navbar-brand span {
-    color: white;
+    /*color: white;*/
 }
 .modal-backdrop{
     z-index: 0;

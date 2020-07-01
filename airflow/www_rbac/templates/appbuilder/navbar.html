@@ -28,8 +28,9 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-            <a class="navbar-brand" rel="home" href="{{appbuilder.get_url_for_index}}" style="cursor: pointer;">
-              <img style="float: left; width:35px; margin-top: -7px;"
+            <a class="navbar-brand" rel="home" href="{{appbuilder.get_url_for_index}}"
+               style="cursor: pointer;display: flex;flex-direction: row;align-items: center;">
+              <img style="float: left; width:35px;"
                    src="{{ url_for("static", filename="pin_100.png") }}"
                    title="{{ current_user.username }}">
               <span>
