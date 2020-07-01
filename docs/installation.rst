@@ -272,10 +272,10 @@ Here's the list of the subpackages and what they enable:
 | winrm               | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
-Initiating Airflow Database
-'''''''''''''''''''''''''''
+Initializing Airflow Database
+'''''''''''''''''''''''''''''
 
-Airflow requires a database to be initiated before you can run tasks. If
+Airflow requires a database to be initialized before you can run tasks. If
 you're just experimenting and learning Airflow, you can stick with the
 default SQLite option. If you don't want to use SQLite, then take a look at
 :doc:`howto/initialize-database` to setup a different database.
