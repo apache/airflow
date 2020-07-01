@@ -574,11 +574,13 @@
   options:
     - name: auth_backend
       description: |
-        How to authenticate users of the API
+        How to authenticate users of the API. See
+        https://airflow.apache.org/docs/stable/security.html for possible values.
+        ("airflow.api.auth.backend.default" allows all requests for historic reasons)
       version_added: ~
       type: string
       example: ~
-      default: "airflow.api.auth.backend.default"
+      default: "airflow.api.auth.backend.deny_all"
 - name: lineage
   description: ~
   options:
