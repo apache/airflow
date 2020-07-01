@@ -159,14 +159,26 @@ only the dags which it is owner of, unless it is a superuser.
 API Authentication
 ------------------
 
-Authentication for the API is handled separately to the Web Authentication. The default is to not
-require any authentication on the API i.e. wide open by default. This is not recommended if your
-Airflow webserver is publicly accessible, and you should probably use the ``deny all`` backend:
+Authentication for the API is handled separately to the Web Authentication. The default is to
+deny all requests:
 
 .. code-block:: ini
 
     [api]
     auth_backend = airflow.api.auth.backend.deny_all
+
+.. versionchanged:: 1.10.11
+
+    In Airflow <1.10.11, the default setting was to allow all API requests without authentication, but this
+    posed security risks for if the Webserver is publicly accessible.
+
+If you wish to have the experimental API work, and aware of the risks of enabling this without authentication
+(or if you have your own authentication layer in front of Airflow) you can set the following in ``airflow.cfg``:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.default
 
 Two "real" methods for authentication are currently supported for the API.
 
