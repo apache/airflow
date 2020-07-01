@@ -245,7 +245,8 @@ repos:
           (?x)
           ^airflow/contrib/hooks/cassandra_hook.py$|
           ^airflow/operators/hive_stats_operator.py$|
-          ^tests/contrib/hooks/test_cassandra_hook.py
+          ^tests/contrib/hooks/test_cassandra_hook.py|
+          ^CHANGELOG.txt
       - id: dont-use-safe-filter
         language: pygrep
         name: Don't use safe in templates
