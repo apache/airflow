@@ -386,6 +386,195 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             }
         )
 
+    @parameterized.expand(
+        [
+            ({"dag_ids": ["TEST_DAG_ID"], "page_offset": -1},
+             "-1 is less than the minimum of 0 - 'page_offset'"),
+            ({"dag_ids": ["TEST_DAG_ID"], "page_limit": 0},
+             "0 is less than the minimum of 1 - 'page_limit'"),
+            ({"dag_ids": "TEST_DAG_ID"},
+             "'TEST_DAG_ID' is not of type 'array' - 'dag_ids'"),
+            ({"start_date_gte": "2020-06-12T18"},
+             {'start_date_gte': ['Not a valid datetime.']}),
+        ]
+    )
+    @provide_session
+    def test_payload_validation(self, payload, error, session):
+        dag_runs = self._create_test_dag_run()
+        session.add_all(dag_runs)
+        session.commit()
+
+        response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
+        assert response.status_code == 400
+        assert error == response.json.get("detail")
+
+
+class TestGetDagRunBatchPagination(TestDagRunEndpoint):
+    @parameterized.expand(
+        [
+            ({"page_limit": 1}, ["TEST_DAG_RUN_ID1"]),
+            ({"page_limit": 2}, ["TEST_DAG_RUN_ID1", "TEST_DAG_RUN_ID2"]),
+            (
+                {"page_offset": 5},
+                [
+                    "TEST_DAG_RUN_ID6",
+                    "TEST_DAG_RUN_ID7",
+                    "TEST_DAG_RUN_ID8",
+                    "TEST_DAG_RUN_ID9",
+                    "TEST_DAG_RUN_ID10",
+                ],
+            ),
+            (
+                {"page_offset": 0},
+                [
+                    "TEST_DAG_RUN_ID1",
+                    "TEST_DAG_RUN_ID2",
+                    "TEST_DAG_RUN_ID3",
+                    "TEST_DAG_RUN_ID4",
+                    "TEST_DAG_RUN_ID5",
+                    "TEST_DAG_RUN_ID6",
+                    "TEST_DAG_RUN_ID7",
+                    "TEST_DAG_RUN_ID8",
+                    "TEST_DAG_RUN_ID9",
+                    "TEST_DAG_RUN_ID10",
+                ],
+            ),
+            ({"page_offset": 5, "page_limit": 1}, ["TEST_DAG_RUN_ID6"]),
+            ({"page_offset": 1, "page_limit": 1}, ["TEST_DAG_RUN_ID2"]),
+            ({"page_offset": 2, "page_limit": 2}, ["TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],),
+        ]
+    )
+    @provide_session
+    def test_handle_limit_and_offset(self, payload, expected_dag_run_ids, session):
+        dag_runs = self._create_dag_runs(10)
+        session.add_all(dag_runs)
+        session.commit()
+
+        response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
+        assert response.status_code == 200
+
+        self.assertEqual(response.json["total_entries"], 10)
+        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
+        self.assertEqual(dag_run_ids, expected_dag_run_ids)
+
+    @provide_session
+    def test_should_respect_page_size_limit(self, session):
+        dag_runs = self._create_dag_runs(200)
+        session.add_all(dag_runs)
+        session.commit()
+
+        response = self.client.post("api/v1/dags/~/dagRuns/list", json={})  # default is 100
+        assert response.status_code == 200
+
+        self.assertEqual(response.json["total_entries"], 200)
+        self.assertEqual(len(response.json["dag_runs"]), 100)  # default is 100
+
+    def _create_dag_runs(self, count):
+        return [
+            DagRun(
+                dag_id="TEST_DAG_ID",
+                run_id="TEST_DAG_RUN_ID" + str(i),
+                run_type=DagRunType.MANUAL.value,
+                execution_date=timezone.parse(self.default_time) + timedelta(minutes=i),
+                start_date=timezone.parse(self.default_time),
+                external_trigger=True,
+            )
+            for i in range(1, count + 1)
+        ]
+
+
+class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
+    @parameterized.expand(
+        [
+            (
+                {"start_date_gte": "2020-06-18T18:00:00+00:00"},
+                ["TEST_START_EXEC_DAY_18", "TEST_START_EXEC_DAY_19"],
+            ),
+            (
+                {"start_date_lte": "2020-06-11T18:00:00+00:00"},
+                ["TEST_START_EXEC_DAY_10", "TEST_START_EXEC_DAY_11"],
+            ),
+            (
+                {"start_date_lte": "2020-06-15T18:00:00+00:00",
+                 "start_date_gte": "2020-06-12T18:00:00Z"},
+                ["TEST_START_EXEC_DAY_12", "TEST_START_EXEC_DAY_13",
+                 "TEST_START_EXEC_DAY_14", "TEST_START_EXEC_DAY_15"],
+            ),
+            (
+                {"execution_date_lte": "2020-06-13T18:00:00+00:00"},
+                ["TEST_START_EXEC_DAY_10", "TEST_START_EXEC_DAY_11",
+                 "TEST_START_EXEC_DAY_12", "TEST_START_EXEC_DAY_13"],
+            ),
+            (
+                {"execution_date_gte": "2020-06-16T18:00:00+00:00"},
+                ["TEST_START_EXEC_DAY_16", "TEST_START_EXEC_DAY_17",
+                 "TEST_START_EXEC_DAY_18", "TEST_START_EXEC_DAY_19"],
+            ),
+        ]
+    )
+    @provide_session
+    def test_date_filters_gte_and_lte(self, payload, expected_dag_run_ids, session):
+        dag_runs = self._create_dag_runs()
+        session.add_all(dag_runs)
+        session.commit()
+
+        response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
+        assert response.status_code == 200
+        self.assertEqual(response.json["total_entries"], 10)
+        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
+        self.assertEqual(dag_run_ids, expected_dag_run_ids)
+
+    def _create_dag_runs(self):
+        dates = [
+            '2020-06-10T18:00:00+00:00',
+            '2020-06-11T18:00:00+00:00',
+            '2020-06-12T18:00:00+00:00',
+            '2020-06-13T18:00:00+00:00',
+            '2020-06-14T18:00:00+00:00',
+            '2020-06-15T18:00:00Z',
+            '2020-06-16T18:00:00Z',
+            '2020-06-17T18:00:00Z',
+            '2020-06-18T18:00:00Z',
+            '2020-06-19T18:00:00Z',
+        ]
+
+        return [
+            DagRun(
+                dag_id="TEST_DAG_ID",
+                run_id="TEST_START_EXEC_DAY_1" + str(i),
+                run_type=DagRunType.MANUAL.value,
+                execution_date=timezone.parse(dates[i]),
+                start_date=timezone.parse(dates[i]),
+                external_trigger=True,
+                state='success',
+            )
+            for i in range(len(dates))
+        ]
+
+    @parameterized.expand(
+        [
+            (
+                {"end_date_gte": f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}"},
+                [],
+            ),
+            (
+                {"end_date_lte": f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}"},
+                ["TEST_DAG_RUN_ID_1"],
+            ),
+        ]
+    )
+    @provide_session
+    def test_end_date_gte_lte(self, payload, expected_dag_run_ids, session):
+        dagruns = self._create_test_dag_run('success')  # state==success, then end date is today
+        session.add_all(dagruns)
+        session.commit()
+
+        response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
+        assert response.status_code == 200
+        self.assertEqual(response.json["total_entries"], 2)
+        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
+        self.assertEqual(dag_run_ids, expected_dag_run_ids)
+
 
 class TestPatchDagRun(TestDagRunEndpoint):
     @pytest.mark.skip(reason="Not implemented yet")
