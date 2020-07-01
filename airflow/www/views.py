@@ -2192,12 +2192,11 @@ class XComModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
+    base_permissions = ['can_add', 'can_list', 'can_delete']
 
     search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
     list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
     add_columns = ['key', 'value', 'execution_date', 'task_id', 'dag_id']
-    edit_columns = ['key', 'value', 'execution_date', 'task_id', 'dag_id']
     base_order = ('execution_date', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
