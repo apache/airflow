@@ -109,8 +109,11 @@ def find_path_from_directory(
         ignore_list_file_path = os.path.join(root, ignore_list_file)
         if os.path.isfile(ignore_list_file_path):
             with open(ignore_list_file_path, 'r') as file:
-                lines_no_comments = [re.compile(r"\s*#.*").sub("", line) for line in file.read().split("\n")]
-                patterns += [re.compile(line) for line in lines_no_comments if line]
+                patterns += [
+                    re.compile(line)
+                    for line in file.read().split("\n")
+                    if re.sub(r"\s*#.*", "", line)
+                ]
                 patterns = list(set(patterns))
 
         dirs[:] = [
@@ -120,14 +123,13 @@ def find_path_from_directory(
                 os.path.join(os.path.relpath(root, str(base_dir_path)), subdir)) for p in patterns)
         ]
 
-        for subdir in dirs:
-            patterns_by_dir[os.path.join(root, subdir)] = patterns.copy()
+        patterns_by_dir = {os.path.join(root, sd): patterns.copy() for sd in dirs}
 
         for file in files:  # type: ignore
             if file == ignore_list_file:
                 continue
             file_path = os.path.join(root, str(file))
-            if any([re.findall(p, file_path) for p in patterns]):
+            if any(re.findall(p, file_path) for p in patterns):
                 continue
             yield str(file_path)
 

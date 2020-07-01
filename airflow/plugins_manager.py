@@ -165,30 +165,27 @@ def load_plugins_from_plugin_directory():
     global plugins  # pylint: disable=global-statement
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
-    ignore_list_file = ".airflowignore"
+    for file_path in find_path_from_directory(
+            settings.PLUGINS_FOLDER, ".airflowignore"):
 
-    for file_path in find_path_from_directory(  # pylint: disable=too-many-nested-blocks
-            str(settings.PLUGINS_FOLDER), str(ignore_list_file)):
+        if not os.path.isfile(file_path):
+            continue
+        mod_name, file_ext = os.path.splitext(os.path.split(file_path)[-1])
+        if file_ext != '.py':
+            continue
 
         try:
-            if not os.path.isfile(file_path):
-                continue
-            mod_name, file_ext = os.path.splitext(
-                os.path.split(file_path)[-1])
-            if file_ext != '.py':
-                continue
-
-            log.info('Importing plugin module %s', file_path)
-
             loader = importlib.machinery.SourceFileLoader(mod_name, file_path)
             spec = importlib.util.spec_from_loader(mod_name, loader)
             mod = importlib.util.module_from_spec(spec)
             sys.modules[spec.name] = mod
             loader.exec_module(mod)
-            for mod_attr_value in list(mod.__dict__.values()):
-                if is_valid_plugin(mod_attr_value):
-                    plugin_instance = mod_attr_value()
-                    plugins.append(plugin_instance)
+            log.debug('Importing plugin module %s', file_path)
+
+            for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
+                plugin_instance = mod_attr_value()
+                plugins.append(plugin_instance)
+
         except Exception as e:  # pylint: disable=broad-except
             log.exception(e)
             log.error('Failed to import plugin %s', file_path)
