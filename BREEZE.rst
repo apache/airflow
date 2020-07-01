@@ -413,10 +413,8 @@ way as when you enter the environment. You can do it multiple times and open as 
 CLIs for cloud providers
 ------------------------
 
-For development convenience we installed simple wrappers for the most common cloud providers CLIs. Those
-CLIs are not installed when you build or pull the image - they will be downloaded as docker images
-the first time you attempt to use them. It is downloaded and executed in your host's docker engine so once
-it is downloaded, it will stay until you remove the downloaded images from your host container.
+Restarting Breeze environment
+-----------------------------
 
 For each of those CLI credentials are taken (automatically) from the credentials you have defined in
 your ${HOME} directory on host.
@@ -463,7 +461,7 @@ Launching Breeze integrations
 
 When Breeze starts, it can start additional integrations. Those are additional docker containers
 that are started in the same docker-compose command. Those are required by some of the tests
-as described in `TESTING.rst <TESTING.rst#airflow-integration-tests>`_.
+as described in `TESTING <TESTING.rst#airflow-integration-tests>`_.
 
 By default Breeze starts only airflow container without any integration enabled. If you selected
 ``postgres`` or ``mysql`` backend, the container for the selected backend is also started (but only the one
@@ -699,7 +697,7 @@ Generating requirements
 Whenever you modify and commit setup.py, you need to re-generate requirement files. Those requirement
 files ara stored separately for each python version in the ``requirements`` folder. Those are
 constraints rather than requirements as described in detail in the
-`CONTRIBUTING.rst <CONTRIBUTING.rst#pinned-requirement-files>`_ contributing documentation.
+`CONTRIBUTING <CONTRIBUTING.rst#pinned-requirement-files>`_ documentation.
 
 In case you modify setup.py you need to update the requirements - for every python version supported.
 
