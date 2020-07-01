@@ -77,8 +77,7 @@ deny all requests:
     posed security risks for if the Webserver is publicly accessible.
 
 If you wish to have the experimental API work, and aware of the risks of enabling this without authentication
-(or if you have your own authentication layer in front of Airflow) you can get
-the previous behaviour on a new install by setting this in your airflow.cfg:
+(or if you have your own authentication layer in front of Airflow) you can set the following in ``airflow.cfg``:
 
 .. code-block:: ini
 
