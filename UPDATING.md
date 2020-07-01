@@ -66,6 +66,14 @@ https://developers.google.com/style/inclusive-documentation
 
 Now use NULL as default value for dag.description in dag table
 
+### Restrict editing DagRun State in the old UI (Flask-admin based UI)
+
+Before 1.10.11 it was possible to edit DagRun State in the `/admin/dagrun/` page
+ to any text.
+
+From Airflow 1.10.11, you would still be able to set from dropdown to a pre-defined option
+ but would not allow setting it to any text.
+
 ## Airflow 1.10.10
 
 ### Setting Empty string to a Airflow Variable will return an empty string
