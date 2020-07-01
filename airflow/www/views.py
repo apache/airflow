@@ -2754,6 +2754,8 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
 
 
 class XComView(wwwutils.SuperUserMixin, AirflowModelView):
+    can_create = False
+    can_edit = False
     verbose_name = "XCom"
     verbose_name_plural = "XComs"
 

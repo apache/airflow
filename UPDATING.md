@@ -89,6 +89,12 @@ the previous behaviour on a new install by setting this in your airflow.cfg:
 auth_backend = airflow.api.auth.backend.default
 ```
 
+### XCom Values can no longer be added or changed from the Webserver
+
+Since XCom values can contain pickled data, we would no longer allow adding or
+changing XCom values from the UI.
+
+
 ## Airflow 1.10.10
 
 ### Setting Empty string to a Airflow Variable will return an empty string
