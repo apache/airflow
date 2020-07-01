@@ -34,6 +34,7 @@ configuring an Airflow environment.
     set-config
     initialize-database
     operator/index
+    colorblind-friendly-ui
     custom-operator
     connection/index
     write-logs
