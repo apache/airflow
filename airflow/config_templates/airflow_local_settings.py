@@ -170,7 +170,7 @@ if REMOTE_LOGGING:
     if REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
         S3_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {
-                'class': 'airflow.utils.log.s3_task_handler.S3TaskHandler',
+                'class': 'airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler',
                 'formatter': 'airflow',
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 's3_log_folder': REMOTE_BASE_LOG_FOLDER,

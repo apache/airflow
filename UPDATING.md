@@ -61,6 +61,10 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+### S3TaskHandler has been moved
+The `S3TaskHandler` class from `airflow.utils.log.s3_task_handler` has been moved to
+`airflow.providers.amazon.aws.log.s3_task_handler`. This is because it has items specific to `aws`
+
 ### SendGrid emailer has been moved
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
 package was supported by the community. The project was passed to the Apache community and currently the
