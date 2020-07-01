@@ -255,11 +255,14 @@ class TestCliWebServer(unittest.TestCase):
             os.remove(pidfile_monitor)
 
     def _wait_pidfile(self, pidfile):
+        start_time = time()
         while True:
             try:
                 with open(pidfile) as file:
                     return int(file.read())
             except Exception:  # pylint: disable=broad-except
+                if start_time - time() > 60:
+                    raise
                 sleep(1)
 
     def test_cli_webserver_foreground(self):
@@ -271,13 +274,14 @@ class TestCliWebServer(unittest.TestCase):
         ):
             # Run webserver in foreground and terminate it.
             proc = subprocess.Popen(["airflow", "webserver"])
+            self.assertEqual(None, proc.poll())
 
         # Wait for process
         sleep(10)
 
         # Terminate webserver
         proc.terminate()
-        proc.wait(60)
+        self.assertEqual(-15, proc.wait(60))
 
     def test_cli_webserver_foreground_with_pid(self):
         with tempfile.TemporaryDirectory(prefix='tmp-pid') as tmpdir:
@@ -289,13 +293,14 @@ class TestCliWebServer(unittest.TestCase):
                 AIRFLOW__WEBSERVER__WORKERS="1"
             ):
                 proc = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
+                self.assertEqual(None, proc.poll())
 
             # Check the file specified by --pid option exists
             self._wait_pidfile(pidfile)
 
             # Terminate webserver
             proc.terminate()
-            proc.wait(60)
+            self.assertEqual(0, proc.wait(60))
 
     def test_cli_webserver_background(self):
         with tempfile.TemporaryDirectory(prefix="gunicorn") as tmpdir, \
@@ -311,27 +316,30 @@ class TestCliWebServer(unittest.TestCase):
             logfile = "{}/airflow-webserver.log".format(tmpdir)
             try:
                 # Run webserver as daemon in background. Note that the wait method is not called.
-                subprocess.Popen([
+                proc = subprocess.Popen([
                     "airflow",
                     "webserver",
-                    "-D",
+                    "--daemon",
                     "--pid", pidfile_webserver,
                     "--stdout", stdout,
                     "--stderr", stderr,
                     "--log-file", logfile,
                 ])
+                self.assertEqual(None, proc.poll())
 
                 pid_monitor = self._wait_pidfile(pidfile_monitor)
                 self._wait_pidfile(pidfile_webserver)
 
                 # Assert that gunicorn and its monitor are launched.
-                self.assertEqual(0, subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver -D"]).wait())
+                self.assertEqual(
+                    0, subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver --daemon"]).wait()
+                )
                 self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "-f", "gunicorn: master"]).wait())
 
                 # Terminate monitor process.
                 proc = psutil.Process(pid_monitor)
                 proc.terminate()
-                proc.wait(60)
+                self.assertIn(proc.wait(120), (0, None))
 
                 self._check_processes()
             except Exception:
@@ -362,4 +370,4 @@ class TestCliWebServer(unittest.TestCase):
             return_code,
             "webserver terminated with return code {} in debug mode".format(return_code))
         proc.terminate()
-        proc.wait()
+        self.assertEqual(-15, proc.wait(60))
