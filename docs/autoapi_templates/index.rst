@@ -419,6 +419,5 @@ All task log handlers are derived from :class:`~airflow.utils.log.file_task_hand
   :glob:
   :maxdepth: 1
 
-  airflow/utils/log/index
 
   airflow/providers/amazon/aws/log/index
