@@ -33,7 +33,7 @@ PYMSSQL_CONN = Connection(conn_id='test-pymssql', conn_type='anything', )
 
 
 class TestMsSqlOperator:
-    @unittest.skipIf(PY38, "Mssql package not avaible when Python >= 3.8.")
+    @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     def test_get_hook(self, get_connection):
         """
