@@ -281,7 +281,9 @@ class TestCliWebServer(unittest.TestCase):
 
         # Terminate webserver
         proc.terminate()
-        self.assertEqual(-15, proc.wait(60))
+        # -15 - the server was stopped before it started
+        #   0 - the server terminated correctly
+        self.assertIn(proc.wait(60), (-15, 0))
 
     def test_cli_webserver_foreground_with_pid(self):
         with tempfile.TemporaryDirectory(prefix='tmp-pid') as tmpdir:
