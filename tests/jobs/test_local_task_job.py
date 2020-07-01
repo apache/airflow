@@ -113,7 +113,8 @@ class TestLocalTaskJob(unittest.TestCase):
         job1 = LocalTaskJob(task_instance=ti,
                             ignore_ti_state=True,
                             executor=SequentialExecutor())
-        self.assertRaises(AirflowException, job1.heartbeat_callback)
+        with self.assertRaises(AirflowException):
+            job1.heartbeat_callback(session=None)
 
         mock_pid.return_value = 1
         ti.state = State.RUNNING
@@ -125,7 +126,8 @@ class TestLocalTaskJob(unittest.TestCase):
         job1.heartbeat_callback(session=None)
 
         mock_pid.return_value = 2
-        self.assertRaises(AirflowException, job1.heartbeat_callback)
+        with self.assertRaises(AirflowException):
+            job1.heartbeat_callback(session=None)
 
     @patch('os.getpid')
     def test_heartbeat_failed_fast(self, mock_getpid):

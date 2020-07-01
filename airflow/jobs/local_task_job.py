@@ -135,7 +135,11 @@ class LocalTaskJob(BaseJob):
             self.task_runner.terminate()
             return
 
-        self.task_instance.refresh_from_db()
+        if session is None:
+            self.task_instance.refresh_from_db()
+        else:
+            self.task_instance.refresh_from_db(session=session)
+
         ti = self.task_instance
 
         if ti.state == State.RUNNING:
