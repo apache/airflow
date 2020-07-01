@@ -109,11 +109,8 @@ def find_path_from_directory(
         ignore_list_file_path = os.path.join(root, ignore_list_file)
         if os.path.isfile(ignore_list_file_path):
             with open(ignore_list_file_path, 'r') as file:
-                patterns += [
-                    re.compile(line)
-                    for line in file.read().split("\n")
-                    if re.sub(r"\s*#.*", "", line)
-                ]
+                lines_no_comments = [re.sub(r"\s*#.*", "", line) for line in file.read().split("\n")]
+                patterns += [re.compile(line) for line in lines_no_comments if line]
                 patterns = list(set(patterns))
 
         dirs[:] = [
@@ -170,10 +167,9 @@ def list_py_file_paths(directory: str,
 
 def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
     """Finds file paths of all DAG files."""
-    ignore_list_file = ".airflowignore"
 
     for file_path in find_path_from_directory(
-            str(directory), str(ignore_list_file)):
+            directory, ".airflowignore"):
         # noinspection PyBroadException
         try:
             if not os.path.isfile(file_path):

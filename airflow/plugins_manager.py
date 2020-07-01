@@ -165,7 +165,7 @@ def load_plugins_from_plugin_directory():
     global plugins  # pylint: disable=global-statement
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
-    for file_path in find_path_from_directory(  # pylint: disable=too-many-nested-blocks
+    for file_path in find_path_from_directory(
             settings.PLUGINS_FOLDER, ".airflowignore"):
 
         if not os.path.isfile(file_path):
@@ -182,10 +182,9 @@ def load_plugins_from_plugin_directory():
             loader.exec_module(mod)
             log.debug('Importing plugin module %s', file_path)
 
-            for mod_attr_value in list(mod.__dict__.values()):
-                if is_valid_plugin(mod_attr_value):
-                    plugin_instance = mod_attr_value()
-                    plugins.append(plugin_instance)
+            for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
+                plugin_instance = mod_attr_value()
+                plugins.append(plugin_instance)
 
         except Exception as e:  # pylint: disable=broad-except
             log.exception(e)
