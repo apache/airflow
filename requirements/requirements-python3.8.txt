@@ -1,4 +1,4 @@
-# Editable install with no version control (apache-airflow==1.10.10)
+# Editable install with no version control (apache-airflow==1.10.11)
 Babel==2.8.0
 Flask-Admin==1.5.4
 Flask-AppBuilder==2.3.4
@@ -145,7 +145,7 @@ hmsclient==0.1.1
 httplib2==0.18.1
 humanize==0.5.1
 hvac==0.10.4
-identify==1.4.20
+identify==1.4.21
 idna==2.10
 imagesize==1.2.0
 importlib-metadata==1.7.0
@@ -243,7 +243,7 @@ pytest-rerunfailures==9.0
 pytest-timeout==1.4.1
 pytest-xdist==1.32.0
 pytest==5.4.3
-python-daemon==2.1.2
+python-daemon==2.2.4
 python-dateutil==2.8.1
 python-editor==1.0.4
 python-http-client==3.2.7
