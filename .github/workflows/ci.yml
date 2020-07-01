@@ -100,7 +100,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: "Build PROD image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_build_production_images.sh
+        run: ./scripts/ci/ci_prepare_prod_image_on_ci.sh
 
   tests-kubernetes:
     timeout-minutes: 80
@@ -113,7 +113,11 @@ jobs:
         kube-mode:
           - image
         kubernetes-version:
-          - "v1.15.3"
+          - "v1.18.2"
+        kind-version:
+          - "v0.8.0"
+        helm-version:
+          - "v3.2.4"
       fail-fast: false
     env:
       BACKEND: postgres
@@ -126,6 +130,8 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       KUBERNETES_MODE: "${{ matrix.kube-mode }}"
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
+      KIND_VERSION: "${{ matrix.kind-version }}"
+      HELM_VERSION: "${{ matrix.helm-version }}"
     # For pull requests only run tests when python files changed
     if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
     steps:
@@ -135,10 +141,12 @@ jobs:
           python-version: '3.6'
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
-      - name: "Build PROD image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_build_production_images.sh
-      - name: "Setup KinD cluster"
-        run: ./scripts/ci/ci_perform_kind_cluster_operation.sh start
+      - uses: engineerd/setup-kind@v0.4.0
+        name: Setup Kind Cluster
+        with:
+          version: "${{ matrix.kind-version }}"
+          name: airflow-python-${{matrix.python-version}}-${{matrix.kubernetes-version}}
+          config: "scripts/ci/kubernetes/kind-cluster-conf.yaml"
       - name: "Deploy app to cluster"
         run: ./scripts/ci/ci_deploy_app_to_kubernetes.sh
       - name: Cache virtualenv for kubernetes testing
@@ -152,6 +160,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - name: "Tests"
         run: ./scripts/ci/ci_run_kubernetes_tests.sh
       - uses: actions/upload-artifact@v2
+        name: Upload KinD logs
         # Always run this, even if one of th previous steps failed.
         if: always()
         with:
@@ -343,7 +352,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build PROD images ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_build_production_images.sh
+        run: ./scripts/ci/ci_prepare_prod_image_on_ci.sh
       - name: "Push PROD images ${{ matrix.python-version }}"
         run: ./scripts/ci/ci_push_production_images.sh
 

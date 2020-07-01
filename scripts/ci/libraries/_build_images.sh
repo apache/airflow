@@ -509,7 +509,7 @@ function determine_cache_strategy() {
 function build_ci_image_on_ci() {
     export SKIP_CI_IMAGE_CHECK="false"
 
-    get_ci_environment
+    get_environment_for_builds_on_ci
     determine_cache_strategy
     prepare_ci_build
 
@@ -652,14 +652,8 @@ function prepare_prod_build() {
         export CACHED_AIRFLOW_PROD_BUILD_IMAGE=""
         export CACHED_PYTHON_BASE_IMAGE=""
     fi
-    export AIRFLOW_KUBERNETES_IMAGE=${AIRFLOW_PROD_IMAGE}-kubernetes
-    AIRFLOW_KUBERNETES_IMAGE_NAME=$(echo "${AIRFLOW_KUBERNETES_IMAGE}" | cut -f 1 -d ":")
-    export AIRFLOW_KUBERNETES_IMAGE_NAME
-    AIRFLOW_KUBERNETES_IMAGE_TAG=$(echo "${AIRFLOW_KUBERNETES_IMAGE}" | cut -f 2 -d ":")
-    export AIRFLOW_KUBERNETES_IMAGE_TAG
 
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
-
     go_to_airflow_sources
 }
 
@@ -668,7 +662,7 @@ function prepare_prod_build() {
 # Depending on the type of build (push/pr/scheduled) it will either build it incrementally or
 # from the scratch without cache (the latter for scheduled builds only)
 function build_prod_image_on_ci() {
-    get_prod_environment
+    get_environment_for_builds_on_ci
 
     determine_cache_strategy
 
@@ -741,6 +735,7 @@ function build_prod_image() {
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
+        --build-arg EMBEDDED_DAGS="${EMBEDDED_DAGS}" \
         "${DOCKER_CACHE_PROD_DIRECTIVE[@]}" \
         -t "${AIRFLOW_PROD_IMAGE}" \
         --target "main" \

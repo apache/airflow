@@ -20,7 +20,6 @@
 
 set -euo pipefail
 
-export KUBERNETES_VERSION=${KUBERNETES_VERSION:="v1.15.3"}
 export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
 export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
 export KUBERNETES_MODE=${KUBERNETES_MODE:="image"}
@@ -30,12 +29,11 @@ HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
 # shellcheck disable=SC2064
 trap "${HANDLERS}${HANDLERS:+;}dump_kind_logs" EXIT
 
-get_ci_environment
-check_kind_and_kubectl_are_installed
-build_kubernetes_image
+get_environment_for_builds_on_ci
+initialize_kind_variables
+make_sure_kubernetes_tools_are_installed
+build_prod_image_for_kubernetes_tests
 load_image_to_kind_cluster
-prepare_kubernetes_app_variables
-prepare_kubernetes_resources
-apply_kubernetes_resources
-wait_for_airflow_pods_up_and_running
-wait_for_airflow_webserver_up_and_running
+deploy_airflow_with_helm
+forward_port_to_kind_webserver
+deploy_test_kubernetes_resources
