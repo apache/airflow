@@ -301,7 +301,7 @@ Entering Breeze environment
 
 You enter the Breeze test environment by running the ``./breeze`` script. You can run it with
 the ``help`` command to see the list of available options. See `Breeze Command-Line Interface Reference`_
-for details. By default you enter the ``
+for details.
 
 .. code-block:: bash
 
