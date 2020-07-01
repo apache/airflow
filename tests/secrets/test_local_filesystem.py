@@ -273,6 +273,15 @@ class TestLoadConnection(unittest.TestCase):
                  extra__google_cloud_platform__key_path: xxx
                  """, {"conn_d": [{"extra__google_cloud_platform__keyfile_dict": {"a": "b"},
                                    "extra__google_cloud_platform__key_path": "xxx"}]}),
+            ("""conn_d:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra: '{\"extra__google_cloud_platform__keyfile_dict\": {\"a\": \"b\"}}'""", {"conn_d": [
+                {"extra__google_cloud_platform__keyfile_dict": {"a": "b"}}]})
 
         )
     )
