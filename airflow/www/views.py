@@ -41,7 +41,7 @@ from flask_appbuilder import BaseView, ModelView, expose, has_access, permission
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
-from jinja2.utils import htmlsafe_json_dumps  # type: ignore
+from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import and_, desc, func, or_, union_all
@@ -631,7 +631,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
             if template_field in wwwutils.get_attr_renderer():
                 html_dict[template_field] = wwwutils.get_attr_renderer()[template_field](content)
             else:
-                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(str(content))
+                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(pformat(content))
 
         return self.render_template(
             'airflow/ti_code.html',
@@ -1057,8 +1057,6 @@ class Airflow(AirflowBaseView):  # noqa: D101
 
     def _clear_dag_tis(self, dag, start_date, end_date, origin,
                        recursive=False, confirmed=False, only_failed=False):
-        from airflow.exceptions import AirflowException
-
         if confirmed:
             count = dag.clear(
                 start_date=start_date,
@@ -2135,6 +2133,16 @@ class ConfigurationView(AirflowBaseView):
                 table=table)
 
 
+class RedocView(AirflowBaseView):
+    """Redoc Open API documentation"""
+    default_view = 'redoc'
+
+    @expose('/redoc')
+    def redoc(self):
+        openapi_spec_url = url_for("/api/v1./api/v1_openapi_yaml")
+        return self.render_template('airflow/redoc.html', openapi_spec_url=openapi_spec_url)
+
+
 ######################################################################################
 #                                    ModelViews
 ######################################################################################
@@ -2604,6 +2612,41 @@ class LogModelView(AirflowModelView):
         'dttm': wwwutils.datetime_f('dttm'),
         'execution_date': wwwutils.datetime_f('execution_date'),
         'dag_id': wwwutils.dag_link,
+    }
+
+
+class TaskRescheduleModelView(AirflowModelView):
+    """View to show records from Task Reschedule table"""
+    route_base = '/taskreschedule'
+
+    datamodel = AirflowModelView.CustomSQLAInterface(models.TaskReschedule)
+
+    base_permissions = ['can_list']
+
+    list_columns = ['id', 'dag_id', 'task_id', 'execution_date', 'try_number',
+                    'start_date', 'end_date', 'duration', 'reschedule_date']
+
+    search_columns = ['dag_id', 'task_id', 'execution_date', 'start_date', 'end_date',
+                      'reschedule_date']
+
+    base_order = ('id', 'desc')
+
+    base_filters = [['dag_id', DagFilter, lambda: []]]
+
+    def duration_f(attr):
+        end_date = attr.get('end_date')
+        duration = attr.get('duration')
+        if end_date and duration:
+            return timedelta(seconds=duration)
+
+    formatters_columns = {
+        'dag_id': wwwutils.dag_link,
+        'task_id': wwwutils.task_instance_link,
+        'start_date': wwwutils.datetime_f('start_date'),
+        'end_date': wwwutils.datetime_f('end_date'),
+        'execution_date': wwwutils.datetime_f('execution_date'),
+        'reschedule_date': wwwutils.datetime_f('reschedule_date'),
+        'duration': duration_f,
     }
 
 

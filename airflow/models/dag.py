@@ -257,7 +257,7 @@ class DAG(BaseDag, LoggingMixin):
         # set file location to caller source path
         back = sys._getframe().f_back
         self.fileloc = back.f_code.co_filename if back else ""
-        self.task_dict: Dict[str, BaseOperator] = dict()
+        self.task_dict: Dict[str, BaseOperator] = {}
 
         # set timezone from start_date
         if start_date and start_date.tzinfo:
@@ -1277,7 +1277,7 @@ class DAG(BaseDag, LoggingMixin):
         raise TaskNotFound("Task {task_id} not found".format(task_id=task_id))
 
     def pickle_info(self):
-        d = dict()
+        d = {}
         d['is_picklable'] = True
         try:
             dttm = timezone.utcnow()
@@ -1317,6 +1317,11 @@ class DAG(BaseDag, LoggingMixin):
 
         for t in self.roots:
             get_downstream(t)
+
+    @property
+    def task(self):
+        from airflow.operators.python import task
+        return functools.partial(task, dag=self)
 
     def add_task(self, task):
         """
@@ -1474,6 +1479,8 @@ class DAG(BaseDag, LoggingMixin):
         :type start_date: datetime
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
+        :param conf: Dict containing configuration/parameters to pass to the DAG
+        :type conf: dict
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
@@ -1584,7 +1591,7 @@ class DAG(BaseDag, LoggingMixin):
                         orm_dag.tags.append(dag_tag_orm)
                         session.add(dag_tag_orm)
 
-        if conf.getboolean('core', 'store_dag_code', fallback=False):
+        if settings.STORE_DAG_CODE:
             DagCode.bulk_sync_to_db([dag.fileloc for dag in orm_dags])
 
         session.commit()

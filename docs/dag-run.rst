@@ -189,6 +189,43 @@ The default is the current date in the UTC timezone.
 
 In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
 
+Passing Parameters when triggering dags
+------------------------------------------
+
+When triggering a DAG from the CLI, the REST API or the UI, it is possible to pass configuration for a DAGRun as
+a JSON blob.
+
+Example of a parameterized DAG:
+
+.. code-block:: python
+
+    from airflow import DAG
+    from airflow.operators.bash_operator import BashOperator
+    from airflow.utils.dates import days_ago
+
+    dag = DAG("example_parametrized_dag", schedule_interval=None, start_date=days_ago(2))
+
+    parameterized_task = BashOperator(
+        task_id='parameterized_task',
+        bash_command="echo value: {{ dag_run.conf['conf1'] }}",
+        dag=dag,
+    )
+
+
+**Note**: The parameters from ``dag_run.conf`` can only be used in a template field of an operator.
+
+Using CLI
+^^^^^^^^^^^
+
+.. code-block:: bash
+
+    airflow dags trigger --conf '{"conf1": "value1"}' example_parametrized_dag
+
+Using UI
+^^^^^^^^^^
+
+.. image:: img/example_passing_conf.png
+
 To Keep in Mind
 ''''''''''''''''
 * Marking task instances as failed can be done through the UI. This can be used to stop running task instances.

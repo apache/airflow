@@ -256,7 +256,7 @@ Let's say you would like to execute the following query.
 
 To execute the SQL query in a specific BigQuery database you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator` with
-proper query job configuration.
+proper query job configuration that can be Jinja templated.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
@@ -266,6 +266,17 @@ proper query job configuration.
 
 For more information on types of BigQuery job please check
 `documentation <https://cloud.google.com/bigquery/docs/reference/v2/jobs>`__.
+
+If you want to include some files in your configuration you can use ``include`` clause of Jinja template
+language as follow:
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
+    :language: python
+    :dedent: 8
+    :start-after: [START howto_operator_bigquery_select_job]
+    :end-before: [END howto_operator_bigquery_select_job]
+
+The included file can also use Jinaj templates which can be useful in case of ``.sql`` files.
 
 Additionally you can use ``job_id`` parameter of
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator` to improve

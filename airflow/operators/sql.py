@@ -438,17 +438,17 @@ class SQLThresholdCheckOperator(BaseOperator):
 
     def execute(self, context=None):
         hook = self.get_db_hook()
-        result = hook.get_first(self.sql)[0][0]
+        result = hook.get_first(self.sql)[0]
 
         if isinstance(self.min_threshold, float):
             lower_bound = self.min_threshold
         else:
-            lower_bound = hook.get_first(self.min_threshold)[0][0]
+            lower_bound = hook.get_first(self.min_threshold)[0]
 
         if isinstance(self.max_threshold, float):
             upper_bound = self.max_threshold
         else:
-            upper_bound = hook.get_first(self.max_threshold)[0][0]
+            upper_bound = hook.get_first(self.max_threshold)[0]
 
         meta_data = {
             "result": result,

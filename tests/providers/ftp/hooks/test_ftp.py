@@ -20,7 +20,7 @@ import io
 import unittest
 from unittest import mock
 
-from airflow.contrib.hooks import ftp_hook as fh
+from airflow.providers.ftp.hooks import ftp as fh
 
 
 class TestFTPHook(unittest.TestCase):

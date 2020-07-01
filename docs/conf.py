@@ -200,7 +200,9 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/apache/index.rst",
     "_api/airflow/providers/yandex/index.rst",
     "_api/airflow/providers/cncf/index.rst",
-    # Utils for internal use
+    # Packages without operators
+    "_api/airflow/providers/sendgrid",
+    # Utils
     '_api/airflow/providers/google/cloud/utils',
     # Internal client for Hashicorp Vault
     '_api/airflow/providers/hashicorp/_internal_client',
@@ -498,9 +500,6 @@ autoapi_template_dir = 'autoapi_templates'
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
     '*/airflow/kubernetes/kubernetes_request_factory/*',
-    '*/airflow/contrib/sensors/*',
-    '*/airflow/contrib/hooks/*',
-    '*/airflow/contrib/operators/*',
     '*/_internal*',
     '*/node_modules/*',
     '*/migrations/*',

@@ -24,7 +24,7 @@ import unittest
 
 import mock
 
-from airflow.contrib.utils.sendgrid import send_email
+from airflow.providers.sendgrid.utils.emailer import send_email
 
 
 class TestSendEmailSendGrid(unittest.TestCase):
@@ -64,7 +64,7 @@ class TestSendEmailSendGrid(unittest.TestCase):
 
     # Test the right email is constructed.
     @mock.patch.dict('os.environ', SENDGRID_MAIL_FROM='foo@bar.com')
-    @mock.patch('airflow.contrib.utils.sendgrid._post_sendgrid_mail')
+    @mock.patch('airflow.providers.sendgrid.utils.emailer._post_sendgrid_mail')
     def test_send_email_sendgrid_correct_email(self, mock_post):
         with tempfile.NamedTemporaryFile(mode='wt', suffix='.txt') as f:
             f.write('this is some test data')
@@ -96,7 +96,7 @@ class TestSendEmailSendGrid(unittest.TestCase):
         SENDGRID_MAIL_FROM='foo@bar.com',
         SENDGRID_MAIL_SENDER='Foo'
     )
-    @mock.patch('airflow.contrib.utils.sendgrid._post_sendgrid_mail')
+    @mock.patch('airflow.providers.sendgrid.utils.emailer._post_sendgrid_mail')
     def test_send_email_sendgrid_correct_email_extras(self, mock_post):
         send_email(self.recepients, self.subject, self.html_content, cc=self.carbon_copy, bcc=self.bcc,
                    personalization_custom_args=self.personalization_custom_args,
@@ -104,7 +104,7 @@ class TestSendEmailSendGrid(unittest.TestCase):
         mock_post.assert_called_once_with(self.expected_mail_data_extras)
 
     @mock.patch.dict('os.environ', clear=True)
-    @mock.patch('airflow.contrib.utils.sendgrid._post_sendgrid_mail')
+    @mock.patch('airflow.providers.sendgrid.utils.emailer._post_sendgrid_mail')
     def test_send_email_sendgrid_sender(self, mock_post):
         send_email(self.recepients, self.subject, self.html_content, cc=self.carbon_copy, bcc=self.bcc,
                    from_email='foo@foo.bar', from_name='Foo Bar')

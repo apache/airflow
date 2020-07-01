@@ -32,8 +32,6 @@ MISSING_TEST_FILES = {
     'tests/providers/apache/cassandra/sensors/test_record.py',
     'tests/providers/apache/cassandra/sensors/test_table.py',
     'tests/providers/apache/hdfs/sensors/test_web_hdfs.py',
-    'tests/providers/apache/pig/operators/test_pig.py',
-    'tests/providers/apache/spark/hooks/test_spark_jdbc_script.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
     'tests/providers/google/cloud/transfers/test_sql_to_gcs.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
@@ -43,7 +41,6 @@ MISSING_TEST_FILES = {
     'tests/providers/jenkins/hooks/test_jenkins.py',
     'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py',
     'tests/providers/microsoft/mssql/hooks/test_mssql.py',
-    'tests/providers/qubole/hooks/test_qubole.py',
     'tests/providers/samba/hooks/test_samba.py',
     'tests/providers/yandex/hooks/test_yandex.py'
 }
@@ -55,14 +52,13 @@ class TestProjectStructure(unittest.TestCase):
             self.assert_file_not_contains(filename, "providers")
 
     def test_deprecated_packages(self):
-        for directory in ["hooks", "operators", "secrets", "sensors", "task_runner"]:
-            path_pattern = f"{ROOT_FOLDER}/airflow/contrib/{directory}/*.py"
+        path_pattern = f"{ROOT_FOLDER}/airflow/contrib/**/*.py"
 
-            for filename in glob.glob(path_pattern, recursive=True):
-                if filename.endswith("/__init__.py"):
-                    self.assert_file_contains(filename, "This package is deprecated.")
-                else:
-                    self.assert_file_contains(filename, "This module is deprecated.")
+        for filename in glob.glob(path_pattern, recursive=True):
+            if filename.endswith("/__init__.py"):
+                self.assert_file_contains(filename, "This package is deprecated.")
+            else:
+                self.assert_file_contains(filename, "This module is deprecated.")
 
     def assert_file_not_contains(self, filename: str, pattern: str):
         with open(filename, 'rb', 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:

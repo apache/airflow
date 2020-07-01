@@ -134,13 +134,6 @@ def get_dag_runs_batch(session):
                                                           total_entries=total_entries))
 
 
-def patch_dag_run():
-    """
-    Update a DAG Run
-    """
-    raise NotImplementedError("Not implemented yet.")
-
-
 def post_dag_run():
     """
     Trigger a DAG.

@@ -69,12 +69,8 @@ class TestPluginsRBAC(unittest.TestCase):
         self.assertTrue('test_plugin' in self.app.blueprints)
         self.assertEqual(self.app.blueprints['test_plugin'].name, bp.name)
 
-    @mock.patch('airflow.plugins_manager.import_errors', return_value={})
-    @mock.patch('airflow.plugins_manager.plugins', return_value=[])
     @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
-    def test_entrypoint_plugin_errors_dont_raise_exceptions(
-        self, mock_ep_plugins, mock_plugins, mock_import_errors
-    ):
+    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, mock_ep_plugins):
         """
         Test that Airflow does not raise an Error if there is any Exception because of the
         Plugin.
@@ -95,7 +91,7 @@ class TestPluginsRBAC(unittest.TestCase):
             assert "Traceback (most recent call last):" in received_logs
             assert "Version Conflict" in received_logs
             assert "Failed to import plugin test-entrypoint" in received_logs
-            assert "Version Conflict", "test.plugins.test_plugins_manager" in import_errors.items()
+            assert ("test.plugins.test_plugins_manager", "Version Conflict") in import_errors.items()
 
 
 class TestPluginsManager(unittest.TestCase):

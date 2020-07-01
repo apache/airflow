@@ -91,7 +91,6 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `networkPolicies.enabled`                             | Enable Network Policies to restrict traffic                                                                  | `true`                                            |
 | `airflowHome`                                         | Location of airflow home directory                                                                           | `/opt/airflow`                                    |
 | `rbacEnabled`                                         | Deploy pods with Kubernets RBAC enabled                                                                      | `true`                                            |
-| `airflowVersion`                                      | Default Airflow image version                                                                                | `1.10.5`                                          |
 | `executor`                                            | Airflow executor (eg SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor)                  | `KubernetesExecutor`                              |
 | `allowPodLaunching`                                   | Allow airflow pods to talk to Kubernetes API to launch more pods                                             | `true`                                            |
 | `defaultAirflowRepository`                            | Fallback docker repository to pull airflow image from                                                        | `apache/airflow`                                  |
@@ -119,11 +118,11 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `data.metadataSecretName`                             | Secret name to mount Airflow connection string from                                                          | `~`                                               |
 | `data.resultBackendSecretName`                        | Secret name to mount Celery result backend connection string from                                            | `~`                                               |
 | `data.metadataConection`                              | Field separated connection data (alternative to secret name)                                                 | `{}`                                              |
-| `data.resultBakcnedConnection`                        | Field separated connection data (alternative to secret name)                                                 | `{}`                                              |
+| `data.resultBackendConnection`                        | Field separated connection data (alternative to secret name)                                                 | `{}`                                              |
 | `fernetKey`                                           | String representing an Airflow fernet key                                                                    | `~`                                               |
 | `fernetKeySecretName`                                 | Secret name for Airlow fernet key                                                                            | `~`                                               |
 | `workers.replicas`                                    | Replica count for Celery workers (if applicable)                                                             | `1`                                               |
-| `workers.keda.enabled`                                 | Enable KEDA autoscaling features                                                                             | `false`                                           |
+| `workers.keda.enabled`                                | Enable KEDA autoscaling features                                                                             | `false`                                           |
 | `workers.keda.pollingInverval`                        | How often KEDA should poll the backend database for metrics in seconds                                       | `5`                                               |
 | `workers.keda.cooldownPeriod`                         | How often KEDA should wait before scaling down in seconds                                                    | `30`                                              |
 | `workers.keda.maxReplicaCount`                        | Maximum number of Celery workers KEDA can scale to                                                           | `10`                                              |
@@ -157,7 +156,6 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `webserver.resources.limits.memory`                   | Memory Limit of webserver                                                                                    | `~`                                               |
 | `webserver.resources.requests.cpu`                    | CPU Request of webserver                                                                                     | `~`                                               |
 | `webserver.resources.requests.memory`                 | Memory Request of webserver                                                                                  | `~`                                               |
-| `webserver.jwtSigningCertificateSecretName`           | Name of secret to mount Airflow Webserver JWT singing certificate from                                       | `~`                                               |
 | `webserver.defaultUser`                               | Optional default airflow user information                                                                    | `{}`                                              |
 
 
@@ -266,4 +264,4 @@ to port-forward the Airflow UI to http://localhost:8080/ to cofirm Airflow is wo
 
 ## Contributing
 
-Check out [our contributing guide!](CONTRIBUTING.md)
+Check out [our contributing guide!](../CONTRIBUTING.rst)

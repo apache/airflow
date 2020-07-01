@@ -97,7 +97,7 @@ with models.DAG(
         requested_run_time={"seconds": int(time.time() + 60)},
     )
     run_id = (
-        "{{ task_instance.xcom_pull('gcp_bigquery_start_transfer', " "key='run_id') }}"
+        "{{ task_instance.xcom_pull('gcp_bigquery_start_transfer', key='run_id') }}"
     )
     # [END howto_bigquery_start_transfer]
 

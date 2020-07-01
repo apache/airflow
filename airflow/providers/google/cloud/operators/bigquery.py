@@ -1042,7 +1042,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
 
-        self.src_fmt_configs = src_fmt_configs or dict()
+        self.src_fmt_configs = src_fmt_configs or {}
         self.labels = labels
         self.encryption_configuration = encryption_configuration
         self.location = location
@@ -1664,6 +1664,7 @@ class BigQueryInsertJobOperator(BaseOperator):
     """
 
     template_fields = ("configuration", "job_id")
+    template_ext = (".json", )
     ui_color = BigQueryUIColors.QUERY.value
 
     def __init__(
@@ -1684,6 +1685,12 @@ class BigQueryInsertJobOperator(BaseOperator):
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+
+    def prepare_template(self) -> None:
+        # If .json is passed then we have to read the file
+        if isinstance(self.configuration, str) and self.configuration.endswith('.json'):
+            with open(self.configuration, 'r') as file:
+                self.configuration = json.loads(file.read())
 
     def execute(self, context: Any):
         hook = BigQueryHook(

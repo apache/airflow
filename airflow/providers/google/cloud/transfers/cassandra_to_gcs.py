@@ -307,7 +307,7 @@ class CassandraToGCSOperator(BaseOperator):
         """
         Generates BQ schema.
         """
-        field_schema: Dict[str, Any] = dict()
+        field_schema: Dict[str, Any] = {}
         field_schema.update({'name': name})
         field_schema.update({'type_': cls.get_bq_type(type_)})
         field_schema.update({'mode': cls.get_bq_mode(type_)})

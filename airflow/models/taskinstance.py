@@ -930,6 +930,13 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.info("Executing %s on %s", self.task, self.execution_date)
         return True
 
+    def _date_or_empty(self, attr):
+        if hasattr(self, attr):
+            date = getattr(self, attr)
+            if date:
+                return date.strftime('%Y%m%dT%H%M%S')
+        return ''
+
     @provide_session
     @Sentry.enrich_errors
     def _run_raw_task(
@@ -1014,7 +1021,6 @@ class TaskInstance(Base, LoggingMixin):
 
                 # If a timeout is specified for the task, make it fail
                 # if it goes beyond
-                result = None
                 if task_copy.execution_timeout:
                     try:
                         with timeout(int(
@@ -1057,15 +1063,10 @@ class TaskInstance(Base, LoggingMixin):
                 'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
                 self.dag_id,
                 self.task_id,
-                self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                    self,
-                    'execution_date') and self.execution_date else '',
-                self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                    self,
-                    'start_date') and self.start_date else '',
-                self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                    self,
-                    'end_date') and self.end_date else '')
+                self._date_or_empty('execution_date'),
+                self._date_or_empty('start_date'),
+                self._date_or_empty('end_date'),
+            )
         except AirflowRescheduleException as reschedule_exception:
             self.refresh_from_db()
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, context)
@@ -1104,15 +1105,10 @@ class TaskInstance(Base, LoggingMixin):
             'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
             self.dag_id,
             self.task_id,
-            self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                self,
-                'execution_date') and self.execution_date else '',
-            self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                self,
-                'start_date') and self.start_date else '',
-            self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                self,
-                'end_date') and self.end_date else '')
+            self._date_or_empty('execution_date'),
+            self._date_or_empty('start_date'),
+            self._date_or_empty('end_date')
+        )
         self.set_duration()
         if not test_mode:
             session.add(Log(self.state, self))

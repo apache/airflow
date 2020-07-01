@@ -45,10 +45,10 @@ The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.Kubernet
     import kubernetes.client.models as k8s
 
     from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-    from airflow.contrib.kubernetes.secret import Secret
-    from airflow.contrib.kubernetes.volume import Volume
-    from airflow.contrib.kubernetes.volume_mount import VolumeMount
-    from airflow.contrib.kubernetes.pod import Port
+    from airflow.kubernetes.secret import Secret
+    from airflow.kubernetes.volume import Volume
+    from airflow.kubernetes.volume_mount import VolumeMount
+    from airflow.kubernetes.pod import Port
 
 
     secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')

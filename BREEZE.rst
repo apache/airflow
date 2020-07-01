@@ -792,7 +792,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Builds docker image (CI or production) without entering the container. You can pass
         additional options to this command, such as '--force-build-image',
-        '--force-pull-image' '--python' '--use-local-cache'' in order to modify build behaviour.
+        '--force-pull-image', '--python', '--build-cache-local' or '-build-cache-pulled'
+        in order to modify build behaviour.
+
         You can also pass '--production-image' flag to build production image rather than CI image.
 
   Flags:
@@ -856,9 +858,32 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
 
-  -L, --use-local-cache
+  -L, --build-cache-local
           Uses local cache to build images. No pulled images will be used, but results of local
-          builds in the Docker cache are used instead.
+          builds in the Docker cache are used instead. This will take longer than when the pulled
+          cache is used for the first time, but subsequent '--build-cache-local' builds will be
+          faster as they will use mostly the locally build cache.
+
+          This is default strategy used by the Production image builds.
+
+  -U, --build-cache-pulled
+          Uses images pulled from registry (either DockerHub or GitHub depending on
+          --github-registry flag) to build images. The pulled images will be used as cache.
+          Those builds are usually faster than when ''--build-cache-local'' with the exception if
+          the registry images are not yet updated. The DockerHub images are updated nightly and the
+          GitHub images are updated after merges to master so it might be that the images are still
+          outdated vs. the latest version of the Dockerfiles you are using. In this case, the
+          ''--build-cache-local'' might be faster, especially if you iterate and change the
+          Dockerfiles yourself.
+
+          This is default strategy used by the CI image builds.
+
+  -X, --build-cache-disabled
+          Disables cache during docker builds. This is useful if you want to make sure you want to
+          rebuild everything from scratch.
+
+          This strategy is used by default for both Production and CI images for the scheduled
+          (nightly) builds in CI.
 
   -D, --dockerhub-user
           DockerHub user used to pull, push and build images. Default: apache.
@@ -1219,9 +1244,32 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
 
-  -L, --use-local-cache
+  -L, --build-cache-local
           Uses local cache to build images. No pulled images will be used, but results of local
-          builds in the Docker cache are used instead.
+          builds in the Docker cache are used instead. This will take longer than when the pulled
+          cache is used for the first time, but subsequent '--build-cache-local' builds will be
+          faster as they will use mostly the locally build cache.
+
+          This is default strategy used by the Production image builds.
+
+  -U, --build-cache-pulled
+          Uses images pulled from registry (either DockerHub or GitHub depending on
+          --github-registry flag) to build images. The pulled images will be used as cache.
+          Those builds are usually faster than when ''--build-cache-local'' with the exception if
+          the registry images are not yet updated. The DockerHub images are updated nightly and the
+          GitHub images are updated after merges to master so it might be that the images are still
+          outdated vs. the latest version of the Dockerfiles you are using. In this case, the
+          ''--build-cache-local'' might be faster, especially if you iterate and change the
+          Dockerfiles yourself.
+
+          This is default strategy used by the CI image builds.
+
+  -X, --build-cache-disabled
+          Disables cache during docker builds. This is useful if you want to make sure you want to
+          rebuild everything from scratch.
+
+          This strategy is used by default for both Production and CI images for the scheduled
+          (nightly) builds in CI.
 
 
   ####################################################################################################
@@ -1321,15 +1369,16 @@ This is the current syntax for  `./breeze <./breeze>`_:
         you would like to run or 'all' to run all checks. One of:
 
                  all all-but-pylint airflow-config-yaml base-operator bat-tests build
-                 build-providers-dependencies check-apache-license check-executables-have-shebangs
-                 check-hooks-apply check-integrations check-merge-conflict check-xml
-                 consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
-                 end-of-file-fixer fix-encoding-pragma flake8 forbid-tabs
-                 incorrect-use-of-LoggingMixin insert-license isort language-matters lint-dockerfile
-                 mixed-line-ending mypy provide-create-sessions pydevd pydocstyle pylint pylint-tests
-                 python-no-log-warn rst-backticks setup-order shellcheck stylelint
-                 trailing-whitespace update-breeze-file update-extras update-local-yml-file
-                 update-setup-cfg-file yamllint
+                 build-providers-dependencies check-apache-license check-builtin-literals
+                 check-executables-have-shebangs check-hooks-apply check-integrations
+                 check-merge-conflict check-xml consistent-pylint daysago-import-check
+                 debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
+                 fix-encoding-pragma flake8 forbid-tabs incorrect-use-of-LoggingMixin insert-license
+                 isort language-matters lint-dockerfile lint-openapi mixed-line-ending mypy
+                 provide-create-sessions pydevd pydocstyle pylint pylint-tests python-no-log-warn
+                 rst-backticks setup-order shellcheck stylelint trailing-whitespace
+                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 yamllint
 
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -1560,9 +1609,32 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
 
-  -L, --use-local-cache
+  -L, --build-cache-local
           Uses local cache to build images. No pulled images will be used, but results of local
-          builds in the Docker cache are used instead.
+          builds in the Docker cache are used instead. This will take longer than when the pulled
+          cache is used for the first time, but subsequent '--build-cache-local' builds will be
+          faster as they will use mostly the locally build cache.
+
+          This is default strategy used by the Production image builds.
+
+  -U, --build-cache-pulled
+          Uses images pulled from registry (either DockerHub or GitHub depending on
+          --github-registry flag) to build images. The pulled images will be used as cache.
+          Those builds are usually faster than when ''--build-cache-local'' with the exception if
+          the registry images are not yet updated. The DockerHub images are updated nightly and the
+          GitHub images are updated after merges to master so it might be that the images are still
+          outdated vs. the latest version of the Dockerfiles you are using. In this case, the
+          ''--build-cache-local'' might be faster, especially if you iterate and change the
+          Dockerfiles yourself.
+
+          This is default strategy used by the CI image builds.
+
+  -X, --build-cache-disabled
+          Disables cache during docker builds. This is useful if you want to make sure you want to
+          rebuild everything from scratch.
+
+          This strategy is used by default for both Production and CI images for the scheduled
+          (nightly) builds in CI.
 
   ****************************************************************************************************
    Flags for pulling/pushing Docker images (both CI and production)

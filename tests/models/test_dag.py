@@ -317,7 +317,7 @@ class TestDag(unittest.TestCase):
             start_date=DEFAULT_DATE,
             default_args={'owner': 'owner1'})
 
-        self.assertEqual(tuple(), dag.topological_sort())
+        self.assertEqual((), dag.topological_sort())
 
     def test_dag_naive_start_date_string(self):
         DAG('DAG', default_args={'start_date': '2019-06-01'})

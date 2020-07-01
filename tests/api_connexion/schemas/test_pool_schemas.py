@@ -53,7 +53,7 @@ class TestPoolSchema(unittest.TestCase):
     def test_desearialize(self, session):
         pool_dict = {"name": "test_pool", "slots": 3}
         deserialized_pool = pool_schema.load(pool_dict, session=session)
-        self.assertIsInstance(deserialized_pool.data, Pool)
+        self.assertNotIsInstance(deserialized_pool.data, Pool)  # Checks if load_instance is set to True
 
 
 class TestPoolCollectionSchema(unittest.TestCase):

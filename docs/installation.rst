@@ -36,6 +36,17 @@ requirements are per major/minor python version (3.6/3.7). You can use them as c
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
 and python versions in the URL.
 
+
+  **Prerequisites**
+
+  On Debian based Linux OS:
+
+  .. code-block:: bash
+
+      sudo apt-get update
+      sudo apt-get install build-essential
+
+
 1. Installing just airflow
 
 .. code-block:: bash

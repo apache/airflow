@@ -41,7 +41,7 @@ from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.models import errors
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
-from airflow.settings import STORE_SERIALIZED_DAGS
+from airflow.settings import STORE_DAG_CODE, STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
@@ -631,7 +631,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
 
         # Should store dag file source in a database?
-        self.store_dag_code = conf.getboolean('core', 'store_dag_code', fallback=False)
+        self.store_dag_code = STORE_DAG_CODE
         # Map from file path to the processor
         self._processors: Dict[str, AbstractDagFileProcessorProcess] = {}
 

@@ -120,6 +120,47 @@ class BaseXCom(Base, LoggingMixin):
 
     @classmethod
     @provide_session
+    def get_one(cls,
+                execution_date: pendulum.DateTime,
+                key: Optional[str] = None,
+                task_id: Optional[Union[str, Iterable[str]]] = None,
+                dag_id: Optional[Union[str, Iterable[str]]] = None,
+                include_prior_dates: bool = False,
+                session: Session = None) -> Optional[Any]:
+        """
+        Retrieve an XCom value, optionally meeting certain criteria. Returns None
+        of there are no results.
+
+        :param execution_date: Execution date for the task
+        :type execution_date: pendulum.datetime
+        :param key: A key for the XCom. If provided, only XComs with matching
+            keys will be returned. To remove the filter, pass key=None.
+        :type key: str
+        :param task_id: Only XComs from task with matching id will be
+            pulled. Can pass None to remove the filter.
+        :type task_id: str
+        :param dag_id: If provided, only pulls XCom from this DAG.
+            If None (default), the DAG of the calling task is used.
+        :type dag_id: str
+        :param include_prior_dates: If False, only XCom from the current
+            execution_date are returned. If True, XCom from previous dates
+            are returned as well.
+        :type include_prior_dates: bool
+        :param session: database session
+        :type session: sqlalchemy.orm.session.Session
+        """
+        result = cls.get_many(execution_date=execution_date,
+                              key=key,
+                              task_ids=task_id,
+                              dag_ids=dag_id,
+                              include_prior_dates=include_prior_dates,
+                              session=session).first()
+        if result:
+            return result.value
+        return None
+
+    @classmethod
+    @provide_session
     def get_many(cls,
                  execution_date: pendulum.DateTime,
                  key: Optional[str] = None,

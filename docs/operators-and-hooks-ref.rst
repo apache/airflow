@@ -1090,7 +1090,7 @@ All hooks are based on :class:`airflow.providers.yandex.hooks.yandex.YandexCloud
 
 .. note::
     You can learn how to use Yandex.Cloud integrations by analyzing the
-    `example DAG <https://github.com/apache/airflow/tree/master/airflow/contrib/example_dags/example_yandexcloud_dataproc.py>`_
+    `example DAG <https://github.com/apache/airflow/blob/master/airflow/providers/yandex/example_dags/example_yandexcloud_dataproc.py>`_
 
 Service operators and hooks
 '''''''''''''''''''''''''''

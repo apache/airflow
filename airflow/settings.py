@@ -79,6 +79,20 @@ Session: Optional[SASession] = None
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json  # pylint: disable=self-assigning-variable
 
+# Dictionary containing State and colors associated to each state to
+# display on the Webserver
+STATE_COLORS = {
+    "queued": "gray",
+    "running": "lime",
+    "success": "green",
+    "failed": "red",
+    "up_for_retry": "gold",
+    "up_for_reschedule": "turquoise",
+    "upstream_failed": "orange",
+    "skipped": "pink",
+    "scheduled": "tan",
+}
+
 
 def policy(task):  # pylint: disable=unused-argument
     """
@@ -339,3 +353,15 @@ STORE_SERIALIZED_DAGS = conf.getboolean('core', 'store_serialized_dags', fallbac
 # write rate.
 MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
     'core', 'min_serialized_dag_update_interval', fallback=30)
+
+# Whether to persist DAG files code in DB. If set to True, Webserver reads file contents
+# from DB instead of trying to access files in a DAG folder.
+# Defaults to same as the store_serialized_dags setting.
+STORE_DAG_CODE = conf.getboolean("core", "store_dag_code", fallback=STORE_SERIALIZED_DAGS)
+
+# If donot_modify_handlers=True, we do not modify logging handlers in task_run command
+# If the flag is set to False, we remove all handlers from the root logger
+# and add all handlers from 'airflow.task' logger to the root Logger. This is done
+# to get all the logs from the print & log statements in the DAG files before a task is run
+# The handlers are restored after the task completes execution.
+DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)

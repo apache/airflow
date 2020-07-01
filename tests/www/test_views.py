@@ -29,7 +29,7 @@ import tempfile
 import unittest
 import urllib
 from contextlib import contextmanager
-from datetime import datetime as dt, timedelta, timezone as tz
+from datetime import datetime as dt, timedelta
 from typing import Any, Dict, Generator, List, NamedTuple
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -99,6 +99,7 @@ class TemplateWithContext(NamedTuple):
             'log_fetch_delay_sec',
             'log_auto_tailing_offset',
             'log_animation_speed',
+            'state_color_mapping',
             # airflow.www.static_config.configure_manifest_files
             'url_for_asset',
             # airflow.www.views.AirflowBaseView.render_template
@@ -430,7 +431,7 @@ class TestAirflowBaseViews(TestBase):
             state=State.RUNNING)
 
     def test_index(self):
-        with assert_queries_count(38):
+        with assert_queries_count(40):
             resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
@@ -1011,6 +1012,19 @@ class TestConfigurationView(TestBase):
             ['Airflow Configuration', 'Running Configuration'], resp)
 
 
+class TestRedocView(TestBase):
+    def test_should_render_template(self):
+        with self.capture_templates() as templates:
+            resp = self.client.get('redoc')
+            self.check_content_in_response('Redoc', resp)
+
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0].name, 'airflow/redoc.html')
+        self.assertEqual(templates[0].local_context, {
+            'openapi_spec_url': '/api/v1/openapi.yaml'
+        })
+
+
 class TestLogView(TestBase):
     DAG_ID = 'dag_for_testing_log_view'
     DAG_ID_REMOVED = 'removed_dag_for_testing_log_view'
@@ -1284,7 +1298,7 @@ class TestVersionView(TestBase):
         self.assertEqual(templates[0].local_context, dict(
             airflow_version=version.version,
             git_version=mock.ANY,
-            title='Version Info'
+            title='Version Info',
         ))
 
 
@@ -1492,7 +1506,7 @@ class TestGraphView(TestBase):
     def test_dt_nr_dr_form_with_execution_date_parameter_only(self):
         self.tester.test_with_execution_date_parameter_only()
 
-    def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_parameters_only(self):
         self.tester.test_with_base_date_and_num_runs_parameters_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
@@ -1531,7 +1545,7 @@ class TestGanttView(TestBase):
     def test_dt_nr_dr_form_with_execution_date_parameter_only(self):
         self.tester.test_with_execution_date_parameter_only()
 
-    def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_parameters_only(self):
         self.tester.test_with_base_date_and_num_runs_parameters_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
@@ -2214,6 +2228,18 @@ class TestTaskInstanceView(TestBase):
         self.check_content_in_response('List Task Instance', resp)
 
 
+class TestTaskRescheduleView(TestBase):
+    TI_ENDPOINT = '/taskreschedule/list/?_flt_0_execution_date={}'
+
+    def test_start_date_filter(self):
+        resp = self.client.get(self.TI_ENDPOINT.format(
+            self.percent_encode('2018-10-09 22:44:31')))
+        # We aren't checking the logic of the date filter itself (that is built
+        # in to FAB) but simply that our UTC conversion was run - i.e. it
+        # doesn't blow up!
+        self.check_content_in_response('List Task Reschedule', resp)
+
+
 class TestRenderedView(TestBase):
 
     def setUp(self):
@@ -2626,7 +2652,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz.utc))
+        self.assertEqual(dr.execution_date, timezone.datetime(2018, 7, 6, 5, 4, 3))
 
     def test_create_dagrun_execution_date_with_timezone_edt(self):
         data = {
@@ -2642,7 +2668,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-4))))
+        self.assertEqual(dr.execution_date, timezone.datetime(2018, 7, 6, 9, 4, 3))
 
     def test_create_dagrun_execution_date_with_timezone_pst(self):
         data = {
@@ -2658,7 +2684,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-8))))
+        self.assertEqual(dr.execution_date, timezone.datetime(2018, 7, 6, 13, 4, 3))
 
     @conf_vars({("core", "default_timezone"): "America/Toronto"})
     def test_create_dagrun_execution_date_without_timezone_default_edt(self):
@@ -2675,7 +2701,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz(timedelta(hours=-4))))
+        self.assertEqual(dr.execution_date, timezone.datetime(2018, 7, 6, 9, 4, 3))
 
     def test_create_dagrun_execution_date_without_timezone_default_utc(self):
         data = {
@@ -2691,7 +2717,7 @@ class TestDagRunModelView(TestBase):
 
         dr = self.session.query(models.DagRun).one()
 
-        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=tz.utc))
+        self.assertEqual(dr.execution_date, dt(2018, 7, 6, 5, 4, 3, tzinfo=timezone.TIMEZONE))
 
     def test_create_dagrun_valid_conf(self):
         conf_value = dict(Valid=True)

@@ -165,6 +165,13 @@ class AirflowConfigParser(ConfigParser):
             'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
             'hostname_callable': (re.compile(r':'), r'.', '2.0'),
         },
+        'email': {
+            'email_backend': (
+                re.compile(r'^airflow\.contrib\.utils\.sendgrid\.send_email$'),
+                r'airflow.providers.sendgrid.utils.emailer.send_email',
+                '2.0'
+            ),
+        }
     }
 
     # This method transforms option names on every read, get, or set operation.

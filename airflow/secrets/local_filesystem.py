@@ -26,6 +26,8 @@ from inspect import signature
 from json import JSONDecodeError
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+import yaml
+
 from airflow.exceptions import AirflowException, AirflowFileParseException, FileSyntaxError
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.file import COMMENT_PATTERN
@@ -84,6 +86,29 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
     return secrets, errors
 
 
+def _parse_yaml_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
+    """
+    Parse a file in the YAML format.
+
+    :param file_path: The location of the file that will be processed.
+    :type file_path: str
+    :return: Tuple with mapping of key and list of values and list of syntax errors
+    """
+    with open(file_path) as f:
+        content = f.read()
+
+    if not content:
+        return {}, [FileSyntaxError(line_no=1, message="The file is empty.")]
+    try:
+        secrets = yaml.safe_load(content)
+    except yaml.MarkedYAMLError as e:
+        return {}, [FileSyntaxError(line_no=e.problem_mark.line, message=str(e))]
+    if not isinstance(secrets, dict):
+        return {}, [FileSyntaxError(line_no=1, message="The file should contain the object.")]
+
+    return secrets, []
+
+
 def _parse_json_file(file_path: str) -> Tuple[Dict[str, Any], List[FileSyntaxError]]:
     """
     Parse a file in the JSON format.
@@ -110,6 +135,7 @@ def _parse_json_file(file_path: str) -> Tuple[Dict[str, Any], List[FileSyntaxErr
 FILE_PARSERS = {
     "env": _parse_env_file,
     "json": _parse_json_file,
+    "yaml": _parse_yaml_file,
 }
 
 

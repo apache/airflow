@@ -456,9 +456,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         all_perm_views = {role.permission_view_id for role in all_perm_view_by_user}
 
         for role in dag_role:
+            # pylint: disable=no-member
             # Get all the perm-view of the role
             existing_perm_view_by_user = self.get_session.query(ab_perm_view_role)\
-                .filter(ab_perm_view_role.columns.role_id == role.id)  # pylint: disable=no-member
+                .filter(ab_perm_view_role.columns.role_id == role.id)
 
             existing_perms_views = {pv.permission_view_id for pv in existing_perm_view_by_user}
             missing_perm_views = all_perm_views - existing_perms_views

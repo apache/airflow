@@ -81,7 +81,7 @@ Here is a sample configuration:
     backend = airflow.secrets.local_filesystem.LocalFilesystemBackend
     backend_kwargs = {"variables_file_path": "/files/var.json", "connections_file_path": "/files/conn.json"}
 
-Both ``JSON`` and ``.env`` files are supported. All parameters are optional. If the file path is not passed,
+``JSON``, ``YAML`` and ``.env`` files are supported. All parameters are optional. If the file path is not passed,
 the backend returns an empty collection.
 
 Storing and Retrieving Connections
@@ -90,7 +90,7 @@ Storing and Retrieving Connections
 If you have set ``connections_file_path`` as ``/files/my_conn.json``, then the backend will read the
 file ``/files/my_conn.json`` when it looks for connections.
 
-The file can be defined in ``JSON`` or ``env`` format.
+The file can be defined in ``JSON``, ``YAML`` or ``env`` format.
 
 The JSON file must contain an object where the key contains the connection ID and the value contains
 the definitions of one or more connections. The connection can be defined as a URI (string) or JSON object.
@@ -116,6 +116,28 @@ The following is a sample JSON file.
         }
     }
 
+The YAML file structure is similar to that of a JSON. The key-value pair of connection ID and the definitions of one or more connections.
+The connection can be defined as a URI (string) or JSON object.
+For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.
+For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
+The following is a sample YAML file.
+
+.. code-block:: yaml
+
+    CONN_A: 'mysq://host_a'
+
+    CONN_B:
+      - 'mysq://host_a'
+      - 'mysq://host_b'
+
+    CONN_C:
+      conn_type: scheme
+      host: host
+      schema: lschema
+      login: Login
+      password: None
+      port: 1234
+
 You can also define connections using a ``.env`` file. Then the key is the connection ID, and
 the value should describe the connection using the URI. If the connection ID is repeated, all values will
 be returned. The following is a sample file.
@@ -131,7 +153,7 @@ Storing and Retrieving Variables
 If you have set ``variables_file_path`` as ``/files/my_var.json``, then the backend will read the
 file ``/files/my_var.json`` when it looks for variables.
 
-The file can be defined in ``JSON`` or ``env`` format.
+The file can be defined in ``JSON``, ``YAML`` or ``env`` format.
 
 The JSON file must contain an object where the key contains the variable key and the value contains
 the variable value. The following is a sample JSON file.
@@ -142,6 +164,14 @@ the variable value. The following is a sample JSON file.
         "VAR_A": "some_value",
         "var_b": "differnet_value"
     }
+
+The YAML file structure is similar to that of JSON, with key containing the variable key and the value containing
+the variable value. The following is a sample YAML file.
+
+  .. code-block:: yaml
+
+    VAR_A: some_value
+    VAR_B: different_value
 
 You can also define variable using a ``.env`` file. Then the key is the variable key, and variable should
 describe the variable value. The following is a sample file.

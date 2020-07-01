@@ -102,3 +102,24 @@ class TestMovingCoreToContrib(TestCase):
     def test_warning_on_import(self, new_path, old_path):
         self.skip_test_with_mssql_in_py38(new_path, old_path)
         self.assert_proper_import(old_path, new_path)
+
+    def test_no_redirect_to_deprecated_classes(self):
+        """
+        When we have the following items:
+        new_A, old_B
+        old_B, old_C
+
+        This will tell us to use new_A instead of old_B.
+        """
+        all_classes_by_old = {
+            old: new for new, old in ALL
+        }
+
+        for new, old in ALL:
+            # Using if statement allows us to create a developer-friendly message only when we need it.
+            # Otherwise, it wouldn't always be possible - KeyError
+            if new in all_classes_by_old:
+                raise AssertionError(
+                    f'Deprecation "{old}" to "{new}" is incorrect. '
+                    f'Please use \"{all_classes_by_old[new]}\" instead of "{old}".'
+                )
