@@ -15,12 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from flask import request
+from marshmallow import ValidationError
 from sqlalchemy import func
 
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import format_datetime, format_parameters
 from airflow.api_connexion.schemas.dag_run_schema import (
-    DAGRunCollection, dagrun_collection_schema, dagrun_schema,
+    DAGRunCollection, dagrun_collection_schema, dagrun_schema, dagruns_batch_form_schema,
 )
 from airflow.models import DagRun
 from airflow.utils.session import provide_session
@@ -107,29 +109,26 @@ def _apply_date_filters_to_query(query, end_date_gte, end_date_lte, execution_da
     return query
 
 
-@format_parameters({
-    'start_date_gte': format_datetime,
-    'start_date_lte': format_datetime,
-    'execution_date_gte': format_datetime,
-    'execution_date_lte': format_datetime,
-    'end_date_gte': format_datetime,
-    'end_date_lte': format_datetime,
-})
 @provide_session
-def get_dag_runs_batch(session, dag_ids, start_date_gte=None, start_date_lte=None,
-                       execution_date_gte=None, execution_date_lte=None,
-                       end_date_gte=None, end_date_lte=None, offset=None, limit=None):
+def get_dag_runs_batch(session):
     """
     Get list of DAG Runs
     """
+    body = request.get_json()
+    try:
+        data = dagruns_batch_form_schema.load(body).data
+    except ValidationError as err:
+        raise BadRequest(detail=err.messages)
+
     query = session.query(DagRun)
 
-    if dag_ids:
-        query = query.filter(DagRun.dag_id.in_(dag_ids))
+    if data["dag_ids"]:
+        query = query.filter(DagRun.dag_id.in_(data["dag_ids"]))
 
-    dag_runs, total_entries = _fetch_dag_runs(query, session, end_date_gte, end_date_lte, execution_date_gte,
-                                              execution_date_lte, start_date_gte, start_date_lte,
-                                              limit, offset)
+    dag_runs, total_entries = _fetch_dag_runs(query, session, data["end_date_gte"], data["end_date_lte"],
+                                              data["execution_date_gte"], data["execution_date_lte"],
+                                              data["start_date_gte"], data["start_date_lte"],
+                                              data["page_limit"], data["page_offset"])
 
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs,
                                                           total_entries=total_entries))

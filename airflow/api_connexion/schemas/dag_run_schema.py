@@ -72,5 +72,25 @@ class DAGRunCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
+class DagRunsBatchFormSchema(Schema):
+    """ Schema to validate and deserialize the Form(request payload) submitted to DagRun Batch endpoint"""
+
+    class Meta:
+        """ Meta """
+        datetimeformat = 'iso'
+        strict = True
+
+    page_offset = fields.Int(required=False, missing=0, min=0)
+    page_limit = fields.Int(required=False, missing=100, min=1)
+    dag_ids = fields.List(fields.Str(), required=False, missing=None)
+    execution_date_gte = fields.DateTime(required=False, missing=None)
+    execution_date_lte = fields.DateTime(required=False, missing=None)
+    start_date_gte = fields.DateTime(required=False, missing=None)
+    start_date_lte = fields.DateTime(required=False, missing=None)
+    end_date_gte = fields.DateTime(required=False, missing=None)
+    end_date_lte = fields.DateTime(required=False, missing=None)
+
+
 dagrun_schema = DAGRunSchema()
 dagrun_collection_schema = DAGRunCollectionSchema()
+dagruns_batch_form_schema = DagRunsBatchFormSchema()

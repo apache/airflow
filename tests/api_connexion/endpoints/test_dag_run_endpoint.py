@@ -353,15 +353,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         session.add_all(dag_runs)
         session.commit()
         payload = {
-            "page_offset": 0,
-            "page_limit": 10,
-            "dag_ids": ["TEST_DAG_I"],
-            "execution_date_gte": "2020-06-24T19:54:56Z",
-            "execution_date_lte": self.default_time,
-            "start_date_gte": "2020-06-24T19:54:56Z",
-            "start_date_lte": self.default_time,
-            "end_date_gte": "2020-06-24T19:54:56Z",
-            "end_date_lte": self.default_time
+            "dag_ids": ["TEST_DAG_ID"],
         }
         response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
         assert response.status_code == 200
