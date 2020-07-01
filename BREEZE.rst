@@ -232,8 +232,126 @@ from your ``logs`` directory in the Airflow sources, so all logs created in the 
 visible in the host as well. Every time you enter the container, the ``logs`` directory is
 cleaned so that logs do not accumulate.
 
+Using the Airflow Breeze Environment
+=====================================
+
+Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testing. Under the
+hood it uses other scripts that you can also run manually if you have problem with running the Breeze
+environment.
+
+Breeze script allows performing the following tasks:
+
+Managing CI environment:
+
+    * Build CI docker image with ``breeze build-image`` command
+    * Enter interactive shell in CI container when ``shell`` (or no command) is specified
+    * Join running interactive shell with ``breeze exec`` command
+    * Stop running interactive environment with ``breeze stop`` command
+    * Restart running interactive environment with ``breeze restart`` command
+    * Run test specified with ``breeze tests`` command
+    * Generate requirements with ``breeze generate-requirements`` command
+    * Execute arbitrary command in the test environment with ``breeze shell`` command
+    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
+    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
+
+You can optionally reset database if specified as extra ``--db-reset`` flag and for CI image you can also
+start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
+chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
+
+Managing Prod environment (with ``--production-image`` flag):
+
+    * Build CI docker image with ``breeze build-image`` command
+    * Enter interactive shell in PROD container when ``shell`` (or no command) is specified
+    * Join running interactive shell with ``breeze exec`` command
+    * Stop running interactive environment with ``breeze stop`` command
+    * Restart running interactive environment with ``breeze restart`` command
+    * Execute arbitrary command in the test environment with ``breeze shell`` command
+    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
+    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
+
+You can optionally reset database if specified as extra ``--db-reset`` flag. You can also
+chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
+
+
+Manage and Interact with Kubernetes tests environment:
+
+    * Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze kind-cluster`` commands
+    * Run Kubernetes tests  specified with ``breeze kind-cluster tests`` command
+    * Enter the interactive kubernetes test environment with ``breeze kind-cluster shell`` command
+
+Run static checks:
+
+    * Run static checks - either for currently staged change or for all files with
+      ``breeze static-check`` command
+
+Build documentation:
+
+    * Build documentation with ``breeze build-docs`` command
+
+Set up local development environment:
+
+    * Setup local virtualenv with ``breeze setup-virtualenv`` command
+    * Setup autocomplete for itself with ``breeze setup-autocomplete`` command
+
+Interactive Breeze Environment
+------------------------------
+
+Entering Breeze environment
+...........................
+
+You enter the Breeze test environment by running the ``./breeze`` script. You can run it with
+the ``help`` command to see the list of available options. See `Breeze Command-Line Interface Reference`_
+for details. By default you enter the ``
+
+.. code-block:: bash
+
+  ./breeze
+
+The First time you run Breeze, it pulls and builds a local version of Docker images.
+It pulls the latest Airflow CI images from `Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
+and uses them to build your local Docker images. Note that the first run (per python) might take up to 10
+minutes on a fast connection to start. Subsequent runs should be much faster.
+
+Once you enter the environment, you are dropped into bash shell of the Airflow container and you can
+run tests immediately.
+
+You can `set up autocomplete <#setting-up-autocomplete>`_ for commands and add the
+checked-out Airflow repository to your PATH to run Breeze without the ``./`` and from any directory.
+
+
+When you enter the Breeze environment, automatically an environment file is sourced from
+``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
+automatically mounted to the container under ``/files`` path and you can put there any files you want
+to make available for the Breeze container.
+
+Running tests in the CI interactive environment
+-----------------------------------------------
+
+Breeze helps with running tests in the same environment/way as CI tests are run. You can run various
+types of tests while you enter Breeze CI interactive environment - this is described in detail
+in `<TESTING.rst>`_
+
+Launching multiple terminals
+............................
+
+Often if you want to run full airflow in the Breeze environment you need to launch multiple terminals and
+run ``airflow webserver``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
+
+This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux
+is installed inside the container and you can launch it with ``tmux`` command. Tmux provides you with the
+capability of creating multiple virtual terminals and multiplex between them. More about ``tmux`` can be
+found at `tmux github wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
+that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
+
+Another - slightly easier - way is to exec into Breeze terminal from the host's terminal. Often you can
+have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
+to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
+Breeze environment. You will be dropped into bash and environment variables will be read in the same
+way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
+
+
 CLIs for cloud providers
-========================
+........................
 
 For development convenience we installed simple wrappers for the most common cloud providers CLIs. Those
 CLIs are not installed when you build or pull the image - they will be downloaded as docker images
@@ -270,115 +388,8 @@ Also - in case you run several different Breeze containers in parallel (from dif
 with different versions) - they docker images for CLI Cloud Providers tools are shared so if you update it
 for one Breeze container, they will also get updated for all the other containers.
 
-Using the Airflow Breeze Environment
-=====================================
-
-Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testing. Under the
-hood it uses other scripts that you can also run manually if you have problem with running the Breeze
-environment.
-
-Breeze script allows performing the following tasks:
-
-Managing CI environment:
-
-    * Build CI docker image with ``breeze build-image`` command
-    * Enter interactive shell in CI container when ``shell`` (or no command) is specified
-    * Join running interactive shell with ``breeze exec`` command
-    * Stop running interactive environment with ``breeze stop`` command
-    * Restart running interactive environment with ``breeze restart`` command
-    * Run test specified with ``breeze tests`` command
-    * Execute arbitrary command in the test environment with ``breeze shell`` command
-    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
-    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
-
-You can optionally reset database if specified as extra ``--db-reset`` flag and for CI image you can also
-start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
-chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
-
-Managing Prod environment (with ``--production-image`` flag):
-
-    * Build CI docker image with ``breeze build-image`` command
-    * Enter interactive shell in PROD container when ``shell`` (or no command) is specified
-    * Join running interactive shell with ``breeze exec`` command
-    * Stop running interactive environment with ``breeze stop`` command
-    * Restart running interactive environment with ``breeze restart`` command
-    * Execute arbitrary command in the test environment with ``breeze shell`` command
-    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
-    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
-
-You can optionally reset database if specified as extra ``--db-reset`` flag. You can also
-chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
-
-
-Manage and Interact with Kubernetes tests environment:
-
-    * Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze kind-cluster`` commands
-    * Run Kubernetes tests  specified with ``breeze kind-cluster tests`` command
-    * Enter the interactive kubernetes test environment with ``breeze kind-cluster shell`` command
-
-Run static checks:
-
-    * Run static checks - either for currently staged change or for all files with
-      ``breeze static-check`` or ``breeze static-check-all-files`` command
-
-Build documentation:
-
-    * Build documentation with ``breeze build-docs`` command
-
-Set up local development environment:
-
-    * Setup local virtualenv with ``breeze setup-virtualenv`` command
-    * Setup autocomplete for itself with ``breeze setup-autocomplete`` command
-
-
-Entering Breeze CI environment
-------------------------------
-
-You enter the Breeze test environment by running the ``./breeze`` script. You can run it with
-the ``help`` command to see the list of available options. See `Breeze Command-Line Interface Reference`_
-for details.
-
-.. code-block:: bash
-
-  ./breeze
-
-The First time you run Breeze, it pulls and builds a local version of Docker images.
-It pulls the latest Airflow CI images from `Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
-and uses them to build your local Docker images. Note that the first run (per python) might take up to 10
-minutes on a fast connection to start. Subsequent runs should be much faster.
-
-Once you enter the environment, you are dropped into bash shell of the Airflow container and you can
-run tests immediately.
-
-You can `set up autocomplete <#setting-up-autocomplete>`_ for commands and add the
-checked-out Airflow repository to your PATH to run Breeze without the ``./`` and from any directory.
-
-
-When you enter the Breeze environment, automatically an environment file is sourced from
-``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
-automatically mounted to the container under ``/files`` path and you can put there any files you want
-to make available for the Breeze container.
-
-Launching multiple terminals
-----------------------------
-
-Often if you want to run full airflow in the Breeze environment you need to launch multiple terminals and
-run ``airflow webserver``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
-
-This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux
-is installed inside the container and you can launch it with ``tmux`` command. Tmux provides you with the
-capability of creating multiple virtual terminals and multiplex between them. More about ``tmux`` can be
-found at `tmux github wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
-that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
-
-Another - slightly easier - way is to exec into Breeze terminal from the host's terminal. Often you can
-have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
-to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
-Breeze environment. You will be dropped into bash and environment variables will be read in the same
-way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
-
 Stopping Interactive environment
---------------------------------
+................................
 
 After starting up, the environment runs in the background and takes precious memory.
 You can always stop it via:
@@ -388,7 +399,7 @@ You can always stop it via:
    ./breeze stop
 
 Restarting Breeze environment
------------------------------
+.............................
 
 You can also  restart the environment and enter it via:
 
@@ -396,8 +407,8 @@ You can also  restart the environment and enter it via:
 
    ./breeze restart
 
-Choosing a Breeze Environment
------------------------------
+Choosing different Breeze Environment configuration
+...................................................
 
 You can use additional ``breeze`` flags to customize your environment. For example, you can specify a Python
 version to use, backend and a container environment for testing. With Breeze, you can recreate the same
@@ -417,8 +428,8 @@ default settings.
 
 The defaults when you run the Breeze environment are Python 3.6, Sqlite, and Docker.
 
-Launching Breeze Integrations
------------------------------
+Launching Breeze integrations
+.............................
 
 When Breeze starts, it can start additional integrations. Those are additional docker containers
 that are started in the same docker-compose command. Those are required by some of the tests
@@ -436,59 +447,8 @@ Once integration is started, it will continue to run until the environment is st
 
 Note that running integrations uses significant resources - CPU and memory.
 
-Cleaning the Environment
-------------------------
-
-You may need to clean up your Docker environment occasionally. The images are quite big
-(1.5GB for both images needed for static code analysis and CI tests) and, if you often rebuild/update
-them, you may end up with some unused image data.
-
-To clean up the Docker environment:
-
-1. Stop Breeze with ``./breeze stop``.
-
-2. Run the ``docker system prune`` command.
-
-3. Run ``docker images --all`` and ``docker ps --all`` to verify that your Docker is clean.
-
-   Both commands should return an empty list of images and containers respectively.
-
-If you run into disk space errors, consider pruning your Docker images with the ``docker system prune --all``
-command. You may need to restart the Docker Engine before running this command.
-
-In case of disk space errors on macOS, increase the disk space available for Docker. See
-`Prerequisites <#prerequisites>`_ for details.
-
-Running Arbitrary Commands in the Breeze Environment
--------------------------------------------------------
-
-To run other commands/executables inside the Breeze Docker-based environment, use the
-``./breeze execute-command`` command. To add arguments, specify them
-together with the command surrounded with either ``"`` or ``'``, or pass them after ``--`` as extra arguments.
-
-.. code-block:: bash
-
-     ./breeze execute-command "ls -la"
-
-.. code-block:: bash
-
-     ./breeze execute-command ls -- --la
-
-
-Running Docker Compose Commands
--------------------------------
-
-To run Docker Compose commands (such as ``help``, ``pull``, etc), use the
-``docker-compose`` command. To add extra arguments, specify them
-after ``--`` as extra arguments.
-
-.. code-block:: bash
-
-     ./breeze docker-compose pull -- --ignore-pull-failures
-
-
 Mounting Local Sources to Breeze
---------------------------------
+................................
 
 Important sources of Airflow are mounted inside the ``airflow`` container that you enter.
 This means that you can continue editing your changes on the host in your favourite IDE and have them
@@ -505,45 +465,8 @@ By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>
 the directory used by airflow scheduler and webserver to scan dags for. You can use it to test your dags
 from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
 
-Adding/Modifying Dependencies
------------------------------
-
-If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
-add javascript dependencies in ``package.json``, you can either add dependencies temporarily for a single
-Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
-
-Installing Dependencies for a Single Breeze Session
-...................................................
-
-You can install dependencies inside the container using ``sudo apt install``, ``pip install`` or
-``yarn install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
-quickly while you are in the container. However, these changes are not retained: they disappear once you
-exit the container (except for the node.js dependencies if your sources are mounted to the container).
-Therefore, if you want to retain a new dependency, follow the second option described below.
-
-Adding Dependencies Permanently
-...............................
-
-You can add dependencies to the ``Dockerfile.ci``, ``setup.py`` or ``package.json`` and rebuild the image.
-This should happen automatically if you modify any of these files.
-After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
-asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
-if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the
-``build-image`` command to only rebuild CI image and not to go into shell.
-
-Changing apt Dependencies in the Dockerfile.ci
-..............................................
-
-During development, changing dependencies in ``apt-get`` closer to the top of the ``Dockerfile.ci``
-invalidates cache for most of the image. It takes long time for Breeze to rebuild the image.
-So, it is a recommended practice to add new dependencies initially closer to the end
-of the ``Dockerfile.ci``. This way dependencies will be added incrementally.
-
-Before merge, these dependencies should be moved to the appropriate ``apt-get install`` command,
-which is already in the ``Dockerfile.ci``.
-
 Port Forwarding
----------------
+...............
 
 When you run Airflow Breeze, the following ports are automatically forwarded:
 
@@ -581,8 +504,160 @@ You can change the used host port numbers by setting appropriate environment var
 
 If you set these variables, next time when you enter the environment the new ports should be in effect.
 
-Setting Up Autocompletion
--------------------------
+Cleaning the Environment
+........................
+
+You may need to clean up your Docker environment occasionally. The images are quite big
+(1.5GB for both images needed for static code analysis and CI tests) and, if you often rebuild/update
+them, you may end up with some unused image data.
+
+To clean up the Docker environment:
+
+1. Stop Breeze with ``./breeze stop``.
+
+2. Run the ``docker system prune`` command.
+
+3. Run ``docker images --all`` and ``docker ps --all`` to verify that your Docker is clean.
+
+   Both commands should return an empty list of images and containers respectively.
+
+If you run into disk space errors, consider pruning your Docker images with the ``docker system prune --all``
+command. You may need to restart the Docker Engine before running this command.
+
+In case of disk space errors on macOS, increase the disk space available for Docker. See
+`Prerequisites <#prerequisites>`_ for details.
+
+Running static checks
+---------------------
+
+You can run static checks via Breeze. You can also run them via pre-commit command but with auto-completion
+Breeze makes it easier to run selective static checks. If you press <TAB> after the static-check and if
+you have auto-complete setup you should see auto-completable list of all checks available.
+
+.. code-block:: bash
+
+     ./breeze static-check mypy
+
+The above will run mypy check for currently staged files.
+
+You can also add arbitrary pre-commit flag after ``--``
+
+.. code-block:: bash
+
+     ./breeze static-check mypy -- --all-files
+
+The above will run mypy check for all files.
+
+Running Kubernetes tests in virtual environment
+-----------------------------------------------
+
+Breeze helps with running Kubernetes tests in the same environment/way as CI tests are run.
+Breeze helps to setup KinD cluster for testing, setting up virtualenv and downloads the right tools
+automatically to run the tests.
+
+This is described in `Testing Kubernetes <TESTING.rst#running-tests-with-kubernetes>`_ in detail.
+
+Building the Documentation
+--------------------------
+
+To build documentation in Breeze, use the ``build-docs`` command:
+
+.. code-block:: bash
+
+     ./breeze build-docs
+
+Results of the build can be found in the ``docs/_build`` folder.
+
+Often errors during documentation generation come from the docstrings of auto-api generated classes.
+During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
+easily identify the location the problems with documentation originated from.
+
+Running Arbitrary Commands in the Breeze Environment
+----------------------------------------------------
+
+To run other commands/executables inside the Breeze Docker-based environment, use the
+``./breeze shell`` command. You should add your command as -c "command" after ``--`` as extra arguments.
+
+.. code-block:: bash
+
+     breeze shell -- -c "ls -la"
+
+Running Docker Compose Commands
+-------------------------------
+
+To run Docker Compose commands (such as ``help``, ``pull``, etc), use the
+``docker-compose`` command. To add extra arguments, specify them
+after ``--`` as extra arguments.
+
+.. code-block:: bash
+
+     ./breeze docker-compose pull -- --ignore-pull-failures
+
+Managing Dependencies
+---------------------
+
+If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
+add javascript dependencies in ``package.json``, you can either add dependencies temporarily for a single
+Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
+
+Installing Dependencies for a Single Breeze Session
+...................................................
+
+You can install dependencies inside the container using ``sudo apt install``, ``pip install`` or
+``yarn install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
+quickly while you are in the container. However, these changes are not retained: they disappear once you
+exit the container (except for the node.js dependencies if your sources are mounted to the container).
+Therefore, if you want to retain a new dependency, follow the second option described below.
+
+Adding Dependencies Permanently
+...............................
+
+You can add dependencies to the ``Dockerfile.ci``, ``setup.py`` or ``package.json`` and rebuild the image.
+This should happen automatically if you modify any of these files.
+After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
+asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
+if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the
+``build-image`` command to only rebuild CI image and not to go into shell.
+
+Generating requirements
+.......................
+
+Whenever you modify and commit setup.py, you need to re-generate requirement files. Those requirement
+files ara stored separately for each python version in the ``requirements`` folder. Those are
+constraints rather than requirements as described in detail in the
+`CONTRIBUTING.rst <CONTRIBUTING.rst#pinned-requirement-files>`_ contributing documentation.
+
+In case you modify setup.py you need to update the requirements - for every python version supported.
+
+.. code-block:: bash
+
+  breeze generate-requirements --python 3.6
+
+.. code-block:: bash
+
+  breeze generate-requirements --python 3.7
+
+.. code-block:: bash
+
+  breeze generate-requirements --python 3.8
+
+
+This bumps requirements to latest versions and stores hash of setup.py so that we are automatically
+upgrading the requirements as we add new ones.
+
+Incremental apt Dependencies in the Dockerfile.ci during development
+....................................................................
+
+During development, changing dependencies in ``apt-get`` closer to the top of the ``Dockerfile.ci``
+invalidates cache for most of the image. It takes long time for Breeze to rebuild the image.
+So, it is a recommended practice to add new dependencies initially closer to the end
+of the ``Dockerfile.ci``. This way dependencies will be added incrementally.
+
+Before merge, these dependencies should be moved to the appropriate ``apt-get install`` command,
+which is already in the ``Dockerfile.ci``.
+
+Setting Up the auto-completion
+------------------------------
 
 The ``breeze`` command comes with a built-in bash/zsh autocomplete option for its options. When you start typing
 the command, you can use <TAB> to show all the available switches and get autocompletion on typical
@@ -599,8 +674,8 @@ You get the autocompletion working when you re-enter the shell.
 Zsh autocompletion is currently limited to only autocomplete options. Bash autocompletion also completes
 options values (for example, Python version or static check name).
 
-Setting Defaults for User Interaction
---------------------------------------
+Setting default answers for User Interaction
+--------------------------------------------
 
 Sometimes during the build, you are asked whether to perform an action, skip it, or quit. This happens
 when rebuilding or removing an image - actions that take a lot of time and could be potentially destructive.
@@ -664,19 +739,6 @@ This is a lightweight solution that has its own limitations.
 
 More details on using the local virtualenv are available in the `LOCAL_VIRTUALENV.rst <LOCAL_VIRTUALENV.rst>`_.
 
-Running static checks in Breeze
-===============================
-
-The Breeze environment is also used to run some of the static checks as described in
-`STATIC_CODE_CHECKS.rst <STATIC_CODE_CHECKS.rst>`_.
-
-
-Running Tests in Breeze
-=======================
-
-As soon as you enter the Breeze environment, you can run Airflow unit tests via the ``pytest`` command.
-
-For supported CI test suites, types of unit tests, and other tests, see `TESTING.rst <TESTING.rst>`_.
 
 Breeze Command-Line Interface Reference
 =======================================

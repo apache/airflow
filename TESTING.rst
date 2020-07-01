@@ -518,7 +518,7 @@ print output generated test logs and print statements to the terminal immediatel
 You can modify the tests or KubernetesPodOperator and re-run them without re-deploying
 airflow to KinD cluster.
 
-However when you change Airflow Kubernetes executor implementation you need to redeploy
+However, when you change Airflow Kubernetes executor implementation you need to redeploy
 Airflow to the cluster.
 
 .. code-block:: bash
