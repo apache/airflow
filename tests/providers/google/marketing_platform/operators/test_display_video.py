@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
+from tempfile import NamedTemporaryFile
 from typing import Optional
 from unittest import TestCase, mock
 
@@ -56,6 +58,19 @@ class TestGoogleDisplayVideo360CreateReportOperator(TestCase):
         )
         hook_mock.return_value.create_query.assert_called_once_with(query=body)
         xcom_mock.assert_called_once_with(None, key="report_id", value=query_id)
+
+    def test_prepare_template(self):
+        body = {"key": "value"}
+        with NamedTemporaryFile("w+", suffix=".json") as f:
+            f.write(json.dumps(body))
+            f.flush()
+            op = GoogleDisplayVideo360CreateReportOperator(
+                body=body, api_version=API_VERSION, task_id="test_task"
+            )
+            op.prepare_template()
+
+        assert isinstance(op.body, dict)
+        assert op.body == body
 
 
 class TestGoogleDisplayVideo360DeleteReportOperator(TestCase):

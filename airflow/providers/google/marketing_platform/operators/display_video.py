@@ -80,7 +80,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
         # If .json is passed then we have to read the file
         if isinstance(self.body, str) and self.body.endswith('.json'):
             with open(self.body, 'r') as file:
-                self.body = json.loads(file.read())
+                self.body = json.load(file)
 
     def execute(self, context: Dict):
         hook = GoogleDisplayVideo360Hook(

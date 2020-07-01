@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
+from tempfile import NamedTemporaryFile
 from unittest import TestCase, mock
 
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
@@ -182,6 +184,23 @@ class TestGoogleCampaignManagerInsertReportOperator(TestCase):
             profile_id=profile_id, report=report
         )
         xcom_mock.assert_called_once_with(None, key="report_id", value=report_id)
+
+    def test_prepare_template(self):
+        profile_id = "PROFILE_ID"
+        report = {"key": "value"}
+        with NamedTemporaryFile("w+", suffix=".json") as f:
+            f.write(json.dumps(report))
+            f.flush()
+            op = GoogleCampaignManagerInsertReportOperator(
+                profile_id=profile_id,
+                report=f.name,
+                api_version=API_VERSION,
+                task_id="test_task",
+            )
+            op.prepare_template()
+
+        assert isinstance(op.report, dict)
+        assert op.report == report
 
 
 class TestGoogleCampaignManagerRunReportOperator(TestCase):
