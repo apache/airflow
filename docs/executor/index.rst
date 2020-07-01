@@ -34,3 +34,4 @@ section of the configuration file.
     dask
     celery
     kubernetes
+    mesos
