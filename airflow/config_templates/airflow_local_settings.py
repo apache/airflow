@@ -241,7 +241,7 @@ if REMOTE_LOGGING:
 
         ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
             'task': {
-                'class': 'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler',
+                'class': 'airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler',
                 'formatter': 'airflow',
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 'log_id_template': ELASTICSEARCH_LOG_ID_TEMPLATE,
