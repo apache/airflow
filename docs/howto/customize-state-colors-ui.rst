@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Colorblind friendly UI
-======================
+Customizing state colours in UI
+===============================
 
 .. versionadded:: 1.10.11
 
