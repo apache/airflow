@@ -51,7 +51,6 @@ class StackdriverTaskHandler(logging.Handler):
 
     This handler supports both an asynchronous and synchronous transport.
 
-
     :param gcp_key_path: Path to GCP Credential JSON file.
         If ommited, authorization based on `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
@@ -59,9 +58,8 @@ class StackdriverTaskHandler(logging.Handler):
     :type gcp_key_path: str
     :param scopes: OAuth scopes for the credentials,
     :type scopes: Sequence[str]
-    :param name: the name of the custom log in Stackdriver Logging. Defaults
-        to 'airflow'. The name of the Python logger will be represented
-         in the ``python_logger`` field.
+    :param name: the name of the custom log in Stackdriver Logging. Defaults to 'airflow'.
+        The name of the Python logger will be represented in the ``python_logger`` field.
     :type name: str
     :param transport: Class for creating new transport objects. It should
         extend from the base :class:`google.cloud.logging.handlers.Transport` type and
@@ -70,7 +68,7 @@ class StackdriverTaskHandler(logging.Handler):
         option is :class:`google.cloud.logging.handlers.SyncTransport`.
     :type transport: :class:`type`
     :param resource: (Optional) Monitored resource of the entry, defaults
-                     to the global resource type.
+        to the global resource type.
     :type resource: :class:`~google.cloud.logging.resource.Resource`
     :param labels: (Optional) Mapping of labels for the entry.
     :type labels: dict
