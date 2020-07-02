@@ -330,8 +330,7 @@ class TestLoadConnection(unittest.TestCase):
             ("""
             conn_a:
               - mysql://hosta
-              - mysql://hostb"""
-            ),
+              - mysql://hostb"""),
         ),
     )
     def test_ensure_unique_connection_yaml(self, file_content):
