@@ -31,10 +31,10 @@ from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
-from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin, ExternalLoggingMixin):
+class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     """
     ElasticsearchTaskHandler is a python log handler that
     reads logs from Elasticsearch. Note logs are not directly
@@ -270,6 +270,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin, ExternalLoggingMix
 
     @property
     def log_name(self):
+        """ The log name"""
         return self.LOG_NAME
 
     def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
