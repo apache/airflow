@@ -76,7 +76,7 @@ Contributor page:
 Resources & links
 -----------------
 
-* `Airflow's official documentation <http://airflow.apache.org/>`_
+* `Airflow's official documentation <http://airflow.apache.org/docs/>`_
 * Mailing lists:
 
   * Developer's mailing list: dev-subscribe@airflow.apache.org
