@@ -788,7 +788,7 @@ class HiveMetastoreHook(BaseHook):
         :type delete_data: bool
         :param db: Name of hive schema (database) @table belongs to
         :type db: str
-        
+
         >>> hh = HiveMetastoreHook()
         >>> hh.drop_partitions(db='airflow', table_name='static_babynames',
         part_vals="['2020-05-01']")
