@@ -32,6 +32,9 @@ def setup_event_handlers(engine):
     """
     Setups event handlers.
     """
+
+    idle_session_timeout = conf.getfloat("core", "sql_alchemy_idle_transaction_timeout", fallback=10)
+
     # pylint: disable=unused-argument, unused-variable
     @event.listens_for(engine, "connect")
     def connect(dbapi_connection, connection_record):
@@ -51,6 +54,40 @@ def setup_event_handlers(engine):
             cursor = dbapi_connection.cursor()
             cursor.execute("SET time_zone = '+00:00'")
             cursor.close()
+
+        is_mariadb = engine.dialect.server_version_info and "MariaDB" in engine.dialect.server_version_info
+        if idle_session_timeout > 0:
+            if is_mariadb:
+                # https://mariadb.com/kb/en/mariadb-1032-release-notes/#variables
+                if engine.dialect.server_version_info > (10, 3):
+                    setting = "idle_write_transaction_timeout"
+                else:
+                    setting = "idle_readwrite_transaction_timeout"
+
+                @event.listens_for(engine, "connect")
+                def set_mysql_transaction_idle_timeout(dbapi_connection, connection_record):
+                    cursor = dbapi_connection.cursor()
+                    cursor.execute("SET @@SESSION.%s = %s", (setting, int(idle_session_timeout),))
+                    cursor.close()
+            else:
+                # MySQL doesn't have the equivalent of postgres' idle_in_transaction_session_timeout -- the
+                # best we can do is set the time we wait just set the timeout for any idle connection
+                @event.listens_for(engine, "connect")
+                def set_mysql_transaction_idle_timeout(dbapi_connection, connection_record):
+                    cursor = dbapi_connection.cursor()
+                    cursor.execute("SET @@SESSION.wait_timeout = %s", (int(idle_session_timeout),))
+                    cursor.close()
+
+    if engine.dialect.name == "postgresql":
+        if idle_session_timeout > 0:
+            # Ensure that active transactions don't hang around for ever (default) -- this ensures that a
+            # run-away process can't hold a row level lock for too long.
+            @event.listens_for(engine, "connect")
+            def set_postgres_transaction_idle_timeout(dbapi_connection, connection_record):
+                cursor = dbapi_connection.cursor()
+                cursor.execute("SET SESSION idle_in_transaction_session_timeout = %s",
+                               (int(idle_session_timeout * 1000),))
+                cursor.close()
 
     @event.listens_for(engine, "checkout")
     def checkout(dbapi_connection, connection_record, connection_proxy):
