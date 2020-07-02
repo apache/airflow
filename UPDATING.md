@@ -70,6 +70,7 @@ The `ElasticsearchTaskHandler` class from `airflow.utils.log.es_task_handler` ha
 `airflow.providers.elasticsearch.log.es_task_handler`. This is because it has items specific to `elasticsearch`.
 
 ### CloudwatchTaskHandler have moved
+
 The `CloudwatchTaskHandler` class from `airflow.utils.log.cloudwatch_task_handler` has been moved to
 `airflow.providers.amazon.aws.log.cloudwatch_task_handler`. This is because it has items specific to `aws`.
 
