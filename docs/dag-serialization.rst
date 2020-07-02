@@ -27,7 +27,7 @@ DAG Serialization and DB Persistence.
 .. image:: img/dag_serialization.png
 
 Without DAG Serialization & persistence in DB, the Webserver and the Scheduler both
-needs access to the DAG files. Both the scheduler and webserver parses the DAG files.
+need access to the DAG files. Both the scheduler and webserver parse the DAG files.
 
 With **DAG Serialization** we aim to decouple the webserver from DAG parsing
 which would make the Webserver very light-weight.
@@ -66,7 +66,7 @@ Add the following settings in ``airflow.cfg``:
 *   ``store_dag_code``: This flag decides whether to persist DAG files code in DB.
     If set to True, Webserver reads file contents from DB instead of trying to access files in a DAG folder.
 
-If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
+If you are updating Airflow from <1.10.7, please do not forget to run ``airflow upgradedb``.
 
 
 Limitations
@@ -89,7 +89,7 @@ Using a different JSON Library
 To use a different JSON library instead of the standard ``json`` library like ``ujson``, you need to
 define a ``json`` variable in local Airflow settings (``airflow_local_settings.py``) file as follows:
 
-.. code:: python
+.. code-block:: python
 
     import ujson
     json = ujson

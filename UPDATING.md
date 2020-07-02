@@ -25,6 +25,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow 1.10.11](#airflow-11011)
 - [Airflow 1.10.10](#airflow-11010)
 - [Airflow 1.10.9](#airflow-1109)
 - [Airflow 1.10.8](#airflow-1108)
@@ -58,6 +59,41 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 1.10.11
+
+### Use NULL as default value for dag.description
+
+Now use NULL as default value for dag.description in dag table
+
+### Restrict editing DagRun State in the old UI (Flask-admin based UI)
+
+Before 1.10.11 it was possible to edit DagRun State in the `/admin/dagrun/` page
+ to any text.
+
+In Airflow 1.10.11+, the user can only choose the states from the list.
+
+### Experimental API will deny all request by default.
+
+The previous default setting was to allow all API requests without authentication, but this poses security
+risks to users who miss this fact. This changes the default for new installs to deny all requests by default.
+
+**Note**: This will not change the behavior for existing installs, please update check your airflow.cfg
+
+If you wish to have the experimental API work, and aware of the risks of enabling this without authentication
+(or if you have your own authentication layer in front of Airflow) you can get
+the previous behaviour on a new install by setting this in your airflow.cfg:
+
+```
+[api]
+auth_backend = airflow.api.auth.backend.default
+```
+
+### XCom Values can no longer be added or changed from the Webserver
+
+Since XCom values can contain pickled data, we would no longer allow adding or
+changing XCom values from the UI.
+
 
 ## Airflow 1.10.10
 
@@ -1006,14 +1042,11 @@ dags_are_paused_at_creation = False
 
 If you specify a hive conf to the run_cli command of the HiveHook, Airflow add some
 convenience variables to the config. In case you run a secure Hadoop setup it might be
-required to whitelist these variables by adding the following to your configuration:
+required to allow these variables by adjusting you hive configuration to add `airflow\.ctx\..*` to the regex
+of user-editable configuration properties. See
+[the Hive docs on Configuration Properties][hive.security.authorization.sqlstd] for more info.
 
-```
-<property>
-     <name>hive.security.authorization.sqlstd.confwhitelist.append</name>
-     <value>airflow\.ctx\..*</value>
-</property>
-```
+[hive.security.authorization.sqlstd]: https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82903061#ConfigurationProperties-SQLStandardBasedAuthorization.1
 
 ### Google Cloud Operator and Hook alignment
 

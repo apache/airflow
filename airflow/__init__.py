@@ -32,6 +32,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 __version__ = version.version
 
+import logging
 import sys
 
 # flake8: noqa: F401
@@ -47,10 +48,10 @@ from airflow.exceptions import AirflowException
 settings.initialize()
 
 login = None  # type: Any
+log = logging.getLogger(__name__)
 
 
 def load_login():
-    log = LoggingMixin().log
 
     auth_backend = 'airflow.default_login'
     try:

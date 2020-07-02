@@ -20,67 +20,82 @@
 
 from __future__ import print_function
 import errno
+import hashlib
 import importlib
+import locale
 import logging
 
 import os
+import platform
 import subprocess
 import textwrap
 import random
 import string
+from collections import OrderedDict
 from importlib import import_module
 
 import getpass
+
 import reprlib
 import argparse
+
+import requests
+import tenacity
 from builtins import input
 from tempfile import NamedTemporaryFile
 
-from airflow.utils.dot_renderer import render_dag
-from airflow.utils.timezone import parse as parsedate
 import json
 from tabulate import tabulate
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
+import io
+import psutil
+import re
 import signal
 import sys
 import threading
-import traceback
 import time
-import psutil
-import re
-from urllib.parse import urlunparse
+import traceback
+
 from typing import Any
 
 import airflow
 from airflow import api
 from airflow import jobs, settings
-from airflow.configuration import conf
+from airflow.configuration import conf, get_airflow_home
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
 from airflow.models import (
     Connection, DagModel, DagBag, DagPickle, TaskInstance, DagRun, Variable, DAG
 )
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_QUEUED_DEPS)
+from airflow.typing_compat import Protocol
 from airflow.utils import cli as cli_utils, db
+from airflow.utils.dot_renderer import render_dag
 from airflow.utils.net import get_hostname
+from airflow.utils.timezone import parse as parsedate
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
 from airflow.www.app import (cached_app, create_app)
 from airflow.www_rbac.app import cached_app as cached_app_rbac
 from airflow.www_rbac.app import create_app as create_app_rbac
 from airflow.www_rbac.app import cached_appbuilder
+from airflow.version import version as airflow_version
 
+import pygments
+from pygments.formatters.terminal import TerminalFormatter
+from pygments.lexers.configs import IniLexer
 from sqlalchemy.orm import exc
 import six
+from six.moves.urllib_parse import urlunparse, urlsplit, urlunsplit
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
                                auth=api.API_AUTH.api_auth.CLIENT_AUTH)
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 DAGS_FOLDER = settings.DAGS_FOLDER
 
@@ -541,8 +556,35 @@ def run(args, dag=None):
     if args.interactive:
         _run(args, dag, ti)
     else:
-        with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
-            _run(args, dag, ti)
+        if settings.DONOT_MODIFY_HANDLERS:
+            with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
+                _run(args, dag, ti)
+        else:
+            # Get all the Handlers from 'airflow.task' logger
+            # Add these handlers to the root logger so that we can get logs from
+            # any custom loggers defined in the DAG
+            airflow_logger_handlers = logging.getLogger('airflow.task').handlers
+            root_logger = logging.getLogger()
+            root_logger_handlers = root_logger.handlers
+
+            # Remove all handlers from Root Logger to avoid duplicate logs
+            for handler in root_logger_handlers:
+                root_logger.removeHandler(handler)
+
+            for handler in airflow_logger_handlers:
+                root_logger.addHandler(handler)
+            root_logger.setLevel(logging.getLogger('airflow.task').level)
+
+            with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
+                _run(args, dag, ti)
+
+            # We need to restore the handlers to the loggers as celery worker process
+            # can call this command multiple times,
+            # so if we don't reset this then logs from next task would go to the wrong place
+            for handler in airflow_logger_handlers:
+                root_logger.removeHandler(handler)
+            for handler in root_logger_handlers:
+                root_logger.addHandler(handler)
     logging.shutdown()
 
 
@@ -736,31 +778,11 @@ def clear(args):
     )
 
 
-def get_num_ready_workers_running(gunicorn_master_proc):
-    workers = psutil.Process(gunicorn_master_proc.pid).children()
-
-    def ready_prefix_on_cmdline(proc):
-        try:
-            cmdline = proc.cmdline()
-            if len(cmdline) > 0:
-                return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
-        except psutil.NoSuchProcess:
-            pass
-        return False
-
-    ready_workers = [proc for proc in workers if ready_prefix_on_cmdline(proc)]
-    return len(ready_workers)
-
-
-def get_num_workers_running(gunicorn_master_proc):
-    workers = psutil.Process(gunicorn_master_proc.pid).children()
-    return len(workers)
-
-
-def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
+class GunicornMonitor(LoggingMixin):
     """
     Runs forever, monitoring the child processes of @gunicorn_master_proc and
-    restarting workers occasionally.
+    restarting workers occasionally or when files in the plug-in directory
+    has been modified.
     Each iteration of the loop traverses one edge of this state transition
     diagram, where each state (node) represents
     [ num_ready_workers_running / num_workers_running ]. We expect most time to
@@ -777,92 +799,246 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
     master process, which increases and decreases the number of child workers
     respectively. Gunicorn guarantees that on TTOU workers are terminated
     gracefully and that the oldest worker is terminated.
-    """
 
-    def wait_until_true(fn, timeout=0):
+    :param gunicorn_master_pid: pid of the main Gunicorn process
+    :param num_workers_expected: Number of workers to run the Gunicorn web server
+    :param master_timeout: Number of seconds the webserver waits before killing gunicorn master that
+        doesn't respond
+    :param worker_refresh_interval: Number of seconds to wait before refreshing a batch of workers.
+    :param worker_refresh_batch_size: Number of workers to refresh at a time. When set to 0, worker
+        refresh is disabled. When nonzero, airflow periodically refreshes webserver workers by
+        bringing up new ones and killing old ones.
+    :param reload_on_plugin_change: If set to True, Airflow will track files in plugins_follder directory.
+        When it detects changes, then reload the gunicorn.
+    """
+    def __init__(
+        self,
+        gunicorn_master_pid,
+        num_workers_expected,
+        master_timeout,
+        worker_refresh_interval,
+        worker_refresh_batch_size,
+        reload_on_plugin_change
+    ):
+        super(GunicornMonitor, self).__init__()
+        self.gunicorn_master_proc = psutil.Process(gunicorn_master_pid)
+        self.num_workers_expected = num_workers_expected
+        self.master_timeout = master_timeout
+        self.worker_refresh_interval = worker_refresh_interval
+        self.worker_refresh_batch_size = worker_refresh_batch_size
+        self.reload_on_plugin_change = reload_on_plugin_change
+
+        self._num_workers_running = 0
+        self._num_ready_workers_running = 0
+        self._last_refresh_time = time.time() if worker_refresh_interval > 0 else None
+        self._last_plugin_state = self._generate_plugin_state() if reload_on_plugin_change else None
+        self._restart_on_next_plugin_check = False
+
+    def _generate_plugin_state(self):
+        """
+        Generate dict of filenames and last modification time of all files in settings.PLUGINS_FOLDER
+        directory.
+        """
+        if not settings.PLUGINS_FOLDER:
+            return {}
+
+        all_filenames = []
+        for (root, _, filenames) in os.walk(settings.PLUGINS_FOLDER):
+            all_filenames.extend(os.path.join(root, f) for f in filenames)
+        plugin_state = {f: self._get_file_hash(f) for f in sorted(all_filenames)}
+        return plugin_state
+
+    @staticmethod
+    def _get_file_hash(fname):
+        """Calculate MD5 hash for file"""
+        hash_md5 = hashlib.md5()
+        with open(fname, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+
+    def _get_num_ready_workers_running(self):
+        """Returns number of ready Gunicorn workers by looking for READY_PREFIX in process name"""
+        workers = psutil.Process(self.gunicorn_master_proc.pid).children()
+
+        def ready_prefix_on_cmdline(proc):
+            try:
+                cmdline = proc.cmdline()
+                if len(cmdline) > 0:  # pylint: disable=len-as-condition
+                    return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
+            except psutil.NoSuchProcess:
+                pass
+            return False
+
+        ready_workers = [proc for proc in workers if ready_prefix_on_cmdline(proc)]
+        return len(ready_workers)
+
+    def _get_num_workers_running(self):
+        """Returns number of running Gunicorn workers processes"""
+        workers = psutil.Process(self.gunicorn_master_proc.pid).children()
+        return len(workers)
+
+    def _wait_until_true(self, fn, timeout=0):
         """
         Sleeps until fn is true
         """
-        t = time.time()
+        start_time = time.time()
         while not fn():
-            if 0 < timeout and timeout <= time.time() - t:
+            if 0 < timeout <= time.time() - start_time:
                 raise AirflowWebServerTimeout(
-                    "No response from gunicorn master within {0} seconds"
-                    .format(timeout))
+                    "No response from gunicorn master within {0} seconds".format(timeout)
+                )
             time.sleep(0.1)
 
-    def start_refresh(gunicorn_master_proc):
-        batch_size = conf.getint('webserver', 'worker_refresh_batch_size')
-        log.debug('%s doing a refresh of %s workers', state, batch_size)
-        sys.stdout.flush()
-        sys.stderr.flush()
-
+    def _spawn_new_workers(self, count):
+        """
+        Send signal to kill the worker.
+        :param count: The number of workers to spawn
+        """
         excess = 0
-        for _ in range(batch_size):
-            gunicorn_master_proc.send_signal(signal.SIGTTIN)
+        for _ in range(count):
+            # TTIN: Increment the number of processes by one
+            self.gunicorn_master_proc.send_signal(signal.SIGTTIN)
             excess += 1
-            wait_until_true(lambda: num_workers_expected + excess ==
-                            get_num_workers_running(gunicorn_master_proc),
-                            master_timeout)
+            self._wait_until_true(
+                lambda: self.num_workers_expected + excess == self._get_num_workers_running(),
+                timeout=self.master_timeout
+            )
 
-    try:
-        wait_until_true(lambda: num_workers_expected ==
-                        get_num_workers_running(gunicorn_master_proc),
-                        master_timeout)
-        while True:
-            num_workers_running = get_num_workers_running(gunicorn_master_proc)
-            num_ready_workers_running = \
-                get_num_ready_workers_running(gunicorn_master_proc)
+    def _kill_old_workers(self, count):
+        """
+        Send signal to kill the worker.
+        :param count: The number of workers to kill
+        """
+        for _ in range(count):
+            count -= 1
+            # TTOU: Decrement the number of processes by one
+            self.gunicorn_master_proc.send_signal(signal.SIGTTOU)
+            self._wait_until_true(
+                lambda: self.num_workers_expected + count == self._get_num_workers_running(),
+                timeout=self.master_timeout)
 
-            state = '[{0} / {1}]'.format(num_ready_workers_running, num_workers_running)
+    def _reload_gunicorn(self):
+        """
+        Send signal to reload the gunciron configuration. When gunciorn receive signals, it reload the
+        configuration, start the new worker processes with a new configuration and gracefully
+        shutdown older workers.
+        """
+        # HUP: Reload the configuration.
+        self.gunicorn_master_proc.send_signal(signal.SIGHUP)
+        time.sleep(1)
+        self._wait_until_true(
+            lambda: self.num_workers_expected == self._get_num_workers_running(),
+            timeout=self.master_timeout
+        )
 
-            # Whenever some workers are not ready, wait until all workers are ready
-            if num_ready_workers_running < num_workers_running:
-                log.debug('%s some workers are starting up, waiting...', state)
-                sys.stdout.flush()
+    def start(self):
+        """
+        Starts monitoring the webserver.
+        """
+        self.log.debug("Start monitoring gunicorn")
+        try:  # pylint: disable=too-many-nested-blocks
+            self._wait_until_true(
+                lambda: self.num_workers_expected == self._get_num_workers_running(),
+                timeout=self.master_timeout
+            )
+            while True:
+                if not self.gunicorn_master_proc.is_running():
+                    sys.exit(1)
+                self._check_workers()
+                # Throttle loop
                 time.sleep(1)
 
-            # Kill a worker gracefully by asking gunicorn to reduce number of workers
-            elif num_workers_running > num_workers_expected:
-                excess = num_workers_running - num_workers_expected
-                log.debug('%s killing %s workers', state, excess)
+        except (AirflowWebServerTimeout, OSError) as err:
+            self.log.error(err)
+            self.log.error("Shutting down webserver")
+            try:
+                self.gunicorn_master_proc.terminate()
+                self.gunicorn_master_proc.wait()
+            finally:
+                sys.exit(1)
 
-                for _ in range(excess):
-                    gunicorn_master_proc.send_signal(signal.SIGTTOU)
-                    excess -= 1
-                    wait_until_true(lambda: num_workers_expected + excess ==
-                                    get_num_workers_running(gunicorn_master_proc),
-                                    master_timeout)
+    def _check_workers(self):
+        num_workers_running = self._get_num_workers_running()
+        num_ready_workers_running = self._get_num_ready_workers_running()
 
-            # Start a new worker by asking gunicorn to increase number of workers
-            elif num_workers_running == num_workers_expected:
-                refresh_interval = conf.getint('webserver', 'worker_refresh_interval')
-                log.debug(
-                    '%s sleeping for %ss starting doing a refresh...',
-                    state, refresh_interval
+        # Whenever some workers are not ready, wait until all workers are ready
+        if num_ready_workers_running < num_workers_running:
+            self.log.debug(
+                '[%d / %d] Some workers are starting up, waiting...',
+                num_ready_workers_running, num_workers_running
+            )
+            time.sleep(1)
+            return
+
+        # If there are too many workers, then kill a worker gracefully by asking gunicorn to reduce
+        # number of workers
+        if num_workers_running > self.num_workers_expected:
+            excess = min(num_workers_running - self.num_workers_expected, self.worker_refresh_batch_size)
+            self.log.debug(
+                '[%d / %d] Killing %s workers', num_ready_workers_running, num_workers_running, excess
+            )
+            self._kill_old_workers(excess)
+            return
+
+        # If there are too few workers, start a new worker by asking gunicorn
+        # to increase number of workers
+        if num_workers_running < self.num_workers_expected:
+            self.log.error(
+                "[%d / %d] Some workers seem to have died and gunicorn did not restart "
+                "them as expected",
+                num_ready_workers_running, num_workers_running
+            )
+            time.sleep(10)
+            num_workers_running = self._get_num_workers_running()
+            if num_workers_running < self.num_workers_expected:
+                new_worker_count = min(
+                    num_workers_running - self.worker_refresh_batch_size, self.worker_refresh_batch_size
                 )
-                time.sleep(refresh_interval)
-                start_refresh(gunicorn_master_proc)
+                self.log.debug(
+                    '[%d / %d] Spawning %d workers',
+                    num_ready_workers_running, num_workers_running, new_worker_count
+                )
+                self._spawn_new_workers(num_workers_running)
+            return
 
-            else:
-                # num_ready_workers_running == num_workers_running < num_workers_expected
-                log.error((
-                    "%s some workers seem to have died and gunicorn"
-                    "did not restart them as expected"
-                ), state)
-                time.sleep(10)
-                if len(
-                    psutil.Process(gunicorn_master_proc.pid).children()
-                ) < num_workers_expected:
-                    start_refresh(gunicorn_master_proc)
-    except (AirflowWebServerTimeout, OSError) as err:
-        log.error(err)
-        log.error("Shutting down webserver")
-        try:
-            gunicorn_master_proc.terminate()
-            gunicorn_master_proc.wait()
-        finally:
-            sys.exit(1)
+        # Now the number of running and expected worker should be equal
+
+        # If workers should be restarted periodically.
+        if self.worker_refresh_interval > 0 and self._last_refresh_time:
+            # and we refreshed the workers a long time ago, refresh the workers
+            last_refresh_diff = (time.time() - self._last_refresh_time)
+            if self.worker_refresh_interval < last_refresh_diff:
+                num_new_workers = self.worker_refresh_batch_size
+                self.log.debug(
+                    '[%d / %d] Starting doing a refresh. Starting %d workers.',
+                    num_ready_workers_running, num_workers_running, num_new_workers
+                )
+                self._spawn_new_workers(num_new_workers)
+                self._last_refresh_time = time.time()
+                return
+
+        # if we should check the directory with the plugin,
+        if self.reload_on_plugin_change:
+            # compare the previous and current contents of the directory
+            new_state = self._generate_plugin_state()
+            # If changed, wait until its content is fully saved.
+            if new_state != self._last_plugin_state:
+                self.log.debug(
+                    '[%d / %d] Plugins folder changed. The gunicorn will be restarted the next time the '
+                    'plugin directory is checked, if there is no change in it.',
+                    num_ready_workers_running, num_workers_running
+                )
+                self._restart_on_next_plugin_check = True
+                self._last_plugin_state = new_state
+            elif self._restart_on_next_plugin_check:
+                self.log.debug(
+                    '[%d / %d] Starts reloading the gunicorn configuration.',
+                    num_ready_workers_running, num_workers_running
+                )
+                self._restart_on_next_plugin_check = False
+                self._last_refresh_time = time.time()
+                self._reload_gunicorn()
 
 
 @cli_utils.action_logging
@@ -921,13 +1097,13 @@ def webserver(args):
 
         run_args = [
             'gunicorn',
-            '-w', str(num_workers),
-            '-k', str(args.workerclass),
-            '-t', str(worker_timeout),
-            '-b', args.hostname + ':' + str(args.port),
-            '-n', 'airflow-webserver',
-            '-p', str(pid),
-            '-c', 'python:airflow.www.gunicorn_config',
+            '--workers', str(num_workers),
+            '--worker-class', str(args.workerclass),
+            '--timeout', str(worker_timeout),
+            '--bind', args.hostname + ':' + str(args.port),
+            '--name', 'airflow-webserver',
+            '--pid', str(pid),
+            '--config', 'python:airflow.www.gunicorn_config',
         ]
 
         if args.access_logfile:
@@ -937,7 +1113,7 @@ def webserver(args):
             run_args += ['--error-logfile', str(args.error_logfile)]
 
         if args.daemon:
-            run_args += ['-D']
+            run_args += ['--daemon']
 
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
@@ -947,19 +1123,24 @@ def webserver(args):
 
         gunicorn_master_proc = None
 
-        def kill_proc(dummy_signum, dummy_frame):
+        def kill_proc(signum, _):
+            log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             gunicorn_master_proc.wait()
             sys.exit(0)
 
-        def monitor_gunicorn(gunicorn_master_proc):
+        def monitor_gunicorn(gunicorn_master_pid):
             # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
-            if conf.getint('webserver', 'worker_refresh_interval') > 0:
-                master_timeout = conf.getint('webserver', 'web_server_master_timeout')
-                restart_workers(gunicorn_master_proc, num_workers, master_timeout)
-            else:
-                while True:
-                    time.sleep(1)
+            GunicornMonitor(
+                gunicorn_master_pid=gunicorn_master_pid,
+                num_workers_expected=num_workers,
+                master_timeout=conf.getint('webserver', 'web_server_master_timeout'),
+                worker_refresh_interval=conf.getint('webserver', 'worker_refresh_interval', fallback=30),
+                worker_refresh_batch_size=conf.getint('webserver', 'worker_refresh_batch_size', fallback=1),
+                reload_on_plugin_change=conf.getboolean(
+                    'webserver', 'reload_on_plugin_change', fallback=False
+                ),
+            ).start()
 
         if args.daemon:
             base, ext = os.path.splitext(pid)
@@ -988,7 +1169,7 @@ def webserver(args):
                         time.sleep(0.1)
 
                 gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
-                monitor_gunicorn(gunicorn_master_proc)
+                monitor_gunicorn(gunicorn_master_proc.pid)
 
             stdout.close()
             stderr.close()
@@ -998,7 +1179,7 @@ def webserver(args):
             signal.signal(signal.SIGINT, kill_proc)
             signal.signal(signal.SIGTERM, kill_proc)
 
-            monitor_gunicorn(gunicorn_master_proc)
+            monitor_gunicorn(gunicorn_master_proc.pid)
 
 
 @cli_utils.action_logging
@@ -1078,6 +1259,7 @@ def worker(args):
 
     # Celery worker
     from airflow.executors.celery_executor import app as celery_app
+    from celery import maybe_patch_concurrency
     from celery.bin import worker
 
     autoscale = args.autoscale
@@ -1098,7 +1280,14 @@ def worker(args):
     }
 
     if conf.has_option("celery", "pool"):
-        options["pool"] = conf.get("celery", "pool")
+        pool = conf.get("celery", "pool")
+        options["pool"] = pool
+        # Celery pools of type eventlet and gevent use greenlets, which
+        # requires monkey patching the app:
+        # https://eventlet.net/doc/patching.html#monkey-patch
+        # Otherwise task instances hang on the workers and are never
+        # executed.
+        maybe_patch_concurrency(['-P', pool])
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker",
@@ -1560,6 +1749,408 @@ def sync_perm(args): # noqa
         print('The sync_perm command only works for rbac UI.')
 
 
+def config(args):
+    """Show current application configuration"""
+    with io.StringIO() as output:
+        conf.write(output)
+        code = output.getvalue()
+        if cli_utils.should_use_colors(args):
+            code = pygments.highlight(
+                code=code, formatter=TerminalFormatter(), lexer=IniLexer()
+            )
+        print(code)
+
+
+class Anonymizer(Protocol):
+    """Anonymizer protocol."""
+
+    def process_path(self, value):
+        """Remove pii from paths"""
+
+    def process_username(self, value):
+        """Remove pii from ussername"""
+
+    def process_url(self, value):
+        """Remove pii from URL"""
+
+
+class NullAnonymizer(Anonymizer):
+    """Do nothing."""
+
+    def _identity(self, value):
+        return value
+
+    process_path = process_username = process_url = _identity
+
+    del _identity
+
+
+class PiiAnonymizer(Anonymizer):
+    """Remove personally identifiable info from path."""
+
+    def __init__(self):
+        home_path = os.path.expanduser("~")
+        username = getpass.getuser()
+        self._path_replacements = OrderedDict([
+            (home_path, "${HOME}"), (username, "${USER}")
+        ])
+
+    def process_path(self, value):
+        if not value:
+            return value
+        for src, target in self._path_replacements.items():
+            value = value.replace(src, target)
+        return value
+
+    def process_username(self, value):
+        if not value:
+            return value
+        return value[0] + "..." + value[-1]
+
+    def process_url(self, value):
+        if not value:
+            return value
+
+        url_parts = urlsplit(value)
+        netloc = None
+        if url_parts.netloc:
+            # unpack
+            userinfo = None
+            host = None
+            username = None
+            password = None
+
+            if "@" in url_parts.netloc:
+                userinfo, _, host = url_parts.netloc.partition("@")
+            else:
+                host = url_parts.netloc
+            if userinfo:
+                if ":" in userinfo:
+                    username, _, password = userinfo.partition(":")
+                else:
+                    username = userinfo
+
+            # anonymize
+            username = self.process_username(username) if username else None
+            password = "PASSWORD" if password else None
+
+            # pack
+            if username and password and host:
+                netloc = username + ":" + password + "@" + host
+            elif username and host:
+                netloc = username + "@" + host
+            elif password and host:
+                netloc = ":" + password + "@" + host
+            elif host:
+                netloc = host
+            else:
+                netloc = ""
+
+        return urlunsplit((url_parts.scheme, netloc, url_parts.path, url_parts.query, url_parts.fragment))
+
+
+class OperatingSystem:
+    """Operating system"""
+
+    WINDOWS = "Windows"
+    LINUX = "Linux"
+    MACOSX = "Mac OS"
+    CYGWIN = "Cygwin"
+
+    @staticmethod
+    def get_current():
+        """Get current operating system"""
+        if os.name == "nt":
+            return OperatingSystem.WINDOWS
+        elif "linux" in sys.platform:
+            return OperatingSystem.LINUX
+        elif "darwin" in sys.platform:
+            return OperatingSystem.MACOSX
+        elif "cygwin" in sys.platform:
+            return OperatingSystem.CYGWIN
+        return None
+
+
+class Architecture:
+    """Compute architecture"""
+
+    X86_64 = "x86_64"
+    X86 = "x86"
+    PPC = "ppc"
+    ARM = "arm"
+
+    @staticmethod
+    def get_current():
+        """Get architecture"""
+        return _MACHINE_TO_ARCHITECTURE.get(platform.machine().lower())
+
+
+_MACHINE_TO_ARCHITECTURE = {
+    "amd64": Architecture.X86_64,
+    "x86_64": Architecture.X86_64,
+    "i686-64": Architecture.X86_64,
+    "i386": Architecture.X86,
+    "i686": Architecture.X86,
+    "x86": Architecture.X86,
+    "ia64": Architecture.X86,  # Itanium is different x64 arch, treat it as the common x86.
+    "powerpc": Architecture.PPC,
+    "power macintosh": Architecture.PPC,
+    "ppc64": Architecture.PPC,
+    "armv6": Architecture.ARM,
+    "armv6l": Architecture.ARM,
+    "arm64": Architecture.ARM,
+    "armv7": Architecture.ARM,
+    "armv7l": Architecture.ARM,
+}
+
+
+class AirflowInfo:
+    """All information related to Airflow, system and other."""
+
+    def __init__(self, anonymizer):
+        self.airflow_version = airflow_version
+        self.system = SystemInfo(anonymizer)
+        self.tools = ToolsInfo(anonymizer)
+        self.paths = PathsInfo(anonymizer)
+        self.config = ConfigInfo(anonymizer)
+
+    def __str__(self):
+        return (
+            textwrap.dedent(
+                """\
+                Apache Airflow [{version}]
+
+                {system}
+
+                {tools}
+
+                {paths}
+
+                {config}
+                """
+            )
+            .strip()
+            .format(
+                version=self.airflow_version,
+                system=self.system,
+                tools=self.tools,
+                paths=self.paths,
+                config=self.config,
+            )
+        )
+
+
+class SystemInfo:
+    """Basic system and python information"""
+
+    def __init__(self, anonymizer):
+        self.operating_system = OperatingSystem.get_current()
+        self.arch = Architecture.get_current()
+        self.uname = platform.uname()
+        self.locale = locale.getdefaultlocale()
+        self.python_location = anonymizer.process_path(sys.executable)
+        self.python_version = sys.version.replace("\n", " ")
+
+    def __str__(self):
+        return (
+            textwrap.dedent(
+                """\
+                Platform: [{os}, {arch}] {uname}
+                Locale: {locale}
+                Python Version: [{python_version}]
+                Python Location: [{python_location}]
+                """
+            )
+            .strip()
+            .format(
+                os=self.operating_system or "NOT AVAILABLE",
+                arch=self.arch or "NOT AVAILABLE",
+                uname=self.uname,
+                locale=self.locale,
+                python_version=self.python_version,
+                python_location=self.python_location,
+            )
+        )
+
+
+class PathsInfo:
+    """Path information"""
+
+    def __init__(self, anonymizer):
+        system_path = os.environ.get("PATH", "").split(os.pathsep)
+
+        self.airflow_home = anonymizer.process_path(get_airflow_home())
+        self.system_path = [anonymizer.process_path(p) for p in system_path]
+        self.python_path = [anonymizer.process_path(p) for p in sys.path]
+        self.airflow_on_path = any(
+            os.path.exists(os.path.join(path_elem, "airflow")) for path_elem in system_path
+        )
+
+    def __str__(self):
+        return (
+            textwrap.dedent(
+                """\
+                Airflow Home: [{airflow_home}]
+                System PATH: [{system_path}]
+                Python PATH: [{python_path}]
+                airflow on PATH: [{airflow_on_path}]
+                """
+            )
+            .strip()
+            .format(
+                airflow_home=self.airflow_home,
+                system_path=os.pathsep.join(self.system_path),
+                python_path=os.pathsep.join(self.python_path),
+                airflow_on_path=self.airflow_on_path,
+            )
+        )
+
+
+class ConfigInfo:
+    """"Most critical config properties"""
+
+    def __init__(self, anonymizer):
+        self.executor = conf.get("core", "executor")
+        self.dags_folder = anonymizer.process_path(
+            conf.get("core", "dags_folder", fallback="NOT AVAILABLE")
+        )
+        self.plugins_folder = anonymizer.process_path(
+            conf.get("core", "plugins_folder", fallback="NOT AVAILABLE")
+        )
+        self.base_log_folder = anonymizer.process_path(
+            conf.get("core", "base_log_folder", fallback="NOT AVAILABLE")
+        )
+        self.sql_alchemy_conn = anonymizer.process_url(
+            conf.get("core", "SQL_ALCHEMY_CONN", fallback="NOT AVAILABLE")
+        )
+
+    def __str__(self):
+        return (
+            textwrap.dedent(
+                """\
+                Executor: [{executor}]
+                SQL Alchemy Conn: [{sql_alchemy_conn}]
+                DAGS Folder: [{dags_folder}]
+                Plugins Folder: [{plugins_folder}]
+                Base Log Folder: [{base_log_folder}]
+                """
+            )
+            .strip()
+            .format(
+                executor=self.executor,
+                sql_alchemy_conn=self.sql_alchemy_conn,
+                dags_folder=self.dags_folder,
+                plugins_folder=self.plugins_folder,
+                base_log_folder=self.base_log_folder,
+            )
+        )
+
+
+class ToolsInfo:
+    """The versions of the tools that Airflow uses"""
+
+    def __init__(self, anonymize):
+        del anonymize  # Nothing to anonymize here.
+        self.git_version = self._get_version(["git", "--version"])
+        self.ssh_version = self._get_version(["ssh", "-V"])
+        self.kubectl_version = self._get_version(["kubectl", "version", "--short=True", "--client=True"])
+        self.gcloud_version = self._get_version(["gcloud", "version"], grep=b"Google Cloud SDK")
+        self.cloud_sql_proxy_version = self._get_version(["cloud_sql_proxy", "--version"])
+        self.mysql_version = self._get_version(["mysql", "--version"])
+        self.sqlite3_version = self._get_version(["sqlite3", "--version"])
+        self.psql_version = self._get_version(["psql", "--version"])
+
+    def _get_version(self, cmd, grep=None):
+        """Return tools version."""
+        try:
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        except OSError:
+            return "NOT AVAILABLE"
+        stdoutdata, _ = proc.communicate()
+        data = [f for f in stdoutdata.split(b"\n") if f]
+        if grep:
+            data = [line for line in data if grep in line]
+        if len(data) != 1:
+            return "NOT AVAILABLE"
+        else:
+            return data[0].decode()
+
+    def __str__(self):
+        return (
+            textwrap.dedent(
+                """\
+                git: [{git}]
+                ssh: [{ssh}]
+                kubectl: [{kubectl}]
+                gcloud: [{gcloud}]
+                cloud_sql_proxy: [{cloud_sql_proxy}]
+                mysql: [{mysql}]
+                sqlite3: [{sqlite3}]
+                psql: [{psql}]
+                """
+            )
+            .strip()
+            .format(
+                git=self.git_version,
+                ssh=self.ssh_version,
+                kubectl=self.kubectl_version,
+                gcloud=self.gcloud_version,
+                cloud_sql_proxy=self.cloud_sql_proxy_version,
+                mysql=self.mysql_version,
+                sqlite3=self.sqlite3_version,
+                psql=self.psql_version,
+            )
+        )
+
+
+class FileIoException(Exception):
+    """Raises when error happens in FileIo.io integration"""
+
+
+@tenacity.retry(
+    stop=tenacity.stop_after_attempt(5),
+    wait=tenacity.wait_exponential(multiplier=1, max=10),
+    retry=tenacity.retry_if_exception_type(FileIoException),
+    before=tenacity.before_log(log, logging.DEBUG),
+    after=tenacity.after_log(log, logging.DEBUG),
+)
+def _upload_text_to_fileio(content):
+    """Uload text file to File.io service and return lnk"""
+    resp = requests.post("https://file.io", files={"file": ("airflow-report.txt", content)})
+    if not resp.ok:
+        raise FileIoException("Failed to send report to file.io service.")
+    try:
+        return resp.json()["link"]
+    except ValueError as e:
+        log.debug(e)
+        raise FileIoException("Failed to send report to file.io service.")
+
+
+def _send_report_to_fileio(info):
+    print("Uploading report to file.io service.")
+    try:
+        link = _upload_text_to_fileio(str(info))
+        print("Report uploaded.")
+        print()
+        print("Link:\t", link)
+        print()
+    except FileIoException as ex:
+        print(str(ex))
+
+
+def info(args):
+    """
+    Show information related to Airflow, system and other.
+    """
+    # Enforce anonymization, when file_io upload is tuned on.
+    anonymizer = PiiAnonymizer() if args.anonymize or args.file_io else NullAnonymizer()
+    info = AirflowInfo(anonymizer)
+    if args.file_io:
+        _send_report_to_fileio(info)
+    else:
+        print(info)
+
+
 class Arg(object):
     def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
                  type=None, choices=None, metavar=None):
@@ -1597,7 +2188,10 @@ class CLIFactory(object):
             ("-e", "--end_date"), "Override end_date YYYY-MM-DD",
             type=parsedate),
         'dry_run': Arg(
-            ("-dr", "--dry_run"), "Perform a dry run", "store_true"),
+            ("-dr", "--dry_run"),
+            "Perform a dry run for each task. Only renders Template Fields "
+            "for each task, nothing else",
+            "store_true"),
         'pid': Arg(
             ("--pid",), "PID file location",
             nargs='?'),
@@ -2047,6 +2641,27 @@ class CLIFactory(object):
             default=False,
             help="Don't start the serve logs process along with the workers.",
             action="store_true"),
+        'color': Arg(
+            ('--color',),
+            help="Do emit colored output (default: auto)",
+            choices={cli_utils.ColorMode.ON, cli_utils.ColorMode.OFF, cli_utils.ColorMode.AUTO},
+            default=cli_utils.ColorMode.AUTO),
+        # info
+        'anonymize': Arg(
+            ('--anonymize',),
+            help=(
+                'Minimize any personal identifiable information. '
+                'Use it when sharing output with others.'
+            ),
+            action='store_true'
+        ),
+        'file_io': Arg(
+            ('--file-io',),
+            help=(
+                'Send output to file.io service and returns link.'
+            ),
+            action='store_true'
+        )
     }
     subparsers = (
         {
@@ -2245,6 +2860,16 @@ class CLIFactory(object):
                     'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
                     '#rotating-encryption-keys.',
             'args': (),
+        },
+        {
+            'help': 'Show current application configuration',
+            'func': config,
+            'args': ('color', ),
+        },
+        {
+            'help': 'Show information about current Airflow and environment',
+            'func': info,
+            'args': ('anonymize', 'file_io', ),
         },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}

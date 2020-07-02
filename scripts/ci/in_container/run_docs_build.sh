@@ -25,4 +25,4 @@ trap "${HANDLERS}${HANDLERS:+;}in_container_fix_ownership" EXIT
 
 sudo rm -rf "$(pwd)/docs/_build/*"
 sudo rm -rf "$(pwd)/docs/_api/*"
-sudo -E "$(pwd)/docs/build.sh"
+sudo -E "$(pwd)/docs/build"

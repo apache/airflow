@@ -19,6 +19,7 @@
 
 from __future__ import print_function, unicode_literals
 
+import collections
 import contextlib
 import os
 import random
@@ -182,7 +183,7 @@ class HiveCliHook(BaseHook):
             return []
         return as_flattened_list(
             zip(["-hiveconf"] * len(d),
-                ["{}={}".format(k, v) for k, v in d.items()])
+                ["{}={}".format(k, v) for k, v in collections.OrderedDict(sorted(d.items())).items()])
         )
 
     def run_cli(self, hql, schema=None, verbose=True, hive_conf=None):
@@ -692,6 +693,7 @@ class HiveMetastoreHook(BaseHook):
                            pairs will be considered as candidates of max partition.
         :type filter_map: map
         :return: Max partition or None if part_specs is empty.
+        :rtype: basestring
         """
         if not part_specs:
             return None
@@ -715,7 +717,7 @@ class HiveMetastoreHook(BaseHook):
         if not candidates:
             return None
         else:
-            return max(candidates).encode('utf-8')
+            return max(candidates)
 
     def max_partition(self, schema, table_name, field=None, filter_map=None):
         """
@@ -827,6 +829,7 @@ class HiveServer2Hook(BaseHook):
             auth=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             username=db.login or username,
+            password=db.password,
             database=schema or db.schema or 'default')
 
     def _get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):

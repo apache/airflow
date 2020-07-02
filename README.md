@@ -61,17 +61,24 @@ Apache Airflow is tested with:
 
 ### Master version (2.0.0dev)
 
-* Python versions: 3.6, 3.7
+* Python versions: 3.6, 3.7, 3.8
 * Postgres DB: 9.6, 10
 * MySQL DB: 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
+* Kubernetes - 1.16.2, 1.17.0
 
-### Stable version (1.10.9)
+### Stable version
 
-* Python versions: 2.7, 3.5, 3.6, 3.7
+* Python versions: 2.7, 3.5, 3.6, 3.7, 3.8
 * Postgres DB: 9.6, 10
 * MySQL DB: 5.6, 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
+* Kubernetes - 1.16.2, 1.17.0
+
+### Additional notes on Python version requirements
+
+* Stable version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3 when using Python 3
+* Stable version is currently incompatible with Python 3.8 due to [a known compatibility issue](https://github.com/Tinche/cattrs/issues/77) with a dependent library
 
 ## Getting started
 Please visit the Airflow Platform documentation (latest **stable** release) for help with [installing Airflow](https://airflow.apache.org/installation.html), getting a [quick start](https://airflow.apache.org/start.html), or a more complete [tutorial](https://airflow.apache.org/tutorial.html).
@@ -93,21 +100,21 @@ produce unusable Airflow installation.
 
 In order to have repeatable installation, however, starting from **Airflow 1.10.10** we also keep a set of
 "known-to-be-working" requirement files in the `requirements` folder. Those "known-to-be-working"
-requirements are per major/minor python version (3.6/3.7). You can use them as constraint files
+requirements are per major/minor python version (3.6/3.7/3.8). You can use them as constraint files
 when installing Airflow from PyPI. Note that you have to specify correct Airflow version and python versions
 in the URL.
 
 1. Installing just airflow:
 
 ```bash
-pip install apache-airflow==1.10.10 \
- --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+pip install apache-airflow==1.10.11 \
+ --constraint https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt
 ```
 
 2. Installing with extras (for example postgres,gcp)
 ```bash
-pip install apache-airflow[postgres,gcp]==1.10.10 \
- --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+pip install apache-airflow[postgres,gcp]==1.10.11 \
+ --constraint https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt
 ```
 
 ## Beyond the Horizon

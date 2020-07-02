@@ -16,6 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+DaskExecutor
+
+.. seealso::
+    For more information on how the DaskExecutor works, take a look at the guide:
+    :ref:`executor:DaskExecutor`
+"""
 
 import distributed
 import subprocess
@@ -63,6 +70,9 @@ class DaskExecutor(BaseExecutor):
                 'DaskExecutor does not support queues. '
                 'All tasks will be run in the same cluster'
             )
+
+        if command[0:2] != ["airflow", "run"]:
+            raise ValueError('The command must start with ["airflow", "run"].')
 
         def airflow_run():
             return subprocess.check_call(command, close_fds=True)

@@ -35,6 +35,7 @@ from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from airflow import settings, version
 from airflow.configuration import conf
 from airflow.logging_config import configure_logging
+from airflow.settings import STATE_COLORS
 from airflow.www_rbac.static_config import configure_manifest_files
 
 app = None  # type: Any
@@ -129,6 +130,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 category="Browse")
             appbuilder.add_view(views.TaskInstanceModelView,
                                 "Task Instances",
+                                category="Browse")
+            appbuilder.add_view(views.TaskRescheduleModelView,
+                                "Task Reschedules",
                                 category="Browse")
             appbuilder.add_view(views.ConfigurationView,
                                 "Configurations",
@@ -242,7 +246,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 'log_auto_tailing_offset': conf.getint(
                     'webserver', 'log_auto_tailing_offset', fallback=30),
                 'log_animation_speed': conf.getint(
-                    'webserver', 'log_animation_speed', fallback=1000)
+                    'webserver', 'log_animation_speed', fallback=1000),
+                'state_color_mapping': STATE_COLORS
             }
 
             if 'analytics_tool' in conf.getsection('webserver'):

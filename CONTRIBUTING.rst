@@ -108,12 +108,13 @@ To generate a local version:
 .. code-block:: bash
 
     cd docs
-    ./build.sh
+    ./build
     ./start_doc_server.sh
 
 .. note::
-    The docs build script ``build.sh`` requires bash 4.0 or greater.
-    If you are building on mac, you can install latest version of bash with homebrew.
+    The docs build script ``build`` requires Python 3.6 or greater.
+
+**Known issues:**
 
 
 If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache license or copy another ``__init__.py`` file that contains the necessary license.
@@ -663,6 +664,12 @@ Contribution Workflow Example
 
 Typically, you start your first contribution by reviewing open tickets
 at `Apache JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+
+If you create pull-request, you don't have to create an issue first, but if you want, you can do it.
+Creating an issue will allow you to collect feedback or share plans with other people.
+
+If you create pull-request, you don't have to create an issue first, but if you want, you can do it.
+Creating an issue will allow you to collect feedback or share plans with other people.
 
 For example, you want to have the following sample ticket assigned to you:
 `AIRFLOW-5934: Add extra CC: to the emails sent by Aiflow <https://issues.apache.org/jira/browse/AIRFLOW-5934>`_.

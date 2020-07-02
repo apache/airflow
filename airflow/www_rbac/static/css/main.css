@@ -291,6 +291,10 @@ label[for="timezone-other"],
   display: block;
 }
 
+.dag-doc {
+  margin-bottom: 15px;
+}
+
 .hll { background-color: #ffc; }
 .c { color: #408080; font-style: italic; } /* Comment */
 .err { border: 1px solid #f00; } /* Error */

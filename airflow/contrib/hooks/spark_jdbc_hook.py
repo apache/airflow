@@ -144,7 +144,7 @@ class SparkJDBCHook(SparkSubmitHook):
         super(SparkJDBCHook, self).__init__(*args, **kwargs)
         self._name = spark_app_name
         self._conn_id = spark_conn_id
-        self._conf = spark_conf
+        self._conf = spark_conf or {}
         self._py_files = spark_py_files
         self._files = spark_files
         self._jars = spark_jars

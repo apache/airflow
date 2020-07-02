@@ -251,7 +251,7 @@ class GcpBodyFieldValidator(LoggingMixin):
         if not value:
             raise GcpFieldValidationException(
                 "The body field '{}' can't be empty. Please provide a value."
-                .format(full_field_path, value))
+                .format(full_field_path))
 
     def _validate_dict(self, children_validation_specs, full_field_path, value):
         # type: (dict, str, dict) -> None

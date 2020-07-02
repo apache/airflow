@@ -21,6 +21,8 @@
 import unittest
 from datetime import datetime
 
+import six
+
 from airflow.contrib.hooks.databricks_hook import RunState
 import airflow.contrib.operators.databricks_operator as databricks_operator
 from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOperator
@@ -180,7 +182,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         # Looks a bit weird since we have to escape regex reserved symbols.
         exception_message = r'Type \<(type|class) \'datetime.datetime\'\> used ' + \
                             r'for parameter json\[test\] is not a number or a string'
-        with self.assertRaisesRegexp(AirflowException, exception_message):
+        with six.assertRaisesRegex(self, AirflowException, exception_message):
             DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
@@ -347,7 +349,7 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
         # Looks a bit weird since we have to escape regex reserved symbols.
         exception_message = r'Type \<(type|class) \'datetime.datetime\'\> used ' + \
                             r'for parameter json\[test\] is not a number or a string'
-        with self.assertRaisesRegexp(AirflowException, exception_message):
+        with six.assertRaisesRegex(self, AirflowException, exception_message):
             DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')

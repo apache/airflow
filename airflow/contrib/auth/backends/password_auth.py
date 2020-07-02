@@ -20,6 +20,7 @@
 from __future__ import unicode_literals
 
 import base64
+import logging
 from functools import wraps
 from sys import version_info
 
@@ -41,14 +42,13 @@ from sqlalchemy.ext.hybrid import hybrid_property
 
 from airflow import models
 from airflow.utils.db import provide_session, create_session
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 LOGIN_MANAGER = flask_login.LoginManager()
 LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below
 LOGIN_MANAGER.login_message = None
 
-LOG = LoggingMixin().log
 PY3 = version_info[0] == 3
+log = logging.getLogger(__name__)
 
 
 CLIENT_AUTH = None
@@ -119,7 +119,7 @@ class PasswordUser(models.User):
 @provide_session
 def load_user(userid, session=None):
     """Loads user from the database"""
-    LOG.debug("Loading user %s", userid)
+    log.debug("Loading user %s", userid)
     if not userid or userid == 'None':
         return None
 
@@ -151,7 +151,7 @@ def authenticate(session, username, password):
     if not user.authenticate(password):
         raise AuthenticationError()
 
-    LOG.info("User %s successfully authenticated", username)
+    log.info("User %s successfully authenticated", username)
     return user
 
 

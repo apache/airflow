@@ -180,10 +180,10 @@ Here's the list of the subpackages and what they enable:
 | vertica             | ``pip install 'apache-airflow[vertica]'``           | Vertica hook support as an Airflow backend                           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
-Initiating Airflow Database
-'''''''''''''''''''''''''''
+Initializing Airflow Database
+'''''''''''''''''''''''''''''
 
-Airflow requires a database to be initiated before you can run tasks. If
+Airflow requires a database to be initialized before you can run tasks. If
 you're just experimenting and learning Airflow, you can stick with the
 default SQLite option. If you don't want to use SQLite, then take a look at
 :doc:`howto/initialize-database` to setup a different database.

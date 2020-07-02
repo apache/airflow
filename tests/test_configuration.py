@@ -21,7 +21,9 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import contextlib
+import io
 import os
+import tempfile
 import warnings
 from collections import OrderedDict
 
@@ -30,6 +32,7 @@ import six
 from airflow import configuration
 from airflow.configuration import conf, AirflowConfigParser, parameterized_config
 from tests.compat import mock
+from tests.test_utils.config import conf_vars
 from tests.test_utils.reset_warning_registry import reset_warning_registry
 
 if six.PY2:
@@ -343,6 +346,21 @@ key3 = value3
             test_conf.getsection('testsection')
         )
 
+    def test_get_section_should_respect_cmd_env_variable(self):
+        with tempfile.NamedTemporaryFile(delete=False) as cmd_file:
+            cmd_file.write("#!/usr/bin/env bash\n".encode())
+            cmd_file.write("echo -n difficult_unpredictable_cat_password\n".encode())
+            cmd_file.flush()
+            os.chmod(cmd_file.name, 0o0555)
+            cmd_file.close()
+
+            with mock.patch.dict(
+                "os.environ", {"AIRFLOW__KUBERNETES__GIT_PASSWORD_CMD": cmd_file.name}
+            ):
+                content = conf.getsection("kubernetes")
+            os.unlink(cmd_file.name)
+        self.assertEqual(content["git_password"], "difficult_unpredictable_cat_password")
+
     def test_kubernetes_environment_variables_section(self):
         TEST_CONFIG = '''
 [kubernetes_environment_variables]
@@ -470,3 +488,29 @@ notacommand = OK
             # the option should return 'OK' from the configuration, and must not return 'NOT OK' from
             # the environement variable's echo command
             self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'notacommand'), 'OK')
+
+    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
+    def test_write_should_respect_env_variable(self):
+        with io.StringIO() as string_file:
+            conf.write(string_file)
+            content = string_file.getvalue()
+        self.assertIn("dags_folder = /tmp/test_folder", content)
+
+    @conf_vars({("core", "store_serialized_dags"): "True"})
+    def test_store_dag_code_default_config(self):
+        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
+        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
+        self.assertFalse(conf.has_option("core", "store_dag_code"))
+        self.assertTrue(store_serialized_dags)
+        self.assertTrue(store_dag_code)
+
+    @conf_vars({
+        ("core", "store_serialized_dags"): "True",
+        ("core", "store_dag_code"): "False"
+    })
+    def test_store_dag_code_config_when_set(self):
+        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
+        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
+        self.assertTrue(conf.has_option("core", "store_dag_code"))
+        self.assertTrue(store_serialized_dags)
+        self.assertFalse(store_dag_code)

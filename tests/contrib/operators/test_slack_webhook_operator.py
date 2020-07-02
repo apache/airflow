@@ -39,7 +39,8 @@ class TestSlackWebhookOperator(unittest.TestCase):
         'icon_emoji': ':hankey',
         'icon_url': 'https://airflow.apache.org/_images/pin_large.png',
         'link_names': True,
-        'proxy': 'https://my-horrible-proxy.proxyist.com:8080'
+        'proxy': 'https://my-horrible-proxy.proxyist.com:8080',
+        'extra_options': {"verify": True}
     }
 
     def setUp(self):
@@ -68,6 +69,7 @@ class TestSlackWebhookOperator(unittest.TestCase):
         self.assertEqual(self._config['icon_url'], operator.icon_url)
         self.assertEqual(self._config['link_names'], operator.link_names)
         self.assertEqual(self._config['proxy'], operator.proxy)
+        self.assertEqual(self._config['extra_options'], operator.extra_options)
 
     def test_assert_templated_fields(self):
         operator = SlackWebhookOperator(
@@ -77,7 +79,7 @@ class TestSlackWebhookOperator(unittest.TestCase):
         )
 
         template_fields = ['webhook_token', 'message', 'attachments', 'blocks', 'channel',
-                           'username', 'proxy']
+                           'username', 'proxy', 'extra_options']
 
         self.assertEqual(operator.template_fields, template_fields)
 

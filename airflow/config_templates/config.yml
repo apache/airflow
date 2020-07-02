@@ -445,8 +445,8 @@
         ``store_serialized_dags`` setting.
       version_added: 1.10.10
       type: string
-      example: ~
-      default: "%(store_serialized_dags)s"
+      example: "False"
+      default: ~
     - name: max_num_rendered_ti_fields_per_task
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
@@ -524,11 +524,13 @@
   options:
     - name: auth_backend
       description: |
-        How to authenticate users of the API
+        How to authenticate users of the API. See
+        https://airflow.apache.org/docs/stable/security.html for possible values.
+        ("airflow.api.auth.backend.default" allows all requests for historic reasons)
       version_added: ~
       type: string
       example: ~
-      default: "airflow.api.auth.backend.default"
+      default: "airflow.api.auth.backend.deny_all"
 - name: lineage
   description: ~
   options:
@@ -699,6 +701,14 @@
       type: string
       example: ~
       default: "30"
+    - name: reload_on_plugin_change
+      description: |
+        If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
+        then reload the gunicorn.
+      version_added: 1.10.11
+      type: boolean
+      example: ~
+      default: "False"
     - name: secret_key
       description: |
         Secret key used to run your flask app
@@ -1736,6 +1746,13 @@
       type: string
       example: ~
       default: ""
+    - name: pod_template_file
+      description: |
+        Path to the YAML pod file. If set, all other kubernetes-related fields are ignored.
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: ""
     - name: worker_container_tag
       description: ~
       version_added: ~
@@ -1759,7 +1776,7 @@
       description: |
         If False (and delete_worker_pods is True),
         failed worker pods will not be deleted so users can investigate them.
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: "False"
@@ -1824,6 +1841,13 @@
       description: |
         For either git sync or volume mounted DAGs, the worker will look in this subpath for DAGs
       version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: dags_volume_mount_point
+      description: |
+        For either git sync or volume mounted DAGs, the worker will mount the volume in this path
+      version_added: 1.10.11
       type: string
       example: ~
       default: ""
@@ -1893,6 +1917,14 @@
       type: string
       example: ~
       default: ""
+    - name: git_sync_depth
+      description: |
+        Use a shallow clone with a history truncated to the specified number of commits.
+        0 - do not use shallow clone.
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: "1"
     - name: git_subpath
       description: ~
       version_added: ~
@@ -2120,7 +2152,7 @@
       version_added: 1.10.3
       type: string
       example: ~
-      default: ""
+      default: "50000"
     - name: fs_group
       description: |
         Specifies a gid to associate with all containers in the worker pods

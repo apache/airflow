@@ -19,6 +19,7 @@
 
 """Serialzed DAG table in database."""
 
+import logging
 from datetime import timedelta
 from typing import Any, Optional
 
@@ -32,11 +33,9 @@ from airflow.models.dagcode import DagCode
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils import db, timezone
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
-
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 class SerializedDagModel(Base):

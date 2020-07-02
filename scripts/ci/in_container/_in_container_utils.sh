@@ -39,11 +39,19 @@ function in_container_script_end() {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
+        if [[ -n ${OUT_FILE:=} ]]; then
+            echo "  ERROR ENCOUNTERED!"
+            echo
+            echo "  Output:"
+            echo
+            cat "${OUT_FILE}"
+            echo "###########################################################################################"
+        fi
         echo "###########################################################################################"
         echo "                   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
         echo "###########################################################################################"
-
     fi
+
     if [[ ${VERBOSE_COMMANDS} == "true" ]]; then
         set +x
     fi
@@ -81,13 +89,30 @@ function in_container_cleanup_pycache() {
 
 #
 # Fixes ownership of files generated in container - if they are owned by root, they will be owned by
-# The host user.
+# The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
+# changed to the Host user via osxfs filesystem
 #
 function in_container_fix_ownership() {
-    set +o pipefail
-    sudo find . -user root \
-    | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
-    set -o pipefail
+    if [[ ${HOST_OS:=} == "Linux" ]]; then
+        DIRECTORIES_TO_FIX=(
+            "/tmp"
+            "/files"
+            "/root/.aws"
+            "/root/.azure"
+            "/root/.config/gcloud"
+            "/root/.docker"
+            "${AIRFLOW_SOURCES}"
+        )
+        if [[ ${VERBOSE} == "true" ]]; then
+            echo "Fixing ownership of mounted files"
+        fi
+        sudo find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null \
+            | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference ||
+                true >/dev/null 2>&1
+        if [[ ${VERBOSE} == "true" ]]; then
+            echo "Fixed ownership of mounted files"
+        fi
+    fi
 }
 
 function in_container_go_to_airflow_sources() {
@@ -101,7 +126,7 @@ function in_container_basic_sanity_check() {
     in_container_cleanup_pycache
 }
 
-export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access"
+export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
 
 function start_output_heartbeat() {
     MESSAGE=${1:-"Still working!"}
@@ -155,34 +180,6 @@ function setup_kerberos() {
     fi
 }
 
-
-function dump_container_logs() {
-    echo "###########################################################################################"
-    echo "                   Dumping logs from all the containers"
-    echo "###########################################################################################"
-    echo "  Docker processes:"
-    echo "###########################################################################################"
-    docker ps --no-trunc
-    echo "###########################################################################################"
-    for CONTAINER in $(docker ps -qa)
-    do
-        CONTAINER_NAME=$(docker inspect --format "{{.Name}}" "${CONTAINER}")
-        echo "-------------------------------------------------------------------------------------------"
-        echo " Docker inspect: ${CONTAINER_NAME}"
-        echo "-------------------------------------------------------------------------------------------"
-        echo
-        docker inspect "${CONTAINER}"
-        echo
-        echo "-------------------------------------------------------------------------------------------"
-        echo " Docker logs: ${CONTAINER_NAME}"
-        echo "-------------------------------------------------------------------------------------------"
-        echo
-        docker logs "${CONTAINER}"
-        echo
-        echo "###########################################################################################"
-    done
-}
-
 function dump_airflow_logs() {
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
@@ -193,21 +190,6 @@ function dump_airflow_logs() {
     echo "###########################################################################################"
 }
 
-
-function send_docker_logs_to_file_io() {
-    echo "##############################################################################"
-    echo
-    echo "   DUMPING LOG FILES FROM CONTAINERS AND SENDING THEM TO file.io"
-    echo
-    echo "##############################################################################"
-    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_docker_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}.log.gz
-    dump_container_logs 2>&1 | gzip >"${DUMP_FILE}"
-    echo
-    echo "   Logs saved to ${DUMP_FILE}"
-    echo
-    echo "##############################################################################"
-    curl -F "file=@${DUMP_FILE}" https://file.io
-}
 
 function send_airflow_logs_to_file_io() {
     echo "##############################################################################"
@@ -224,37 +206,9 @@ function send_airflow_logs_to_file_io() {
     curl -F "file=@${DUMP_FILE}" https://file.io
 }
 
-
-function dump_kind_logs() {
-    echo "###########################################################################################"
-    echo "                   Dumping logs from KIND"
-    echo "###########################################################################################"
-
-    FILE_NAME="${1}"
-    kind --name "${CLUSTER_NAME}" export logs "${FILE_NAME}"
-}
-
-
-function send_kubernetes_logs_to_file_io() {
-    echo "##############################################################################"
-    echo
-    echo "   DUMPING LOG FILES FROM KIND AND SENDING THEM TO file.io"
-    echo
-    echo "##############################################################################"
-    DUMP_DIR_NAME=$(date "+%Y-%m-%d")_kind_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
-    DUMP_DIR=/tmp/${DUMP_DIR_NAME}
-    dump_kind_logs "${DUMP_DIR}"
-    tar -cvzf "${DUMP_DIR}.tar.gz" -C /tmp "${DUMP_DIR_NAME}"
-    echo
-    echo "   Logs saved to ${DUMP_DIR}.tar.gz"
-    echo
-    echo "##############################################################################"
-    curl -F "file=@${DUMP_DIR}.tar.gz" https://file.io
-}
-
 function install_released_airflow_version() {
     pip uninstall -y apache-airflow || true
-    find /root/airflow/ -type f -print0 | xargs rm -f --
+    find /root/airflow/ -type f -print0 | xargs -0 rm -f --
     if [[ ${1} == "1.10.2" || ${1} == "1.10.1" ]]; then
         export SLUGIFY_USES_TEXT_UNIDECODE=yes
     fi

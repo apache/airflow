@@ -428,8 +428,8 @@ class BaseOperator(LoggingMixin):
         self._log = logging.getLogger("airflow.task.operators")
 
         # lineage
-        self.inlets = []  # type: Iterable[DataSet]
-        self.outlets = []  # type: Iterable[DataSet]
+        self.inlets = []   # type: List[DataSet]
+        self.outlets = []  # type: List[DataSet]
         self.lineage_data = None
 
         self._inlets = {
@@ -546,7 +546,8 @@ class BaseOperator(LoggingMixin):
                 "The DAG assigned to {} can not be changed.".format(self))
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
-
+        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
+            dag.add_task(self)
         self._dag = dag
 
     def has_dag(self):
@@ -873,14 +874,11 @@ class BaseOperator(LoggingMixin):
             tasks += [
                 t.task_id for t in self.get_flat_relatives(upstream=False)]
 
-        qry = qry.filter(TI.task_id.in_(tasks))
-
-        count = qry.count()
-
-        clear_task_instances(qry.all(), session, dag=self.dag)
-
+        qry = qry.filter(TaskInstance.task_id.in_(tasks))
+        results = qry.all()
+        count = len(results)
+        clear_task_instances(results, session, dag=self.dag)
         session.commit()
-
         return count
 
     @provide_session

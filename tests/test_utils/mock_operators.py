@@ -17,7 +17,10 @@
 
 from collections import namedtuple
 
+from tests.compat import MagicMock
+
 from airflow.models.baseoperator import BaseOperator
+from airflow.operators.hive_operator import HiveOperator
 from airflow.utils.decorators import apply_defaults
 
 # Namedtuple for testing purposes
@@ -37,3 +40,9 @@ class MockOperator(BaseOperator):
 
     def execute(self, context):
         pass
+
+
+class MockHiveOperator(HiveOperator):
+    def __init__(self, *args, **kwargs):
+        self.run = MagicMock()
+        super(MockHiveOperator, self).__init__(*args, **kwargs)

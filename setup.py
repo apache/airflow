@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 version = imp.load_source('airflow.version', os.path.join('airflow', 'version.py')).version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
+PY38 = PY3 and sys.version_info[1] >= 8
 
 my_dir = dirname(__file__)
 
@@ -184,14 +185,14 @@ aws = [
     'boto3~=1.10',
 ]
 azure_blob_storage = [
-    'azure-storage>=0.34.0',
+    'azure-storage>=0.34.0, <0.37.0',
     'azure-storage-blob<12.0',
 ]
 azure_container_instances = [
-    'azure-mgmt-containerinstance>=1.5.0'
+    'azure-mgmt-containerinstance>=1.5.0,<2'
 ]
 azure_cosmos = [
-    'azure-cosmos>=3.0.1'
+    'azure-cosmos>=3.0.1,<4',
 ]
 azure_data_lake = [
     'azure-datalake-store>=0.0.45'
@@ -228,6 +229,7 @@ doc = [
     'sphinx==1.8.5;python_version<"3.0"',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
+    'sphinx-copybutton;python_version>="3.6"',
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
@@ -260,12 +262,11 @@ gcp = [
     'google-cloud-spanner>=1.10.0',
     'google-cloud-speech>=0.36.3',
     'google-cloud-storage>=1.16',
-    'google-cloud-texttospeech>=0.4.0',
+    'google-cloud-texttospeech>=0.4.0,<2',
     'google-cloud-translate>=1.3.3',
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
-    'httplib2~=0.15',
     'pandas-gbq',
 ]
 grpc = [
@@ -279,7 +280,7 @@ hdfs = [
 ]
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive>=0.6.0',
+    'pyhive[hive]>=0.6.0',
 ]
 jdbc = [
     'JPype1==0.7.1',
@@ -315,7 +316,8 @@ mysql = [
     'mysqlclient>=1.3.6,<1.4',
 ]
 oracle = [
-    'cx_Oracle>=5.1.2',
+    'cx_Oracle>=5.1.2, <8.0;python_version<"3.0"',
+    'cx_Oracle>=5.1.2;python_version>="3.0"',
 ]
 pagerduty = [
     'pypd>=1.1.0',
@@ -341,7 +343,7 @@ qds = [
     'qds-sdk>=1.10.4',
 ]
 rabbitmq = [
-    'librabbitmq>=1.6.1',
+    'amqp',
 ]
 redis = [
     'redis~=3.2',
@@ -450,13 +452,15 @@ devel_all = (all_dbs + atlas + aws +
              celery + cgroups + crypto + datadog + devel + doc + docker +
              elasticsearch + gcp + grpc + hashicorp + jdbc + jenkins + kerberos + kubernetes + ldap +
              oracle + papermill + password +
-             redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
+             rabbitmq + redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
              virtualenv + webhdfs + zendesk)
 
 # Snakebite is not Python 3 compatible :'(
 if PY3:
-    devel_all = [package for package in devel_all if package not in
-                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
+    package_to_excludes = ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']
+    if PY38:
+        package_to_excludes.extend(['pymssql~=2.1.1'])
+    devel_all = [package for package in devel_all if package not in package_to_excludes]
     devel_ci = devel_all
 else:
     devel_ci = devel_all + ['unittest2']
@@ -546,7 +550,7 @@ INSTALL_REQUIREMENTS = [
     'argcomplete~=1.10',
     'attrs~=19.3',
     'cached_property~=1.5',
-    'cattrs~=0.9',
+    'cattrs~=1.0',
     'colorlog==4.0.2',
     'configparser>=3.5.0, <3.6.0',
     'croniter>=0.3.17, <0.4',
@@ -572,12 +576,14 @@ INSTALL_REQUIREMENTS = [
     'lazy_object_proxy~=1.3',
     'markdown>=2.5.2, <3.0',
     'marshmallow-sqlalchemy>=0.16.1, <0.19.0;python_version<"3.6"',
-    'pandas>=0.17.1, <1.0.0',
+    'pandas>=0.17.1, <2.0',
     'pendulum==1.4.4',
     'psutil>=4.2.0, <6.0.0',
     'pygments>=2.0.1, <3.0',
-    'python-daemon>=2.1.1, <2.2',
+    'python-daemon>=2.1.1',
     'python-dateutil>=2.3, <3',
+    'python-nvd3~=0.15.0',
+    'python-slugify>=3.0.0,<5.0',
     'requests>=2.20.0, <3',
     'setproctitle>=1.1.8, <2',
     'sqlalchemy~=1.3',
@@ -585,8 +591,6 @@ INSTALL_REQUIREMENTS = [
     'sqlalchemy_jsonfield~=0.9;python_version>="3.5"',
     'tabulate>=0.7.5, <0.9',
     'tenacity==4.12.0',
-    'termcolor==1.1.0',
-    'text-unidecode==1.2',
     'thrift>=0.9.2',
     'typing;python_version<"3.5"',
     'typing-extensions>=3.7.4;python_version<"3.8"',
@@ -641,6 +645,7 @@ def do_setup():
             'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',

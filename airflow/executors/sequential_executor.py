@@ -17,6 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+SequentialExecutor
+
+.. seealso::
+    For more information on how the SequentialExecutor works, take a look at the guide:
+    :ref:`executor:SequentialExecutor`
+"""
 from builtins import str
 import subprocess
 
@@ -38,6 +45,8 @@ class SequentialExecutor(BaseExecutor):
         self.commands_to_run = []
 
     def execute_async(self, key, command, queue=None, executor_config=None):
+        if command[0:2] != ["airflow", "run"]:
+            raise ValueError('The command must start with ["airflow", "run"].')
         self.commands_to_run.append((key, command,))
 
     def sync(self):

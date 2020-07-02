@@ -191,7 +191,7 @@ Setting up Dependencies
 We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
 you can define dependencies between them:
 
-.. code:: python
+.. code-block:: python
 
     t1.set_downstream(t2)
 
@@ -305,6 +305,11 @@ Note that the ``airflow test`` command runs task instances locally, outputs
 their log to stdout (on screen), doesn't bother with dependencies, and
 doesn't communicate state (running, success, failed, ...) to the database.
 It simply allows testing a single task instance.
+
+The same applies to ``airflow test [dag_id] [execution_date]``, but on a DAG level. It performs a single
+DAG run of the given DAG id. While it does take task dependencies into account, no state is registered in the
+database. It is convenient for locally testing a full run of your DAG, given that e.g. if one of your tasks
+expects data at some location, it is available.
 
 Backfill
 ''''''''

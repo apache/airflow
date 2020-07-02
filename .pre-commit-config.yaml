@@ -25,11 +25,11 @@ repos:
     rev: v1.1.7
     hooks:
       - id: forbid-tabs
-        exclude: ^airflow/_vendor/.*$|^docs/Makefile$
+        exclude: ^docs/Makefile$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "/*||*/"
@@ -38,7 +38,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all other files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "|#|"
@@ -49,7 +49,7 @@ repos:
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
       - id: insert-license
         name: Add license for all rst files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "||"
@@ -60,7 +60,7 @@ repos:
       - id: insert-license
         name: Add license for all JS/CSS files
         files: \.(js|css)$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$|^airflow/www/static/.*|^airflow/www_rbac/static/.*$
+        exclude: ^\.github/.*$|^airflow/www/static/.*|^airflow/www_rbac/static/.*$
         args:
           - --comment-style
           - "/**| *| */"
@@ -70,7 +70,7 @@ repos:
       - id: insert-license
         name: Add license for all JINJA template files
         files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$  # yamllint disable-line rule:line-length
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "{#||#}"
@@ -79,7 +79,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all shell files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
         args:
           - --comment-style
@@ -89,7 +89,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all python files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [python]
         args:
           - --comment-style
@@ -99,7 +99,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all XML files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [xml]
         args:
           - --comment-style
@@ -109,7 +109,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all yaml files
-        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         types: [yaml]
         args:
           - --comment-style
@@ -120,7 +120,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|^airflow/_vendor/.*$
+        exclude: ^\.github/.*$
         args:
           - --comment-style
           - "<!--|| -->"
@@ -140,7 +140,7 @@ repos:
     hooks:
       - id: check-hooks-apply
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.5.0
+    rev: v3.1.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -155,46 +155,46 @@ repos:
     hooks:
       - id: rst-backticks
       - id: python-no-log-warn
-  - repo: local
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.23.0
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
         entry: yamllint -c yamllint-config.yml
-        language: python
-        additional_dependencies: ['yamllint']
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$
+    ##
+    ## Dear committer.
+    ##
+    ## If you ever come here to add the missing isort step here - hear a little warning.
+    ##
+    ## Initially isort will cause surprising duplicates of urlparse and other urllib related methods.
+    ## The urllib imports seem broken for python 2 but they are actually fine due to future
+    ## backport aliases installed elsewhere in the code (implicitly) - in 6 places.
+    ##
+    ## When you decide how to fix it (likely talking to other people in community) and you push
+    ## build to CI you will find terrible truth that in Airflow 1.10 modules are so much
+    ## cross-dependent, that imports in a number of places have to be done in specific order and
+    ## if this is not followed properly, circular imports kick-in and you are doomed.
+    ##
+    ## Running isort breaks the import House of Cards and there is no easy way to fix it short of
+    ## splitting a number of files and probably breaking compatibility.
+    ##
+    ## Luckily this has been fixed in Airflow 2.0 by proper untangling of the cross-dependencies and
+    ## 1.10.* branch is really in maintenance mode, so do not really waste your time here.
+    ##
+    ## Unless you really want of course. But then either delete this comment or increase the counter
+    ## below after you give up.
+    ##
+    ## Total hours wasted here = 3
+    ##
+  - repo: local
+    hooks:
       - id: shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
-        exclude: ^airflow/_vendor/.*$
-        ##
-        ## Dear committer.
-        ##
-        ## If you ever come here to add the missing isort step here - hear a little warning.
-        ##
-        ## Initially isort will cause surprising duplicates of urlparse and other urllib related methods.
-        ## The urllib imports seem broken for python 2 but they are actually fine due to future
-        ## backport aliases installed elsewhere in the code (implicitly) - in 6 places.
-        ##
-        ## When you decide how to fix it (likely talking to other people in community) and you push
-        ## build to CI you will find terrible truth that in Airflow 1.10 modules are so much
-        ## cross-dependent, that imports in a number of places have to be done in specific order and
-        ## if this is not followed properly, circular imports kick-in and you are doomed.
-        ##
-        ## Running isort breaks the import House of Cards and there is no easy way to fix it short of
-        ## splitting a number of files and probably breaking compatibility.
-        ##
-        ## Luckily this has been fixed in Airflow 2.0 by proper untangling of the cross-dependencies and
-        ## 1.10.* branch is really in maintenance mode, so do not really waste your time here.
-        ##
-        ## Unless you really want of course. But then either delete this comment or increase the counter
-        ## below after you give up.
-        ##
-        ## Total hours wasted here = 3
-        ##
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system
@@ -219,7 +219,7 @@ repos:
         name: Update mounts in the local yml file
         entry: "./scripts/ci/pre_commit_local_yml_mounts.sh"
         language: system
-        files: ^scripts/ci/_utils.sh$|s^scripts/ci/docker_compose/local.yml"
+        files: ^scripts/ci/libraries/_local_mounts.sh$|s^scripts/ci/docker_compose/local.yml"
         pass_filenames: false
         require_serial: true
       - id: update-extras
@@ -229,6 +229,31 @@ repos:
         files: ^setup.py$|^INSTALL$|^CONTRIBUTING.rst$
         pass_filenames: false
         require_serial: true
+      - id: pydevd
+        language: pygrep
+        name: Check for pydevd debug statements accidentally left
+        entry: "pydevd.*settrace\\("
+        pass_filenames: true
+        files: \.py$
+      - id: language-matters
+        language: pygrep
+        name: Check for language that we do not accept as community
+        description: Please use "deny_list" or "allow_list"  instead.
+        entry: "(?i)(black|white)[_-]?list"
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/contrib/hooks/cassandra_hook.py$|
+          ^airflow/operators/hive_stats_operator.py$|
+          ^tests/contrib/hooks/test_cassandra_hook.py|
+          ^CHANGELOG.txt
+      - id: dont-use-safe-filter
+        language: pygrep
+        name: Don't use safe in templates
+        description: the Safe filter is error-prone, use Markup() in code instead
+        entry: "\\|\\s*safe"
+        files: \.html$
+        pass_filenames: true
       - id: python2-fastcheck
         language: pygrep
         name: Find common Python 3 vs. 2.7 compatibility problems
@@ -240,18 +265,7 @@ repos:
                 ^\sdef\s*\S*\(.*\):\s*\-\>\s*\S*.*  # Matches -> return value syntax from Python3
             )$
         files: \.py$
-        exclude: ^airflow/_vendor|^dev/
-        pass_filenames: true
-      - id: check-providers-package
-        language: pygrep
-        name: Find providers package added in 2.0.*
-        entry: >
-          (?x)
-            (
-                ^.*airflow\.providers.*     # Matches import airflow.providers
-            )$
-        files: \.py$
-        exclude: ^airflow/_vendor
+        exclude: ^dev/
         pass_filenames: true
       - id: python2-compile
         name: Compile code using python2
@@ -273,6 +287,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^common/_common_values.sh$|^breeze-complete$
+      - id: incorrect-use-of-LoggingMixin
+        language: pygrep
+        name: Make sure LoggingMixin is not used alone
+        entry: "LoggingMixin\\(\\)"
+        files: \.py$
+        pass_filenames: true
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh 3.5 false
@@ -299,7 +319,7 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^airflow/_vendor/.*$|^dev
+        exclude: ^dev
         require_serial: true
       - id: flake8
         name: Run flake8

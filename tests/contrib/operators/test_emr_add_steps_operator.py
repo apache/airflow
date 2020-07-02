@@ -105,10 +105,11 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         with patch('boto3.session.Session', self.boto3_session_mock):
             self.assertEqual(self.operator.execute(self.mock_context), ['s-2LH3R5GW3A53T'])
 
+    @patch.multiple('airflow.contrib.hooks.emr_hook.EmrHook',
+                    get_cluster_id_by_name=MagicMock(return_value='j-1231231234'))
     def test_init_with_cluster_name(self):
         expected_job_flow_id = 'j-1231231234'
 
-        self.emr_client_mock.get_cluster_id_by_name.return_value = expected_job_flow_id
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         with patch('boto3.session.Session', self.boto3_session_mock):

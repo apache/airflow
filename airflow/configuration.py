@@ -27,6 +27,8 @@ from collections import OrderedDict
 import copy
 import errno
 from future import standard_library
+import multiprocessing
+import logging
 import os
 import shlex
 import six
@@ -40,17 +42,17 @@ import yaml
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 standard_library.install_aliases()
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 # show Airflow's deprecation warnings
-warnings.filterwarnings(
-    action='default', category=DeprecationWarning, module='airflow')
-warnings.filterwarnings(
-    action='default', category=PendingDeprecationWarning, module='airflow')
+if not sys.warnoptions:
+    warnings.filterwarnings(
+        action='default', category=DeprecationWarning, module='airflow')
+    warnings.filterwarnings(
+        action='default', category=PendingDeprecationWarning, module='airflow')
 
 
 def generate_fernet_key():
@@ -196,6 +198,35 @@ class AirflowConfigParser(ConfigParser):
         self.is_validated = False
 
     def _validate(self):
+        self._validate_config_dependencies()
+        for section, replacement in self.deprecated_values.items():
+            for name, info in replacement.items():
+                old, new, version = info
+                if self.get(section, name, fallback=None) == old:
+                    # Make sure the env var option is removed, otherwise it
+                    # would be read and used instead of the value we set
+                    env_var = self._env_var_name(section, name)
+                    os.environ.pop(env_var, None)
+
+                    self.set(section, name, new)
+                    warnings.warn(
+                        'The {name} setting in [{section}] has the old default value '
+                        'of {old!r}. This value has been changed to {new!r} in the '
+                        'running config, but please update your config before Apache '
+                        'Airflow {version}.'.format(
+                            name=name, section=section, old=old, new=new, version=version
+                        ),
+                        FutureWarning
+                    )
+
+        self.is_validated = True
+
+    def _validate_config_dependencies(self):
+        """
+        Validate that config values aren't invalid given other config values
+        or system-level limitations and requirements.
+        """
+
         if (
                 self.get("core", "executor") not in ('DebugExecutor', 'SequentialExecutor') and
                 "sqlite" in self.get('core', 'sql_alchemy_conn')):
@@ -221,27 +252,14 @@ class AirflowConfigParser(ConfigParser):
                 "error: attempt at using ldapgroup "
                 "filtering without using the Ldap backend")
 
-        for section, replacement in self.deprecated_values.items():
-            for name, info in replacement.items():
-                old, new, version = info
-                if self.get(section, name, fallback=None) == old:
-                    # Make sure the env var option is removed, otherwise it
-                    # would be read and used instead of the value we set
-                    env_var = self._env_var_name(section, name)
-                    os.environ.pop(env_var, None)
+        if self.has_option('core', 'mp_start_method'):
+            mp_start_method = self.get('core', 'mp_start_method')
+            start_method_options = multiprocessing.get_all_start_methods()
 
-                    self.set(section, name, new)
-                    warnings.warn(
-                        'The {name} setting in [{section}] has the old default value '
-                        'of {old!r}. This value has been changed to {new!r} in the '
-                        'running config, but please update your config before Apache '
-                        'Airflow {version}.'.format(
-                            name=name, section=section, old=old, new=new, version=version
-                        ),
-                        FutureWarning
-                    )
-
-        self.is_validated = True
+            if mp_start_method not in start_method_options:
+                raise AirflowConfigException(
+                    "mp_start_method should not be " + mp_start_method +
+                    ". Possible values are " + ", ".join(start_method_options))
 
     @staticmethod
     def _env_var_name(section, key):
@@ -393,7 +411,10 @@ class AirflowConfigParser(ConfigParser):
         section_prefix = 'AIRFLOW__{S}__'.format(S=section.upper())
         for env_var in sorted(os.environ.keys()):
             if env_var.startswith(section_prefix):
-                key = env_var.replace(section_prefix, '').lower()
+                key = env_var.replace(section_prefix, '')
+                if key.endswith("_CMD"):
+                    key = key[:-4]
+                key = key.lower()
                 _section[key] = self._get_env_var_option(section, key)
 
         for key, val in iteritems(_section):
@@ -409,6 +430,18 @@ class AirflowConfigParser(ConfigParser):
                         val = False
             _section[key] = val
         return _section
+
+    def write(self, fp, space_around_delimiters=True):
+        # This is based on the configparser.RawConfigParser.write method code to add support for
+        # reading options from environment variables.
+        if space_around_delimiters:
+            d = " {} ".format(self._delimiters[0])  # type: ignore
+        else:
+            d = self._delimiters[0]  # type: ignore
+        if self._defaults:
+            self._write_section(fp, self.default_section, self._defaults.items(), d)  # type: ignore
+        for section in self._sections:
+            self._write_section(fp, section, self.getsection(section).items(), d)  # type: ignore
 
     def as_dict(
             self, display_source=False, display_sensitive=False, raw=False,

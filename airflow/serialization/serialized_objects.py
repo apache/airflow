@@ -29,7 +29,7 @@ import cattr
 import pendulum
 from dateutil import relativedelta
 
-from airflow import DAG, AirflowException, LoggingMixin
+from airflow import DAG, AirflowException
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -45,6 +45,8 @@ except ImportError:
 
 if TYPE_CHECKING:
     from inspect import Parameter
+
+log = logging.getLogger(__name__)
 
 
 class BaseSerialization:
@@ -122,10 +124,16 @@ class BaseSerialization:
     @classmethod
     def _is_excluded(cls, var, attrname, instance):
         """Types excluded from serialization."""
+
+        if var is None:
+            if not cls._is_constructor_param(attrname, instance):
+                # Any instance attribute, that is not a constructor argument, we exclude None as the default
+                return True
+
+            return cls._value_is_hardcoded_default(attrname, var, instance)
         return (
-            var is None or
             isinstance(var, cls._excluded_types) or
-            cls._value_is_hardcoded_default(attrname, var)
+            cls._value_is_hardcoded_default(attrname, var, instance)
         )
 
     @classmethod
@@ -206,10 +214,10 @@ class BaseSerialization:
                 return cls._encode(
                     [cls._serialize(v) for v in var], type_=DAT.TUPLE)
             else:
-                LOG.debug('Cast type %s to str in serialization.', type(var))
+                log.debug('Cast type %s to str in serialization.', type(var))
                 return str(var)
         except Exception:  # pylint: disable=broad-except
-            LOG.warning('Failed to stringify.', exc_info=True)
+            log.warning('Failed to stringify.', exc_info=True)
             return FAILED
 
     @classmethod
@@ -259,7 +267,12 @@ class BaseSerialization:
         return datetime.timedelta(seconds=seconds)
 
     @classmethod
-    def _value_is_hardcoded_default(cls, attrname, value):
+    def _is_constructor_param(cls, attrname, instance):
+        # pylint: disable=unused-argument
+        return attrname in cls._CONSTRUCTOR_PARAMS
+
+    @classmethod
+    def _value_is_hardcoded_default(cls, attrname, value, instance):
         """
         Return true if ``value`` is the hard-coded default for the given attribute.
         This takes in to account cases where the ``concurrency`` parameter is
@@ -273,8 +286,9 @@ class BaseSerialization:
         to account for the case where the default value of the field is None but has the
         ``field = field or {}`` set.
         """
+        # pylint: disable=unused-argument
         if attrname in cls._CONSTRUCTOR_PARAMS and \
-                (cls._CONSTRUCTOR_PARAMS[attrname].default is value or (value in [{}, []])):
+                (cls._CONSTRUCTOR_PARAMS[attrname] is value or (value in [{}, []])):
             return True
         return False
 
@@ -288,7 +302,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     _decorated_fields = {'executor_config', }
 
     _CONSTRUCTOR_PARAMS = {
-        k: v for k, v in signature(BaseOperator).parameters.items()
+        k: v.default for k, v in signature(BaseOperator).parameters.items()
         if v.default is not v.empty
     }
 
@@ -511,7 +525,7 @@ class SerializedDAG(DAG, BaseSerialization):
             'access_control': '_access_control',
         }
         return {
-            param_to_attr.get(k, k): v for k, v in signature(DAG).parameters.items()
+            param_to_attr.get(k, k): v.default for k, v in signature(DAG).parameters.items()
             if v.default is not v.empty
         }
 
@@ -548,7 +562,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 k = "task_dict"
             elif k == "timezone":
                 v = cls._deserialize_timezone(v)
-            elif k in {"retry_delay", "execution_timeout"}:
+            elif k in {"dagrun_timeout"}:
                 v = cls._deserialize_timedelta(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
@@ -579,7 +593,7 @@ class SerializedDAG(DAG, BaseSerialization):
             for task_id in serializable_task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want
                 # noinspection PyProtectedMember
-                dag.task_dict[task_id]._upstream_task_ids.add(task_id)  # pylint: disable=protected-access
+                dag.task_dict[task_id]._upstream_task_ids.add(serializable_task.task_id)  # noqa: E501 # pylint: disable=protected-access
 
         return dag
 
@@ -606,8 +620,6 @@ class SerializedDAG(DAG, BaseSerialization):
             raise ValueError("Unsure how to deserialize version {!r}".format(ver))
         return cls.deserialize_dag(serialized_obj['dag'])
 
-
-LOG = LoggingMixin().log
 
 # Serialization failure returns 'failed'.
 FAILED = 'serialization_failed'

@@ -219,16 +219,17 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
                 for member in binding['members']:
                     if not member.startswith('serviceAccount:gcp-storage-account'):
 
-                        self.log.info("Remove member: {}".format(member))
+                        self.log.info("Remove member: %s", member)
                         member_type, member_email = member.split(':')
                         if member_type != 'serviceAccount':
-                            self.log.warning("Skip removing member {} as the type {} is "
-                                             "not service account".format(member,
-                                                                          member_type))
+                            self.log.warning(
+                                "Skip removing member %s as the type %s is not service account",
+                                member, member_type
+                            )
                         self.execute_cmd(['gsutil', 'acl', 'ch', '-d', member_email,
                                          "gs://{}".format(export_bucket_name)])
                     else:
-                        self.log.info("Skip removing member {}".format(member))
+                        self.log.info("Skip removing member %s", member)
 
     @staticmethod
     def set_ip_addresses_in_env():

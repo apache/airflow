@@ -23,80 +23,26 @@ import datetime
 import os
 import unittest
 
+from tests.hive import TestHiveEnvironment
+from tests.test_utils.mock_process import MockSubProcess
+
+from airflow.models import TaskInstance
+from airflow.utils import timezone
 from airflow.operators.hive_operator import HiveOperator
-from airflow.operators.hive_stats_operator import HiveStatsCollectionOperator
-from airflow.operators.hive_to_mysql import HiveToMySqlTransfer
-from airflow.operators.hive_to_samba_operator import Hive2SambaOperator
-from airflow.operators.presto_check_operator import PrestoCheckOperator
-from airflow.operators.presto_to_mysql import PrestoToMySqlTransfer
-from airflow.sensors.hdfs_sensor import HdfsSensor
-from airflow.sensors.hive_partition_sensor import HivePartitionSensor
-from airflow.sensors.metastore_partition_sensor import MetastorePartitionSensor
-from airflow.sensors.named_hive_partition_sensor import NamedHivePartitionSensor
-from airflow.sensors.sql_sensor import SqlSensor
-from airflow.sensors.web_hdfs_sensor import WebHdfsSensor
 from tests.compat import mock
 
-from airflow import DAG
 from airflow.configuration import conf
-from airflow.exceptions import AirflowSensorTimeout
+from tests.test_utils.mock_operators import MockHiveOperator
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
-class HiveEnvironmentTest(unittest.TestCase):
-
-    def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG('test_dag_id', default_args=args)
-        self.dag = dag
-        self.hql = """
-        USE airflow;
-        DROP TABLE IF EXISTS static_babynames_partitioned;
-        CREATE TABLE IF NOT EXISTS static_babynames_partitioned (
-            state string,
-            year string,
-            name string,
-            gender string,
-            num int)
-        PARTITIONED BY (ds string);
-        INSERT OVERWRITE TABLE static_babynames_partitioned
-            PARTITION(ds='{{ ds }}')
-        SELECT state, year, name, gender, num FROM static_babynames;
-        """
-
-
-class HiveCliTest(unittest.TestCase):
-
-    def setUp(self):
-        self.nondefault_schema = "nondefault"
-        os.environ["AIRFLOW__CORE__SECURITY"] = "kerberos"
-
-    def tearDown(self):
-        del os.environ["AIRFLOW__CORE__SECURITY"]
-
-    def test_get_proxy_user_value(self):
-        from airflow.hooks.hive_hooks import HiveCliHook
-
-        hook = HiveCliHook()
-        returner = mock.MagicMock()
-        returner.extra_dejson = {'proxy_user': 'a_user_proxy'}
-        hook.use_beeline = True
-        hook.conn = returner
-
-        # Run
-        result = hook._prepare_cli_cmd()
-
-        # Verify
-        self.assertIn('hive.server2.proxy.user=a_user_proxy', result[2])
-
-
-class HiveOperatorConfigTest(HiveEnvironmentTest):
+class HiveOperatorConfigTest(TestHiveEnvironment):
 
     def test_hive_airflow_default_config_queue(self):
-        t = HiveOperator(
+        op = MockHiveOperator(
             task_id='test_default_config_queue',
             hql=self.hql,
             mapred_queue_priority='HIGH',
@@ -108,11 +54,12 @@ class HiveOperatorConfigTest(HiveEnvironmentTest):
             'hive',
             'default_hive_mapred_queue'
         )
-        self.assertEqual(t.get_hook().mapred_queue, test_config_hive_mapred_queue)
+        self.assertEqual(op.get_hook().mapred_queue,
+                         test_config_hive_mapred_queue)
 
     def test_hive_airflow_default_config_queue_override(self):
         specific_mapred_queue = 'default'
-        t = HiveOperator(
+        op = MockHiveOperator(
             task_id='test_default_config_queue',
             hql=self.hql,
             mapred_queue=specific_mapred_queue,
@@ -120,204 +67,170 @@ class HiveOperatorConfigTest(HiveEnvironmentTest):
             mapred_job_name='airflow.test_default_config_queue',
             dag=self.dag)
 
-        self.assertEqual(t.get_hook().mapred_queue, specific_mapred_queue)
+        self.assertEqual(op.get_hook().mapred_queue, specific_mapred_queue)
 
 
-class HiveOperatorTest(HiveEnvironmentTest):
+class HiveOperatorTest(TestHiveEnvironment):
 
     def test_hiveconf_jinja_translate(self):
         hql = "SELECT ${num_col} FROM ${hiveconf:table};"
-        t = HiveOperator(
+        op = MockHiveOperator(
             hiveconf_jinja_translate=True,
             task_id='dry_run_basic_hql', hql=hql, dag=self.dag)
-        t.prepare_template()
-        self.assertEqual(t.hql, "SELECT {{ num_col }} FROM {{ table }};")
+        op.prepare_template()
+        self.assertEqual(op.hql, "SELECT {{ num_col }} FROM {{ table }};")
 
     def test_hiveconf(self):
         hql = "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});"
-        t = HiveOperator(
+        op = MockHiveOperator(
             hiveconfs={'table': 'static_babynames', 'day': '{{ ds }}'},
             task_id='dry_run_basic_hql', hql=hql, dag=self.dag)
-        t.prepare_template()
+        op.prepare_template()
         self.assertEqual(
-            t.hql,
+            op.hql,
             "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});")
 
+    @mock.patch('airflow.operators.hive_operator.HiveOperator.get_hook')
+    def test_mapred_job_name(self, mock_get_hook):
+        mock_hook = mock.MagicMock()
+        mock_get_hook.return_value = mock_hook
+        op = MockHiveOperator(
+            task_id='test_mapred_job_name',
+            hql=self.hql,
+            dag=self.dag)
 
-if 'AIRFLOW_RUNALL_TESTS' in os.environ:
+        fake_execution_date = timezone.datetime(2018, 6, 19)
+        fake_ti = TaskInstance(task=op, execution_date=fake_execution_date)
+        fake_ti.hostname = 'fake_hostname'
+        fake_context = {'ti': fake_ti}
 
-    class HivePrestoTest(HiveEnvironmentTest):
+        op.execute(fake_context)
+        self.assertEqual(
+            "Airflow HiveOperator task for {}.{}.{}.{}".format(
+                fake_ti.hostname,
+                self.dag.dag_id, op.task_id,
+                fake_execution_date.isoformat()), mock_hook.mapred_job_name)
 
-        def test_hive(self):
-            t = HiveOperator(
-                task_id='basic_hql', hql=self.hql, dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
 
-        def test_hive_queues(self):
-            t = HiveOperator(
-                task_id='test_hive_queues', hql=self.hql,
-                mapred_queue='default', mapred_queue_priority='HIGH',
-                mapred_job_name='airflow.test_hive_queues',
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+@unittest.skipIf(
+    'AIRFLOW_RUNALL_TESTS' not in os.environ,
+    "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+class TestHivePresto(TestHiveEnvironment):
 
-        def test_hive_dryrun(self):
-            t = HiveOperator(
-                task_id='dry_run_basic_hql', hql=self.hql, dag=self.dag)
-            t.dry_run()
+    @mock.patch('tempfile.tempdir', '/tmp/')
+    @mock.patch('tempfile._RandomNameSequence.__next__')
+    @mock.patch('subprocess.Popen')
+    def test_hive(self, mock_popen, mock_temp_dir):
+        mock_subprocess = MockSubProcess()
+        mock_popen.return_value = mock_subprocess
+        mock_temp_dir.return_value = "tst"
+        op = HiveOperator(
+            task_id='basic_hql', hql=self.hql, dag=self.dag, mapred_job_name="test_job_name")
 
-        def test_beeline(self):
-            t = HiveOperator(
-                task_id='beeline_hql', hive_cli_conn_id='beeline_default',
-                hql=self.hql, dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
+        hive_cmd = ['beeline', '-u', '"jdbc:hive2://localhost:10000/default"', '-hiveconf',
+                    'airflow.ctx.dag_id=test_dag_id', '-hiveconf', 'airflow.ctx.task_id=basic_hql',
+                    '-hiveconf', 'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00', '-hiveconf',
+                    'airflow.ctx.dag_run_id=', '-hiveconf', 'airflow.ctx.dag_owner=airflow', '-hiveconf',
+                    'airflow.ctx.dag_email=', '-hiveconf', 'mapreduce.job.queuename=airflow', '-hiveconf',
+                    'mapred.job.queue.name=airflow', '-hiveconf', 'tez.queue.name=airflow', '-hiveconf',
+                    'mapred.job.name=test_job_name', '-f', '/tmp/airflow_hiveop_tst/tmptst']
 
-        def test_presto(self):
-            sql = """
-            SELECT count(1) FROM airflow.static_babynames_partitioned;
-            """
-            t = PrestoCheckOperator(
-                task_id='presto_check', sql=sql, dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+        mock_popen.assert_called_with(
+            hive_cmd,
+            stdout=mock_subprocess.PIPE,
+            stderr=mock_subprocess.STDOUT,
+            cwd="/tmp/airflow_hiveop_tst",
+            close_fds=True
+        )
 
-        def test_presto_to_mysql(self):
-            t = PrestoToMySqlTransfer(
-                task_id='presto_to_mysql_check',
-                sql="""
-                SELECT name, count(*) as ccount
-                FROM airflow.static_babynames
-                GROUP BY name
-                """,
-                mysql_table='test_static_babynames',
-                mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+    @mock.patch('tempfile.tempdir', '/tmp/')
+    @mock.patch('tempfile._RandomNameSequence.__next__')
+    @mock.patch('subprocess.Popen')
+    def test_hive_queues(self, mock_popen, mock_temp_dir):
+        mock_subprocess = MockSubProcess()
+        mock_popen.return_value = mock_subprocess
+        mock_temp_dir.return_value = "tst"
 
-        def test_hdfs_sensor(self):
-            t = HdfsSensor(
-                task_id='hdfs_sensor_check',
-                filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+        hive_cmd = ['beeline', '-u', '"jdbc:hive2://localhost:10000/default"', '-hiveconf',
+                    'airflow.ctx.dag_id=test_dag_id', '-hiveconf', 'airflow.ctx.task_id=test_hive_queues',
+                    '-hiveconf', 'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00', '-hiveconf',
+                    'airflow.ctx.dag_run_id=', '-hiveconf', 'airflow.ctx.dag_owner=airflow',
+                    '-hiveconf', 'airflow.ctx.dag_email=', '-hiveconf', 'mapreduce.job.queuename=default',
+                    '-hiveconf', 'mapred.job.queue.name=default', '-hiveconf', 'tez.queue.name=default',
+                    '-hiveconf', 'mapreduce.job.priority=HIGH', '-hiveconf',
+                    'mapred.job.name=airflow.test_hive_queues', '-f', '/tmp/airflow_hiveop_tst/tmptst']
+        op = HiveOperator(
+            task_id='test_hive_queues', hql=self.hql,
+            mapred_queue='default', mapred_queue_priority='HIGH',
+            mapred_job_name='airflow.test_hive_queues',
+            dag=self.dag)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
 
-        def test_webhdfs_sensor(self):
-            t = WebHdfsSensor(
-                task_id='webhdfs_sensor_check',
-                filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',
-                timeout=120,
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+        mock_popen.assert_called_with(
+            hive_cmd,
+            stdout=mock_subprocess.PIPE,
+            stderr=mock_subprocess.STDOUT,
+            cwd="/tmp/airflow_hiveop_tst",
+            close_fds=True
+        )
 
-        def test_sql_sensor(self):
-            t = SqlSensor(
-                task_id='hdfs_sensor_check',
-                conn_id='presto_default',
-                sql="SELECT 'x' FROM airflow.static_babynames LIMIT 1;",
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+    @mock.patch('tempfile.tempdir', '/tmp/')
+    @mock.patch('tempfile._RandomNameSequence.__next__')
+    @mock.patch('subprocess.Popen')
+    def test_hive_dryrun(self, mock_popen, mock_temp_dir):
+        mock_subprocess = MockSubProcess()
+        mock_popen.return_value = mock_subprocess
+        mock_temp_dir.return_value = "tst"
 
-        def test_hive_stats(self):
-            t = HiveStatsCollectionOperator(
-                task_id='hive_stats_check',
-                table="airflow.static_babynames_partitioned",
-                partition={'ds': DEFAULT_DATE_DS},
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+        op = HiveOperator(task_id='dry_run_basic_hql',
+                          hql=self.hql, dag=self.dag)
+        op.dry_run()
 
-        def test_named_hive_partition_sensor(self):
-            t = NamedHivePartitionSensor(
-                task_id='hive_partition_check',
-                partition_names=[
-                    "airflow.static_babynames_partitioned/ds={{ds}}"
-                ],
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+        hive_cmd = ['beeline', '-u', '"jdbc:hive2://localhost:10000/default"',
+                    '-hiveconf', 'airflow.ctx.dag_id=', '-hiveconf', 'airflow.ctx.task_id=',
+                    '-hiveconf', 'airflow.ctx.execution_date=', '-hiveconf', 'airflow.ctx.dag_run_id=',
+                    '-hiveconf', 'airflow.ctx.dag_owner=', '-hiveconf', 'airflow.ctx.dag_email=',
+                    '-hiveconf', 'mapreduce.job.queuename=airflow', '-hiveconf',
+                    'mapred.job.queue.name=airflow', '-hiveconf', 'tez.queue.name=airflow',
+                    '-f', '/tmp/airflow_hiveop_tst/tmptst']
+        mock_popen.assert_called_with(
+            hive_cmd,
+            stdout=mock_subprocess.PIPE,
+            stderr=mock_subprocess.STDOUT,
+            cwd="/tmp/airflow_hiveop_tst",
+            close_fds=True
+        )
 
-        def test_named_hive_partition_sensor_succeeds_on_multiple_partitions(self):
-            t = NamedHivePartitionSensor(
-                task_id='hive_partition_check',
-                partition_names=[
-                    "airflow.static_babynames_partitioned/ds={{ds}}",
-                    "airflow.static_babynames_partitioned/ds={{ds}}"
-                ],
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+    @mock.patch('tempfile.tempdir', '/tmp/')
+    @mock.patch('tempfile._RandomNameSequence.__next__')
+    @mock.patch('subprocess.Popen')
+    def test_beeline(self, mock_popen, mock_temp_dir):
+        mock_subprocess = MockSubProcess()
+        mock_popen.return_value = mock_subprocess
+        mock_temp_dir.return_value = "tst"
 
-        def test_named_hive_partition_sensor_parses_partitions_with_periods(self):
-            t = NamedHivePartitionSensor.parse_partition_name(
-                partition="schema.table/part1=this.can.be.an.issue/part2=ok")
-            self.assertEqual(t[0], "schema")
-            self.assertEqual(t[1], "table")
-            self.assertEqual(t[2], "part1=this.can.be.an.issue/part2=this_should_be_ok")
+        hive_cmd = ['beeline', '-u', '"jdbc:hive2://localhost:10000/default"',
+                    '-hiveconf', 'airflow.ctx.dag_id=test_dag_id', '-hiveconf',
+                    'airflow.ctx.task_id=beeline_hql', '-hiveconf',
+                    'airflow.ctx.execution_date=2015-01-01T00:00:00+00:00',
+                    '-hiveconf', 'airflow.ctx.dag_run_id=', '-hiveconf', 'airflow.ctx.dag_owner=airflow',
+                    '-hiveconf', 'airflow.ctx.dag_email=',
+                    '-hiveconf', 'mapreduce.job.queuename=airflow', '-hiveconf',
+                    'mapred.job.queue.name=airflow', '-hiveconf', 'tez.queue.name=airflow', '-hiveconf',
+                    'mapred.job.name=test_job_name', '-f', '/tmp/airflow_hiveop_tst/tmptst']
 
-        def test_named_hive_partition_sensor_times_out_on_nonexistent_partition(self):
-            with self.assertRaises(AirflowSensorTimeout):
-                t = NamedHivePartitionSensor(
-                    task_id='hive_partition_check',
-                    partition_names=[
-                        "airflow.static_babynames_partitioned/ds={{ds}}",
-                        "airflow.static_babynames_partitioned/ds=nonexistent"
-                    ],
-                    poke_interval=0.1,
-                    timeout=1,
-                    dag=self.dag)
-                t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                      ignore_ti_state=True)
-
-        def test_hive_partition_sensor(self):
-            t = HivePartitionSensor(
-                task_id='hive_partition_check',
-                table='airflow.static_babynames_partitioned',
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
-
-        def test_hive_metastore_sql_sensor(self):
-            t = MetastorePartitionSensor(
-                task_id='hive_partition_check',
-                table='airflow.static_babynames_partitioned',
-                partition_name='ds={}'.format(DEFAULT_DATE_DS),
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
-
-        def test_hive2samba(self):
-            t = Hive2SambaOperator(
-                task_id='hive2samba_check',
-                samba_conn_id='tableau_samba',
-                hql="SELECT * FROM airflow.static_babynames LIMIT 10000",
-                destination_filepath='test_airflow.csv',
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
-
-        def test_hive_to_mysql(self):
-            t = HiveToMySqlTransfer(
-                mysql_conn_id='airflow_db',
-                task_id='hive_to_mysql_check',
-                create=True,
-                sql="""
-                SELECT name
-                FROM airflow.static_babynames
-                LIMIT 100
-                """,
-                mysql_table='test_static_babynames',
-                mysql_preoperator=[
-                    'DROP TABLE IF EXISTS test_static_babynames;',
-                    'CREATE TABLE test_static_babynames (name VARCHAR(500))',
-                ],
-                dag=self.dag)
-            t.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+        op = HiveOperator(
+            task_id='beeline_hql', hive_cli_conn_id='hive_cli_default',
+            hql=self.hql, dag=self.dag, mapred_job_name="test_job_name")
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
+        mock_popen.assert_called_with(
+            hive_cmd,
+            stdout=mock_subprocess.PIPE,
+            stderr=mock_subprocess.STDOUT,
+            cwd="/tmp/airflow_hiveop_tst",
+            close_fds=True
+        )

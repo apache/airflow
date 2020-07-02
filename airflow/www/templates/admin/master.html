@@ -23,6 +23,13 @@
   <link href="{{ url_for('static', filename='bootstrap-theme.css') }}" rel="stylesheet">
   <link rel="icon" type="image/png" href="{{ url_for("static", filename="pin_32.png") }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for("static", filename="main.css") }}">
+    <style type="text/css">
+    {% for state, state_color in state_color_mapping.items() %}
+      span.{{state}} {
+        background-color: {{state_color}};
+      }
+    {% endfor %}
+  </style>
 {% endblock %}
 
 {% block tail_js %}

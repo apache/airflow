@@ -57,19 +57,20 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           list_py_file_paths)
 from airflow.utils.db import provide_session
 from airflow.utils.email import get_email_address_list, send_email
+from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.state import State
 
 
-class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
+class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin, MultiprocessingStartMethodMixin):
     """Helps call SchedulerJob.process_file() in a separate process.
 
     :param file_path: a Python file containing Airflow DAG definitions
     :type file_path: unicode
     :param pickle_dags: whether to serialize the DAG objects to the DB
     :type pickle_dags: bool
-    :param dag_id_white_list: If specified, only look at these DAG ID's
-    :type dag_id_white_list: list[unicode]
+    :param dag_ids: If specified, only look at these DAG ID's
+    :type dag_ids: list[unicode]
     :param zombies: zombie task instances to kill
     :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
     """
@@ -77,12 +78,12 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     # Counter that increments every time an instance of this class is created
     class_creation_counter = 0
 
-    def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
+    def __init__(self, file_path, pickle_dags, dag_ids, zombies):
         self._file_path = file_path
 
         # The process that was launched to process the given .
         self._process = None
-        self._dag_id_white_list = dag_id_white_list
+        self._dag_ids = dag_ids
         self._pickle_dags = pickle_dags
         self._zombies = zombies
         # The result of Scheduler.process_file(file_path).
@@ -104,7 +105,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     def _run_file_processor(result_channel,
                             file_path,
                             pickle_dags,
-                            dag_id_white_list,
+                            dag_ids,
                             thread_name,
                             zombies):
         """
@@ -117,9 +118,9 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :param pickle_dags: whether to pickle the DAGs found in the file and
             save them to the DB
         :type pickle_dags: bool
-        :param dag_id_white_list: if specified, only examine DAG ID's that are
+        :param dag_ids: if specified, only examine DAG ID's that are
             in this list
-        :type dag_id_white_list: list[unicode]
+        :type dag_ids: list[unicode]
         :param thread_name: the name to use for the process that is launched
         :type thread_name: unicode
         :param zombies: zombie task instances to kill
@@ -152,7 +153,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
 
             log.info("Started process (PID=%s) to work on %s",
                      os.getpid(), file_path)
-            scheduler_job = SchedulerJob(dag_ids=dag_id_white_list, log=log)
+            scheduler_job = SchedulerJob(dag_ids=dag_ids, log=log)
             result = scheduler_job.process_file(file_path,
                                                 zombies,
                                                 pickle_dags)
@@ -177,14 +178,20 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         """
         Launch the process and start processing the DAG.
         """
-        self._parent_channel, _child_channel = multiprocessing.Pipe()
-        self._process = multiprocessing.Process(
+        if six.PY2:
+            context = multiprocessing
+        else:
+            start_method = self._get_multiprocessing_start_method()
+            context = multiprocessing.get_context(start_method)
+
+        self._parent_channel, _child_channel = context.Pipe()
+        self._process = context.Process(
             target=type(self)._run_file_processor,
             args=(
                 _child_channel,
                 self.file_path,
                 self._pickle_dags,
-                self._dag_id_white_list,
+                self._dag_ids,
                 "DagFileProcessor{}".format(self._instance_id),
                 self._zombies
             ),
@@ -668,7 +675,7 @@ class SchedulerJob(BaseJob):
                 now = timezone.utcnow()
                 next_start = dag.following_schedule(now)
                 last_start = dag.previous_schedule(now)
-                if next_start <= now:
+                if next_start <= now or isinstance(dag.schedule_interval, timedelta):
                     new_start = last_start
                 else:
                     new_start = dag.previous_schedule(last_start)
@@ -1266,7 +1273,7 @@ class SchedulerJob(BaseJob):
         :param dagbag: a collection of DAGs to process
         :type dagbag: airflow.models.DagBag
         :param dags: the DAGs from the DagBag to process
-        :type dags: airflow.models.DAG
+        :type dags: list[airflow.models.DAG]
         :param tis_out: A list to add generated TaskInstance objects
         :type tis_out: list[TaskInstance]
         :rtype: None
@@ -1275,10 +1282,6 @@ class SchedulerJob(BaseJob):
             dag = dagbag.get_dag(dag.dag_id)
             if not dag:
                 self.log.error("DAG ID %s was not found in the DagBag", dag.dag_id)
-                continue
-
-            if dag.is_paused:
-                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
                 continue
 
             self.log.info("Processing %s", dag.dag_id)
@@ -1359,12 +1362,6 @@ class SchedulerJob(BaseJob):
         known_file_paths = list_py_file_paths(self.subdir)
         self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
 
-        def processor_factory(file_path, zombies):
-            return DagFileProcessor(file_path,
-                                    pickle_dags,
-                                    self.dag_ids,
-                                    zombies)
-
         # When using sqlite, we do not use async_mode
         # so the scheduler job and DAG parser don't access the DB at the same time.
         async_mode = not self.using_sqlite
@@ -1374,8 +1371,10 @@ class SchedulerJob(BaseJob):
         self.processor_agent = DagFileProcessorAgent(self.subdir,
                                                      known_file_paths,
                                                      self.num_runs,
-                                                     processor_factory,
+                                                     type(self)._create_dag_file_processor,
                                                      processor_timeout,
+                                                     self.dag_ids,
+                                                     pickle_dags,
                                                      async_mode)
 
         try:
@@ -1385,6 +1384,16 @@ class SchedulerJob(BaseJob):
         finally:
             self.processor_agent.end()
             self.log.info("Exited execute loop")
+
+    @staticmethod
+    def _create_dag_file_processor(file_path, zombies, dag_ids, pickle_dags):
+        """
+        Creates DagFileProcessorProcess instance.
+        """
+        return DagFileProcessor(file_path,
+                                pickle_dags,
+                                dag_ids,
+                                zombies)
 
     def _get_simple_dags(self):
         return self.processor_agent.harvest_simple_dags()
@@ -1581,8 +1590,7 @@ class SchedulerJob(BaseJob):
         for dag in dagbag.dags.values():
             dag.sync_to_db()
 
-        paused_dag_ids = [dag.dag_id for dag in dagbag.dags.values()
-                          if dag.is_paused]
+        paused_dag_ids = models.DagModel.get_paused_dag_ids(dag_ids=dagbag.dag_ids)
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id in dagbag.dags:
@@ -1635,6 +1643,8 @@ class SchedulerJob(BaseJob):
                 if isinstance(ti.task, DummyOperator) \
                         and not ti.task.on_success_callback:
                     ti.state = State.SUCCESS
+                    ti.start_date = ti.end_date = timezone.utcnow()
+                    ti.duration = 0
 
             # Also save this task instance to the DB.
             self.log.info("Creating / updating %s in ORM", ti)

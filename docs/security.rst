@@ -68,7 +68,6 @@ attack. Creating a new user has to be done via a Python REPL on the same machine
     $ python
     Python 2.7.9 (default, Feb 10 2015, 03:28:08)
     Type "help", "copyright", "credits" or "license" for more information.
-    >>> import airflow
     >>> from airflow import models, settings
     >>> from airflow.contrib.auth.backends.password_auth import PasswordUser
     >>> user = PasswordUser(models.User())
@@ -160,14 +159,26 @@ only the dags which it is owner of, unless it is a superuser.
 API Authentication
 ------------------
 
-Authentication for the API is handled separately to the Web Authentication. The default is to not
-require any authentication on the API i.e. wide open by default. This is not recommended if your
-Airflow webserver is publicly accessible, and you should probably use the ``deny all`` backend:
+Authentication for the API is handled separately to the Web Authentication. The default is to
+deny all requests:
 
 .. code-block:: ini
 
     [api]
     auth_backend = airflow.api.auth.backend.deny_all
+
+.. versionchanged:: 1.10.11
+
+    In Airflow <1.10.11, the default setting was to allow all API requests without authentication, but this
+    posed security risks for if the Webserver is publicly accessible.
+
+If you wish to have the experimental API work, and aware of the risks of enabling this without authentication
+(or if you have your own authentication layer in front of Airflow) you can set the following in ``airflow.cfg``:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.default
 
 Two "real" methods for authentication are currently supported for the API.
 
@@ -323,7 +334,7 @@ GitHub Enterprise (GHE) Authentication
 
 The GitHub Enterprise authentication backend can be used to authenticate users
 against an installation of GitHub Enterprise using OAuth2. You can optionally
-specify a team whitelist (composed of slug cased team names) to restrict login
+specify a team allowed list (composed of slug cased team names) to restrict login
 to only members of those teams.
 
 .. code-block:: bash
@@ -339,7 +350,7 @@ to only members of those teams.
     oauth_callback_route = /example/ghe_oauth/callback
     allowed_teams = 1, 345, 23
 
-.. note:: If you do not specify a team whitelist, anyone with a valid account on
+.. note:: If you do not specify a team allowed list, anyone with a valid account on
    your GHE installation will be able to login to Airflow.
 
 To use GHE authentication, you must install Airflow with the ``github_enterprise`` extras group:
@@ -532,7 +543,7 @@ Viewer
 ^^^^^^
 ``Viewer`` users have limited viewer permissions
 
-.. code:: python
+.. code-block:: python
 
     VIEWER_PERMS = {
         'menu_access',
@@ -563,7 +574,7 @@ Viewer
 
 on limited web views
 
-.. code:: python
+.. code-block:: python
 
     VIEWER_VMS = {
         'Airflow',
@@ -591,7 +602,7 @@ User
 ^^^^
 ``User`` users have ``Viewer`` permissions plus additional user permissions
 
-.. code:: python
+.. code-block:: python
 
     USER_PERMS = {
         'can_dagrun_clear',
@@ -618,7 +629,7 @@ Op
 ^^
 ``Op`` users have ``User`` permissions plus additional op permissions
 
-.. code:: python
+.. code-block:: python
 
     OP_PERMS = {
         'can_conf',
@@ -627,7 +638,7 @@ Op
 
 on ``User`` web views plus these additional op web views
 
-.. code:: python
+.. code-block:: python
 
     OP_VMS = {
         'Admin',

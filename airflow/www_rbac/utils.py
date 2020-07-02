@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# flake8: noqa: E402
 from future import standard_library  # noqa
-standard_library.install_aliases()  # noqa
+standard_library.install_aliases()  # noqa: E402
 
 import functools
 import inspect
@@ -31,8 +32,8 @@ from past.builtins import basestring
 
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from flask import request, Response, Markup, url_for
-from flask_appbuilder.forms import DateTimeField, FieldConverter
+from flask import Markup, Response, request, url_for
+from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
@@ -44,6 +45,7 @@ from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
+from airflow.www_rbac.forms import DateTimeWithTimezoneField
 from airflow.www_rbac.widgets import AirflowDateTimePickerWidget
 
 AUTHENTICATE = conf.getboolean('webserver', 'AUTHENTICATE')
@@ -299,20 +301,25 @@ def pygment_html_render(s, lexer=lexers.TextLexer):
 def render(obj, lexer):
     out = ""
     if isinstance(obj, basestring):
-        out += pygment_html_render(obj, lexer)
+        out += Markup(pygment_html_render(obj, lexer))
     elif isinstance(obj, (tuple, list)):
         for i, s in enumerate(obj):
-            out += "<div>List item #{}</div>".format(i)
-            out += "<div>" + pygment_html_render(s, lexer) + "</div>"
+            out += Markup("<div>List item #{}</div>").format(i)
+            out += Markup("<div>" + pygment_html_render(s, lexer) + "</div>")
     elif isinstance(obj, dict):
         for k, v in obj.items():
-            out += '<div>Dict item "{}"</div>'.format(k)
-            out += "<div>" + pygment_html_render(v, lexer) + "</div>"
+            out += Markup('<div>Dict item "{}"</div>').format(k)
+            out += Markup("<div>" + pygment_html_render(v, lexer) + "</div>")
     return out
 
 
-def wrapped_markdown(s):
-    return '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
+def wrapped_markdown(s, css_class=None):
+    if s is None:
+        return None
+
+    return Markup(
+        '<div class="rich_doc {css_class}" >' + markdown.markdown(s) + "</div>"
+    ).format(css_class=css_class)
 
 
 def get_attr_renderer():
@@ -461,6 +468,6 @@ class CustomSQLAInterface(SQLAInterface):
 # subclass) so we have no other option than to edit the converstion table in
 # place
 FieldConverter.conversion_table = (
-    (('is_utcdatetime', DateTimeField, AirflowDateTimePickerWidget),) +
+    (('is_utcdatetime', DateTimeWithTimezoneField, AirflowDateTimePickerWidget),) +
     FieldConverter.conversion_table
 )

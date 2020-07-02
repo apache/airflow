@@ -25,6 +25,7 @@ import threading
 import unittest
 
 import pytest
+import six
 import sqlalchemy
 from parameterized import parameterized
 
@@ -790,7 +791,8 @@ class BackfillJobTest(unittest.TestCase):
         run_date = DEFAULT_DATE + datetime.timedelta(days=5)
 
         # backfill should deadlock
-        self.assertRaisesRegexp(
+        six.assertRaisesRegex(
+            self,
             AirflowException,
             'BackfillJob is deadlocked',
             BackfillJob(dag=dag, start_date=run_date, end_date=run_date).run)
@@ -890,7 +892,7 @@ class BackfillJobTest(unittest.TestCase):
         # raises backwards
         expected_msg = 'You cannot backfill backwards because one or more tasks depend_on_past: {}'.format(
             'test_dop_task')
-        with self.assertRaisesRegexp(AirflowException, expected_msg):
+        with six.assertRaisesRegex(self, AirflowException, expected_msg):
             executor = MockExecutor()
             job = BackfillJob(dag=dag,
                               executor=executor,
@@ -1166,7 +1168,8 @@ class BackfillJobTest(unittest.TestCase):
                           start_date=DEFAULT_DATE,
                           end_date=DEFAULT_DATE,
                           executor=executor)
-        self.assertRaisesRegexp(
+        six.assertRaisesRegex(
+            self,
             AirflowException,
             'Some task instances failed',
             job.run)

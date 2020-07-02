@@ -141,11 +141,18 @@ You can solve the problem by:
 
 Note that if you have the Breeze development environment installed, the ``breeze``
 script can automate initializing the created virtualenv (steps 2 and 3).
-Simply enter the Breeze environment by using ``workon`` and, once you are in it, run:
+Activate your virtualenv, e.g. by using ``workon``, and once you are in it, run:
 
 .. code-block:: bash
 
   ./breeze initialize-local-virtualenv
+
+5. (optionally) run yarn build if you plan to run the webserver
+
+.. code-block:: bash
+
+    cd airflow/www
+    yarn build
 
 Running Tests
 -------------

@@ -21,6 +21,7 @@ from __future__ import print_function
 
 import copy
 import functools
+import logging
 import os
 import pickle
 import re
@@ -67,6 +68,8 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator  # Avoid circular dependency
 
 install_aliases()
+
+log = logging.getLogger(__name__)
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -215,7 +218,7 @@ class DAG(BaseDag, LoggingMixin):
     def __init__(
         self,
         dag_id,  # type: str
-        description='',  # type: str
+        description=None,  # type: Optional[str]
         schedule_interval=timedelta(days=1),  # type: Optional[ScheduleInterval]
         start_date=None,  # type: Optional[datetime]
         end_date=None,  # type: Optional[datetime]
@@ -1329,7 +1332,7 @@ class DAG(BaseDag, LoggingMixin):
         elif task.end_date and self.end_date:
             task.end_date = min(task.end_date, self.end_date)
 
-        if task.task_id in self.task_dict:
+        if task.task_id in self.task_dict and self.task_dict[task.task_id] is not task:
             # TODO: raise an error in Airflow 2.0
             warnings.warn(
                 'The requested task could not be added to the DAG because a '
@@ -1460,6 +1463,8 @@ class DAG(BaseDag, LoggingMixin):
         :type start_date: datetime
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
+        :param conf: Dict containing configuration/parameters to pass to the DAG
+        :type conf: dict
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
@@ -1529,7 +1534,7 @@ class DAG(BaseDag, LoggingMixin):
         orm_dag.schedule_interval = self.schedule_interval
         orm_dag.tags = self.get_dagtags(session=session)
 
-        if conf.getboolean('core', 'store_dag_code', fallback=False):
+        if settings.STORE_DAG_CODE:
             DagCode.bulk_sync_to_db([orm_dag.fileloc])
 
         session.commit()
@@ -1601,7 +1606,6 @@ class DAG(BaseDag, LoggingMixin):
         :type expiration_date: datetime
         :return: None
         """
-        log = LoggingMixin().log
         for dag in session.query(
                 DagModel).filter(DagModel.last_scheduler_run < expiration_date,
                                  DagModel.is_active).all():
@@ -1707,6 +1711,9 @@ class DagTag(Base):
     name = Column(String(100), primary_key=True)
     dag_id = Column(String(ID_LEN), ForeignKey('dag.dag_id'), primary_key=True)
 
+    def __repr__(self):
+        return self.name
+
 
 class DagModel(Base):
 
@@ -1784,6 +1791,26 @@ class DagModel(Base):
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
         return get_last_dagrun(self.dag_id, session=session,
                                include_externally_triggered=include_externally_triggered)
+
+    @staticmethod
+    @provide_session
+    def get_paused_dag_ids(dag_ids, session):
+        """
+        Given a list of dag_ids, get a set of Paused Dag Ids
+
+        :param dag_ids: List of Dag ids
+        :param session: ORM Session
+        :return: Paused Dag_ids
+        """
+        paused_dag_ids = (
+            session.query(DagModel.dag_id)
+            .filter(DagModel.is_paused.is_(True))
+            .filter(DagModel.dag_id.in_(dag_ids))
+            .all()
+        )
+
+        paused_dag_ids = set(paused_dag_id for paused_dag_id, in paused_dag_ids)
+        return paused_dag_ids
 
     @property
     def safe_dag_id(self):
@@ -1879,7 +1906,6 @@ class DagModel(Base):
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
-        log = LoggingMixin().log
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ",
                   cls.__tablename__)
         dag_models = session.query(cls).all()

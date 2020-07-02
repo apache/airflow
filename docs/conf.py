@@ -132,6 +132,7 @@ extensions = [
     'exampleinclude',
     'docroles',
     'removemarktransform',
+    'sphinx_copybutton',
 ]
 
 autodoc_default_options = {
@@ -185,7 +186,6 @@ release = airflow.__version__
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = [
-    '_api/airflow/_vendor',
     '_api/airflow/api',
     '_api/airflow/bin',
     '_api/airflow/config_templates',
@@ -199,7 +199,6 @@ exclude_patterns = [
     '_api/airflow/dag',
     '_api/airflow/default_login',
     '_api/airflow/example_dags',
-    '_api/airflow/exceptions',
     '_api/airflow/index.rst',
     '_api/airflow/jobs',
     '_api/airflow/lineage',
@@ -213,12 +212,15 @@ exclude_patterns = [
     '_api/airflow/sentry',
     '_api/airflow/stats',
     '_api/airflow/task',
+    '_api/airflow/typing_compat',
+    '_api/airflow/kubernetes',
     '_api/airflow/ti_deps',
     '_api/airflow/utils',
     '_api/airflow/version',
     '_api/airflow/www',
     '_api/airflow/www_rbac',
     '_api/main',
+    '_api/mesos_executor',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]
@@ -478,6 +480,7 @@ autoapi_ignore = [
     '*/airflow/contrib/operators/s3_to_gcs_transfer_operator.py',
     '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
     '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
+    '*/airflow/kubernetes/kubernetes_request_factory/*',
 
     '*/node_modules/*',
     '*/migrations/*',

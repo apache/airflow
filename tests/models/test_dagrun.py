@@ -20,6 +20,8 @@
 import datetime
 import unittest
 
+from parameterized import parameterized
+
 from airflow import settings, models
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, DagRun, clear_task_instances
@@ -29,6 +31,7 @@ from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
+from tests.compat import mock
 from tests.models import DEFAULT_DATE
 
 
@@ -560,3 +563,29 @@ class DagRunTest(unittest.TestCase):
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
+
+    @parameterized.expand([(state,) for state in State.task_states])
+    @mock.patch('airflow.models.dagrun.task_instance_mutation_hook')
+    def test_task_instance_mutation_hook(self, state, mock_hook):
+        def mutate_task_instance(task_instance):
+            if task_instance.queue == 'queue1':
+                task_instance.queue = 'queue2'
+            else:
+                task_instance.queue = 'queue1'
+
+        mock_hook.side_effect = mutate_task_instance
+
+        dag = DAG('test_task_instance_mutation_hook', start_date=DEFAULT_DATE)
+        dag.add_task(DummyOperator(task_id='task_to_mutate', owner='test', queue='queue1'))
+
+        dagrun = self.create_dag_run(dag)
+        task = dagrun.get_task_instances()[0]
+        session = settings.Session()
+        task.state = state
+        session.merge(task)
+        session.commit()
+        assert task.queue == 'queue2'
+
+        dagrun.verify_integrity()
+        task = dagrun.get_task_instances()[0]
+        assert task.queue == 'queue1'

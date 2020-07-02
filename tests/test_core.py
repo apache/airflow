@@ -26,6 +26,7 @@ import multiprocessing
 import os
 import re
 import signal
+
 import sqlalchemy
 import subprocess
 import tempfile
@@ -36,7 +37,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from numpy.testing import assert_array_almost_equal
 from six.moves.urllib.parse import urlencode
-from time import sleep
+from time import sleep, time
 
 from bs4 import BeautifulSoup
 
@@ -54,11 +55,13 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.bin import cli
+from airflow.utils.file import TemporaryDirectory
 from airflow.www import app as application
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.utils.state import State
+from airflow.utils.timeout import timeout
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
 from airflow.exceptions import AirflowException
 from airflow.configuration import (
@@ -77,7 +80,7 @@ if six.PY2:
 else:
     import unittest
 
-NUM_EXAMPLE_DAGS = 23
+NUM_EXAMPLE_DAGS = 24
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -1182,7 +1185,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check list attempt stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             ("\tThe following args are not compatible with the " +
              "--list flag: ['conn_id', 'conn_uri', 'conn_extra', " +
@@ -1225,7 +1228,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check addition stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             ("\tSuccessfully added `conn_id`=new1 : " +
              "postgresql://airflow:airflow@host:5432/airflow"),
@@ -1250,7 +1253,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check stdout for addition attempt
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             "\tA connection with `conn_id`=new1 already exists",
         ])
@@ -1263,7 +1266,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check stdout for addition attempt
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             ("\tThe following args are required to add a connection:" +
              " ['conn_id']"),
@@ -1277,7 +1280,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check stdout for addition attempt
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             ("\tThe following args are required to add a connection:" +
              " ['conn_uri or conn_type']"),
@@ -1327,7 +1330,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check deletion stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             "\tSuccessfully deleted `conn_id`=new1",
             "\tSuccessfully deleted `conn_id`=new2",
@@ -1354,7 +1357,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check deletion attempt stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             "\tDid not find a connection with `conn_id`=fake",
         ])
@@ -1368,7 +1371,7 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
 
         # Check deletion attempt stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        lines = [line for line in stdout.split('\n') if len(line) > 0]
         self.assertListEqual(lines, [
             ("\tThe following args are not compatible with the " +
              "--delete flag: ['conn_uri', 'conn_type']"),
@@ -1647,23 +1650,35 @@ class CliTests(unittest.TestCase):
         os.remove('variables2.json')
         os.remove('variables3.json')
 
-    def _wait_pidfile(self, pidfile):
-        while True:
-            try:
-                with open(pidfile) as f:
-                    return int(f.read())
-            except Exception:
-                sleep(1)
+
+class TestCliWebServer(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.get_parser()
+
+    def setUp(self):
+        self._check_processes()
+        self._clean_pidfiles()
+
+    def tearDown(self):
+        self._check_processes()
+        self._clean_pidfiles()
 
     def _check_processes(self):
-        try:
-            # Confirm that webserver hasn't been launched.
-            # pgrep returns exit status 1 if no process matched.
-            self.assertEqual(1, subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver"]).wait())
-            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
-        except:  # noqa: E722
+        # Confirm that webserver hasn't been launched.
+        # pgrep returns exit status 1 if no process matched.
+        exit_code_pgrep_webserver = subprocess.Popen(["pgrep", "-c", "-f", "airflow webserver"]).wait()
+        exit_code_pgrep_gunicorn = subprocess.Popen(["pgrep", "-c", "-f", "gunicorn"]).wait()
+        if exit_code_pgrep_webserver != 1 or exit_code_pgrep_gunicorn != 1:
             subprocess.Popen(["ps", "-ax"]).wait()
-            raise
+            if exit_code_pgrep_webserver != 1:
+                subprocess.Popen(["pkill", "-9", "-f", "airflow webserver"]).wait()
+            if exit_code_pgrep_gunicorn != 1:
+                subprocess.Popen(["pkill", "-9", "-f", "gunicorn"]).wait()
+
+            raise AssertionError(
+                "Background processes are running that prevent the test from passing successfully."
+            )
 
     def _clean_pidfiles(self):
         pidfile_webserver = cli.setup_locations("webserver")[0]
@@ -1673,70 +1688,109 @@ class CliTests(unittest.TestCase):
         if os.path.exists(pidfile_monitor):
             os.remove(pidfile_monitor)
 
+    def _wait_pidfile(self, pidfile):
+        start_time = time()
+        while True:
+            try:
+                with open(pidfile) as file:
+                    return int(file.read())
+            except Exception:  # pylint: disable=broad-except
+                if start_time - time() > 60:
+                    raise
+                sleep(1)
+
     def test_cli_webserver_foreground(self):
-        self._check_processes()
-        self._clean_pidfiles()
-        try:
-
-            # Confirm that webserver hasn't been launched.
-            # pgrep returns exit status 1 if no process matched.
-            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
-
+        with mock.patch.dict(
+            "os.environ",
+            AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
+            AIRFLOW__CORE__LOAD_EXAMPLES="False",
+            AIRFLOW__WEBSERVER__WORKERS="1"
+        ):
             # Run webserver in foreground and terminate it.
-            p = subprocess.Popen(["airflow", "webserver"])
-            p.terminate()
-            p.wait()
+            proc = subprocess.Popen(["airflow", "webserver"])
+            self.assertEqual(None, proc.poll())
 
-            # Assert that no process remains.
-            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
-        finally:
-            self._check_processes()
-
-    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
-                     "Skipping test due to lack of required file permission")
-    def test_cli_webserver_foreground_with_pid(self):
-        # Run webserver in foreground with --pid option
-        pidfile = tempfile.mkstemp()[1]
-        p = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
-
-        # Check the file specified by --pid option exists
-        self._wait_pidfile(pidfile)
+        # Wait for process
+        sleep(10)
 
         # Terminate webserver
-        p.terminate()
-        p.wait()
+        proc.terminate()
+        with timeout(60):
+            # -15 - the server was stopped before it started
+            #   0 - the server terminated correctly
+            self.assertIn(proc.wait(), (-15, 0))
 
-    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
-                     "Skipping test due to lack of required file permission")
+    def test_cli_webserver_foreground_with_pid(self):
+        with TemporaryDirectory(prefix='tmp-pid') as tmpdir:
+            pidfile = "{}/pidfile".format(tmpdir)
+            with mock.patch.dict(
+                "os.environ",
+                AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
+                AIRFLOW__CORE__LOAD_EXAMPLES="False",
+                AIRFLOW__WEBSERVER__WORKERS="1"
+            ):
+                proc = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
+                self.assertEqual(None, proc.poll())
+
+            # Check the file specified by --pid option exists
+            self._wait_pidfile(pidfile)
+
+            # Terminate webserver
+            proc.terminate()
+            with timeout(60):
+                self.assertEqual(0, proc.wait())
+
     def test_cli_webserver_background(self):
         import psutil
-        self._check_processes()
-        self._clean_pidfiles()
-        try:
-            pidfile_webserver = cli.setup_locations("webserver")[0]
-            pidfile_monitor = cli.setup_locations("webserver-monitor")[0]
+        with TemporaryDirectory(prefix="gunicorn") as tmpdir, \
+            mock.patch.dict(
+                "os.environ",
+                AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
+                AIRFLOW__CORE__LOAD_EXAMPLES="False",
+                AIRFLOW__WEBSERVER__WORKERS="1"):
+            pidfile_webserver = "{}/pidflow-webserver.pid".format(tmpdir)
+            pidfile_monitor = "{}/pidflow-webserver-monitor.pid".format(tmpdir)
+            stdout = "{}/airflow-webserver.out".format(tmpdir)
+            stderr = "{}/airflow-webserver.err".format(tmpdir)
+            logfile = "{}/airflow-webserver.log".format(tmpdir)
+            try:
+                # Run webserver as daemon in background. Note that the wait method is not called.
+                proc = subprocess.Popen([
+                    "airflow",
+                    "webserver",
+                    "--daemon",
+                    "--pid", pidfile_webserver,
+                    "--stdout", stdout,
+                    "--stderr", stderr,
+                    "--log-file", logfile,
+                ])
+                self.assertEqual(None, proc.poll())
 
-            # Run webserver as daemon in background. Note that the wait method is not called.
-            subprocess.Popen(["airflow", "webserver", "-D"])
+                pid_monitor = self._wait_pidfile(pidfile_monitor)
+                self._wait_pidfile(pidfile_webserver)
 
-            pid_monitor = self._wait_pidfile(pidfile_monitor)
-            self._wait_pidfile(pidfile_webserver)
+                # Assert that gunicorn and its monitor are launched.
+                self.assertEqual(
+                    0, subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver --daemon"]).wait()
+                )
+                self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "-f", "gunicorn: master"]).wait())
 
-            # Assert that gunicorn and its monitor are launched.
-            self.assertEqual(0, subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver"]).wait())
-            self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+                # Terminate monitor process.
+                proc = psutil.Process(pid_monitor)
+                proc.terminate()
+                with timeout(120):
+                    self.assertIn(proc.wait(), (0, None))
 
-            # Terminate monitor process.
-            proc = psutil.Process(pid_monitor)
-            proc.terminate()
-            proc.wait()
-        finally:
-            self._check_processes()
+                self._check_processes()
+            except Exception:
+                # List all logs
+                subprocess.Popen(["ls", "-lah", tmpdir]).wait()
+                # Dump all logs
+                subprocess.Popen(["bash", "-c", "ls {}/* | xargs -n 1 -t cat".format(tmpdir)]).wait()
+                raise
 
     # Patch for causing webserver timeout
-    @mock.patch("airflow.bin.cli.get_num_workers_running", return_value=0)
+    @mock.patch("airflow.bin.cli.GunicornMonitor._get_num_workers_running", return_value=0)
     def test_cli_webserver_shutdown_when_gunicorn_master_is_killed(self, _):
         # Shorten timeout so that this test doesn't take too long time
         args = self.parser.parse_args(['webserver'])
