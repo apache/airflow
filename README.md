@@ -67,7 +67,7 @@ Apache Airflow is tested with:
 * Sqlite - latest stable (it is used mainly for development purpose)
 * Kubernetes - 1.16.2, 1.17.0
 
-### Stable version (1.10.10)
+### Stable version
 
 * Python versions: 2.7, 3.5, 3.6, 3.7, 3.8
 * Postgres DB: 9.6, 10
@@ -107,14 +107,14 @@ in the URL.
 1. Installing just airflow:
 
 ```bash
-pip install apache-airflow==1.10.10 \
- --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+pip install apache-airflow==1.10.11 \
+ --constraint https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt
 ```
 
 2. Installing with extras (for example postgres,gcp)
 ```bash
-pip install apache-airflow[postgres,gcp]==1.10.10 \
- --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+pip install apache-airflow[postgres,gcp]==1.10.11 \
+ --constraint https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt
 ```
 
 ## Beyond the Horizon
