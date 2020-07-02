@@ -92,13 +92,13 @@ def open_maybe_zipped(fileloc, mode='r'):
 
 def find_path_from_directory(
         base_dir_path: str,
-        ignore_list_file: str) -> Generator[str, None, None]:
+        ignore_file_name: str) -> Generator[str, None, None]:
     """
     Search the file and return the path of the file that should not be ignored.
     :param base_dir_path: the base path to be searched for.
-    :param ignore_file_list_name: the file name in which specifies a regular expression pattern is written.
+    :param ignore_file_name: the file name in which specifies a regular expression pattern is written.
 
-    :return : file path not to be ignored
+    :return : file path not to be ignored.
     """
 
     patterns_by_dir: Dict[str, List[Pattern[str]]] = {}
@@ -106,9 +106,9 @@ def find_path_from_directory(
     for root, dirs, files in os.walk(str(base_dir_path), followlinks=True):
         patterns: List[Pattern[str]] = patterns_by_dir.get(root, [])
 
-        ignore_list_file_path = os.path.join(root, ignore_list_file)
-        if os.path.isfile(ignore_list_file_path):
-            with open(ignore_list_file_path, 'r') as file:
+        ignore_file_path = os.path.join(root, ignore_file_name)
+        if os.path.isfile(ignore_file_path):
+            with open(ignore_file_path, 'r') as file:
                 lines_no_comments = [re.sub(r"\s*#.*", "", line) for line in file.read().split("\n")]
                 patterns += [re.compile(line) for line in lines_no_comments if line]
                 patterns = list(set(patterns))
@@ -123,7 +123,7 @@ def find_path_from_directory(
         patterns_by_dir = {os.path.join(root, sd): patterns.copy() for sd in dirs}
 
         for file in files:  # type: ignore
-            if file == ignore_list_file:
+            if file == ignore_file_name:
                 continue
             file_path = os.path.join(root, str(file))
             if any(re.findall(p, file_path) for p in patterns):
