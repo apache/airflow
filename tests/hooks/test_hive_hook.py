@@ -553,7 +553,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         self.assertFalse(
             self.hook.table_exists("does-not-exist")
         )
-        
+
     @mock.patch('airflow.hooks.hive_hooks.random.shuffle')
     @mock.patch('airflow.hooks.hive_hooks.HiveMetastoreHook.get_connections')
     @mock.patch('airflow.hooks.hive_hooks.HiveMetastoreHook.get_metastore_client')
