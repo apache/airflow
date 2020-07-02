@@ -23,13 +23,6 @@ from airflow.api_connexion.exceptions import BadRequest
 from airflow.configuration import conf
 from airflow.utils import timezone
 
-MAXIMUM_PAGE_LIMIT = 1000
-PAGE_LIMIT_DEFAULT = 100
-
-# Database entity fields
-dag_id = "dag_id"
-pool_id = "pool_id"
-
 
 def format_datetime(value: str):
     """

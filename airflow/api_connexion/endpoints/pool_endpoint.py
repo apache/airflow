@@ -16,12 +16,10 @@
 # under the License.
 from flask import Response, request
 from marshmallow import ValidationError
-
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
