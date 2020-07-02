@@ -68,6 +68,9 @@ This backend is especially useful in the following use cases:
 To use variable and connection from local file, specify :py:class:`~airflow.secrets.local_filesystem.LocalFilesystemBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
+For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.
+For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
+
 Available parameters to ``backend_kwargs``:
 
 * ``variables_file_path``: File location with variables data.
@@ -98,9 +101,6 @@ The keys ``extra`` and ``extra_dejson`` are mutually exclusive.
 
 The JSON file must contain an object where the key contains the connection ID and the value contains
 the definitions of one or more connections. The connection can be defined as a URI (string) or JSON object.
-
-For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.
-For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
 The following is a sample JSON file.
 
 .. code-block:: json
@@ -123,10 +123,6 @@ The following is a sample JSON file.
 
 The YAML file structure is similar to that of a JSON. The key-value pair of connection ID and the definitions of one or more connections.
 The connection can be defined as a URI (string) or JSON object.
-
-For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.
-For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
-The following is a sample YAML file.
 
 .. code-block:: yaml
 
