@@ -36,6 +36,7 @@ tests:
           containerTag: test-tag
           containerRepository: test-registry/test-repo
           wait: 66
+          maxFailures: 70
           subPath: "path1/path2"
           dest: "test-dest"
           root: "/git-root"
@@ -71,6 +72,8 @@ tests:
                 value: "true"
               - name: GIT_SYNC_WAIT
                 value: "66"
+              - name: GIT_SYNC_MAX_SYNC_FAILURES
+                value: "70"
             volumeMounts:
               - mountPath: /git-root
                 name: dags

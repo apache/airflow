@@ -148,6 +148,8 @@
       value: "true"
     - name: GIT_SYNC_WAIT
       value: {{ .Values.dags.gitSync.wait | quote }}
+    - name: GIT_SYNC_MAX_SYNC_FAILURES
+      value: {{ .Values.dags.gitSync.maxFailures | quote }}
   volumeMounts:
   - name: dags
     mountPath: {{ .Values.dags.gitSync.root }}
