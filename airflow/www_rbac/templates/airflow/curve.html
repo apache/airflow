@@ -1,12 +1,14 @@
-{% extends 'appbuilder/init.html' %}
+{% extends "appbuilder/base.html" %}
 
 
 {% block head_css %}
 {{ super() }}
+<!--<link rel="stylesheet" type="text/css"-->
+<!--      href="{{ url_for('static', filename='css/bootstrap-reboot.min.css') }}">-->
+<!--<link rel="stylesheet" type="text/css"-->
+<!--      href="{{ url_for('static', filename='css/bootstrap.min.css') }}">-->
 <link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/bootstrap-reboot.min.css') }}">
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+      href="{{ url_for('static', filename='css/bootstrap3-extend.css') }}">
 <link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/curve.css') }}">
 <link rel="stylesheet" type="text/css"
@@ -14,12 +16,12 @@
 {% endblock %}
 
 {% block body %}
-<div id="root" class="bg-light ">
-  <div id="base-info-container" class="border rounded-sm d-flex p-1 shadow-sm m-1 bg-white rounded">
-    <div class="card base-info-item flex-column shadow-sm m-1 {{ 'alert-danger' if task_instance.final_state =='NOK'
-    else ('alert-success' if task_instance.final_state =='OK' else '')}}" id="double-check-card">
-      <div class="card-header base-info-title"><h5 class="m-0">二次确认</h5></div>
-      <div class="card-body d-flex flex-row justify-content-center align-items-center" id="double-check-result">
+<div id="root" class="">
+  <div id="base-info-container" class="panel rounded-sm d-flex p-1 shadow-sm m-1 rounded flex-row">
+    <div class="panel base-info-item flex-column shadow-sm m-1 {{ 'panel-danger' if task_instance.final_state =='NOK'
+    else ('panel-success' if task_instance.final_state =='OK' else 'panel-default')}}" id="double-check-card">
+      <div class="panel-heading base-info-title"><h5 class="m-0 panel-title">二次确认</h5></div>
+      <div class="panel-body d-flex flex-row justify-content-center align-items-center" id="double-check-result">
         {% if task_instance.final_state %}
         <h4 class="m-0">{{task_instance.final_state}}</h4>
         {% else %}
@@ -37,14 +39,14 @@
       </div>
     </div>
   </div>
-  <div id="result-container" class="card border rounded-sm shadow-sm m-1 bg-white rounded">
-    <div class="card-header"><h5 class="m-0">结果数据</h5></div>
-    <div class="card-body overflow-auto p-0">
-      <table id="result_table" class="table position-relative">
+  <div id="result-container" class="panel panel-default panel rounded-sm shadow-sm m-1  rounded">
+    <div class="panel-heading"><h5 class="m-0 panel-title">结果数据</h5></div>
+    <div class=" overflow-auto p-0">
+      <table id="result_table" class="table position-relative ">
         <thead>
-        <tr class="result-content-row">
-          <th class="position-sticky bg-light" style="top:0">字段</th>
-          <th class="position-sticky bg-light" style="top:0">值</th>
+        <tr class="result-content-row active">
+          <th class="position-sticky" style="top:0">字段</th>
+          <th class="position-sticky " style="top:0">值</th>
         </tr>
         </thead>
         <tbody id="result_detail"></tbody>
@@ -52,7 +54,7 @@
     </div>
   </div>
   <div id="error-tag-container"
-       class="border rounded-sm d-flex p-2 align-items-center shadow-sm m-1 bg-white rounded flex-row justify-content-between">
+       class="panel rounded-sm d-flex p-2 align-items-center shadow-sm m-1  rounded flex-row justify-content-between">
     曲线标签
     <label for="error-tag-select" id="error-tag-label-container" class="mx-2 my-0 flex-fill">
       <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple disabled>
@@ -64,22 +66,22 @@
     <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>
   </div>
   <div id="echarts-container" style="flex:1"
-       class="border rounded-sm d-flex p-2 bd-highlight shadow p-2 m-1 bg-white rounded flex-column">
+       class=" rounded-sm d-flex p-2 bd-highlight shadow p-2 m-1 panel rounded flex-column">
     <div class="flex-row mb-2" id="actions-container">
         <span class="btn-group btn-group-toggle " data-toggle="buttons">
-          <label class="btn active btn-outline-secondary font-weight-bold " for="update-chart-w-m"
+          <label class="btn active btn-default font-weight-bold " for="update-chart-w-m"
                  id="update-chart-w-m-label"
                  title="Also include past task instances when clearing this one">
             <input id="update-chart-w-m" type="radio" name="chart-type" checked autocomplete="off">
             角度/扭矩
           </label>
-          <label class="btn btn-outline-secondary font-weight-bold " for="update-chart-t-m"
+          <label class="btn btn-default font-weight-bold " for="update-chart-t-m"
                  id="update-chart-t-m-label"
                  title="Also include past task instances when clearing this one">
             <input id="update-chart-t-m" type="radio" name="chart-type" autocomplete="off">
             时间/扭矩
           </label>
-          <label class="btn btn-outline-secondary font-weight-bold " for="update-chart-t-w"
+          <label class="btn btn-default font-weight-bold " for="update-chart-t-w"
                  id="update-chart-t-w-label"
                  title="Also include past task instances when clearing this one">
             <input id="update-chart-t-w" type="radio" name="chart-type" autocomplete="off">
@@ -106,7 +108,7 @@
         <!--        <p>确认删除曲线？</p>-->
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary m-2  px-4 py-2 font-weight-bold " data-dismiss="modal">取消
+        <button type="button" class="btn btn-default m-2  px-4 py-2 font-weight-bold " data-dismiss="modal">取消
         </button>
         <button type="button" class="btn btn-primary m-2 px-4 py-2 font-weight-bold " id="btnDoConfirmDoubleCheck">确认
         </button>
@@ -119,7 +121,7 @@
 
 {% block tail_js %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/echarts.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('static', filename='js/select2.min.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
   let curveChart = null;
@@ -194,7 +196,7 @@
   }
 
   function chartInit() {
-    curveChart = echarts.init(document.getElementById('echarts-main'));
+    curveChart = echarts.init(document.getElementById('echarts-main'), null, { renderer: 'svg' });
 
     // 指定图表的配置项和数据
     const option = {};
@@ -278,17 +280,17 @@
     {
       title: '拧紧结果',
       content: result.measure_result,
-      className: result.measure_result === 'NOK' ? 'alert-danger' : 'alert-success',
+      className: result.measure_result === 'NOK' ? 'panel-danger' : 'panel-success',
     },
     {
       title: '分析结果',
       content: '{{task_instance.result}}',
-      className: '{{task_instance.result}}' === 'NOK' ? 'alert-danger' : 'alert-success',
+      className: '{{task_instance.result}}' === 'NOK' ? 'panel-danger' : 'panel-success',
     },
     {
       title: '异常信息',
       content: verifyErrorMap['{{task_instance.verify_error}}'] || '{{task_instance.verify_error}}',
-      className: '{{task_instance.result}}' === 'NOK' ? 'alert-danger' : 'alert-success',
+      className: '{{task_instance.result}}' === 'NOK' ? 'panel-danger' : 'panel-success',
     },
   ];
   const errorCode = '{{task_instance.error_code}}';
@@ -304,13 +306,14 @@
   // }
 
   info.reverse().forEach((i) => {
-    const $info = $('<div class="card base-info-item flex-column shadow-sm m-1">');
-    const $titleText = $('<h5 class="m-0">').append([i.title]);
-    const $title = $('<div class="base-info-title card-header ">').append($titleText);
+    const $info = $('<div class="panel panel-default base-info-item flex-column shadow-sm m-1">');
+    const $titleText = $('<h5 class="m-0 panel-title">').append([i.title]);
+    const $title = $('<div class="base-info-title panel-heading ">').append($titleText);
     const $contentText = $('<h4 class="m-0">').append([i.content]);
-    const $content = $('<div class="card-body d-flex flex-row justify-content-center align-items-center">').append($contentText);
+    const $content = $('<div class="panel-body d-flex flex-row justify-content-center align-items-center">').append($contentText);
     $info.append([$title, $content]);
     if (i.className) {
+      $info.removeClass('panel-default');
       $info.addClass(i.className);
     }
     $('#base-info-container').prepend($info);
@@ -341,9 +344,9 @@
       dataType: 'json',
       contentType: 'application/json',
     }).then((resp) => {
-      const resultClass = finalState === 'OK' ? 'alert-success' : 'alert-danger';
+      const resultClass = finalState === 'OK' ? 'panel-success' : 'panel-danger';
       $('#double-check-card').addClass(resultClass);
-      $('#double-check-result').html(`<h5 class="m-0">${finalState}</h5>`);
+      $('#double-check-result').html(`<h5 class="m-0 panel-title">${finalState}</h5>`);
       $('#doubleCheckModal').modal('hide');
       if (resp && resp.response === 'ok') {
         $('#double_check_result').html(`二次确认为${finalState}`);

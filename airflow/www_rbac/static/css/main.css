@@ -49,11 +49,11 @@ td>span.glyphicon{
     padding-top: 3px;
 }
 button.btn, label.btn {
-    border: 1px solid black;
+    /*border: 1px solid black;*/
 }
 
 .btn-group label.btn {
-    background-color: #f0f0f0;
+    /*background-color: #f0f0f0;*/
 }
 
 div.rich_doc {
@@ -179,7 +179,7 @@ table.dataframe tbody tr td {
     padding: 2px;
 }
 table thead th {
-    background-color: #F3F3F3;
+    /*background-color: #F3F3F3;*/
 }
 table.dataframe.dataTable thead > tr > th {
     padding: 10px 20px 10px 10px;

@@ -1,6 +1,7 @@
 html {
   font-size: 16px;
 }
+
 body {
   margin: 0;
   padding: 0 !important;
@@ -61,9 +62,8 @@ body {
 }
 
 #echarts-main {
-  flex: 1
+  flex: 1;
 }
-
 
 
 #result_table {
