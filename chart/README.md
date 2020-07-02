@@ -74,8 +74,7 @@ helm upgrade airflow . \
   --set images.airflow.tag=8a0da78
 ```
 
-For local development purppose you can also u
-You can also build the image locally and use it via deployment method described by Breeze.
+For local development purpose you can also build the image locally and use it via deployment method described by Breeze.
 
 ## Parameters
 
