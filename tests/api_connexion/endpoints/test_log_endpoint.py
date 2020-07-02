@@ -219,7 +219,7 @@ class TestGetLog(unittest.TestCase):
 
     @mock.patch("airflow.api_connexion.endpoints.log_endpoint.TaskLogReader")
     def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
-        type(mock_log_reader.return_value).is_supported = PropertyMock(return_value=False)
+        type(mock_log_reader.return_value).supports_read = PropertyMock(return_value=False)
 
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
