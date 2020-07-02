@@ -777,7 +777,18 @@ class HiveMetastoreHook(BaseHook):
 
     def drop_partitions(self, table_name, part_vals, delete_data=False, db='default'):
         """
-        Drop partitions matching param_names input
+        Drop partitions from the given table matching the part_vals input
+
+        :param table_name: table name.
+        :type table_name: str
+        :param part_vals: list of partition specs.
+        :type part_vals: list
+        :param delete_data: Setting to control if underlying data have to deleted
+                            in addition to dropping partitions.
+        :type delete_data: bool
+        :param db: Name of hive schema (database) @table belongs to
+        :type db: str
+        
         >>> hh = HiveMetastoreHook()
         >>> hh.drop_partitions(db='airflow', table_name='static_babynames',
         part_vals="['2020-05-01']")
