@@ -92,6 +92,10 @@ file ``/files/my_conn.json`` when it looks for connections.
 
 The file can be defined in ``JSON``, ``YAML`` or ``env`` format.
 
+Any extra json parameters can be provided using keys like ``extra_dejson`` and ``extra``.
+The key ``extra_dejson`` can be used to provide parameters as JSON object where as the key ``extra`` can be used in case of a JSON string.
+The keys ``extra`` and ``extra_dejson`` are mutually exclusive.
+
 The JSON file must contain an object where the key contains the connection ID and the value contains
 the definitions of one or more connections. The connection can be defined as a URI (string) or JSON object.
 
@@ -118,9 +122,7 @@ The following is a sample JSON file.
     }
 
 The YAML file structure is similar to that of a JSON. The key-value pair of connection ID and the definitions of one or more connections.
-The connection can be defined as a URI (string) or JSON object. Any extra json parameters can be provided using keys like ``extra_dejson`` and ``extra``.
-The key ``extra_dejson`` can be used to provide parameters as JSON object where as the key ``extra`` can be used in case of a JSON string.
-The keys ``extra`` and ``extra_dejson`` are mutually exclusive.
+The connection can be defined as a URI (string) or JSON object.
 
 For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.
 For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
