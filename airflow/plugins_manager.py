@@ -159,7 +159,7 @@ def load_entrypoint_plugins():
 
 def load_plugins_from_plugin_directory():
     """
-    Load and register Airflow Plugins from plugins directory.
+    Load and register Airflow Plugins from plugins directory
     """
     global import_errors  # pylint: disable=global-statement
     global plugins  # pylint: disable=global-statement
