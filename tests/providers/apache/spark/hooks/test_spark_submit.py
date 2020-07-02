@@ -654,7 +654,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
     @patch('airflow.providers.apache.spark.hooks.spark_submit.renew_from_kt')
     @patch('airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen')
-    def test_yarn_process_on_kill(self, mock_popen, mock_krb):
+    def test_yarn_process_on_kill(self, mock_popen, mock_renew_from_kt):
         # Given
         mock_popen.return_value.stdout = io.StringIO('stdout')
         mock_popen.return_value.stderr = io.StringIO('stderr')
