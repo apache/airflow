@@ -35,7 +35,7 @@ from airflow.models.dag import DAG
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
-from tests.compat import patch, MagicMock, call
+from tests.compat import patch, MagicMock, call, mock
 from tests.test_utils.mock_hooks import MockHiveCliHook, MockHiveServer2Hook
 from tests.test_utils.mock_process import MockSubProcess
 
