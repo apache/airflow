@@ -24,6 +24,7 @@ from airflow.models import DAG, TaskInstance as TI, clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 
@@ -43,6 +44,12 @@ class TestClearTasks(unittest.TestCase):
         task1 = DummyOperator(task_id='1', owner='test', dag=dag, retries=2)
         ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
         ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+
+        dag.create_dagrun(
+            execution_date=ti0.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
 
         ti0.run()
         ti1.run()
@@ -66,6 +73,13 @@ class TestClearTasks(unittest.TestCase):
         task1 = DummyOperator(task_id='task1', owner='test', dag=dag, retries=2)
         ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
         ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+
+        dag.create_dagrun(
+            execution_date=ti0.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
         ti0.run()
         ti1.run()
 
@@ -95,6 +109,13 @@ class TestClearTasks(unittest.TestCase):
         task1 = DummyOperator(task_id='task_1', owner='test', dag=dag, retries=2)
         ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
         ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+
+        dag.create_dagrun(
+            execution_date=ti0.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
         ti0.run()
         ti1.run()
 
@@ -117,6 +138,13 @@ class TestClearTasks(unittest.TestCase):
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
         task0 = DummyOperator(task_id='test_dag_clear_task_0', owner='test', dag=dag)
         ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
+
+        dag.create_dagrun(
+            execution_date=ti0.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
         # Next try to run will be try 1
         self.assertEqual(ti0.try_number, 1)
         ti0.run()
@@ -158,6 +186,12 @@ class TestClearTasks(unittest.TestCase):
             ti = TI(task=DummyOperator(task_id='test_task_clear_' + str(i), owner='test',
                                        dag=dag),
                     execution_date=DEFAULT_DATE)
+
+            dag.create_dagrun(
+                execution_date=ti.execution_date,
+                state=State.RUNNING,
+                run_type=DagRunType.SCHEDULED,
+            )
             dags.append(dag)
             tis.append(ti)
 
@@ -221,6 +255,13 @@ class TestClearTasks(unittest.TestCase):
 
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
         ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
+
+        dag.create_dagrun(
+            execution_date=ti1.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
         ti2.run()
         # Dependency not met
         self.assertEqual(ti2.try_number, 1)
@@ -228,7 +269,7 @@ class TestClearTasks(unittest.TestCase):
 
         op2.clear(upstream=True)
         ti1.run()
-        ti2.run()
+        ti2.run(ignore_ti_state=True)
         self.assertEqual(ti1.try_number, 2)
         # max_tries is 0 because there is no task instance in db for ti1
         # so clear won't change the max_tries.

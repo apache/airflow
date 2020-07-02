@@ -68,6 +68,14 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
 
+
+# Before Py 3.7, there is no re.Pattern class
+try:
+    from re import Pattern as PatternType  # type: ignore
+except ImportError:
+    PatternType = type(re.compile('', 0))
+
+
 log = logging.getLogger(__name__)
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
@@ -1394,12 +1402,23 @@ class DAG(BaseDag, LoggingMixin):
         return self.partial_subset(*args, **kwargs)
 
     def partial_subset(
-        self, task_regex, include_downstream=False, include_upstream=True
+        self,
+        task_ids_or_regex: Union[str, PatternType, Iterable[str]],
+        include_downstream=False,
+        include_upstream=True,
     ):
         """
         Returns a subset of the current dag as a deep copy of the current dag
         based on a regex that should match one or many tasks, and includes
         upstream and downstream neighbours based on the flag passed.
+
+        :param task_ids_or_regex: Either a list of task_ids, or a regex to
+            match against task ids (as a string, or compiled regex pattern).
+        :type task_ids_or_regex: [str] or str or re.Pattern
+        :param include_downstream: Include all downstream tasks of matched
+            tasks, in addition to matched tasks.
+        :param include_upstream: Include all upstream tasks of matched tasks,
+            in addition to matched tasks.
         """
         # deep-copying self.task_dict and self._task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
@@ -1411,10 +1430,14 @@ class DAG(BaseDag, LoggingMixin):
         self.task_dict = task_dict
         self._task_group = task_group
 
-        regex_match = [
-            t for t in self.tasks if re.findall(task_regex, t.task_id)]
+        if isinstance(task_ids_or_regex, (str, PatternType)):
+            matched_tasks = [
+                t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
+        else:
+            matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
+
         also_include = []
-        for t in regex_match:
+        for t in matched_tasks:
             if include_downstream:
                 also_include += t.get_flat_relatives(upstream=False)
             if include_upstream:
@@ -1422,8 +1445,8 @@ class DAG(BaseDag, LoggingMixin):
 
         # Compiling the unique list of tasks that made the cut
         # Make sure to not recursively deepcopy the dag while copying the task
-        dag.task_dict = {t.task_id: copy.deepcopy(t, {id(t.dag): dag})
-                         for t in regex_match + also_include}
+        dag.task_dict = {t.task_id: copy.deepcopy(t, {id(t.dag): dag})  # type: ignore
+                         for t in matched_tasks + also_include}
 
         def filter_task_group(group, parent_group):
             """Exclude tasks not included in the subdag from the given TaskGroup."""

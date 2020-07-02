@@ -1617,6 +1617,17 @@
       type: string
       default: ~
       see_also: ":ref:`scheduler:ha:tunables`"
+    - name: schedule_after_task_execution
+      description: |
+        Should the Task supervisor process perform a "mini scheduler" to attempt to schedule more tasks of the
+        same DAG. Leaving this on will mean tasks in the same DAG execute quicker, but might starve out other
+        dags in some circumstances
+
+        Default: True
+      example: ~
+      version_added: 2.0.0
+      type: boolean
+      default: ~
     - name: statsd_on
       description: |
         Statsd (https://github.com/etsy/statsd) integration settings

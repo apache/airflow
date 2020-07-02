@@ -1652,42 +1652,11 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         self._send_dag_callbacks_to_processor(dag_run, callback_to_run)
 
-        # Get list of TIs that do not need to executed, these are
-        # tasks using DummyOperator and without on_execute_callback / on_success_callback
-        dummy_tis = [
-            ti for ti in schedulable_tis
-            if
-            (
-                ti.task.task_type == "DummyOperator"
-                and not ti.task.on_execute_callback
-                and not ti.task.on_success_callback
-            )
-        ]
-
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_
         # see #11147/commit ee90807ac for more details
-        count = session.query(TI).filter(
-            TI.dag_id == dag_run.dag_id,
-            TI.execution_date == dag_run.execution_date,
-            TI.task_id.in_(ti.task_id for ti in schedulable_tis if ti not in dummy_tis)
-        ).update({TI.state: State.SCHEDULED}, synchronize_session=False)
-
-        # Tasks using DummyOperator should not be executed, mark them as success
-        if dummy_tis:
-            session.query(TI).filter(
-                TI.dag_id == dag_run.dag_id,
-                TI.execution_date == dag_run.execution_date,
-                TI.task_id.in_(ti.task_id for ti in dummy_tis)
-            ).update({
-                TI.state: State.SUCCESS,
-                TI.start_date: timezone.utcnow(),
-                TI.end_date: timezone.utcnow(),
-                TI.duration: 0
-            }, synchronize_session=False)
-
-        return count
+        return dag_run.schedule_tis(schedulable_tis, session)
 
     @provide_session
     def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session=None):
