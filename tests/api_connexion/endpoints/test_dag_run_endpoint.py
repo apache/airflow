@@ -229,13 +229,9 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
         assert response.json["total_entries"] == 200
         assert len(response.json["dag_runs"]) == 100  # default is 100
 
-    @provide_session
     @conf_vars({("api", "maximum_page_limit"): "150"})
-    def test_should_return_conf_max_if_req_max_above_conf(self, session):
-        dagrun_models = self._create_dag_runs(200)
-        session.add_all(dagrun_models)
-        session.commit()
-
+    def test_should_return_conf_max_if_req_max_above_conf(self):
+        self._create_dag_runs(200)
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns?limit=180")
         assert response.status_code == 200
         self.assertEqual(len(response.json['dag_runs']), 150)
