@@ -69,6 +69,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param token: Authentication token to include in requests sent to Vault.
         (for ``token`` and ``github`` auth_type)
     :type token: str
+    :param token_path: path to file containing authentication token to include in requests sent to Vault
+        (for ``token`` and ``github`` auth_type).
+    :type token_path: str
     :param username: Username for Authentication (for ``ldap`` and ``userpass`` auth_type).
     :type username: str
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_type).
@@ -114,6 +117,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         mount_point: str = 'secret',
         kv_engine_version: int = 2,
         token: Optional[str] = None,
+        token_path: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
         key_id: Optional[str] = None,
@@ -143,6 +147,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             mount_point=mount_point,
             kv_engine_version=kv_engine_version,
             token=token,
+            token_path=token_path,
             username=username,
             password=password,
             key_id=key_id,

@@ -53,7 +53,7 @@ SCHEMA_JSON = [
 ]
 
 
-@unittest.skipIf(PY38, "Mssql package not avaible when Python >= 3.8.")
+@unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
 class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
 
     def test_init(self):

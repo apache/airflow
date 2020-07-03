@@ -14,12 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import request
+from typing import Optional
+
 from sqlalchemy import and_, func
 from sqlalchemy.orm.session import Session
 
-from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.xcom_schema import (
     XComCollection, XComCollectionItemSchema, XComCollectionSchema, xcom_collection_item_schema,
     xcom_collection_schema,
@@ -35,18 +36,22 @@ def delete_xcom_entry():
     raise NotImplementedError("Not implemented yet.")
 
 
+@format_parameters({
+    'limit': check_limit
+})
 @provide_session
 def get_xcom_entries(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    session: Session
+    session: Session,
+    limit: Optional[int],
+    offset: Optional[int] = None
 ) -> XComCollectionSchema:
     """
     Get all XCom values
     """
-    offset = request.args.get(parameters.page_offset, 0)
-    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
+
     query = session.query(XCom)
     if dag_id != '~':
         query = query.filter(XCom.dag_id == dag_id)

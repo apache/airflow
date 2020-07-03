@@ -205,7 +205,7 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
   - python
   - -c
   - |
-        import importlib
+        import airflow
         import os
         import time
 
@@ -215,7 +215,7 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
 
         from airflow import settings
 
-        package_dir = os.path.dirname(importlib.util.find_spec('airflow').origin)
+        package_dir = os.path.abspath(os.path.dirname(airflow.__file__))
         directory = os.path.join(package_dir, 'migrations')
         config = Config(os.path.join(package_dir, 'alembic.ini'))
         config.set_main_option('script_location', directory)

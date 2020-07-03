@@ -40,7 +40,7 @@ function run_test_package_installation_separately() {
 
 }
 
-get_ci_environment
+get_environment_for_builds_on_ci
 
 prepare_ci_build
 

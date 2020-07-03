@@ -170,7 +170,7 @@ if REMOTE_LOGGING:
     if REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
         S3_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {
-                'class': 'airflow.utils.log.s3_task_handler.S3TaskHandler',
+                'class': 'airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler',
                 'formatter': 'airflow',
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 's3_log_folder': REMOTE_BASE_LOG_FOLDER,
@@ -234,6 +234,7 @@ if REMOTE_LOGGING:
     elif ELASTICSEARCH_HOST:
         ELASTICSEARCH_LOG_ID_TEMPLATE: str = conf.get('elasticsearch', 'LOG_ID_TEMPLATE')
         ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get('elasticsearch', 'END_OF_LOG_MARK')
+        ELASTICSEARCH_FRONTEND: str = conf.get('elasticsearch', 'frontend')
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean('elasticsearch', 'WRITE_STDOUT')
         ELASTICSEARCH_JSON_FORMAT: bool = conf.getboolean('elasticsearch', 'JSON_FORMAT')
         ELASTICSEARCH_JSON_FIELDS: str = conf.get('elasticsearch', 'JSON_FIELDS')
@@ -247,6 +248,7 @@ if REMOTE_LOGGING:
                 'filename_template': FILENAME_TEMPLATE,
                 'end_of_log_mark': ELASTICSEARCH_END_OF_LOG_MARK,
                 'host': ELASTICSEARCH_HOST,
+                'frontend': ELASTICSEARCH_FRONTEND,
                 'write_stdout': ELASTICSEARCH_WRITE_STDOUT,
                 'json_format': ELASTICSEARCH_JSON_FORMAT,
                 'json_fields': ELASTICSEARCH_JSON_FIELDS

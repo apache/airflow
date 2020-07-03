@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,32 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-set -euo pipefail
-
-echo
-echo "Initializing the Airflow db"
-echo
-
-
-# Init and upgrade the database to latest heads
-cd "${AIRFLOW_SOURCES}"/airflow || exit 1
-
-airflow db init
-alembic upgrade heads
-
-echo
-echo "Initialized the database"
-echo
-
-# Create Airflow User if it does not exist
-airflow users create \
-    --username airflow \
-    --lastname airflow \
-    --firstname jon \
-    --email airflow@apache.org \
-    --role Admin --password airflow || true
-
-echo
-echo "Created airflow user"
-echo

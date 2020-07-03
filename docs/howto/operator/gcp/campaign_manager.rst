@@ -104,7 +104,8 @@ Running this operator creates a new report.
 
 You can use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerInsertReportOperator`
-parameters which allows you to dynamically determine values.
+parameters which allows you to dynamically determine values. You can provide report definition using
+``.json`` file as this operator supports this template extension.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
 .. _howto/operator:GoogleCampaignManagerRunReportOperator:

@@ -166,7 +166,7 @@ Using that same DAG constructor call, it is possible to define
 ``user_defined_macros`` which allow you to specify your own variables.
 For example, passing ``dict(foo='bar')`` to this argument allows you
 to use ``{{ foo }}`` in your templates. Moreover, specifying
-``user_defined_filters`` allow you to register you own filters. For example,
+``user_defined_filters`` allows you to register your own filters. For example,
 passing ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
 you to use ``{{ 'world' | hello }}`` in your templates. For more information
 regarding custom filters have a look at the

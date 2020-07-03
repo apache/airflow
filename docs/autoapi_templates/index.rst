@@ -408,3 +408,16 @@ All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
   airflow/providers/amazon/aws/secrets/index
   airflow/providers/hashicorp/secrets/index
   airflow/providers/google/cloud/secrets/index
+
+Task Log Handlers
+-----------------
+Task log handlers are python log handlers that handles and reads task instance logs.
+All task log handlers are derived from :class:`~airflow.utils.log.file_task_handler.FileTaskHandler`.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+
+  airflow/providers/amazon/aws/log/index

@@ -56,7 +56,7 @@ function run_pylint_tests() {
     fi
 }
 
-get_ci_environment
+get_environment_for_builds_on_ci
 
 prepare_ci_build
 

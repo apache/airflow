@@ -61,6 +61,10 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+### S3TaskHandler has been moved
+The `S3TaskHandler` class from `airflow.utils.log.s3_task_handler` has been moved to
+`airflow.providers.amazon.aws.log.s3_task_handler`. This is because it has items specific to `aws`
+
 ### SendGrid emailer has been moved
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
 package was supported by the community. The project was passed to the Apache community and currently the
@@ -292,6 +296,11 @@ functions. To use the plugin, update your setup.cfg:
 plugins =
   airflow.mypy.plugin.decorators
 ```
+
+### XCom Values can no longer be added or changed from the Webserver
+
+Since XCom values can contain pickled data, we would no longer allow adding or
+changing XCom values from the UI.
 
 ### Use project_id argument consistently across GCP hooks and operators
 
@@ -1419,6 +1428,22 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 ],
 ...
 }
+```
+
+### Experimental API will deny all request by default.
+
+The previous default setting was to allow all API requests without authentication, but this poses security
+risks to users who miss this fact. This changes the default for new installs to deny all requests by default.
+
+**Note**: This will not change the behavior for existing installs, please update check your airflow.cfg
+
+If you wish to have the experimental API work, and aware of the risks of enabling this without authentication
+(or if you have your own authentication layer in front of Airflow) you can get
+the previous behaviour on a new install by setting this in your airflow.cfg:
+
+```
+[api]
+auth_backend = airflow.api.auth.backend.default
 ```
 
 ## Airflow 1.10.10

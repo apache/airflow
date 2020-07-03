@@ -42,6 +42,8 @@ data:
     remote_logging = True
 {{- end }}
 
+    [logging]
+    logging_level = DEBUG
     [webserver]
     enable_proxy_fix = True
     expose_config = True

@@ -218,14 +218,23 @@ function initialize_common_environment {
     # Artifact name suffix for SVN packaging
     export VERSION_SUFFIX_FOR_SVN=""
 
+    # Default Kubernetes version
+    export DEFAULT_KUBERNETES_VERSION="v1.18.2"
+
+    # Default KinD version
+    export DEFAULT_KIND_VERSION="v0.8.0"
+
+    # Default Helm version
+    export DEFAULT_HELM_VERSION="v3.2.4"
+
     # Version of Kubernetes to run
-    export KUBERNETES_VERSION="${KUBERNETES_VERSION:="v1.15.3"}"
+    export KUBERNETES_VERSION="${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}"
 
-    # Name of the KinD cluster to connect to
-    export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
+    # folder with DAGs to embed into production image
+    export EMBEDDED_DAGS=${EMBEDDED_DAGS:="empty"}
 
-    # Name of the KinD cluster to connect to when referred to via kubectl
-    export KUBECTL_CLUSTER_NAME=kind-${KIND_CLUSTER_NAME}
+    # Namespace where airflow is installed via helm
+    export HELM_AIRFLOW_NAMESPACE="airflow"
 
 }
 
@@ -234,7 +243,7 @@ function initialize_common_environment {
 # (This makes it easy to move between different CI systems)
 # This function maps CI-specific variables into a generic ones (prefixed with CI_) that
 # we used in other scripts
-function get_ci_environment() {
+function get_environment_for_builds_on_ci() {
     export CI_EVENT_TYPE="manual"
     export CI_TARGET_REPO="apache/airflow"
     export CI_TARGET_BRANCH="master"

@@ -1486,8 +1486,11 @@ class SchedulerJob(BaseJob):
         """
         Respond to executor events.
         """
-        # TODO: this shares quite a lot of code with _manage_executor_state
-        for key, value in self.executor.get_event_buffer(simple_dag_bag.dag_ids).items():
+        event_buffer = self.executor.get_event_buffer(simple_dag_bag.dag_ids)
+        tis_with_right_state: List[TaskInstanceKeyType] = []
+
+        # Report execution
+        for key, value in event_buffer.items():
             state, info = value
             dag_id, task_id, execution_date, try_number = key
             self.log.info(
@@ -1495,19 +1498,20 @@ class SchedulerJob(BaseJob):
                 "exited with status %s for try_number %s",
                 dag_id, task_id, execution_date, state, try_number
             )
-            if state not in (State.FAILED, State.SUCCESS):
-                continue
+            if state in (State.FAILED, State.SUCCESS):
+                tis_with_right_state.append(key)
 
-            # Process finished tasks
-            qry = session.query(TI).filter(
-                TI.dag_id == dag_id,
-                TI.task_id == task_id,
-                TI.execution_date == execution_date
-            )
-            ti = qry.first()
-            if not ti:
-                self.log.warning("TaskInstance %s went missing from the database", ti)
-                continue
+        # Return if no finished tasks
+        if not tis_with_right_state:
+            return
+
+        # Check state of finishes tasks
+        filter_for_tis = TI.filter_for_tis(tis_with_right_state)
+        tis = session.query(TI).filter(filter_for_tis).all()
+        for ti in tis:
+            key = ti.key
+            dag_id, task_id, execution_date, try_number = key
+            state, info = event_buffer.pop(key)
 
             # TODO: should we fail RUNNING as well, as we do in Backfills?
             if ti.try_number == try_number and ti.state == State.QUEUED:

@@ -34,7 +34,7 @@ except ImportError:
     pymssql = None
 
 
-@unittest.skipIf(PY38, "Mssql package not avaible when Python >= 3.8.")
+@unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
 @unittest.skipIf(pymssql is None, 'pymssql package not present')
 class TestMsSqlToHiveTransfer(unittest.TestCase):
 

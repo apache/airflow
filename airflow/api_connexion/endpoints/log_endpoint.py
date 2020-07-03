@@ -50,7 +50,7 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
         metadata['download_logs'] = False
 
     task_log_reader = TaskLogReader()
-    if not task_log_reader.is_supported:
+    if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
 
     query = session.query(DagRun).filter(DagRun.dag_id == dag_id)

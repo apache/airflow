@@ -18,6 +18,7 @@
 
 import logging
 import sys
+from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
@@ -25,14 +26,15 @@ import pendulum
 from elasticsearch_dsl import Search
 
 from airflow.configuration import conf
+from airflow.models import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 
 
-class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
+class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin, ExternalLoggingMixin):
     """
     ElasticsearchTaskHandler is a python log handler that
     reads logs from Elasticsearch. Note logs are not directly
@@ -51,11 +53,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
     PAGE = 0
     MAX_LINE_PER_PAGE = 1000
+    LOG_NAME = 'Elasticsearch'
 
-    def __init__(self, base_log_folder, filename_template,
+    def __init__(self, base_log_folder, filename_template,  # pylint: disable=too-many-arguments
                  log_id_template, end_of_log_mark,
                  write_stdout, json_format, json_fields,
                  host='localhost:9200',
+                 frontend='localhost:5601',
                  es_kwargs=conf.getsection("elasticsearch_configs")):
         """
         :param base_log_folder: base folder to store logs locally
@@ -72,6 +76,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         self.client = elasticsearch.Elasticsearch([host], **es_kwargs)
 
+        self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark
         self.write_stdout = write_stdout
@@ -262,3 +267,26 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         super().close()
 
         self.closed = True
+
+    @property
+    def log_name(self):
+        return self.LOG_NAME
+
+    def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
+        """
+        Creates an address for an external log collecting service.
+
+        :param task_instance: task instance object
+        :type: task_instance: TaskInstance
+        :param try_number: task instance try_number to read logs from.
+        :type try_number: Optional[int]
+        :return: URL to the external log collection service
+        :rtype: str
+        """
+        log_id = self.log_id_template.format(
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            execution_date=task_instance.execution_date,
+            try_number=try_number)
+        url = 'https://' + self.frontend.format(log_id=quote(log_id))
+        return url

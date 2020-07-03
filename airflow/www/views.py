@@ -28,7 +28,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 from typing import Dict, List, Optional, Tuple
-from urllib.parse import quote, unquote
+from urllib.parse import unquote
 
 import lazy_object_proxy
 import nvd3
@@ -678,7 +678,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
             return response
 
         task_log_reader = TaskLogReader()
-        if not task_log_reader.is_supported:
+        if not task_log_reader.supports_read:
             return jsonify(
                 message="Task log handler does not support read logs.",
                 error=True,
@@ -760,21 +760,34 @@ class Airflow(AirflowBaseView):  # noqa: D101
             execution_date=execution_date, form=form,
             root=root, wrapped=conf.getboolean('webserver', 'default_wrap'))
 
-    @expose('/elasticsearch')
+    @expose('/redirect_to_external_log')
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    def elasticsearch(self):
+    @provide_session
+    def redirect_to_external_log(self, session=None):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
+        dttm = timezone.parse(execution_date)
         try_number = request.args.get('try_number', 1)
-        elasticsearch_frontend = conf.get('elasticsearch', 'frontend')
-        log_id_template = conf.get('elasticsearch', 'log_id_template')
-        log_id = log_id_template.format(
-            dag_id=dag_id, task_id=task_id,
-            execution_date=execution_date, try_number=try_number)
-        url = 'https://' + elasticsearch_frontend.format(log_id=quote(log_id))
+
+        ti = session.query(models.TaskInstance).filter(
+            models.TaskInstance.dag_id == dag_id,
+            models.TaskInstance.task_id == task_id,
+            models.TaskInstance.execution_date == dttm).first()
+
+        if not ti:
+            flash(f"Task [{dag_id}.{task_id}] does not exist", "error")
+            return redirect(url_for('Airflow.index'))
+
+        task_log_reader = TaskLogReader()
+        if not task_log_reader.supports_external_link:
+            flash("Task log handler does not support external links", "error")
+            return redirect(url_for('Airflow.index'))
+
+        handler = task_log_reader.log_handler
+        url = handler.get_external_log_url(ti, try_number)
         return redirect(url)
 
     @expose('/task')
@@ -1491,8 +1504,15 @@ class Airflow(AirflowBaseView):  # noqa: D101
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
-        external_logs = conf.get('elasticsearch', 'frontend')
+
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
+
+        task_log_reader = TaskLogReader()
+        if task_log_reader.supports_external_link:
+            external_log_name = task_log_reader.log_handler.log_name
+        else:
+            external_log_name = None
+
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
 
@@ -1505,7 +1525,8 @@ class Airflow(AirflowBaseView):  # noqa: D101
             doc_md=doc_md,
             data=data,
             blur=blur, num_runs=num_runs,
-            show_external_logs=bool(external_logs))
+            show_external_log_redirect=task_log_reader.supports_external_link,
+            external_log_name=external_log_name)
 
     @expose('/graph')
     @has_dag_access(can_dag_read=True)
@@ -1587,7 +1608,12 @@ class Airflow(AirflowBaseView):  # noqa: D101
         session.commit()
         doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None), css_class='dag-doc')
 
-        external_logs = conf.get('elasticsearch', 'frontend')
+        task_log_reader = TaskLogReader()
+        if task_log_reader.supports_external_link:
+            external_log_name = task_log_reader.log_handler.log_name
+        else:
+            external_log_name = None
+
         return self.render_template(
             'airflow/graph.html',
             dag=dag,
@@ -1605,7 +1631,8 @@ class Airflow(AirflowBaseView):  # noqa: D101
             tasks=tasks,
             nodes=nodes,
             edges=edges,
-            show_external_logs=bool(external_logs))
+            show_external_log_redirect=task_log_reader.supports_external_link,
+            external_log_name=external_log_name)
 
     @expose('/duration')
     @has_dag_access(can_dag_read=True)
@@ -2192,12 +2219,10 @@ class XComModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
+    base_permissions = ['can_list', 'can_delete']
 
     search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
     list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
-    add_columns = ['key', 'value', 'execution_date', 'task_id', 'dag_id']
-    edit_columns = ['key', 'value', 'execution_date', 'task_id', 'dag_id']
     base_order = ('execution_date', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]

@@ -23,7 +23,7 @@ from unittest import mock
 from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.log.s3_task_handler import S3TaskHandler
+from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
@@ -119,7 +119,7 @@ class TestS3TaskHandler(unittest.TestCase):
     def test_set_context_raw(self):
         self.ti.raw = True
         mock_open = mock.mock_open()
-        with mock.patch('airflow.utils.log.s3_task_handler.open', mock_open):
+        with mock.patch('airflow.providers.amazon.aws.log.s3_task_handler.open', mock_open):
             self.s3_task_handler.set_context(self.ti)
 
         self.assertFalse(self.s3_task_handler.upload_on_close)
@@ -127,7 +127,7 @@ class TestS3TaskHandler(unittest.TestCase):
 
     def test_set_context_not_raw(self):
         mock_open = mock.mock_open()
-        with mock.patch('airflow.utils.log.s3_task_handler.open', mock_open):
+        with mock.patch('airflow.providers.amazon.aws.log.s3_task_handler.open', mock_open):
             self.s3_task_handler.set_context(self.ti)
 
         self.assertTrue(self.s3_task_handler.upload_on_close)

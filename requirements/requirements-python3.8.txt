@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.14.12
+boto3==1.14.14
 boto==2.49.0
-botocore==1.17.12
+botocore==1.17.14
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.1
@@ -143,7 +143,7 @@ google-auth-httplib2==0.0.3
 google-auth-oauthlib==0.4.1
 google-auth==1.18.0
 google-cloud-automl==1.0.1
-google-cloud-bigquery-datatransfer==1.0.0
+google-cloud-bigquery-datatransfer==1.1.0
 google-cloud-bigquery==1.25.0
 google-cloud-bigtable==1.2.1
 google-cloud-container==1.0.1
@@ -202,7 +202,7 @@ jsonpickle==1.4.1
 jsonpointer==2.0
 jsonschema==3.2.0
 junit-xml==1.9
-jupyter-client==6.1.3
+jupyter-client==6.1.5
 jupyter-core==4.6.3
 kombu==4.6.11
 kubernetes==11.0.0
@@ -221,7 +221,7 @@ more-itertools==8.4.0
 moto==1.3.14
 msgpack==1.0.0
 msrest==0.6.17
-msrestazure==0.6.3
+msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==4.7.6
 mypy-extensions==0.4.3
@@ -243,7 +243,7 @@ oscrypto==1.2.0
 packaging==20.4
 pandas-gbq==0.13.2
 pandas==1.0.5
-papermill==2.1.1
+papermill==2.1.2
 parameterized==0.7.4
 paramiko==2.7.1
 parso==0.7.0
@@ -293,14 +293,14 @@ pytest-rerunfailures==9.0
 pytest-timeout==1.4.1
 pytest-xdist==1.32.0
 pytest==5.4.3
-python-daemon==2.1.2
+python-daemon==2.2.4
 python-dateutil==2.8.1
 python-editor==1.0.4
 python-http-client==3.2.7
 python-jenkins==1.7.0
 python-jose==3.1.0
 python-nvd3==0.15.0
-python-slugify==4.0.0
+python-slugify==4.0.1
 python3-openid==3.2.0
 pytz==2020.1
 pytzdata==2019.3

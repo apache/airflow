@@ -21,6 +21,7 @@ from parameterized import parameterized
 from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
 from airflow.www import app
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 
 
@@ -86,7 +87,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
             ("/api/v1/pools?limit=1", ["default_pool"]),
             # Limit and offset test data
             (
-                "/api/v1/pools?limit=120&offset=1",
+                "/api/v1/pools?limit=100&offset=1",
                 [f"test_pool{i}" for i in range(1, 101)],
             ),
             ("/api/v1/pools?limit=2&offset=1", ["test_pool1", "test_pool2"]),
@@ -107,6 +108,29 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         assert response.status_code == 200
         pool_ids = [pool["name"] for pool in response.json["pools"]]
         self.assertEqual(pool_ids, expected_pool_ids)
+
+    @provide_session
+    def test_should_respect_page_size_limit_default(self, session):
+        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
+        session.add_all(pools)
+        session.commit()
+        result = session.query(Pool).count()
+        self.assertEqual(result, 121)
+        response = self.client.get("/api/v1/pools")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['pools']), 100)
+
+    @provide_session
+    @conf_vars({("api", "maximum_page_limit"): "150"})
+    def test_should_return_conf_max_if_req_max_above_conf(self, session):
+        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 200)]
+        session.add_all(pools)
+        session.commit()
+        result = session.query(Pool).count()
+        self.assertEqual(result, 200)
+        response = self.client.get("/api/v1/pools?limit=180")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['pools']), 150)
 
 
 class TestGetPool(TestBasePoolEndpoints):
