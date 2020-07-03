@@ -62,6 +62,7 @@ class TestWorkerPrecheck(unittest.TestCase):
 
 @pytest.mark.integration("redis")
 @pytest.mark.integration("rabbitmq")
+@pytest.mark.backend("mysql", "postgres")
 class TestWorkerServeLogs(unittest.TestCase):
 
     @classmethod
