@@ -155,26 +155,27 @@ jobs:
         run: |
           ./scripts/ci/ci_prepare_and_test_backport_packages.sh
 
-  pyfiles:
+  trigger-tests:
     timeout-minutes: 10
     name: "Count changed important files"
     runs-on: ubuntu-latest
     outputs:
-      count: ${{ steps.pyfiles.outputs.count }}
+      count: ${{ steps.trigger-tests.outputs.count }}
     steps:
       - uses: actions/checkout@master
       - name: "Get count of changed python files"
         run: |
           set +e
           ./scripts/ci/ci_count_changed_files.sh ${GITHUB_SHA} \
-              '\.py$|.github/workflows/|^Dockerfile|^scripts'
+              '^airflow|.github/workflows/|^Dockerfile|^scripts|^chart'
           echo "::set-output name=count::$?"
-        id: pyfiles
+        id: trigger-tests
+
   tests-kubernetes:
     timeout-minutes: 80
     name: "K8s: ${{matrix.kube-mode}} ${{matrix.python-version}} ${{matrix.kubernetes-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks-1, static-checks-2, pyfiles]
+    needs: [static-checks-1, static-checks-2, trigger-tests]
     strategy:
       matrix:
         python-version: [3.6, 3.7]
@@ -200,8 +201,8 @@ jobs:
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
       KIND_VERSION: "${{ matrix.kind-version }}"
       HELM_VERSION: "${{ matrix.helm-version }}"
-    # For pull requests only run tests when python files changed
-    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
+    # For pull requests only run tests when important files changed
+    if: needs.trigger-tests.outputs.count != '0' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -239,7 +240,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     timeout-minutes: 80
     name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks-1, static-checks-2, pyfiles]
+    needs: [static-checks-1, static-checks-2, trigger-tests]
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
@@ -253,8 +254,8 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
-    # For pull requests only run tests when python files changed
-    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
+    # For pull requests only run tests when important files changed
+    if: needs.trigger-tests.outputs.count != '0' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -271,7 +272,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     timeout-minutes: 80
     name: "${{matrix.test-type}}:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks-1, static-checks-2, pyfiles]
+    needs: [static-checks-1, static-checks-2, trigger-tests]
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
@@ -285,8 +286,8 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
-    # For pull requests only run tests when python files changed
-    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
+    # For pull requests only run tests when important files changed
+    if: needs.trigger-tests.outputs.count != '0' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -303,7 +304,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     timeout-minutes: 80
     name: "${{matrix.test-type}}:Sqlite Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks-1, static-checks-2, pyfiles]
+    needs: [static-checks-1, static-checks-2, trigger-tests]
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
@@ -316,7 +317,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
     # For pull requests only run tests when python files changed
-    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
+    if: needs.trigger-tests.outputs.count != '0' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -334,7 +335,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
     continue-on-error: true
-    needs: [static-checks-1, static-checks-2, pyfiles]
+    needs: [static-checks-1, static-checks-2, trigger-tests]
     strategy:
       matrix:
         python-version: [3.6]
@@ -348,8 +349,8 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
-    # For pull requests only run tests when python files changed
-    if: needs.pyfiles.outputs.count != '0' || github.event_name != 'pull_request'
+    # For pull requests only run tests when important files changed
+    if: needs.trigger-tests.outputs.count != '0' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
