@@ -40,24 +40,21 @@ class TestIgnorePluginFile(unittest.TestCase):
         self.test_file = os.path.join(self.test_dir, 'test_file.txt')
         self.plugin_folder_path = os.path.join(self.test_dir, 'test_ignore')
         os.mkdir(os.path.join(self.test_dir, "test_ignore"))
-        with open(os.path.join(self.plugin_folder_path, "test_load.py"), "w") as file:
-            file.write("#Should not be ignored file")
-        with open(os.path.join(self.plugin_folder_path, ".airflowignore"), "w") as file:
-            file.write("#ignore test\nnot\nsubdir2")
         os.mkdir(os.path.join(self.plugin_folder_path, "subdir1"))
-        with open(os.path.join(self.plugin_folder_path, "subdir1/.airflowignore"), "w") as file:
-            file.write("#ignore test\nnone")
-        with open(os.path.join(self.plugin_folder_path, "subdir1/test_load_sub1.py"), "w") as file:
-            file.write("#Should not be ignored file")
-        with open(os.path.join(self.plugin_folder_path, "test_notload_sub.py"), 'w') as file:
-            file.write('raise Exception("This file should have been ignored!")')
-        with open(os.path.join(self.plugin_folder_path, "subdir1/test_noneload_sub1.py"), 'w') as file:
-            file.write('raise Exception("This file should have been ignored!")')
         os.mkdir(os.path.join(self.plugin_folder_path, "subdir2"))
-        with open(os.path.join(self.plugin_folder_path, "subdir2/test_shouldignore.py"), 'w') as file:
-            file.write('raise Exception("This file should have been ignored!")')
-        with open(os.path.join(self.plugin_folder_path, "subdir2/test_shouldignore.py"), 'w') as file:
-            file.write('raise Exception("This file should have been ignored!")')
+        files_content = [
+            ["test_load.py", "#Should not be ignored file"],
+            ["test_notload.py", 'raise Exception("This file should have been ignored!")'],
+            [".airflowignore", "#ignore test\nnot\nsubdir2"],
+            ["subdir1/.airflowignore", "#ignore test\nnone"],
+            ["subdir1/test_load_sub1.py", "#Should not be ignored file"],
+            ["test_notload_sub.py", 'raise Exception("This file should have been ignored!")'],
+            ["subdir1/test_noneload_sub1.py", 'raise Exception("This file should have been ignored!")'],
+            ["subdir2/test_shouldignore.py", 'raise Exception("This file should have been ignored!")'],
+        ]
+        for file_path, content in files_content:
+            with open(os.path.join(self.plugin_folder_path, file_path), "w") as f:
+                f.write(content)
         self.mock_plugins_folder = patch.object(
             settings, 'PLUGINS_FOLDER', return_value=self.plugin_folder_path
         )
@@ -78,11 +75,11 @@ class TestIgnorePluginFile(unittest.TestCase):
             'test_notload.py',
             'test_notload_sub.py',
             'test_noneload_sub1.py',
-            'test_shouldignore.py'
+            'test_shouldignore.py',
         }
         should_not_ignore_files = {
             'test_load.py',
-            'test_load_sub1.py'
+            'test_load_sub1.py',
         }
         ignore_list_file = ".airflowignore"
         for file_path in find_path_from_directory(self.plugin_folder_path, ignore_list_file):
