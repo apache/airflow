@@ -1765,6 +1765,10 @@ LOGS = [
     (
         'airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler',
         'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler'
+    ),
+    (
+        "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
+        "airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler"
     )
 ]
 
