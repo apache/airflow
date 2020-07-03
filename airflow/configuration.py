@@ -31,7 +31,6 @@ from base64 import b64encode
 from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
-from json import JSONDecodeError
 from typing import Dict, Optional, Tuple, Union
 
 import yaml
@@ -298,7 +297,7 @@ class AirflowConfigParser(ConfigParser):
                 alternative_secrets_config_dict = json.loads(
                     super().get('secrets', 'backend_kwargs', fallback='{}')
                 )
-            except JSONDecodeError:
+            except json.JSONDecodeError:
                 alternative_secrets_config_dict = {}
             return secrets_backend(**alternative_secrets_config_dict)
 
