@@ -130,6 +130,7 @@ RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
+      gcc-8-base \
       gnupg \
       libgcc-8-dev \
       apt-transport-https \
