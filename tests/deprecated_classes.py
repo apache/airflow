@@ -1752,8 +1752,18 @@ UTILS = [
         'airflow.contrib.utils.weekday.WeekDay',
     )
 ]
+LOGS = [
+    (
+        "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler",
+        "airflow.utils.log.s3_task_handler.S3TaskHandler"
+    ),
+    (
+        "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
+        "airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler"
+    )
+]
 
-ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS + UTILS
+ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS + UTILS + LOGS
 
 RENAMED_ALL = [
     (old_class, new_class)
