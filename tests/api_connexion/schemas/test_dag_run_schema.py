@@ -18,6 +18,7 @@
 import unittest
 
 from dateutil.parser import parse
+from marshmallow import ValidationError
 
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection, dagrun_collection_schema, dagrun_schema,
@@ -55,7 +56,7 @@ class TestDAGRunSchema(TestDAGRunBase):
         deserialized_dagrun = dagrun_schema.dump(dagrun_model)
 
         self.assertEqual(
-            deserialized_dagrun[0],
+            deserialized_dagrun,
             {
                 'dag_id': None,
                 'dag_run_id': 'my-dag-run',
@@ -73,19 +74,15 @@ class TestDAGRunSchema(TestDAGRunBase):
         # and conf are loaded.
         # dag_run_id should be loaded as run_id
         serialized_dagrun = {
-            'dag_id': None,
             'dag_run_id': 'my-dag-run',
-            'end_date': None,
             'state': 'failed',
             'execution_date': self.default_time,
-            'external_trigger': True,
-            'start_date': self.default_time,
             'conf': '{"start": "stop"}'
         }
 
         result = dagrun_schema.load(serialized_dagrun)
         self.assertEqual(
-            result.data,
+            result,
             {
                 'run_id': 'my-dag-run',
                 'execution_date': parse(self.default_time),
@@ -95,27 +92,19 @@ class TestDAGRunSchema(TestDAGRunBase):
         )
 
     def test_deserialize_2(self):
-        # Invalid state field should return None
+        # loading dump_only field raises
         serialized_dagrun = {
             'dag_id': None,
             'dag_run_id': 'my-dag-run',
             'end_date': None,
-            'state': 'faileds',
+            'state': 'failed',
             'execution_date': self.default_time,
             'external_trigger': True,
             'start_date': self.default_time,
             'conf': {"start": "stop"}
         }
-
-        result = dagrun_schema.load(serialized_dagrun)
-        self.assertEqual(
-            result.data,
-            {
-                'run_id': 'my-dag-run',
-                'execution_date': parse(self.default_time),
-                'conf': {"start": "stop"}
-            }
-        )
+        with self.assertRaises(ValidationError):
+            dagrun_schema.load(serialized_dagrun)
 
 
 class TestDagRunCollection(TestDAGRunBase):
@@ -142,7 +131,7 @@ class TestDagRunCollection(TestDAGRunBase):
                                     total_entries=2)
         deserialized_dagruns = dagrun_collection_schema.dump(instance)
         self.assertEqual(
-            deserialized_dagruns.data,
+            deserialized_dagruns,
             {
                 'dag_runs': [
                     {

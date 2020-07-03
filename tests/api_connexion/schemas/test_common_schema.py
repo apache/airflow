@@ -32,7 +32,7 @@ class TestTimeDeltaSchema(unittest.TestCase):
         result = schema_instance.dump(instance)
         self.assertEqual(
             {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0},
-            result.data
+            result
         )
 
     def test_should_deserialize(self):
@@ -40,7 +40,7 @@ class TestTimeDeltaSchema(unittest.TestCase):
         schema_instance = TimeDeltaSchema()
         result = schema_instance.load(instance)
         expected_instance = datetime.timedelta(days=12)
-        self.assertEqual(expected_instance, result.data)
+        self.assertEqual(expected_instance, result)
 
 
 class TestRelativeDeltaSchema(unittest.TestCase):
@@ -67,7 +67,7 @@ class TestRelativeDeltaSchema(unittest.TestCase):
                 "year": None,
                 "years": 0,
             },
-            result.data,
+            result,
         )
 
     def test_should_deserialize(self):
@@ -75,7 +75,7 @@ class TestRelativeDeltaSchema(unittest.TestCase):
         schema_instance = RelativeDeltaSchema()
         result = schema_instance.load(instance)
         expected_instance = relativedelta.relativedelta(days=+12)
-        self.assertEqual(expected_instance, result.data)
+        self.assertEqual(expected_instance, result)
 
 
 class TestCronExpressionSchema(unittest.TestCase):
@@ -84,7 +84,7 @@ class TestCronExpressionSchema(unittest.TestCase):
         schema_instance = CronExpressionSchema()
         result = schema_instance.load(instance)
         expected_instance = CronExpression("5 4 * * *")
-        self.assertEqual(expected_instance, result.data)
+        self.assertEqual(expected_instance, result)
 
 
 class TestScheduleIntervalSchema(unittest.TestCase):
@@ -94,7 +94,7 @@ class TestScheduleIntervalSchema(unittest.TestCase):
         result = schema_instance.dump(instance)
         self.assertEqual(
             {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0},
-            result.data
+            result
         )
 
     def test_should_deserialize_timedelta(self):
@@ -102,7 +102,7 @@ class TestScheduleIntervalSchema(unittest.TestCase):
         schema_instance = ScheduleIntervalSchema()
         result = schema_instance.load(instance)
         expected_instance = datetime.timedelta(days=12)
-        self.assertEqual(expected_instance, result.data)
+        self.assertEqual(expected_instance, result)
 
     def test_should_serialize_relative_delta(self):
         instance = relativedelta.relativedelta(days=+12)
@@ -127,7 +127,7 @@ class TestScheduleIntervalSchema(unittest.TestCase):
                 "year": None,
                 "years": 0,
             },
-            result.data,
+            result,
         )
 
     def test_should_deserialize_relative_delta(self):
@@ -135,11 +135,11 @@ class TestScheduleIntervalSchema(unittest.TestCase):
         schema_instance = ScheduleIntervalSchema()
         result = schema_instance.load(instance)
         expected_instance = relativedelta.relativedelta(days=+12)
-        self.assertEqual(expected_instance, result.data)
+        self.assertEqual(expected_instance, result)
 
     def test_should_serialize_cron_expresssion(self):
         instance = "5 4 * * *"
         schema_instance = ScheduleIntervalSchema()
         result = schema_instance.dump(instance)
         expected_instance = {"__type": "CronExpression", "value": "5 4 * * *"}
-        self.assertEqual(expected_instance, result.data)
+        self.assertEqual(expected_instance, result)

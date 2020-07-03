@@ -63,7 +63,7 @@ def get_pools(session, limit, offset=None):
     pools = session.query(Pool).order_by(Pool.id).offset(offset).limit(limit).all()
     return pool_collection_schema.dump(
         PoolCollection(pools=pools, total_entries=total_entries)
-    ).data
+    )
 
 
 @provide_session
@@ -86,9 +86,9 @@ def patch_pool(pool_name, session, update_mask=None):
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
 
     try:
-        patch_body = pool_schema.load(request.json).data
+        patch_body = pool_schema.load(request.json)
     except ValidationError as err:
-        raise BadRequest(detail=err.messages.get("_schema", [err.messages])[0])
+        raise BadRequest(detail=str(err.messages))
 
     if update_mask:
         update_mask = [i.strip() for i in update_mask]
@@ -127,9 +127,9 @@ def post_pool(session):
             raise BadRequest(detail=f"'{field}' is a required property")
 
     try:
-        post_body = pool_schema.load(request.json, session=session).data
+        post_body = pool_schema.load(request.json, session=session)
     except ValidationError as err:
-        raise BadRequest(detail=err.messages.get("_schema", [err.messages])[0])
+        raise BadRequest(detail=str(err.messages))
 
     pool = Pool(**post_body)
     try:

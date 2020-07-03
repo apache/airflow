@@ -28,12 +28,12 @@ from airflow.models.dagrun import DagRun
 
 class ConfObject(fields.Field):
     """ The conf field"""
-    def _serialize(self, value, attr, obj):
+    def _serialize(self, value, attr, obj, **kwargs):
         if not value:
             return {}
         return json.loads(value) if isinstance(value, str) else value
 
-    def _deserialize(self, value, attr, data):
+    def _deserialize(self, value, attr, data, **kwargs):
         if isinstance(value, str):
             return json.loads(value)
         return value
@@ -49,7 +49,7 @@ class DAGRunSchema(SQLAlchemySchema):
         model = DagRun
         dateformat = 'iso'
 
-    run_id = auto_field(dump_to='dag_run_id', load_from='dag_run_id')
+    run_id = auto_field(data_key='dag_run_id')
     dag_id = auto_field(dump_only=True)
     execution_date = auto_field()
     start_date = auto_field(dump_only=True)
