@@ -42,6 +42,9 @@ data:
     remote_logging = True
 {{- end }}
 
+    [api]
+    auth_backend = {{ .Values.api.authBackend }}
+
     [logging]
     logging_level = DEBUG
     [webserver]

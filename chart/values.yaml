@@ -434,3 +434,7 @@ postgresql:
   enabled: true
   postgresqlPassword: postgres
   postgresqlUsername: postgres
+
+# Authentication backend used for the experimental API
+api:
+  authBackend: airflow.api.auth.backend.deny_all
