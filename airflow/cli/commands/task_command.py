@@ -75,6 +75,7 @@ def _run_task_by_executor(args, dag, ti):
             with create_session() as session:
                 pickle = DagPickle(dag)
                 session.add(pickle)
+                session.commit()
                 pickle_id = pickle.id
                 # TODO: This should be written to a log
                 print('Pickled dag {dag} as pickle_id: {pickle_id}'.format(
