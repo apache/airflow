@@ -80,15 +80,15 @@ class DagRunsBatchFormSchema(Schema):
         datetimeformat = 'iso'
         strict = True
 
-    page_offset = fields.Int(required=False, missing=0, min=0)
-    page_limit = fields.Int(required=False, missing=100, min=1)
-    dag_ids = fields.List(fields.Str(), required=False, missing=None)
-    execution_date_gte = fields.DateTime(required=False, missing=None)
-    execution_date_lte = fields.DateTime(required=False, missing=None)
-    start_date_gte = fields.DateTime(required=False, missing=None)
-    start_date_lte = fields.DateTime(required=False, missing=None)
-    end_date_gte = fields.DateTime(required=False, missing=None)
-    end_date_lte = fields.DateTime(required=False, missing=None)
+    page_offset = fields.Int(missing=0, min=0)
+    page_limit = fields.Int(missing=100, min=1)
+    dag_ids = fields.List(fields.Str(), missing=None)
+    execution_date_gte = fields.DateTime(missing=None)
+    execution_date_lte = fields.DateTime(missing=None)
+    start_date_gte = fields.DateTime(missing=None)
+    start_date_lte = fields.DateTime(missing=None)
+    end_date_gte = fields.DateTime(missing=None)
+    end_date_lte = fields.DateTime(missing=None)
 
 
 dagrun_schema = DAGRunSchema()

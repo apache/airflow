@@ -22,7 +22,7 @@ from parameterized import parameterized
 
 from airflow.models import DagRun
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
 from tests.test_utils.db import clear_db_runs
@@ -44,7 +44,8 @@ class TestDagRunEndpoint(unittest.TestCase):
     def tearDown(self) -> None:
         clear_db_runs()
 
-    def _create_test_dag_run(self, state='running', extra_dag=False):
+    def _create_test_dag_run(self, state='running', extra_dag=False, commit=True):
+        dag_runs = []
         dagrun_model_1 = DagRun(
             dag_id='TEST_DAG_ID',
             run_id='TEST_DAG_RUN_ID_1',
@@ -54,6 +55,7 @@ class TestDagRunEndpoint(unittest.TestCase):
             external_trigger=True,
             state=state,
         )
+        dag_runs.append(dagrun_model_1)
         dagrun_model_2 = DagRun(
             dag_id='TEST_DAG_ID',
             run_id='TEST_DAG_RUN_ID_2',
@@ -62,6 +64,7 @@ class TestDagRunEndpoint(unittest.TestCase):
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
         )
+        dag_runs.append(dagrun_model_2)
         if extra_dag:
             dagrun_extra = [DagRun(
                 dag_id='TEST_DAG_ID_' + str(i),
@@ -71,8 +74,11 @@ class TestDagRunEndpoint(unittest.TestCase):
                 start_date=timezone.parse(self.default_time),
                 external_trigger=True,
             ) for i in range(3, 5)]
-            return [dagrun_model_1, dagrun_model_2] + dagrun_extra
-        return [dagrun_model_1, dagrun_model_2]
+            dag_runs.extend(dagrun_extra)
+        if commit:
+            with create_session() as session:
+                session.add_all(dag_runs)
+        return dag_runs
 
 
 class TestDeleteDagRun(TestDagRunEndpoint):
@@ -99,80 +105,75 @@ class TestGetDagRun(TestDagRunEndpoint):
         assert len(result) == 1
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID")
         assert response.status_code == 200
-        self.assertEqual(
-            response.json,
-            {
-                'dag_id': 'TEST_DAG_ID',
-                'dag_run_id': 'TEST_DAG_RUN_ID',
-                'end_date': None,
-                'state': 'running',
-                'execution_date': self.default_time,
-                'external_trigger': True,
-                'start_date': self.default_time,
-                'conf': {},
-            },
-        )
+        expected_response = {
+            'dag_id': 'TEST_DAG_ID',
+            'dag_run_id': 'TEST_DAG_RUN_ID',
+            'end_date': None,
+            'state': 'running',
+            'execution_date': self.default_time,
+            'external_trigger': True,
+            'start_date': self.default_time,
+            'conf': {}
+        }
+        assert response.json == expected_response
 
     def test_should_response_404(self):
         response = self.client.get("api/v1/dags/invalid-id/dagRuns/invalid-id")
         assert response.status_code == 404
-        self.assertEqual(
-            {'detail': None, 'status': 404, 'title': 'DAGRun not found', 'type': 'about:blank'}, response.json
-        )
+        expected_resp = {
+            'detail': None,
+            'status': 404,
+            'title': 'DAGRun not found',
+            'type': 'about:blank'
+        }
+        assert expected_resp == response.json
 
 
 class TestGetDagRuns(TestDagRunEndpoint):
     @provide_session
     def test_should_response_200(self, session):
-        dagruns = self._create_test_dag_run()
-        session.add_all(dagruns)
-        session.commit()
+        self._create_test_dag_run()
         result = session.query(DagRun).all()
         assert len(result) == 2
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns")
         assert response.status_code == 200
-        self.assertEqual(
-            response.json,
-            {
-                "dag_runs": [
-                    {
-                        'dag_id': 'TEST_DAG_ID',
-                        'dag_run_id': 'TEST_DAG_RUN_ID_1',
-                        'end_date': None,
-                        'state': 'running',
-                        'execution_date': self.default_time,
-                        'external_trigger': True,
-                        'start_date': self.default_time,
-                        'conf': {},
-                    },
-                    {
-                        'dag_id': 'TEST_DAG_ID',
-                        'dag_run_id': 'TEST_DAG_RUN_ID_2',
-                        'end_date': None,
-                        'state': 'running',
-                        'execution_date': self.default_time_2,
-                        'external_trigger': True,
-                        'start_date': self.default_time,
-                        'conf': {},
-                    },
-                ],
-                "total_entries": 2,
-            },
-        )
+        assert response.json == {
+            "dag_runs": [
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_2',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time_2,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+            ],
+            "total_entries": 2,
+        }
 
     @provide_session
     def test_should_return_all_with_tilde_as_dag_id(self, session):
-        dagruns = self._create_test_dag_run(extra_dag=True)
+        self._create_test_dag_run(extra_dag=True)
         expected_dag_run_ids = ['TEST_DAG_ID', 'TEST_DAG_ID',
                                 "TEST_DAG_ID_3", "TEST_DAG_ID_4"]
-        session.add_all(dagruns)
-        session.commit()
         result = session.query(DagRun).all()
         assert len(result) == 4
         response = self.client.get("api/v1/dags/~/dagRuns")
         assert response.status_code == 200
         dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
-        self.assertEqual(dag_run_ids, expected_dag_run_ids)
+        assert dag_run_ids == expected_dag_run_ids
 
 
 class TestGetDagRunsPagination(TestDagRunEndpoint):
@@ -210,33 +211,25 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
             ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=2&offset=2", ["TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],),
         ]
     )
-    @provide_session
-    def test_handle_limit_and_offset(self, url, expected_dag_run_ids, session):
-        dagrun_models = self._create_dag_runs(10)
-        session.add_all(dagrun_models)
-        session.commit()
-
+    def test_handle_limit_and_offset(self, url, expected_dag_run_ids):
+        self._create_dag_runs(10)
         response = self.client.get(url)
         assert response.status_code == 200
 
-        self.assertEqual(response.json["total_entries"], 10)
+        assert response.json["total_entries"] == 10
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
-        self.assertEqual(dag_run_ids, expected_dag_run_ids)
+        assert dag_run_ids == expected_dag_run_ids
 
-    @provide_session
-    def test_should_respect_page_size_limit(self, session):
-        dagrun_models = self._create_dag_runs(200)
-        session.add_all(dagrun_models)
-        session.commit()
-
+    def test_should_respect_page_size_limit(self):
+        self._create_dag_runs(200)
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns")  # default is 100
         assert response.status_code == 200
 
-        self.assertEqual(response.json["total_entries"], 200)
-        self.assertEqual(len(response.json["dag_runs"]), 100)  # default is 100
+        assert response.json["total_entries"] == 200
+        assert len(response.json["dag_runs"]) == 100  # default is 100
 
     def _create_dag_runs(self, count):
-        return [
+        dag_runs = [
             DagRun(
                 dag_id="TEST_DAG_ID",
                 run_id="TEST_DAG_RUN_ID" + str(i),
@@ -247,6 +240,8 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
             )
             for i in range(1, count + 1)
         ]
+        with create_session() as session:
+            session.add_all(dag_runs)
 
 
 class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
@@ -286,9 +281,9 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
 
         response = self.client.get(url)
         assert response.status_code == 200
-        self.assertEqual(response.json["total_entries"], 10)
+        assert response.json["total_entries"] == 10
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
-        self.assertEqual(dag_run_ids, expected_dag_run_ids)
+        assert dag_run_ids == expected_dag_run_ids
 
     def _create_dag_runs(self):
         dates = [
@@ -333,58 +328,48 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
             ),
         ]
     )
-    @provide_session
-    def test_end_date_gte_lte(self, url, expected_dag_run_ids, session):
-        dagruns = self._create_test_dag_run('success')  # state==success, then end date is today
-        session.add_all(dagruns)
-        session.commit()
-
+    def test_end_date_gte_lte(self, url, expected_dag_run_ids):
+        self._create_test_dag_run('success')  # state==success, then end date is today
         response = self.client.get(url)
         assert response.status_code == 200
-        self.assertEqual(response.json["total_entries"], 2)
+        assert response.json["total_entries"] == 2
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
-        self.assertEqual(dag_run_ids, expected_dag_run_ids)
+        assert dag_run_ids == expected_dag_run_ids
 
 
 class TestGetDagRunBatch(TestDagRunEndpoint):
-    @provide_session
-    def test_should_respond_200(self, session):
-        dag_runs = self._create_test_dag_run()
-        session.add_all(dag_runs)
-        session.commit()
+    def test_should_respond_200(self):
+        self._create_test_dag_run()
         payload = {
             "dag_ids": ["TEST_DAG_ID"],
         }
         response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
         assert response.status_code == 200
-        self.assertEqual(
-            response.json,
-            {
-                "dag_runs": [
-                    {
-                        'dag_id': 'TEST_DAG_ID',
-                        'dag_run_id': 'TEST_DAG_RUN_ID_1',
-                        'end_date': None,
-                        'state': 'running',
-                        'execution_date': self.default_time,
-                        'external_trigger': True,
-                        'start_date': self.default_time,
-                        'conf': {},
-                    },
-                    {
-                        'dag_id': 'TEST_DAG_ID',
-                        'dag_run_id': 'TEST_DAG_RUN_ID_2',
-                        'end_date': None,
-                        'state': 'running',
-                        'execution_date': self.default_time_2,
-                        'external_trigger': True,
-                        'start_date': self.default_time,
-                        'conf': {},
-                    },
-                ],
-                "total_entries": 2,
-            }
-        )
+        assert response.json == {
+            "dag_runs": [
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_2',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time_2,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+            ],
+            "total_entries": 2,
+        }
 
     @parameterized.expand(
         [
@@ -398,12 +383,8 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
              {'start_date_gte': ['Not a valid datetime.']}),
         ]
     )
-    @provide_session
-    def test_payload_validation(self, payload, error, session):
-        dag_runs = self._create_test_dag_run()
-        session.add_all(dag_runs)
-        session.commit()
-
+    def test_payload_validation(self, payload, error):
+        self._create_test_dag_run()
         response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
         assert response.status_code == 400
         assert error == response.json.get("detail")
@@ -444,33 +425,25 @@ class TestGetDagRunBatchPagination(TestDagRunEndpoint):
             ({"page_offset": 2, "page_limit": 2}, ["TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],),
         ]
     )
-    @provide_session
-    def test_handle_limit_and_offset(self, payload, expected_dag_run_ids, session):
-        dag_runs = self._create_dag_runs(10)
-        session.add_all(dag_runs)
-        session.commit()
-
+    def test_handle_limit_and_offset(self, payload, expected_dag_run_ids):
+        self._create_dag_runs(10)
         response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
         assert response.status_code == 200
 
-        self.assertEqual(response.json["total_entries"], 10)
+        assert response.json["total_entries"] == 10
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
-        self.assertEqual(dag_run_ids, expected_dag_run_ids)
+        assert dag_run_ids == expected_dag_run_ids
 
-    @provide_session
-    def test_should_respect_page_size_limit(self, session):
-        dag_runs = self._create_dag_runs(200)
-        session.add_all(dag_runs)
-        session.commit()
-
+    def test_should_respect_page_size_limit(self):
+        self._create_dag_runs(200)
         response = self.client.post("api/v1/dags/~/dagRuns/list", json={})  # default is 100
         assert response.status_code == 200
 
-        self.assertEqual(response.json["total_entries"], 200)
-        self.assertEqual(len(response.json["dag_runs"]), 100)  # default is 100
+        assert response.json["total_entries"] == 200
+        assert len(response.json["dag_runs"]) == 100  # default is 100
 
     def _create_dag_runs(self, count):
-        return [
+        dag_runs = [
             DagRun(
                 dag_id="TEST_DAG_ID",
                 run_id="TEST_DAG_RUN_ID" + str(i),
@@ -481,6 +454,8 @@ class TestGetDagRunBatchPagination(TestDagRunEndpoint):
             )
             for i in range(1, count + 1)
         ]
+        with create_session() as session:
+            session.add_all(dag_runs)
 
 
 class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
@@ -520,9 +495,9 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 
         response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
         assert response.status_code == 200
-        self.assertEqual(response.json["total_entries"], 10)
+        assert response.json["total_entries"] == 10
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"]]
-        self.assertEqual(dag_run_ids, expected_dag_run_ids)
+        assert dag_run_ids == expected_dag_run_ids
 
     def _create_dag_runs(self):
         dates = [
@@ -563,17 +538,13 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
             ),
         ]
     )
-    @provide_session
-    def test_end_date_gte_lte(self, payload, expected_dag_run_ids, session):
-        dagruns = self._create_test_dag_run('success')  # state==success, then end date is today
-        session.add_all(dagruns)
-        session.commit()
-
+    def test_end_date_gte_lte(self, payload, expected_dag_run_ids):
+        self._create_test_dag_run('success')  # state==success, then end date is today
         response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
         assert response.status_code == 200
-        self.assertEqual(response.json["total_entries"], 2)
+        assert response.json["total_entries"] == 2
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
-        self.assertEqual(dag_run_ids, expected_dag_run_ids)
+        assert dag_run_ids == expected_dag_run_ids
 
 
 class TestPatchDagRun(TestDagRunEndpoint):
