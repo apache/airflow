@@ -171,32 +171,6 @@ jobs:
           echo "::set-output name=count::$?"
         id: trigger-tests
 
-  test-openapi-client-generation:
-    name: "Test OpenAPI client generation"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-        with:
-          fetch-depth: 0
-      - name: "Check spec file change"
-        run: |
-          URL="https://raw.githubusercontent.com/apache/airflow/master/airflow/api_connexion/openapi/v1.yaml"
-          curl -sL -o /tmp/current_v1.yaml "${URL}"
-          if diff /tmp/current_v1.yaml ./airflow/api_connexion/openapi/v1.yaml; then
-            echo "no openapi spec change detected, going to skip client code gen validation."
-          else
-            echo "openapi spec change detected."
-            echo "::set-env name=API_SPEC_CHANGED::true"
-          fi
-      - name: "Generate new clients"
-        if: success() && env.API_SPEC_CHANGED == 'true'
-        run: |
-          mkdir -p ./clients/go/airflow
-          ./clients/gen/go.sh ./airflow/api_connexion/openapi/v1.yaml ./clients/go/airflow
-          mkdir -p ./clients/go_master/airflow
-          ./clients/gen/go.sh /tmp/current_v1.yaml ./clients/go_master/airflow
-          diff ./clients/go_master/airflow ./clients/go/airflow || true
-
   tests-kubernetes:
     timeout-minutes: 80
     name: "K8s: ${{matrix.kube-mode}} ${{matrix.python-version}} ${{matrix.kubernetes-version}}"
