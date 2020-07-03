@@ -67,6 +67,9 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
     :param token: Authentication token to include in requests sent to Vault
         (for ``token`` and ``github`` auth_type).
     :type token: str
+    :param token_path: path to file containing authentication token to include in requests sent to Vault
+        (for ``token`` and ``github`` auth_type).
+    :type token_path: str
     :param username: Username for Authentication (for ``ldap`` and ``userpass`` auth_types).
     :type username: str
     :param password: Password for Authentication (for ``ldap`` and ``userpass`` auth_types).
@@ -110,6 +113,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         mount_point: str = "secret",
         kv_engine_version: Optional[int] = None,
         token: Optional[str] = None,
+        token_path: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
         key_id: Optional[str] = None,
@@ -134,10 +138,10 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         if auth_type not in VALID_AUTH_TYPES:
             raise VaultError(f"The auth_type is not supported: {auth_type}. "
                              f"It should be one of {VALID_AUTH_TYPES}")
-        if auth_type == "token" and not token:
-            raise VaultError("The 'token' authentication type requires 'token'")
-        if auth_type == "github" and not token:
-            raise VaultError("The 'github' authentication type requires 'token'")
+        if auth_type == "token" and not token and not token_path:
+            raise VaultError("The 'token' authentication type requires 'token' or 'token_path'")
+        if auth_type == "github" and not token and not token_path:
+            raise VaultError("The 'github' authentication type requires 'token' or 'token_path'")
         if auth_type == "approle" and not role_id:
             raise VaultError("The 'approle' authentication type requires 'role_id'")
         if auth_type == "kubernetes":
@@ -161,6 +165,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         self.auth_type = auth_type
         self.kwargs = kwargs
         self.token = token
+        self.token_path = token_path
         self.auth_mount_point = auth_mount_point
         self.mount_point = mount_point
         self.username = username
@@ -206,7 +211,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         elif self.auth_type == "radius":
             self._auth_radius(_client)
         elif self.auth_type == "token":
-            _client.token = self.token
+            self._set_token(_client)
         elif self.auth_type == "userpass":
             self._auth_userpass(_client)
         else:
@@ -306,6 +311,13 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
                                  mount_point=self.auth_mount_point)
         else:
             _client.auth_approle(role_id=self.role_id, secret_id=self.secret_id)
+
+    def _set_token(self, _client: hvac.Client) -> None:
+        if self.token_path:
+            with open(self.token_path) as f:
+                _client.token = f.read()
+        else:
+            _client.token = self.token
 
     def get_secret(self, secret_path: str, secret_version: Optional[int] = None) -> Optional[dict]:
         """
