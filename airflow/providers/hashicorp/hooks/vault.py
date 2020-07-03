@@ -89,6 +89,9 @@ class VaultHook(BaseHook):
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
     :type kubernetes_jwt_path: str
+    :param token_path: path to file containing authentication token to include in requests sent to Vault
+        (for ``token`` and ``github`` auth_type).
+    :type token_path: str
     :param gcp_key_path: Path to GCP Credential JSON file (for ``gcp`` auth_type)
            Mutually exclusive with gcp_keyfile_dict
     :type gcp_key_path: str
@@ -114,6 +117,7 @@ class VaultHook(BaseHook):
         role_id: Optional[str] = None,
         kubernetes_role: Optional[str] = None,
         kubernetes_jwt_path: Optional[str] = None,
+        token_path: Optional[str] = None,
         gcp_key_path: Optional[str] = None,
         gcp_scopes: Optional[str] = None,
         azure_tenant_id: Optional[str] = None,
@@ -178,6 +182,7 @@ class VaultHook(BaseHook):
             mount_point=mount_point,
             kv_engine_version=kv_engine_version,
             token=self.connection.password,
+            token_path=token_path,
             username=self.connection.login,
             password=self.connection.password,
             key_id=self.connection.login,
