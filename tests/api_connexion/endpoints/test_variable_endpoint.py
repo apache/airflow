@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from airflow.models import Variable
 from airflow.www import app
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_variables
 
 
@@ -101,13 +102,21 @@ class TestGetVariables(TestVariableEndpoint):
         assert response.status_code == 200
         assert response.json == expected
 
-    def test_should_honor_100_limit_default(self):
+    def test_should_respect_page_size_limit_default(self):
         for i in range(101):
             Variable.set(f"var{i}", i)
         response = self.client.get("/api/v1/variables")
         assert response.status_code == 200
         assert response.json["total_entries"] == 101
         assert len(response.json["variables"]) == 100
+
+    @conf_vars({("api", "maximum_page_limit"): "150"})
+    def test_should_return_conf_max_if_req_max_above_conf(self):
+        for i in range(200):
+            Variable.set(f"var{i}", i)
+        response = self.client.get("/api/v1/variables?limit=180")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['variables']), 150)
 
 
 class TestPatchVariable(TestVariableEndpoint):

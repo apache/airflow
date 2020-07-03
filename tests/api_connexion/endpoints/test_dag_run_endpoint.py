@@ -25,6 +25,7 @@ from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 
 
@@ -235,6 +236,17 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
         self.assertEqual(response.json["total_entries"], 200)
         self.assertEqual(len(response.json["dag_runs"]), 100)  # default is 100
 
+    @provide_session
+    @conf_vars({("api", "maximum_page_limit"): "150"})
+    def test_should_return_conf_max_if_req_max_above_conf(self, session):
+        dagrun_models = self._create_dag_runs(200)
+        session.add_all(dagrun_models)
+        session.commit()
+
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns?limit=180")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['dag_runs']), 150)
+
     def _create_dag_runs(self, count):
         return [
             DagRun(
@@ -261,7 +273,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
                 ["TEST_START_EXEC_DAY_10", "TEST_START_EXEC_DAY_11"],
             ),
             (
-                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte=2020-06-15T18:00:00+00:00"
+                "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte= 2020-06-15T18:00:00+00:00"
                 "&start_date_gte=2020-06-12T18:00:00Z",
                 ["TEST_START_EXEC_DAY_12", "TEST_START_EXEC_DAY_13",
                  "TEST_START_EXEC_DAY_14", "TEST_START_EXEC_DAY_15"],

@@ -21,6 +21,7 @@ from marshmallow import ValidationError
 from sqlalchemy import func
 
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection, connection_collection_item_schema, connection_collection_schema, connection_schema,
 )
@@ -33,8 +34,7 @@ def delete_connection(connection_id, session):
     """
     Delete a connection entry
     """
-    query = session.query(Connection).filter_by(conn_id=connection_id)
-    connection = query.one_or_none()
+    connection = session.query(Connection).filter_by(conn_id=connection_id).one_or_none()
     if connection is None:
         raise NotFound('Connection not found')
     session.delete(connection)
@@ -52,6 +52,9 @@ def get_connection(connection_id, session):
     return connection_collection_item_schema.dump(connection)
 
 
+@format_parameters({
+    'limit': check_limit
+})
 @provide_session
 def get_connections(session, limit, offset=0):
     """

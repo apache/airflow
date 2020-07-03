@@ -22,8 +22,9 @@ from pendulum import DateTime
 from pendulum.tz.timezone import Timezone
 
 from airflow.api_connexion.exceptions import BadRequest
-from airflow.api_connexion.parameters import format_datetime, format_parameters
+from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
 from airflow.utils import timezone
+from tests.test_utils.config import conf_vars
 
 
 class TestDateTimeParser(unittest.TestCase):
@@ -50,6 +51,34 @@ class TestDateTimeParser(unittest.TestCase):
             format_datetime(invalid_datetime)
 
 
+class TestMaximumPagelimit(unittest.TestCase):
+
+    @conf_vars({("api", "maximum_page_limit"): "320"})
+    def test_maximum_limit_return_val(self):
+        limit = check_limit(300)
+        self.assertEqual(limit, 300)
+
+    @conf_vars({("api", "maximum_page_limit"): "320"})
+    def test_maximum_limit_returns_configured_if_limit_above_conf(self):
+        limit = check_limit(350)
+        self.assertEqual(limit, 320)
+
+    @conf_vars({("api", "maximum_page_limit"): "1000"})
+    def test_limit_returns_set_max_if_give_limit_is_exceeded(self):
+        limit = check_limit(1500)
+        self.assertEqual(limit, 1000)
+
+    @conf_vars({("api", "fallback_page_limit"): "100"})
+    def test_limit_of_zero_returns_default(self):
+        limit = check_limit(0)
+        self.assertEqual(limit, 100)
+
+    @conf_vars({("api", "maximum_page_limit"): "1500"})
+    def test_negative_limit_raises(self):
+        with self.assertRaises(BadRequest):
+            check_limit(-1)
+
+
 class TestFormatParameters(unittest.TestCase):
 
     def test_should_works_with_datetime_formatter(self):
@@ -67,3 +96,11 @@ class TestFormatParameters(unittest.TestCase):
         decorated_endpoint = decorator(endpoint)
         with self.assertRaises(BadRequest):
             decorated_endpoint(param_a='XXXXX')
+
+    @conf_vars({("api", "maximum_page_limit"): "100"})
+    def test_should_work_with_limit(self):
+        decorator = format_parameters({"limit": check_limit})
+        endpoint = mock.MagicMock()
+        decorated_endpoint = decorator(endpoint)
+        decorated_endpoint(limit=89)
+        endpoint.assert_called_once_with(limit=89)

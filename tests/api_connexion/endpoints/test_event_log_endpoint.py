@@ -24,6 +24,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.www import app
+from tests.test_utils.config import conf_vars
 
 
 class TestEventLogEndpoint(unittest.TestCase):
@@ -189,7 +190,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         self.assertEqual(events, expected_events)
 
     @provide_session
-    def test_should_respect_page_size_limit(self, session):
+    def test_should_respect_page_size_limit_default(self, session):
         log_models = self._create_event_logs(200)
         session.add_all(log_models)
         session.commit()
@@ -199,6 +200,17 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
 
         self.assertEqual(response.json["total_entries"], 200)
         self.assertEqual(len(response.json["event_logs"]), 100)  # default 100
+
+    @provide_session
+    @conf_vars({("api", "maximum_page_limit"): "150"})
+    def test_should_return_conf_max_if_req_max_above_conf(self, session):
+        log_models = self._create_event_logs(200)
+        session.add_all(log_models)
+        session.commit()
+
+        response = self.client.get("/api/v1/eventLogs?limit=180")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['event_logs']), 150)
 
     def _create_event_logs(self, count):
         return [

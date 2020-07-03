@@ -581,6 +581,22 @@
       type: string
       example: ~
       default: "airflow.api.auth.backend.deny_all"
+    - name: maximum_page_limit
+      description: |
+        Used to set the maximum page limit for API requests
+      version_added: ~
+      type: integer
+      example: ~
+      default: "100"
+    - name: fallback_page_limit
+      description: |
+        Used to set the default page limit when limit is zero. A default limit
+        of 100 is set on OpenApi spec. However, this particular default limit
+        only work when limit is set equal to zero(0) from API requests.
+        If no limit is supplied, the OpenApi spec default is used.
+      type: integer
+      example: ~
+      default: "100"
 - name: lineage
   description: ~
   options:
