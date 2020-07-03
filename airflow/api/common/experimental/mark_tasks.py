@@ -311,6 +311,11 @@ def set_dag_run_state_to_success(dag, execution_date, commit=False, session=None
     # Mark the dag run to success.
     if commit:
         _set_dag_run_state(dag.dag_id, execution_date, State.SUCCESS, session)
+        dag_run = session.query(DagRun).filter(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.execution_date == execution_date
+        ).one()
+        dag.handle_callback(dag_run, success=True, reason='mark_success', session=session)
 
     # Mark all task instances of the dag run to success.
     for task in dag.tasks:
@@ -339,6 +344,11 @@ def set_dag_run_state_to_failed(dag, execution_date, commit=False, session=None)
     # Mark the dag run to failed.
     if commit:
         _set_dag_run_state(dag.dag_id, execution_date, State.FAILED, session)
+        dag_run = session.query(DagRun).filter(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.execution_date == execution_date
+        ).one()
+        dag.handle_callback(dag_run, success=False, reason='mark_failed', session=session)
 
     # Mark only RUNNING task instances.
     task_ids = [task.task_id for task in dag.tasks]
