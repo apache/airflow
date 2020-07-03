@@ -281,7 +281,7 @@ class TestVaultSecrets(TestCase):
         }
 
         kwargs = {
-            "configurations_path": "configurations",
+            "configs_path": "configurations",
             "mount_point": "secret",
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
@@ -289,5 +289,5 @@ class TestVaultSecrets(TestCase):
         }
 
         test_client = VaultBackend(**kwargs)
-        returned_uri = test_client.get_configuration("sql_alchemy_conn")
+        returned_uri = test_client.get_config("sql_alchemy_conn")
         self.assertEqual('sqlite:////Users/airflow/airflow/airflow.db', returned_uri)

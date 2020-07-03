@@ -52,9 +52,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param variables_path: Specifies the path of the secret to read to get Variables
         (default: 'variables').
     :type variables_path: str
-    :param configurations_path: Specifies the path of the secret to read Airflow Configurations
-        (default: 'configurations').
-    :type configurations_path: str
+    :param configs_path: Specifies the path of the secret to read Airflow Configurations
+        (default: 'configs').
+    :type configs_path: str
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
     :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are:
@@ -114,7 +114,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         self,
         connections_path: str = 'connections',
         variables_path: str = 'variables',
-        configurations_path: str = 'configurations',
+        configs_path: str = 'configs',
         url: Optional[str] = None,
         auth_type: str = 'token',
         auth_mount_point: Optional[str] = None,
@@ -142,7 +142,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         super().__init__()
         self.connections_path = connections_path.rstrip('/')
         self.variables_path = variables_path.rstrip('/')
-        self.configurations_path = configurations_path.rstrip('/')
+        self.configs_path = configs_path.rstrip('/')
         self.mount_point = mount_point
         self.kv_engine_version = kv_engine_version
         self.vault_client = _VaultClient(
@@ -197,7 +197,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         response = self.vault_client.get_secret(secret_path=secret_path)
         return response.get("value") if response else None
 
-    def get_configuration(self, key: str) -> Optional[str]:
+    def get_config(self, key: str) -> Optional[str]:
         """
         Get Airflow Configuration
 
@@ -206,6 +206,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :rtype: str
         :return: Configuration Option Value retrieved from the vault
         """
-        secret_path = self.build_path(self.configurations_path, key)
+        secret_path = self.build_path(self.configs_path, key)
         response = self.vault_client.get_secret(secret_path=secret_path)
         return response.get("value") if response else None

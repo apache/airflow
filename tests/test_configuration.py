@@ -169,7 +169,7 @@ key6 = value6
         test_conf = AirflowConfigParser(
             default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
-        test_conf.configs_with_secret = test_conf.configs_with_secret | {
+        test_conf.as_command_stdout = test_conf.as_command_stdout | {
             ('test', 'key2'),
             ('test', 'key4'),
         }
@@ -228,7 +228,7 @@ sql_alchemy_conn_secret = sql_alchemy_conn
 
 [secrets]
 backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
-backend_kwargs = {"configurations_path": "configurations","url": "http://127.0.0.1:8200", "token": "token"}
+backend_kwargs = {"configs_path": "configurations","url": "http://127.0.0.1:8200", "token": "token"}
 '''
         test_config_default = '''[test]
 sql_alchemy_conn = airflow
@@ -236,7 +236,7 @@ sql_alchemy_conn = airflow
 
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
-        test_conf.configs_with_secret = test_conf.configs_with_secret | {
+        test_conf.as_command_stdout = test_conf.as_command_stdout | {
             ('test', 'sql_alchemy_conn'),
         }
 
@@ -474,7 +474,7 @@ AIRFLOW_HOME = /root/airflow
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
         conf.deprecated_options[('celery', "result_backend")] = ('celery', 'celery_result_backend')
-        conf.configs_with_secret.add(('celery', 'celery_result_backend'))
+        conf.as_command_stdout.add(('celery', 'celery_result_backend'))
 
         conf.remove_option('celery', 'result_backend')
         with conf_vars({('celery', 'celery_result_backend_cmd'): '/bin/echo 99'}):
@@ -551,13 +551,13 @@ notacommand = OK
 '''
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.read_string(test_cmdenv_config)
-        test_cmdenv_conf.configs_with_secret.add(('testcmdenv', 'itsacommand'))
+        test_cmdenv_conf.as_command_stdout.add(('testcmdenv', 'itsacommand'))
         with unittest.mock.patch.dict('os.environ'):
             # AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD maps to ('testcmdenv', 'itsacommand') in
-            # configs_with_secret and therefore should return 'OK' from the environment variable's
+            # as_command_stdout and therefore should return 'OK' from the environment variable's
             # echo command, and must not return 'NOT OK' from the configuration
             self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'itsacommand'), 'OK')
-            # AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD maps to no entry in configs_with_secret and therefore
+            # AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD maps to no entry in as_command_stdout and therefore
             # the option should return 'OK' from the configuration, and must not return 'NOT OK' from
             # the environement variable's echo command
             self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'notacommand'), 'OK')

@@ -74,11 +74,11 @@ class BaseSecretsBackend(ABC):
         """
         raise NotImplementedError()
 
-    def get_configuration(self, key: str) -> Optional[str]:
+    def get_config(self, key: str) -> Optional[str]:    # pylint: disable=unused-argument
         """
         Return value for Airflow Config Key
 
         :param key: Config Key
         :return: Config Value
         """
-        raise NotImplementedError()
+        return None

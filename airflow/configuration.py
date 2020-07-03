@@ -119,7 +119,7 @@ class AirflowConfigParser(ConfigParser):
     # is to not store password on boxes in text files.
     # These configs can also be fetched from Secrets backend
     # following the "{section}__{name}__secret" pattern
-    configs_with_secret = {
+    senstive_config_values = {
         ('core', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
@@ -271,13 +271,13 @@ class AirflowConfigParser(ConfigParser):
         env_var_cmd = env_var + '_CMD'
         if env_var_cmd in os.environ:
             # if this is a valid command key...
-            if (section, key) in self.configs_with_secret:
+            if (section, key) in self.senstive_config_values:
                 return run_command(os.environ[env_var_cmd])
 
     def _get_cmd_option(self, section, key):
         fallback_key = key + '_cmd'
         # if this is a valid command key...
-        if (section, key) in self.configs_with_secret:
+        if (section, key) in self.senstive_config_values:
             if super().has_option(section, fallback_key):
                 command = super().get(section, fallback_key)
                 return run_command(command)
@@ -309,10 +309,10 @@ class AirflowConfigParser(ConfigParser):
             return None
         fallback_key = key + '_secret'
         # if this is a valid secret key...
-        if (section, key) in self.configs_with_secret:
+        if (section, key) in self.senstive_config_values:
             if super().has_option(section, fallback_key):
                 secrets_path = super().get(section, fallback_key)
-                return secrets_client.get_configuration(secrets_path)
+                return secrets_client.get_config(secrets_path)
 
     def get(self, section, key, **kwargs):
         section = str(section).lower()
@@ -590,7 +590,7 @@ class AirflowConfigParser(ConfigParser):
 
         # add bash commands
         if include_cmds:
-            for (section, key) in self.configs_with_secret:
+            for (section, key) in self.senstive_config_values:
                 opt = self._get_cmd_option(section, key)
                 if opt:
                     if not display_sensitive:
@@ -604,7 +604,7 @@ class AirflowConfigParser(ConfigParser):
 
         # add config from secret backends
         if include_secret:
-            for (section, key) in self.configs_with_secret:
+            for (section, key) in self.senstive_config_values:
                 opt = self._get_secret_option(section, key)
                 if opt:
                     if not display_sensitive:
