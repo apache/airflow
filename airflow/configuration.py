@@ -17,6 +17,7 @@
 # under the License.
 
 import copy
+import json
 import logging
 import multiprocessing
 import os
@@ -30,9 +31,11 @@ from base64 import b64encode
 from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
+from json import JSONDecodeError
 from typing import Dict, Optional, Tuple, Union
 
 import yaml
+from cached_property import cached_property
 from cryptography.fernet import Fernet
 
 from airflow.exceptions import AirflowConfigException
@@ -115,7 +118,9 @@ class AirflowConfigParser(ConfigParser):
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}__cmd" pattern, the idea behind this
     # is to not store password on boxes in text files.
-    as_command_stdout = {
+    # These configs can also be fetched from Secrets backend
+    # following the "{section}__{name}__secret" pattern
+    configs_with_secret = {
         ('core', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
@@ -267,16 +272,48 @@ class AirflowConfigParser(ConfigParser):
         env_var_cmd = env_var + '_CMD'
         if env_var_cmd in os.environ:
             # if this is a valid command key...
-            if (section, key) in self.as_command_stdout:
+            if (section, key) in self.configs_with_secret:
                 return run_command(os.environ[env_var_cmd])
 
     def _get_cmd_option(self, section, key):
         fallback_key = key + '_cmd'
         # if this is a valid command key...
-        if (section, key) in self.as_command_stdout:
+        if (section, key) in self.configs_with_secret:
             if super().has_option(section, fallback_key):
                 command = super().get(section, fallback_key)
                 return run_command(command)
+
+    @cached_property
+    def _secrets_backend_client(self):
+        if super().has_option('secrets', 'backend') is False:
+            return None
+
+        secrets_backend_cls = super().get('secrets', 'backend')
+        if not secrets_backend_cls:
+            return None
+        print("secrets_backend_cls", secrets_backend_cls)
+        secrets_backend = import_string(secrets_backend_cls)
+        if secrets_backend:
+            try:
+                alternative_secrets_config_dict = json.loads(
+                    super().get('secrets', 'backend_kwargs', fallback='{}')
+                )
+            except JSONDecodeError:
+                alternative_secrets_config_dict = {}
+            return secrets_backend(**alternative_secrets_config_dict)
+
+    def _get_secret_option(self, section, key):
+        """Get Config option values from Secret Backend"""
+        secrets_client = self._secrets_backend_client
+        print("S clinet", secrets_client)
+        if not secrets_client:
+            return None
+        fallback_key = key + '_secret'
+        # if this is a valid secret key...
+        if (section, key) in self.configs_with_secret:
+            if super().has_option(section, fallback_key):
+                secrets_path = super().get(section, fallback_key)
+                return secrets_client.get_configuration(secrets_path)
 
     def get(self, section, key, **kwargs):
         section = str(section).lower()
@@ -315,6 +352,16 @@ class AirflowConfigParser(ConfigParser):
             return option
         if deprecated_section:
             option = self._get_cmd_option(deprecated_section, deprecated_key)
+            if option:
+                self._warn_deprecate(section, key, deprecated_section, deprecated_key)
+                return option
+
+        # ...then from secret backends
+        option = self._get_secret_option(section, key)
+        if option:
+            return option
+        if deprecated_section:
+            option = self._get_secret_option(deprecated_section, deprecated_key)
             if option:
                 self._warn_deprecate(section, key, deprecated_section, deprecated_key)
                 return option
@@ -473,7 +520,8 @@ class AirflowConfigParser(ConfigParser):
 
     def as_dict(
             self, display_source=False, display_sensitive=False, raw=False,
-            include_env=True, include_cmds=True) -> Dict[str, Dict[str, str]]:
+            include_env=True, include_cmds=True, include_secret=True
+    ) -> Dict[str, Dict[str, str]]:
         """
         Returns the current configuration as an OrderedDict of OrderedDicts.
 
@@ -495,6 +543,10 @@ class AirflowConfigParser(ConfigParser):
             set (True, default), or should the _cmd options be left as the
             command to run (False)
         :type include_cmds: bool
+        :param include_secret: Should the result of calling any *_secret config be
+            set (True, default), or should the _secret options be left as the
+            path to get the secret from (False)
+        :type include_secret: bool
         :rtype: Dict[str, Dict[str, str]]
         :return: Dictionary, where the key is the name of the section and the content is
             the dictionary with the name of the parameter and its value.
@@ -539,7 +591,7 @@ class AirflowConfigParser(ConfigParser):
 
         # add bash commands
         if include_cmds:
-            for (section, key) in self.as_command_stdout:
+            for (section, key) in self.configs_with_secret:
                 opt = self._get_cmd_option(section, key)
                 if opt:
                     if not display_sensitive:
@@ -550,6 +602,20 @@ class AirflowConfigParser(ConfigParser):
                         opt = opt.replace('%', '%%')
                     cfg.setdefault(section, OrderedDict()).update({key: opt})
                     del cfg[section][key + '_cmd']
+
+        # add config from secret backends
+        if include_secret:
+            for (section, key) in self.configs_with_secret:
+                opt = self._get_secret_option(section, key)
+                if opt:
+                    if not display_sensitive:
+                        opt = '< hidden >'
+                    if display_source:
+                        opt = (opt, 'secret')
+                    elif raw:
+                        opt = opt.replace('%', '%%')
+                    cfg.setdefault(section, OrderedDict()).update({key: opt})
+                    del cfg[section][key + '_secret']
 
         return cfg
 

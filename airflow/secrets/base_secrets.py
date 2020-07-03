@@ -73,3 +73,12 @@ class BaseSecretsBackend(ABC):
         :return: Variable Value
         """
         raise NotImplementedError()
+
+    def get_configuration(self, key: str) -> Optional[str]:
+        """
+        Return value for Airflow Config Key
+
+        :param key: Config Key
+        :return: Config Value
+        """
+        raise NotImplementedError()
