@@ -125,6 +125,16 @@ function delete_cluster() {
 }
 
 function perform_kind_cluster_operation() {
+    ALLOWED_KIND_OPERATIONS="[ start restart stop deploy test shell ]"
+
+    set +u
+    if [[ -z "${1}" ]]; then
+        echo >&2
+        echo >&2 "Operation must be provided as first parameter. One of: ${ALLOWED_KIND_OPERATIONS}"
+        echo >&2
+        exit 1
+    fi
+    set -u
     OPERATION="${1}"
     ALL_CLUSTERS=$(kind get clusters || true)
 
@@ -181,17 +191,16 @@ function perform_kind_cluster_operation() {
             echo
             echo "Testing with KinD"
             echo
-            "${AIRFLOW_SOURCES}/scripts/ci/ci_run_kubernetes_tests.sh"
+            "${AIRFLOW_SOURCES}/scripts/ci/kubernetes/ci_run_kubernetes_tests.sh"
         elif [[ ${OPERATION} == "shell" ]]; then
             echo
             echo "Entering an interactive shell for kubernetes testing"
             echo
-            "${AIRFLOW_SOURCES}/scripts/ci/ci_run_kubernetes_tests.sh" "-i"
+            "${AIRFLOW_SOURCES}/scripts/ci/kubernetes/ci_run_kubernetes_tests.sh" "-i"
         else
-            echo
-            echo "Wrong cluster operation: ${OPERATION}. Should be one of:"
-            echo "${FORMATTED_KIND_OPERATIONS}"
-            echo
+            echo >&2
+            echo >&2 "Wrong cluster operation: ${OPERATION}. Should be one of: ${ALLOWED_KIND_OPERATIONS}"
+            echo >&2
             exit 1
         fi
     else
@@ -208,15 +217,14 @@ function perform_kind_cluster_operation() {
             create_cluster
         elif [[ ${OPERATION} == "stop" || ${OEPRATON} == "deploy" || \
                 ${OPERATION} == "test" || ${OPERATION} == "shell" ]]; then
-            echo
-            echo "Cluster ${KIND_CLUSTER_NAME} does not exist. It should exist for ${OPERATION} operation"
-            echo
+            echo >&2
+            echo >&2 "Cluster ${KIND_CLUSTER_NAME} does not exist. It should exist for ${OPERATION} operation"
+            echo >&2
             exit 1
         else
-            echo
-            echo "Wrong cluster operation: ${OPERATION}. Should be one of:"
-            echo "${FORMATTED_KIND_OPERATIONS}"
-            echo
+            echo >&2
+            echo >&2 "Wrong cluster operation: ${OPERATION}. Should be one of ${ALLOWED_KIND_OPERATIONS}"
+            echo >&2
             exit 1
         fi
     fi
@@ -262,9 +270,9 @@ function forward_port_to_kind_webserver() {
     set +e
     while ! curl http://localhost:8080/health -s | grep -q healthy; do
         if [[ ${num_tries} == 6 ]]; then
-            echo
-            echo "ERROR! Could not setup a forward port to Airflow's webserver after ${num_tries}! Exiting."
-            echo
+            echo >&2
+            echo >&2 "ERROR! Could not setup a forward port to Airflow's webserver after ${num_tries}! Exiting."
+            echo >&2
             exit 1
         fi
         echo

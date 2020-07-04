@@ -62,9 +62,9 @@ jobs:
           path: ~/.cache/pre-commit
           key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image"
-        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Static checks"
         if: success()
         env:
@@ -72,7 +72,7 @@ jobs:
         run: |
           python -m pip install pre-commit \
               --constraint requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt
-          ./scripts/ci/ci_run_static_checks.sh pylint-tests mypy yamllint flake8
+          ./scripts/ci/static_checks/ci_run_static_checks.sh pylint-tests mypy yamllint flake8
 
   static-checks-2:
     timeout-minutes: 60
@@ -95,14 +95,14 @@ jobs:
           path: ~/.cache/pre-commit
           key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image"
-        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Static checks"
         run: |
           python -m pip install pre-commit \
               --constraint requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt
-          ./scripts/ci/ci_run_static_checks.sh
+          ./scripts/ci/static_checks/ci_run_static_checks.sh
 
   docs:
     timeout-minutes: 60
@@ -113,9 +113,9 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
-        run: ./scripts/ci/ci_docs.sh
+        run: ./scripts/ci/docs/ci_docs.sh
 
   build-prod-image:
     timeout-minutes: 60
@@ -130,7 +130,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: "Build PROD image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_prod_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
 
   prepare-backport-packages:
     timeout-minutes: 60
@@ -148,12 +148,12 @@ jobs:
         with:
           python-version: '3.x'
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Prepare & test backport packages"
         run: |
-          ./scripts/ci/ci_prepare_and_test_backport_packages.sh
+          ./scripts/ci/backport_packages/ci_prepare_and_test_backport_packages.sh
 
   trigger-tests:
     timeout-minutes: 10
@@ -166,7 +166,7 @@ jobs:
       - name: "Get count of changed python files"
         run: |
           set +e
-          ./scripts/ci/ci_count_changed_files.sh ${GITHUB_SHA} \
+          ./scripts/ci/tools/ci_count_changed_files.sh ${GITHUB_SHA} \
               '^airflow|.github/workflows/|^Dockerfile|^scripts|^chart|^setup.py|^requirements|^tests|^kubernetes_tests'
           echo "::set-output name=count::$?"
         id: trigger-tests
@@ -209,7 +209,7 @@ jobs:
         with:
           python-version: '3.x'
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - uses: engineerd/setup-kind@v0.4.0
         name: Setup Kind Cluster
         with:
@@ -217,7 +217,7 @@ jobs:
           name: airflow-python-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           config: "scripts/ci/kubernetes/kind-cluster-conf.yaml"
       - name: "Deploy app to cluster"
-        run: ./scripts/ci/ci_deploy_app_to_kubernetes.sh
+        run: ./scripts/ci/kubernetes/ci_deploy_app_to_kubernetes.sh
       - name: Cache virtualenv for kubernetes testing
         uses: actions/cache@v2
         env:
@@ -227,7 +227,7 @@ jobs:
           key: "${{ env.cache-name }}-${{ github.job }}-\
 ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') }}"
       - name: "Tests"
-        run: ./scripts/ci/ci_run_kubernetes_tests.sh
+        run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
       - uses: actions/upload-artifact@v2
         name: Upload KinD logs
         # Always run this, even if one of th previous steps failed.
@@ -262,11 +262,11 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
         with:
           python-version: '3.x'
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
-        run: ./scripts/ci/ci_run_airflow_testing.sh
+        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
 
   tests-mysql:
     timeout-minutes: 80
@@ -294,11 +294,11 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
         with:
           python-version: '3.x'
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
-        run: ./scripts/ci/ci_run_airflow_testing.sh
+        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
 
   tests-sqlite:
     timeout-minutes: 80
@@ -324,11 +324,11 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
         with:
           python-version: '3.x'
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
-        run: ./scripts/ci/ci_run_airflow_testing.sh
+        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
 
   tests-quarantined:
     timeout-minutes: 80
@@ -357,11 +357,11 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
         with:
           python-version: '3.x'
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
-        run: ./scripts/ci/ci_run_airflow_testing.sh
+        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
 
   helm-tests:
     timeout-minutes: 5
@@ -391,11 +391,11 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Generate requirements"
-        run: ./scripts/ci/ci_generate_requirements.sh
+        run: ./scripts/ci/requirements/ci_generate_requirements.sh
 
   push-prod-images-to-github-cache:
     timeout-minutes: 80
@@ -419,11 +419,11 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     steps:
       - uses: actions/checkout@master
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build PROD images ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_prepare_prod_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
       - name: "Push PROD images ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_push_production_images.sh
+        run: ./scripts/ci/images/ci_push_production_images.sh
 
   push-ci-images-to-github-cache:
     timeout-minutes: 40
@@ -451,11 +451,11 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     steps:
       - uses: actions/checkout@master
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image"
-        run: ./scripts/ci/ci_prepare_ci_image_on_ci.sh
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Push CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/ci_push_ci_image.sh
+        run: ./scripts/ci/images/ci_push_ci_image.sh
 
   tag-repo-nightly:
     timeout-minutes: 60
@@ -473,7 +473,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     steps:
       - uses: actions/checkout@master
       - name: "Free space"
-        run: ./scripts/ci/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Tag commit"
         run: |
           BRANCH_NAME=$(echo "${{ github.ref }}" | sed 's/refs\/heads\///')
