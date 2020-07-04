@@ -100,11 +100,6 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'handler': ['console'],
             'level': FAB_LOG_LEVEL,
             'propagate': True,
-        },
-        'connexion': {
-            'handler': ['console'],
-            'level': LOG_LEVEL,
-            'propagate': True,
         }
     },
     'root': {
@@ -112,6 +107,15 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
         'level': LOG_LEVEL,
     }
 }
+
+EXTRA_LOGGER_NAMES: str = conf.get('logging', 'EXTRA_LOGGER_NAMES', fallback=None)
+if EXTRA_LOGGER_NAMES:
+    new_loggers = {
+        logger_name.strip(): {
+            'handler': ['console'], 'level': LOG_LEVEL, 'propagate': True, }
+        for logger_name in EXTRA_LOGGER_NAMES.split(",")
+    }
+    DEFAULT_LOGGING_CONFIG['loggers'].update(new_loggers)
 
 DEFAULT_DAG_PARSING_LOGGING_CONFIG: Dict[str, Dict[str, Dict[str, Any]]] = {
     'handlers': {
