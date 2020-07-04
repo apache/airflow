@@ -50,8 +50,7 @@ class BaseXCom(Base, LoggingMixin):
 
     key = Column(String(512, **COLLATION_ARGS), primary_key=True)
     value = Column(LargeBinary)
-    timestamp = Column(
-        UtcDateTime, default=timezone.utcnow, nullable=False)
+    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     execution_date = Column(UtcDateTime, primary_key=True)
 
     # source information
@@ -64,6 +63,10 @@ class BaseXCom(Base, LoggingMixin):
     """
     @reconstructor
     def init_on_load(self):
+        """
+        Called by the ORM after the instance has been loaded from the DB or otherwise reconstituted
+        i.e automatically deserialize Xcom value when loading from DB.
+        """
         try:
             self.value = XCom.deserialize_value(self)
         except (UnicodeEncodeError, ValueError):
@@ -229,6 +232,7 @@ class BaseXCom(Base, LoggingMixin):
     @classmethod
     @provide_session
     def delete(cls, xcoms, session=None):
+        """Delete Xcom"""
         if isinstance(xcoms, XCom):
             xcoms = [xcoms]
         for xcom in xcoms:
@@ -241,6 +245,7 @@ class BaseXCom(Base, LoggingMixin):
 
     @staticmethod
     def serialize_value(value: Any):
+        """Serialize Xcom value to str or pickled object"""
         # TODO: "pickling" has been deprecated and JSON is preferred.
         # "pickling" will be removed in Airflow 2.0.
         if conf.getboolean('core', 'enable_xcom_pickling'):
@@ -256,6 +261,7 @@ class BaseXCom(Base, LoggingMixin):
 
     @staticmethod
     def deserialize_value(result) -> Any:
+        """Deserialize Xcom value from str or pickle object"""
         # TODO: "pickling" has been deprecated and JSON is preferred.
         # "pickling" will be removed in Airflow 2.0.
         enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')

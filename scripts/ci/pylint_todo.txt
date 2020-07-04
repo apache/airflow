@@ -8,7 +8,6 @@
 ./airflow/models/dagrun.py
 ./airflow/models/kubernetes.py
 ./airflow/models/taskinstance.py
-./airflow/models/xcom.py
 ./airflow/stats.py
 ./airflow/www/utils.py
 ./airflow/www/views.py
