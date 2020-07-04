@@ -85,6 +85,15 @@ def run_command(command):
     return output
 
 
+def _get_config_value_from_secret_backend(config_key):
+    """Get Config option values from Secret Backend"""
+    from airflow import secrets
+    secrets_client = secrets.get_custom_secret_backend()
+    if not secrets_client:
+        return None
+    return secrets_client.get_config(config_key)
+
+
 def _read_default_config_file(file_name: str) -> Tuple[str, str]:
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
@@ -271,6 +280,12 @@ class AirflowConfigParser(ConfigParser):
             # if this is a valid command key...
             if (section, key) in self.sensitive_config_values:
                 return run_command(os.environ[env_var_cmd])
+        # alternatively AIRFLOW__{SECTION}__{KEY}_SECRET (to get from Secrets Backend)
+        env_var_cmd = env_var + '_SECRET'
+        if env_var_cmd in os.environ:
+            # if this is a valid command key...
+            if (section, key) in self.sensitive_config_values:
+                return _get_config_value_from_secret_backend(os.environ[env_var_cmd])
 
     def _get_cmd_option(self, section, key):
         fallback_key = key + '_cmd'
@@ -282,18 +297,12 @@ class AirflowConfigParser(ConfigParser):
 
     def _get_secret_option(self, section, key):
         """Get Config option values from Secret Backend"""
-        from airflow import secrets
-
         fallback_key = key + '_secret'
         # if this is a valid secret key...
         if (section, key) in self.sensitive_config_values:
             if super().has_option(section, fallback_key):
-                secrets_client = secrets.get_custom_secret_backend()
-                if not secrets_client:
-                    return None
-
                 secrets_path = super().get(section, fallback_key)
-                return secrets_client.get_config(secrets_path)
+                return _get_config_value_from_secret_backend(secrets_path)
 
     def get(self, section, key, **kwargs):
         section = str(section).lower()
