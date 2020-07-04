@@ -20,7 +20,7 @@
 Add DagRun run_type
 
 Revision ID: 3c20cacc0044
-Revises: 952da73b5eff
+Revises: b25a55525161
 Create Date: 2020-04-08 13:35:25.671327
 
 """
@@ -38,7 +38,7 @@ from airflow.utils.types import DagRunType
 
 # revision identifiers, used by Alembic.
 revision = "3c20cacc0044"
-down_revision = "952da73b5eff"
+down_revision = "b25a55525161"
 branch_labels = None
 depends_on = None
 

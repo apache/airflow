@@ -19,7 +19,7 @@
 """Remove id column from xcom
 
 Revision ID: bbf4a7ad0465
-Revises: 004c1210f153
+Revises: cf5dc11e79ad
 Create Date: 2019-10-29 13:53:09.445943
 
 """
@@ -29,7 +29,7 @@ from sqlalchemy import Column, Integer
 
 # revision identifiers, used by Alembic.
 revision = 'bbf4a7ad0465'
-down_revision = '004c1210f153'
+down_revision = 'cf5dc11e79ad'
 branch_labels = None
 depends_on = None
 
