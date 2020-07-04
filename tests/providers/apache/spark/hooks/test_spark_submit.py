@@ -754,42 +754,38 @@ class TestSparkSubmitHook(unittest.TestCase):
     @parameterized.expand(
         (
             (
-                ("spark-submit", "foo", "--bar", "baz", "--password='secret'"),
-                "spark-submit foo --bar baz --password='******'",
-            ),
-            (
-                ("spark-submit", "foo", "--bar", "baz", "--secret='secret'"),
-                "spark-submit foo --bar baz --secret='******'",
-            ),
-            (
-                ("spark-submit", "foo", "--bar", "baz", "--foo.password='secret'"),
-                "spark-submit foo --bar baz --foo.password='******'",
-            ),
-            (
-                ("spark-submit", "foo", "--bar", "baz", "--foo.password='secret'"),
-                "spark-submit foo --bar baz --foo.password='******'",
-            ),
-            (
                 ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo", "bar"),
                 "spark-submit foo --bar baz --password='******' --foo bar",
             ),
             (
-                ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo=bar"),
-                "spark-submit foo --bar baz --password='******' --foo=bar",
+                ("spark-submit", "foo", "--bar", "baz", "--password='secret'"),
+                "spark-submit foo --bar baz --password='******'",
             ),
             (
-                ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo='bar'"),
-                "spark-submit foo --bar baz --password='******' --foo='bar'",
+                ("spark-submit", "foo", "--bar", "baz", '--password="secret"'),
+                'spark-submit foo --bar baz --password="******"',
             ),
             (
-                ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "bar"),
-                "spark-submit foo --bar baz --password='******' bar",
+                ("spark-submit", "foo", "--bar", "baz", '--password=secret'),
+                'spark-submit foo --bar baz --password=******',
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", "--password 'secret'"),
+                "spark-submit foo --bar baz --password '******'",
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", "--password='sec\"ret'"),
+                "spark-submit foo --bar baz --password='******'",
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", '--password="sec\'ret"'),
+                'spark-submit foo --bar baz --password="******"',
             ),
             (
                 ("spark-submit",),
                 "spark-submit",
             ),
-        ),
+        )
     )
     def test_masks_passwords(self, command: str, expected: str) -> None:
         # Given
