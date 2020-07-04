@@ -17,7 +17,6 @@
 # under the License.
 
 import copy
-import json
 import logging
 import multiprocessing
 import os
@@ -34,7 +33,6 @@ from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # 
 from typing import Dict, Optional, Tuple, Union
 
 import yaml
-from cached_property import cached_property
 from cryptography.fernet import Fernet
 
 from airflow.exceptions import AirflowConfigException
@@ -282,35 +280,18 @@ class AirflowConfigParser(ConfigParser):
                 command = super().get(section, fallback_key)
                 return run_command(command)
 
-    @cached_property
-    def _secrets_backend_client(self):
-        if super().has_option('secrets', 'backend') is False:
-            return None
-
-        secrets_backend_cls = super().get('secrets', 'backend')
-        if not secrets_backend_cls:
-            return None
-        print("secrets_backend_cls", secrets_backend_cls)
-        secrets_backend = import_string(secrets_backend_cls)
-        if secrets_backend:
-            try:
-                alternative_secrets_config_dict = json.loads(
-                    super().get('secrets', 'backend_kwargs', fallback='{}')
-                )
-            except json.JSONDecodeError:
-                alternative_secrets_config_dict = {}
-            return secrets_backend(**alternative_secrets_config_dict)
-
     def _get_secret_option(self, section, key):
         """Get Config option values from Secret Backend"""
-        secrets_client = self._secrets_backend_client
-        print("S clinet", secrets_client)
-        if not secrets_client:
-            return None
+        from airflow import secrets
+
         fallback_key = key + '_secret'
         # if this is a valid secret key...
         if (section, key) in self.sensitive_config_values:
             if super().has_option(section, fallback_key):
+                secrets_client = secrets.get_custom_secret_backend()
+                if not secrets_client:
+                    return None
+
                 secrets_path = super().get(section, fallback_key)
                 return secrets_client.get_config(secrets_path)
 

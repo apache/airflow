@@ -204,6 +204,10 @@ key6 = value6
         self.assertEqual('printf key4_result', cfg_dict['test']['key4_cmd'])
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @conf_vars({
+        ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+        ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+    })
     def test_config_from_secret_backend(self, mock_hvac):
         """Get Config Value from a Secret Backend"""
         mock_client = mock.MagicMock()
@@ -225,10 +229,6 @@ key6 = value6
 
         test_config = '''[test]
 sql_alchemy_conn_secret = sql_alchemy_conn
-
-[secrets]
-backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
-backend_kwargs = {"configs_path": "configs","url": "http://127.0.0.1:8200", "token": "token"}
 '''
         test_config_default = '''[test]
 sql_alchemy_conn = airflow
