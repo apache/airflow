@@ -22,6 +22,7 @@ This module contains Google BigQuery operators.
 """
 import enum
 import json
+import re
 import warnings
 from time import sleep, time
 from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
@@ -1702,8 +1703,8 @@ class BigQueryInsertJobOperator(BaseOperator):
             delegate_to=self.delegate_to,
         )
 
-        exec_date = context['execution_date'].isoformat()
-        job_id = self.job_id or f"airflow_{self.dag_id}_{self.task_id}_{exec_date}"
+        exec_date = re.sub("\:|\-|\+", "_", context['execution_date'].isoformat())
+        job_id = self.job_id or f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_"
 
         try:
             # Submit a new job
@@ -1723,11 +1724,7 @@ class BigQueryInsertJobOperator(BaseOperator):
                 job = self._submit_job(hook, job_id)
             elif not job.done():
                 # The job is still running so wait for it to be ready
-                for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
-                    sleep(time_to_wait)
-                    job.reload()
-                    if job.done():
-                        break
+                job.result()
 
         if job.error_result:
             raise AirflowException(f"BigQuery job {job_id} failed: {job.error_result}")
