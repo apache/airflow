@@ -27,11 +27,22 @@
 
 get_environment_for_builds_on_ci
 
+if [[ ${CI_EVENT_TYPE} == "push" ]]; then
+    echo
+    echo "Always run all tests on push"
+    echo
+    exit 1
+fi
+
 git remote add target "https://github.com/${CI_TARGET_REPO}"
 
 git fetch target "${CI_TARGET_BRANCH}:${CI_TARGET_BRANCH}" --depth=1
 
-CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${1}" "${CI_TARGET_BRANCH}" || true)
+echo
+echo "Retrieve changed files from ${GITHUB_SHA} comparing to ${CI_TARGET_BRANCH}"
+echo
+
+CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${GITHUB_SHA}" "${CI_TARGET_BRANCH}" || true)
 
 echo
 echo "Changed files:"
@@ -40,13 +51,13 @@ echo "${CHANGED_FILES}"
 echo
 
 echo
-echo "Changed files matching the ${2} pattern"
+echo "Changed files matching the ${1} pattern"
 echo
-echo "${CHANGED_FILES}" | grep -E "${2}" || true
+echo "${CHANGED_FILES}" | grep -E "${1}" || true
 echo
 
 echo
-echo "Count changed files matching the ${2} pattern"
+echo "Count changed files matching the ${1} pattern"
 echo
 COUNT_CHANGED_FILES=$(echo "${CHANGED_FILES}" | grep -c -E "${2}" || true)
 echo "${COUNT_CHANGED_FILES}"
