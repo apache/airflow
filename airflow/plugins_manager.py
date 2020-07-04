@@ -29,7 +29,8 @@ from typing import Any, Dict, List, Optional, Type
 
 import pkg_resources
 
-from airflow import settings
+from airflow import settings  # type: ignore
+from airflow.utils.file import find_path_from_directory  # type: ignore
 
 log = logging.getLogger(__name__)
 
@@ -158,40 +159,37 @@ def load_entrypoint_plugins():
 
 def load_plugins_from_plugin_directory():
     """
-    Load and register Airflow Plugins from plugins directory.
+    Load and register Airflow Plugins from plugins directory
     """
     global import_errors  # pylint: disable=global-statement
     global plugins  # pylint: disable=global-statement
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
-    # Crawl through the plugins folder to find AirflowPlugin derivatives
-    for root, _, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):  # noqa # pylint: disable=too-many-nested-blocks
-        for f in files:
-            filepath = os.path.join(root, f)
-            try:
-                if not os.path.isfile(filepath):
-                    continue
-                mod_name, file_ext = os.path.splitext(
-                    os.path.split(filepath)[-1])
-                if file_ext != '.py':
-                    continue
+    for file_path in find_path_from_directory(
+            settings.PLUGINS_FOLDER, ".airflowignore"):
 
-                log.debug('Importing plugin module %s', filepath)
+        if not os.path.isfile(file_path):
+            continue
+        mod_name, file_ext = os.path.splitext(os.path.split(file_path)[-1])
+        if file_ext != '.py':
+            continue
 
-                loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
-                spec = importlib.util.spec_from_loader(mod_name, loader)
-                mod = importlib.util.module_from_spec(spec)
-                sys.modules[spec.name] = mod
-                loader.exec_module(mod)
-                for mod_attr_value in list(mod.__dict__.values()):
-                    if is_valid_plugin(mod_attr_value):
-                        plugin_instance = mod_attr_value()
-                        plugins.append(plugin_instance)
-            except Exception as e:  # pylint: disable=broad-except
-                log.exception(e)
-                path = filepath or str(f)
-                log.error('Failed to import plugin %s', path)
-                import_errors[path] = str(e)
+        try:
+            loader = importlib.machinery.SourceFileLoader(mod_name, file_path)
+            spec = importlib.util.spec_from_loader(mod_name, loader)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = mod
+            loader.exec_module(mod)
+            log.debug('Importing plugin module %s', file_path)
+
+            for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
+                plugin_instance = mod_attr_value()
+                plugins.append(plugin_instance)
+
+        except Exception as e:  # pylint: disable=broad-except
+            log.exception(e)
+            log.error('Failed to import plugin %s', file_path)
+            import_errors[file_path] = str(e)
 
 
 # pylint: disable=protected-access

@@ -20,9 +20,9 @@ import logging
 import os
 import re
 import zipfile
-from typing import Dict, List, Optional, Pattern
+from typing import Dict, Generator, List, Optional, Pattern
 
-from airflow.configuration import conf
+from airflow.configuration import conf  # type: ignore
 
 log = logging.getLogger(__name__)
 
@@ -90,6 +90,47 @@ def open_maybe_zipped(fileloc, mode='r'):
         return io.open(fileloc, mode=mode)
 
 
+def find_path_from_directory(
+        base_dir_path: str,
+        ignore_file_name: str) -> Generator[str, None, None]:
+    """
+    Search the file and return the path of the file that should not be ignored.
+    :param base_dir_path: the base path to be searched for.
+    :param ignore_file_name: the file name in which specifies a regular expression pattern is written.
+
+    :return : file path not to be ignored.
+    """
+
+    patterns_by_dir: Dict[str, List[Pattern[str]]] = {}
+
+    for root, dirs, files in os.walk(str(base_dir_path), followlinks=True):
+        patterns: List[Pattern[str]] = patterns_by_dir.get(root, [])
+
+        ignore_file_path = os.path.join(root, ignore_file_name)
+        if os.path.isfile(ignore_file_path):
+            with open(ignore_file_path, 'r') as file:
+                lines_no_comments = [re.sub(r"\s*#.*", "", line) for line in file.read().split("\n")]
+                patterns += [re.compile(line) for line in lines_no_comments if line]
+                patterns = list(set(patterns))
+
+        dirs[:] = [
+            subdir
+            for subdir in dirs
+            if not any(p.search(
+                os.path.join(os.path.relpath(root, str(base_dir_path)), subdir)) for p in patterns)
+        ]
+
+        patterns_by_dir = {os.path.join(root, sd): patterns.copy() for sd in dirs}
+
+        for file in files:  # type: ignore
+            if file == ignore_file_name:
+                continue
+            file_path = os.path.join(root, str(file))
+            if any(re.findall(p, file_path) for p in patterns):
+                continue
+            yield str(file_path)
+
+
 def list_py_file_paths(directory: str,
                        safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE', fallback=True),
                        include_examples: Optional[bool] = None):
@@ -116,59 +157,32 @@ def list_py_file_paths(directory: str,
     elif os.path.isfile(directory):
         return [directory]
     elif os.path.isdir(directory):
-        patterns_by_dir: Dict[str, List[Pattern[str]]] = {}
-        for root, dirs, files in os.walk(directory, followlinks=True):
-            patterns: List[Pattern[str]] = patterns_by_dir.get(root, [])
-            ignore_file = os.path.join(root, '.airflowignore')
-            if os.path.isfile(ignore_file):
-                with open(ignore_file, 'r') as file:
-                    # If we have new patterns create a copy so we don't change
-                    # the previous list (which would affect other subdirs)
-                    lines_no_comments = [COMMENT_PATTERN.sub("", line) for line in file.read().split("\n")]
-                    patterns += [re.compile(line) for line in lines_no_comments if line]
-
-            # If we can ignore any subdirs entirely we should - fewer paths
-            # to walk is better. We have to modify the ``dirs`` array in
-            # place for this to affect os.walk
-            dirs[:] = [
-                subdir
-                for subdir in dirs
-                if not any(p.search(os.path.join(root, subdir)) for p in patterns)
-            ]
-
-            # We want patterns defined in a parent folder's .airflowignore to
-            # apply to subdirs too
-            for subdir in dirs:
-                patterns_by_dir[os.path.join(root, subdir)] = patterns.copy()
-
-            find_dag_file_paths(file_paths, files, patterns, root, safe_mode)
+        find_dag_file_paths(directory, file_paths, safe_mode)
     if include_examples:
-        from airflow import example_dags
+        from airflow import example_dags  # type: ignore
         example_dag_folder = example_dags.__path__[0]  # type: ignore
         file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False))
     return file_paths
 
 
-def find_dag_file_paths(file_paths, files, patterns, root, safe_mode):
+def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
     """Finds file paths of all DAG files."""
-    for f in files:
+
+    for file_path in find_path_from_directory(
+            directory, ".airflowignore"):
         # noinspection PyBroadException
         try:
-            file_path = os.path.join(root, f)
             if not os.path.isfile(file_path):
                 continue
             _, file_ext = os.path.splitext(os.path.split(file_path)[-1])
             if file_ext != '.py' and not zipfile.is_zipfile(file_path):
                 continue
-            if any([re.findall(p, file_path) for p in patterns]):
-                continue
-
             if not might_contain_dag(file_path, safe_mode):
                 continue
 
             file_paths.append(file_path)
         except Exception:  # pylint: disable=broad-except
-            log.exception("Error while examining %s", f)
+            log.exception("Error while examining %s", file_path)
 
 
 COMMENT_PATTERN = re.compile(r"\s*#.*")
