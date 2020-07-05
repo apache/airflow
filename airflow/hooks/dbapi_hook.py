@@ -182,11 +182,12 @@ class DbApiHook(BaseHook):
 
             with closing(conn.cursor()) as cur:
                 for sql_statement in sql:
+                    self.log.info("Executing SQL Query")
                     if parameters is not None:
-                        self.log.info("%s with parameters %s", sql_statement, parameters)
+                        self.log.debug("%s with parameters %s", sql_statement, parameters)
                         cur.execute(sql_statement, parameters)
                     else:
-                        self.log.info(sql_statement)
+                        self.log.debug(sql_statement)
                         cur.execute(sql_statement)
 
             # If autocommit was set to False for db that supports autocommit,
