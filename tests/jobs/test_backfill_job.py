@@ -82,11 +82,17 @@ class TestBackfillJob(unittest.TestCase):
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
 
-    def setUp(self):
+    @staticmethod
+    def clean_db():
         clear_db_runs()
         clear_db_pools()
 
+    def setUp(self):
+        self.clean_db()
         self.parser = cli_parser.get_parser()
+
+    def tearDown(self) -> None:
+        self.clean_db()
 
     def test_unfinished_dag_runs_set_to_failed(self):
         dag = self._get_dummy_dag('dummy_dag')

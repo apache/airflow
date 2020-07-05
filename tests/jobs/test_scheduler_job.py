@@ -55,7 +55,8 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
-    clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
+    clear_db_dags, clear_db_errors, clear_db_jobs, clear_db_pools, clear_db_runs, clear_db_sla_miss,
+    set_default_pool_slots,
 )
 from tests.test_utils.mock_executor import MockExecutor
 
@@ -88,23 +89,25 @@ def disable_load_example():
 
 @pytest.mark.usefixtures("disable_load_example")
 class TestDagFileProcessor(unittest.TestCase):
-    def setUp(self):
+
+    @staticmethod
+    def clean_db():
         clear_db_runs()
         clear_db_pools()
         clear_db_dags()
         clear_db_sla_miss()
         clear_db_errors()
+        clear_db_jobs()
+
+    def setUp(self):
+        self.clean_db()
 
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
         self.null_exec = MockExecutor()
 
     def tearDown(self) -> None:
-        clear_db_runs()
-        clear_db_pools()
-        clear_db_dags()
-        clear_db_sla_miss()
-        clear_db_errors()
+        self.clean_db()
 
     def create_test_dag(self, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + timedelta(hours=1), **kwargs):
         dag = DAG(

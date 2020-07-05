@@ -31,6 +31,7 @@ from airflow.models import DagBag, DagModel
 from airflow.utils.session import create_session
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_dags
 
 
 class TestDagBag(unittest.TestCase):
@@ -41,6 +42,12 @@ class TestDagBag(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.empty_dir)
+
+    def setUp(self) -> None:
+        clear_db_dags()
+
+    def tearDown(self) -> None:
+        clear_db_dags()
 
     def test_get_existing_dag(self):
         """

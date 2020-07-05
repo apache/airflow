@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.jobs.base_job import BaseJob
 from airflow.models import (
-    Connection, DagModel, DagRun, DagTag, Pool, RenderedTaskInstanceFields, SlaMiss, TaskInstance, Variable,
-    XCom, errors,
+    Connection, DagModel, DagRun, DagTag, Log, Pool, RenderedTaskInstanceFields, SlaMiss, TaskFail,
+    TaskInstance, TaskReschedule, Variable, XCom, errors,
 )
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
@@ -93,3 +94,23 @@ def clear_db_import_errors():
 def clear_db_xcom():
     with create_session() as session:
         session.query(XCom).delete()
+
+
+def clear_db_logs():
+    with create_session() as session:
+        session.query(Log).delete()
+
+
+def clear_db_jobs():
+    with create_session() as session:
+        session.query(BaseJob).delete()
+
+
+def clear_db_task_fail():
+    with create_session() as session:
+        session.query(TaskFail).delete()
+
+
+def clear_db_task_reschedule():
+    with create_session() as session:
+        session.query(TaskReschedule).delete()

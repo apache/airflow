@@ -21,9 +21,10 @@ from parameterized import parameterized
 
 from airflow.models import DagRun as DR, XCom
 from airflow.utils.dates import parse_execution_date
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.db import clear_db_runs, clear_db_xcom
 
 
 class TestXComEndpoint(unittest.TestCase):
@@ -32,23 +33,24 @@ class TestXComEndpoint(unittest.TestCase):
         super().setUpClass()
         cls.app = app.create_app(testing=True)  # type:ignore
 
+    @staticmethod
+    def clean_db():
+        clear_db_runs()
+        clear_db_xcom()
+
     def setUp(self) -> None:
         """
         Setup For XCom endpoint TC
         """
         self.client = self.app.test_client()  # type:ignore
         # clear existing xcoms
-        with create_session() as session:
-            session.query(XCom).delete()
-            session.query(DR).delete()
+        self.clean_db()
 
     def tearDown(self) -> None:
         """
         Clear Hanging XComs
         """
-        with create_session() as session:
-            session.query(XCom).delete()
-            session.query(DR).delete()
+        self.clean_db()
 
 
 class TestDeleteXComEntry(TestXComEndpoint):
