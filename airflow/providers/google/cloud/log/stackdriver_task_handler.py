@@ -144,7 +144,7 @@ class StackdriverTaskHandler(logging.Handler):
         Configures the logger to add information with information about the current task
 
         :param task_instance: Currently executed task
-        :type task_instance:  :class: airflow.models.TaskInstance
+        :type task_instance:  :class:`airflow.models.TaskInstance`
         """
         self.task_instance_labels = self._task_instance_to_labels(task_instance)
 
@@ -155,7 +155,7 @@ class StackdriverTaskHandler(logging.Handler):
         Read logs of given task instance from Stackdriver logging.
 
         :param task_instance: task instance object
-        :type task_instance: :class: airflow.models.TaskInstance
+        :type task_instance: :class:`airflow.models.TaskInstance`
         :param try_number: task instance try_number to read logs from. If None
            it returns all logs
         :type try_number: Optional[int]
