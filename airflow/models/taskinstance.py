@@ -986,7 +986,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
     @provide_session
     @Sentry.enrich_errors
-    def _run_raw_task(  # pylint: disable=too-many-statements
+    def _run_raw_task(
             self,
             mark_success: bool = False,
             test_mode: bool = False,
@@ -1024,80 +1024,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         try:    # pylint: disable=too-many-nested-blocks
             if not mark_success:
                 context = self.get_template_context()
-
-                task_copy = task.prepare_for_execution()
-
-                # Sensors in `poke` mode can block execution of DAGs when running
-                # with single process executor, thus we change the mode to`reschedule`
-                # to allow parallel task being scheduled and executed
-                if isinstance(task_copy, BaseSensorOperator) and \
-                        conf.get('core', 'executor') == "DebugExecutor":
-                    self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
-                    task_copy.mode = 'reschedule'
-
-                self.task = task_copy
-
-                def signal_handler(signum, frame):  # pylint: disable=unused-argument
-                    self.log.error("Received SIGTERM. Terminating subprocesses.")
-                    task_copy.on_kill()
-                    raise AirflowException("Task received SIGTERM signal")
-                signal.signal(signal.SIGTERM, signal_handler)
-
-                # Don't clear Xcom until the task is certain to execute
-                self.clear_xcom_data()
-
-                start_time = time.time()
-
-                self.render_templates(context=context)
-                if STORE_SERIALIZED_DAGS:
-                    RTIF.write(RTIF(ti=self, render_templates=False), session=session)
-                    RTIF.delete_old_records(self.task_id, self.dag_id, session=session)
-
-                # Export context to make it available for operators to use.
-                airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-                self.log.info("Exporting the following env vars:\n%s",
-                              '\n'.join(["{}={}".format(k, v)
-                                         for k, v in airflow_context_vars.items()]))
-                os.environ.update(airflow_context_vars)
-                task_copy.pre_execute(context=context)
-
-                try:
-                    if task.on_execute_callback:
-                        task.on_execute_callback(context)
-                except Exception as exc:     # pylint: disable=broad-except
-                    self.log.error("Failed when executing execute callback")
-                    self.log.exception(exc)
-
-                # If a timeout is specified for the task, make it fail
-                # if it goes beyond
-                if task_copy.execution_timeout:
-                    try:
-                        with timeout(int(
-                                task_copy.execution_timeout.total_seconds())):
-                            result = task_copy.execute(context=context)
-                    except AirflowTaskTimeout:
-                        task_copy.on_kill()
-                        raise
-                else:
-                    result = task_copy.execute(context=context)
-
-                # If the task returns a result, push an XCom containing it
-                if task_copy.do_xcom_push and result is not None:
-                    self.xcom_push(key=XCOM_RETURN_KEY, value=result)
-
-                task_copy.post_execute(context=context, result=result)
-
-                end_time = time.time()
-                duration = end_time - start_time
-                Stats.timing(
-                    'dag.{dag_id}.{task_id}.duration'.format(
-                        dag_id=task_copy.dag_id,
-                        task_id=task_copy.task_id),
-                    duration)
-
-                Stats.incr('operator_successes_{}'.format(
-                    self.task.__class__.__name__), 1, 1)
-                Stats.incr('ti_successes')
+                self._prepare_and_execute_task_with_callbacks(context, session, task)
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
         except AirflowSkipException as e:
@@ -1139,13 +1066,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         finally:
             Stats.incr('ti.finish.{}.{}.{}'.format(task.dag_id, task.task_id, self.state))
 
-        # Success callback
-        try:
-            if task.on_success_callback:
-                task.on_success_callback(context)
-        except Exception as exc:     # pylint: disable=broad-except
-            self.log.error("Failed when executing success callback")
-            self.log.exception(exc)
+        self._run_success_callback(context, task)
 
         # Recording SUCCESS
         self.end_date = timezone.utcnow()
@@ -1163,6 +1084,106 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             session.add(Log(self.state, self))
             session.merge(self)
         session.commit()
+
+    def _prepare_and_execute_task_with_callbacks(self, context, session, task):
+        """
+        Prepare Task for Execution
+        """
+        from airflow.sensors.base_sensor_operator import BaseSensorOperator
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+
+        task_copy = task.prepare_for_execution()
+        # Sensors in `poke` mode can block execution of DAGs when running
+        # with single process executor, thus we change the mode to`reschedule`
+        # to allow parallel task being scheduled and executed
+        if (
+            isinstance(task_copy, BaseSensorOperator) and
+            conf.get('core', 'executor') == "DebugExecutor"
+        ):
+            self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
+            task_copy.mode = 'reschedule'
+        self.task = task_copy
+
+        def signal_handler(signum, frame):  # pylint: disable=unused-argument
+            self.log.error("Received SIGTERM. Terminating subprocesses.")
+            task_copy.on_kill()
+            raise AirflowException("Task received SIGTERM signal")
+
+        signal.signal(signal.SIGTERM, signal_handler)
+
+        # Don't clear Xcom until the task is certain to execute
+        self.clear_xcom_data()
+        start_time = time.time()
+
+        self.render_templates(context=context)
+        if STORE_SERIALIZED_DAGS:
+            RTIF.write(RTIF(ti=self, render_templates=False), session=session)
+            RTIF.delete_old_records(self.task_id, self.dag_id, session=session)
+
+        # Export context to make it available for operators to use.
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        self.log.info("Exporting the following env vars:\n%s",
+                      '\n'.join(["{}={}".format(k, v)
+                                 for k, v in airflow_context_vars.items()]))
+
+        os.environ.update(airflow_context_vars)
+
+        # Run pre_execute callback
+        task_copy.pre_execute(context=context)
+
+        # Run on_execute callback
+        self._run_execute_callback(context, task)
+
+        # Execute the task
+        result = self._execute_task(context, task_copy)
+
+        # Run post_execute callback
+        task_copy.post_execute(context=context, result=result)
+
+        end_time = time.time()
+        duration = end_time - start_time
+        Stats.timing('dag.{dag_id}.{task_id}.duration'.format(dag_id=task_copy.dag_id,
+                                                              task_id=task_copy.task_id),
+                     duration)
+        Stats.incr('operator_successes_{}'.format(self.task.__class__.__name__), 1, 1)
+        Stats.incr('ti_successes')
+
+    def _run_success_callback(self, context, task):
+        """Functions that need to be run if Task is successful"""
+        # Success callback
+        try:
+            if task.on_success_callback:
+                task.on_success_callback(context)
+        except Exception as exc:  # pylint: disable=broad-except
+            self.log.error("Failed when executing success callback")
+            self.log.exception(exc)
+
+    def _execute_task(self, context, task_copy):
+        """Executes Task (optionally with a Timeout) and pushes Xcom results"""
+        # If a timeout is specified for the task, make it fail
+        # if it goes beyond
+        if task_copy.execution_timeout:
+            try:
+                with timeout(int(task_copy.execution_timeout.total_seconds())):
+                    result = task_copy.execute(context=context)
+            except AirflowTaskTimeout:
+                task_copy.on_kill()
+                raise
+        else:
+            result = task_copy.execute(context=context)
+        # If the task returns a result, push an XCom containing it
+        if task_copy.do_xcom_push and result is not None:
+            self.xcom_push(key=XCOM_RETURN_KEY, value=result)
+        return result
+
+    def _run_execute_callback(self, context, task):
+        """Functions that need to be run before a Task is executed"""
+        try:
+            if task.on_execute_callback:
+                task.on_execute_callback(context)
+        except Exception as exc:  # pylint: disable=broad-except
+            self.log.error("Failed when executing execute callback")
+            self.log.exception(exc)
 
     @provide_session
     def run(  # pylint: disable=too-many-arguments
