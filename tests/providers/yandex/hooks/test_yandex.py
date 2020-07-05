@@ -58,8 +58,8 @@ class TestYandexHook(unittest.TestCase):
         extra_dejson = '{"extras": "extra"}'
         get_connection_mock['extra_dejson'] = "sdsd"
         get_connection_mock.extra_dejson = '{"extras": "extra"}'
-        get_connection_mock.return_value = mock.Mock\
-            (connection_id='yandexcloud_default', extra_dejson=extra_dejson)
+        get_connection_mock.return_value = mock.Mock(connection_id='yandexcloud_default',
+                                                     extra_dejson=extra_dejson)
 
         self.assertRaises(AirflowException, YandexCloudBaseHook, None,
                           default_folder_id, default_public_ssh_key)
