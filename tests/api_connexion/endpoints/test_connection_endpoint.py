@@ -34,7 +34,7 @@ class TestConnectionEndpoint(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
         # we want only the connection created here for this test
-        clear_db_connections()
+        clear_db_connections(False)
 
     def tearDown(self) -> None:
         clear_db_connections()
