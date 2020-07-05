@@ -19,7 +19,7 @@ import unittest
 from parameterized import parameterized
 
 from airflow.models import Connection
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import provide_session
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections
@@ -34,8 +34,7 @@ class TestConnectionEndpoint(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
         # we want only the connection created here for this test
-        with create_session() as session:
-            session.query(Connection).delete()
+        clear_db_connections()
 
     def tearDown(self) -> None:
         clear_db_connections()
