@@ -144,21 +144,14 @@ class DagBag(BaseDagBag, LoggingMixin):
             if dag.is_subdag:
                 root_dag_id = dag.parent_dag.dag_id
 
-        # Needs to load from file for a store_serialized_dags dagbag.
-        enforce_from_file = False
-        if self.store_serialized_dags and dag is not None:
-            from airflow.serialization.serialized_objects import SerializedDAG
-            enforce_from_file = isinstance(dag, SerializedDAG)
-
         # If the dag corresponding to root_dag_id is absent or expired
         orm_dag = DagModel.get_current(root_dag_id)
-        if (orm_dag and (
-                root_dag_id not in self.dags or
-                (
-                    orm_dag.last_expired and
-                    dag.last_loaded < orm_dag.last_expired
-                )
-        )) or enforce_from_file:
+        if not orm_dag:
+            return self.dags.get(dag_id)
+
+        is_missing = root_dag_id not in self.dags
+        is_expired = (orm_dag.last_expired and dag.last_loaded < orm_dag.last_expired)
+        if is_missing or is_expired:
             # Reprocess source file
             found_dags = self.process_file(
                 filepath=correct_maybe_zipped(orm_dag.fileloc), only_if_updated=False)
