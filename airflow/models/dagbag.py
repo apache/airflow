@@ -196,16 +196,16 @@ class DagBag(BaseDagBag, LoggingMixin):
             return []
 
         if not zipfile.is_zipfile(filepath):
-            mods = self._load_modules_from_file(filepath, file_last_changed_on_disk, safe_mode)
+            mods = self._load_modules_from_file(filepath, safe_mode)
         else:
-            mods = self._load_modules_from_zip(filepath, file_last_changed_on_disk, safe_mode)
+            mods = self._load_modules_from_zip(filepath, safe_mode)
 
         found_dags = self._process_modules(filepath, mods, file_last_changed_on_disk)
 
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
 
-    def _load_modules_from_file(self, filepath, file_last_changed_on_disk, safe_mode):
+    def _load_modules_from_file(self, filepath, safe_mode):
         if not might_contain_dag(filepath, safe_mode):
             # Don't want to spam user with skip messages
             if not self.has_logged:
@@ -234,7 +234,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 self.import_errors[filepath] = str(e)
         return []
 
-    def _load_modules_from_zip(self, filepath, file_last_changed_on_disk, safe_mode):
+    def _load_modules_from_zip(self, filepath, safe_mode):
         mods = []
         current_zip_file = zipfile.ZipFile(filepath)
         for zip_info in current_zip_file.infolist():
@@ -271,7 +271,6 @@ class DagBag(BaseDagBag, LoggingMixin):
             except Exception as e:  # pylint: disable=broad-except
                 self.log.exception("Failed to import: %s", filepath)
                 self.import_errors[filepath] = str(e)
-                self.file_last_changed[filepath] = file_last_changed_on_disk
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
