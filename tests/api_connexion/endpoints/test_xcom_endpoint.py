@@ -16,7 +16,6 @@
 # under the License.
 import unittest
 
-import pytest
 from parameterized import parameterized
 
 from airflow.models import DagRun as DR, XCom
@@ -49,15 +48,6 @@ class TestXComEndpoint(unittest.TestCase):
         with create_session() as session:
             session.query(XCom).delete()
             session.query(DR).delete()
-
-
-class TestDeleteXComEntry(TestXComEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.delete(
-            "/dags/TEST_DAG_ID/taskInstances/TEST_TASK_ID/2005-04-02T00:00:00Z/xcomEntries/XCOM_KEY"
-        )
-        assert response.status_code == 204
 
 
 class TestGetXComEntry(TestXComEndpoint):
@@ -243,21 +233,3 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
             dag_id=self.dag_id,
             timestamp=self.execution_date_parsed,
         ) for i in range(1, count + 1)]
-
-
-class TestPatchXComEntry(TestXComEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.patch(
-            "/dags/TEST_DAG_ID/taskInstances/TEST_TASK_ID/2005-04-02T00:00:00Z/xcomEntries"
-        )
-        assert response.status_code == 200
-
-
-class TestPostXComEntry(TestXComEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.post(
-            "/dags/TEST_DAG_ID/taskInstances/TEST_TASK_ID/2005-04-02T00:00:00Z/xcomEntries/XCOM_KEY"
-        )
-        assert response.status_code == 200

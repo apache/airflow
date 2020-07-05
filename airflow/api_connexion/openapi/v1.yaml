@@ -841,31 +841,6 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-    post:
-      summary: Create an XCom entry
-      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
-      operationId: post_xcom_entries
-      tags: [XCom]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/XCom'
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/XCom'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -891,51 +866,6 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
-
-    patch:
-      summary: Update an XCom entry
-      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
-      operationId: patch_xcom_entry
-      tags: [XCom]
-      parameters:
-        - $ref: '#/components/parameters/UpdateMask'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/XCom'
-
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/XCom'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    delete:
-      summary: Delete an XCom entry
-      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
-      operationId: delete_xcom_entry
-      tags: [XCom]
-      responses:
-        '204':
-          description: No content.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
 
   # Non-database resources
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links:
