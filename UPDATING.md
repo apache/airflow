@@ -61,7 +61,7 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
-### StackdriverTaskHandler has moved
+### StackdriverTaskHandler has been moved
 The `StackdriverTaskHandler` class from `airflow.utils.log.stackdriver_task_handler` has been moved to
 `airflow.providers.google.cloud.log.stackdriver_task_handler`. This is because it has items specific to `google cloud`.
 
@@ -69,11 +69,11 @@ The `StackdriverTaskHandler` class from `airflow.utils.log.stackdriver_task_hand
 The `S3TaskHandler` class from `airflow.utils.log.s3_task_handler` has been moved to
 `airflow.providers.amazon.aws.log.s3_task_handler`. This is because it has items specific to `aws`.
 
-### ElasticsearchTaskHandler has moved
+### ElasticsearchTaskHandler has been moved
 The `ElasticsearchTaskHandler` class from `airflow.utils.log.es_task_handler` has been moved to
 `airflow.providers.elasticsearch.log.es_task_handler`. This is because it has items specific to `elasticsearch`.
 
-### CloudwatchTaskHandler have moved
+### CloudwatchTaskHandler has been  moved
 The `CloudwatchTaskHandler` class from `airflow.utils.log.cloudwatch_task_handler` has been moved to
 `airflow.providers.amazon.aws.log.cloudwatch_task_handler`. This is because it has items specific to `aws`.
 
