@@ -140,7 +140,6 @@ class TestDagBag(unittest.TestCase):
                 cm.output
             )
 
-
     def test_zip(self):
         """
         test the loading of a DAG within a zip file that includes dependencies
