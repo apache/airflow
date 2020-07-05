@@ -49,7 +49,7 @@ class DebugExecutor(BaseExecutor):
         self.tasks_params: Dict[TaskInstanceKeyType, Dict[str, Any]] = {}
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
-    def execute_async(self, *args, **kwargs) -> None:
+    def execute_async(self, *args, **kwargs) -> None:   # pylint: disable=signature-differs
         """
         The method is replaced by custom trigger_task implementation.
         """

@@ -32,23 +32,24 @@ from sqlalchemy.pool import NullPool
 
 # noinspection PyUnresolvedReferences
 from airflow import api
+# pylint: disable=unused-import
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
-from airflow.utils.sqlalchemy import setup_event_handlers
+from airflow.utils.orm_event_handlers import setup_event_handlers
 
 log = logging.getLogger(__name__)
 
 
-TIMEZONE = pendulum.timezone('UTC')
+TIMEZONE = pendulum.tz.timezone('UTC')
 try:
     tz = conf.get("core", "default_timezone")
     if tz == "system":
-        TIMEZONE = pendulum.local_timezone()
+        TIMEZONE = pendulum.tz.local_timezone()
     else:
-        TIMEZONE = pendulum.timezone(tz)
-except Exception:
+        TIMEZONE = pendulum.tz.timezone(tz)
+except Exception:  # pylint: disable=broad-except
     pass
-log.info("Configured default timezone %s" % TIMEZONE)
+log.info("Configured default timezone %s", TIMEZONE)
 
 
 HEADER = '\n'.join([
@@ -76,21 +77,30 @@ engine: Optional[Engine] = None
 Session: Optional[SASession] = None
 
 # The JSON library to use for DAG Serialization and De-Serialization
-json = json
+json = json  # pylint: disable=self-assigning-variable
+
+# Dictionary containing State and colors associated to each state to
+# display on the Webserver
+STATE_COLORS = {
+    "queued": "gray",
+    "running": "lime",
+    "success": "green",
+    "failed": "red",
+    "up_for_retry": "gold",
+    "up_for_reschedule": "turquoise",
+    "upstream_failed": "orange",
+    "skipped": "pink",
+    "scheduled": "tan",
+}
 
 
-def policy(task):
+def policy(task):  # pylint: disable=unused-argument
     """
-    This policy setting allows altering tasks right before they
-    are executed. It allows administrator to rewire some task parameters.
-
-    Note that the ``Task`` object has a reference to the DAG
-    object. So you can use the attributes of all of these to define your
-    policy.
+    This policy setting allows altering tasks after they are loaded in
+    the DagBag. It allows administrator to rewire some task parameters.
 
     To define policy, add a ``airflow_local_settings`` module
-    to your PYTHONPATH that defines this ``policy`` function. It receives
-    a ``Task`` object and can alter it where needed.
+    to your PYTHONPATH that defines this ``policy`` function.
 
     Here are a few examples of how this can be useful:
 
@@ -103,7 +113,19 @@ def policy(task):
     """
 
 
-def pod_mutation_hook(pod):
+def task_instance_mutation_hook(task_instance):  # pylint: disable=unused-argument
+    """
+    This setting allows altering task instances before they are queued by
+    the Airflow scheduler.
+
+    To define task_instance_mutation_hook, add a ``airflow_local_settings`` module
+    to your PYTHONPATH that defines this ``task_instance_mutation_hook`` function.
+
+    This could be used, for instance, to modify the task instance during retries.
+    """
+
+
+def pod_mutation_hook(pod):  # pylint: disable=unused-argument
     """
     This setting allows altering ``kubernetes.client.models.V1Pod`` object
     before they are passed to the Kubernetes client by the ``PodLauncher``
@@ -118,7 +140,9 @@ def pod_mutation_hook(pod):
     """
 
 
+# pylint: disable=global-statement
 def configure_vars():
+    """ Configure Global Variables from airflow.cfg"""
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
@@ -133,7 +157,8 @@ def configure_vars():
 
 
 def configure_orm(disable_connection_pool=False):
-    log.debug("Setting up DB connection pool (PID %s)" % os.getpid())
+    """ Configure ORM using SQLAlchemy"""
+    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
     engine_args = {}
@@ -214,7 +239,8 @@ def dispose_orm():
 
 
 def configure_adapters():
-    from pendulum import Pendulum
+    """ Register Adapters and DB Converters """
+    from pendulum import DateTime as Pendulum
     try:
         from sqlite3 import register_adapter
         register_adapter(Pendulum, lambda val: val.isoformat(' '))
@@ -233,6 +259,7 @@ def configure_adapters():
 
 
 def validate_session():
+    """ Validate ORM Session """
     worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
@@ -240,12 +267,12 @@ def validate_session():
         check_session = sessionmaker(bind=engine)
         session = check_session()
         try:
-            session.execute("select 1")
+            session.execute("select 1")  # pylint: disable=no-member
             conn_status = True
         except exc.DBAPIError as err:
             log.error(err)
             conn_status = False
-        session.close()
+        session.close()  # pylint: disable=no-member
         return conn_status
 
 
@@ -276,23 +303,25 @@ def prepare_syspath():
 
 
 def import_local_settings():
-    try:
+    """ Import airflow_local_settings.py files to allow overriding any configs in settings.py file """
+    try:  # pylint: disable=too-many-nested-blocks
         import airflow_local_settings
 
         if hasattr(airflow_local_settings, "__all__"):
-            for i in airflow_local_settings.__all__:
+            for i in airflow_local_settings.__all__:  # pylint: disable=no-member
                 globals()[i] = getattr(airflow_local_settings, i)
         else:
             for k, v in airflow_local_settings.__dict__.items():
                 if not k.startswith("__"):
                     globals()[k] = v
 
-        log.info("Loaded airflow_local_settings from " + airflow_local_settings.__file__ + ".")
+        log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
     except ImportError:
         log.debug("Failed to import airflow_local_settings.", exc_info=True)
 
 
 def initialize():
+    """ Initialize Airflow with all the settings from this file """
     configure_vars()
     prepare_syspath()
     import_local_settings()
@@ -306,6 +335,7 @@ def initialize():
 
     # Ensure we close DB connections at scheduler and gunicon worker terminations
     atexit.register(dispose_orm)
+# pylint: enable=global-statement
 
 
 # Const stuff
@@ -323,3 +353,15 @@ STORE_SERIALIZED_DAGS = conf.getboolean('core', 'store_serialized_dags', fallbac
 # write rate.
 MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
     'core', 'min_serialized_dag_update_interval', fallback=30)
+
+# Whether to persist DAG files code in DB. If set to True, Webserver reads file contents
+# from DB instead of trying to access files in a DAG folder.
+# Defaults to same as the store_serialized_dags setting.
+STORE_DAG_CODE = conf.getboolean("core", "store_dag_code", fallback=STORE_SERIALIZED_DAGS)
+
+# If donot_modify_handlers=True, we do not modify logging handlers in task_run command
+# If the flag is set to False, we remove all handlers from the root logger
+# and add all handlers from 'airflow.task' logger to the root Logger. This is done
+# to get all the logs from the print & log statements in the DAG files before a task is run
+# The handlers are restored after the task completes execution.
+DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)

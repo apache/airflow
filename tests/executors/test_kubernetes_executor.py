@@ -205,7 +205,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         try_number = 1
         kubernetes_executor.execute_async(key=('dag', 'task', datetime.utcnow(), try_number),
                                           queue=None,
-                                          command='command',
+                                          command=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
                                           executor_config={})
         kubernetes_executor.sync()
         kubernetes_executor.sync()

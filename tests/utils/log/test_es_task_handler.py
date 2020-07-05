@@ -21,9 +21,11 @@ import os
 import shutil
 import unittest
 from unittest import mock
+from urllib.parse import quote
 
 import elasticsearch
 import pendulum
+from parameterized import parameterized
 
 from airflow.configuration import conf
 from airflow.models import DAG, TaskInstance
@@ -254,9 +256,8 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertTrue(self.es_task_handler.mark_end_on_close)
 
     def test_set_context_w_json_format_and_write_stdout(self):
-        self.es_task_handler.formatter = mock.MagicMock()
-        self.es_task_handler.formatter._fmt = mock.MagicMock()
-        self.es_task_handler.formatter._fmt.find = mock.MagicMock(return_value=1)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.es_task_handler.formatter = formatter
         self.es_task_handler.write_stdout = True
         self.es_task_handler.json_format = True
         self.es_task_handler.set_context(self.ti)
@@ -347,3 +348,23 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
     def test_clean_execution_date(self):
         clean_execution_date = self.es_task_handler._clean_execution_date(datetime(2016, 7, 8, 9, 10, 11, 12))
         self.assertEqual('2016_07_08T09_10_11_000012', clean_execution_date)
+
+    @parameterized.expand([
+        # Common case
+        ('localhost:5601/{log_id}', 'https://localhost:5601/' + quote(LOG_ID.replace('T', ' '))),
+        # Ignore template if "{log_id}"" is missing in the URL
+        ('localhost:5601', 'https://localhost:5601'),
+    ])
+    def test_get_external_log_url(self, es_frontend, expected_url):
+        es_task_handler = ElasticsearchTaskHandler(
+            self.local_log_location,
+            self.filename_template,
+            self.log_id_template,
+            self.end_of_log_mark,
+            self.write_stdout,
+            self.json_format,
+            self.json_fields,
+            frontend=es_frontend
+        )
+        url = es_task_handler.get_external_log_url(self.ti, self.ti.try_number)
+        self.assertEqual(expected_url, url)

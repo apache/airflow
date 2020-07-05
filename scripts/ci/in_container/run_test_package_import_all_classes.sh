@@ -48,7 +48,7 @@ else
 fi
 
 echo
-echo  Installing all packages at once in Airlfow 1.10
+echo  Installing all packages at once in Airflow 1.10
 echo
 
 # Install all packages at once

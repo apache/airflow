@@ -23,6 +23,7 @@ It overrides the command in the `hello-world-container` container.
 """
 
 import datetime
+import os
 
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.ecs import ECSOperator
@@ -50,7 +51,7 @@ dag.doc_md = __doc__
 hello_world = ECSOperator(
     task_id="hello_world",
     dag=dag,
-    aws_conn_id="aws_default",
+    aws_conn_id="aws_ecs",
     cluster="c",
     task_definition="hello-world",
     launch_type="FARGATE",
@@ -64,8 +65,8 @@ hello_world = ECSOperator(
     },
     network_configuration={
         "awsvpcConfiguration": {
-            "securityGroups": ["sg-123abc"],
-            "subnets": ["subnet-123456ab"],
+            "securityGroups": [os.environ.get("SECURITY_GROUP_ID", "sg-123abc")],
+            "subnets": [os.environ.get("SUBNET_ID", "subnet-123456ab")],
         },
     },
     tags={
@@ -75,7 +76,7 @@ hello_world = ECSOperator(
         "Version": "0.0.1",
         "Environment": "Development",
     },
-    awslogs_group="/ecs_logs/group_a",
-    awslogs_stream_prefix="prefix_b",
+    awslogs_group="/ecs/hello-world",
+    awslogs_stream_prefix="prefix_b/hello-world-container",  # prefix with container name
 )
 # [END howto_operator_ecs]

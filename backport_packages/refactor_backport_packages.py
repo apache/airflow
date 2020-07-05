@@ -18,13 +18,14 @@
 
 import os
 import sys
+import token
 from os.path import dirname
 from shutil import copyfile, copytree, rmtree
 from typing import List
 
 from backport_packages.setup_backport_packages import (
     get_source_airflow_folder, get_source_providers_folder, get_target_providers_folder,
-    get_target_providers_package_folder, is_bigquery_non_dts_module,
+    get_target_providers_package_folder,
 )
 from bowler import LN, TOKEN, Capture, Filename, Query
 from fissix.fixer_util import Comma, KeywordArg, Name
@@ -45,28 +46,6 @@ def copy_provider_sources() -> None:
         if os.path.isdir(build_dir):
             rmtree(build_dir)
 
-    def ignore_bigquery_files(src: str, names: List[str]) -> List[str]:
-        """
-        Ignore files with bigquery
-        :param src: source file
-        :param names: Name of the file
-        :return:
-        """
-        ignored_names = []
-        if any([src.endswith(os.path.sep + class_type) for class_type in CLASS_TYPES]):
-            ignored_names = [name for name in names
-                             if is_bigquery_non_dts_module(module_name=name)]
-        if src.endswith(os.path.sep + "example_dags"):
-            for file_name in names:
-                file_path = src + os.path.sep + file_name
-                with open(file_path, "rt") as file:
-                    text = file.read()
-                if any([f"airflow.providers.google.cloud.{class_type}.bigquery" in text
-                        for class_type in CLASS_TYPES]) or "_to_bigquery" in text:
-                    print(f"Ignoring {file_path}")
-                    ignored_names.append(file_name)
-        return ignored_names
-
     def ignore_kubernetes_files(src: str, names: List[str]) -> List[str]:
         ignored_names = []
         if src.endswith(os.path.sep + "example_dags"):
@@ -76,7 +55,7 @@ def copy_provider_sources() -> None:
         return ignored_names
 
     def ignore_some_files(src: str, names: List[str]) -> List[str]:
-        ignored_list = ignore_bigquery_files(src=src, names=names)
+        ignored_list = []
         ignored_list.extend(ignore_kubernetes_files(src=src, names=names))
         return ignored_list
 
@@ -211,7 +190,9 @@ class RefactorBackportPackages:
         # noinspection PyUnusedLocal
         def add_provide_context_to_python_operator(node: LN, capture: Capture, filename: Filename) -> None:
             fn_args = capture['function_arguments'][0]
-            fn_args.append_child(Comma())
+            if len(fn_args.children) > 0 and (not isinstance(fn_args.children[-1], Leaf)
+                                              or fn_args.children[-1].type != token.COMMA):
+                fn_args.append_child(Comma())
 
             provide_context_arg = KeywordArg(Name('provide_context'), Name('True'))
             provide_context_arg.prefix = fn_args.children[0].prefix
@@ -231,7 +212,7 @@ class RefactorBackportPackages:
         )
 
     def remove_super_init_call(self):
-        """
+        r"""
         Removes super().__init__() call from Hooks.
 
         In airflow 1.10 almost none of the Hooks call super().init(). It was always broken in Airflow 1.10 -
@@ -333,7 +314,7 @@ class RefactorBackportPackages:
         self.qry.select_method("DAG").is_call().modify(remove_tags_modifier)
 
     def remove_poke_mode_only_decorator(self):
-        """
+        r"""
         Removes @poke_mode_only decorator. The decorator is only available in Airflow 2.0.
 
         Example diff generated:
@@ -443,7 +424,7 @@ class RefactorBackportPackages:
         )
 
     def refactor_google_package(self):
-        """
+        r"""
         Fixes to "google" providers package.
 
         Copies some of the classes used from core Airflow to "common.utils" package of the

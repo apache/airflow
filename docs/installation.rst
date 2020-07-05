@@ -36,6 +36,17 @@ requirements are per major/minor python version (3.6/3.7). You can use them as c
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
 and python versions in the URL.
 
+
+  **Prerequisites**
+
+  On Debian based Linux OS:
+
+  .. code-block:: bash
+
+      sudo apt-get update
+      sudo apt-get install build-essential
+
+
 1. Installing just airflow
 
 .. code-block:: bash
@@ -188,55 +199,55 @@ Here's the list of the subpackages and what they enable:
 
 **Software:**
 
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| subpackage          | install command                                     | enables                                                                           |
-+=====================+=====================================================+===================================================================================+
-| async               | ``pip install 'apache-airflow[async]'``             | Async worker classes for Gunicorn                                                 |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| celery              | ``pip install 'apache-airflow[celery]'``            | CeleryExecutor                                                                    |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| dask                | ``pip install 'apache-airflow[dask]'``              | DaskExecutor                                                                      |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                                                        |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elasticsearch hooks and Log Handler                                               |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| exasol              | ``pip install 'apache-airflow[exasol]'``            | Exasol hooks and operators                                                        |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| kubernetes          | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor and operator                                                  |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators                                                         |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| mssql (deprecated)  | ``pip install 'apache-airflow[microsoft.mssql]'``   | Microsoft SQL Server operators and hook,                                          |
-|                     |                                                     | support as an Airflow backend.  Uses pymssql.                                     |
-|                     |                                                     | Will be replaced by subpackage ``odbc``.                                          |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| mysql               | ``pip install 'apache-airflow[mysql]'``             | MySQL operators and hook, support as an Airflow                                   |
-|                     |                                                     | backend. The version of MySQL server has to be                                    |
-|                     |                                                     | 5.6.4+. The exact version upper bound depends                                     |
-|                     |                                                     | on version of ``mysqlclient`` package. For                                        |
-|                     |                                                     | example, ``mysqlclient`` 1.3.12 can only be                                       |
-|                     |                                                     | used with MySQL server 5.6.4 through 5.7.                                         |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| odbc                | ``pip install 'apache-airflow[odbc]'``              | ODBC data sources including MS SQL Server.  Can use MsSqlOperator,                |
-|                     |                                                     | or as metastore database backend.  Uses pyodbc.                                   |
-|                     |                                                     | See :ref:`howto/connection/odbc` for more info.                                   |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| oracle              | ``pip install 'apache-airflow[oracle]'``            | Oracle hooks and operators                                                        |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| pinot               | ``pip install 'apache-airflow[pinot]'``             | Pinot DB hook                                                                     |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| postgres            | ``pip install 'apache-airflow[postgres]'``          | PostgreSQL operators and hook, support as an                                      |
-|                     |                                                     | Airflow backend                                                                   |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| rabbitmq            | ``pip install 'apache-airflow[rabbitmq]'``          | RabbitMQ support as a Celery backend                                              |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| redis               | ``pip install 'apache-airflow[redis]'``             | Redis hooks and sensors                                                           |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| samba               | ``pip install 'apache-airflow[samba]'``             | :class:`airflow.providers.apache.hive.operators.hive_to_samba.Hive2SambaOperator` |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
-| statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                          |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| subpackage          | install command                                     | enables                                                                            |
++=====================+=====================================================+====================================================================================+
+| async               | ``pip install 'apache-airflow[async]'``             | Async worker classes for Gunicorn                                                  |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| celery              | ``pip install 'apache-airflow[celery]'``            | CeleryExecutor                                                                     |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| dask                | ``pip install 'apache-airflow[dask]'``              | DaskExecutor                                                                       |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                                                         |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elasticsearch hooks and Log Handler                                                |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| exasol              | ``pip install 'apache-airflow[exasol]'``            | Exasol hooks and operators                                                         |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| kubernetes          | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor and operator                                                   |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators                                                          |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| mssql (deprecated)  | ``pip install 'apache-airflow[microsoft.mssql]'``   | Microsoft SQL Server operators and hook,                                           |
+|                     |                                                     | support as an Airflow backend.  Uses pymssql.                                      |
+|                     |                                                     | Will be replaced by subpackage ``odbc``.                                           |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| mysql               | ``pip install 'apache-airflow[mysql]'``             | MySQL operators and hook, support as an Airflow                                    |
+|                     |                                                     | backend. The version of MySQL server has to be                                     |
+|                     |                                                     | 5.6.4+. The exact version upper bound depends                                      |
+|                     |                                                     | on version of ``mysqlclient`` package. For                                         |
+|                     |                                                     | example, ``mysqlclient`` 1.3.12 can only be                                        |
+|                     |                                                     | used with MySQL server 5.6.4 through 5.7.                                          |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| odbc                | ``pip install 'apache-airflow[odbc]'``              | ODBC data sources including MS SQL Server.  Can use MsSqlOperator,                 |
+|                     |                                                     | or as metastore database backend.  Uses pyodbc.                                    |
+|                     |                                                     | See :ref:`howto/connection/odbc` for more info.                                    |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| oracle              | ``pip install 'apache-airflow[oracle]'``            | Oracle hooks and operators                                                         |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| pinot               | ``pip install 'apache-airflow[pinot]'``             | Pinot DB hook                                                                      |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| postgres            | ``pip install 'apache-airflow[postgres]'``          | PostgreSQL operators and hook, support as an                                       |
+|                     |                                                     | Airflow backend                                                                    |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| rabbitmq            | ``pip install 'apache-airflow[rabbitmq]'``          | RabbitMQ support as a Celery backend                                               |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| redis               | ``pip install 'apache-airflow[redis]'``             | Redis hooks and sensors                                                            |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| samba               | ``pip install 'apache-airflow[samba]'``             | :class:`airflow.providers.apache.hive.transfers.hive_to_samba.HiveToSambaOperator` |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
+| statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                           |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------------------+
 
 
 **Other:**
@@ -261,10 +272,10 @@ Here's the list of the subpackages and what they enable:
 | winrm               | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
-Initiating Airflow Database
-'''''''''''''''''''''''''''
+Initializing Airflow Database
+'''''''''''''''''''''''''''''
 
-Airflow requires a database to be initiated before you can run tasks. If
+Airflow requires a database to be initialized before you can run tasks. If
 you're just experimenting and learning Airflow, you can stick with the
 default SQLite option. If you don't want to use SQLite, then take a look at
 :doc:`howto/initialize-database` to setup a different database.

@@ -19,6 +19,7 @@
 This module contains Google DisplayVideo operators.
 """
 import csv
+import json
 import shutil
 import tempfile
 import urllib.request
@@ -74,6 +75,12 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+
+    def prepare_template(self) -> None:
+        # If .json is passed then we have to read the file
+        if isinstance(self.body, str) and self.body.endswith('.json'):
+            with open(self.body, 'r') as file:
+                self.body = json.load(file)
 
     def execute(self, context: Dict):
         hook = GoogleDisplayVideo360Hook(

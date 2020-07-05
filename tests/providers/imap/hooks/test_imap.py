@@ -55,6 +55,7 @@ class TestImapHook(unittest.TestCase):
         db.merge_conn(
             Connection(
                 conn_id='imap_default',
+                conn_type='imap',
                 host='imap_server_address',
                 login='imap_user',
                 password='imap_password'

@@ -81,7 +81,7 @@ class FakeElasticsearch(Elasticsearch):
                   'routing', 'timeout', 'timestamp', 'ttl', 'version', 'version_type')
     def index(self, index, doc_type, body, id=None, params=None):
         if index not in self.__documents_dict:
-            self.__documents_dict[index] = list()
+            self.__documents_dict[index] = []
 
         if id is None:
             id = get_random_id()

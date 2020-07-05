@@ -226,10 +226,10 @@ class BaseExecutor(LoggingMixin):
         :param dag_ids: to dag_ids to return events for, if None returns all
         :return: a dict of events
         """
-        cleared_events: Dict[TaskInstanceKeyType, EventBufferValueType] = dict()
+        cleared_events: Dict[TaskInstanceKeyType, EventBufferValueType] = {}
         if dag_ids is None:
             cleared_events = self.event_buffer
-            self.event_buffer = dict()
+            self.event_buffer = {}
         else:
             for key in list(self.event_buffer.keys()):
                 dag_id, _, _, _ = key

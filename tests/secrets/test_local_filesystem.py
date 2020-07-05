@@ -104,6 +104,20 @@ class TestLoadVariables(unittest.TestCase):
         ):
             local_filesystem.load_variables("a.json")
 
+    @parameterized.expand(
+        (
+            ("KEY: AAA", {"KEY": "AAA"}),
+            ("""
+            KEY_A: AAA
+            KEY_B: BBB
+            """, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+        )
+    )
+    def test_yaml_file_should_load_variables(self, file_content, expected_variables):
+        with mock_local_file(file_content):
+            variables = local_filesystem.load_variables('a.yaml')
+            self.assertEqual(expected_variables, variables)
+
 
 class TestLoadConnection(unittest.TestCase):
     @parameterized.expand(
@@ -192,6 +206,40 @@ class TestLoadConnection(unittest.TestCase):
             re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
         ):
             local_filesystem.load_connections("a.json")
+
+    @parameterized.expand(
+        (
+            ("""CONN_A: 'mysql://host_a'""", {"CONN_A": ["mysql://host_a"]}),
+            ("""
+            CONN_B:
+                - 'mysql://host_a'
+                - 'mysql://host_b'
+             """, {"CONN_B": ["mysql://host_a", "mysql://host_b"]}),
+            ("""
+            conn_a: mysql://hosta
+            conn_b:
+              - mysql://hostb
+              - mysql://hostc
+            conn_c:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234""",
+                {"conn_a": ["mysql://hosta"], "conn_b": ["mysql://hostb", "mysql://hostc"],
+                    "conn_c": ["scheme://Login:None@host:1234/lschema"]}),
+        )
+    )
+    def test_yaml_file_should_load_connection(self, file_content, expected_connection_uris):
+        with mock_local_file(file_content):
+            connections_by_conn_id = local_filesystem.load_connections("a.yaml")
+            connection_uris_by_conn_id = {
+                conn_id: [connection.get_uri() for connection in connections]
+                for conn_id, connections in connections_by_conn_id.items()
+            }
+
+            self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
 
 
 class TestLocalFileBackend(unittest.TestCase):

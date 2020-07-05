@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import copy
 import getpass
 import hashlib
 import logging
@@ -66,6 +65,8 @@ from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
+TR = TaskReschedule
+
 
 def clear_task_instances(tis,
                          session,
@@ -103,7 +104,6 @@ def clear_task_instances(tis,
             ti.state = State.NONE
             session.merge(ti)
         # Clear all reschedules related to the ti to clear
-        TR = TaskReschedule
         session.query(TR).filter(
             TR.dag_id == ti.dag_id,
             TR.task_id == ti.task_id,
@@ -639,7 +639,7 @@ class TaskInstance(Base, LoggingMixin):
         self,
         state: Optional[str] = None,
         session: Session = None,
-    ) -> Optional[pendulum.datetime]:
+    ) -> Optional[pendulum.DateTime]:
         """
         The execution date from property previous_ti_success.
 
@@ -654,7 +654,7 @@ class TaskInstance(Base, LoggingMixin):
         self,
         state: Optional[str] = None,
         session: Session = None
-    ) -> Optional[pendulum.datetime]:
+    ) -> Optional[pendulum.DateTime]:
         """
         The start date from property previous_ti_success.
 
@@ -665,7 +665,7 @@ class TaskInstance(Base, LoggingMixin):
         return prev_ti and prev_ti.start_date
 
     @property
-    def previous_start_date_success(self) -> Optional[pendulum.datetime]:
+    def previous_start_date_success(self) -> Optional[pendulum.DateTime]:
         """
         This attribute is deprecated.
         Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
@@ -874,9 +874,10 @@ class TaskInstance(Base, LoggingMixin):
             # Set the task start date. In case it was re-scheduled use the initial
             # start date that is recorded in task_reschedule table
             self.start_date = timezone.utcnow()
-            task_reschedules = TaskReschedule.find_for_task_instance(self, session)
-            if task_reschedules:
-                self.start_date = task_reschedules[0].start_date
+            if self.state == State.UP_FOR_RESCHEDULE:
+                task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
+                if task_reschedule:
+                    self.start_date = task_reschedule.start_date
 
             # Secondly we find non-runnable but requeueable tis. We reset its state.
             # This is because we might have hit concurrency limits,
@@ -929,6 +930,13 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.info("Executing %s on %s", self.task, self.execution_date)
         return True
 
+    def _date_or_empty(self, attr):
+        if hasattr(self, attr):
+            date = getattr(self, attr)
+            if date:
+                return date.strftime('%Y%m%dT%H%M%S')
+        return ''
+
     @provide_session
     @Sentry.enrich_errors
     def _run_raw_task(
@@ -963,11 +971,12 @@ class TaskInstance(Base, LoggingMixin):
 
         context = {}  # type: Dict
         actual_start_date = timezone.utcnow()
+        Stats.incr('ti.start.{}.{}'.format(task.dag_id, task.task_id))
         try:
             if not mark_success:
                 context = self.get_template_context()
 
-                task_copy = copy.copy(task)
+                task_copy = task.prepare_for_execution()
 
                 # Sensors in `poke` mode can block execution of DAGs when running
                 # with single process executor, thus we change the mode to`reschedule`
@@ -1012,7 +1021,6 @@ class TaskInstance(Base, LoggingMixin):
 
                 # If a timeout is specified for the task, make it fail
                 # if it goes beyond
-                result = None
                 if task_copy.execution_timeout:
                     try:
                         with timeout(int(
@@ -1055,15 +1063,10 @@ class TaskInstance(Base, LoggingMixin):
                 'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
                 self.dag_id,
                 self.task_id,
-                self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                    self,
-                    'execution_date') and self.execution_date else '',
-                self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                    self,
-                    'start_date') and self.start_date else '',
-                self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                    self,
-                    'end_date') and self.end_date else '')
+                self._date_or_empty('execution_date'),
+                self._date_or_empty('start_date'),
+                self._date_or_empty('end_date'),
+            )
         except AirflowRescheduleException as reschedule_exception:
             self.refresh_from_db()
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, context)
@@ -1084,6 +1087,8 @@ class TaskInstance(Base, LoggingMixin):
         except (Exception, KeyboardInterrupt) as e:
             self.handle_failure(e, test_mode, context)
             raise
+        finally:
+            Stats.incr('ti.finish.{}.{}.{}'.format(task.dag_id, task.task_id, self.state))
 
         # Success callback
         try:
@@ -1100,15 +1105,10 @@ class TaskInstance(Base, LoggingMixin):
             'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
             self.dag_id,
             self.task_id,
-            self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                self,
-                'execution_date') and self.execution_date else '',
-            self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                self,
-                'start_date') and self.start_date else '',
-            self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                self,
-                'end_date') and self.end_date else '')
+            self._date_or_empty('execution_date'),
+            self._date_or_empty('start_date'),
+            self._date_or_empty('end_date')
+        )
         self.set_duration()
         if not test_mode:
             session.add(Log(self.state, self))
@@ -1149,7 +1149,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def dry_run(self):
         task = self.task
-        task_copy = copy.copy(task)
+        task_copy = task.prepare_for_execution()
         self.task = task_copy
 
         self.render_templates()

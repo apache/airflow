@@ -31,7 +31,8 @@ class TestDagrunRunningDep(unittest.TestCase):
         Task instances whose dagrun ID is a backfill dagrun ID should fail this dep.
         """
         dagrun = DagRun()
-        dagrun.run_id = f"{DagRunType.BACKFILL_JOB.value}__something"
+        dagrun.run_id = "anything"
+        dagrun.run_type = DagRunType.BACKFILL_JOB.value
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
         self.assertFalse(DagrunIdDep().is_met(ti=ti))
 
@@ -40,7 +41,7 @@ class TestDagrunRunningDep(unittest.TestCase):
         Task instances whose dagrun ID is not a backfill dagrun ID should pass this dep.
         """
         dagrun = DagRun()
-        dagrun.run_id = 'notbackfill_something'
+        dagrun.run_type = 'custom_type'
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
         self.assertTrue(DagrunIdDep().is_met(ti=ti))
 

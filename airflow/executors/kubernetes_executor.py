@@ -130,6 +130,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.git_repo = conf.get(self.kubernetes_section, 'git_repo')
         # The branch of the repository to be checked out
         self.git_branch = conf.get(self.kubernetes_section, 'git_branch')
+        # Clone depth for git sync
+        self.git_sync_depth = conf.get(self.kubernetes_section, 'git_sync_depth')
         # Optionally, the directory in the git repository containing the dags
         self.git_subpath = conf.get(self.kubernetes_section, 'git_subpath')
         # Optionally, the root directory for git operations
@@ -454,8 +456,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         key, command, kube_executor_config = next_job
         dag_id, task_id, execution_date, try_number = key
 
-        if isinstance(command, str):
-            command = [command]
+        if command[0:3] != ["airflow", "tasks", "run"]:
+            raise ValueError('The command must start with ["airflow", "tasks", "run"].')
 
         pod = PodGenerator.construct_pod(
             namespace=self.namespace,
@@ -538,7 +540,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     @staticmethod
     def _make_safe_pod_id(safe_dag_id: str, safe_task_id: str, safe_uuid: str) -> str:
-        """
+        r"""
         Kubernetes pod names must be <= 253 chars and must pass the following regex for
         validation
         ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``

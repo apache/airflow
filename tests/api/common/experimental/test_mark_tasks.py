@@ -18,7 +18,7 @@
 
 import time
 import unittest
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
@@ -58,7 +58,7 @@ class TestMarkTasks(unittest.TestCase):
         clear_db_runs()
         drs = _create_dagruns(self.dag1, self.execution_dates,
                               state=State.RUNNING,
-                              run_type=DagRunType.SCHEDULED.value)
+                              run_type=DagRunType.SCHEDULED)
         for dr in drs:
             dr.dag = self.dag1
             dr.verify_integrity()
@@ -66,7 +66,7 @@ class TestMarkTasks(unittest.TestCase):
         drs = _create_dagruns(self.dag2,
                               [self.dag2.default_args['start_date']],
                               state=State.RUNNING,
-                              run_type=DagRunType.SCHEDULED.value)
+                              run_type=DagRunType.SCHEDULED)
 
         for dr in drs:
             dr.dag = self.dag2
@@ -75,7 +75,7 @@ class TestMarkTasks(unittest.TestCase):
         drs = _create_dagruns(self.dag3,
                               self.dag3_execution_dates,
                               state=State.SUCCESS,
-                              run_type=DagRunType.MANUAL.value)
+                              run_type=DagRunType.MANUAL)
         for dr in drs:
             dr.dag = self.dag3
             dr.verify_integrity()
@@ -323,7 +323,7 @@ class TestMarkDAGRun(unittest.TestCase):
 
     def _create_test_dag_run(self, state, date):
         return self.dag1.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
+            run_type=DagRunType.MANUAL,
             state=state,
             execution_date=date
         )
@@ -510,19 +510,19 @@ class TestMarkDAGRun(unittest.TestCase):
     @provide_session
     def test_set_state_with_multiple_dagruns(self, session=None):
         self.dag2.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
+            run_type=DagRunType.MANUAL,
             state=State.FAILED,
             execution_date=self.execution_dates[0],
             session=session
         )
         self.dag2.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
+            run_type=DagRunType.MANUAL,
             state=State.FAILED,
             execution_date=self.execution_dates[1],
             session=session
         )
         self.dag2.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
+            run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=self.execution_dates[2],
             session=session

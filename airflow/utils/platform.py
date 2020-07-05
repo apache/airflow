@@ -18,8 +18,12 @@
 """
 Platform and system specific function.
 """
+import logging
 import os
+import pkgutil
 import sys
+
+log = logging.getLogger(__name__)
 
 
 def is_tty():
@@ -32,7 +36,7 @@ def is_tty():
 
 
 def is_terminal_support_colors() -> bool:
-    """"
+    """
     Try to determine if the current terminal supports colors.
     """
     if sys.platform == "win32":
@@ -45,3 +49,14 @@ def is_terminal_support_colors() -> bool:
     if term in ("xterm", "linux") or "color" in term:
         return True
     return False
+
+
+def get_airflow_git_version():
+    """Returns the git commit hash representing the current version of the application."""
+    git_version = None
+    try:
+        git_version = str(pkgutil.get_data('airflow', 'git_version'), encoding="UTF-8")
+    except Exception as e:  # pylint: disable=broad-except
+        log.error(e)
+
+    return git_version

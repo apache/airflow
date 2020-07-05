@@ -141,7 +141,7 @@ do
         cat "${LOG_FILE}"
         exit "${RES}"
     fi
-    python3 setup_backport_packages.py --version-suffix "${VERSION_SUFFIX_FOR_PYPI}     " \
+    python3 setup_backport_packages.py --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
         "${BACKPORT_PACKAGE}" sdist bdist_wheel >"${LOG_FILE}" 2>&1
     RES="${?}"
     if [[ ${RES} != "0" ]]; then

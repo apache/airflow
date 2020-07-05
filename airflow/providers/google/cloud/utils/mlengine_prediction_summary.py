@@ -36,6 +36,7 @@ Args:
       The summary will have an additional key, 'count', to represent the
       total number of instances, so the keys shouldn't include 'count'.
 # Usage example:
+from airflow.providers.google.cloud.operators.dataflow import DataflowCreatePythonJobOperator
 def get_metric_fn():
     import math  # all imports must be outside of the function to be passed.
     def metric_fn(inst):
@@ -48,7 +49,7 @@ def get_metric_fn():
         return (log_loss, squared_err)
     return metric_fn
 metric_fn_encoded = base64.b64encode(dill.dumps(get_metric_fn(), recurse=True))
-airflow.contrib.operators.DataFlowPythonOperator(
+DataflowCreatePythonJobOperator(
     task_id="summary-prediction",
     py_options=["-m"],
     py_file="airflow.providers.google.cloud.utils.mlengine_prediction_summary",

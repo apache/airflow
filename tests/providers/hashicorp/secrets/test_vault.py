@@ -24,7 +24,7 @@ from airflow.providers.hashicorp.secrets.vault import VaultBackend
 
 class TestVaultSecrets(TestCase):
 
-    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -56,7 +56,7 @@ class TestVaultSecrets(TestCase):
         returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
         self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
 
-    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_engine_version_1(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -85,13 +85,44 @@ class TestVaultSecrets(TestCase):
             mount_point='airflow', path='connections/test_postgres')
         self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
 
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_conn_uri_engine_version_1_custom_auth_mount_point(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v1.read_secret.return_value = {
+            'request_id': '182d0673-618c-9889-4cba-4e1f4cfe4b4b',
+            'lease_id': '',
+            'renewable': False,
+            'lease_duration': 2764800,
+            'data': {'conn_uri': 'postgresql://airflow:airflow@host:5432/airflow'},
+            'wrap_info': None,
+            'warnings': None,
+            'auth': None}
+
+        kwargs = {
+            "connections_path": "connections",
+            "mount_point": "airflow",
+            "auth_mount_point": "custom",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+            "kv_engine_version": 1
+        }
+
+        test_client = VaultBackend(**kwargs)
+        self.assertEqual("custom", test_client.vault_client.auth_mount_point)
+        returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
+            mount_point='airflow', path='connections/test_postgres')
+        self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
+
     @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
     })
-    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_non_existent_key(self, mock_hvac):
         """
-        Test that if the key with connection ID is not present in Vault, VaultClient.get_connections
+        Test that if the key with connection ID is not present in Vault, _VaultClient.get_connections
         should return None
         """
         mock_client = mock.MagicMock()
@@ -110,10 +141,10 @@ class TestVaultSecrets(TestCase):
         test_client = VaultBackend(**kwargs)
         self.assertIsNone(test_client.get_conn_uri(conn_id="test_mysql"))
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point='airflow', path='connections/test_mysql')
+            mount_point='airflow', path='connections/test_mysql', version=None)
         self.assertEqual([], test_client.get_connections(conn_id="test_mysql"))
 
-    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -144,7 +175,7 @@ class TestVaultSecrets(TestCase):
         returned_uri = test_client.get_variable("hello")
         self.assertEqual('world', returned_uri)
 
-    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value_engine_version_1(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -176,10 +207,10 @@ class TestVaultSecrets(TestCase):
     @mock.patch.dict('os.environ', {
         'AIRFLOW_VAR_HELLO': 'world',
     })
-    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value_non_existent_key(self, mock_hvac):
         """
-        Test that if the key with connection ID is not present in Vault, VaultClient.get_connections
+        Test that if the key with connection ID is not present in Vault, _VaultClient.get_connections
         should return None
         """
         mock_client = mock.MagicMock()
@@ -198,10 +229,10 @@ class TestVaultSecrets(TestCase):
         test_client = VaultBackend(**kwargs)
         self.assertIsNone(test_client.get_variable("hello"))
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point='airflow', path='variables/hello')
+            mount_point='airflow', path='variables/hello', version=None)
         self.assertIsNone(test_client.get_variable("hello"))
 
-    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_auth_failure_raises_error(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -216,30 +247,6 @@ class TestVaultSecrets(TestCase):
         }
 
         with self.assertRaisesRegex(VaultError, "Vault Authentication Error!"):
-            VaultBackend(**kwargs).get_connections(conn_id='test')
-
-    @mock.patch("airflow.providers.hashicorp.secrets.vault.hvac")
-    def test_empty_token_raises_error(self, mock_hvac):
-        mock_client = mock.MagicMock()
-        mock_hvac.Client.return_value = mock_client
-
-        kwargs = {
-            "connections_path": "connections",
-            "mount_point": "airflow",
-            "auth_type": "token",
-            "url": "http://127.0.0.1:8200",
-        }
-
-        with self.assertRaisesRegex(VaultError, "token cannot be None for auth_type='token'"):
-            VaultBackend(**kwargs).get_connections(conn_id='test')
-
-    def test_auth_type_kubernetes_without_role_raises_error(self):
-        kwargs = {
-            "auth_type": "kubernetes",
-            "url": "http://127.0.0.1:8200",
-        }
-
-        with self.assertRaisesRegex(VaultError, "kubernetes_role cannot be None for auth_type='kubernetes'"):
             VaultBackend(**kwargs).get_connections(conn_id='test')
 
     def test_auth_type_kubernetes_with_unreadable_jwt_raises_error(self):

@@ -21,13 +21,13 @@ import unittest
 
 from parameterized import parameterized
 
-from airflow.contrib.utils.weekday import WeekDay
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import DagBag, TaskFail, TaskInstance
 from airflow.models.dag import DAG
 from airflow.sensors.weekday_sensor import DayOfWeekSensor
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
+from airflow.utils.weekday import WeekDay
 
 DEFAULT_DATE = datetime(2018, 12, 10)
 WEEKDAY_DATE = datetime(2018, 12, 20)

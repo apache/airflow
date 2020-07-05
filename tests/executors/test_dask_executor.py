@@ -46,11 +46,11 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 class TestBaseDask(unittest.TestCase):
 
     def assert_tasks_on_executor(self, executor):
+
+        success_command = ['airflow', 'tasks', 'run', '--help']
+        fail_command = ['airflow', 'tasks', 'run', 'false']
         # start the executor
         executor.start()
-
-        success_command = ['true', 'some_parameter']
-        fail_command = ['false', 'some_parameter']
 
         executor.execute_async(key='success', command=success_command)
         executor.execute_async(key='fail', command=fail_command)
@@ -66,7 +66,7 @@ class TestBaseDask(unittest.TestCase):
             if timezone.utcnow() > timeout:
                 raise ValueError(
                     'The futures should have finished; there is probably '
-                    'an error communciating with the Dask cluster.')
+                    'an error communicating with the Dask cluster.')
 
         # both tasks should have finished
         self.assertTrue(success_future.done())

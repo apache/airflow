@@ -86,6 +86,8 @@ Name                                    Description
 ``scheduler.tasks.running``             Number of tasks running in executor
 ``scheduler.tasks.starving``            Number of tasks that cannot be scheduled because of no open slot in pool
 ``sla_email_notification_failure``      Number of failed SLA miss email notification attempts
+``ti.start.<dagid>.<taskid>``           Number of started task in a given dag. Similar to <job_name>_start but for task
+``ti.finish.<dagid>.<taskid>.<state>``  Number of completed task in a given dag. Similar to <job_name>_end but for task
 ======================================= ================================================================
 
 Gauges

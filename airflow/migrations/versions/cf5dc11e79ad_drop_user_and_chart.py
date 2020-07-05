@@ -34,7 +34,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     # We previously had a KnownEvent's table, but we deleted the table without
     # a down migration to remove it (so we didn't delete anyone's data if they
     # were happing to use the feature.
@@ -51,7 +51,7 @@ def upgrade():
     op.drop_table("users")
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     conn = op.get_bind()
 
     op.create_table(

@@ -22,7 +22,6 @@ from airflow.utils.decorators import apply_defaults
 
 
 class RedisPubSubSensor(BaseSensorOperator):
-
     """
     Redis sensor for reading a message from pub sub channels
 

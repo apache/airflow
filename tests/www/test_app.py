@@ -28,6 +28,10 @@ from tests.test_utils.config import conf_vars
 
 
 class TestApp(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        from airflow import settings
+        settings.configure_orm()
 
     @conf_vars({
         ('webserver', 'enable_proxy_fix'): 'True',
@@ -38,11 +42,9 @@ class TestApp(unittest.TestCase):
         ('webserver', 'proxy_fix_x_prefix'): '1'
     })
     @mock.patch("airflow.www.app.app", None)
-    @mock.patch("airflow.www.app.appbuilder", None)
     def test_should_respect_proxy_fix(self):
         app = application.cached_app(testing=True)
-        flask_app = next(iter(app.app.mounts.values()))
-        flask_app.url_map.add(Rule("/debug", endpoint="debug"))
+        app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -55,7 +57,7 @@ class TestApp(unittest.TestCase):
 
             return Response("success")
 
-        flask_app.view_functions['debug'] = debug_view
+        app.view_functions['debug'] = debug_view
 
         new_environ = {
             "PATH_INFO": "/debug",
@@ -78,11 +80,9 @@ class TestApp(unittest.TestCase):
         ('webserver', 'base_url'): 'http://localhost:8080/internal-client',
     })
     @mock.patch("airflow.www.app.app", None)
-    @mock.patch("airflow.www.app.appbuilder", None)
     def test_should_respect_base_url_ignore_proxy_headers(self):
         app = application.cached_app(testing=True)
-        flask_app = next(iter(app.mounts.values()))
-        flask_app.url_map.add(Rule("/debug", endpoint="debug"))
+        app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -95,7 +95,7 @@ class TestApp(unittest.TestCase):
 
             return Response("success")
 
-        flask_app.view_functions['debug'] = debug_view
+        app.view_functions['debug'] = debug_view
 
         new_environ = {
             "PATH_INFO": "/internal-client/debug",
@@ -124,11 +124,9 @@ class TestApp(unittest.TestCase):
         ('webserver', 'proxy_fix_x_prefix'): '1'
     })
     @mock.patch("airflow.www.app.app", None)
-    @mock.patch("airflow.www.app.appbuilder", None)
     def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(self):
         app = application.cached_app(testing=True)
-        flask_app = next(iter(app.app.mounts.values()))
-        flask_app.url_map.add(Rule("/debug", endpoint="debug"))
+        app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -140,7 +138,7 @@ class TestApp(unittest.TestCase):
 
             return Response("success")
 
-        flask_app.view_functions['debug'] = debug_view
+        app.view_functions['debug'] = debug_view
 
         new_environ = {
             "PATH_INFO": "/internal-client/debug",
@@ -164,11 +162,9 @@ class TestApp(unittest.TestCase):
         ('webserver', 'proxy_fix_x_prefix'): '1'
     })
     @mock.patch("airflow.www.app.app", None)
-    @mock.patch("airflow.www.app.appbuilder", None)
     def test_should_respect_base_url_and_proxy_when_proxy_fix_and_base_url_is_set_up(self):
         app = application.cached_app(testing=True)
-        flask_app = next(iter(app.app.mounts.values()))
-        flask_app.url_map.add(Rule("/debug", endpoint="debug"))
+        app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -181,7 +177,7 @@ class TestApp(unittest.TestCase):
 
             return Response("success")
 
-        flask_app.view_functions['debug'] = debug_view
+        app.view_functions['debug'] = debug_view
 
         new_environ = {
             "PATH_INFO": "/internal-client/debug",

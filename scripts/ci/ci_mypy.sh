@@ -33,6 +33,9 @@ function run_mypy() {
         --env VERBOSE_COMMANDS \
         --env HOST_USER_ID="$(id -ur)" \
         --env HOST_GROUP_ID="$(id -gr)" \
+        --env HOST_OS="$(uname -s)" \
+        --env HOST_HOME="${HOME}" \
+        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
         "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache" \
         --rm \
         "${AIRFLOW_CI_IMAGE}" \
@@ -40,7 +43,7 @@ function run_mypy() {
         | tee -a "${OUTPUT_LOG}"
 }
 
-get_ci_environment
+get_environment_for_builds_on_ci
 
 prepare_ci_build
 

@@ -282,7 +282,7 @@ class BaseJob(Base, LoggingMixin):
                 .filter(
                     # pylint: disable=comparison-with-callable
                     DR.state == State.RUNNING,
-                    DR.run_id.notlike(f"{DagRunType.BACKFILL_JOB.value}__%"),
+                    DR.run_type != DagRunType.BACKFILL_JOB.value,
                     TI.state.in_(resettable_states))).all()
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,
@@ -293,7 +293,7 @@ class BaseJob(Base, LoggingMixin):
             if ti.key not in queued_tis and ti.key not in running_tis:
                 tis_to_reset.append(ti)
 
-        if len(tis_to_reset) == 0:
+        if not tis_to_reset:
             return []
 
         def query(result, items):
@@ -316,8 +316,7 @@ class BaseJob(Base, LoggingMixin):
                                              [],
                                              self.max_tis_per_query)
 
-        task_instance_str = '\n\t'.join(
-            [repr(x) for x in reset_tis])
+        task_instance_str = '\n\t'.join([repr(x) for x in reset_tis])
         session.commit()
 
         self.log.info(

@@ -66,7 +66,7 @@ def check_main_dependent_group(setup_context: str) -> None:
 
 
 def check_sub_dependent_group(setup_context: str) -> None:
-    """
+    r"""
     Test for an order of each dependencies groups declare like
     `^dependent_group_name = [.*?]\n` in setup.py
     """

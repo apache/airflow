@@ -31,7 +31,7 @@ Overview
 The ``GoogleApiToS3Transfer`` can call requests to any Google API which supports discovery and save its response on S3.
 
 Two example_dags are provided which showcase the
-:class:`~airflow.providers.amazon.aws.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer`
+:class:`~airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleApiToS3Transfer`
 in action.
 
  - example_google_api_to_s3_transfer_basic.py

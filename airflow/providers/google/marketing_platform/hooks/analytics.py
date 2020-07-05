@@ -143,7 +143,6 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         custom_data_source_id: str,
         resumable_upload: bool = False,
     ) -> None:
-
         """
         Uploads file to GA via the Data Import API
 

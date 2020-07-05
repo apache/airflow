@@ -18,7 +18,7 @@
 Handler that integrates with Stackdriver
 """
 import logging
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Collection, Dict, List, Optional, Tuple, Type
 
 from cached_property import cached_property
 from google.api_core.gapic_v1.client_info import ClientInfo
@@ -28,9 +28,15 @@ from google.cloud.logging.resource import Resource
 
 from airflow import version
 from airflow.models import TaskInstance
+from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})
+
+_DEFAULT_SCOPESS = frozenset([
+    "https://www.googleapis.com/auth/logging.read",
+    "https://www.googleapis.com/auth/logging.write"
+])
 
 
 class StackdriverTaskHandler(logging.Handler):
@@ -45,11 +51,14 @@ class StackdriverTaskHandler(logging.Handler):
 
     This handler supports both an asynchronous and synchronous transport.
 
-    :param gcp_conn_id: Connection ID that will be used for authorization to the Google Cloud Platform.
-        If omitted, authorization based on `the Application Default Credentials
+
+    :param gcp_key_path: Path to GCP Credential JSON file.
+        If ommited, authorization based on `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
-    :type gcp_conn_id: str
+    :type gcp_key_path: str
+    :param scopes: OAuth scopes for the credentials,
+    :type scopes: Sequence[str]
     :param name: the name of the custom log in Stackdriver Logging. Defaults
         to 'airflow'. The name of the Python logger will be represented
          in the ``python_logger`` field.
@@ -74,14 +83,18 @@ class StackdriverTaskHandler(logging.Handler):
 
     def __init__(
         self,
-        gcp_conn_id: Optional[str] = None,
+        gcp_key_path: Optional[str] = None,
+        # See: https://github.com/PyCQA/pylint/issues/2377
+        scopes: Optional[Collection[str]] = _DEFAULT_SCOPESS,  # pylint: disable=unsubscriptable-object
         name: str = DEFAULT_LOGGER_NAME,
         transport: Type[Transport] = BackgroundThreadTransport,
         resource: Resource = _GLOBAL_RESOURCE,
         labels: Optional[Dict[str, str]] = None,
     ):
         super().__init__()
-        self.gcp_conn_id = gcp_conn_id
+        self.gcp_key_path: Optional[str] = gcp_key_path
+        # See: https://github.com/PyCQA/pylint/issues/2377
+        self.scopes: Optional[Collection[str]] = scopes  # pylint: disable=unsubscriptable-object
         self.name: str = name
         self.transport_type: Type[Transport] = transport
         self.resource: Resource = resource
@@ -91,14 +104,10 @@ class StackdriverTaskHandler(logging.Handler):
     @cached_property
     def _client(self) -> gcp_logging.Client:
         """Google Cloud Library API client"""
-        if self.gcp_conn_id:
-            from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-
-            hook = GoogleBaseHook(gcp_conn_id=self.gcp_conn_id)
-            credentials = hook._get_credentials()  # pylint: disable=protected-access
-        else:
-            # Use Application Default Credentials
-            credentials = None
+        credentials = get_credentials_and_project_id(
+            key_path=self.gcp_key_path,
+            scopes=self.scopes,
+        )
         client = gcp_logging.Client(
             credentials=credentials,
             client_info=ClientInfo(client_library_version='airflow_v' + version.version)

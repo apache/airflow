@@ -99,3 +99,10 @@ class ExecutorLoader:
         log.info("Loaded executor: %s", executor_name)
 
         return executor
+
+
+UNPICKLEABLE_EXECUTORS = (
+    ExecutorLoader.LOCAL_EXECUTOR,
+    ExecutorLoader.SEQUENTIAL_EXECUTOR,
+    ExecutorLoader.DASK_EXECUTOR
+)

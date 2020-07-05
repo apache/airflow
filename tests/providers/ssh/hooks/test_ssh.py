@@ -56,6 +56,7 @@ TEST_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY)
 class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_PRIVATE_KEY_EXTRA = 'ssh_with_private_key_extra'
     CONN_SSH_WITH_EXTRA = 'ssh_with_extra'
+    CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS = 'ssh_with_extra_false_look_for_keys'
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -76,6 +77,15 @@ class TestSSHHook(unittest.TestCase):
                 conn_type='ssh',
                 extra='{"compress" : true, "no_host_key_check" : "true", '
                       '"allow_host_key_change": false}'
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS,
+                host='localhost',
+                conn_type='ssh',
+                extra='{"compress" : true, "no_host_key_check" : "true", '
+                      '"allow_host_key_change": false, "look_for_keys": false}'
             )
         )
         db.merge_conn(
@@ -107,7 +117,8 @@ class TestSSHHook(unittest.TestCase):
                 timeout=10,
                 compress=True,
                 port='port',
-                sock=None
+                sock=None,
+                look_for_keys=True
             )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
@@ -126,7 +137,8 @@ class TestSSHHook(unittest.TestCase):
                 timeout=10,
                 compress=True,
                 port='port',
-                sock=None
+                sock=None,
+                look_for_keys=True
             )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
@@ -173,6 +185,11 @@ class TestSSHHook(unittest.TestCase):
         self.assertEqual(ssh_hook.compress, True)
         self.assertEqual(ssh_hook.no_host_key_check, True)
         self.assertEqual(ssh_hook.allow_host_key_change, False)
+        self.assertEqual(ssh_hook.look_for_keys, True)
+
+    def test_conn_with_extra_parameters_false_look_for_keys(self):
+        ssh_hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS)
+        self.assertEqual(ssh_hook.look_for_keys, False)
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
     def test_tunnel_with_private_key(self, ssh_mock):
@@ -247,5 +264,6 @@ class TestSSHHook(unittest.TestCase):
                 timeout=10,
                 compress=True,
                 port='port',
-                sock=None
+                sock=None,
+                look_for_keys=True
             )

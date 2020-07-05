@@ -62,6 +62,13 @@ TODO: walk through workflow of pushing and pulling from operator
 Reference content from: https://www.aylakhan.tech/?p=725
 Include example of this in action (already one in the GKE example which we can borrow)
 
+.. note::
+  If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, consider
+  using the
+  :ref:`GKEStartPodOperator <howto/operator:GKEStartPodOperator>` operator as it
+  simplifies the Kubernetes authorization process.
+
+The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`:
 
 * Launches a Docker image as a Kubernetes Pod to execute an individual Airflow
   task via a Kubernetes API request, using the
@@ -73,15 +80,15 @@ Include example of this in action (already one in the GKE example which we can b
 * Enables task-level resource configuration
 * Allow you to pass Kubernetes specific parameters into the task
 
-.. code:: python
+.. code-block:: python
 
     import kubernetes.client.models as k8s
 
     from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-    from airflow.contrib.kubernetes.secret import Secret
-    from airflow.contrib.kubernetes.volume import Volume
-    from airflow.contrib.kubernetes.volume_mount import VolumeMount
-    from airflow.contrib.kubernetes.pod import Port
+    from airflow.kubernetes.secret import Secret
+    from airflow.kubernetes.volume import Volume
+    from airflow.kubernetes.volume_mount import VolumeMount
+    from airflow.kubernetes.pod import Port
 
 
     secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')

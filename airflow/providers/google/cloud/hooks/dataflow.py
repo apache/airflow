@@ -22,6 +22,7 @@ import functools
 import json
 import re
 import select
+import shlex
 import subprocess
 import time
 import uuid
@@ -42,10 +43,9 @@ from airflow.utils.python_virtualenv import prepare_virtualenv
 DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 
 
-# https://github.com/apache/beam/blob/75eee7857bb80a0cdb4ce99ae3e184101092e2ed/sdks/go/pkg/beam/runners/
-# universal/runnerlib/execute.go#L85
 JOB_ID_PATTERN = re.compile(
-    r'https?://console\.cloud\.google\.com/dataflow/jobsDetail/locations/.+?/jobs/([a-z|0-9|A-Z|\-|\_]+).*?')
+    r'Submitted job: (?P<job_id_java>.*)|Created job with id: \[(?P<job_id_python>.*)\]'
+)
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
 
@@ -319,8 +319,9 @@ class _DataflowRunner(LoggingMixin):
         on_new_job_id_callback: Optional[Callable[[str], None]] = None
     ) -> None:
         super().__init__()
-        self.log.info("Running command: %s", ' '.join(cmd))
+        self.log.info("Running command: %s", ' '.join(shlex.quote(c) for c in cmd))
         self.on_new_job_id_callback = on_new_job_id_callback
+        self.job_id: Optional[str] = None
         self._proc = subprocess.Popen(
             cmd,
             shell=False,
@@ -328,39 +329,45 @@ class _DataflowRunner(LoggingMixin):
             stderr=subprocess.PIPE,
             close_fds=True)
 
-    def _read_line_by_fd(self, fd):
-        if fd == self._proc.stderr.fileno():
-            line = self._proc.stderr.readline().decode()
-            if line:
-                self.log.warning(line[:-1])
-            return line
+    def _process_fd(self, fd):
+        """
+        Prints output to logs and lookup for job ID in each line.
 
-        if fd == self._proc.stdout.fileno():
-            line = self._proc.stdout.readline().decode()
-            if line:
-                self.log.info(line[:-1])
-            return line
+        :param fd: File descriptor.
+        """
+        if fd == self._proc.stderr:
+            while True:
+                line = self._proc.stderr.readline().decode()
+                if not line:
+                    return
+                self._process_line_and_extract_job_id(line)
+                self.log.warning(line.rstrip("\n"))
+
+        if fd == self._proc.stdout:
+            while True:
+                line = self._proc.stdout.readline().decode()
+                if not line:
+                    return
+                self._process_line_and_extract_job_id(line)
+                self.log.info(line.rstrip("\n"))
 
         raise Exception("No data in stderr or in stdout.")
 
-    def _extract_job(self, line: str) -> Optional[str]:
+    def _process_line_and_extract_job_id(self, line: str) -> None:
         """
         Extracts job_id.
 
         :param line: URL from which job_id has to be extracted
         :type line: str
-        :return: job_id or None if no match
-        :rtype: Optional[str]
         """
         # Job id info: https://goo.gl/SE29y9.
         matched_job = JOB_ID_PATTERN.search(line)
         if matched_job:
-            job_id = matched_job.group(1)
+            job_id = matched_job.group('job_id_java') or matched_job.group('job_id_python')
             self.log.info("Found Job ID: %s", job_id)
+            self.job_id = job_id
             if self.on_new_job_id_callback:
                 self.on_new_job_id_callback(job_id)
-            return job_id
-        return None
 
     def wait_for_done(self) -> Optional[str]:
         """
@@ -369,35 +376,31 @@ class _DataflowRunner(LoggingMixin):
         :return: Job id
         :rtype: Optional[str]
         """
-        reads = [self._proc.stderr.fileno() if self._proc.stderr else 0,
-                 self._proc.stdout.fileno() if self._proc.stdout else 0]
         self.log.info("Start waiting for DataFlow process to complete.")
-        job_id = None
-        # Make sure logs are processed regardless whether the subprocess is
-        # terminated.
-        process_ends = False
+        self.job_id = None
+        reads = [self._proc.stderr, self._proc.stdout]
         while True:
             # Wait for at least one available fd.
-            readable_fbs, _, _ = select.select(reads, [], [], 5)
-            if readable_fbs is None:
+            readable_fds, _, _ = select.select(reads, [], [], 5)
+            if readable_fds is None:
                 self.log.info("Waiting for DataFlow process to complete.")
                 continue
 
-            # Read available fds.
-            for readable_fb in readable_fbs:
-                line = self._read_line_by_fd(readable_fb)
-                if line and not job_id:
-                    job_id = job_id or self._extract_job(line)
+            for readable_fd in readable_fds:
+                self._process_fd(readable_fd)
 
-            if process_ends:
-                break
             if self._proc.poll() is not None:
-                # Mark process completion but allows its outputs to be consumed.
-                process_ends = True
+                break
+
+        # Corner case: check if more output was created between the last read and the process termination
+        for readable_fd in reads:
+            self._process_fd(readable_fd)
+
+        self.log.info("Process exited with return code: %s", self._proc.returncode)
+
         if self._proc.returncode != 0:
-            raise Exception("DataFlow failed with return code {}".format(
-                self._proc.returncode))
-        return job_id
+            raise Exception("DataFlow failed with return code {}".format(self._proc.returncode))
+        return self.job_id
 
 
 class DataflowHook(GoogleBaseHook):

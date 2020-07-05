@@ -17,8 +17,12 @@
 # under the License.
 #
 import argparse
+from typing import List, Optional
 
 from pyspark.sql import SparkSession
+
+SPARK_WRITE_TO_JDBC = "spark_to_jdbc"
+SPARK_READ_FROM_JDBC = "jdbc_to_spark"
 
 
 def set_common_options(spark_source,
@@ -104,8 +108,7 @@ def spark_read_from_jdbc(spark_session, url, user, password, metastore_table, jd
         .saveAsTable(metastore_table, format=save_format, mode=save_mode)
 
 
-if __name__ == "__main__":  # pragma: no cover
-    # parse the parameters
+def _parse_arguments(args: Optional[List[str]] = None):
     parser = argparse.ArgumentParser(description='Spark-JDBC')
     parser.add_argument('-cmdType', dest='cmd_type', action='store')
     parser.add_argument('-url', dest='url', action='store')
@@ -126,15 +129,21 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument('-upperBound', dest='upper_bound', action='store')
     parser.add_argument('-createTableColumnTypes',
                         dest='create_table_column_types', action='store')
-    arguments = parser.parse_args()
+    return parser.parse_args(args=args)
 
-    # Disable dynamic allocation by default to allow num_executors to take effect.
-    spark = SparkSession.builder \
+
+def _create_spark_session(arguments) -> SparkSession:
+    return SparkSession.builder \
         .appName(arguments.name) \
         .enableHiveSupport() \
         .getOrCreate()
 
-    if arguments.cmd_type == "spark_to_jdbc":
+
+def _run_spark(arguments):
+    # Disable dynamic allocation by default to allow num_executors to take effect.
+    spark = _create_spark_session(arguments)
+
+    if arguments.cmd_type == SPARK_WRITE_TO_JDBC:
         spark_write_to_jdbc(spark,
                             arguments.url,
                             arguments.user,
@@ -147,7 +156,7 @@ if __name__ == "__main__":  # pragma: no cover
                             arguments.batch_size,
                             arguments.num_partitions,
                             arguments.create_table_column_types)
-    elif arguments.cmd_type == "jdbc_to_spark":
+    elif arguments.cmd_type == SPARK_READ_FROM_JDBC:
         spark_read_from_jdbc(spark,
                              arguments.url,
                              arguments.user,
@@ -162,3 +171,7 @@ if __name__ == "__main__":  # pragma: no cover
                              arguments.partition_column,
                              arguments.lower_bound,
                              arguments.upper_bound)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    _run_spark(arguments=_parse_arguments())

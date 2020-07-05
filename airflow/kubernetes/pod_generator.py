@@ -481,7 +481,7 @@ class PodGenerator:
 
     @staticmethod
     def make_unique_pod_id(dag_id):
-        """
+        r"""
         Kubernetes pod names must be <= 253 chars and must pass the following regex for
         validation
         ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``

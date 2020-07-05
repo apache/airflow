@@ -19,12 +19,15 @@
 import unittest
 from unittest import mock
 
+from airflow.hooks.base_hook import BaseHook
+from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
 
 
 class TestPluginsRBAC(unittest.TestCase):
     def setUp(self):
-        self.app, self.appbuilder = application.create_app(testing=True)
+        self.app = application.create_app(testing=True)
+        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
 
     def test_flaskappbuilder_views(self):
         from tests.plugins.test_plugin import v_appbuilder_package
@@ -66,12 +69,8 @@ class TestPluginsRBAC(unittest.TestCase):
         self.assertTrue('test_plugin' in self.app.blueprints)
         self.assertEqual(self.app.blueprints['test_plugin'].name, bp.name)
 
-    @mock.patch('airflow.plugins_manager.import_errors', return_value={})
-    @mock.patch('airflow.plugins_manager.plugins', return_value=[])
     @mock.patch('airflow.plugins_manager.pkg_resources.iter_entry_points')
-    def test_entrypoint_plugin_errors_dont_raise_exceptions(
-        self, mock_ep_plugins, mock_plugins, mock_import_errors
-    ):
+    def test_entrypoint_plugin_errors_dont_raise_exceptions(self, mock_ep_plugins):
         """
         Test that Airflow does not raise an Error if there is any Exception because of the
         Plugin.
@@ -92,4 +91,69 @@ class TestPluginsRBAC(unittest.TestCase):
             assert "Traceback (most recent call last):" in received_logs
             assert "Version Conflict" in received_logs
             assert "Failed to import plugin test-entrypoint" in received_logs
-            assert "Version Conflict", "test.plugins.test_plugins_manager" in import_errors.items()
+            assert ("test.plugins.test_plugins_manager", "Version Conflict") in import_errors.items()
+
+
+class TestPluginsManager(unittest.TestCase):
+    class AirflowTestPropertyPlugin(AirflowPlugin):
+        name = "test_property_plugin"
+
+        @property
+        def operators(self):
+            from airflow.models.baseoperator import BaseOperator
+
+            class PluginPropertyOperator(BaseOperator):
+                pass
+
+            return [PluginPropertyOperator]
+
+        class TestNonPropertyHook(BaseHook):
+            pass
+
+        hooks = [TestNonPropertyHook]
+
+    @mock.patch('airflow.plugins_manager.plugins', [AirflowTestPropertyPlugin()])
+    @mock.patch('airflow.plugins_manager.operators_modules', None)
+    @mock.patch('airflow.plugins_manager.sensors_modules', None)
+    @mock.patch('airflow.plugins_manager.hooks_modules', None)
+    @mock.patch('airflow.plugins_manager.macros_modules', None)
+    def test_should_load_plugins_from_property(self):
+        from airflow import plugins_manager
+        plugins_manager.integrate_dag_plugins()
+        self.assertIn('TestPluginsManager.AirflowTestPropertyPlugin', str(plugins_manager.plugins))
+        self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
+        self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
+
+    @mock.patch('airflow.plugins_manager.plugins', [])
+    @mock.patch('airflow.plugins_manager.admin_views', None)
+    @mock.patch('airflow.plugins_manager.flask_blueprints', None)
+    @mock.patch('airflow.plugins_manager.menu_links', None)
+    @mock.patch('airflow.plugins_manager.flask_appbuilder_views', None)
+    @mock.patch('airflow.plugins_manager.flask_appbuilder_menu_links', None)
+    def test_should_warning_about_incompatible_plugins(self):
+        class AirflowDeprecatedAdminViewsPlugin(AirflowPlugin):
+            name = "test_admin_views_plugin"
+
+            admin_views = [mock.MagicMock()]
+
+        class AirflowDeprecatedAdminMenuLinksPlugin(AirflowPlugin):
+            name = "test_menu_links_plugin"
+
+            menu_links = [mock.MagicMock()]
+
+        from airflow import plugins_manager
+        plugins_manager.plugins = [
+            AirflowDeprecatedAdminViewsPlugin(),
+            AirflowDeprecatedAdminMenuLinksPlugin()
+        ]
+        with self.assertLogs(plugins_manager.log) as cm:
+            plugins_manager.initialize_web_ui_plugins()
+
+        self.assertEqual(cm.output, [
+            'WARNING:airflow.plugins_manager:Plugin \'test_admin_views_plugin\' may not be '
+            'compatible with the current Airflow version. Please contact the author of '
+            'the plugin.',
+            'WARNING:airflow.plugins_manager:Plugin \'test_menu_links_plugin\' may not be '
+            'compatible with the current Airflow version. Please contact the author of '
+            'the plugin.'
+        ])

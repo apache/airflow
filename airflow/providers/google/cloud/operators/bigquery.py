@@ -23,10 +23,12 @@ This module contains Google BigQuery operators.
 import enum
 import json
 import warnings
+from time import sleep, time
 from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 import attr
 from google.api_core.exceptions import Conflict
+from google.api_core.retry import exponential_sleep_generator
 from google.cloud.bigquery import TableReference
 
 from airflow.exceptions import AirflowException
@@ -92,6 +94,10 @@ class BigQueryCheckOperator(CheckOperator):
     a sql query that will return a single row. Each value on that
     first row is evaluated using python ``bool`` casting. If any of the
     values return ``False`` the check is failed and errors out.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryCheckOperator`
 
     Note that Python bool casting evals the following as ``False``:
 
@@ -166,6 +172,10 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     """
     Performs a simple value check using sql code.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryValueCheckOperator`
+
     :param sql: the sql to be executed
     :type sql: str
     :param use_legacy_sql: Whether to use legacy SQL (true)
@@ -230,6 +240,10 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
 
         SELECT {metrics_threshold_dict_key} FROM {table}
         WHERE {date_filter_column}=<date>
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryIntervalCheckOperator`
 
     :param table: the table name
     :type table: str
@@ -302,6 +316,10 @@ class BigQueryGetDataOperator(BaseOperator):
     where element would represent the columns values for that row.
 
     **Example Result**: ``[['Tony', '10'], ['Mike', '20'], ['Steve', '15']]``
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryGetDataOperator`
 
     .. note::
         If you pass fields to ``selected_fields`` which are in different order than the
@@ -543,8 +561,13 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         if bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.", DeprecationWarning)
             gcp_conn_id = bigquery_conn_id
+
+        warnings.warn(
+            "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
+            DeprecationWarning,
+        )
 
         self.sql = sql
         self.destination_dataset_table = destination_dataset_table
@@ -642,6 +665,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     point the operator to a Google Cloud Storage object name. The object in
     Google Cloud Storage must be a JSON file with the schema fields in it.
     You can also create a table without schema.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryCreateEmptyTableOperator`
 
     :param project_id: The project to create the table into. (templated)
     :type project_id: str
@@ -847,6 +874,10 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     point the operator to a Google Cloud Storage object name. The object in
     Google Cloud Storage must be a JSON file with the schema fields in it.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryCreateExternalTableOperator`
+
     :param bucket: The bucket to point the external table to. (templated)
     :type bucket: str
     :param source_objects: List of Google Cloud Storage URIs to point
@@ -1011,7 +1042,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
 
-        self.src_fmt_configs = src_fmt_configs or dict()
+        self.src_fmt_configs = src_fmt_configs or {}
         self.labels = labels
         self.encryption_configuration = encryption_configuration
         self.location = location
@@ -1068,6 +1099,10 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     """
     This operator deletes an existing dataset from your Project in Big query.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryDeleteDatasetOperator`
 
     :param project_id: The project id of the dataset.
     :type project_id: str
@@ -1142,6 +1177,10 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     """
     This operator is used to create new dataset for your Project in BigQuery.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryCreateEmptyDatasetOperator`
 
     :param project_id: The name of the project where we want to create the dataset.
     :type project_id: str
@@ -1224,6 +1263,10 @@ class BigQueryGetDatasetOperator(BaseOperator):
     """
     This operator is used to return the dataset specified by dataset_id.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryGetDatasetOperator`
+
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
     :type dataset_id: str
@@ -1267,6 +1310,10 @@ class BigQueryGetDatasetOperator(BaseOperator):
 class BigQueryGetDatasetTablesOperator(BaseOperator):
     """
     This operator retrieves the list of tables in the specified dataset.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryGetDatasetTablesOperator`
 
     :param dataset_id: the dataset ID of the requested dataset.
     :type dataset_id: str
@@ -1319,6 +1366,10 @@ class BigQueryPatchDatasetOperator(BaseOperator):
     """
     This operator is used to patch dataset for your Project in BigQuery.
     It only replaces fields that are provided in the submitted dataset resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryPatchDatasetOperator`
 
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
@@ -1381,6 +1432,10 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     If no ``fields`` are provided then all fields of provided ``dataset_reources``
     will be used.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryUpdateDatasetOperator`
+
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
     :type dataset_id: str
@@ -1439,6 +1494,10 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
 class BigQueryDeleteTableOperator(BaseOperator):
     """
     Deletes BigQuery tables
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryDeleteTableOperator`
 
     :param deletion_dataset_table: A dotted
         ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
@@ -1505,6 +1564,10 @@ class BigQueryUpsertTableOperator(BaseOperator):
     """
     Upsert BigQuery table
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryUpsertTableOperator`
+
     :param dataset_id: A dotted
         ``(<project>.|<project>:)<dataset>`` that indicates which dataset
         will be updated. (templated)
@@ -1570,3 +1633,91 @@ class BigQueryUpsertTableOperator(BaseOperator):
             table_resource=self.table_resource,
             project_id=self.project_id,
         )
+
+
+class BigQueryInsertJobOperator(BaseOperator):
+    """
+    Executes a BigQuery job. Waits for the job to complete and returns job id.
+    See here:
+
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryInsertJobOperator`
+
+
+    :param configuration: The configuration parameter maps directly to BigQuery's
+        configuration field in the job  object. For more details see
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+    :type configuration: Dict[str, Any]
+    :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
+        numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
+        characters. If not provided then uuid will be generated.
+    :type job_id: str
+    :param project_id: Google Cloud Project where the job is running
+    :type project_id: str
+    :param location: location the job is running
+    :type location: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+
+    template_fields = ("configuration", "job_id")
+    template_ext = (".json", )
+    ui_color = BigQueryUIColors.QUERY.value
+
+    def __init__(
+        self,
+        configuration: Dict[str, Any],
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+        job_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.configuration = configuration
+        self.location = location
+        self.job_id = job_id
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def prepare_template(self) -> None:
+        # If .json is passed then we have to read the file
+        if isinstance(self.configuration, str) and self.configuration.endswith('.json'):
+            with open(self.configuration, 'r') as file:
+                self.configuration = json.loads(file.read())
+
+    def execute(self, context: Any):
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+        )
+
+        job_id = self.job_id or f"airflow_{self.task_id}_{int(time())}"
+        try:
+            job = hook.insert_job(
+                configuration=self.configuration,
+                project_id=self.project_id,
+                location=self.location,
+                job_id=job_id,
+            )
+            # Start the job and wait for it to complete and get the result.
+            job.result()
+        except Conflict:
+            job = hook.get_job(
+                project_id=self.project_id,
+                location=self.location,
+                job_id=job_id,
+            )
+            # Get existing job and wait for it to be ready
+            for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
+                sleep(time_to_wait)
+                job.reload()
+                if job.done():
+                    break
+        return job.job_id

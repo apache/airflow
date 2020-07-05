@@ -223,7 +223,13 @@ key7 = 0
 key8 = true #123
 """
         test_conf = AirflowConfigParser(default_config=test_config)
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            AirflowConfigException,
+            re.escape(
+                'Failed to convert value to bool. Please check "key1" key in "type_validation" section. '
+                'Current value: "non_bool_value".'
+            )
+        ):
             test_conf.getboolean('type_validation', 'key1')
         self.assertTrue(isinstance(test_conf.getboolean('true', 'key3'), bool))
         self.assertEqual(True, test_conf.getboolean('true', 'key2'))
@@ -244,7 +250,13 @@ key1 = str
 key2 = 1
 """
         test_conf = AirflowConfigParser(default_config=test_config)
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            AirflowConfigException,
+            re.escape(
+                'Failed to convert value to int. Please check "key1" key in "invalid" section. '
+                'Current value: "str".'
+            )
+        ):
             test_conf.getint('invalid', 'key1')
         self.assertTrue(isinstance(test_conf.getint('valid', 'key2'), int))
         self.assertEqual(1, test_conf.getint('valid', 'key2'))
@@ -259,7 +271,13 @@ key1 = str
 key2 = 1.23
 """
         test_conf = AirflowConfigParser(default_config=test_config)
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            AirflowConfigException,
+            re.escape(
+                'Failed to convert value to float. Please check "key1" key in "invalid" section. '
+                'Current value: "str".'
+            )
+        ):
             test_conf.getfloat('invalid', 'key1')
         self.assertTrue(isinstance(test_conf.getfloat('valid', 'key2'), float))
         self.assertEqual(1.23, test_conf.getfloat('valid', 'key2'))
@@ -581,3 +599,22 @@ notacommand = OK
 
     def test_confirm_unittest_mod(self):
         self.assertTrue(conf.get('core', 'unit_test_mode'))
+
+    @conf_vars({("core", "store_serialized_dags"): "True"})
+    def test_store_dag_code_default_config(self):
+        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
+        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
+        self.assertFalse(conf.has_option("core", "store_dag_code"))
+        self.assertTrue(store_serialized_dags)
+        self.assertTrue(store_dag_code)
+
+    @conf_vars({
+        ("core", "store_serialized_dags"): "True",
+        ("core", "store_dag_code"): "False"
+    })
+    def test_store_dag_code_config_when_set(self):
+        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
+        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
+        self.assertTrue(conf.has_option("core", "store_dag_code"))
+        self.assertTrue(store_serialized_dags)
+        self.assertFalse(store_dag_code)

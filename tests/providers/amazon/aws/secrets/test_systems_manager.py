@@ -81,6 +81,18 @@ class TestSsmSecrets(TestCase):
         self.assertEqual('world', returned_uri)
 
     @mock_ssm
+    def test_get_variable_secret_string(self):
+        param = {
+            'Name': '/airflow/variables/hello',
+            'Type': 'SecureString',
+            'Value': 'world'
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+        returned_uri = ssm_backend.get_variable('hello')
+        self.assertEqual('world', returned_uri)
+
+    @mock_ssm
     def test_get_variable_non_existent_key(self):
         """
         Test that if Variable key is not present in SSM,

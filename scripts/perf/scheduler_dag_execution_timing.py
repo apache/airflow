@@ -31,18 +31,18 @@ MAX_DAG_RUNS_ALLOWED = 1
 
 
 class ShortCircuitExecutorMixin:
-    '''
+    """
     Mixin class to manage the scheduler state during the performance test run.
-    '''
+    """
     def __init__(self, dag_ids_to_watch, num_runs):
         super().__init__()
         self.num_runs_per_dag = num_runs
         self.reset(dag_ids_to_watch)
 
     def reset(self, dag_ids_to_watch):
-        '''
+        """
         Capture the value that will determine when the scheduler is reset.
-        '''
+        """
         self.dags_to_watch = {
             dag_id: Namespace(
                 waiting_for=self.num_runs_per_dag,
@@ -54,10 +54,10 @@ class ShortCircuitExecutorMixin:
         }
 
     def change_state(self, key, state, info=None):
-        '''
+        """
         Change the state of scheduler by waiting till the tasks is complete
         and then shut down the scheduler after the task is complete
-        '''
+        """
         from airflow.utils.state import State
         super().change_state(key, state, info=info)
 
@@ -92,9 +92,9 @@ class ShortCircuitExecutorMixin:
 
 
 def get_executor_under_test(dotted_path):
-    '''
+    """
     Create and return a MockExecutor
-    '''
+    """
 
     from airflow.executors.executor_loader import ExecutorLoader
 
@@ -110,18 +110,18 @@ def get_executor_under_test(dotted_path):
 
     # Change this to try other executors
     class ShortCircuitExecutor(ShortCircuitExecutorMixin, Executor):
-        '''
+        """
         Placeholder class that implements the inheritance hierarchy
-        '''
+        """
         scheduler_job = None
 
     return ShortCircuitExecutor
 
 
 def reset_dag(dag, session):
-    '''
+    """
     Delete all dag and task instances and then un_pause the Dag.
-    '''
+    """
     import airflow.models
 
     DR = airflow.models.DagRun
@@ -137,17 +137,17 @@ def reset_dag(dag, session):
 
 
 def pause_all_dags(session):
-    '''
+    """
     Pause all Dags
-    '''
+    """
     from airflow.models.dag import DagModel
     session.query(DagModel).update({'is_paused': True})
 
 
 def create_dag_runs(dag, num_runs, session):
-    '''
+    """
     Create  `num_runs` of dag runs for sub-sequent schedules
-    '''
+    """
     from airflow.utils import timezone
     from airflow.utils.state import State
 
