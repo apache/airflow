@@ -33,8 +33,9 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, BackfillUnfinished
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.dagbag import FilesystemDagBag
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag
@@ -299,7 +300,7 @@ def dag_next_execution(args):
 @cli_utils.action_logging
 def dag_list_dags(args):
     """Displays dags with or without stats at the command line"""
-    dagbag = DagBag(process_subdir(args.subdir))
+    dagbag = FilesystemDagBag(process_subdir(args.subdir))
     dags = dagbag.dags.values()
     print(_tabulate_dags(dags, tablefmt=args.output))
 
@@ -307,7 +308,7 @@ def dag_list_dags(args):
 @cli_utils.action_logging
 def dag_report(args):
     """Displays dagbag stats at the command line"""
-    dagbag = DagBag(process_subdir(args.subdir))
+    dagbag = FilesystemDagBag(process_subdir(args.subdir))
     print(tabulate(dagbag.dagbag_stats, headers="keys", tablefmt=args.output))
 
 
@@ -318,7 +319,7 @@ def dag_list_jobs(args, dag=None):
     if dag:
         args.dag_id = dag.dag_id
     if args.dag_id:
-        dagbag = DagBag()
+        dagbag = FilesystemDagBag()
 
         if args.dag_id not in dagbag.dags:
             error_message = "Dag id {} not found".format(args.dag_id)
@@ -349,7 +350,7 @@ def dag_list_dag_runs(args, dag=None):
     if dag:
         args.dag_id = dag.dag_id
 
-    dagbag = DagBag()
+    dagbag = FilesystemDagBag()
 
     if args.dag_id is not None and args.dag_id not in dagbag.dags:
         error_message = "Dag id {} not found".format(args.dag_id)

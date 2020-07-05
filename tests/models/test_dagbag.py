@@ -28,6 +28,7 @@ from unittest.mock import patch
 import airflow.example_dags
 from airflow import models
 from airflow.models import DagBag, DagModel
+from airflow.models.dagbag import FilesystemDagBag
 from airflow.utils.session import create_session
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
@@ -142,7 +143,7 @@ class TestDagBag(unittest.TestCase):
 
             self.assertTrue(dagbag.has_logged)
             self.assertIn(
-                f'INFO:airflow.models.dagbag.DagBag:File {test_zip_path}:file_no_airflow_dag.py '
+                f'INFO:airflow.models.dagbag.FilesystemDagBag:File {test_zip_path}:file_no_airflow_dag.py '
                 'assumed to contain no DAGs. Skipping.',
                 cm.output
             )
@@ -180,7 +181,7 @@ class TestDagBag(unittest.TestCase):
         mock_dagmodel.return_value.last_expired = None
         mock_dagmodel.return_value.fileloc = 'foo'
 
-        class _TestDagBag(models.DagBag):
+        class _TestDagBag(FilesystemDagBag):
             process_file_calls = 0
 
             def process_file(self, filepath, only_if_updated=True, safe_mode=True):
@@ -233,7 +234,7 @@ class TestDagBag(unittest.TestCase):
         )
         mock_dagmodel.return_value.fileloc = fileloc
 
-        class _TestDagBag(DagBag):
+        class _TestDagBag(FilesystemDagBag):
             process_file_calls = 0
 
             def process_file(self, filepath, only_if_updated=True, safe_mode=True):
@@ -265,7 +266,7 @@ class TestDagBag(unittest.TestCase):
         )
         mock_dagmodel.return_value.fileloc = fileloc
 
-        class _TestDagBag(DagBag):
+        class _TestDagBag(FilesystemDagBag):
             process_file_calls = 0
 
             def process_file(self, filepath, only_if_updated=True, safe_mode=True):

@@ -35,6 +35,7 @@ from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
 from airflow.plugins_manager import integrate_dag_plugins
+from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
@@ -54,7 +55,7 @@ class FileLoadStat(NamedTuple):
     dags: str
 
 
-class DagBag(BaseDagBag, LoggingMixin):
+class FilesystemDagBag(BaseDagBag, LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high
     level configuration settings, like what database to use as a backend and
@@ -118,23 +119,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         # Avoid circular import
         from airflow.models.dag import DagModel
-
-        # Only read DAGs from DB if this dagbag is store_serialized_dags.
-        if self.store_serialized_dags:
-            # Import here so that serialized dag is only imported when serialization is enabled
-            from airflow.models.serialized_dag import SerializedDagModel
-            if dag_id not in self.dags:
-                # Load from DB if not (yet) in the bag
-                row = SerializedDagModel.get(dag_id)
-                if not row:
-                    return None
-
-                dag = row.dag
-                for subdag in dag.subdags:
-                    self.dags[subdag.dag_id] = subdag
-                self.dags[dag.dag_id] = dag
-
-            return self.dags.get(dag_id)
 
         # If asking for a known subdag, we want to refresh the parent
         dag = None
@@ -359,9 +343,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         **Note**: The patterns in .airflowignore are treated as
         un-anchored regexes, not shell-like glob patterns.
         """
-        if self.store_serialized_dags:
-            return
-
         self.log.info("Filling up the DagBag from %s", dag_folder)
         start_dttm = timezone.utcnow()
         dag_folder = dag_folder or self.dag_folder
@@ -431,7 +412,49 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG
-        from airflow.models.serialized_dag import SerializedDagModel
         DAG.bulk_sync_to_db(self.dags.values())
-        if self.store_serialized_dags:
+        if STORE_SERIALIZED_DAGS:
+            from airflow.models.serialized_dag import SerializedDagModel
             SerializedDagModel.bulk_sync_to_db(self.dags.values())
+
+
+class DatabaseDagBag(BaseDagBag, LoggingMixin):
+    """DAGBAg that lookup for dags in DB"""
+    def __init__(self):
+        super().__init__()
+        self.dags = {}
+
+    @property
+    def dag_ids(self):
+        return list(self.dags.keys())
+
+    def get_dag(self, dag_id):
+        from airflow.models.serialized_dag import SerializedDagModel
+        if dag_id not in self.dags:
+            # Load from DB if not (yet) in the bag
+            row = SerializedDagModel.get(dag_id)
+            if not row:
+                return None
+
+            dag = row.dag
+            for subdag in dag.subdags:
+                self.dags[subdag.dag_id] = subdag
+            self.dags[dag.dag_id] = dag
+
+        return self.dags.get(dag_id)
+
+
+def DagBag(  # pylint: disable=invalid-name
+    dag_folder=None,
+    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+    store_serialized_dags=False,
+) -> BaseDagBag:
+    """For backward-compatibility"""
+    if store_serialized_dags:
+        return DatabaseDagBag()
+    return FilesystemDagBag(
+        dag_folder=dag_folder,
+        include_examples=include_examples,
+        safe_mode=safe_mode
+    )

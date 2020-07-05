@@ -20,6 +20,7 @@ import json
 from datetime import datetime
 from typing import List, Optional, Union
 
+from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
@@ -29,7 +30,7 @@ from airflow.utils.types import DagRunType
 
 def _trigger_dag(
         dag_id: str,
-        dag_bag: DagBag,
+        dag_bag: BaseDagBag,
         dag_run: DagModel,
         run_id: Optional[str],
         conf: Optional[Union[dict, str]],
@@ -49,7 +50,7 @@ def _trigger_dag(
     """
     dag = dag_bag.get_dag(dag_id)  # prefetch dag if it is stored serialized
 
-    if dag_id not in dag_bag.dags:
+    if not dag:
         raise DagNotFound("Dag id {} not found".format(dag_id))
 
     execution_date = execution_date if execution_date else timezone.utcnow()

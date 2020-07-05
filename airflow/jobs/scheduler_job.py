@@ -41,6 +41,7 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagModel, SlaMiss, errors
+from airflow.models.dagbag import FilesystemDagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.operators.dummy_operator import DummyOperator
@@ -509,7 +510,7 @@ class DagFileProcessor(LoggingMixin):
         :param session: session for ORM operations
         :type session: sqlalchemy.orm.session.Session
         :param dagbag: DagBag containing DAGs with import errors
-        :type dagbag: airflow.models.DagBag
+        :type dagbag: airflow.models.base.BaseDagBag
         """
         # Clear the errors of the processed files
         for dagbag_file in dagbag.file_last_changed:
@@ -841,7 +842,7 @@ class DagFileProcessor(LoggingMixin):
         self.log.info("Processing file %s for tasks to queue", file_path)
 
         try:
-            dagbag = models.DagBag(file_path, include_examples=False)
+            dagbag = FilesystemDagBag(file_path, include_examples=False)
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
@@ -885,7 +886,7 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def _schedule_task_instances(
         self,
-        dagbag: models.DagBag,
+        dagbag: FilesystemDagBag,
         ti_keys_to_schedule: List[TaskInstanceKeyType],
         session=None
     ) -> None:

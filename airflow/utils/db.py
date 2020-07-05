@@ -32,6 +32,7 @@ from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
 )
 # We need to add this model manually to get reset working well
 # noinspection PyUnresolvedReferences
+from airflow.models.dagbag import FilesystemDagBag
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
@@ -548,7 +549,7 @@ def initdb():
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections()
 
-    dagbag = DagBag()
+    dagbag = FilesystemDagBag()
     # Save DAGs in the ORM
     dagbag.sync_to_db()
 

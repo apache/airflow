@@ -36,7 +36,8 @@ from typing import Optional
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagBag, DagModel, DagPickle, Log
+from airflow.models import DAG, DagModel, DagPickle, Log
+from airflow.models.dagbag import FilesystemDagBag
 from airflow.utils import cli_action_loggers
 from airflow.utils.platform import is_terminal_support_colors
 from airflow.utils.session import provide_session
@@ -147,13 +148,13 @@ def get_dag_by_file_location(dag_id: str):
         raise AirflowException(
             'dag_id could not be found: {}. Either the dag did not exist or it failed to '
             'parse.'.format(dag_id))
-    dagbag = DagBag(dag_folder=dag_model.fileloc)
+    dagbag = FilesystemDagBag(dag_folder=dag_model.fileloc)
     return dagbag.dags[dag_id]
 
 
 def get_dag(subdir: Optional[str], dag_id: str) -> DAG:
     """Returns DAG of a given dag_id"""
-    dagbag = DagBag(process_subdir(subdir))
+    dagbag = FilesystemDagBag(process_subdir(subdir))
     if dag_id not in dagbag.dags:
         raise AirflowException(
             'dag_id could not be found: {}. Either the dag did not exist or it failed to '
@@ -165,7 +166,7 @@ def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
     """Returns DAG(s) matching a given regex or dag_id"""
     if not use_regex:
         return [get_dag(subdir, dag_id)]
-    dagbag = DagBag(process_subdir(subdir))
+    dagbag = FilesystemDagBag(process_subdir(subdir))
     matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(
