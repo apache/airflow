@@ -19,8 +19,6 @@
 #
 # Fixes ownership for files created inside container (files owned by root will be owned by host user)
 #
-set -x
-
 export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
@@ -38,6 +36,7 @@ HOST_OS="$(uname -s)"
 export HOST_USER_ID
 export HOST_GROUP_ID
 export HOST_OS
+export BACKEND="sqlite"
 
 docker-compose \
     -f "${MY_DIR}/docker-compose/base.yml" \
