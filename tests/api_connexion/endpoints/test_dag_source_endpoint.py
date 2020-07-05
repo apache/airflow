@@ -50,9 +50,10 @@ class TestGetSource(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
 
-    def _get_dag_file_docstring(self, fileloc: str) -> str:
-        with open(fileloc) as fd:
-            file_contents = fd.read()
+    @staticmethod
+    def _get_dag_file_docstring(fileloc: str) -> str:
+        with open(fileloc) as f:
+            file_contents = f.read()
         module = ast.parse(file_contents)
         docstring = ast.get_docstring(module)
         return docstring
