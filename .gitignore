@@ -201,5 +201,4 @@ log.txt*
 Chart.lock
 
 # Chart dependencies
-chart/requirements.lock
 **/charts/*.tgz
