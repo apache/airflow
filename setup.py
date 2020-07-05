@@ -216,6 +216,7 @@ cloudant = [
 ]
 dask = [
     'distributed>=2.11.1, <2.20',
+    'cloudpickle>=1.4.1, <1.5'
 ]
 databricks = [
     'requests>=2.20.0, <3',
