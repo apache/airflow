@@ -336,6 +336,12 @@ These integrations allow you to copy data from/to Microsoft Azure.
      -
      - :mod:`airflow.providers.microsoft.azure.transfers.file_to_wasb`
 
+   * - SFTP
+     - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
+     -
+     - :mod:`airflow.providers.microsoft.azure.transfers.sftp_to_wasb`
+
+
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      -
