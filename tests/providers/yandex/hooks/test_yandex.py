@@ -32,7 +32,7 @@ class TestYandexHook(unittest.TestCase):
         """ tests `init` method to validate client creation when all parameters are passed """
 
         # Inputs to constructor
-        default_folder_id ='test_id'
+        default_folder_id = 'test_id'
         default_public_ssh_key = 'test_key'
 
         extra_dejson = '{"extras": "extra"}'
@@ -74,7 +74,8 @@ class TestYandexHook(unittest.TestCase):
         extra_dejson = {"extra__yandexcloud__one": "value_one"}
         get_connection_mock['extra_dejson'] = "sdsd"
         get_connection_mock.extra_dejson = '{"extras": "extra"}'
-        get_connection_mock.return_value = mock.Mock(connection_id='yandexcloud_default', extra_dejson=extra_dejson)
+        get_connection_mock.return_value = mock.Mock(connection_id='yandexcloud_default',
+                                                     extra_dejson=extra_dejson)
         get_credentials_mock.return_value = {"token": 122323}
 
         hook = YandexCloudBaseHook(None,
