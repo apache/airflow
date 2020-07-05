@@ -51,6 +51,7 @@ class StackdriverTaskHandler(logging.Handler):
 
     This handler supports both an asynchronous and synchronous transport.
 
+
     :param gcp_key_path: Path to GCP Credential JSON file.
         If ommited, authorization based on `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
@@ -58,8 +59,9 @@ class StackdriverTaskHandler(logging.Handler):
     :type gcp_key_path: str
     :param scopes: OAuth scopes for the credentials,
     :type scopes: Sequence[str]
-    :param name: the name of the custom log in Stackdriver Logging. Defaults to 'airflow'.
-        The name of the Python logger will be represented in the ``python_logger`` field.
+    :param name: the name of the custom log in Stackdriver Logging. Defaults
+        to 'airflow'. The name of the Python logger will be represented
+         in the ``python_logger`` field.
     :type name: str
     :param transport: Class for creating new transport objects. It should
         extend from the base :class:`google.cloud.logging.handlers.Transport` type and
@@ -68,7 +70,7 @@ class StackdriverTaskHandler(logging.Handler):
         option is :class:`google.cloud.logging.handlers.SyncTransport`.
     :type transport: :class:`type`
     :param resource: (Optional) Monitored resource of the entry, defaults
-        to the global resource type.
+                     to the global resource type.
     :type resource: :class:`~google.cloud.logging.resource.Resource`
     :param labels: (Optional) Mapping of labels for the entry.
     :type labels: dict
@@ -102,7 +104,7 @@ class StackdriverTaskHandler(logging.Handler):
     @cached_property
     def _client(self) -> gcp_logging.Client:
         """Google Cloud Library API client"""
-        credentials = get_credentials_and_project_id(
+        credentials, _ = get_credentials_and_project_id(
             key_path=self.gcp_key_path,
             scopes=self.scopes,
         )
@@ -142,7 +144,7 @@ class StackdriverTaskHandler(logging.Handler):
         Configures the logger to add information with information about the current task
 
         :param task_instance: Currently executed task
-        :type task_instance: :class:`airflow.models.TaskInstance`
+        :type task_instance: TaskInstance
         """
         self.task_instance_labels = self._task_instance_to_labels(task_instance)
 
@@ -153,7 +155,7 @@ class StackdriverTaskHandler(logging.Handler):
         Read logs of given task instance from Stackdriver logging.
 
         :param task_instance: task instance object
-        :type task_instance: :class:`airflow.models.TaskInstance`
+        :type: task_instance: TaskInstance
         :param try_number: task instance try_number to read logs from. If None
            it returns all logs
         :type try_number: Optional[int]
