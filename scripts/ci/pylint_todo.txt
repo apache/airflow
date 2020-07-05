@@ -1,5 +1,4 @@
 ./airflow/configuration.py
-./airflow/logging_config.py
 ./airflow/macros/hive.py
 ./airflow/migrations/env.py
 ./airflow/models/crypto.py
