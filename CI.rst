@@ -33,7 +33,7 @@ environments we use. Most of our CI jobs are written as bash scripts which are e
 the CI jobs and we are mapping all the CI-specific environment variables to generic "CI" variables.
 The only two places where CI-specific code might be are:
 
-- CI-specific declaration file (for example it is `<.github/workflow/ci.yml>`_ for GitHub Actions
+- CI-specific declaration file (for example it is `<.github/workflows/ci.yml>`_ for GitHub Actions
 - The ``get_environment_for_builds_on_ci`` function in `<scripts/ci/libraries/_build_images.sh>`_ where mapping is
   performed from the CI-environment specific to generic values. Example for that is CI_EVENT_TYPE variable
   which determines whether we are running a ``push``. ``schedule`` or ``pull_request`` kind of CI job. For

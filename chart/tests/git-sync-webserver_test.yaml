@@ -1,0 +1,66 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+templates:
+  - webserver/webserver-deployment.yaml
+tests:
+  - it: should add dags volume to the webserver if git sync & peristence is enabled
+    set:
+      dags:
+        gitSync:
+          enabled: true
+        persistence:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: dags
+  - it: should add dags volume to the webserver if git sync is enabled & peristence is disabled
+    set:
+      dags:
+        gitSync:
+          enabled: true
+        persistence:
+          enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: dags
+  - it: should add git sync container to webserver if persistence is not enabled, but git sync is
+    set:
+      dags:
+        gitSync:
+          enabled: true
+          containerName: git-sync
+        persistence:
+          enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: git-sync
+  - it: should not add sync container to webserver if git sync and persistence are enabled
+    set:
+      dags:
+        gitSync:
+          enabled: true
+          container_name: git-sync
+        persistence:
+          enabled: true
+    asserts:
+      - notEqual:
+          path: spec.template.spec.containers[0].name
+          value: git-sync
