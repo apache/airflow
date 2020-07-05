@@ -549,7 +549,10 @@ jobs:
           - "v0.8.0"
         helm-version:
           - "v3.2.4"
-      fail-fast: false
+        install-airflow-version:
+          - ""
+          - "1.10.12rc4"
+        fail-fast: false
     env:
       BACKEND: postgres
       TEST_TYPE: ${{ matrix.test-type }}
@@ -561,6 +564,7 @@ jobs:
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
       KIND_VERSION: "${{ matrix.kind-version }}"
       HELM_VERSION: "${{ matrix.helm-version }}"
+      INSTALL_AIRFLOW_VERSION: "${{ matrix.install-airflow-version }}"
     if: |
       (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
