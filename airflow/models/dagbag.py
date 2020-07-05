@@ -107,7 +107,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
     @property
     def dag_ids(self) -> List[str]:
-        return self.dags.keys()
+        return list(self.dags.keys())
 
     def get_dag(self, dag_id):
         """
@@ -144,11 +144,12 @@ class DagBag(BaseDagBag, LoggingMixin):
             if dag.is_subdag:
                 root_dag_id = dag.parent_dag.dag_id
 
-        # If the dag corresponding to root_dag_id is absent or expired
+        # If DAG Model is absent, we can't check last_expired property. Is the DAG not yet synchronized?
         orm_dag = DagModel.get_current(root_dag_id)
         if not orm_dag:
             return self.dags.get(dag_id)
 
+        # If the dag corresponding to root_dag_id is absent or expired
         is_missing = root_dag_id not in self.dags
         is_expired = (orm_dag.last_expired and dag.last_loaded < orm_dag.last_expired)
         if is_missing or is_expired:
@@ -403,27 +404,6 @@ class DagBag(BaseDagBag, LoggingMixin):
             Stats.timing('dag.loading-duration.{}'.
                          format(filename),
                          file_stat.duration)
-
-    def collect_dags_from_db(self):
-        """Collects DAGs from database."""
-        from airflow.models.serialized_dag import SerializedDagModel
-        start_dttm = timezone.utcnow()
-        self.log.info("Filling up the DagBag from database")
-
-        # The dagbag contains all rows in serialized_dag table. Deleted DAGs are deleted
-        # from the table by the scheduler job.
-        self.dags = SerializedDagModel.read_all_dags()
-
-        # Adds subdags.
-        # DAG post-processing steps such as self.bag_dag and croniter are not needed as
-        # they are done by scheduler before serialization.
-        subdags = {}
-        for dag in self.dags.values():
-            for subdag in dag.subdags:
-                subdags[subdag.dag_id] = subdag
-        self.dags.update(subdags)
-
-        Stats.timing('collect_db_dags', timezone.utcnow() - start_dttm)
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""
