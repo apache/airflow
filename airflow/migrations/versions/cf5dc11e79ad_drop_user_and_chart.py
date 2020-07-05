@@ -43,12 +43,16 @@ def upgrade():   # noqa: D103
 
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
 
-    if 'known_event' in inspector.get_table_names() != 'sqlite':
+    if 'known_event' in tables:
         op.drop_constraint('known_event_user_id_fkey', 'known_event')
 
-    op.drop_table("chart")
-    op.drop_table("users")
+    if "chart" in tables:
+        op.drop_table("chart", )
+
+    if "users" in tables:
+        op.drop_table("users")
 
 
 def downgrade():   # noqa: D103
