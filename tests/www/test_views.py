@@ -1101,7 +1101,7 @@ class TestLogView(TestBase):
             dag.sync_to_db()
             dag_removed = DAG(self.DAG_ID_REMOVED, start_date=self.DEFAULT_DATE)
             dag_removed.sync_to_db()
-            dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+            dagbag.bag_dag(dag=dag, root_dag=dag)
             with create_session() as session:
                 self.ti = TaskInstance(
                     task=DummyOperator(task_id=self.TASK_ID, dag=dag),
@@ -1393,7 +1393,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
     def setup(self):
         dagbag = self.test.app.dag_bag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
-        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+        dagbag.bag_dag(dag=dag, root_dag=dag)
         for run_data in self.RUNS_DATA:
             run = dag.create_dagrun(
                 run_id=run_data[0],

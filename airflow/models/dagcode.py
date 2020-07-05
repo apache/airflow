@@ -23,7 +23,7 @@ from typing import Iterable, Optional
 from sqlalchemy import BigInteger, Column, String, UnicodeText, and_, exists
 
 from airflow.exceptions import AirflowException, DagCodeNotFound
-from airflow.models import Base
+from airflow.models.base import Base
 from airflow.settings import STORE_DAG_CODE
 from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped

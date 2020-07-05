@@ -3,7 +3,6 @@
 ./airflow/migrations/env.py
 ./airflow/models/crypto.py
 ./airflow/models/dag.py
-./airflow/models/dagbag.py
 ./airflow/models/dagrun.py
 ./airflow/models/taskinstance.py
 ./airflow/stats.py

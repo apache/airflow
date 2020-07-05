@@ -18,6 +18,7 @@
 
 import hashlib
 import importlib
+import importlib.machinery
 import importlib.util
 import os
 import sys
@@ -37,7 +38,7 @@ from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
-from airflow.utils.file import correct_maybe_zipped
+from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
 
@@ -65,15 +66,9 @@ class DagBag(BaseDagBag, LoggingMixin):
 
     :param dag_folder: the folder to scan to find DAGs
     :type dag_folder: unicode
-    :param executor: the executor to use when executing task instances
-        in this DagBag
     :param include_examples: whether to include the examples that ship
         with airflow or not
     :type include_examples: bool
-    :param has_logged: an instance boolean that gets flipped from False to True after a
-        file has been skipped. This is to prevent overloading the user with logging
-        messages about skipped files. Therefore only once per DagBag is a file logged
-        being skipped.
     :param store_serialized_dags: Read DAGs from DB if store_serialized_dags is ``True``.
         If ``False`` DAGs are read from python files.
     :type store_serialized_dags: bool
@@ -89,7 +84,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
             store_serialized_dags=False,
     ):
-
+        super().__init__()
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
         self.dags = {}
@@ -180,16 +175,13 @@ class DagBag(BaseDagBag, LoggingMixin):
         Given a path to a python module or zip file, this method imports
         the module and look for dag objects within it.
         """
-        from airflow.models.dag import DAG  # Avoid circular import
-
         integrate_dag_plugins()
-        found_dags = []
 
         # if the source file no longer exists in the DB or in the filesystem,
         # return an empty list
         # todo: raise exception?
         if filepath is None or not os.path.isfile(filepath):
-            return found_dags
+            return []
 
         try:
             # This failed before in what may have been a git sync
@@ -198,117 +190,128 @@ class DagBag(BaseDagBag, LoggingMixin):
             if only_if_updated \
                     and filepath in self.file_last_changed \
                     and file_last_changed_on_disk == self.file_last_changed[filepath]:
-                return found_dags
-
-        except Exception as e:
+                return []
+        except Exception as e:  # pylint: disable=broad-except
             self.log.exception(e)
-            return found_dags
+            return []
 
-        mods = []
-        is_zipfile = zipfile.is_zipfile(filepath)
-        if not is_zipfile:
-            if safe_mode:
-                with open(filepath, 'rb') as file:
-                    content = file.read()
-                    if not all([s in content for s in (b'DAG', b'airflow')]):
-                        self.file_last_changed[filepath] = file_last_changed_on_disk
-                        # Don't want to spam user with skip messages
-                        if not self.has_logged:
-                            self.has_logged = True
-                            self.log.info(
-                                "File %s assumed to contain no DAGs. Skipping.",
-                                filepath)
-                        return found_dags
-
-            self.log.debug("Importing %s", filepath)
-            org_mod_name, _ = os.path.splitext(os.path.split(filepath)[-1])
-            mod_name = ('unusual_prefix_' +
-                        hashlib.sha1(filepath.encode('utf-8')).hexdigest() +
-                        '_' + org_mod_name)
-
-            if mod_name in sys.modules:
-                del sys.modules[mod_name]
-
-            with timeout(self.DAGBAG_IMPORT_TIMEOUT):
-                try:
-                    loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
-                    spec = importlib.util.spec_from_loader(mod_name, loader)
-                    m = importlib.util.module_from_spec(spec)
-                    sys.modules[spec.name] = m
-                    loader.exec_module(m)
-                    mods.append(m)
-                except Exception as e:
-                    self.log.exception("Failed to import: %s", filepath)
-                    self.import_errors[filepath] = str(e)
-                    self.file_last_changed[filepath] = file_last_changed_on_disk
-
+        if not zipfile.is_zipfile(filepath):
+            mods = self._load_modules_from_file(filepath, safe_mode)
         else:
-            zip_file = zipfile.ZipFile(filepath)
-            for mod in zip_file.infolist():
-                head, _ = os.path.split(mod.filename)
-                mod_name, ext = os.path.splitext(mod.filename)
-                if not head and ext in [".py", ".pyc"]:
-                    if mod_name == '__init__':
-                        self.log.warning("Found __init__.%s at root of %s", ext, filepath)
-                    if safe_mode:
-                        with zip_file.open(mod.filename) as zf:
-                            self.log.debug("Reading %s from %s", mod.filename, filepath)
-                            content = zf.read()
-                            if not all([s in content for s in (b'DAG', b'airflow')]):
-                                self.file_last_changed[filepath] = (
-                                    file_last_changed_on_disk)
-                                # todo: create ignore list
-                                # Don't want to spam user with skip messages
-                                if not self.has_logged:
-                                    self.has_logged = True
-                                    self.log.info(
-                                        "File %s assumed to contain no DAGs. Skipping.",
-                                        filepath)
+            mods = self._load_modules_from_zip(filepath, safe_mode)
 
-                    if mod_name in sys.modules:
-                        del sys.modules[mod_name]
-
-                    try:
-                        sys.path.insert(0, filepath)
-                        m = importlib.import_module(mod_name)
-                        mods.append(m)
-                    except Exception as e:
-                        self.log.exception("Failed to import: %s", filepath)
-                        self.import_errors[filepath] = str(e)
-                        self.file_last_changed[filepath] = file_last_changed_on_disk
-
-        for m in mods:
-            for dag in list(m.__dict__.values()):
-                if isinstance(dag, DAG):
-                    if not dag.full_filepath:
-                        dag.full_filepath = filepath
-                        if dag.fileloc != filepath and not is_zipfile:
-                            dag.fileloc = filepath
-                    try:
-                        dag.is_subdag = False
-                        self.bag_dag(dag, parent_dag=dag, root_dag=dag)
-                        if isinstance(dag.normalized_schedule_interval, str):
-                            croniter(dag.normalized_schedule_interval)
-                        found_dags.append(dag)
-                        found_dags += dag.subdags
-                    except (CroniterBadCronError,
-                            CroniterBadDateError,
-                            CroniterNotAlphaError) as cron_e:
-                        self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                        self.import_errors[dag.full_filepath] = \
-                            "Invalid Cron expression: " + str(cron_e)
-                        self.file_last_changed[dag.full_filepath] = \
-                            file_last_changed_on_disk
-                    except AirflowDagCycleException as cycle_exception:
-                        self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                        self.import_errors[dag.full_filepath] = str(cycle_exception)
-                        self.file_last_changed[dag.full_filepath] = \
-                            file_last_changed_on_disk
+        found_dags = self._process_modules(filepath, mods, file_last_changed_on_disk)
 
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
 
-    def bag_dag(self, dag, parent_dag, root_dag):
+    def _load_modules_from_file(self, filepath, safe_mode):
+        if not might_contain_dag(filepath, safe_mode):
+            # Don't want to spam user with skip messages
+            if not self.has_logged:
+                self.has_logged = True
+                self.log.info("File %s assumed to contain no DAGs. Skipping.", filepath)
+            return []
+
+        self.log.debug("Importing %s", filepath)
+        org_mod_name, _ = os.path.splitext(os.path.split(filepath)[-1])
+        path_hash = hashlib.sha1(filepath.encode('utf-8')).hexdigest()
+        mod_name = f'unusual_prefix_{path_hash}_{org_mod_name}'
+
+        if mod_name in sys.modules:
+            del sys.modules[mod_name]
+
+        with timeout(self.DAGBAG_IMPORT_TIMEOUT):
+            try:
+                loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
+                spec = importlib.util.spec_from_loader(mod_name, loader)
+                new_module = importlib.util.module_from_spec(spec)
+                sys.modules[spec.name] = new_module
+                loader.exec_module(new_module)
+                return [new_module]
+            except Exception as e:  # pylint: disable=broad-except
+                self.log.exception("Failed to import: %s", filepath)
+                self.import_errors[filepath] = str(e)
+        return []
+
+    def _load_modules_from_zip(self, filepath, safe_mode):
+        mods = []
+        current_zip_file = zipfile.ZipFile(filepath)
+        for zip_info in current_zip_file.infolist():
+            head, _ = os.path.split(zip_info.filename)
+            mod_name, ext = os.path.splitext(zip_info.filename)
+            if ext not in [".py", ".pyc"]:
+                continue
+            if head:
+                continue
+
+            if mod_name == '__init__':
+                self.log.warning("Found __init__.%s at root of %s", ext, filepath)
+
+            self.log.debug("Reading %s from %s", zip_info.filename, filepath)
+
+            if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
+                # todo: create ignore list
+                # Don't want to spam user with skip messages
+                if not self.has_logged or True:
+                    self.has_logged = True
+                    self.log.info(
+                        "File %s:%s assumed to contain no DAGs. Skipping.",
+                        filepath, zip_info.filename
+                    )
+                continue
+
+            if mod_name in sys.modules:
+                del sys.modules[mod_name]
+
+            try:
+                sys.path.insert(0, filepath)
+                current_module = importlib.import_module(mod_name)
+                mods.append(current_module)
+            except Exception as e:  # pylint: disable=broad-except
+                self.log.exception("Failed to import: %s", filepath)
+                self.import_errors[filepath] = str(e)
+        return mods
+
+    def _process_modules(self, filepath, mods, file_last_changed_on_disk):
+        from airflow.models.dag import DAG  # Avoid circular import
+
+        is_zipfile = zipfile.is_zipfile(filepath)
+        top_level_dags = [
+            o
+            for m in mods
+            for o in list(m.__dict__.values())
+            if isinstance(o, DAG)
+        ]
+
+        found_dags = []
+
+        for dag in top_level_dags:
+            if not dag.full_filepath:
+                dag.full_filepath = filepath
+                if dag.fileloc != filepath and not is_zipfile:
+                    dag.fileloc = filepath
+            try:
+                dag.is_subdag = False
+                self.bag_dag(dag=dag, root_dag=dag)
+                if isinstance(dag.normalized_schedule_interval, str):
+                    croniter(dag.normalized_schedule_interval)
+                found_dags.append(dag)
+                found_dags += dag.subdags
+            except (CroniterBadCronError,
+                    CroniterBadDateError,
+                    CroniterNotAlphaError) as cron_e:
+                self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
+                self.import_errors[dag.full_filepath] = f"Invalid Cron expression: {cron_e}"
+                self.file_last_changed[dag.full_filepath] = \
+                    file_last_changed_on_disk
+            except AirflowDagCycleException as cycle_exception:
+                self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
+                self.import_errors[dag.full_filepath] = str(cycle_exception)
+                self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
+        return found_dags
+
+    def bag_dag(self, dag, root_dag):
         """
         Adds the DAG into the bag, recurses into sub dags.
         Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
@@ -329,7 +332,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 subdag.full_filepath = dag.full_filepath
                 subdag.parent_dag = dag
                 subdag.is_subdag = True
-                self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
+                self.bag_dag(dag=subdag, root_dag=root_dag)
 
             self.dags[dag.dag_id] = dag
             self.log.debug('Loaded DAG %s', dag)
@@ -371,30 +374,31 @@ class DagBag(BaseDagBag, LoggingMixin):
         # Used to store stats around DagBag processing
         stats = []
 
-        from airflow.utils.file import correct_maybe_zipped, list_py_file_paths
         dag_folder = correct_maybe_zipped(dag_folder)
         for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
                                            include_examples=include_examples):
             try:
-                ts = timezone.utcnow()
+                file_parse_start_dttm = timezone.utcnow()
                 found_dags = self.process_file(
-                    filepath, only_if_updated=only_if_updated,
-                    safe_mode=safe_mode)
-                dag_ids = [dag.dag_id for dag in found_dags]
-                dag_id_names = str(dag_ids)
+                    filepath,
+                    only_if_updated=only_if_updated,
+                    safe_mode=safe_mode
+                )
 
-                td = timezone.utcnow() - ts
+                file_parse_end_dttm = timezone.utcnow()
                 stats.append(FileLoadStat(
-                    filepath.replace(settings.DAGS_FOLDER, ''),
-                    td,
-                    len(found_dags),
-                    sum([len(dag.tasks) for dag in found_dags]),
-                    dag_id_names,
+                    file=filepath.replace(settings.DAGS_FOLDER, ''),
+                    duration=file_parse_end_dttm - file_parse_start_dttm,
+                    dag_num=len(found_dags),
+                    task_num=sum([len(dag.tasks) for dag in found_dags]),
+                    dags=str([dag.dag_id for dag in found_dags]),
                 ))
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 self.log.exception(e)
-        Stats.gauge(
-            'collect_dags', (timezone.utcnow() - start_dttm).total_seconds(), 1)
+
+        end_dttm = timezone.utcnow()
+        durations = (end_dttm - start_dttm).total_seconds()
+        Stats.gauge('collect_dags', durations, 1)
         Stats.gauge('dagbag_size', len(self.dags), 1)
         Stats.gauge('dagbag_import_errors', len(self.import_errors), 1)
         self.dagbag_stats = sorted(
@@ -430,7 +434,14 @@ class DagBag(BaseDagBag, LoggingMixin):
 
     def dagbag_report(self):
         """Prints a report around DagBag loading stats"""
-        report = textwrap.dedent("""\n
+        stats = self.dagbag_stats
+        dag_folder = self.dag_folder
+        duration = sum([o.duration for o in stats], timedelta()).total_seconds()
+        dag_num = sum([o.dag_num for o in stats])
+        task_num = sum([o.task_num for o in stats])
+        table = tabulate(stats, headers="keys")
+
+        report = textwrap.dedent(f"""\n
         -------------------------------------------------------------------
         DagBag loading stats for {dag_folder}
         -------------------------------------------------------------------
@@ -439,14 +450,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         DagBag parsing time: {duration}
         {table}
         """)
-        stats = self.dagbag_stats
-        return report.format(
-            dag_folder=self.dag_folder,
-            duration=sum([o.duration for o in stats], timedelta()).total_seconds(),
-            dag_num=sum([o.dag_num for o in stats]),
-            task_num=sum([o.task_num for o in stats]),
-            table=tabulate(stats, headers="keys"),
-        )
+        return report
 
     def sync_to_db(self):
         """

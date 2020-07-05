@@ -188,10 +188,23 @@ def find_dag_file_paths(directory: str, file_paths: list, safe_mode: bool):
 COMMENT_PATTERN = re.compile(r"\s*#.*")
 
 
-def might_contain_dag(file_path, safe_mode):
-    """Heuristic that guesses whether a Python file contains an Airflow DAG definition."""
-    if safe_mode and not zipfile.is_zipfile(file_path):
+def might_contain_dag(file_path: str, safe_mode: bool, zip_file: Optional[zipfile.ZipFile] = None):
+    """
+    Heuristic that guesses whether a Python file contains an Airflow DAG definition.
+
+    :param file_path: Path to the file to be checked.
+    :param safe_mode: Is safe mode active?. If no, this function always returns True.
+    :param zip_file: if passed, checks the archive. Otherwise, check local filesystem.
+    :return: True, if file might contain DAGS.
+    """
+    if not safe_mode:
+        return True
+    if zip_file:
+        with zip_file.open(file_path) as current_file:
+            content = current_file.read()
+    else:
+        if zipfile.is_zipfile(file_path):
+            return True
         with open(file_path, 'rb') as dag_file:
             content = dag_file.read()
-            return all([s in content for s in (b'DAG', b'airflow')])
-    return True
+    return all([s in content for s in (b'DAG', b'airflow')])
