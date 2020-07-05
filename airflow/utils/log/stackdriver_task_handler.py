@@ -104,7 +104,7 @@ class StackdriverTaskHandler(logging.Handler):
     @cached_property
     def _client(self) -> gcp_logging.Client:
         """Google Cloud Library API client"""
-        credentials = get_credentials_and_project_id(
+        credentials, _ = get_credentials_and_project_id(
             key_path=self.gcp_key_path,
             scopes=self.scopes,
         )
