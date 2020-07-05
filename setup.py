@@ -215,8 +215,8 @@ cloudant = [
     'cloudant>=2.0',
 ]
 dask = [
-    'distributed>=2.11.1, <2.20',
-    'cloudpickle>=1.4.1, <1.5'
+    'cloudpickle>=1.4.1, <1.5.0',
+    'distributed>=2.11.1, <2.20'
 ]
 databricks = [
     'requests>=2.20.0, <3',
@@ -589,7 +589,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'jdbc': jdbc,
     'jira': jira,
     'kerberos': kerberos,
-    'kubernetes': kubernetes,   # TODO: remove this in Airflow 2.1
+    'kubernetes': kubernetes,  # TODO: remove this in Airflow 2.1
     'ldap': ldap,
     "microsoft.azure": azure,
     "microsoft.mssql": mssql,
@@ -665,11 +665,11 @@ def is_package_excluded(package: str, exclusion_list: List[str]):
 devel_all = [package for package in devel_all if not is_package_excluded(
     package=package,
     exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
-]
+             ]
 devel_ci = [package for package in devel_all if not is_package_excluded(
     package=package,
     exclusion_list=PACKAGES_EXCLUDED_FOR_CI + PACKAGES_EXCLUDED_FOR_ALL)
-]
+            ]
 
 EXTRAS_REQUIREMENTS.update(
     {

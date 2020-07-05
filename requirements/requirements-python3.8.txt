@@ -90,7 +90,7 @@ chardet==3.0.4
 click==6.7
 clickclick==1.2.2
 cloudant==2.13.0
-cloudpickle==1.5.0
+cloudpickle==1.4.1
 colorama==0.4.3
 colorlog==4.0.2
 connexion==2.7.0
