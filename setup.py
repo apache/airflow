@@ -215,7 +215,7 @@ cloudant = [
     'cloudant>=2.0',
 ]
 dask = [
-    'distributed>=2.11.1, <3',
+    'distributed>=2.11.1, <2.20',
 ]
 databricks = [
     'requests>=2.20.0, <3',
