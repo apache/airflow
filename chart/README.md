@@ -86,7 +86,7 @@ helm upgrade airflow . \
   --set dags.gitSync.enabled=true
   # you can also override the other persistence or gitSync values
   # by setting the  dags.persistence.* and dags.gitSync.* values
-  # Refer values.yaml for details
+  # Please refer to values.yaml for details
 ```
 
 ## Mounting DAGS using Git-Sync side car without Persistence
@@ -195,8 +195,8 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `webserver.resources.requests.cpu`                    | CPU Request of webserver                                                                                     | `~`                                               |
 | `webserver.resources.requests.memory`                 | Memory Request of webserver                                                                                  | `~`                                               |
 | `webserver.defaultUser`                               | Optional default airflow user information                                                                    | `{}`                                              |
-| `dags.persistence.*`                               | Dag persistence configutation                                                                    | Refer `values.yaml`                                              |
-| `dags.gitSync.*`                               | Git sync configuration                                                                   | Refer `values.yaml`                                              |
+| `dags.persistence.*`                               | Dag persistence configutation                                                                    | Please refer to `values.yaml`                                    |
+| `dags.gitSync.*`                               | Git sync configuration                                                                   | Please refer to `values.yaml`                                    |
 
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example,
