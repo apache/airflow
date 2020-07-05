@@ -39,6 +39,8 @@ class TestStackdriverLoggingHandlerStandalone(unittest.TestCase):
     @mock.patch('airflow.utils.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch('airflow.utils.log.stackdriver_task_handler.gcp_logging.Client')
     def test_should_pass_message_to_client(self, mock_client, mock_get_creds_and_project_id):
+        mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
+
         transport_type = mock.MagicMock()
         stackdriver_task_handler = StackdriverTaskHandler(
             transport=transport_type,
@@ -55,7 +57,7 @@ class TestStackdriverLoggingHandlerStandalone(unittest.TestCase):
             mock.ANY, 'test-message', labels={"key": 'value'}, resource=Resource(type='global', labels={})
         )
         mock_client.assert_called_once_with(
-            credentials=mock_get_creds_and_project_id.return_value,
+            credentials='creds',
             client_info=mock.ANY
         )
 
@@ -79,6 +81,8 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     @mock.patch('airflow.utils.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch('airflow.utils.log.stackdriver_task_handler.gcp_logging.Client')
     def test_should_set_labels(self, mock_client, mock_get_creds_and_project_id):
+        mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
+
         self.stackdriver_task_handler.set_context(self.ti)
         self.logger.addHandler(self.stackdriver_task_handler)
 
@@ -99,6 +103,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     @mock.patch('airflow.utils.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch('airflow.utils.log.stackdriver_task_handler.gcp_logging.Client')
     def test_should_append_labels(self, mock_client, mock_get_creds_and_project_id):
+        mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
         self.stackdriver_task_handler = StackdriverTaskHandler(
             transport=self.transport_mock,
             labels={"product.googleapis.com/task_id": "test-value"}
@@ -128,6 +133,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     )
     def test_should_read_logs_for_all_try(self, mock_client, mock_get_creds_and_project_id):
         mock_client.return_value.list_entries.return_value = _create_list_response(["MSG1", "MSG2"], None)
+        mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
 
         logs, metadata = self.stackdriver_task_handler.read(self.ti)
         mock_client.return_value.list_entries.assert_called_once_with(
@@ -148,6 +154,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     )
     def test_should_read_logs_for_task_with_quote(self, mock_client, mock_get_creds_and_project_id):
         mock_client.return_value.list_entries.return_value = _create_list_response(["MSG1", "MSG2"], None)
+        mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
         self.ti.task_id = "K\"OT"
         logs, metadata = self.stackdriver_task_handler.read(self.ti)
         mock_client.return_value.list_entries.assert_called_once_with(
@@ -168,6 +175,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     )
     def test_should_read_logs_for_single_try(self, mock_client, mock_get_creds_and_project_id):
         mock_client.return_value.list_entries.return_value = _create_list_response(["MSG1", "MSG2"], None)
+        mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
 
         logs, metadata = self.stackdriver_task_handler.read(self.ti, 3)
         mock_client.return_value.list_entries.assert_called_once_with(
@@ -189,6 +197,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             _create_list_response(["MSG1", "MSG2"], "TOKEN1"),
             _create_list_response(["MSG3", "MSG4"], None),
         ]
+        mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
         logs, metadata1 = self.stackdriver_task_handler.read(self.ti, 3)
         mock_client.return_value.list_entries.assert_called_once_with(
             filter_=mock.ANY, page_token=None
@@ -211,6 +220,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             _create_list_response(["MSG1", "MSG2"], "TOKEN1"),
             _create_list_response(["MSG3", "MSG4"], None),
         ]
+        mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
 
         logs, metadata1 = self.stackdriver_task_handler.read(self.ti, 3, {'download_logs': True})
 
@@ -223,6 +233,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         **{'return_value.project': 'asf-project'}  # type: ignore
     )
     def test_should_read_logs_with_custom_resources(self, mock_client, mock_get_creds_and_project_id):
+        mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
         resource = Resource(
             type="cloud_composer_environment",
             labels={
@@ -259,6 +270,8 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
     @mock.patch('airflow.utils.log.stackdriver_task_handler.get_credentials_and_project_id')
     @mock.patch('airflow.utils.log.stackdriver_task_handler.gcp_logging.Client')
     def test_should_use_credentials(self, mock_client, mock_get_creds_and_project_id):
+        mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
+
         stackdriver_task_handler = StackdriverTaskHandler(
             gcp_key_path="KEY_PATH",
         )
@@ -275,7 +288,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             )
         )
         mock_client.assert_called_once_with(
-            credentials=mock_get_creds_and_project_id.return_value,
+            credentials='creds',
             client_info=mock.ANY
         )
         self.assertEqual(mock_client.return_value, client)
