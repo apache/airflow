@@ -528,7 +528,7 @@
       default: "task"
     - name: extra_loggers
       description: |
-        A comma\-separated list of third-party logger names that will be configure to print messages to
+        A comma\-separated list of third-party logger names that will be configured to print messages to
         consoles\.
       version_added: ~
       type: string
