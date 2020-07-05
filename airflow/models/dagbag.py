@@ -18,6 +18,7 @@
 
 import hashlib
 import importlib
+import importlib.machinery
 import importlib.util
 import os
 import sys
@@ -37,7 +38,7 @@ from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
-from airflow.utils.file import correct_maybe_zipped, list_py_file_paths
+from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
 
@@ -205,19 +206,12 @@ class DagBag(BaseDagBag, LoggingMixin):
         return found_dags
 
     def _load_modules_from_file(self, filepath, file_last_changed_on_disk, safe_mode):
-        mods = []
-        if safe_mode:
-            with open(filepath, 'rb') as file:
-                content = file.read()
-                if not all([s in content for s in (b'DAG', b'airflow')]):
-                    self.file_last_changed[filepath] = file_last_changed_on_disk
-                    # Don't want to spam user with skip messages
-                    if not self.has_logged:
-                        self.has_logged = True
-                        self.log.info(
-                            "File %s assumed to contain no DAGs. Skipping.",
-                            filepath)
-                    return []
+        if not might_contain_dag(filepath, safe_mode):
+            # Don't want to spam user with skip messages
+            if not self.has_logged:
+                self.has_logged = True
+                self.log.info("File %s assumed to contain no DAGs. Skipping.", filepath)
+            return []
 
         self.log.debug("Importing %s", filepath)
         org_mod_name, _ = os.path.splitext(os.path.split(filepath)[-1])
@@ -234,45 +228,50 @@ class DagBag(BaseDagBag, LoggingMixin):
                 new_module = importlib.util.module_from_spec(spec)
                 sys.modules[spec.name] = new_module
                 loader.exec_module(new_module)
-                mods.append(new_module)
+                return [new_module]
             except Exception as e:  # pylint: disable=broad-except
                 self.log.exception("Failed to import: %s", filepath)
                 self.import_errors[filepath] = str(e)
-        return mods
+        return []
 
     def _load_modules_from_zip(self, filepath, file_last_changed_on_disk, safe_mode):
         mods = []
         current_zip_file = zipfile.ZipFile(filepath)
-        for mod in current_zip_file.infolist():
-            head, _ = os.path.split(mod.filename)
-            mod_name, ext = os.path.splitext(mod.filename)
-            if not head and ext in [".py", ".pyc"]:
-                if mod_name == '__init__':
-                    self.log.warning("Found __init__.%s at root of %s", ext, filepath)
-                if safe_mode:
-                    with current_zip_file.open(mod.filename) as current_file:
-                        self.log.debug("Reading %s from %s", mod.filename, filepath)
-                        content = current_file.read()
-                        # todo: create ignore list
-                        # Don't want to spam user with skip messages
-                        if not all([s in content for s in (b'DAG', b'airflow')]) and not self.has_logged:
-                            self.has_logged = True
-                            self.log.info(
-                                "File %s assumed to contain no DAGs. Skipping.",
-                                filepath)
-                        continue
+        for zip_info in current_zip_file.infolist():
+            head, _ = os.path.split(zip_info.filename)
+            mod_name, ext = os.path.splitext(zip_info.filename)
+            if ext not in [".py", ".pyc"]:
+                continue
+            if head:
+                continue
 
-                if mod_name in sys.modules:
-                    del sys.modules[mod_name]
+            if mod_name == '__init__':
+                self.log.warning("Found __init__.%s at root of %s", ext, filepath)
 
-                try:
-                    sys.path.insert(0, filepath)
-                    current_module = importlib.import_module(mod_name)
-                    mods.append(current_module)
-                except Exception as e:  # pylint: disable=broad-except
-                    self.log.exception("Failed to import: %s", filepath)
-                    self.import_errors[filepath] = str(e)
-                    self.file_last_changed[filepath] = file_last_changed_on_disk
+            self.log.debug("Reading %s from %s", zip_info.filename, filepath)
+
+            if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
+                # todo: create ignore list
+                # Don't want to spam user with skip messages
+                if not self.has_logged or True:
+                    self.has_logged = True
+                    self.log.info(
+                        "File %s:%s assumed to contain no DAGs. Skipping.",
+                        filepath, zip_info.filename
+                    )
+                continue
+
+            if mod_name in sys.modules:
+                del sys.modules[mod_name]
+
+            try:
+                sys.path.insert(0, filepath)
+                current_module = importlib.import_module(mod_name)
+                mods.append(current_module)
+            except Exception as e:  # pylint: disable=broad-except
+                self.log.exception("Failed to import: %s", filepath)
+                self.import_errors[filepath] = str(e)
+                self.file_last_changed[filepath] = file_last_changed_on_disk
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
