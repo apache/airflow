@@ -59,10 +59,10 @@ class TestGetSource(unittest.TestCase):
         return docstring
 
     @parameterized.expand([("True",), ("False",)])
-    def test_should_response_200_text(self, store_serialized_dags):
+    def test_should_response_200_text(self, store_dag_code):
         serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
         with conf_vars(
-            {("core", "store_serialized_dags"): store_serialized_dags}
+            {("core", "store_serialized_dags"): store_dag_code}
         ):
             dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
             dagbag.sync_to_db()
@@ -79,10 +79,10 @@ class TestGetSource(unittest.TestCase):
             self.assertEqual('text/plain', response.headers['Content-Type'])
 
     @parameterized.expand([("True",), ("False",)])
-    def test_should_response_200_json(self, store_serialized_dags):
+    def test_should_response_200_json(self, store_dag_code):
         serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
         with conf_vars(
-            {("core", "store_serialized_dags"): store_serialized_dags}
+            {("core", "store_serialized_dags"): store_dag_code}
         ):
             dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
             dagbag.sync_to_db()
@@ -100,3 +100,33 @@ class TestGetSource(unittest.TestCase):
                 response.json['content']
             )
             self.assertEqual('application/json', response.headers['Content-Type'])
+
+    @parameterized.expand([("True",), ("False",)])
+    def test_should_response_406(self, store_dag_code):
+        serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+        with conf_vars(
+            {("core", "store_serialized_dags"): store_dag_code}
+        ):
+            dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
+            dagbag.sync_to_db()
+            first_dag: DAG = next(iter(dagbag.dags.values()))
+
+            url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
+            response = self.client.get(url, headers={
+                "Accept": 'image/webp'
+            })
+
+            self.assertEqual(406, response.status_code)
+
+    @parameterized.expand([("True",), ("False",)])
+    def test_should_response_404(self, store_dag_code):
+        with conf_vars(
+            {("core", "store_serialized_dags"): store_dag_code}
+        ):
+            wrong_fileloc = "abcd1234"
+            url = f"/api/v1/dagSources/{wrong_fileloc}"
+            response = self.client.get(url, headers={
+                "Accept": 'application/json'
+            })
+
+            self.assertEqual(404, response.status_code)
