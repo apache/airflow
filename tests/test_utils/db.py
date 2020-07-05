@@ -59,10 +59,11 @@ def clear_db_pools():
         add_default_pool_if_not_exists(session)
 
 
-def clear_db_connections():
+def clear_db_connections(add_default_connections_back=True):
     with create_session() as session:
         session.query(Connection).delete()
-        create_default_connections(session)
+        if add_default_connections_back:
+            create_default_connections(session)
 
 
 def clear_db_variables():
