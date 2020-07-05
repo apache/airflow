@@ -155,7 +155,7 @@ class StackdriverTaskHandler(logging.Handler):
         Read logs of given task instance from Stackdriver logging.
 
         :param task_instance: task instance object
-        :type: task_instance: :class: airflow.models.TaskInstance
+        :type task_instance: :class: airflow.models.TaskInstance
         :param try_number: task instance try_number to read logs from. If None
            it returns all logs
         :type try_number: Optional[int]
