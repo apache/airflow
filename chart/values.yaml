@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+---
 # Default values for airflow.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
@@ -438,3 +438,71 @@ postgresql:
 # Authentication backend used for the experimental API
 api:
   authBackend: airflow.api.auth.backend.deny_all
+
+# Git sync
+dags:
+  persistence:
+    # Enable persistent volume for storing dags
+    enabled: false
+    # Volume size for dags
+    size: 1Gi
+    # If using a custom storageClass, pass name here
+    storageClassName:
+    # access mode of the persistent volume
+    accessMode: ReadWriteMany
+    ## the name of an existing PVC to use
+    existingClaim: ~
+  gitSync:
+    enabled: false
+    # git repo clone url
+    # ssh examples ssh://git@github.com/apache/airflow.git
+    # git@github.com:apache/airflow.git
+    # https example: https://github.com/apache/airflow.git
+    repo: https://github.com/apache/airflow.git
+    branch: v1-10-stable
+    rev: HEAD
+    root: "/git"
+    dest: "repo"
+    depth: 1
+    # the number of consecutive failures allowed before aborting
+    maxFailures: 0
+    # subpath within the repo where dags are located
+    # should be "" if dags are at repo root
+    subPath: "tests/dags"
+    # if your repo needs a user name password
+    # you can load them to a k8s secret like the one below
+    #   ---
+    #   apiVersion: v1
+    #   kind: Secret
+    #   metadata:
+    #     name: git-credentials
+    #   data:
+    #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
+    #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
+    # and specify the name of the secret below
+    #credentialsSecret: git-credentials
+    #
+    #
+    # If you are using an ssh clone url, you can load
+    # the ssh private key to a k8s secret like the one below
+    #   ---
+    #   apiVersion: v1
+    #   kind: Secret
+    #   metadata:
+    #     name: airflow-ssh-secret
+    #   data:
+    #     # key needs to be gitSshKey
+    #     gitSshKey: <base64_encoded_data>
+    # and specify the name of the secret below
+    #sshKeySecret: airflow-ssh-secret
+    # If you are using an ssh private key, you can additionally
+    # specify the content of your known_hosts file, example:
+    #knownHosts: |
+    #    <host1>,<ip1> <key1>
+    #    <host2>,<ip2> <key2>
+    # interval between git sync attempts in seconds
+    wait: 60
+    # git sync image details
+    containerRepository: k8s.gcr.io/git-sync
+    containerTag: v3.1.6
+    containerName: git-sync

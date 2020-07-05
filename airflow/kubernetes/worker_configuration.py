@@ -128,6 +128,10 @@ class WorkerConfiguration(LoggingMixin):
                     value='/etc/git-secret/ssh'
                 ),
                 k8s.V1EnvVar(
+                    name='GIT_SYNC_ADD_USER',
+                    value='true'
+                ),
+                k8s.V1EnvVar(
                     name='GIT_SYNC_SSH',
                     value='true'
                 )

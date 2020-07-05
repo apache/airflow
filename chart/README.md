@@ -66,7 +66,7 @@ The command removes all the Kubernetes components associated with the chart and 
 
 ## Updating DAGs
 
-The recommended way to update your DAGs with this chart is to build a new docker image with the latest code (`docker build -t my-company/airflow:8a0da78 .`), push it to an accessible registry (`docker push my-company/airflow:8a0da78`), then update the Airflow pods with that image:
+The recommended way to update your DAGs with this chart is to build a new docker image with the latest DAG code (`docker build -t my-company/airflow:8a0da78 .`), push it to an accessible registry (`docker push my-company/airflow:8a0da78`), then update the Airflow pods with that image:
 
 ```bash
 helm upgrade airflow . \
@@ -75,6 +75,42 @@ helm upgrade airflow . \
 ```
 
 For local development purpose you can also build the image locally and use it via deployment method described by Breeze.
+
+## Mounting DAGS using Git-Sync side car with Persistence enabled
+
+This option will use a Persistent Volume Claim with an accessMode of `ReadWriteMany`. The scheduler pod will sync DAGs from a git repository onto the PVC every configured number of seconds. The other pods will read the synced DAGs. Not all volume  plugins have support for `ReadWriteMany` accessMode. Refer [Persistent Volume Access Modes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes) for details
+
+```bash
+helm upgrade airflow . \
+  --set dags.persistence.enabled=true \
+  --set dags.gitSync.enabled=true
+  # you can also override the other persistence or gitSync values
+  # by setting the  dags.persistence.* and dags.gitSync.* values
+  # Please refer to values.yaml for details
+```
+
+## Mounting DAGS using Git-Sync side car without Persistence
+This option will use an always running Git-Sync side car on every scheduler,webserver and worker pods. The Git-Sync side car containers will sync DAGs from a git repository every configured number of seconds. If you are using the KubernetesExecutor, Git-sync will run as an initContainer on your worker pods.
+
+```bash
+helm upgrade airflow . \
+  --set dags.persistence.enabled=false \
+  --set dags.gitSync.enabled=true
+  # you can also override the other gitSync values
+  # by setting the  dags.gitSync.* values
+  # Refer values.yaml for details
+```
+
+## Mounting DAGS from an externally populated PVC
+In this approach, Airflow will read the DAGs from a PVC which has `ReadOnlyMany` or `ReadWriteMany` accessMode. You will have to ensure that the PVC is populated/updated with the required DAGs(this won't be handled by the chart). You can pass in the name of the  volume claim to the chart
+
+```bash
+helm upgrade airflow . \
+  --set dags.persistence.enabled=true \
+  --set dags.persistence.existingClaim=my-volume-claim
+  --set dags.gitSync.enabled=false
+```
+
 
 ## Parameters
 
@@ -159,6 +195,8 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `webserver.resources.requests.cpu`                    | CPU Request of webserver                                                                                     | `~`                                               |
 | `webserver.resources.requests.memory`                 | Memory Request of webserver                                                                                  | `~`                                               |
 | `webserver.defaultUser`                               | Optional default airflow user information                                                                    | `{}`                                              |
+| `dags.persistence.*`                               | Dag persistence configutation                                                                    | Please refer to `values.yaml`                                    |
+| `dags.gitSync.*`                               | Git sync configuration                                                                   | Please refer to `values.yaml`                                    |
 
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example,

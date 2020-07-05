@@ -363,6 +363,17 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - name: "Tests"
         run: ./scripts/ci/ci_run_airflow_testing.sh
 
+  helm-tests:
+    timeout-minutes: 5
+    name: "Checks: Helm tests"
+    runs-on: ubuntu-latest
+    env:
+      CI_JOB_TYPE: "Tests"
+    steps:
+      - uses: actions/checkout@master
+      - name: "Helm Tests"
+        run: ./scripts/ci/ci_run_helm_testing.sh
+
   requirements:
     timeout-minutes: 80
     name: "Requirements"
