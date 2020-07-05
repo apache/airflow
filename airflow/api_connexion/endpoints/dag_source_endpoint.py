@@ -44,4 +44,4 @@ def get_dag_source(file_token: str):
     if return_type == 'application/json':
         content = json.dumps(dict(content=dag_source))
         return Response(content, headers={'Content-Type': return_type})
-    return '', 406
+    return Response("Not Allowed Accept Header", status=406)
