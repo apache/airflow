@@ -68,7 +68,7 @@ class STFPToWasbOperator(BaseOperator):
         blob_name: str,
         sftp_conn_id: str = "ssh_default",
         wasb_conn_id: str = 'wasb_default',
-        load_options: dict = None,
+        load_options=None,
         move_object: bool = False,
         *args,
         **kwargs
