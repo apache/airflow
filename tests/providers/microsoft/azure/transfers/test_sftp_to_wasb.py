@@ -234,4 +234,3 @@ class TestSFTPToWasbOperator(unittest.TestCase):
         )
 
         sftp_hook.delete_file.assert_not_called()
-
