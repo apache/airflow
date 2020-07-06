@@ -24,7 +24,8 @@ import mock
 
 from airflow import AirflowException
 from airflow.providers.microsoft.azure.transfers.sftp_to_wasb import (
-    BLOB_NAME, SFTP_FILE_PATH, SFTPToWasbOperator)
+    BLOB_NAME, SFTP_FILE_PATH, SFTPToWasbOperator,
+)
 
 TASK_ID = "test-gcs-to-sftp-operator"
 WASB_CONN_ID = "wasb_default"
