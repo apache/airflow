@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import getpass
 import hashlib
 import logging
@@ -959,8 +958,8 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: specifies the pool to use to run the task instance
         :type pool: str
         """
-        from airflow.sensors.base_sensor_operator import BaseSensorOperator
         from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+        from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
         task = self.task
         self.test_mode = test_mode

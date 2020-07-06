@@ -15,16 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import json
 import time
 from urllib.parse import urlencode
 
-import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import markdown
 import sqlalchemy as sqla
 from flask import Markup, Response, request, url_for
 from flask_appbuilder.forms import FieldConverter
+from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter

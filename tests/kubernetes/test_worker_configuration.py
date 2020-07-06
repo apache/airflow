@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import unittest
 from unittest.mock import ANY
 
@@ -25,15 +24,15 @@ from parameterized import parameterized
 from tests.test_utils.config import conf_vars
 
 try:
-    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler
-    from airflow.executors.kubernetes_executor import KubeConfig
-    from airflow.kubernetes.worker_configuration import WorkerConfiguration
-    from airflow.kubernetes.pod_generator import PodGenerator
-    from airflow.exceptions import AirflowConfigException
-    from airflow.kubernetes.secret import Secret
-    from airflow.version import version as airflow_version
-    import kubernetes.client.models as k8s
+    from kubernetes.client import models as k8s
     from kubernetes.client.api_client import ApiClient
+
+    from airflow.exceptions import AirflowConfigException
+    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig
+    from airflow.kubernetes.pod_generator import PodGenerator
+    from airflow.kubernetes.secret import Secret
+    from airflow.kubernetes.worker_configuration import WorkerConfiguration
+    from airflow.version import version as airflow_version
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 

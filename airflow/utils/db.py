@@ -635,6 +635,7 @@ def drop_airflow_models(connection):
     @return: None
     """
     from airflow.models.base import Base
+
     # Drop connection and chart - those tables have been deleted and in case you
     # run resetdb on schema with chart or users table will fail
     chart = Table('chart', Base.metadata)

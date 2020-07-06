@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 from unittest import mock
 
-import kubernetes.client.models as k8s
 import pendulum
+from kubernetes.client import models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskInstance

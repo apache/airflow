@@ -475,8 +475,9 @@ class GCSHook(GoogleBaseHook):
         """
         blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
-            from airflow.utils import timezone
             from datetime import timedelta
+
+            from airflow.utils import timezone
             current_time = timezone.utcnow()
             given_time = current_time - timedelta(seconds=seconds)
             self.log.info("Verify object date: %s is older than %s", blob_update_time, given_time)

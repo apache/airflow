@@ -214,6 +214,7 @@ class DagCode(Base):
         # Hashing is needed because the length of fileloc is 2000 as an Airflow convention,
         # which is over the limit of indexing.
         import hashlib
+
         # Only 7 bytes because MySQL BigInteger can hold only 8 bytes (signed).
         return struct.unpack('>Q', hashlib.sha1(
             full_filepath.encode('utf-8')).digest()[-8:])[0] >> 8

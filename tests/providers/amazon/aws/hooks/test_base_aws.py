@@ -25,7 +25,7 @@ from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 try:
-    from moto import mock_emr, mock_dynamodb2, mock_sts, mock_iam
+    from moto import mock_dynamodb2, mock_emr, mock_iam, mock_sts
 except ImportError:
     mock_emr = None
     mock_dynamodb2 = None

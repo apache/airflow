@@ -17,10 +17,9 @@
 """
 Classes for interacting with Kubernetes API
 """
-
 import copy
 
-import kubernetes.client.models as k8s
+from kubernetes.client import models as k8s
 
 from airflow.kubernetes.k8s_model import K8SModel
 

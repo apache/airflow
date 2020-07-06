@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import contextlib
 import os
 import re
@@ -506,8 +505,8 @@ class HiveMetastoreHook(BaseHook):
         Returns a Hive thrift client.
         """
         import hmsclient
-        from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
+        from thrift.transport import TSocket, TTransport
 
         conn = self._find_valid_server()
 

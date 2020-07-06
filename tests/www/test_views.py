@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import copy
 import html
 import io
@@ -2481,8 +2480,7 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
-        from tests.test_utils.mock_operators import Dummy3TestOperator
-        from tests.test_utils.mock_operators import Dummy2TestOperator
+        from tests.test_utils.mock_operators import Dummy2TestOperator, Dummy3TestOperator
 
         self.endpoint = "extra_links"
         self.default_date = datetime(2017, 1, 1)

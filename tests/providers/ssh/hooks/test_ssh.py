@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import json
 import unittest
 from io import StringIO
@@ -228,8 +227,8 @@ class TestSSHHook(unittest.TestCase):
     def test_tunnel(self):
         hook = SSHHook(ssh_conn_id='ssh_default')
 
-        import subprocess
         import socket
+        import subprocess
 
         subprocess_kwargs = dict(
             args=["python", "-c", HELLO_SERVER_CMD],
