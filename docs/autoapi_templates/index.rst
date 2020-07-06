@@ -164,6 +164,8 @@ All operators are in the following packages:
 
   airflow/providers/microsoft/mssql/operators/index
 
+  airflow/providers/microsoft/mssql/transfer/index
+
   airflow/providers/microsoft/winrm/operators/index
 
   airflow/providers/mongo/sensors/index
