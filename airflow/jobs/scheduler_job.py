@@ -1513,8 +1513,9 @@ class SchedulerJob(BaseJob):
         tis = session.query(TI).filter(filter_for_tis).all()
         for ti in tis:
             # Recreate ti_key (dag_id, task_id, execution_date, try_number) using in-memory try_number
-            buffer_key = (*ti.key[:-1], ti_key_to_try_number_map[ti.key[:-1]])
-            dag_id, task_id, execution_date, try_number = buffer_key
+            dag_id, task_id, execution_date, _ = ti.key
+            try_number = ti_key_to_try_number_map[(dag_id, task_id, execution_date)]
+            buffer_key = (dag_id, task_id, execution_date, try_number)
             state, info = event_buffer.pop(buffer_key)
 
             # TODO: should we fail RUNNING as well, as we do in Backfills?
