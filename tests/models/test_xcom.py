@@ -21,6 +21,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
 from airflow.utils import timezone
+from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
 
@@ -31,6 +32,13 @@ class CustomXCom(BaseXCom):
 
 
 class TestXCom(unittest.TestCase):
+
+    def setUp(self) -> None:
+        db.clear_db_xcom()
+
+    def tearDown(self) -> None:
+        db.clear_db_xcom()
+
     @conf_vars({("core", "xcom_backend"): "tests.models.test_xcom.CustomXCom"})
     def test_resolve_xcom_class(self):
         cls = resolve_xcom_backend()

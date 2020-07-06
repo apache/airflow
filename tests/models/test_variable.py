@@ -23,15 +23,18 @@ from parameterized import parameterized
 
 from airflow import settings
 from airflow.models import Variable, crypto
+from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
 
 class TestVariable(unittest.TestCase):
     def setUp(self):
         crypto._fernet = None
+        db.clear_db_variables()
 
     def tearDown(self):
         crypto._fernet = None
+        db.clear_db_variables()
 
     @conf_vars({('core', 'fernet_key'): ''})
     def test_variable_no_encryption(self):

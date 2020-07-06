@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import json
 import os
 import shutil
@@ -23,8 +22,8 @@ import unittest
 from unittest import mock
 from unittest.mock import ANY
 
-import kubernetes.client.models as k8s
 import pendulum
+from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 

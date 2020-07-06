@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
 import time
 import traceback
@@ -25,7 +24,6 @@ from sqlalchemy import event
 
 def _pretty_format_sql(text: str):
     import pygments
-
     from pygments.formatters.terminal import TerminalFormatter
     from pygments.lexers.sql import SqlLexer
     text = pygments.highlight(
@@ -154,10 +152,10 @@ if __name__ == "__main__":
 
     # Example:
     def case():
+        import logging
         from unittest import mock
 
         from airflow.jobs.scheduler_job import DagFileProcessor
-        import logging
 
         with mock.patch.dict("os.environ", {
             "PERF_DAGS_COUNT": "200",

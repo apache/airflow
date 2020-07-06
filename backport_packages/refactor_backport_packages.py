@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
 import sys
 import token
@@ -23,13 +22,14 @@ from os.path import dirname
 from shutil import copyfile, copytree, rmtree
 from typing import List
 
+from bowler import LN, TOKEN, Capture, Filename, Query
+from fissix.fixer_util import Comma, KeywordArg, Name
+from fissix.pytree import Leaf
+
 from backport_packages.setup_backport_packages import (
     get_source_airflow_folder, get_source_providers_folder, get_target_providers_folder,
     get_target_providers_package_folder,
 )
-from bowler import LN, TOKEN, Capture, Filename, Query
-from fissix.fixer_util import Comma, KeywordArg, Name
-from fissix.pytree import Leaf
 
 CLASS_TYPES = ["hooks", "operators", "sensors", "secrets", "protocols"]
 

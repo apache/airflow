@@ -22,12 +22,12 @@ import unittest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowSensorTimeout
-from airflow.models import DagBag, TaskFail, TaskInstance
+from airflow.models import DagBag
 from airflow.models.dag import DAG
 from airflow.sensors.weekday_sensor import DayOfWeekSensor
-from airflow.settings import Session
 from airflow.utils.timezone import datetime
 from airflow.utils.weekday import WeekDay
+from tests.test_utils import db
 
 DEFAULT_DATE = datetime(2018, 12, 10)
 WEEKDAY_DATE = datetime(2018, 12, 20)
@@ -38,7 +38,13 @@ DEV_NULL = '/dev/null'
 
 class TestDayOfWeekSensor(unittest.TestCase):
 
+    @staticmethod
+    def clean_db():
+        db.clear_db_runs()
+        db.clear_db_task_fail()
+
     def setUp(self):
+        self.clean_db()
         self.dagbag = DagBag(
             dag_folder=DEV_NULL,
             include_examples=True
@@ -51,13 +57,7 @@ class TestDayOfWeekSensor(unittest.TestCase):
         self.dag = dag
 
     def tearDown(self):
-        session = Session()
-        session.query(TaskInstance).filter_by(
-            dag_id=TEST_DAG_ID).delete()
-        session.query(TaskFail).filter_by(
-            dag_id=TEST_DAG_ID).delete()
-        session.commit()
-        session.close()
+        self.clean_db()
 
     @parameterized.expand([
         ("with-string", 'Thursday'),

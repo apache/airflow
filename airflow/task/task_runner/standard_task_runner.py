@@ -52,10 +52,11 @@ class StandardTaskRunner(BaseTaskRunner):
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
+            import signal
+
+            from airflow import settings
             from airflow.cli.cli_parser import get_parser
             from airflow.sentry import Sentry
-            import signal
-            import airflow.settings as settings
 
             signal.signal(signal.SIGINT, signal.SIG_DFL)
             signal.signal(signal.SIGTERM, signal.SIG_DFL)

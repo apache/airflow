@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import inspect
 import os
 import shutil
@@ -31,6 +30,7 @@ from airflow.models import DagBag, DagModel
 from airflow.utils.session import create_session
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_dags
 
 
 class TestDagBag(unittest.TestCase):
@@ -41,6 +41,12 @@ class TestDagBag(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.empty_dir)
+
+    def setUp(self) -> None:
+        clear_db_dags()
+
+    def tearDown(self) -> None:
+        clear_db_dags()
 
     def test_get_existing_dag(self):
         """
@@ -129,15 +135,16 @@ class TestDagBag(unittest.TestCase):
         test the loading of a DAG from within a zip file that skips another file because
         it doesn't have "airflow" and "DAG"
         """
-        from unittest.mock import Mock
-        with patch('airflow.models.DagBag.log') as log_mock:
-            log_mock.info = Mock()
+        with self.assertLogs() as cm:
             test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
             dagbag = models.DagBag(dag_folder=test_zip_path, include_examples=False)
 
             self.assertTrue(dagbag.has_logged)
-            log_mock.info.assert_any_call("File %s assumed to contain no DAGs. Skipping.",
-                                          test_zip_path)
+            self.assertIn(
+                f'INFO:airflow.models.dagbag.DagBag:File {test_zip_path}:file_no_airflow_dag.py '
+                'assumed to contain no DAGs. Skipping.',
+                cm.output
+            )
 
     def test_zip(self):
         """
@@ -311,10 +318,11 @@ class TestDagBag(unittest.TestCase):
     def test_load_subdags(self):
         # Define Dag to load
         def standard_subdag():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'master'
             default_args = {
                 'owner': 'owner1',
@@ -366,10 +374,11 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdags():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'master'
             default_args = {
                 'owner': 'owner1',
@@ -464,9 +473,10 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def basic_cycle():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'cycle_dag'
             default_args = {
                 'owner': 'owner1',
@@ -497,10 +507,11 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdag_cycle():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'nested_cycle'
             default_args = {
                 'owner': 'owner1',

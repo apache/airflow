@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import copy
 import itertools
 import json
@@ -988,7 +987,7 @@ class Airflow(AirflowBaseView):  # noqa: D101
     @action_logging
     def delete(self):
         from airflow.api.common.experimental import delete_dag
-        from airflow.exceptions import DagNotFound, DagFileExists
+        from airflow.exceptions import DagFileExists, DagNotFound
 
         dag_id = request.values.get('dag_id')
         origin = request.values.get('origin') or url_for('Airflow.index')

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from contextlib import closing
 from datetime import datetime
 from typing import Any, Optional
@@ -117,7 +116,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
         """
-        import pandas.io.sql as psql
+        from pandas.io import sql as psql
 
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters)

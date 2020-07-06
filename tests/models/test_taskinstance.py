@@ -33,7 +33,7 @@ from sqlalchemy.orm.session import Session
 from airflow import models, settings
 from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
 from airflow.models import (
-    DAG, DagRun, Pool, RenderedTaskInstanceFields, TaskFail, TaskInstance as TI, TaskReschedule, Variable,
+    DAG, DagRun, Pool, RenderedTaskInstanceFields, TaskInstance as TI, TaskReschedule, Variable,
 )
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -53,9 +53,6 @@ from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import (
-    clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss,
-)
 
 
 class CallbackWrapper:
@@ -84,22 +81,23 @@ class CallbackWrapper:
 
 class TestTaskInstance(unittest.TestCase):
 
-    def setUp(self):
+    @staticmethod
+    def clean_db():
         db.clear_db_pools()
+        db.clear_db_runs()
+        db.clear_db_task_fail()
         db.clear_rendered_ti_fields()
+        db.clear_db_task_reschedule()
+
+    def setUp(self):
+        self.clean_db()
         with create_session() as session:
             test_pool = Pool(pool='test_pool', slots=1)
             session.add(test_pool)
             session.commit()
 
     def tearDown(self):
-        db.clear_db_pools()
-        db.clear_rendered_ti_fields()
-        with create_session() as session:
-            session.query(TaskFail).delete()
-            session.query(TaskReschedule).delete()
-            session.query(models.TaskInstance).delete()
-            session.query(models.DagRun).delete()
+        self.clean_db()
 
     def test_set_task_dates(self):
         """
@@ -1713,11 +1711,11 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
 
     @staticmethod
     def _clean():
-        clear_db_runs()
-        clear_db_pools()
-        clear_db_dags()
-        clear_db_sla_miss()
-        clear_db_errors()
+        db.clear_db_runs()
+        db.clear_db_pools()
+        db.clear_db_dags()
+        db.clear_db_sla_miss()
+        db.clear_db_errors()
 
     def setUp(self) -> None:
         self._clean()

@@ -35,6 +35,7 @@ data:
   # These are system-specified config overrides.
   airflow.cfg: |
     [core]
+    dags_folder = {{ include "airflow_dags" . }}
     load_examples = False
     colored_console_log = False
     executor = {{ .Values.executor }}
@@ -87,13 +88,42 @@ data:
     namespace = {{ .Release.Namespace }}
     airflow_configmap = {{ include "airflow_config" . }}
     airflow_local_settings_configmap = {{ include "airflow_config" . }}
-    worker_container_repository = {{ .Values.images.airflow.repository }}
-    worker_container_tag = {{ .Values.images.airflow.tag }}
+    worker_container_repository = {{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}
+    worker_container_tag = {{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}
     worker_container_image_pull_policy = {{ .Values.images.airflow.pullPolicy }}
     worker_service_account_name = {{ .Release.Name }}-worker-serviceaccount
     image_pull_secrets = {{ template "registry_secret" . }}
-    dags_in_image = True
+    dags_in_image = {{ if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}False{{ else }}True{{ end }}
     delete_worker_pods = True
+    run_as_user = {{ .Values.uid }}
+    fs_group = {{ .Values.gid }}
+    {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
+    git_dags_folder_mount_point = {{ include "airflow_dags_mount_path" . }}
+    dags_volume_mount_point = {{ include "airflow_dags_mount_path" . }}
+    {{- if .Values.dags.persistence.enabled }}
+    dags_volume_claim = {{ .Release.Name }}-dags
+    dags_volume_subpath = {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
+    {{- else }}
+    git_repo = {{ .Values.dags.gitSync.repo }}
+    git_branch = {{ .Values.dags.gitSync.branch }}
+    git_sync_rev = {{ .Values.dags.gitSync.rev }}
+    git_sync_depth = {{ .Values.dags.gitSync.depth }}
+    git_sync_root = {{ .Values.dags.gitSync.root }}
+    git_sync_dest = {{ .Values.dags.gitSync.dest }}
+    git_sync_container_repository = {{ .Values.dags.gitSync.containerRepository }}
+    git_sync_container_tag = {{ .Values.dags.gitSync.containerTag }}
+    git_sync_init_container_name = {{ .Values.dags.gitSync.containerName }}
+    git_sync_run_as_user = {{ .Values.uid }}
+    {{- if  .Values.dags.gitSync.knownHosts }}
+    git_ssh_known_hosts_configmap_name = {{ include "airflow_config" . }}
+    {{- end }}
+    {{- if .Values.dags.gitSync.sshKeySecret }}
+    git_ssh_key_secret_name = {{ .Values.dags.gitSync.sshKeySecret }}
+    {{- else if .Values.dags.gitSync.credentialsSecret }}
+    git_sync_credentials_secret = {{ .Values.dags.gitSync.credentialsSecret }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
 
     [kubernetes_secrets]
     AIRFLOW__CORE__SQL_ALCHEMY_CONN = {{ printf "%s=connection" (include "airflow_metadata_secret" .) }}
@@ -119,4 +149,8 @@ data:
 {{- if .Values.scheduler.airflowLocalSettings }}
   airflow_local_settings.py: |
     {{ .Values.scheduler.airflowLocalSettings | nindent 4 }}
+{{- end }}
+{{- if and .Values.dags.gitSync.enabled  .Values.dags.gitSync.knownHosts }}
+  known_hosts: |
+    {{ .Values.dags.gitSync.knownHosts | nindent 4 }}
 {{- end }}

@@ -161,16 +161,9 @@ Sentry = DummySentry()  # type: DummySentry
 try:
     # Verify blinker installation
     from blinker import signal  # noqa: F401 pylint: disable=unused-import
-
-    from sentry_sdk.integrations.logging import ignore_logger
+    from sentry_sdk import add_breadcrumb, capture_exception, configure_scope, init, push_scope
     from sentry_sdk.integrations.flask import FlaskIntegration
-    from sentry_sdk import (
-        push_scope,
-        configure_scope,
-        add_breadcrumb,
-        init,
-        capture_exception,
-    )
+    from sentry_sdk.integrations.logging import ignore_logger
 
     Sentry = ConfiguredSentry()
 

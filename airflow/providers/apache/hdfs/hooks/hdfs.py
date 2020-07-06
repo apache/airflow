@@ -21,7 +21,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 try:
-    from snakebite.client import Client, HAClient, Namenode, AutoConfigClient  # pylint: disable=syntax-error
+    from snakebite.client import AutoConfigClient, Client, HAClient, Namenode  # pylint: disable=syntax-error
     snakebite_loaded = True
 except ImportError:
     snakebite_loaded = False
