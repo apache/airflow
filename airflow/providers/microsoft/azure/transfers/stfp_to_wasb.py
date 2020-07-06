@@ -20,7 +20,6 @@ This module contains SFTP to Azure Blob Storage operator.
 """
 import os
 from tempfile import NamedTemporaryFile
-from typing import Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -31,6 +30,7 @@ from airflow.utils.decorators import apply_defaults
 WILDCARD = "*"
 SFTP_FILE_PATH = "SFTP_FILE_PATH"
 BLOB_NAME = "BLOB_NAME"
+
 
 class STFPToWasbOperator(BaseOperator):
     """
