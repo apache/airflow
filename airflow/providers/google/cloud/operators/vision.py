@@ -876,7 +876,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
         self,
         location: str,
         product_id: str,
-        reference_image_id: str, 
+        reference_image_id: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -900,7 +900,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
         hook.delete_reference_image(
             location=self.location,
             product_id=self.product_id,
-            reference_image_id = self.reference_image_id, 
+            reference_image_id=self.reference_image_id,
             project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
