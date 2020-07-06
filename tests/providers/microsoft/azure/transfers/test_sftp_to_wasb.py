@@ -47,7 +47,6 @@ EXPECTED_BLOB_NAME = "test_object3.json"
 # pylint: disable=unused-argument
 class TestSFTPToWasbOperator(unittest.TestCase):
 
-
     def test_init(self):
         operator = STFPToWasbOperator(
             task_id=TASK_ID,
@@ -62,8 +61,6 @@ class TestSFTPToWasbOperator(unittest.TestCase):
         self.assertEqual(operator.sftp_conn_id, SFTP_CONN_ID)
         self.assertEqual(operator.container_name, CONTAINER_NAME)
         self.assertEqual(operator.wasb_conn_id, WASB_CONN_ID)
-
-
 
     @mock.patch('airflow.providers.microsoft.azure.transfers.stfp_to_wasb.WasbHook',
                 autospec=True)
@@ -85,7 +82,7 @@ class TestSFTPToWasbOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.microsoft.azure.transfers.stfp_to_wasb.WasbHook')
     @mock.patch('airflow.providers.microsoft.azure.transfers.stfp_to_wasb.SFTPHook')
-    def test_get_sftp_files_map(self, sftp_hook, mock_hook):
+    def test_get_sftp_files_map_with_wildcard(self, sftp_hook, mock_hook):
         sftp_hook.return_value.get_tree_map.return_value = [
             [SOURCE_OBJECT_NO_WILDCARD, SOURCE_OBJECT_NO_WILDCARD],
             [],
@@ -107,10 +104,9 @@ class TestSFTPToWasbOperator(unittest.TestCase):
         self.assertEquals(len(files), 2, "not matched at expected found files")
         self.assertEqual(files[0][BLOB_NAME], EXPECTED_BLOB_NAME, "expected blob name not matched")
 
-
     @mock.patch('airflow.providers.microsoft.azure.transfers.stfp_to_wasb.WasbHook')
     @mock.patch('airflow.providers.microsoft.azure.transfers.stfp_to_wasb.SFTPHook')
-    def test_get_sftp_files_map(self, sftp_hook, mock_hook):
+    def test_get_sftp_files_map_no_wildcard(self, sftp_hook, mock_hook):
         sftp_hook.return_value.get_tree_map.return_value = [
             [SOURCE_OBJECT_NO_WILDCARD],
             [],
