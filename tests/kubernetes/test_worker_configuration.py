@@ -693,6 +693,77 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             'my_kube_executor_label': 'kubernetes'
         }, labels)
 
+    def test_set_airflow_configmap_different_for_local_setting(self):
+        """
+        Test that airflow_local_settings.py can be set via configmap by
+        checking volume & volume-mounts are set correctly when using a different
+        configmap than airflow_configmap (airflow.cfg)
+        """
+        self.kube_config.airflow_home = '/usr/local/airflow'
+        self.kube_config.airflow_configmap = 'airflow-configmap'
+        self.kube_config.airflow_local_settings_configmap = 'airflow-ls-configmap'
+        self.kube_config.dags_folder = '/workers/path/to/dags'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        pod = worker_config.as_pod()
+
+        pod_spec_dict = pod.spec.to_dict()
+
+        airflow_local_settings_volume = [
+            volume for volume in pod_spec_dict['volumes'] if volume["name"] == 'airflow-local-settings'
+        ]
+        # Test that volume_name is found
+        self.assertEqual(1, len(airflow_local_settings_volume))
+
+        # Test that config map exists
+        self.assertEqual(
+            {'default_mode': None, 'items': None, 'name': 'airflow-ls-configmap', 'optional': None},
+            airflow_local_settings_volume[0]['config_map']
+        )
+
+        # Test that 2 Volume Mounts exists and has 2 different mount-paths
+        # One for airflow.cfg
+        # Second for airflow_local_settings.py
+        airflow_cfg_volume_mount = [
+            volume_mount for volume_mount in pod_spec_dict['containers'][0]['volume_mounts']
+            if volume_mount['name'] == 'airflow-config'
+        ]
+
+        local_setting_volume_mount = [
+            volume_mount for volume_mount in pod_spec_dict['containers'][0]['volume_mounts']
+            if volume_mount['name'] == 'airflow-local-settings'
+        ]
+        self.assertEqual(1, len(airflow_cfg_volume_mount))
+        self.assertEqual(1, len(local_setting_volume_mount))
+
+        self.assertEqual(
+            [
+                {
+                    'mount_path': '/usr/local/airflow/config/airflow_local_settings.py',
+                    'mount_propagation': None,
+                    'name': 'airflow-local-settings',
+                    'read_only': True,
+                    'sub_path': 'airflow_local_settings.py',
+                    'sub_path_expr': None
+                }
+            ],
+            local_setting_volume_mount
+        )
+
+        self.assertEqual(
+            [
+                {
+                    'mount_path': '/usr/local/airflow/airflow.cfg',
+                    'mount_propagation': None,
+                    'name': 'airflow-config',
+                    'read_only': True,
+                    'sub_path': 'airflow.cfg',
+                    'sub_path_expr': None
+                }
+            ],
+            airflow_cfg_volume_mount
+        )
+
     def test_make_pod_with_image_pull_secrets(self):
         # Tests the pod created with image_pull_secrets actually gets that in it's config
         self.kube_config.dags_volume_claim = None

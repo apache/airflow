@@ -323,7 +323,7 @@ class WorkerConfiguration(LoggingMixin):
                 volume_mounts[config_volume_name] = k8s.V1VolumeMount(
                     name=config_volume_name,
                     mount_path=config_path,
-                    sub_path='airflow_local_settings.cfg',
+                    sub_path='airflow_local_settings.py',
                     read_only=True
                 )
 
@@ -331,7 +331,7 @@ class WorkerConfiguration(LoggingMixin):
                 volume_mounts['airflow-local-settings'] = k8s.V1VolumeMount(
                     name='airflow-config',
                     mount_path=config_path,
-                    sub_path='airflow_local_settings.cfg',
+                    sub_path='airflow_local_settings.py',
                     read_only=True
                 )
 
