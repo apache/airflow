@@ -294,7 +294,7 @@ class TestCloudVisionReferenceImageDelete(unittest.TestCase):
         )
         op.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
-        mock_hook.return_value.create_reference_image.assert_called_once_with(
+        mock_hook.return_value.delete_reference_image.assert_called_once_with(
             location=LOCATION_TEST,
             product_id=PRODUCT_ID_TEST,
             reference_image_id=REFERENCE_IMAGE_ID_TEST,
