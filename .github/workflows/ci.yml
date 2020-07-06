@@ -167,7 +167,7 @@ jobs:
         run: |
           set +e
           ./scripts/ci/ci_count_changed_files.sh ${GITHUB_SHA} \
-              '^airflow|.github/workflows/|^Dockerfile|^scripts|^chart'
+              '^airflow|.github/workflows/|^Dockerfile|^scripts|^chart|^setup.py|^requirements|^tests|^kubernetes_tests'
           echo "::set-output name=count::$?"
         id: trigger-tests
 
