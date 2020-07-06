@@ -69,7 +69,11 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+<<<<<<< HEAD
 ### Major changes
+=======
+### Connections must now have a unique conn_id
+>>>>>>> Update title in UPDATING.md
 
 This section describes the major changes that have been made in this release.
 
