@@ -213,7 +213,6 @@ repos:
         language: python
         files: ^setup.py$
         pass_filenames: false
-        require_serial: true
         entry: ./scripts/ci/pre_commit_check_order_setup.py
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
@@ -221,35 +220,30 @@ repos:
         language: system
         files: ^BREEZE.rst$|^breeze$|^breeze-complete$
         pass_filenames: false
-        require_serial: true
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: "./scripts/ci/pre_commit_local_yml_mounts.sh"
         language: system
         files: ^scripts/ci/libraries/_local_mounts.sh$|s^scripts/ci/docker_compose/local.yml"
         pass_filenames: false
-        require_serial: true
       - id: update-setup-cfg-file
         name: Update setup.cfg file with all licenses
         entry: "./scripts/ci/pre_commit_setup_cfg_file.sh"
         language: system
         files: ^setup.cfg$
         pass_filenames: false
-        require_serial: true
       - id: build-providers-dependencies
         name: Build cross-dependencies for providers packages
         entry: "./scripts/ci/pre_commit_build_providers_dependencies.sh"
         language: system
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
         pass_filenames: false
-        require_serial: true
       - id: update-extras
         name: Update extras in documentation
         entry: "./scripts/ci/pre_commit_update_extras.sh"
         language: system
         files: ^setup.py$|^INSTALL$|^CONTRIBUTING.rst$
         pass_filenames: false
-        require_serial: true
       - id: pydevd
         language: pygrep
         name: Check for pydevd debug statements accidentally left
@@ -345,7 +339,6 @@ repos:
         language: system
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
-        require_serial: true
       - id: airflow-config-yaml
         name: Checks for consistency between config.yml and default_config.cfg
         language: python
