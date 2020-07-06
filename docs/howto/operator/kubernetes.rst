@@ -55,7 +55,7 @@ Utilize the Airflow Kubernetes model classes such as:
 or
 :class:`~airflow.kubernetes.volume.Volume`
 or
-:class:`airflow.kubernetes.volume_mount.VolumeMount`
+:class:`~airflow.kubernetes.volume_mount.VolumeMount`
 to do this (as well as standard Python dictionaries). These can they be specified in the appropriate parameters
 when declaring the Pod task.
 
