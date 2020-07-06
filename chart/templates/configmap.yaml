@@ -39,7 +39,7 @@ data:
     load_examples = False
     colored_console_log = False
     executor = {{ .Values.executor }}
-{{- if .Values.elasticsearch.enabled }}
+{{- if or .Values.elasticsearch.enabled .Values.logging.remoteLogging.enabled }}
     remote_logging = True
 {{- end }}
 
@@ -47,7 +47,13 @@ data:
     auth_backend = {{ .Values.api.authBackend }}
 
     [logging]
-    logging_level = DEBUG
+    logging_level = {{ .Values.logging.level }}
+{{- if .Values.logging.remoteLogging.enabled }}
+    remote_base_log_folder = {{ .Values.logging.remoteLogging.baseLogFolder }}
+    remote_log_conn_id = {{ .Values.logging.remoteLogging.logConnId }}
+    encrypt_s3_logs = False
+{{- end}}
+
     [webserver]
     enable_proxy_fix = True
     expose_config = True

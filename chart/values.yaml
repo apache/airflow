@@ -384,6 +384,15 @@ elasticsearch:
     # host: ~
     # port: ~
 
+logging:
+  remoteLogging:
+    enabled: false
+    logConnId: ~
+    baseLogFolder: ~
+
+  level: DEBUG
+
+
 # All ports used by chart
 ports:
   flowerUI: 5555
