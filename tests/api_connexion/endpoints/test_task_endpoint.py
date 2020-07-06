@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.models import DagBag
+from airflow.models.dagbag import FilesystemDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.www import app
@@ -46,7 +47,7 @@ class TestTaskEndpoint(unittest.TestCase):
             DummyOperator(task_id=cls.task_id)
 
         cls.dag = dag  # type:ignore
-        dag_bag = DagBag(os.devnull, include_examples=False)
+        dag_bag = FilesystemDagBag(os.devnull, include_examples=False)
         dag_bag.dags = {dag.dag_id: dag}
         cls.app.dag_bag = dag_bag  # type:ignore
 

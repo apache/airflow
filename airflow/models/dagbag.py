@@ -449,7 +449,7 @@ def DagBag(  # pylint: disable=invalid-name
     include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
     safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
     store_serialized_dags=False,
-) -> BaseDagBag:
+):
     """For backward-compatibility"""
     if store_serialized_dags:
         return DatabaseDagBag()
