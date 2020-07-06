@@ -1753,7 +1753,26 @@ UTILS = [
     )
 ]
 
-ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS + UTILS
+LOGS = [
+    (
+        "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler",
+        "airflow.utils.log.s3_task_handler.S3TaskHandler"
+    ),
+    (
+        'airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler',
+        'airflow.utils.log.cloudwatch_task_handler.CloudwatchTaskHandler'
+    ),
+    (
+        'airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler',
+        'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler'
+    ),
+    (
+        "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
+        "airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler"
+    )
+]
+
+ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS + UTILS + LOGS
 
 RENAMED_ALL = [
     (old_class, new_class)
