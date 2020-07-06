@@ -187,3 +187,8 @@ dmypy.json
 /.kube
 /.inputrc
 log.txt*
+
+Chart.lock
+
+# Chart dependencies
+**/charts/*.tgz
