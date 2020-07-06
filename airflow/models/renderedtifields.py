@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Save Rendered Template Fields """
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import sqlalchemy_jsonfield
 from sqlalchemy import Column, String, and_, not_, tuple_
@@ -24,11 +24,13 @@ from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.models.base import ID_LEN, Base
-from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 
 class RenderedTaskInstanceFields(Base):
@@ -43,7 +45,7 @@ class RenderedTaskInstanceFields(Base):
     execution_date = Column(UtcDateTime, primary_key=True)
     rendered_fields = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
 
-    def __init__(self, ti: TaskInstance, render_templates=True):
+    def __init__(self, ti: 'TaskInstance', render_templates=True):
         self.dag_id = ti.dag_id
         self.task_id = ti.task_id
         self.task = ti.task
@@ -62,7 +64,7 @@ class RenderedTaskInstanceFields(Base):
 
     @classmethod
     @provide_session
-    def get_templated_fields(cls, ti: TaskInstance, session: Session = None) -> Optional[dict]:
+    def get_templated_fields(cls, ti: 'TaskInstance', session: Session = None) -> Optional[dict]:
         """
         Get templated field for a TaskInstance from the RenderedTaskInstanceFields
         table.
