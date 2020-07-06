@@ -251,9 +251,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
     @property
     def next_try_number(self):
-        """
-        Setting Next Try Number
-        """
+        """Setting Next Try Number"""
         return self._try_number + 1
 
     def command_as_list(    # pylint: disable=too-many-arguments
@@ -1023,7 +1021,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         context = {}  # type: Dict
         actual_start_date = timezone.utcnow()
         Stats.incr('ti.start.{}.{}'.format(task.dag_id, task.task_id))
-        try:    # pylint: disable=too-many-nested-blocks
+        try:
             if not mark_success:
                 context = self.get_template_context()
                 self._prepare_and_execute_task_with_callbacks(context, session, task)
@@ -1091,8 +1089,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """
         Prepare Task for Execution
         """
-        from airflow.sensors.base_sensor_operator import BaseSensorOperator
         from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+        from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
         task_copy = task.prepare_for_execution()
         # Sensors in `poke` mode can block execution of DAGs when running
