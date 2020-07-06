@@ -18,7 +18,7 @@
 Google Sheets Operators
 =======================
 
-cThe latest version of the Sheets API lets developers programmatically:
+The latest version of the Sheets API lets developers programmatically:
 
 - Read and write data
 - Format text and numbers
