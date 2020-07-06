@@ -20,7 +20,6 @@ API and outputs a kubernetes.client.models.V1Pod.
 The advantage being that the full Kubernetes API
 is supported and no serialization need be written.
 """
-
 import copy
 import hashlib
 import inspect
@@ -30,8 +29,8 @@ import uuid
 from functools import reduce
 from typing import Dict, List, Optional, Union
 
-import kubernetes.client.models as k8s
 import yaml
+from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import AirflowConfigException

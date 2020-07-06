@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import atexit
 import json
 import logging
@@ -32,10 +31,11 @@ from sqlalchemy.pool import NullPool
 
 # noinspection PyUnresolvedReferences
 from airflow import api
-# pylint: disable=unused-import
-from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
+
+# pylint: disable=unused-import
+from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 
 log = logging.getLogger(__name__)
 

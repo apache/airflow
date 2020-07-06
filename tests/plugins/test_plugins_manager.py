@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 from unittest import mock
 
@@ -75,7 +74,7 @@ class TestPluginsRBAC(unittest.TestCase):
         Test that Airflow does not raise an Error if there is any Exception because of the
         Plugin.
         """
-        from airflow.plugins_manager import load_entrypoint_plugins, import_errors
+        from airflow.plugins_manager import import_errors, load_entrypoint_plugins
 
         mock_entrypoint = mock.Mock()
         mock_entrypoint.name = 'test-entrypoint'

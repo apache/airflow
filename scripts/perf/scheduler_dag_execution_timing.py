@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import gc
 import os
 import statistics
@@ -72,6 +71,7 @@ class ShortCircuitExecutorMixin:
         run = self.dags_to_watch[dag_id].runs.get(execution_date)
         if not run:
             import airflow.models
+
             # odd `list()` is to work across Airflow versions.
             run = list(airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date))[0]
             self.dags_to_watch[dag_id].runs[execution_date] = run

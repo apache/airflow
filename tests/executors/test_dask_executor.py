@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 from datetime import timedelta
 from unittest import mock
@@ -28,15 +27,12 @@ from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
 try:
-    from airflow.executors.dask_executor import DaskExecutor
     from distributed import LocalCluster
     # utility functions imported from the dask testing suite to instantiate a test
     # cluster for tls tests
-    from distributed.utils_test import (
-        get_cert,
-        cluster as dask_testing_cluster,
-        tls_security,
-    )
+    from distributed.utils_test import cluster as dask_testing_cluster, get_cert, tls_security
+
+    from airflow.executors.dask_executor import DaskExecutor
 except ImportError:
     pass
 

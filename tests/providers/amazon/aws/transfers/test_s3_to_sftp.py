@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 
 import boto3
@@ -46,8 +45,8 @@ DEFAULT_DATE = datetime(2018, 1, 1)
 class TestS3ToSFTPOperator(unittest.TestCase):
     @mock_s3
     def setUp(self):
-        from airflow.providers.ssh.hooks.ssh import SSHHook
         from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+        from airflow.providers.ssh.hooks.ssh import SSHHook
 
         hook = SSHHook(ssh_conn_id='ssh_default')
         s3_hook = S3Hook('aws_default')

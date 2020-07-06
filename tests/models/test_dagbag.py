@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import inspect
 import os
 import shutil
@@ -319,10 +318,11 @@ class TestDagBag(unittest.TestCase):
     def test_load_subdags(self):
         # Define Dag to load
         def standard_subdag():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'master'
             default_args = {
                 'owner': 'owner1',
@@ -374,10 +374,11 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdags():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'master'
             default_args = {
                 'owner': 'owner1',
@@ -472,9 +473,10 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def basic_cycle():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'cycle_dag'
             default_args = {
                 'owner': 'owner1',
@@ -505,10 +507,11 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdag_cycle():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'nested_cycle'
             default_args = {
                 'owner': 'owner1',

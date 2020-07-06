@@ -18,7 +18,7 @@
 import os
 from typing import Dict, List
 
-import kubernetes.client.models as k8s
+from kubernetes.client import models as k8s
 
 from airflow.configuration import conf
 from airflow.kubernetes.k8s_model import append_to_pod

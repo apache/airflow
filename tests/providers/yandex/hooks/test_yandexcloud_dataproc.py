@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import json
 import unittest
 from unittest.mock import patch
@@ -22,9 +21,9 @@ from unittest.mock import patch
 from airflow.models import Connection
 
 try:
-    from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
-
     import yandexcloud
+
+    from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
 except ImportError:
     yandexcloud = None
 
