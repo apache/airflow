@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import current_app, request
+from flask import current_app
 from sqlalchemy import func
 
 from airflow import DAG
-from airflow.api_connexion import parameters
 from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection, dag_detail_schema, dag_schema, dags_collection_schema,
 )
@@ -37,7 +37,7 @@ def get_dag(dag_id, session):
     if dag is None:
         raise NotFound("DAG not found")
 
-    return dag_schema.dump(dag).data
+    return dag_schema.dump(dag)
 
 
 def get_dag_details(dag_id):
@@ -50,14 +50,14 @@ def get_dag_details(dag_id):
     return dag_detail_schema.dump(dag)
 
 
+@format_parameters({
+    'limit': check_limit
+})
 @provide_session
-def get_dags(session):
+def get_dags(session, limit, offset=0):
     """
     Get all DAGs.
     """
-    offset = request.args.get(parameters.page_offset, 0)
-    limit = min(int(request.args.get(parameters.page_limit, 100)), 100)
-
     dags = session.query(DagModel).order_by(DagModel.dag_id).offset(offset).limit(limit).all()
 
     total_entries = session.query(func.count(DagModel.dag_id)).scalar()

@@ -87,7 +87,7 @@ class DAGCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-dags_collection_schema = DAGCollectionSchema(strict=True)
-dag_schema = DAGSchema(strict=True)
+dags_collection_schema = DAGCollectionSchema()
+dag_schema = DAGSchema()
 
-dag_detail_schema = DAGDetailSchema(strict=True)
+dag_detail_schema = DAGDetailSchema()

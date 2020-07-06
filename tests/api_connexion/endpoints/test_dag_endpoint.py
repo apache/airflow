@@ -83,7 +83,7 @@ class TestGetDag(TestDagEndpoint):
             'dag_id': 'TEST_DAG_1',
             'description': None,
             'fileloc': '/tmp/test-dag.py',
-            'is_paused': True,
+            'is_paused': False,
             'is_subdag': False,
             'owners': [],
             'root_dag_id': None,
@@ -178,7 +178,7 @@ class TestGetDags(TestDagEndpoint):
                         "dag_id": "TEST_DAG_1",
                         "description": None,
                         "fileloc": "/tmp/dag_1.py",
-                        "is_paused": True,
+                        "is_paused": False,
                         "is_subdag": False,
                         "owners": [],
                         "root_dag_id": None,
@@ -189,7 +189,7 @@ class TestGetDags(TestDagEndpoint):
                         "dag_id": "TEST_DAG_2",
                         "description": None,
                         "fileloc": "/tmp/dag_2.py",
-                        "is_paused": True,
+                        "is_paused": False,
                         "is_subdag": False,
                         "owners": [],
                         "root_dag_id": None,
@@ -247,6 +247,16 @@ class TestGetDags(TestDagEndpoint):
 
         self.assertEqual(expected_dag_ids, dag_ids)
         self.assertEqual(10, response.json['total_entries'])
+
+    def test_should_response_200_default_limit(self):
+        self._create_dag_models(101)
+
+        response = self.client.get("api/v1/dags")
+
+        assert response.status_code == 200
+
+        self.assertEqual(100, len(response.json['dags']))
+        self.assertEqual(101, response.json['total_entries'])
 
 
 class TestPatchDag(TestDagEndpoint):
