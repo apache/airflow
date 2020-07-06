@@ -18,14 +18,12 @@
 #
 
 
-import datetime
 import unittest
 import os
 
 import mock
 
 from airflow import AirflowException
-from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.transfers.stfp_to_wasb import STFPToWasbOperator
 from airflow.providers.microsoft.azure.transfers.stfp_to_wasb import SFTP_FILE_PATH
 from airflow.providers.microsoft.azure.transfers.stfp_to_wasb import BLOB_NAME
@@ -101,7 +99,7 @@ class TestSFTPToWasbOperator(unittest.TestCase):
 
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
-        self.assertEquals(len(files), 2, "not matched at expected found files")
+        self.assertEqual(len(files), 2, "not matched at expected found files")
         self.assertEqual(files[0][BLOB_NAME], EXPECTED_BLOB_NAME, "expected blob name not matched")
 
     @mock.patch('airflow.providers.microsoft.azure.transfers.stfp_to_wasb.WasbHook')
@@ -125,7 +123,7 @@ class TestSFTPToWasbOperator(unittest.TestCase):
 
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
-        self.assertEquals(len(files), 1, "no matched at expected found files")
+        self.assertEqual(len(files), 1, "no matched at expected found files")
         self.assertEqual(files[0][BLOB_NAME], BLOB_NAME, "expected blob name not matched")
 
     @mock.patch('airflow.providers.microsoft.azure.transfers.stfp_to_wasb.WasbHook')
@@ -156,7 +154,7 @@ class TestSFTPToWasbOperator(unittest.TestCase):
             mock.ANY, CONTAINER_NAME, BLOB_NAME
         )
 
-        self.assertEquals(len(files), 1, "no matched at expected uploaded files")
+        self.assertEqual(len(files), 1, "no matched at expected uploaded files")
 
     @mock.patch('airflow.providers.microsoft.azure.transfers.stfp_to_wasb.SFTPHook')
     def test_sftp_move(self, sftp_hook):
