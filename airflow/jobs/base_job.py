@@ -25,11 +25,12 @@ from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
-from airflow import models
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.base import ID_LEN, Base
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import convert_camel_to_snake
@@ -268,8 +269,8 @@ class BaseJob(Base, LoggingMixin):
         running_tis = self.executor.running
 
         resettable_states = [State.SCHEDULED, State.QUEUED]
-        TI = models.TaskInstance
-        DR = models.DagRun
+        TI = TaskInstance
+        DR = DagRun
         if filter_by_dag_run is None:
             resettable_tis = (
                 session
