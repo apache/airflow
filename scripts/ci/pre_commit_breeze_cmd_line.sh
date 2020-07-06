@@ -40,7 +40,7 @@ MAX_LEN=$(awk '{ print length($0); }' "${TMP_FILE}" | sort -n | tail -1 )
 if (( MAX_LEN > MAX_SCREEN_WIDTH + 2 )); then
     cat "${TMP_FILE}"
     echo
-    echo "ERROR! Some lines in genereate breeze help-all command are too long. See above ^^"
+    echo "ERROR! Some lines in generate breeze help-all command are too long. See above ^^"
     echo
     echo
     exit 1
