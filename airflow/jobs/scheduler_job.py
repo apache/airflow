@@ -1486,7 +1486,7 @@ class SchedulerJob(BaseJob):
         """
         Respond to executor events.
         """
-        ti_key_to_try_number_map = {}
+        ti_primary_key_to_try_number_map = {}
         event_buffer = self.executor.get_event_buffer(simple_dag_bag.dag_ids)
         tis_with_right_state: List[TaskInstanceKeyType] = []
 
@@ -1495,7 +1495,7 @@ class SchedulerJob(BaseJob):
             state, info = value
             dag_id, task_id, execution_date, try_number = key
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
-            ti_key_to_try_number_map[key[:-1]] = try_number
+            ti_primary_key_to_try_number_map[key[:-1]] = try_number
             self.log.info(
                 "Executor reports execution of %s.%s execution_date=%s "
                 "exited with status %s for try_number %s",
@@ -1514,7 +1514,7 @@ class SchedulerJob(BaseJob):
         for ti in tis:
             # Recreate ti_key (dag_id, task_id, execution_date, try_number) using in-memory try_number
             dag_id, task_id, execution_date, _ = ti.key
-            try_number = ti_key_to_try_number_map[(dag_id, task_id, execution_date)]
+            try_number = ti_primary_key_to_try_number_map[(dag_id, task_id, execution_date)]
             buffer_key = (dag_id, task_id, execution_date, try_number)
             state, info = event_buffer.pop(buffer_key)
 
