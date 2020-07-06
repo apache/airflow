@@ -228,62 +228,80 @@ function initialize_virtualenv() {
 # Sets up autocomplete for Breeze for both - bash and zsh
 function setup_autocomplete() {
     echo "Installing bash/zsh completion for local user"
-    echo "Note that completion for zsh is just limited to flags - without their values"
     echo
-    echo
-    set +e
-    grep ".bash_completion.d" "${HOME}/.bashrc" >/dev/null 2>&1
-    RES=$?
-    set -e
-    if [[ "${RES}" == "0" ]]; then
-        echo >&2
-        echo >&2 "ERROR:  Bash completion already setup before."
-        echo >&2
-        exit 1
-    fi
     "${AIRFLOW_SOURCES}/confirm" "This will create ~/.bash_completion.d/ directory and modify ~/.*rc files"
     echo
     echo
     mkdir -pv ~/.bash_completion.d
     ln -sf "${AIRFLOW_SOURCES}/breeze-complete" "${HOME}/.bash_completion.d/"
-    touch ~/.bashrc
-    cat >>~/.bashrc <<"EOF"
+    echo
+    echo "Breeze Bash completion is now linked to: ${AIRFLOW_SOURCES}/breeze-complete"
+    echo
+    local BREEZE_COMMENT="Added by Airflow Breeze autocomplete setup"
+    if ! grep "${BREEZE_COMMENT}" "${HOME}/.bashrc" >/dev/null 2>&1; then
+        touch ~/.bashrc
+        # shellcheck disable=SC2129
+        echo "# START: ${BREEZE_COMMENT}" >>~/.bashrc
+        cat <<"EOF" >>~/.bashrc
 for BCFILE in ~/.bash_completion.d/* ; do
     . ${BCFILE}
 done
 EOF
-    cat >>~/.zshrc <<"EOF"
+        echo "# END: ${BREEZE_COMMENT}" >>~/.bashrc
+        echo
+        echo "The ${HOME}/.bashrc has been modified"
+        echo
+    else
+        echo
+        echo "The ${HOME}/.bashrc was already modified before. Not changing it."
+        echo
+    fi
+    if ! grep "${BREEZE_COMMENT}" "${HOME}/.zshrc" >/dev/null 2>&1; then
+        # shellcheck disable=SC2129
+        echo "# START: ${BREEZE_COMMENT}" >>~/.zshrc
+        cat <<"EOF" >>~/.zshrc
 autoload compinit && compinit
 autoload bashcompinit && bashcompinit
 source ~/.bash_completion.d/breeze-complete
 EOF
+        echo "# END: ${BREEZE_COMMENT}" >>~/.zshrc
+        echo
+        echo "The ${HOME}/.zshrc has been modified"
+        echo
+    else
+        echo
+        echo "The ${HOME}/.zshrc was already modified before. Not changing it."
+        echo
+    fi
     if [[ "${OSTYPE}" == "darwin"* ]]; then
         #  For MacOS we have to handle the special case where terminal app DOES NOT run .bashrc by default
         #  But re-runs .bash_profile :(
         #  See https://scriptingosx.com/2017/04/about-bash_profile-and-bashrc-on-macos/
-        set +e
-        grep ".bashrc" "${HOME}/.bash_profile"
-        RES=$?
-        set -e
-        if [[ "${RES}" == "0" ]]; then
-            echo "  Seems you already source .bashrc in your .bash_profile so not adding it."
-        else
-            "${AIRFLOW_SOURCES}/confirm" "This will modify  ~/.bash_profile and source .bashrc from it"
-            echo
-            echo
-            cat >>~/.bash_profile <<"EOF"
+        if ! grep "${BREEZE_COMMENT}" "${HOME}/.bash_profile"; then
+            # shellcheck disable=SC2129
+            echo "# START: ${BREEZE_COMMENT}" >>~/.bash_profile
+            cat <<"EOF" >>~/.bash_profile
 if [ -r ~/.bashrc ]; then
     source ~/.bashrc
 fi
 EOF
+            echo "# END: ${BREEZE_COMMENT}" >>~/.bash_profile
+            echo
+            echo "The ${HOME}/.bash_profile has been modified"
+            echo
+        else
+            echo
+            echo "The ${HOME}/.bash_profile was already modified before. Not changing it."
+            echo
         fi
     fi
     echo
     echo
-    echo "Breeze bash completion installed to ~/.bash_completion.d/breeze-complete"
+    echo "Breeze completion is installed to ~/.bash_completion.d/breeze-complete"
     echo
+    echo "Please exit and re-enter your shell or run:"
     echo
-    echo "Please re-enter bash or run '. ~/.bash_completion.d/breeze-complete'"
+    echo "    source ~/.bash_completion.d/breeze-complete"
     echo
     exit 0
 }
