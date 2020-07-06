@@ -25,42 +25,9 @@ KubernetesPodOperator
 The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` allows
 you to create and run Pods on a Kubernetes cluster.
 
-How does this operator work?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-TODO: include a definition of how the operator works, highlight dependency management gains, language agnosticism,
-and a quick overview of a k8s pod
-Go through the lifecycle of the pod in the context of a single task being executed on Airflow:
-start, monitor, end, delete (if specified). Mention where the pods can be run (in Airflow cluster if already
-hosted on k8s or a different one if kube config is available)
-
-Reference content from:
-- https://cloud.google.com/composer/docs/how-to/using/using-kubernetes-pod-operator
-- https://www.astronomer.io/docs/kubepodoperator/
-- https://medium.com/bluecore-engineering/were-all-using-airflow-wrong-and-how-to-fix-it-a56f14cb0753
-
-How to define Configurations (ConfigMaps and Secrets)?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-TODO: define general best practices from here: https://kubernetes.io/docs/concepts/configuration/overview/
-Have examples with `airflow.kubernetes.secret.Secret` and `airflow.kubernetes.volume.Volume`
-
-Difference between ``KubernetesPodOperator`` and Kubernetes object spec
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-TODO: Have a definition of the KubernetesPodOperator and have the equivalent YAML spec to point out
-the similarities and differences
-Bonus include a JSON equivalent as well
-
-How to use private images (container registry)?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-TODO: mention ECR, GCR, Quay, as options for image source and how to set up secret in Airflow to access a
-registry other than Docker Hub
-Reference content from: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
-Include simple example of a private registry image with the secret
-
-How does XCom work?
-^^^^^^^^^^^^^^^^^^^
-TODO: walk through workflow of pushing and pulling from operator
-Reference content from: https://www.aylakhan.tech/?p=725
-Include example of this in action (already one in the GKE example which we can borrow)
+.. contents::
+  :depth: 1
+  :local:
 
 .. note::
   If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, consider
@@ -68,144 +35,80 @@ Include example of this in action (already one in the GKE example which we can b
   :ref:`GKEStartPodOperator <howto/operator:GKEStartPodOperator>` operator as it
   simplifies the Kubernetes authorization process.
 
-The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`:
+How does this operator work?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The ``KubernetesPodOperator`` is able to natively launch a Kubernetes Pod to run an individual task -
+and terminate that pod when the task is completed. The operator uses the Kube Python Client to generate a
+Kubernetes API request that dynamically launches those individual pods. The connection to the client is based
+on the Kubernetes Configuration file which is either specified directly to the Pod or retrieved from the
+Airflow Configuration.
 
-* Launches a Docker image as a Kubernetes Pod to execute an individual Airflow
-  task via a Kubernetes API request, using the
-  `Kubernetes Python Client <https://github.com/kubernetes-client/python>`_
-* Terminate the pod when the task is completed
-* Works with any Airflow Executor
-* Allows Airflow to act a job orchestrator for a Docker container,
-  no matter the language the job was written in
-* Enables task-level resource configuration
-* Allow you to pass Kubernetes specific parameters into the task
+The ``KubernetesPodOperator`` enables task-level resource configuration and is optimal for custom Python
+dependencies that are not available through the public PyPI repository.
+Ultimately, it allows Airflow to act a job orchestrator - no matter the language those jobs are written in.
 
-.. code-block:: python
+How to use cluster ConfigMaps, Secrets, and Volumes with Pod?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Kubernetes cluster resources such as ConfigMaps, Secrets, and Volumes can be used with a Pod to be launched.
+Utilize the Airflow Kubernetes model classes such as:
+:class:`~airflow.kubernetes.secret.Secret`
+or
+:class:`~airflow.kubernetes.volume.Volume`
+or
+:class:`airflow.kubernetes.volume_mount.VolumeMount`
+to do this (as well as standard Python dictionaries). These can they be specified in the appropriate parameters
+when declaring the Pod task.
 
-    import kubernetes.client.models as k8s
+.. exampleinclude:: ../../../airflow/providers/cncf/kubernetes/example_dags/example_kubernetes.py
+    :language: python
+    :start-after: [START howto_operator_k8s_cluster_resources]
+    :end-before: [END howto_operator_k8s_cluster_resources]
 
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-    from airflow.kubernetes.secret import Secret
-    from airflow.kubernetes.volume import Volume
-    from airflow.kubernetes.volume_mount import VolumeMount
-    from airflow.kubernetes.pod import Port
+Difference between ``KubernetesPodOperator`` and Kubernetes object spec
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The ``KubernetesPodOperator`` can be considered a substitute for a Kubernetes object spec definition that is able
+to be run in the Airflow scheduler in the DAG context. If using the operator, there is no need to create the
+equivalent YAML/JSON object spec for the Pod you would like to run.
 
+How to use private images (container registry)?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+By default, the ``KubernetesPodOperator`` will look for images hosted publicly on Dockerhub.
+If you want to pull images from a private registry (such as ECR, GCR, Quay, or others), you must create a
+Kubernetes Secret that represents the credentials for accessing images from the private registry that is ultimately
+specified in the ``image_pull_secrets`` parameter.
 
-    secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
-    secret_env  = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
-    secret_all_keys  = Secret('env', None, 'airflow-secrets-2')
-    volume_mount = VolumeMount('test-volume',
-                                mount_path='/root/mount_file',
-                                sub_path=None,
-                                read_only=True)
-    port = Port('http', 80)
-    configmaps = ['test-configmap-1', 'test-configmap-2']
+Create the Secret using ``kubectl``:
 
-    volume_config= {
-        'persistentVolumeClaim':
-          {
-            'claimName': 'test-volume'
-          }
-        }
-    volume = Volume(name='test-volume', configs=volume_config)
+.. code-block:: none
 
-    init_container_volume_mounts = [k8s.V1VolumeMount(
-      mount_path='/etc/foo',
-      name='test-volume',
-      sub_path=None,
-      read_only=True
-    )]
+    kubectl create secret docker-registry testquay \
+        --docker-server=quay.io \
+        --docker-username=<Profile name> \
+        --docker-password=<password>
 
-    init_environments = [k8s.V1EnvVar(
-      name='key1',
-      value='value1'
-    ), k8s.V1EnvVar(
-      name='key2',
-      value='value2'
-    )]
+Then use it in your pod like so:
 
-    init_container = k8s.V1Container(
-      name="init-container",
-      image="ubuntu:16.04",
-      env=init_environments,
-      volume_mounts=init_container_volume_mounts,
-      command=["bash", "-cx"],
-      args=["echo 10"]
-    )
+.. exampleinclude:: ../../../airflow/providers/cncf/kubernetes/example_dags/example_kubernetes.py
+    :language: python
+    :start-after: [START howto_operator_k8s_private_image]
+    :end-before: [END howto_operator_k8s_private_image]
 
-    affinity = {
-        'nodeAffinity': {
-          'preferredDuringSchedulingIgnoredDuringExecution': [
-            {
-              "weight": 1,
-              "preference": {
-                "matchExpressions": {
-                  "key": "disktype",
-                  "operator": "In",
-                  "values": ["ssd"]
-                }
-              }
-            }
-          ]
-        },
-        "podAffinity": {
-          "requiredDuringSchedulingIgnoredDuringExecution": [
-            {
-              "labelSelector": {
-                "matchExpressions": [
-                  {
-                    "key": "security",
-                    "operator": "In",
-                    "values": ["S1"]
-                  }
-                ]
-              },
-              "topologyKey": "failure-domain.beta.kubernetes.io/zone"
-            }
-          ]
-        },
-        "podAntiAffinity": {
-          "requiredDuringSchedulingIgnoredDuringExecution": [
-            {
-              "labelSelector": {
-                "matchExpressions": [
-                  {
-                    "key": "security",
-                    "operator": "In",
-                    "values": ["S2"]
-                  }
-                ]
-              },
-              "topologyKey": "kubernetes.io/hostname"
-            }
-          ]
-        }
-    }
+How does XCom work?
+^^^^^^^^^^^^^^^^^^^
+The ``KubernetesPodOperator`` handles XCom values differently than other operators. In order to pass a XCom value
+from your Pod you must specify the ``do_xcom_push`` as ``True``. This will create a sidecar container that runs
+alongside the Pod. The Pod must write the XCom value into this location at the ``airflow/xcom/return.json`` path.
 
-    tolerations = [
-        {
-            'key': "key",
-            'operator': 'Equal',
-            'value': 'value'
-         }
-    ]
+See the following example on how this occurs:
 
-    k = KubernetesPodOperator(namespace='default',
-                              image="ubuntu:16.04",
-                              cmds=["bash", "-cx"],
-                              arguments=["echo", "10"],
-                              labels={"foo": "bar"},
-                              secrets=[secret_file, secret_env, secret_all_keys],
-                              ports=[port],
-                              volumes=[volume],
-                              volume_mounts=[volume_mount],
-                              name="test",
-                              task_id="task",
-                              affinity=affinity,
-                              is_delete_operator_pod=True,
-                              hostnetwork=False,
-                              tolerations=tolerations,
-                              configmaps=configmaps,
-                              init_containers=[init_container],
-                              priority_class_name="medium",
-                              )
+.. exampleinclude:: ../../../airflow/providers/cncf/kubernetes/example_dags/example_kubernetes.py
+    :language: python
+    :start-after: [START howto_operator_k8s_write_xcom]
+    :end-before: [END howto_operator_k8s_write_xcom]
+
+Reference
+^^^^^^^^^
+For further information, look at:
+
+* `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
+* `Pull and Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`__
