@@ -61,7 +61,7 @@ class StackdriverTaskHandler(logging.Handler):
     :type scopes: Sequence[str]
     :param name: the name of the custom log in Stackdriver Logging. Defaults
         to 'airflow'. The name of the Python logger will be represented
-         in the ``python_logger`` field.
+        in the ``python_logger`` field.
     :type name: str
     :param transport: Class for creating new transport objects. It should
         extend from the base :class:`google.cloud.logging.handlers.Transport` type and
