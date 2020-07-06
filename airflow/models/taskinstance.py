@@ -1008,8 +1008,6 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         :param session: SQLAlchemy ORM Session
         :type session: Session
         """
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
-        from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
         task = self.task
         self.test_mode = test_mode
