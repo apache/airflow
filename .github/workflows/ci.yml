@@ -32,7 +32,7 @@ env:
   DB_RESET: "true"
   VERBOSE: "true"
   UPGRADE_TO_LATEST_REQUIREMENTS: "false"
-  PYTHON_MAJOR_MINOR_VERSION: 3.5
+  PYTHON_MAJOR_MINOR_VERSION: 3.6
   USE_GITHUB_REGISTRY: "true"
   CACHE_IMAGE_PREFIX: ${{ github.repository }}
   CACHE_REGISTRY_USERNAME: ${{ github.actor }}
@@ -76,7 +76,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI_JOB_TYPE: "Documentation"
-      PYTHON_MAJOR_MINOR_VERSION: 3.6
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -207,7 +206,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
         with:
-          python-version: '3.x'
+          python-version: '3.6'
       - name: "Free space"
         run: ./scripts/ci/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"

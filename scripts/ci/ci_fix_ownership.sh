@@ -19,7 +19,7 @@
 #
 # Fixes ownership for files created inside container (files owned by root will be owned by host user)
 #
-export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.5}
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
