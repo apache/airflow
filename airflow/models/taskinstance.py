@@ -52,6 +52,7 @@ from airflow.sentry import Sentry
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils import timezone
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
@@ -883,8 +884,6 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         :return: whether the state was changed to running or not
         :rtype: bool
         """
-        # Avoid Circular dependency
-        from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 
         task = self.task
         self.refresh_from_task(task, pool_override=pool)
