@@ -21,7 +21,7 @@ from datetime import datetime
 import pytest
 
 from airflow import DAG
-from airflow.models import DagBag
+from airflow.models.dagbag import FilesystemDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.www import app
@@ -47,7 +47,7 @@ class TestDagEndpoint(unittest.TestCase):
             DummyOperator(task_id=cls.task_id)
 
         cls.dag = dag  # type:ignore
-        dag_bag = DagBag(os.devnull, include_examples=False)
+        dag_bag = FilesystemDagBag(os.devnull, include_examples=False)
         dag_bag.dags = {dag.dag_id: dag}
         cls.app.dag_bag = dag_bag  # type:ignore
 
@@ -97,7 +97,7 @@ class TestGetDagDetails(TestDagEndpoint):
     def test_should_response_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
         app_serialized = app.create_app(testing=True)  # type:ignore
-        dag_bag = DagBag(os.devnull, include_examples=False, store_serialized_dags=True)
+        dag_bag = FilesystemDagBag(os.devnull, include_examples=False, store_serialized_dags=True)
         app_serialized.dag_bag = dag_bag  # type:ignore
         client = app_serialized.test_client()
 
