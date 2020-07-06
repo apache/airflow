@@ -26,8 +26,8 @@ from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineCreateVersionOperator, MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator,
-    MLEngineListVersionsOperator, MLEngineCreateModelOperator, MLEngineGetModelOperator, 
-    MLEngineSetDefaultVersionOperator, MLEngineStartBatchPredictionJobOperator, 
+    MLEngineListVersionsOperator, MLEngineCreateModelOperator, MLEngineGetModelOperator,
+    MLEngineSetDefaultVersionOperator, MLEngineStartBatchPredictionJobOperator,
     MLEngineStartTrainingJobOperator,
 )
 from airflow.providers.google.cloud.utils import mlengine_operator_utils
