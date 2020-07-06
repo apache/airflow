@@ -32,8 +32,9 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 import dill
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, SkipMixin
+from airflow.models import BaseOperator
 from airflow.models.dag import DAG, DagContext
+from airflow.models.skipmixin import SkipMixin
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.process_utils import execute_in_subprocess
