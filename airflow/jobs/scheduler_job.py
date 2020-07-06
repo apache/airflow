@@ -1530,7 +1530,7 @@ class SchedulerJob(BaseJob):
                 )
 
     def _execute(self):
-        self.log.info("Starting the scheduler")
+        self.log.info("Starting the scheduler with executor: %s", self.executor_class)
 
         # DAGs can be pickled for easier remote execution by some executors
         pickle_dags = self.do_pickle and self.executor_class not in UNPICKLEABLE_EXECUTORS
