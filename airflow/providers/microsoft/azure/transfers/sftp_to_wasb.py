@@ -32,7 +32,7 @@ SFTP_FILE_PATH = "SFTP_FILE_PATH"
 BLOB_NAME = "BLOB_NAME"
 
 
-class STFPToWasbOperator(BaseOperator):
+class SFTPToWasbOperator(BaseOperator):
     """
     Transfer files to Azure Blob Storage from SFTP server.
 
@@ -85,11 +85,13 @@ class STFPToWasbOperator(BaseOperator):
         self.move_object = move_object
 
     def execute(self, context):
+        """Upload a file from SFTP to Azure Blob Storage."""
         (sftp_hook, sftp_files) = self.get_sftp_files_map()
         uploaded_files = self.upload_wasb(sftp_hook, sftp_files)
         self.sftp_move(sftp_hook, uploaded_files)
 
     def get_sftp_files_map(self):
+        """Get SFTP files from the source path, it may use a WILDCARD to this end."""
         sftp_files = []
         sftp_hook = SFTPHook(self.sftp_conn_id)
 
@@ -119,6 +121,7 @@ class STFPToWasbOperator(BaseOperator):
         return sftp_hook, sftp_files
 
     def check_wildcards_limit(self):
+        """Check if there is multiple Wildcard."""
         total_wildcards = self.sftp_source_path.count(WILDCARD)
         if total_wildcards > 1:
             raise AirflowException(
@@ -127,6 +130,7 @@ class STFPToWasbOperator(BaseOperator):
             )
 
     def upload_wasb(self, sftp_hook, sftp_files):
+        """Upload a list of files from sftp_files to Azure Blob Storage with a new Blob Name."""
         uploaded_files = []
         wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         for file in sftp_files:
@@ -149,6 +153,7 @@ class STFPToWasbOperator(BaseOperator):
         return uploaded_files
 
     def sftp_move(self, sftp_hook, uploaded_files):
+        """Performs a move of a list of files at SFTP to Azure Blob Storage."""
         if self.move_object:
             for sftp_file_path in uploaded_files:
                 self.log.info("Executing delete of %s", sftp_file_path)
