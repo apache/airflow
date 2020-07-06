@@ -129,8 +129,6 @@ class TestSFTPToWasbOperator(unittest.TestCase):
     @mock.patch('airflow.providers.microsoft.azure.transfers.stfp_to_wasb.WasbHook')
     @mock.patch('airflow.providers.microsoft.azure.transfers.stfp_to_wasb.SFTPHook')
     def test_upload_wasb(self, sftp_hook, mock_hook):
-
-
         operator = STFPToWasbOperator(
             task_id=TASK_ID,
             sftp_source_path=SOURCE_OBJECT_NO_WILDCARD,
