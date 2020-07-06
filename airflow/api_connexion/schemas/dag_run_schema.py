@@ -18,12 +18,14 @@
 import json
 from typing import List, NamedTuple
 
-from marshmallow import fields
+from marshmallow import fields, pre_load
 from marshmallow.schema import Schema
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.schemas.enum_schemas import DagStateField
 from airflow.models.dagrun import DagRun
+from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 
 class ConfObject(fields.Field):
@@ -46,17 +48,31 @@ class DAGRunSchema(SQLAlchemySchema):
 
     class Meta:
         """ Meta """
+
         model = DagRun
-        dateformat = 'iso'
+        dateformat = "iso"
 
     run_id = auto_field(data_key='dag_run_id')
     dag_id = auto_field(dump_only=True)
     execution_date = auto_field()
     start_date = auto_field(dump_only=True)
     end_date = auto_field(dump_only=True)
-    state = DagStateField()
+    state = DagStateField(dump_only=True)
     external_trigger = auto_field(default=True, dump_only=True)
     conf = ConfObject()
+
+    @pre_load
+    def autogenerate(self, data, **kwargs):
+        """
+        Auto generate run_id and execution_date if they are not loaded
+        """
+        if "execution_date" not in data.keys():
+            data["execution_date"] = str(timezone.utcnow())
+        if "dag_run_id" not in data.keys():
+            data["dag_run_id"] = DagRun.generate_run_id(
+                DagRunType.MANUAL, timezone.parse(data["execution_date"])
+            )
+        return data
 
 
 class DAGRunCollection(NamedTuple):
@@ -68,6 +84,7 @@ class DAGRunCollection(NamedTuple):
 
 class DAGRunCollectionSchema(Schema):
     """DAGRun Collection schema"""
+
     dag_runs = fields.List(fields.Nested(DAGRunSchema))
     total_entries = fields.Int()
 

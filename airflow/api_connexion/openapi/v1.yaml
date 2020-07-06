@@ -287,6 +287,34 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
+    post:
+      summary: Trigger a DAG Run
+      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.post_dag_run
+      tags: [DAGRun]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRun'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          $ref: '#/components/responses/AlreadyExists'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /dags/~/dagRuns/list:
     post:
       summary: Get all DAG Runs from aall DAGs.
@@ -341,33 +369,6 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
-
-    post:
-      summary: Trigger a DAG Run
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: post_dag_run
-      tags: [DAGRun]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DAGRun'
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGRun'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '409':
-          $ref: '#/components/responses/AlreadyExists'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
 
     delete:
       summary: Delete a DAG Run
@@ -1195,6 +1196,7 @@ components:
             If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
 
             This together with DAG_ID are a unique key.
+          nullable: true
         dag_id:
           type: string
           readOnly: true
@@ -1222,6 +1224,7 @@ components:
           nullable: true
         state:
           $ref: '#/components/schemas/DagState'
+          readOnly: True
         external_trigger:
           type: boolean
           default: true
