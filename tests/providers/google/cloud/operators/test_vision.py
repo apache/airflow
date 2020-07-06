@@ -26,10 +26,11 @@ from airflow.providers.google.cloud.operators.vision import (
     CloudVisionAddProductToProductSetOperator, CloudVisionCreateProductOperator,
     CloudVisionCreateProductSetOperator, CloudVisionCreateReferenceImageOperator,
     CloudVisionDeleteProductOperator, CloudVisionDeleteProductSetOperator,
-    CloudVisionDetectImageLabelsOperator, CloudVisionDetectImageSafeSearchOperator,
-    CloudVisionDetectTextOperator, CloudVisionGetProductOperator, CloudVisionGetProductSetOperator,
-    CloudVisionImageAnnotateOperator, CloudVisionRemoveProductFromProductSetOperator,
-    CloudVisionTextDetectOperator, CloudVisionUpdateProductOperator, CloudVisionUpdateProductSetOperator,
+    CloudVisionDeleteReferenceImageOperator, CloudVisionDetectImageLabelsOperator,
+    CloudVisionDetectImageSafeSearchOperator, CloudVisionDetectTextOperator, CloudVisionGetProductOperator,
+    CloudVisionGetProductSetOperator, CloudVisionImageAnnotateOperator,
+    CloudVisionRemoveProductFromProductSetOperator, CloudVisionTextDetectOperator,
+    CloudVisionUpdateProductOperator, CloudVisionUpdateProductSetOperator,
 )
 
 PRODUCTSET_TEST = ProductSet(display_name='Test Product Set')
