@@ -75,7 +75,11 @@ This section describes the major changes that have been made in this release.
 
 #### Python 2 support is going away
 
+<<<<<<< HEAD
 > WARNING: Breaking change
+=======
+Now the `conn_id` will be unique. New users will not have to deal with any consequences. But for existing users that already have data in their metadata database, they will have to manage those duplicate connections before upgrading the database with `airflow db upgrade`.
+>>>>>>> More small fixes in UPDATING.md
 
 Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.6 and up.
 
