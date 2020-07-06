@@ -1630,6 +1630,12 @@ These integrations allow you to copy data.
      -
      - :mod:`airflow.providers.microsoft.azure.transfers.file_to_wasb`
 
+   * - SFTP
+     - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
+     -
+     - :mod:`airflow.providers.microsoft.azure.transfers.stfp_to_wasb`
+
+
    * - Filesystem
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
