@@ -153,5 +153,3 @@ class STFPToWasbOperator(BaseOperator):
             for sftp_file_path in uploaded_files:
                 self.log.info("Executing delete of %s", sftp_file_path)
                 sftp_hook.delete_file(sftp_file_path)
-
-
