@@ -827,10 +827,6 @@ function parse_arguments() {
         generate-requirements)
           LAST_SUBCOMMAND="${1}"
           COMMAND_TO_RUN="perform_generate_requirements"
-          # if you want to  generate requirement - you want to build the image too :)
-          export FORCE_ANSWER_TO_QUESTIONS="yes"
-          # and assume you want to build it no matter if it is needed
-          export FORCE_BUILD_IMAGES="true"
           shift ;;
         push-image)
           LAST_SUBCOMMAND="${1}"
