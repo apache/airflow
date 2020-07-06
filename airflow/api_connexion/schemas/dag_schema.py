@@ -39,7 +39,6 @@ class DAGSchema(SQLAlchemySchema):
 
     class Meta:
         """Meta"""
-
         model = DagModel
 
     dag_id = auto_field(dump_only=True)
@@ -56,7 +55,7 @@ class DAGSchema(SQLAlchemySchema):
     def get_owners(obj: DagModel):
         """Convert owners attribute to DAG representation"""
 
-        if not obj.owners:
+        if not getattr(obj, 'owners', None):
             return []
         return obj.owners.split(",")
 

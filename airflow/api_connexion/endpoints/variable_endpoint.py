@@ -73,11 +73,11 @@ def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -
     Update a variable by key
     """
     try:
-        var = variable_schema.load(request.json)
+        data = variable_schema.load(request.json)
     except ValidationError as err:
         raise BadRequest("Invalid Variable schema", detail=str(err.messages))
 
-    if var.data["key"] != variable_key:
+    if data["key"] != variable_key:
         raise BadRequest("Invalid post body", detail="key from request body doesn't match uri parameter")
 
     if update_mask:
@@ -86,7 +86,7 @@ def patch_variable(variable_key: str, update_mask: Optional[List[str]] = None) -
         if "value" not in update_mask:
             raise BadRequest("No field to update")
 
-    Variable.set(var.data["key"], var.data["val"])
+    Variable.set(data["key"], data["val"])
     return Response(status=204)
 
 
@@ -95,8 +95,9 @@ def post_variables() -> Response:
     Create a variable
     """
     try:
-        var = variable_schema.load(request.json)
+        data = variable_schema.load(request.json)
+
     except ValidationError as err:
         raise BadRequest("Invalid Variable schema", detail=str(err.messages))
-    Variable.set(var.data["key"], var.data["val"])
-    return variable_schema.dump(var)
+    Variable.set(data["key"], data["val"])
+    return variable_schema.dump(data)

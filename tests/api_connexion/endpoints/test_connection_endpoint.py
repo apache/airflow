@@ -385,7 +385,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "connection_id": "test-connection-id",
                     "conn_type": "test-type",
                     "extras": "{}",  # extras not a known field e.g typo
-                }, "Extra arguments passed: ['extras']"
+                }, "extras"
             ),
             (
                 {
@@ -393,7 +393,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "conn_type": "test-type",
                     "invalid_field": "invalid field",  # unknown field
                     "_password": "{}",  # _password not a known field
-                }, "Extra arguments passed:"
+                }, "_password"
             ),
         ]
     )

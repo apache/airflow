@@ -38,7 +38,7 @@ class TestPoolSchema(unittest.TestCase):
         pool_instance = session.query(Pool).filter(Pool.pool == pool_model.pool).first()
         serialized_pool = pool_schema.dump(pool_instance)
         self.assertEqual(
-            serialized_pool.data,
+            serialized_pool,
             {
                 "name": "test_pool",
                 "slots": 2,
@@ -53,7 +53,7 @@ class TestPoolSchema(unittest.TestCase):
     def test_desearialize(self, session):
         pool_dict = {"name": "test_pool", "slots": 3}
         deserialized_pool = pool_schema.load(pool_dict, session=session)
-        self.assertNotIsInstance(deserialized_pool.data, Pool)  # Checks if load_instance is set to True
+        self.assertNotIsInstance(deserialized_pool, Pool)  # Checks if load_instance is set to True
 
 
 class TestPoolCollectionSchema(unittest.TestCase):
@@ -89,5 +89,5 @@ class TestPoolCollectionSchema(unittest.TestCase):
                 ],
                 "total_entries": 2,
             },
-            pool_collection_schema.dump(instance).data,
+            pool_collection_schema.dump(instance),
         )

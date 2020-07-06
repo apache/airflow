@@ -82,6 +82,7 @@ class TestGetDagDetails(TestDagEndpoint):
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',
+            'owners': [],
             'schedule_interval': {
                 '__type': 'TimeDelta',
                 'days': 1,
@@ -115,6 +116,7 @@ class TestGetDagDetails(TestDagEndpoint):
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',
+            'owners': [],
             'schedule_interval': {
                 '__type': 'TimeDelta',
                 'days': 1,
