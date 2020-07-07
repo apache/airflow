@@ -170,6 +170,7 @@ class TaskInstance(Base, LoggingMixin):
     error_code = Column(Integer)
     verify_error = Column(Integer)
     final_state = Column(String(20))  # 最终状态牵涉2次检验
+    line_code = Column(String(100))  # 产线代码
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
