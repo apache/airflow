@@ -143,6 +143,8 @@ Improvements
 - Change default auth for experimental backend to deny_all (#9611)
 - Restrict changing XCom values from the Webserver (#9614)
 - Add __repr__ for DagTag so tags display properly in /dagmodel/show (#8719)
+- Functionality to shuffle HMS connections used by HiveMetastoreHook facilitating load balancing (#9280)
+- Expose SQLAlchemy's connect_args and make it configurable (#6478)
 
 Doc only changes
 """"""""""""""""
