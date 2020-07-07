@@ -96,8 +96,8 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
 
         operator.execute(None)
         calls = [
-            mock.Call(TEST_BUCKET, prefix="test_object", delimiter=""),
-            mock.Call(DESTINATION_BUCKET, prefix="test_object", delimiter=""),
+            mock.call(TEST_BUCKET, prefix="test_object", delimiter=""),
+            mock.call(DESTINATION_BUCKET, prefix="test_object", delimiter=""),
         ]
         mock_hook.return_value.assert_has_calls(calls)
 
