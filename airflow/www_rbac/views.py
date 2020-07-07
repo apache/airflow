@@ -387,6 +387,7 @@ class Airflow(AirflowBaseView):
     @expose('/view_curve/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>')
     @has_access
     def view_curve_page(self, dag_id, execution_date, task_id):
+        _has_access = self.appbuilder.sm.has_access
         execution_date = timezone.parse(execution_date)
         ti = get_task_instance(dag_id, task_id, execution_date)
         if not ti.entity_id:
@@ -413,11 +414,14 @@ class Airflow(AirflowBaseView):
         result_keys_translation_mapping = Variable.get('result_keys_translation_mapping', deserialize_json=True,
                                                        default_var={})
         error_tags = ErrorTag.get_all()
+        can_verify = _has_access('set_final_state_ok', 'TaskInstanceModelView') \
+                     and _has_access('set_final_state_nok', 'TaskInstanceModelView')
         return self.render_template('airflow/curve.html', task_instance=ti, result=result,
                                     curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
                                     resultErrorMessageMapping=result_error_message_mapping,
                                     resultKeysTranslationMapping=result_keys_translation_mapping,
                                     verify_error_map=verify_error_map,
+                                    can_verify=can_verify,
                                     errorTags=error_tags)
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
@@ -2749,13 +2753,15 @@ class TaskInstanceModelView(AirflowModelView):
 
     page_size = PAGE_SIZE
 
-    list_columns = ['state', 'dag_id', 'task_id', 'entity_id', 'execution_date', 'measure_result', 'result', 'final_state',
+    list_columns = ['state', 'dag_id', 'task_id', 'entity_id', 'execution_date', 'measure_result', 'result',
+                    'final_state',
                     'start_date', 'end_date', 'duration', 'job_id',
-                     'priority_weight',  'try_number',
+                    'priority_weight', 'try_number',
                     # 'unixname', 'hostname', 'queue', 'queued_dttm', 'operator',
                     'pool', 'log_url']
 
-    search_columns = ['state', 'dag_id', 'entity_id', 'measure_result', 'result', 'final_state', 'task_id', 'execution_date', 'hostname',
+    search_columns = ['state', 'dag_id', 'entity_id', 'measure_result', 'result', 'final_state', 'task_id',
+                      'execution_date', 'hostname',
                       'queue', 'pool', 'operator', 'start_date', 'end_date']
 
     base_order = ('job_id', 'asc')

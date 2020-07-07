@@ -24,7 +24,7 @@
       <div class="panel-body d-flex flex-row justify-content-center align-items-center" id="double-check-result">
         {% if task_instance.final_state %}
         <h4 class="m-0">{{task_instance.final_state}}</h4>
-        {% else %}
+        {% elif can_verify %}
         <button id="btn_double_check_success" style="width:80px"
                 class="button-double-check btn btn-success mr-2 font-weight-bold">
           <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
@@ -35,6 +35,8 @@
           <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
           NOK
         </button>
+        {% else %}
+          <h4 class="m-0">未确认</h4>
         {% endif %}
       </div>
     </div>
