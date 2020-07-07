@@ -88,7 +88,6 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
     def test_execute_wildcard_with_replace_flag_false(self, mock_hook):
-        mock_hook.return_value.list.return_value = True
         operator = GCSToGCSOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_SUFFIX,
