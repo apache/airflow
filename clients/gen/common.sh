@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,17 +16,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-name: Cancel
-on: [push, pull_request]
-jobs:
-  cancel:
-    name: 'Cancel Previous Runs'
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - uses: styfle/cancel-workflow-action@0.3.2
-        with:
-          # Fetch via https://api.github.com/repos/apache/airflow/actions/workflows/ci.yml
-          workflow_id: 1029499
-          access_token: ${{ github.token }}
+
+OPENAPI_GENERATOR_CLI_VER=4.3.1
+GIT_USER=${GIT_USER:-apache}
+
+function gen_client {
+    lang=$1
+    shift
+    docker run --rm \
+        -v "${SPEC_PATH}:/spec" \
+        -v "${OUTPUT_DIR}:/output" \
+        openapitools/openapi-generator-cli:v${OPENAPI_GENERATOR_CLI_VER} \
+        generate \
+        --input-spec "/spec" \
+        --generator-name "${lang}" \
+        --git-user-id "${GIT_USER}" \
+        --output "/output" "$@"
+}

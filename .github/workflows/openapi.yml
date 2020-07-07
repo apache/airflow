@@ -14,17 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 ---
-name: Cancel
-on: [push, pull_request]
+name: OpenAPI Build
+on:
+  push:
+    branches: ['master']
+  pull_request:
+    branches: ['master']
+
 jobs:
-  cancel:
-    name: 'Cancel Previous Runs'
+  test-openapi-client-generation:
+    name: "Test OpenAPI client generation"
     runs-on: ubuntu-latest
-    timeout-minutes: 3
     steps:
-      - uses: styfle/cancel-workflow-action@0.3.2
+      - uses: actions/checkout@master
         with:
-          # Fetch via https://api.github.com/repos/apache/airflow/actions/workflows/ci.yml
-          workflow_id: 1029499
-          access_token: ${{ github.token }}
+          fetch-depth: 0
+      - name: "Generate client codegen diff"
+        run: ./scripts/ci/openapi/client_codegen_diff.sh

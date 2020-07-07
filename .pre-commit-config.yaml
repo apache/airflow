@@ -25,7 +25,7 @@ repos:
     rev: v1.1.7
     hooks:
       - id: forbid-tabs
-        exclude: ^docs/Makefile$
+        exclude: ^docs/Makefile$|^clients/gen/go.sh
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
