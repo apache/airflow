@@ -95,11 +95,11 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             replace=False)
 
         operator.execute(None)
-        calls = [
+        mock_calls = [
             mock.call(TEST_BUCKET, prefix="test_object", delimiter=""),
             mock.call(DESTINATION_BUCKET, prefix="test_object", delimiter=""),
         ]
-        mock_hook.return_value.assert_has_calls(calls)
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
     def test_execute_prefix_and_suffix(self, mock_hook):
