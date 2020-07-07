@@ -100,7 +100,7 @@ The key ``extra_dejson`` can be used to provide parameters as JSON object where 
 The keys ``extra`` and ``extra_dejson`` are mutually exclusive.
 
 The JSON file must contain an object where the key contains the connection ID and the value contains
-the definitions of one or more connections. The connection can be defined as a URI (string) or JSON object.
+the definitions of one or more connections. In this format, the connection can be defined as a URI (string) or JSON object.
 The following is a sample JSON file.
 
 .. code-block:: json
