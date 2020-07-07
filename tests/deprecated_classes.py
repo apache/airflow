@@ -1769,6 +1769,14 @@ LOGS = [
     (
         "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
         "airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler"
+    ),
+    (
+        "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
+        "airflow.utils.log.gcs_task_handler.GCSTaskHandler"
+    ),
+    (
+        "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler",
+        "airflow.utils.log.wasb_task_handler.WasbTaskHandler"
     )
 ]
 
