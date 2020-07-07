@@ -287,7 +287,7 @@ class GCSToGCSOperator(BaseOperator):
 
             existing_objects = hook.list(self.destination_bucket, prefix=prefix_, delimiter=delimiter)
 
-            objects = list(set(objects) - set(existing_objects))
+            objects = set(objects) - set(existing_objects)
             if len(objects) > 0:
                 self.log.info(
                     '%s files are going to be synced: %s.', len(objects), objects
