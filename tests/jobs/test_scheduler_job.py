@@ -1489,7 +1489,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         mock_stats_incr.assert_called_once_with('scheduler.tasks.killed_externally')
 
-    def test_process_executor_events_uses_inmemory_try_numer(self):
+    def test_process_executor_events_uses_inmemory_try_number(self):
         execution_date = DEFAULT_DATE
         dag_id = "dag_id"
         task_id = "task_id"
