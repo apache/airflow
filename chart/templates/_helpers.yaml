@@ -268,7 +268,7 @@ log_connections = {{ .Values.pgbouncer.logConnections }}
 {{- end -}}
 
 {{ define "airflow_dags_volume_claim" -}}
-{{- if and .Values.dags.persistence.enabled .Values.dags.persistence.existingClaim -}}
+{{- if .Values.dags.persistence.existingClaim -}}
 {{ .Values.dags.persistence.existingClaim }}
 {{- else -}}
 {{ .Release.Name }}-dags

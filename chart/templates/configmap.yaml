@@ -101,7 +101,7 @@ data:
     git_dags_folder_mount_point = {{ include "airflow_dags_mount_path" . }}
     dags_volume_mount_point = {{ include "airflow_dags_mount_path" . }}
     {{- if .Values.dags.persistence.enabled }}
-    dags_volume_claim = {{ .Release.Name }}-dags
+    dags_volume_claim = {{ include "airflow_dags_volume_claim" . }}
     dags_volume_subpath = {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
     {{- else }}
     git_repo = {{ .Values.dags.gitSync.repo }}

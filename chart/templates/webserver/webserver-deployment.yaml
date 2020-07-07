@@ -145,7 +145,7 @@ spec:
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-dags
+            claimName: {{ template "airflow_dags_volume_claim" . }}
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {}
