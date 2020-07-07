@@ -423,3 +423,4 @@ All task log handlers are derived from :class:`~airflow.utils.log.file_task_hand
   airflow/providers/amazon/aws/log/index
   airflow/providers/elasticsearch/log/index
   airflow/providers/google/cloud/log/index
+  airflow/providers/microsoft/azure/log/index
