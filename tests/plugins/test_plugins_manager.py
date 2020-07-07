@@ -152,7 +152,7 @@ class TestPluginsManager(unittest.TestCase):
             'the plugin.'
         ])
 
-    def test_should_not_warning_about_compatible_plugins(self):
+    def test_should_not_warning_about_fab_plugins(self):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
