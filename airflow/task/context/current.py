@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 def set_current_context(context: Dict[str, Any]):
     """
     Sets the current execution context to the provided context object.
-    This method should be called once per Task execution, before calling operator.execute
+    This method should be called once per Task execution, before calling operator.execute.
     """
     _CURRENT_CONTEXT.append(context)
     try:

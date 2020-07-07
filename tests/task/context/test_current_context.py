@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from datetime import datetime, timedelta
 
 import pytest
@@ -25,6 +24,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python import PythonOperator
 from airflow.task.context.current import get_current_context, set_current_context
 from airflow.utils.dates import days_ago
+from tests.test_utils.db import clear_db_runs
 
 DEFAULT_ARGS = {
     "owner": "test",
@@ -89,6 +89,14 @@ def get_all_the_context(**context):
     assert context == current_context
 
 
+@pytest.fixture()
+def clear_db():
+    clear_db_runs()
+    yield
+    clear_db_runs()
+
+
+@pytest.mark.usefixtures("clear_db")
 class TestCurrentContextRuntime:
     def test_context_in_task(self):
         with DAG(dag_id="assert_context_dag", default_args=DEFAULT_ARGS):
