@@ -93,7 +93,7 @@ Storing and Retrieving Connections
 If you have set ``connections_file_path`` as ``/files/my_conn.json``, then the backend will read the
 file ``/files/my_conn.json`` when it looks for connections.
 
-The file can be defined in ``JSON``, ``YAML`` or ``env`` format.
+The file can be defined in ``JSON``, ``YAML`` or ``env`` format. Depending on the format, the data should be saved as a URL or as a connection object.  For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.	 For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
 
 Any extra json parameters can be provided using keys like ``extra_dejson`` and ``extra``.
 The key ``extra_dejson`` can be used to provide parameters as JSON object where as the key ``extra`` can be used in case of a JSON string.
