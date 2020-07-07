@@ -23,7 +23,7 @@ which allows you to connect to your Salesforce instance,
 retrieve data from it, and write that data to a file
 for other uses.
 
-NOTE:   this hook also relies on the simple_salesforce package:
+NOTE:   this hook also relies on the simple_salesforce package, version <= 0.75.3:
         https://github.com/simple-salesforce/simple-salesforce
 """
 import json
