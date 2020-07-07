@@ -22,13 +22,13 @@ This is an example dag for using the KubernetesPodOperator.
 import kubernetes.client.models as k8s
 
 from airflow import DAG
-from airflow.utils.dates import days_ago
-from airflow.operators.bash import BashOperator
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.kubernetes.pod import Port
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
-from airflow.kubernetes.pod import Port
+from airflow.operators.bash import BashOperator
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_k8s_cluster_resources]
 secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
@@ -50,85 +50,73 @@ volume = Volume(name='test-volume', configs=volume_config)
 port = Port('http', 80)
 
 init_container_volume_mounts = [k8s.V1VolumeMount(
-  mount_path='/etc/foo',
-  name='test-volume',
-  sub_path=None,
-  read_only=True
+    mount_path='/etc/foo',
+    name='test-volume',
+    sub_path=None,
+    read_only=True
 )]
 
 init_environments = [k8s.V1EnvVar(
-  name='key1',
-  value='value1'
+    name='key1',
+    value='value1'
 ), k8s.V1EnvVar(
-  name='key2',
-  value='value2'
+    name='key2',
+    value='value2'
 )]
 
 init_container = k8s.V1Container(
-  name="init-container",
-  image="ubuntu:16.04",
-  env=init_environments,
-  volume_mounts=init_container_volume_mounts,
-  command=["bash", "-cx"],
-  args=["echo 10"]
+    name="init-container",
+    image="ubuntu:16.04",
+    env=init_environments,
+    volume_mounts=init_container_volume_mounts,
+    command=["bash", "-cx"],
+    args=["echo 10"]
 )
 
 affinity = {
     'nodeAffinity': {
-      'preferredDuringSchedulingIgnoredDuringExecution': [
-        {
-          "weight": 1,
-          "preference": {
-            "matchExpressions": {
-              "key": "disktype",
-              "operator": "In",
-              "values": ["ssd"]
+        'preferredDuringSchedulingIgnoredDuringExecution': [{
+            "weight": 1,
+            "preference": {
+                "matchExpressions": {
+                    "key": "disktype",
+                    "operator": "In",
+                    "values": ["ssd"]
+                }
             }
-          }
-        }
-      ]
+        }]
     },
     "podAffinity": {
-      "requiredDuringSchedulingIgnoredDuringExecution": [
-        {
-          "labelSelector": {
-            "matchExpressions": [
-              {
-                "key": "security",
-                "operator": "In",
-                "values": ["S1"]
-              }
-            ]
-          },
-          "topologyKey": "failure-domain.beta.kubernetes.io/zone"
-        }
-      ]
+        "requiredDuringSchedulingIgnoredDuringExecution": [{
+            "labelSelector": {
+                "matchExpressions": [{
+                    "key": "security",
+                    "operator": "In",
+                    "values": ["S1"]
+                }]
+            },
+            "topologyKey": "failure-domain.beta.kubernetes.io/zone"
+        }]
     },
     "podAntiAffinity": {
-      "requiredDuringSchedulingIgnoredDuringExecution": [
-        {
-          "labelSelector": {
-            "matchExpressions": [
-              {
-                "key": "security",
-                "operator": "In",
-                "values": ["S2"]
-              }
-            ]
-          },
-          "topologyKey": "kubernetes.io/hostname"
-        }
-      ]
+        "requiredDuringSchedulingIgnoredDuringExecution": [{
+            "labelSelector": {
+                "matchExpressions": [{
+                    "key": "security",
+                    "operator": "In",
+                    "values": ["S2"]
+                }]
+            },
+            "topologyKey": "kubernetes.io/hostname"
+        }]
     }
 }
 
-tolerations = [
-    {
-        'key': "key",
-        'operator': 'Equal',
-        'value': 'value'
-     }
-]
+tolerations = [{
+    'key': "key",
+    'operator': 'Equal',
+    'value': 'value'
+}]
 
 
 default_args = {
