@@ -387,6 +387,16 @@ def set_task_instance_entity_id(dag_id, task_id, execution_date, entity_id='', s
         task_instance.entity_id = entity_id
 
 @provide_session
+def set_task_instance_line_code(dag_id, task_id, execution_date, line_code='', session=None):
+    tis = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.execution_date == execution_date,
+        TaskInstance.task_id == task_id)
+    tis_altered = tis.with_for_update().all()
+    for task_instance in tis_altered:
+        task_instance.line_code = line_code
+
+@provide_session
 def set_dag_run_state_to_running(dag, execution_date, commit=False, session=None):
     """
     Set the dag run for a specific execution date to running.
