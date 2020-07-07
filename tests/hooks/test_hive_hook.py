@@ -35,7 +35,7 @@ from airflow.models.dag import DAG
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
-from tests.compat import patch, MagicMock, call
+from tests.compat import patch, MagicMock, call, mock
 from tests.test_utils.mock_hooks import MockHiveCliHook, MockHiveServer2Hook
 from tests.test_utils.mock_process import MockSubProcess
 
@@ -553,8 +553,13 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         self.assertFalse(
             self.hook.table_exists("does-not-exist")
         )
-        self.hook.metastore.__enter__().get_table.assert_called_with(
-            dbname='default', tbl_name='does-not-exist')
+
+    @mock.patch('airflow.hooks.hive_hooks.random.shuffle')
+    @mock.patch('airflow.hooks.hive_hooks.HiveMetastoreHook.get_connections')
+    @mock.patch('airflow.hooks.hive_hooks.HiveMetastoreHook.get_metastore_client')
+    def test_check_hms_clients_load_balance(self, mock_client, mock_get_conn, mock_shuffle):
+        HiveMetastoreHook()._find_valid_server()
+        mock_shuffle.assert_called_once_with(mock_get_conn.return_value)
 
 
 class TestHiveServer2Hook(unittest.TestCase):
