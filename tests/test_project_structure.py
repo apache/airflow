@@ -36,7 +36,6 @@ MISSING_TEST_FILES = {
     'tests/providers/google/cloud/transfers/test_sql_to_gcs.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
     'tests/providers/google/cloud/utils/test_field_validator.py',
-    'tests/providers/google/cloud/utils/test_mlengine_operator_utils.py',
     'tests/providers/google/cloud/utils/test_mlengine_prediction_summary.py',
     'tests/providers/jenkins/hooks/test_jenkins.py',
     'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py',
