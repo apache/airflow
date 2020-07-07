@@ -321,7 +321,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end -}}
 
 {{ define "airflow_dags_volume_claim" -}}
-{{- if and .Values.dags.persistence.enabled .Values.dags.persistence.existingClaim -}}
+{{- if .Values.dags.persistence.existingClaim -}}
 {{ .Values.dags.persistence.existingClaim }}
 {{- else -}}
 {{ .Release.Name }}-dags
