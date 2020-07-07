@@ -53,6 +53,9 @@ the key like this:
 
     [core]
     sql_alchemy_conn_secret = sql_alchemy_conn
+    # You can also add a nested path
+    # example:
+    # sql_alchemy_conn_secret = core/sql_alchemy_conn
 
 This will retrieve config option from Secret Backends e.g Hashicorp Vault. See
 :ref:`Secrets Backends<secrets_backend_configuration>` for more details.
@@ -87,8 +90,9 @@ The idea behind this is to not store passwords on boxes in plain text files.
 
 The universal order of precedence for all configuration options is as follows:
 
-#. set as an environment variable
-#. set as a command environment variable
+#. set as an environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN``)
+#. set as a command environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD``)
+#. set as a secret environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET``)
 #. set in ``airflow.cfg``
 #. command in ``airflow.cfg``
 #. secret key in ``airflow.cfg``

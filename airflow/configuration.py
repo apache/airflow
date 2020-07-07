@@ -281,11 +281,11 @@ class AirflowConfigParser(ConfigParser):
             if (section, key) in self.sensitive_config_values:
                 return run_command(os.environ[env_var_cmd])
         # alternatively AIRFLOW__{SECTION}__{KEY}_SECRET (to get from Secrets Backend)
-        env_var_cmd = env_var + '_SECRET'
-        if env_var_cmd in os.environ:
-            # if this is a valid command key...
+        env_var_secret_path = env_var + '_SECRET'
+        if env_var_secret_path in os.environ:
+            # if this is a valid secret path...
             if (section, key) in self.sensitive_config_values:
-                return _get_config_value_from_secret_backend(os.environ[env_var_cmd])
+                return _get_config_value_from_secret_backend(os.environ[env_var_secret_path])
 
     def _get_cmd_option(self, section, key):
         fallback_key = key + '_cmd'
