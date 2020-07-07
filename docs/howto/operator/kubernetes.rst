@@ -37,14 +37,15 @@ you to create and run Pods on a Kubernetes cluster.
 
 How does this operator work?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The ``KubernetesPodOperator`` is able to natively launch a Kubernetes Pod to run an individual task -
-and terminate that pod when the task is completed. The operator uses the Kube Python Client to generate a
-Kubernetes API request that dynamically launches those individual pods. The connection to the client is based
-on the Kubernetes Configuration file which is either specified directly to the Pod or retrieved from the
-Airflow Configuration.
+The ``KubernetesPodOperator`` uses the Kubernetes API to launch a pod in a Kubernetes cluster. By supplying an
+image URL and a command with optional arguments, the operator uses the Kube Python Client to generate a Kubernetes API
+request that dynamically launches those individual pods.
+Users can specify a kubeconfig file using the ``config_file`` parameter, otherwise the operator will default
+to ``~/.kube/config``.
 
 The ``KubernetesPodOperator`` enables task-level resource configuration and is optimal for custom Python
-dependencies that are not available through the public PyPI repository.
+dependencies that are not available through the public PyPI repository. It also allows users to supply a template
+YAML file using the ``pod_template_file`` parameter.
 Ultimately, it allows Airflow to act a job orchestrator - no matter the language those jobs are written in.
 
 How to use cluster ConfigMaps, Secrets, and Volumes with Pod?
@@ -69,11 +70,13 @@ Difference between ``KubernetesPodOperator`` and Kubernetes object spec
 The ``KubernetesPodOperator`` can be considered a substitute for a Kubernetes object spec definition that is able
 to be run in the Airflow scheduler in the DAG context. If using the operator, there is no need to create the
 equivalent YAML/JSON object spec for the Pod you would like to run.
+The YAML file can still be provided with the ``pod_template_file`` or even the Pod Spec constructed in Python via
+the ``full_pod_spec`` parameter which requires a Kubernetes ``V1Pod``.
 
 How to use private images (container registry)?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 By default, the ``KubernetesPodOperator`` will look for images hosted publicly on Dockerhub.
-If you want to pull images from a private registry (such as ECR, GCR, Quay, or others), you must create a
+To pull images from a private registry (such as ECR, GCR, Quay, or others), you must create a
 Kubernetes Secret that represents the credentials for accessing images from the private registry that is ultimately
 specified in the ``image_pull_secrets`` parameter.
 
@@ -97,7 +100,7 @@ How does XCom work?
 ^^^^^^^^^^^^^^^^^^^
 The ``KubernetesPodOperator`` handles XCom values differently than other operators. In order to pass a XCom value
 from your Pod you must specify the ``do_xcom_push`` as ``True``. This will create a sidecar container that runs
-alongside the Pod. The Pod must write the XCom value into this location at the ``airflow/xcom/return.json`` path.
+alongside the Pod. The Pod must write the XCom value into this location at the ``/airflow/xcom/return.json`` path.
 
 See the following example on how this occurs:
 
