@@ -618,7 +618,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     'Found matching task %s-%s (%s) with current state of %s',
                     task.dag_id, task.task_id, task.execution_date, task.state
                 )
-                return (dag_id, task_id, ex_time, try_num)
+                return TaskInstanceKeyType(dag_id, task_id, ex_time, try_num)
             else:
                 self.log.warning(
                     'task_id/dag_id are not safe to use as Kubernetes labels. This can cause '
@@ -649,7 +649,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     )
                     dag_id = task.dag_id
                     task_id = task.task_id
-                    return dag_id, task_id, ex_time, try_num
+                    return TaskInstanceKeyType(dag_id, task_id, ex_time, try_num)
         self.log.warning(
             'Failed to find and match task details to a pod; labels: %s',
             labels

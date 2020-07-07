@@ -640,7 +640,9 @@ class BackfillJob(BaseJob):
         def tabulate_ti_keys_set(set_ti_keys: Set[TaskInstanceKeyType]) -> str:
             # Sorting by execution date first
             sorted_ti_keys = sorted(
-                set_ti_keys, key=lambda ti_key: (ti_key[2], ti_key[0], ti_key[1], ti_key[3]))
+                set_ti_keys, key=lambda ti_key:
+                (ti_key.execution_date, ti_key.dag_id, ti_key.task_id, ti_key.try_number)
+            )
             return tabulate(sorted_ti_keys, headers=["DAG ID", "Task ID", "Execution date", "Try number"])
 
         def tabulate_tis_set(set_tis: Set[TaskInstance]) -> str:

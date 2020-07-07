@@ -24,7 +24,7 @@ import signal
 import time
 import warnings
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
@@ -126,9 +126,18 @@ def clear_task_instances(tis,
             dr.start_date = timezone.utcnow()
 
 
-# Key used to identify task instance
-# Tuple of: dag_id, task_id, execution_date, try_number
-TaskInstanceKeyType = Tuple[str, str, datetime, int]
+class TaskInstanceKeyType(NamedTuple):
+    """
+    Key used to identify task instance.
+    """
+    dag_id: str
+    task_id: str
+    execution_date: datetime
+    try_number: int
+
+    @property
+    def short(self) -> Tuple[str, str, datetime]:
+        return self.dag_id, self.task_id, self.execution_date
 
 
 class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
@@ -541,7 +550,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         """
         Returns a tuple that identifies the task instance uniquely
         """
-        return self.dag_id, self.task_id, self.execution_date, self.try_number
+        return TaskInstanceKeyType(self.dag_id, self.task_id, self.execution_date, self.try_number)
 
     @provide_session
     def set_state(self, state, session=None, commit=True):
@@ -1711,11 +1720,11 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         TI = TaskInstance
         if not tis:
             return None
-        if all(isinstance(t, tuple) for t in tis):
-            filter_for_tis = ([and_(TI.dag_id == dag_id,
-                                    TI.task_id == task_id,
-                                    TI.execution_date == execution_date)
-                               for dag_id, task_id, execution_date, _ in tis])
+        if all(isinstance(t, TaskInstanceKeyType) for t in tis):
+            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
+                                    TI.task_id == ti.task_id,
+                                    TI.execution_date == ti.execution_date)
+                               for ti in tis])
             return or_(*filter_for_tis)
         if all(isinstance(t, TaskInstance) for t in tis):
             filter_for_tis = ([and_(TI.dag_id == ti.dag_id,  # type: ignore
@@ -1724,7 +1733,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                                for ti in tis])
             return or_(*filter_for_tis)
 
-        raise TypeError("All elements must have the same type: `TaskInstance` or `TaskInstanceKey`.")
+        raise TypeError("All elements must have the same type: `TaskInstance` or `TaskInstanceKeyType`.")
 
 
 # State of the task instance.

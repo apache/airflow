@@ -908,8 +908,8 @@ class DagFileProcessor(LoggingMixin):
 
         for ti in refreshed_tis:
             # Add task to task instance
-            dag = dagbag.dags[ti.key[0]]
-            ti.task = dag.get_task(ti.key[1])
+            dag = dagbag.dags[ti.dag_id]
+            ti.task = dag.get_task(ti.task_id)
 
             # We check only deps needed to set TI to SCHEDULED state here.
             # Deps needed to set TI to QUEUED state will be batch checked later
@@ -1493,13 +1493,13 @@ class SchedulerJob(BaseJob):
         # Report execution
         for key, value in event_buffer.items():
             state, info = value
-            dag_id, task_id, execution_date, try_number = key
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
-            ti_primary_key_to_try_number_map[key[:-1]] = try_number
+            ti_primary_key_to_try_number_map[key.short] = key.try_number
+
             self.log.info(
                 "Executor reports execution of %s.%s execution_date=%s "
                 "exited with status %s for try_number %s",
-                dag_id, task_id, execution_date, state, try_number
+                key.dag_id, key.task_id, key.execution_date, state, key.try_number
             )
             if state in (State.FAILED, State.SUCCESS):
                 tis_with_right_state.append(key)
@@ -1512,21 +1512,20 @@ class SchedulerJob(BaseJob):
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         tis = session.query(TI).filter(filter_for_tis).all()
         for ti in tis:
-            # Recreate ti_key (dag_id, task_id, execution_date, try_number) using in-memory try_number
-            dag_id, task_id, execution_date, _ = ti.key
-            try_number = ti_primary_key_to_try_number_map[(dag_id, task_id, execution_date)]
-            buffer_key = (dag_id, task_id, execution_date, try_number)
+            key = ti.key
+            try_number = ti_primary_key_to_try_number_map[key.short]
+            buffer_key = TaskInstanceKeyType(key.dag_id, key.task_id, key.execution_date, try_number)
             state, info = event_buffer.pop(buffer_key)
 
             # TODO: should we fail RUNNING as well, as we do in Backfills?
-            if ti.try_number == try_number and ti.state == State.QUEUED:
+            if ti.try_number == buffer_key.try_number and ti.state == State.QUEUED:
                 Stats.incr('scheduler.tasks.killed_externally')
                 self.log.error(
                     "Executor reports task instance %s finished (%s) although the task says its %s. "
                     "(Info: %s) Was the task killed externally?",
                     ti, state, ti.state, info
                 )
-                simple_dag = simple_dag_bag.get_dag(dag_id)
+                simple_dag = simple_dag_bag.get_dag(ti.dag_id)
                 self.processor_agent.send_callback_to_execute(
                     full_filepath=simple_dag.full_filepath,
                     task_instance=ti,
