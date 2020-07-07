@@ -122,7 +122,7 @@ The following is a sample JSON file.
     }
 
 The YAML file structure is similar to that of a JSON. The key-value pair of connection ID and the definitions of one or more connections.
-The connection can be defined as a URI (string) or JSON object.
+In this format, the connection can be defined as a URI (string) or JSON object.
 
 .. code-block:: yaml
 
