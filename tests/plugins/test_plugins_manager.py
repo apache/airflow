@@ -173,27 +173,6 @@ class TestPluginsManager(unittest.TestCase):
             with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
                 plugins_manager.initialize_web_ui_plugins()
 
-    def test_should_not_warning_about_fab_plugins(self):
-        class AirflowAdminViewsPlugin(AirflowPlugin):
-            name = "test_admin_views_plugin"
-
-            appbuilder_views = [mock.MagicMock()]
-
-        class AirflowAdminMenuLinksPlugin(AirflowPlugin):
-            name = "test_menu_links_plugin"
-
-            appbuilder_menu_items = [mock.MagicMock()]
-
-        with mock_plugin_manager(plugins=[
-            AirflowAdminViewsPlugin(),
-            AirflowAdminMenuLinksPlugin()
-        ]):
-            from airflow import plugins_manager
-
-            # assert not logs
-            with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
-                plugins_manager.initialize_web_ui_plugins()
-
     def test_should_not_warning_about_fab_and_flask_admin_plugins(self):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
