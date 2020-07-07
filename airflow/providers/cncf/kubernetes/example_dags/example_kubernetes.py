@@ -19,7 +19,7 @@
 This is an example dag for using the KubernetesPodOperator.
 """
 
-import kubernetes.client.models as k8s
+from kubernetes.client import models as k8s
 
 from airflow import DAG
 from airflow.kubernetes.pod import Port
