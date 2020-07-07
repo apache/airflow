@@ -28,7 +28,6 @@ ROOT_FOLDER = os.path.realpath(
 )
 
 MISSING_TEST_FILES = {
-    'tests/providers/amazon/aws/hooks/test_athena.py',
     'tests/providers/apache/cassandra/sensors/test_record.py',
     'tests/providers/apache/cassandra/sensors/test_table.py',
     'tests/providers/apache/hdfs/sensors/test_web_hdfs.py',
