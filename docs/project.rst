@@ -64,9 +64,9 @@ Committers
 - @milton0825 (Chao-Han Tsai)
 - @feluelle (Felix Uellendall)
 - @sekikn (Kengo Seki)
-- @nuclearpinguin (Tomasz Urbaszek)
+- @turbaszek (Tomasz Urbaszek)
 - @zhongjiajie (Jiajie Zhong)
-
+- @houqp (Qingping Hou)
 
 For the full list of contributors, take a look at `Airflow's Github
 Contributor page:
