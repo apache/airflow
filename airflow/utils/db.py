@@ -57,13 +57,14 @@ def provide_session(func):
     database transaction, you pass it to the function, if not this wrapper
     will create one and close it for you.
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         arg_session = 'session'
 
         func_params = func.__code__.co_varnames
         session_in_args = arg_session in func_params and \
-            func_params.index(arg_session) < len(args)
+                          func_params.index(arg_session) < len(args)
         session_in_kwargs = arg_session in kwargs
 
         if session_in_kwargs or session_in_args:
@@ -85,6 +86,14 @@ def merge_conn(conn, session=None):
 
 
 @provide_session
+def merge_error_tag(err_tag, session=None):
+    from airflow.models import ErrorTag
+    if not session.query(ErrorTag).filter(ErrorTag.label == err_tag.label).first():
+        session.add(err_tag)
+        session.commit()
+
+
+@provide_session
 def add_default_pool_if_not_exists(session=None):
     from airflow.models.pool import Pool
     if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
@@ -96,6 +105,18 @@ def add_default_pool_if_not_exists(session=None):
         )
         session.add(default_pool)
         session.commit()
+
+
+@provide_session
+def create_default_error_tags(session=None):
+    from airflow.models import ErrorTag
+    # todo: error tag init
+    merge_error_tag(
+        ErrorTag(lable='测试错误代码1', value='100')
+    )
+    merge_error_tag(
+        ErrorTag(lable='测试错误代码2', value='101')
+    )
 
 
 @provide_session
@@ -326,6 +347,9 @@ def initdb(rbac=False):
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS', fallback=True):
         create_default_connections()
 
+    if conf.getboolean('core', 'LOAD_DEFAULT_ERROR_TAG', fallback=True):
+        create_default_error_tags()
+
     merge_conn(
         Connection(
             conn_id='rabbitmq_default', conn_type='rabbitmq',
@@ -341,10 +365,10 @@ def initdb(rbac=False):
     if not session.query(KET).filter(KET.know_event_type == 'Outage').first():
         session.add(KET(know_event_type='Outage'))
     if not session.query(KET).filter(
-            KET.know_event_type == 'Natural Disaster').first():
+        KET.know_event_type == 'Natural Disaster').first():
         session.add(KET(know_event_type='Natural Disaster'))
     if not session.query(KET).filter(
-            KET.know_event_type == 'Marketing Campaign').first():
+        KET.know_event_type == 'Marketing Campaign').first():
         session.add(KET(know_event_type='Marketing Campaign'))
     session.commit()
 

@@ -13,7 +13,12 @@ class ErrorTag(Base):
 
     id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
     label = Column(String(1000), nullable=False)
-    value = Column(String(1000), nullable=False)
+    value = Column(String(1000), nullable=False, unique=True)
+
+    def __init__(
+        self, lable=None, value=None):
+        self.label = lable
+        self.value = value
 
     @staticmethod
     def _error_tag_data(error_tag):
