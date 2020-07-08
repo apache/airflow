@@ -41,7 +41,7 @@ Instance
 ^^^^^^^^
 
 Operators uses a :class:`~google.cloud.redis_v1.types.Instance` for representing instance. The object can be
-presented as a compatibile dictonary also.
+presented as a compatible dictionary also.
 
 Here is an example of instance
 
@@ -69,7 +69,7 @@ operator to set permissions.
     :start-after: [START howto_operator_set_acl_permission]
     :end-before: [END howto_operator_set_acl_permission]
 
-For futher information look at: `Granting restricted permissions for import and export
+For further information look at: `Granting restricted permissions for import and export
 <https://cloud.google.com/memorystore/docs/redis/import-export-restricted-permissions>`__
 
 .. _howto/operator:CloudMemorystoreCreateInstanceOperator:

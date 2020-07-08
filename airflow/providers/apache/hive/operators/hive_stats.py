@@ -17,6 +17,7 @@
 # under the License.
 
 import json
+import warnings
 from collections import OrderedDict
 from typing import Callable, Dict, List, Optional
 
@@ -48,9 +49,9 @@ class HiveStatsCollectionOperator(BaseOperator):
     :param extra_exprs: dict of expression to run against the table where
         keys are metric names and values are Presto compatible expressions
     :type extra_exprs: dict
-    :param col_blacklist: list of columns to blacklist, consider
-        blacklisting blobs, large json columns, ...
-    :type col_blacklist: list
+    :param excluded_columns: list of columns to exclude, consider
+        excluding blobs, large json columns, ...
+    :type excluded_columns: list
     :param assignment_func: a function that receives a column name and
         a type, and returns a dict of metric names and an Presto expressions.
         If None is returned, the global defaults are applied. If an
@@ -67,17 +68,26 @@ class HiveStatsCollectionOperator(BaseOperator):
                  table: str,
                  partition: str,
                  extra_exprs: Optional[Dict] = None,
-                 col_blacklist: Optional[List] = None,
+                 excluded_columns: Optional[List] = None,
                  assignment_func: Optional[Callable[[str, str], Optional[Dict]]] = None,
                  metastore_conn_id: str = 'metastore_default',
                  presto_conn_id: str = 'presto_default',
                  mysql_conn_id: str = 'airflow_db',
                  *args, **kwargs) -> None:
+        if 'col_blacklist' in kwargs:
+            warnings.warn(
+                'col_blacklist kwarg passed to {c} (task_id: {t}) is deprecated, please rename it to '
+                'excluded_columns instead'.format(
+                    c=self.__class__.__name__, t=kwargs.get('task_id')),
+                category=FutureWarning,
+                stacklevel=2
+            )
+            excluded_columns = kwargs.pop('col_blacklist')
         super().__init__(*args, **kwargs)
         self.table = table
         self.partition = partition
         self.extra_exprs = extra_exprs or {}
-        self.col_blacklist = col_blacklist or []  # type: List
+        self.excluded_columns = excluded_columns or []  # type: List
         self.metastore_conn_id = metastore_conn_id
         self.presto_conn_id = presto_conn_id
         self.mysql_conn_id = mysql_conn_id
@@ -89,7 +99,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         """
         Get default expressions
         """
-        if col in self.col_blacklist:
+        if col in self.excluded_columns:
             return {}
         exp = {(col, 'non_null'): f"COUNT({col})"}
         if col_type in ['double', 'int', 'bigint', 'float']:

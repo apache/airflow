@@ -157,7 +157,7 @@ class TestCli(TestCase):
         self.assertIn("Commands", stdout)
         self.assertIn("Groups", stdout)
 
-    def test_should_display_helps(self):
+    def test_should_display_help(self):
         parser = cli_parser.get_parser()
 
         all_command_as_args = [

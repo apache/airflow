@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
+from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v1beta1"
@@ -203,18 +203,33 @@ class TestDataFusionHook:
         assert result == data
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
-    def test_start_pipeline(self, mock_request, hook):
-        mock_request.return_value.status = 200
+    @mock.patch(HOOK_STR.format("DataFusionHook.wait_for_pipeline_state"))
+    def test_start_pipeline(self, mock_wait_for_pipeline_state, mock_request, hook):
+        run_id = 1234
+        mock_request.return_value = mock.MagicMock(status=200, data='[{{"runId":{}}}]'.format(run_id))
+
         hook.start_pipeline(
             pipeline_name=PIPELINE_NAME,
             instance_url=INSTANCE_URL,
             runtime_args=RUNTIME_ARGS
         )
+        body = [{
+            "appId": PIPELINE_NAME,
+            "programType": "workflow",
+            "programId": "DataPipelineWorkflow",
+            "runtimeargs": RUNTIME_ARGS
+        }]
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/"
-                f"workflows/DataPipelineWorkflow/start",
+            url=f"{INSTANCE_URL}/v3/namespaces/default/start",
             method="POST",
-            body=RUNTIME_ARGS
+            body=body
+        )
+        mock_wait_for_pipeline_state.assert_called_once_with(
+            instance_url=INSTANCE_URL,
+            namespace="default",
+            pipeline_name=PIPELINE_NAME,
+            pipeline_id=run_id,
+            success_states=SUCCESS_STATES + [PipelineStates.RUNNING]
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))

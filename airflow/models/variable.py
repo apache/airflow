@@ -22,7 +22,7 @@ from typing import Any
 from cryptography.fernet import InvalidToken as InvalidFernetToken
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import synonym
+from sqlalchemy.orm import Session, synonym
 
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
@@ -32,6 +32,10 @@ from airflow.utils.session import provide_session
 
 
 class Variable(Base, LoggingMixin):
+    """
+    Variables are a generic way to store and retrieve arbitrary content or settings
+    as a simple key value store within Airflow.
+    """
     __tablename__ = "variable"
     __NO_DEFAULT_SENTINEL = object()
 
@@ -40,11 +44,19 @@ class Variable(Base, LoggingMixin):
     _val = Column('val', Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
 
+    def __init__(self, key=None, val=None):
+        super().__init__()
+        self.key = key
+        self.val = val
+
     def __repr__(self):
         # Hiding the value
         return '{} : {}'.format(self.key, self._val)
 
     def get_val(self):
+        """
+        Get Airflow Variable from Metadata DB and decode it using the Fernet Key
+        """
         if self._val is not None and self.is_encrypted:
             try:
                 fernet = get_fernet()
@@ -52,22 +64,27 @@ class Variable(Base, LoggingMixin):
             except InvalidFernetToken:
                 self.log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
                 return None
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 self.log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
                 return None
         else:
             return self._val
 
     def set_val(self, value):
+        """
+        Encode the specified value with Fernet Key and store it in Variables Table.
+        """
         if value is not None:
             fernet = get_fernet()
             self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
             self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
-    def val(cls):
-        return synonym('_val',
-                       descriptor=property(cls.get_val, cls.set_val))
+    def val(cls):   # pylint: disable=no-self-argument
+        """
+        Get Airflow Variable from Metadata DB and decode it using the Fernet Key
+        """
+        return synonym('_val', descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod
     def setdefault(cls, key, default, deserialize_json=False):
@@ -101,7 +118,14 @@ class Variable(Base, LoggingMixin):
         key: str,
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
-    ):
+    ) -> Any:
+        """
+        Sets a value for an Airflow Key
+
+        :param key: Variable Key
+        :param default_var: Default value of the Variable if the Variable doesn't exists
+        :param deserialize_json: Deserialize the value to a Python dict
+        """
         var_val = get_variable(key=key)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
@@ -121,8 +145,16 @@ class Variable(Base, LoggingMixin):
         key: str,
         value: Any,
         serialize_json: bool = False,
-        session=None
+        session: Session = None
     ):
+        """
+        Sets a value for an Airflow Variable with a given Key
+
+        :param key: Variable Key
+        :param value: Value to set for the Variable
+        :param serialize_json: Serialize the value to a JSON string
+        :param session: SQL Alchemy Sessions
+        """
 
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
@@ -130,15 +162,22 @@ class Variable(Base, LoggingMixin):
             stored_value = str(value)
 
         Variable.delete(key, session=session)
-        session.add(Variable(key=key, val=stored_value))  # type: ignore
+        session.add(Variable(key=key, val=stored_value))
         session.flush()
 
     @classmethod
     @provide_session
-    def delete(cls, key, session=None):
-        session.query(cls).filter(cls.key == key).delete()
+    def delete(cls, key: str, session: Session = None) -> int:
+        """
+        Delete an Airflow Variable for a given key
+
+        :param key: Variable Key
+        :param session: SQL Alchemy Sessions
+        """
+        return session.query(cls).filter(cls.key == key).delete()
 
     def rotate_fernet_key(self):
+        """ Rotate Fernet Key """
         fernet = get_fernet()
         if self._val and self.is_encrypted:
             self._val = fernet.rotate(self._val.encode('utf-8')).decode()

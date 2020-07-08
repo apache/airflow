@@ -27,7 +27,7 @@ from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSToLocalOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.dates import days_ago
 
 GCS_TMP = os.environ.get('GCP_DATAFLOW_GCS_TMP', 'gs://test-dataflow-example/temp/')
@@ -49,11 +49,11 @@ default_args = {
 }
 
 with models.DAG(
-    "example_gcp_dataflow",
+    "example_gcp_dataflow_native_java",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
-) as dag:
+) as dag_native_java:
 
     # [START howto_operator_start_java_job]
     start_java_job = DataflowCreateJavaJobOperator(
@@ -70,7 +70,7 @@ with models.DAG(
     )
     # [END howto_operator_start_java_job]
 
-    jar_to_local = GCSToLocalOperator(
+    jar_to_local = GCSToLocalFilesystemOperator(
         task_id="jar-to-local",
         bucket=GCS_JAR_BUCKET_NAME,
         object_name=GCS_JAR_OBJECT_NAME,
@@ -90,6 +90,13 @@ with models.DAG(
     )
     jar_to_local >> start_java_job_local
 
+with models.DAG(
+    "example_gcp_dataflow_native_python",
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
+) as dag_native_python:
+
     # [START howto_operator_start_python_job]
     start_python_job = DataflowCreatePythonJobOperator(
         task_id="start-python-job",
@@ -100,7 +107,7 @@ with models.DAG(
             'output': GCS_OUTPUT,
         },
         py_requirements=[
-            'apache-beam[gcp]>=2.14.0'
+            'apache-beam[gcp]==2.21.0'
         ],
         py_interpreter='python3',
         py_system_site_packages=False,
@@ -117,12 +124,18 @@ with models.DAG(
             'output': GCS_OUTPUT,
         },
         py_requirements=[
-            'apache-beam[gcp]>=2.14.0'
+            'apache-beam[gcp]==2.14.0'
         ],
         py_interpreter='python3',
         py_system_site_packages=False
     )
 
+with models.DAG(
+    "example_gcp_dataflow_template",
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
+) as dag_template:
     start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
         template='gs://dataflow-templates/latest/Word_Count',

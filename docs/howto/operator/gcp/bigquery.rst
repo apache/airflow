@@ -198,7 +198,7 @@ that row.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_operator_bigquery_get_data]
     :end-before: [END howto_operator_bigquery_get_data]
 
@@ -256,16 +256,27 @@ Let's say you would like to execute the following query.
 
 To execute the SQL query in a specific BigQuery database you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator` with
-proper query job configuration.
+proper query job configuration that can be Jinja templated.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_operator_bigquery_insert_job]
     :end-before: [END howto_operator_bigquery_insert_job]
 
 For more information on types of BigQuery job please check
 `documentation <https://cloud.google.com/bigquery/docs/reference/v2/jobs>`__.
+
+If you want to include some files in your configuration you can use ``include`` clause of Jinja template
+language as follow:
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
+    :language: python
+    :dedent: 8
+    :start-after: [START howto_operator_bigquery_select_job]
+    :end-before: [END howto_operator_bigquery_select_job]
+
+The included file can also use Jinaj templates which can be useful in case of ``.sql`` files.
 
 Additionally you can use ``job_id`` parameter of
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator` to improve
@@ -290,7 +301,7 @@ return ``False`` the check is failed and errors out.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_operator_bigquery_check]
     :end-before: [END howto_operator_bigquery_check]
 
@@ -308,7 +319,7 @@ or numeric value. If numeric, you can also specify ``tolerance``.
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_operator_bigquery_value_check]
     :end-before: [END howto_operator_bigquery_value_check]
 
@@ -323,7 +334,7 @@ tolerance of the ones from ``days_back`` before you can use
 
 .. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_bigquery_queries.py
     :language: python
-    :dedent: 4
+    :dedent: 8
     :start-after: [START howto_operator_bigquery_interval_check]
     :end-before: [END howto_operator_bigquery_interval_check]
 

@@ -22,7 +22,6 @@ implementation for BigQuery.
 """
 import logging
 import time
-import uuid
 import warnings
 from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
@@ -1453,8 +1452,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param location: location the job is running
         :type location: str
         """
-        job_id = job_id or str(uuid.uuid4())
         location = location or self.location
+        job_id = job_id or f"airflow_{int(time.time())}"
+
         client = self.get_client(project_id=project_id, location=location)
         job_data = {
             "configuration": configuration,
@@ -2820,8 +2820,7 @@ def _cleanse_time_partitioning(
 
 
 def _validate_value(key: Any, value: Any, expected_type: Type) -> None:
-    """ function to check expected type and raise
-    error if type is not correct """
+    """ Function to check expected type and raise error if type is not correct. """
     if not isinstance(value, expected_type):
         raise TypeError("{} argument must have a type {} not {}".format(
             key, expected_type, type(value)))

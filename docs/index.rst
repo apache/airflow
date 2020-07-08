@@ -95,6 +95,7 @@ Content
     kubernetes
     lineage
     dag-serialization
+    Using the REST API <stable-rest-api/index.rst>
     changelog
     best-practices
     faq
@@ -108,5 +109,5 @@ Content
     CLI <cli-ref>
     Macros <macros-ref>
     Python API <_api/index>
-    REST API <rest-api-ref>
+    Experimental REST API <rest-api-ref>
     Configurations <configurations-ref>

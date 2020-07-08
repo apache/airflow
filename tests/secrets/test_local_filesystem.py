@@ -104,6 +104,20 @@ class TestLoadVariables(unittest.TestCase):
         ):
             local_filesystem.load_variables("a.json")
 
+    @parameterized.expand(
+        (
+            ("KEY: AAA", {"KEY": "AAA"}),
+            ("""
+            KEY_A: AAA
+            KEY_B: BBB
+            """, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+        )
+    )
+    def test_yaml_file_should_load_variables(self, file_content, expected_variables):
+        with mock_local_file(file_content):
+            variables = local_filesystem.load_variables('a.yaml')
+            self.assertEqual(expected_variables, variables)
+
 
 class TestLoadConnection(unittest.TestCase):
     @parameterized.expand(
@@ -192,6 +206,115 @@ class TestLoadConnection(unittest.TestCase):
             re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
         ):
             local_filesystem.load_connections("a.json")
+
+    @parameterized.expand(
+        (
+            ("""CONN_A: 'mysql://host_a'""", {"CONN_A": ["mysql://host_a"]}),
+            ("""
+            CONN_B:
+                - 'mysql://host_a'
+                - 'mysql://host_b'
+             """, {"CONN_B": ["mysql://host_a", "mysql://host_b"]}),
+            ("""
+            conn_a: mysql://hosta
+            conn_b:
+              - mysql://hostb
+              - mysql://hostc
+            conn_c:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra_dejson:
+                 extra__google_cloud_platform__keyfile_dict:
+                   a: b
+                 extra__google_cloud_platform__keyfile_path: asaa""",
+                {"conn_a": ["mysql://hosta"], "conn_b": ["mysql://hostb", "mysql://hostc"],
+                    "conn_c": [''.join("""scheme://Login:None@host:1234/lschema?
+                        extra__google_cloud_platform__keyfile_dict=%7B%27a%27%3A+%27b%27%7D
+                        &extra__google_cloud_platform__keyfile_path=asaa""".split())]}),
+        )
+    )
+    def test_yaml_file_should_load_connection(self, file_content, expected_connection_uris):
+        with mock_local_file(file_content):
+            connections_by_conn_id = local_filesystem.load_connections("a.yaml")
+            connection_uris_by_conn_id = {
+                conn_id: [connection.get_uri() for connection in connections]
+                for conn_id, connections in connections_by_conn_id.items()
+            }
+
+            self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
+
+    @parameterized.expand(
+        (
+            ("""conn_c:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra_dejson:
+                 aws_conn_id: bbb
+                 region_name: ccc
+                 """, {"conn_c": [{"aws_conn_id": "bbb", "region_name": "ccc"}]}),
+            ("""conn_d:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra_dejson:
+                 extra__google_cloud_platform__keyfile_dict:
+                   a: b
+                 extra__google_cloud_platform__key_path: xxx
+                 """, {"conn_d": [{"extra__google_cloud_platform__keyfile_dict": {"a": "b"},
+                                   "extra__google_cloud_platform__key_path": "xxx"}]}),
+            ("""conn_d:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra: '{\"extra__google_cloud_platform__keyfile_dict\": {\"a\": \"b\"}}'""", {"conn_d": [
+                {"extra__google_cloud_platform__keyfile_dict": {"a": "b"}}]})
+
+        )
+    )
+    def test_yaml_file_should_load_connection_extras(self, file_content, expected_extras):
+        with mock_local_file(file_content):
+            connections_by_conn_id = local_filesystem.load_connections("a.yaml")
+            connection_uris_by_conn_id = {
+                conn_id: [connection.extra_dejson for connection in connections]
+                for conn_id, connections in connections_by_conn_id.items()
+            }
+            self.assertEqual(expected_extras, connection_uris_by_conn_id)
+
+    @parameterized.expand(
+        (
+            ("""conn_c:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra:
+                 abc: xyz
+               extra_dejson:
+                 aws_conn_id: bbb
+                 region_name: ccc
+                 """, "The extra and extra_dejson parameters are mutually exclusive."),
+        )
+    )
+    def test_yaml_invalid_extra(self, file_content, expected_message):
+        with mock_local_file(file_content):
+            with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
+                local_filesystem.load_connections("a.yaml")
 
 
 class TestLocalFileBackend(unittest.TestCase):

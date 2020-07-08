@@ -235,7 +235,7 @@ Improvements
 - [AIRFLOW-6327] http_hook: Accept json= parameter for payload (#6886)
 - [AIRFLOW-6261] flower_basic_auth eligible to _cmd (#6825)
 - [AIRFLOW-6238] Filter dags returned by dag_stats
-- [AIRFLOW-5616] Switch PrestoHook from pyhive to prestosql-client to s
+- [AIRFLOW-5616] Switch PrestoHook from pyhive to presto-python-client
 - [AIRFLOW-6611] Add proxy_fix configs to default_airflow.cfg (#7236)
 - [AIRFLOW-6557] Add test for newly added fields in BaseOperator (#7162)
 - [AIRFLOW-6584] Pin cassandra driver (#7194)

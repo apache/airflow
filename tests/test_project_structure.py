@@ -21,30 +21,27 @@ import mmap
 import os
 import unittest
 
+from parameterized import parameterized
+
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)
 )
 
 MISSING_TEST_FILES = {
-    'tests/providers/amazon/aws/hooks/test_athena.py',
     'tests/providers/apache/cassandra/sensors/test_record.py',
     'tests/providers/apache/cassandra/sensors/test_table.py',
     'tests/providers/apache/hdfs/sensors/test_web_hdfs.py',
-    'tests/providers/apache/hive/operators/test_vertica_to_hive.py',
-    'tests/providers/apache/pig/operators/test_pig.py',
-    'tests/providers/apache/spark/hooks/test_spark_jdbc_script.py',
-    'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod.py',
+    'tests/providers/google/cloud/log/test_gcs_task_handler.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
-    'tests/providers/google/cloud/operators/test_sql_to_gcs.py',
+    'tests/providers/google/cloud/transfers/test_sql_to_gcs.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
     'tests/providers/google/cloud/utils/test_field_validator.py',
     'tests/providers/google/cloud/utils/test_mlengine_operator_utils.py',
     'tests/providers/google/cloud/utils/test_mlengine_prediction_summary.py',
     'tests/providers/jenkins/hooks/test_jenkins.py',
     'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py',
+    'tests/providers/microsoft/azure/log/test_wasb_task_handler.py',
     'tests/providers/microsoft/mssql/hooks/test_mssql.py',
-    'tests/providers/oracle/operators/test_oracle.py',
-    'tests/providers/qubole/hooks/test_qubole.py',
     'tests/providers/samba/hooks/test_samba.py',
     'tests/providers/yandex/hooks/test_yandex.py'
 }
@@ -56,14 +53,13 @@ class TestProjectStructure(unittest.TestCase):
             self.assert_file_not_contains(filename, "providers")
 
     def test_deprecated_packages(self):
-        for directory in ["hooks", "operators", "secrets", "sensors", "task_runner"]:
-            path_pattern = f"{ROOT_FOLDER}/airflow/contrib/{directory}/*.py"
+        path_pattern = f"{ROOT_FOLDER}/airflow/contrib/**/*.py"
 
-            for filename in glob.glob(path_pattern, recursive=True):
-                if filename.endswith("/__init__.py"):
-                    self.assert_file_contains(filename, "This package is deprecated.")
-                else:
-                    self.assert_file_contains(filename, "This module is deprecated.")
+        for filename in glob.glob(path_pattern, recursive=True):
+            if filename.endswith("/__init__.py"):
+                self.assert_file_contains(filename, "This package is deprecated.")
+            else:
+                self.assert_file_contains(filename, "This module is deprecated.")
 
     def assert_file_not_contains(self, filename: str, pattern: str):
         with open(filename, 'rb', 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
@@ -137,26 +133,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'mssql_to_gcs'),
     }
 
-    MISSING_DOC_GUIDES = {
-        'adls_to_gcs',
-        'bigquery_to_bigquery',
-        'bigquery_to_gcs',
-        'bigquery_to_mysql',
-        'cassandra_to_gcs',
-        'dataflow',
-        'datastore',
-        'dlp',
-        'gcs_to_bigquery',
-        'kubernetes_engine',
-        'mlengine',
-        'mssql_to_gcs',
-        'mysql_to_gcs',
-        'postgres_to_gcs',
-        's3_to_gcs',
-        'sql_to_gcs',
-        'tasks',
-    }
-
     def test_example_dags(self):
         operators_modules = self.find_resource_files(resource_type="operators")
         example_dags_files = self.find_resource_files(resource_type="example_dags")
@@ -195,38 +171,40 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
                     "Can you remove it from the list of missing example, please?"
                 )
 
-    def test_documentation(self):
-        doc_files = glob.glob(f"{ROOT_FOLDER}/docs/howto/operator/gcp/*.rst")
-        operators_modules = self.find_resource_files(resource_type="operators")
-        operator_names = {f.split("/")[-1].rsplit(".")[0] for f in operators_modules}
-        doc_names = {
-            f.split("/")[-1].rsplit(".")[0] for f in doc_files
+    @parameterized.expand(
+        [
+            ("_system.py",),
+            ("_system_helper.py",),
+        ]
+    )
+    def test_detect_invalid_system_tests(self, filename_suffix):
+        operators_tests = self.find_resource_files(top_level_directory="tests", resource_type="operators")
+        operators_files = self.find_resource_files(top_level_directory="airflow", resource_type="operators")
+
+        files = {f for f in operators_tests if f.endswith(filename_suffix)}
+
+        expected_files = (f"tests/{f[8:]}" for f in operators_files)
+        expected_files = (
+            f.replace(".py", filename_suffix).replace("/test_", "/") for f in expected_files
+        )
+        expected_files = {
+            f'{f.rpartition("/")[0]}/test_{f.rpartition("/")[2]}' for f in expected_files
         }
 
-        with self.subTest("Detect missing example dags"):
-            missing_guide = operator_names - doc_names
-            missing_guide -= self.MISSING_DOC_GUIDES
-
-            self.assertEqual(missing_guide, set())
-
-        with self.subTest("Keep update missing missing guide list"):
-            new_guides = set(doc_names).intersection(set(self.MISSING_DOC_GUIDES))
-            if new_guides:
-                new_guides_text = '\n'.join(new_guides)
-                self.fail(
-                    "You've added a guide currently listed as missing:\n"
-                    f"{new_guides_text}"
-                    "\n"
-                    "Thank you very much.\n"
-                    "Can you remove it from the list of missing guide, please?"
-                )
+        self.assertEqual(set(), files - expected_files)
 
     @staticmethod
-    def find_resource_files(department="*", resource_type="*", service="*"):
-        resource_files = glob.glob(
-            f"{ROOT_FOLDER}/airflow/providers/google/{department}/{resource_type}/{service}.py")
+    def find_resource_files(
+        top_level_directory: str = "airflow",
+        department: str = "*",
+        resource_type: str = "*",
+        service: str = "*"
+    ):
+        python_files = glob.glob(
+            f"{ROOT_FOLDER}/{top_level_directory}/providers/google/{department}/{resource_type}/{service}.py"
+        )
         # Make path relative
-        resource_files = (os.path.relpath(f, ROOT_FOLDER) for f in resource_files)
+        resource_files = (os.path.relpath(f, ROOT_FOLDER) for f in python_files)
         # Exclude __init__.py and pycache
         resource_files = (f for f in resource_files if not f.endswith("__init__.py"))
         return resource_files

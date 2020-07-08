@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.s3_to_gcs`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.transfers.s3_to_gcs`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.google.cloud.operators.s3_to_gcs import S3ToGCSOperator  # noqa
+from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.s3_to_gcs`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.s3_to_gcs`.",
     DeprecationWarning, stacklevel=2
 )

@@ -49,6 +49,7 @@ run_this = PythonOperator(task_id="run_this", python_callable=run_this_func, dag
 
 bash_task = BashOperator(
     task_id="bash_task",
-    bash_command='echo "Here is the message: \'{{ dag_run.conf["message"] if dag_run else "" }}\'"',
+    bash_command='echo "Here is the message: $message"',
+    env={'message': '{{ dag_run.conf["message"] if dag_run else "" }}'},
     dag=dag,
 )

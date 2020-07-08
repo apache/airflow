@@ -31,6 +31,9 @@ function run_flake8() {
             --env VERBOSE_COMMANDS \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --env HOST_OS="$(uname -s)" \
+            --env HOST_HOME="${HOME}" \
+            --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
@@ -43,6 +46,9 @@ function run_flake8() {
             --env VERBOSE_COMMANDS \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
+            --env HOST_OS="$(uname -s)" \
+            --env HOST_HOME="${HOME}" \
+            --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" "${FILES[@]}" \
@@ -50,7 +56,7 @@ function run_flake8() {
     fi
 }
 
-get_ci_environment
+get_environment_for_builds_on_ci
 
 prepare_ci_build
 

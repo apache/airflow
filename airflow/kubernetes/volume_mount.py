@@ -17,10 +17,9 @@
 """
 Classes for interacting with Kubernetes API
 """
-
 import copy
 
-import kubernetes.client.models as k8s
+from kubernetes.client import models as k8s
 
 from airflow.kubernetes.k8s_model import K8SModel
 
@@ -35,7 +34,7 @@ class VolumeMount(K8SModel):
     :param mount_path:
     :type mount_path: str
     :param sub_path: subpath within the volume mount
-    :type sub_path: str
+    :type sub_path: Optional[str]
     :param read_only: whether to access pod with read-only mode
     :type read_only: bool
     """

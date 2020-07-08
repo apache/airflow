@@ -63,14 +63,26 @@ OAuth, OpenID, LDAP, REMOTE_USER. You can configure in ``webserver_config.py``. 
 API Authentication
 ------------------
 
-Authentication for the API is handled separately to the Web Authentication. The default is to not
-require any authentication on the API i.e. wide open by default. This is not recommended if your
-Airflow webserver is publicly accessible, and you should probably use the ``deny all`` backend:
+Authentication for the API is handled separately to the Web Authentication. The default is to
+deny all requests:
 
 .. code-block:: ini
 
     [api]
     auth_backend = airflow.api.auth.backend.deny_all
+
+.. versionchanged:: 1.10.11
+
+    In Airflow <1.10.11, the default setting was to allow all API requests without authentication, but this
+    posed security risks for if the Webserver is publicly accessible.
+
+If you wish to have the experimental API work, and aware of the risks of enabling this without authentication
+(or if you have your own authentication layer in front of Airflow) you can set the following in ``airflow.cfg``:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.default
 
 Kerberos authentication is currently supported for the API.
 
@@ -421,3 +433,15 @@ the new key to the ``fernet_key`` setting, run
 #. Set ``fernet_key`` to ``new_fernet_key,old_fernet_key``
 #. Run ``airflow rotate_fernet_key`` to re-encrypt existing credentials with the new fernet key
 #. Set ``fernet_key`` to ``new_fernet_key``
+
+Sensitive Variable fields
+-------------------------
+
+By default, Airflow Value of a variable will be hidden if the key contains any words in
+(‘password’, ‘secret’, ‘passwd’, ‘authorization’, ‘api_key’, ‘apikey’, ‘access_token’), but can be configured
+to extend this list by using the following configurations option:
+
+.. code-block:: ini
+
+    [admin]
+    hide_sensitive_variable_fields = comma_seperated_sensitive_variable_fields_list

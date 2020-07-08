@@ -69,6 +69,7 @@ class TestOpsgenieAlertHook(unittest.TestCase):
         db.merge_conn(
             Connection(
                 conn_id=self.conn_id,
+                conn_type='http',
                 host='https://api.opsgenie.com/',
                 password='eb243592-faa2-4ba2-a551q-1afdf565c889'
             )

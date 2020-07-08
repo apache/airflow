@@ -22,9 +22,7 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class ElasticsearchHook(DbApiHook):
-    """
-        Interact with Elasticsearch through the elasticsearch-dbapi
-    """
+    """Interact with Elasticsearch through the elasticsearch-dbapi."""
 
     conn_name_attr = 'elasticsearch_conn_id'
     default_conn_name = 'elasticsearch_default'

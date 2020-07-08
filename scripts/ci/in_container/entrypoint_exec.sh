@@ -18,4 +18,4 @@
 # shellcheck source=scripts/ci/in_container/configure_environment.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
 
-exec /bin/bash
+exec /bin/bash "${@}"

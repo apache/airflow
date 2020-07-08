@@ -35,7 +35,7 @@ Data transfer
 -------------
 
 Transfer files between Presto and Google Storage is performed with the
-:class:`~airflow.providers.google.cloud.operators.presto_to_gcs.PrestoToGCSOperator` operator.
+:class:`~airflow.providers.google.cloud.transfers.presto_to_gcs.PrestoToGCSOperator` operator.
 
 This operator has 3 required parameters:
 
@@ -45,7 +45,7 @@ This operator has 3 required parameters:
   A ``{}`` should be specified in the filename to allow the operator to inject file
   numbers in cases where the file is split due to size.
 
-All parameters are described in the reference documentation - :class:`~airflow.providers.google.cloud.operators.presto_to_gcs.PrestoToGCSOperator`.
+All parameters are described in the reference documentation - :class:`~airflow.providers.google.cloud.transfers.presto_to_gcs.PrestoToGCSOperator`.
 
 An example operator call might look like this:
 

@@ -45,7 +45,8 @@ To create Display&Video 360 report use
 
 Use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateReportOperator`
-parameters which allow you to dynamically determine values.
+parameters which allow you to dynamically determine values. You can provide body definition using ``
+.json`` file as this operator supports this template extension.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to be used by other operators.
 
 .. _howto/operator:GoogleDisplayVideo360DeleteReportOperator:

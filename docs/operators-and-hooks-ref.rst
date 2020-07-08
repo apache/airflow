@@ -57,10 +57,6 @@ Fundamentals
 
    * - :mod:`airflow.operators.branch_operator`
      -
-
-   * - :mod:`airflow.operators.check_operator`
-     -
-
    * - :mod:`airflow.operators.dagrun_operator`
      -
 
@@ -76,7 +72,7 @@ Fundamentals
    * - :mod:`airflow.operators.subdag_operator`
      -
 
-   * - :mod:`airflow.operators.sql_branch_operator`
+   * - :mod:`airflow.operators.sql`
      -
 
 **Sensors:**
@@ -195,7 +191,6 @@ Foundation.
      -
      - :mod:`airflow.providers.apache.hdfs.sensors.web_hdfs`
 
-
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
 
@@ -213,52 +208,52 @@ Foundation.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.s3_to_hive`
+     - :mod:`airflow.providers.apache.hive.transfers.s3_to_hive`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.providers.mysql.operators.s3_to_mysql`
+     - :mod:`airflow.providers.mysql.transfers.s3_to_mysql`
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.cassandra_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.cassandra_to_gcs`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.providers.amazon.aws.operators.hive_to_dynamodb`
+     - :mod:`airflow.providers.amazon.aws.transfers.hive_to_dynamodb`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Apache Druid <https://druid.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.druid.operators.hive_to_druid`
+     - :mod:`airflow.providers.apache.druid.transfers.hive_to_druid`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.hive_to_mysql`
+     - :mod:`airflow.providers.apache.hive.transfers.hive_to_mysql`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Samba <https://www.samba.org/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.hive_to_samba`
+     - :mod:`airflow.providers.apache.hive.transfers.hive_to_samba`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.mssql_to_hive`
+     - :mod:`airflow.providers.apache.hive.transfers.mssql_to_hive`
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.mysql_to_hive`
+     - :mod:`airflow.providers.apache.hive.transfers.mysql_to_hive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.vertica_to_hive`
+     - :mod:`airflow.providers.apache.hive.transfers.vertica_to_hive`
 
 .. _Azure:
 
@@ -318,7 +313,6 @@ These integrations allow you to perform various operations within the Microsoft 
      -
      -
 
-
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
 
@@ -335,17 +329,17 @@ These integrations allow you to copy data from/to Microsoft Azure.
    * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.adls_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.adls_to_gcs`
 
    * - Local
      - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
      -
-     - :mod:`airflow.providers.microsoft.azure.operators.file_to_wasb`
+     - :mod:`airflow.providers.microsoft.azure.transfers.file_to_wasb`
 
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      -
-     - :mod:`airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer`
+     - :mod:`airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake`
 
 
 .. _AWS:
@@ -501,6 +495,13 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.providers.amazon.aws.sensors.s3_key`,
        :mod:`airflow.providers.amazon.aws.sensors.s3_prefix`
 
+   * - `AWS Step Functions <https://aws.amazon.com/step-functions/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.step_function`
+     - :mod:`airflow.providers.amazon.aws.operators.step_function_start_execution`,
+       :mod:`airflow.providers.amazon.aws.operators.step_function_get_execution_output`,
+     - :mod:`airflow.providers.amazon.aws.sensors.step_function_execution`,
+
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
 
@@ -520,7 +521,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
        All GCP services :ref:`[1] <integration:GCP-Discovery>`
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - :doc:`How to use <howto/operator/amazon/aws/google_api_to_s3_transfer>`
-     - :mod:`airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`
+     - :mod:`airflow.providers.amazon.aws.transfers.google_api_to_s3`
 
    * - `Amazon DataSync <https://aws.amazon.com/datasync/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
@@ -530,63 +531,68 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.providers.amazon.aws.operators.dynamodb_to_s3`
+     - :mod:`airflow.providers.amazon.aws.transfers.dynamodb_to_s3`
 
    * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.providers.amazon.aws.operators.redshift_to_s3`
+     - :mod:`airflow.providers.amazon.aws.transfers.redshift_to_s3`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
-     -
-     - :mod:`airflow.providers.amazon.aws.operators.s3_to_redshift`
+     - :doc:`How to use <howto/operator/amazon/aws/s3_to_redshift>`
+     - :mod:`airflow.providers.amazon.aws.transfers.s3_to_redshift`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Snowflake <https://snowflake.com/>`__
      -
-     - :mod:`airflow.providers.snowflake.operators.s3_to_snowflake`
+     - :mod:`airflow.providers.snowflake.transfers.s3_to_snowflake`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.s3_to_hive`
+     - :mod:`airflow.providers.apache.hive.transfers.s3_to_hive`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.providers.google.cloud.operators.s3_to_gcs`,
+     - :mod:`airflow.providers.google.cloud.transfers.s3_to_gcs`,
        :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      -
-     - :mod:`airflow.providers.amazon.aws.operators.s3_to_sftp`
+     - :mod:`airflow.providers.amazon.aws.transfers.s3_to_sftp`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.providers.amazon.aws.operators.hive_to_dynamodb`
+     - :mod:`airflow.providers.amazon.aws.transfers.hive_to_dynamodb`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.providers.amazon.aws.operators.gcs_to_s3`
+     - :mod:`airflow.providers.amazon.aws.transfers.gcs_to_s3`
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - :doc:`How to use <howto/operator/amazon/aws/imap_attachment_to_s3>`
-     - :mod:`airflow.providers.amazon.aws.operators.imap_attachment_to_s3`
+     - :mod:`airflow.providers.amazon.aws.transfers.imap_attachment_to_s3`
 
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.providers.amazon.aws.operators.mongo_to_s3`
+     - :mod:`airflow.providers.amazon.aws.transfers.mongo_to_s3`
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.providers.amazon.aws.operators.sftp_to_s3`
+     - :mod:`airflow.providers.amazon.aws.transfers.sftp_to_s3`
+
+   * - `MySQL <https://www.mysql.com/>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     -
+     - :mod:`airflow.providers.amazon.aws.transfers.mysql_to_s3`
 
 :ref:`[1] <integration:AWS-Discovery-ref>` Those discovery-based operators use
 :class:`~airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
@@ -735,7 +741,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Kubernetes Engine <https://cloud.google.com/kubernetes_engine/>`__
-     -
+     - :doc:`How to use <howto/operator/gcp/kubernetes_engine>`
      - :mod:`airflow.providers.google.cloud.hooks.kubernetes_engine`
      - :mod:`airflow.providers.google.cloud.operators.kubernetes_engine`
      -
@@ -763,6 +769,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.hooks.pubsub`
      - :mod:`airflow.providers.google.cloud.operators.pubsub`
      - :mod:`airflow.providers.google.cloud.sensors.pubsub`
+
+   * - `Cloud Secret Manager <https://cloud.google.com/secret-manager/>`__
+     -
+     - :mod:`airflow.providers.google.cloud.hooks.secret_manager`
+     -
+     -
 
    * - `Cloud Spanner <https://cloud.google.com/spanner/>`__
      - :doc:`How to use <howto/operator/gcp/spanner>`
@@ -830,7 +842,6 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.vision`
      -
 
-
 Transfer operators and hooks
 """"""""""""""""""""""""""""
 
@@ -850,43 +861,49 @@ These integrations allow you to copy data from/to Google Cloud Platform.
        All services :ref:`[1] <integration:GCP-Discovery>`
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - :doc:`How to use <howto/operator/amazon/aws/google_api_to_s3_transfer>`
-     - :mod:`airflow.providers.amazon.aws.operators.google_api_to_s3_transfer`
+     - :mod:`airflow.providers.amazon.aws.transfers.google_api_to_s3`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.providers.google.cloud.operators.s3_to_gcs`,
+     - :mod:`airflow.providers.google.cloud.transfers.s3_to_gcs`,
        :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.cassandra_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.cassandra_to_gcs`
 
    * - `Azure Data Lake Storage <https://azure.microsoft.com/pl-pl/services/storage/data-lake-storage/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.adls_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.adls_to_gcs`
 
    * - `Facebook Ads <http://business.facebook.com>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/facebook_ads_to_gcs>`
-     - :mod:`airflow.providers.google.cloud.operators.facebook_ads_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.facebook_ads_to_gcs`
+
+
+   * - `Google Ads <https://ads.google.com/>`__
+     - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - :doc:`How to use <howto/operator/gcp/ads>`
+     - :mod:`airflow.providers.google.ads.transfers.ads_to_gcs`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.bigquery_to_mysql`
+     - :mod:`airflow.providers.google.cloud.transfers.bigquery_to_mysql`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.bigquery_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.bigquery_to_gcs`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.bigquery_to_bigquery`
+     - :mod:`airflow.providers.google.cloud.transfers.bigquery_to_bigquery`
 
    * - `Cloud Firestore <https://firebase.google.com/docs/firestore>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -896,74 +913,79 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.providers.amazon.aws.operators.gcs_to_s3`
+     - :mod:`airflow.providers.amazon.aws.transfers.gcs_to_s3`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.gcs_to_bigquery`
+     - :mod:`airflow.providers.google.cloud.transfers.gcs_to_bigquery`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/gcs_to_gcs>`,
        :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
-     - :mod:`airflow.providers.google.cloud.operators.gcs_to_gcs`,
+     - :mod:`airflow.providers.google.cloud.transfers.gcs_to_gcs`,
        :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
+
+   * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
+     - Local
+     - :doc:`How to use <howto/operator/gcp/gcs_to_local>`
+     - :mod:`airflow.providers.google.cloud.transfers.gcs_to_local`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__
      -
-     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive`
+     - :mod:`airflow.providers.google.suite.transfers.gcs_to_gdrive`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - SFTP
      - :doc:`How to use <howto/operator/gcp/gcs_to_sftp>`
-     - :mod:`airflow.providers.google.cloud.operators.gcs_to_sftp`
+     - :mod:`airflow.providers.google.cloud.transfers.gcs_to_sftp`
 
    * - Local
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/local_to_gcs>`
-     - :mod:`airflow.providers.google.cloud.operators.local_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.local_to_gcs`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.mssql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.mssql_to_gcs`
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.mysql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.mysql_to_gcs`
 
    * - `PostgresSQL <https://www.postgresql.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.postgres_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.postgres_to_gcs`
 
    * - `Presto <https://prestodb.io/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/presto_to_gcs>`
-     - :mod:`airflow.providers.google.cloud.operators.presto_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.presto_to_gcs`
 
    * - SFTP
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/sftp_to_gcs>`
-     - :mod:`airflow.providers.google.cloud.operators.sftp_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.sftp_to_gcs`
 
    * - SQL
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.sql_to_gcs`
 
    * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/sheets_to_gcs>`
-     - :mod:`airflow.providers.google.cloud.operators.sheets_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.sheets_to_gcs`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
      - :doc:`How to use <howto/operator/gcp/gcs_to_sheets>`
-     - :mod:`airflow.providers.google.suite.operators.gcs_to_sheets`
+     - :mod:`airflow.providers.google.suite.transfers.gcs_to_sheets`
 
 .. _integration:GCP-Discovery:
 
@@ -1075,7 +1097,7 @@ All hooks are based on :class:`airflow.providers.yandex.hooks.yandex.YandexCloud
 
 .. note::
     You can learn how to use Yandex.Cloud integrations by analyzing the
-    `example DAG <https://github.com/apache/airflow/tree/master/airflow/contrib/example_dags/example_yandexcloud_dataproc.py>`_
+    `example DAG <https://github.com/apache/airflow/blob/master/airflow/providers/yandex/example_dags/example_yandexcloud_dataproc.py>`_
 
 Service operators and hooks
 '''''''''''''''''''''''''''
@@ -1218,7 +1240,8 @@ These integrations allow you to perform various operations within various servic
    * - `Snowflake <https://www.snowflake.com/>`__
      -
      - :mod:`airflow.providers.snowflake.hooks.snowflake`
-     - :mod:`airflow.providers.snowflake.operators.snowflake`
+     - :mod:`airflow.providers.snowflake.operators.snowflake`,
+       :mod:`airflow.providers.snowflake.transfers.snowflake_to_slack`
      -
 
    * - `Vertica <https://www.vertica.com/>`__
@@ -1232,6 +1255,7 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.providers.zendesk.hooks.zendesk`
      -
      -
+
 
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
@@ -1249,17 +1273,17 @@ These integrations allow you to perform various operations within various servic
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__
      - :doc:`How to use <howto/operator/gcp/gcs_to_gdrive>`
-     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive`
+     - :mod:`airflow.providers.google.suite.transfers.gcs_to_gdrive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.vertica_to_hive`
+     - :mod:`airflow.providers.apache.hive.transfers.vertica_to_hive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.providers.mysql.operators.vertica_to_mysql`
+     - :mod:`airflow.providers.mysql.transfers.vertica_to_mysql`
 
 .. _software:
 
@@ -1310,6 +1334,12 @@ These integrations allow you to perform various operations using various softwar
      -
      - :mod:`airflow.operators.bash`
      - :mod:`airflow.sensors.bash`
+
+   * - `Hashicorp Vault <https://www.vaultproject.io/>`__
+     -
+     - :mod:`airflow.providers.hashicorp.hooks.vault`
+     -
+     -
 
    * - `Kubernetes <https://kubernetes.io/>`__
      - :doc:`How to use <howto/operator/kubernetes>`
@@ -1424,72 +1454,72 @@ These integrations allow you to copy data.
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Samba <https://www.samba.org/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.hive_to_samba`
+     - :mod:`airflow.providers.apache.hive.transfers.hive_to_samba`
 
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.bigquery_to_mysql`
+     - :mod:`airflow.providers.google.cloud.transfers.bigquery_to_mysql`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.mssql_to_hive`
+     - :mod:`airflow.providers.apache.hive.transfers.mssql_to_hive`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.mssql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.mssql_to_gcs`
 
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.providers.amazon.aws.operators.mongo_to_s3`
+     - :mod:`airflow.providers.amazon.aws.transfers.mongo_to_s3`
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.mysql_to_hive`
+     - :mod:`airflow.providers.apache.hive.transfers.mysql_to_hive`
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.mysql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.mysql_to_gcs`
 
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      -
-     - :mod:`airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer`
+     - :mod:`airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake`
 
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Oracle <https://www.oracle.com/pl/database/>`__
      -
-     - :mod:`airflow.providers.oracle.operators.oracle_to_oracle_transfer`
+     - :mod:`airflow.providers.oracle.transfers.oracle_to_oracle`
 
    * - `PostgresSQL <https://www.postgresql.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.postgres_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.postgres_to_gcs`
 
    * - `Presto <https://prestodb.github.io/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.providers.mysql.operators.presto_to_mysql`
+     - :mod:`airflow.providers.mysql.transfers.presto_to_mysql`
 
    * - SQL
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.sql_to_gcs`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.hive.operators.vertica_to_hive`
+     - :mod:`airflow.providers.apache.hive.transfers.vertica_to_hive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.providers.mysql.operators.vertica_to_mysql`
+     - :mod:`airflow.providers.mysql.transfers.vertica_to_mysql`
 
 .. _protocol:
 
@@ -1587,24 +1617,24 @@ These integrations allow you to copy data.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      -
-     - :mod:`airflow.providers.amazon.aws.operators.s3_to_sftp`
+     - :mod:`airflow.providers.amazon.aws.transfers.s3_to_sftp`
 
    * - Filesystem
      - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
      -
-     - :mod:`airflow.providers.microsoft.azure.operators.file_to_wasb`
+     - :mod:`airflow.providers.microsoft.azure.transfers.file_to_wasb`
 
    * - Filesystem
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.providers.google.cloud.operators.local_to_gcs`
+     - :mod:`airflow.providers.google.cloud.transfers.local_to_gcs`
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - :doc:`How to use <howto/operator/amazon/aws/imap_attachment_to_s3>`
-     - :mod:`airflow.providers.amazon.aws.operators.imap_attachment_to_s3`
+     - :mod:`airflow.providers.amazon.aws.transfers.imap_attachment_to_s3`
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.providers.amazon.aws.operators.sftp_to_s3`
+     - :mod:`airflow.providers.amazon.aws.transfers.sftp_to_s3`

@@ -338,8 +338,8 @@
         ``store_serialized_dags`` setting.
       version_added: 1.10.10
       type: string
-      example: ~
-      default: "%(store_serialized_dags)s"
+      example: "False"
+      default: ~
     - name: max_num_rendered_ti_fields_per_task
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
@@ -390,6 +390,16 @@
       description: |
         Users must supply an Airflow connection id that provides access to the storage
         location.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: stackdriver_key_path
+      description: |
+        Path to GCP Credential JSON file. If ommited, authorization based on `the Application Default
+        Credentials
+        <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
+        be used.
       version_added: ~
       type: string
       example: ~
@@ -564,11 +574,29 @@
   options:
     - name: auth_backend
       description: |
-        How to authenticate users of the API
+        How to authenticate users of the API. See
+        https://airflow.apache.org/docs/stable/security.html for possible values.
+        ("airflow.api.auth.backend.default" allows all requests for historic reasons)
       version_added: ~
       type: string
       example: ~
-      default: "airflow.api.auth.backend.default"
+      default: "airflow.api.auth.backend.deny_all"
+    - name: maximum_page_limit
+      description: |
+        Used to set the maximum page limit for API requests
+      version_added: ~
+      type: integer
+      example: ~
+      default: "100"
+    - name: fallback_page_limit
+      description: |
+        Used to set the default page limit when limit is zero. A default limit
+        of 100 is set on OpenApi spec. However, this particular default limit
+        only work when limit is set equal to zero(0) from API requests.
+        If no limit is supplied, the OpenApi spec default is used.
+      type: integer
+      example: ~
+      default: "100"
 - name: lineage
   description: ~
   options:
@@ -755,6 +783,14 @@
       type: string
       example: ~
       default: "30"
+    - name: reload_on_plugin_change
+      description: |
+        If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
+        then reload the gunicorn.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
     - name: secret_key
       description: |
         Secret key used to run your flask app
@@ -1668,6 +1704,13 @@
       type: string
       example: ~
       default: "True"
+    - name: sensitive_variable_fields
+      description: |
+        A comma-separated list of sensitive keywords to look for in variables names.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
 - name: elasticsearch
   description: ~
   options:
@@ -1945,6 +1988,14 @@
       type: string
       example: ~
       default: ""
+    - name: git_sync_depth
+      description: |
+        Use a shallow clone with a history truncated to the specified number of commits.
+        0 - do not use shallow clone.
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: "1"
     - name: git_subpath
       description: |
         Subpath of git repo to be pulled for DAGs. This allows users to maintain multiple DAG

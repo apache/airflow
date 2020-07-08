@@ -25,7 +25,6 @@ from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerEndpointOperator(SageMakerBaseOperator):
-
     """
     Create a SageMaker endpoint.
 

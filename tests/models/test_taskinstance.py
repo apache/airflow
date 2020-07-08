@@ -21,7 +21,7 @@ import os
 import time
 import unittest
 import urllib
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 from unittest.mock import call, mock_open, patch
 
 import pendulum
@@ -33,7 +33,7 @@ from sqlalchemy.orm.session import Session
 from airflow import models, settings
 from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
 from airflow.models import (
-    DAG, DagRun, Pool, RenderedTaskInstanceFields, TaskFail, TaskInstance as TI, TaskReschedule, Variable,
+    DAG, DagRun, Pool, RenderedTaskInstanceFields, TaskInstance as TI, TaskReschedule, Variable,
 )
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -48,8 +48,10 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 
 
@@ -79,20 +81,23 @@ class CallbackWrapper:
 
 class TestTaskInstance(unittest.TestCase):
 
-    def setUp(self):
+    @staticmethod
+    def clean_db():
         db.clear_db_pools()
+        db.clear_db_runs()
+        db.clear_db_task_fail()
+        db.clear_rendered_ti_fields()
+        db.clear_db_task_reschedule()
+
+    def setUp(self):
+        self.clean_db()
         with create_session() as session:
             test_pool = Pool(pool='test_pool', slots=1)
             session.add(test_pool)
             session.commit()
 
     def tearDown(self):
-        db.clear_db_pools()
-        with create_session() as session:
-            session.query(TaskFail).delete()
-            session.query(TaskReschedule).delete()
-            session.query(models.TaskInstance).delete()
-            session.query(models.DagRun).delete()
+        self.clean_db()
 
     def test_set_task_dates(self):
         """
@@ -472,58 +477,64 @@ class TestTaskInstance(unittest.TestCase):
         run_with_error(ti)
         self.assertEqual(ti.state, State.FAILED)
 
-    def test_retry_handling(self):
+    @parameterized.expand([
+        (False, None,),
+        (True, {'env': None, 'bash_command': 'echo test_retry_handling; exit 1'},),
+    ])
+    def test_retry_handling(self, dag_serialization, expected_rendered_ti_fields):
         """
         Test that task retries are handled properly
         """
-        dag = models.DAG(dag_id='test_retry_handling')
-        task = BashOperator(
-            task_id='test_retry_handling_op',
-            bash_command='exit 1',
-            retries=1,
-            retry_delay=datetime.timedelta(seconds=0),
-            dag=dag,
-            owner='test_pool',
-            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+        with patch("airflow.models.taskinstance.STORE_SERIALIZED_DAGS", dag_serialization):
+            dag = models.DAG(dag_id='test_retry_handling')
+            task = BashOperator(
+                task_id='test_retry_handling_op',
+                bash_command='echo {{dag.dag_id}}; exit 1',
+                retries=1,
+                retry_delay=datetime.timedelta(seconds=0),
+                dag=dag,
+                owner='test_pool',
+                start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
-        def run_with_error(ti):
-            try:
-                ti.run()
-            except AirflowException:
-                pass
+            def run_with_error(ti):
+                try:
+                    ti.run()
+                except AirflowException:
+                    pass
 
-        ti = TI(
-            task=task, execution_date=timezone.utcnow())
-        self.assertEqual(ti.try_number, 1)
+            ti = TI(
+                task=task, execution_date=timezone.utcnow())
+            self.assertEqual(ti.try_number, 1)
 
-        # first run -- up for retry
-        run_with_error(ti)
-        self.assertEqual(ti.state, State.UP_FOR_RETRY)
-        self.assertEqual(ti._try_number, 1)
-        self.assertEqual(ti.try_number, 2)
+            # first run -- up for retry
+            run_with_error(ti)
+            self.assertEqual(ti.state, State.UP_FOR_RETRY)
+            self.assertEqual(ti._try_number, 1)
+            self.assertEqual(ti.try_number, 2)
 
-        # second run -- fail
-        run_with_error(ti)
-        self.assertEqual(ti.state, State.FAILED)
-        self.assertEqual(ti._try_number, 2)
-        self.assertEqual(ti.try_number, 3)
+            # second run -- fail
+            run_with_error(ti)
+            self.assertEqual(ti.state, State.FAILED)
+            self.assertEqual(ti._try_number, 2)
+            self.assertEqual(ti.try_number, 3)
 
-        # Clear the TI state since you can't run a task with a FAILED state without
-        # clearing it first
-        dag.clear()
+            # Clear the TI state since you can't run a task with a FAILED state without
+            # clearing it first
+            dag.clear()
 
-        # third run -- up for retry
-        run_with_error(ti)
-        self.assertEqual(ti.state, State.UP_FOR_RETRY)
-        self.assertEqual(ti._try_number, 3)
-        self.assertEqual(ti.try_number, 4)
+            # third run -- up for retry
+            run_with_error(ti)
+            self.assertEqual(ti.state, State.UP_FOR_RETRY)
+            self.assertEqual(ti._try_number, 3)
+            self.assertEqual(ti.try_number, 4)
 
-        # fourth run -- fail
-        run_with_error(ti)
-        ti.refresh_from_db()
-        self.assertEqual(ti.state, State.FAILED)
-        self.assertEqual(ti._try_number, 4)
-        self.assertEqual(ti.try_number, 5)
+            # fourth run -- fail
+            run_with_error(ti)
+            ti.refresh_from_db()
+            self.assertEqual(ti.state, State.FAILED)
+            self.assertEqual(ti._try_number, 4)
+            self.assertEqual(ti.try_number, 5)
+            self.assertEqual(RenderedTaskInstanceFields.get_templated_fields(ti), expected_rendered_ti_fields)
 
     def test_next_retry_datetime(self):
         delay = datetime.timedelta(seconds=30)
@@ -590,7 +601,7 @@ class TestTaskInstance(unittest.TestCase):
 
         date = ti.next_retry_datetime()
         # between 1 * 2^0.5 and 1 * 2^1 (15 and 30)
-        period = ti.end_date.add(seconds=1) - ti.end_date.add(seconds=15)
+        period = ti.end_date.add(seconds=15) - ti.end_date.add(seconds=1)
         self.assertTrue(date in period)
 
     def test_reschedule_handling(self):
@@ -1264,12 +1275,12 @@ class TestTaskInstance(unittest.TestCase):
         dag = models.DAG(dag_id=dag_id, schedule_interval=schedule_interval, catchup=catchup)
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
 
-        def get_test_ti(session, execution_date: pendulum.datetime, state: str) -> TI:
+        def get_test_ti(session, execution_date: pendulum.DateTime, state: str) -> TI:
             dag.create_dagrun(
-                run_id='scheduled__{}'.format(execution_date.to_iso8601_string()),
+                run_type=DagRunType.SCHEDULED,
                 state=state,
                 execution_date=execution_date,
-                start_date=pendulum.utcnow(),
+                start_date=pendulum.now('UTC'),
                 session=session
             )
             ti = TI(task=task, execution_date=execution_date)
@@ -1278,7 +1289,7 @@ class TestTaskInstance(unittest.TestCase):
 
         with create_session() as session:  # type: Session
 
-            date = pendulum.parse('2019-01-01T00:00:00+00:00')
+            date = cast(pendulum.DateTime, pendulum.parse('2019-01-01T00:00:00+00:00'))
 
             ret = []
 
@@ -1383,9 +1394,9 @@ class TestTaskInstance(unittest.TestCase):
 
         template_context = ti.get_template_context()
 
-        self.assertIsInstance(template_context["execution_date"], pendulum.datetime)
-        self.assertIsInstance(template_context["next_execution_date"], pendulum.datetime)
-        self.assertIsInstance(template_context["prev_execution_date"], pendulum.datetime)
+        self.assertIsInstance(template_context["execution_date"], pendulum.DateTime)
+        self.assertIsInstance(template_context["next_execution_date"], pendulum.DateTime)
+        self.assertIsInstance(template_context["prev_execution_date"], pendulum.DateTime)
 
     @parameterized.expand(
         [
@@ -1576,7 +1587,7 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual('hive_in_python_op', os.environ['AIRFLOW_CTX_TASK_ID'])
         self.assertEqual(DEFAULT_DATE.isoformat(),
                          os.environ['AIRFLOW_CTX_EXECUTION_DATE'])
-        self.assertEqual('manual__' + DEFAULT_DATE.isoformat(),
+        self.assertEqual(DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
                          os.environ['AIRFLOW_CTX_DAG_RUN_ID'])
 
     def test_echo_env_variables(self):
@@ -1586,7 +1597,7 @@ class TestTaskInstance(unittest.TestCase):
                             dag=dag,
                             python_callable=self._env_var_check_callback)
         dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -1690,3 +1701,53 @@ def test_refresh_from_task(pool_override):
     assert ti.max_tries == task.retries
     assert ti.executor_config == task.executor_config
     assert ti.operator == DummyOperator.__name__
+
+
+class TestRunRawTaskQueriesCount(unittest.TestCase):
+    """
+    These tests are designed to detect changes in the number of queries executed
+    when calling _run_raw_task
+    """
+
+    @staticmethod
+    def _clean():
+        db.clear_db_runs()
+        db.clear_db_pools()
+        db.clear_db_dags()
+        db.clear_db_sla_miss()
+        db.clear_db_errors()
+
+    def setUp(self) -> None:
+        self._clean()
+
+    def tearDown(self) -> None:
+        self._clean()
+
+    @parameterized.expand([
+        # Expected queries, mark_success
+        (7, False),
+        (5, True),
+    ])
+    def test_execute_queries_count(self, expected_query_count, mark_success):
+        with create_session() as session:
+            dag = DAG('test_queries', start_date=DEFAULT_DATE)
+            task = DummyOperator(task_id='op', dag=dag)
+            ti = TI(task=task, execution_date=datetime.datetime.now())
+            ti.state = State.RUNNING
+            session.merge(ti)
+
+        with assert_queries_count(expected_query_count):
+            ti._run_raw_task(mark_success=mark_success)
+
+    def test_execute_queries_count_store_serialized(self):
+        with create_session() as session:
+            dag = DAG('test_queries', start_date=DEFAULT_DATE)
+            task = DummyOperator(task_id='op', dag=dag)
+            ti = TI(task=task, execution_date=datetime.datetime.now())
+            ti.state = State.RUNNING
+            session.merge(ti)
+
+        with assert_queries_count(10), patch(
+            "airflow.models.taskinstance.STORE_SERIALIZED_DAGS", True
+        ):
+            ti._run_raw_task()

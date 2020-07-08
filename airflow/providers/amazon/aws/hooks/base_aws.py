@@ -89,7 +89,7 @@ class AwsBaseHook(BaseHook):
         aws_secret_access_key = None
         aws_session_token = None
         endpoint_url = None
-        session_kwargs = dict()
+        session_kwargs = {}
 
         if self.aws_conn_id:  # pylint: disable=too-many-nested-blocks
             self.log.info("Airflow Connection: aws_conn_id=%s",
@@ -187,7 +187,7 @@ class AwsBaseHook(BaseHook):
                     )
                     sts_client = sts_session.client("sts", config=self.config)
 
-                    assume_role_kwargs = dict()
+                    assume_role_kwargs = {}
                     if "assume_role_kwargs" in extra_config:
                         assume_role_kwargs = extra_config["assume_role_kwargs"]
 

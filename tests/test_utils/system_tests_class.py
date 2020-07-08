@@ -99,7 +99,7 @@ class SystemTest(TestCase, LoggingMixin):
             if file != "previous_runs":
                 file_path = os.path.join(logs_folder, file)
                 shutil.move(file_path, target_dir)
-        super().setUp()
+        super().tearDown()
 
     @staticmethod
     def _print_all_log_files():

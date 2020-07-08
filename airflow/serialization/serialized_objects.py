@@ -25,10 +25,11 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Union
 import cattr
 import pendulum
 from dateutil import relativedelta
+from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -90,7 +91,8 @@ class BaseSerialization:
     def from_dict(cls, serialized_obj: Dict[Encoding, Any]) -> \
             Union['BaseSerialization', dict, list, set, tuple]:
         """Deserializes a python dict stored with type decorators and
-        reconstructs all DAGs and operators it contains."""
+        reconstructs all DAGs and operators it contains.
+        """
         return cls._deserialize(serialized_obj)
 
     @classmethod
@@ -186,7 +188,7 @@ class BaseSerialization:
                 return cls._encode(var.timestamp(), type_=DAT.DATETIME)
             elif isinstance(var, datetime.timedelta):
                 return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
-            elif isinstance(var, (pendulum.tz.Timezone, pendulum.tz.timezone_info.TimezoneInfo)):
+            elif isinstance(var, (Timezone)):
                 return cls._encode(str(var.name), type_=DAT.TIMEZONE)
             elif isinstance(var, relativedelta.relativedelta):
                 encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
@@ -212,6 +214,7 @@ class BaseSerialization:
         except Exception:  # pylint: disable=broad-except
             log.error('Failed to stringify.', exc_info=True)
             return FAILED
+
     # pylint: enable=too-many-return-statements
 
     @classmethod
@@ -239,7 +242,7 @@ class BaseSerialization:
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
         elif type_ == DAT.TIMEZONE:
-            return pendulum.timezone(var)
+            return Timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
             if 'weekday' in var:
                 var['weekday'] = relativedelta.weekday(*var['weekday'])  # type: ignore
@@ -252,7 +255,7 @@ class BaseSerialization:
             raise TypeError('Invalid type {!s} in deserialization.'.format(type_))
 
     _deserialize_datetime = pendulum.from_timestamp
-    _deserialize_timezone = pendulum.timezone
+    _deserialize_timezone = pendulum.tz.timezone
 
     @classmethod
     def _deserialize_timedelta(cls, seconds: int) -> datetime.timedelta:
@@ -297,7 +300,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     _decorated_fields = {'executor_config'}
 
     _CONSTRUCTOR_PARAMS = {
-        k: v.default for k, v in signature(BaseOperator).parameters.items()
+        k: v.default for k, v in signature(BaseOperator.__init__).parameters.items()
         if v.default is not v.empty
     }
 
@@ -535,9 +538,10 @@ class SerializedDAG(DAG, BaseSerialization):
             'access_control': '_access_control',
         }
         return {
-            param_to_attr.get(k, k): v.default for k, v in signature(DAG).parameters.items()
+            param_to_attr.get(k, k): v.default for k, v in signature(DAG.__init__).parameters.items()
             if v.default is not v.empty
         }
+
     _CONSTRUCTOR_PARAMS = __get_constructor_defaults.__func__()  # type: ignore
     del __get_constructor_defaults
 

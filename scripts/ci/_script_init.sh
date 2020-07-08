@@ -19,8 +19,13 @@
 set -euo pipefail
 
 # This should only be sourced from CI directory!
-# shellcheck source=scripts/ci/_utils.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_utils.sh"
+
+SCRIPTS_CI_DIR="$( dirname "${BASH_SOURCE[0]}" )"
+export SCRIPTS_CI_DIR
+
+# shellcheck source=scripts/ci/_all_libs.sh
+. "${SCRIPTS_CI_DIR}"/_all_libs.sh
+
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MY_DIR

@@ -32,7 +32,6 @@ from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.strings import to_boolean
 from airflow.version import version
-from airflow.www.app import csrf
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +40,6 @@ requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 api_experimental = Blueprint('api_experimental', __name__)
 
 
-@csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
 @requires_authentication
 def trigger_dag(dag_id):
@@ -100,7 +98,6 @@ def trigger_dag(dag_id):
     return response
 
 
-@csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>', methods=['DELETE'])
 @requires_authentication
 def delete_dag(dag_id):
@@ -143,12 +140,14 @@ def dag_runs(dag_id):
 @api_experimental.route('/test', methods=['GET'])
 @requires_authentication
 def test():
+    """ Test endpoint to check authentication """
     return jsonify(status='OK')
 
 
 @api_experimental.route('/info', methods=['GET'])
 @requires_authentication
 def info():
+    """ Get Airflow Version """
     return jsonify(version=version)
 
 
@@ -170,7 +169,7 @@ def get_dag_code(dag_id):
 def task_info(dag_id, task_id):
     """Returns a JSON with a task's public instance variables. """
     try:
-        info = get_task(dag_id, task_id)
+        t_info = get_task(dag_id, task_id)
     except AirflowException as err:
         log.info(err)
         response = jsonify(error="{}".format(err))
@@ -179,7 +178,7 @@ def task_info(dag_id, task_id):
 
     # JSONify and return.
     fields = {k: str(v)
-              for k, v in vars(info).items()
+              for k, v in vars(t_info).items()
               if not k.startswith('_')}
     return jsonify(fields)
 
@@ -190,7 +189,7 @@ def task_info(dag_id, task_id):
 def dag_paused(dag_id, paused):
     """(Un)pauses a dag"""
 
-    is_paused = True if paused == 'true' else False
+    is_paused = bool(paused == 'true')
 
     models.DagModel.get_dagmodel(dag_id).set_is_paused(
         is_paused=is_paused,
@@ -236,7 +235,7 @@ def task_instance_info(dag_id, execution_date, task_id):
         return response
 
     try:
-        info = get_task_instance(dag_id, task_id, execution_date)
+        ti_info = get_task_instance(dag_id, task_id, execution_date)
     except AirflowException as err:
         log.info(err)
         response = jsonify(error="{}".format(err))
@@ -245,7 +244,7 @@ def task_instance_info(dag_id, execution_date, task_id):
 
     # JSONify and return.
     fields = {k: str(v)
-              for k, v in vars(info).items()
+              for k, v in vars(ti_info).items()
               if not k.startswith('_')}
     return jsonify(fields)
 
@@ -277,14 +276,14 @@ def dag_run_status(dag_id, execution_date):
         return response
 
     try:
-        info = get_dag_run_state(dag_id, execution_date)
+        dr_info = get_dag_run_state(dag_id, execution_date)
     except AirflowException as err:
         log.info(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
 
-    return jsonify(info)
+    return jsonify(dr_info)
 
 
 @api_experimental.route('/latest_runs', methods=['GET'])
@@ -337,7 +336,6 @@ def get_pools():
         return jsonify([p.to_json() for p in pools])
 
 
-@csrf.exempt
 @api_experimental.route('/pools', methods=['POST'])
 @requires_authentication
 def create_pool():
@@ -354,7 +352,6 @@ def create_pool():
         return jsonify(pool.to_json())
 
 
-@csrf.exempt
 @api_experimental.route('/pools/<string:name>', methods=['DELETE'])
 @requires_authentication
 def delete_pool(name):
@@ -370,14 +367,14 @@ def delete_pool(name):
         return jsonify(pool.to_json())
 
 
-@csrf.exempt
 @api_experimental.route('/lineage/<string:dag_id>/<string:execution_date>',
                         methods=['GET'])
 @requires_authentication
 def get_lineage(dag_id: str, execution_date: str):
+    """ Get Lineage details for a DagRun """
     # Convert string datetime into actual datetime
     try:
-        execution_date = timezone.parse(execution_date)
+        execution_dt = timezone.parse(execution_date)
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
@@ -390,7 +387,7 @@ def get_lineage(dag_id: str, execution_date: str):
         return response
 
     try:
-        lineage = get_lineage_api(dag_id=dag_id, execution_date=execution_date)
+        lineage = get_lineage_api(dag_id=dag_id, execution_date=execution_dt)
     except AirflowException as err:
         log.error(err)
         response = jsonify(error=f"{err}")

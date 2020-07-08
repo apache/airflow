@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import contextlib
 import os
 import re
@@ -170,7 +169,7 @@ class HiveCliHook(BaseHook):
         ... "hive.exec.dynamic.partition.mode": "nonstrict"}
         >>> hh._prepare_hiveconf(hive_conf)
         ["-hiveconf", "hive.exec.dynamic.partition=true",\
- "-hiveconf", "hive.exec.dynamic.partition.mode=nonstrict"]
+        "-hiveconf", "hive.exec.dynamic.partition.mode=nonstrict"]
         """
         if not d:
             return []
@@ -506,8 +505,8 @@ class HiveMetastoreHook(BaseHook):
         Returns a Hive thrift client.
         """
         import hmsclient
-        from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
+        from thrift.transport import TSocket, TTransport
 
         conn = self._find_valid_server()
 
@@ -685,6 +684,7 @@ class HiveMetastoreHook(BaseHook):
                            pairs will be considered as candidates of max partition.
         :type filter_map: map
         :return: Max partition or None if part_specs is empty.
+        :rtype: basestring
         """
         if not part_specs:
             return None
@@ -708,7 +708,7 @@ class HiveMetastoreHook(BaseHook):
         if not candidates:
             return None
         else:
-            return max(candidates).encode('utf-8')
+            return max(candidates)
 
     def max_partition(self, schema, table_name, field=None, filter_map=None):
         """

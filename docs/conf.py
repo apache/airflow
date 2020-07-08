@@ -134,6 +134,7 @@ extensions = [
     'exampleinclude',
     'docroles',
     'removemarktransform',
+    'sphinx_copybutton',
 ]
 
 autodoc_default_options = {
@@ -189,8 +190,6 @@ release = airflow.__version__
 exclude_patterns: List[str] = [
     # We only link to selected subpackages.
     '_api/airflow/index.rst',
-    # Required by airflow/contrib/plugins
-    '_api/main',
     # We have custom page - operators-and-hooks-ref.rst
     '_api/airflow/providers/index.rst',
     # Packages with subpackages
@@ -201,8 +200,14 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/apache/index.rst",
     "_api/airflow/providers/yandex/index.rst",
     "_api/airflow/providers/cncf/index.rst",
-    # Utils for internal use
+    # Packages without operators
+    "_api/airflow/providers/sendgrid",
+    # Utils
     '_api/airflow/providers/google/cloud/utils',
+    # Internal client for Hashicorp Vault
+    '_api/airflow/providers/hashicorp/_internal_client',
+    # Internal client for GCP Secret Manager
+    '_api/airflow/providers/google/cloud/_internal_client',
     # Templates or partials
     'autoapi_templates',
     'howto/operator/gcp/_partials',
@@ -495,10 +500,7 @@ autoapi_template_dir = 'autoapi_templates'
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
     '*/airflow/kubernetes/kubernetes_request_factory/*',
-    '*/airflow/contrib/sensors/*',
-    '*/airflow/contrib/hooks/*',
-    '*/airflow/contrib/operators/*',
-
+    '*/_internal*',
     '*/node_modules/*',
     '*/migrations/*',
 ]

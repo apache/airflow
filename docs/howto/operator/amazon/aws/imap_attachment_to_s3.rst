@@ -32,7 +32,7 @@ The ``ImapAttachmentToS3Operator`` can transfer an email attachment via IMAP
 protocol from a mail server to S3 Bucket.
 
 An example dag ``example_imap_attachment_to_s3.py`` is provided which showcase the
-:class:`~airflow.providers.amazon.aws.operators.imap_attachment_to_s3.ImapAttachmentToS3Operator`
+:class:`~airflow.providers.amazon.aws.transfers.imap_attachment_to_s3.ImapAttachmentToS3Operator`
 in action.
 
 example_imap_attachment_to_s3.py

@@ -41,10 +41,11 @@ from airflow.utils.module_loading import import_string
 log = logging.getLogger(__name__)
 
 # show Airflow's deprecation warnings
-warnings.filterwarnings(
-    action='default', category=DeprecationWarning, module='airflow')
-warnings.filterwarnings(
-    action='default', category=PendingDeprecationWarning, module='airflow')
+if not sys.warnoptions:
+    warnings.filterwarnings(
+        action='default', category=DeprecationWarning, module='airflow')
+    warnings.filterwarnings(
+        action='default', category=PendingDeprecationWarning, module='airflow')
 
 
 def expand_env_var(env_var):
@@ -84,6 +85,15 @@ def run_command(command):
     return output
 
 
+def _get_config_value_from_secret_backend(config_key):
+    """Get Config option values from Secret Backend"""
+    from airflow import secrets
+    secrets_client = secrets.get_custom_secret_backend()
+    if not secrets_client:
+        return None
+    return secrets_client.get_config(config_key)
+
+
 def _read_default_config_file(file_name: str) -> Tuple[str, str]:
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
@@ -109,11 +119,14 @@ def default_config_yaml() -> dict:
 
 
 class AirflowConfigParser(ConfigParser):
+    """Custom Airflow Configparser supporting defaults and deprecated options"""
 
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}__cmd" pattern, the idea behind this
     # is to not store password on boxes in text files.
-    as_command_stdout = {
+    # These configs can also be fetched from Secrets backend
+    # following the "{section}__{name}__secret" pattern
+    sensitive_config_values = {
         ('core', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
@@ -163,6 +176,13 @@ class AirflowConfigParser(ConfigParser):
             'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
             'hostname_callable': (re.compile(r':'), r'.', '2.0'),
         },
+        'email': {
+            'email_backend': (
+                re.compile(r'^airflow\.contrib\.utils\.sendgrid\.send_email$'),
+                r'airflow.providers.sendgrid.utils.emailer.send_email',
+                '2.0'
+            ),
+        }
     }
 
     # This method transforms option names on every read, get, or set operation.
@@ -258,16 +278,31 @@ class AirflowConfigParser(ConfigParser):
         env_var_cmd = env_var + '_CMD'
         if env_var_cmd in os.environ:
             # if this is a valid command key...
-            if (section, key) in self.as_command_stdout:
+            if (section, key) in self.sensitive_config_values:
                 return run_command(os.environ[env_var_cmd])
+        # alternatively AIRFLOW__{SECTION}__{KEY}_SECRET (to get from Secrets Backend)
+        env_var_secret_path = env_var + '_SECRET'
+        if env_var_secret_path in os.environ:
+            # if this is a valid secret path...
+            if (section, key) in self.sensitive_config_values:
+                return _get_config_value_from_secret_backend(os.environ[env_var_secret_path])
 
     def _get_cmd_option(self, section, key):
         fallback_key = key + '_cmd'
         # if this is a valid command key...
-        if (section, key) in self.as_command_stdout:
+        if (section, key) in self.sensitive_config_values:
             if super().has_option(section, fallback_key):
                 command = super().get(section, fallback_key)
                 return run_command(command)
+
+    def _get_secret_option(self, section, key):
+        """Get Config option values from Secret Backend"""
+        fallback_key = key + '_secret'
+        # if this is a valid secret key...
+        if (section, key) in self.sensitive_config_values:
+            if super().has_option(section, fallback_key):
+                secrets_path = super().get(section, fallback_key)
+                return _get_config_value_from_secret_backend(secrets_path)
 
     def get(self, section, key, **kwargs):
         section = str(section).lower()
@@ -310,6 +345,16 @@ class AirflowConfigParser(ConfigParser):
                 self._warn_deprecate(section, key, deprecated_section, deprecated_key)
                 return option
 
+        # ...then from secret backends
+        option = self._get_secret_option(section, key)
+        if option:
+            return option
+        if deprecated_section:
+            option = self._get_secret_option(deprecated_section, deprecated_key)
+            if option:
+                self._warn_deprecate(section, key, deprecated_section, deprecated_key)
+                return option
+
         # ...then the default config
         if self.airflow_defaults.has_option(section, key) or 'fallback' in kwargs:
             return expand_env_var(
@@ -333,15 +378,32 @@ class AirflowConfigParser(ConfigParser):
         elif val in ('f', 'false', '0'):
             return False
         else:
-            raise ValueError(
-                'The value for configuration option "{}:{}" is not a '
-                'boolean (received "{}").'.format(section, key, val))
+            raise AirflowConfigException(
+                f'Failed to convert value to bool. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{val}".'
+            )
 
     def getint(self, section, key, **kwargs):
-        return int(self.get(section, key, **kwargs))
+        val = self.get(section, key, **kwargs)
+
+        try:
+            return int(val)
+        except ValueError:
+            raise AirflowConfigException(
+                f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{val}".'
+            )
 
     def getfloat(self, section, key, **kwargs):
-        return float(self.get(section, key, **kwargs))
+        val = self.get(section, key, **kwargs)
+
+        try:
+            return float(val)
+        except ValueError:
+            raise AirflowConfigException(
+                f'Failed to convert value to float. Please check "{key}" key in "{section}" section. '
+                f'Current value: "{val}".'
+            )
 
     def getimport(self, section, key, **kwargs):
         """
@@ -447,7 +509,8 @@ class AirflowConfigParser(ConfigParser):
 
     def as_dict(
             self, display_source=False, display_sensitive=False, raw=False,
-            include_env=True, include_cmds=True) -> Dict[str, Dict[str, str]]:
+            include_env=True, include_cmds=True, include_secret=True
+    ) -> Dict[str, Dict[str, str]]:
         """
         Returns the current configuration as an OrderedDict of OrderedDicts.
 
@@ -469,6 +532,10 @@ class AirflowConfigParser(ConfigParser):
             set (True, default), or should the _cmd options be left as the
             command to run (False)
         :type include_cmds: bool
+        :param include_secret: Should the result of calling any *_secret config be
+            set (True, default), or should the _secret options be left as the
+            path to get the secret from (False)
+        :type include_secret: bool
         :rtype: Dict[str, Dict[str, str]]
         :return: Dictionary, where the key is the name of the section and the content is
             the dictionary with the name of the parameter and its value.
@@ -513,7 +580,7 @@ class AirflowConfigParser(ConfigParser):
 
         # add bash commands
         if include_cmds:
-            for (section, key) in self.as_command_stdout:
+            for (section, key) in self.sensitive_config_values:
                 opt = self._get_cmd_option(section, key)
                 if opt:
                     if not display_sensitive:
@@ -524,6 +591,20 @@ class AirflowConfigParser(ConfigParser):
                         opt = opt.replace('%', '%%')
                     cfg.setdefault(section, OrderedDict()).update({key: opt})
                     del cfg[section][key + '_cmd']
+
+        # add config from secret backends
+        if include_secret:
+            for (section, key) in self.sensitive_config_values:
+                opt = self._get_secret_option(section, key)
+                if opt:
+                    if not display_sensitive:
+                        opt = '< hidden >'
+                    if display_source:
+                        opt = (opt, 'secret')
+                    elif raw:
+                        opt = opt.replace('%', '%%')
+                    cfg.setdefault(section, OrderedDict()).update({key: opt})
+                    del cfg[section][key + '_secret']
 
         return cfg
 
@@ -571,10 +652,12 @@ class AirflowConfigParser(ConfigParser):
 
 
 def get_airflow_home():
+    """Get path to Airflow Home"""
     return expand_env_var(os.environ.get('AIRFLOW_HOME', '~/airflow'))
 
 
 def get_airflow_config(airflow_home):
+    """Get Path to airflow.cfg path"""
     if 'AIRFLOW_CONFIG' not in os.environ:
         return os.path.join(airflow_home, 'airflow.cfg')
     return expand_env_var(os.environ['AIRFLOW_CONFIG'])
@@ -622,6 +705,7 @@ def parameterized_config(template):
 
 
 def get_airflow_test_config(airflow_home):
+    """Get path to unittests.cfg"""
     if 'AIRFLOW_TEST_CONFIG' not in os.environ:
         return os.path.join(airflow_home, 'unittests.cfg')
     return expand_env_var(os.environ['AIRFLOW_TEST_CONFIG'])
@@ -695,7 +779,7 @@ if conf.getboolean('core', 'unit_test_mode'):
 
 
 # Historical convenience functions to access config entries
-def load_test_config():
+def load_test_config():   # noqa: D103
     warnings.warn(
         "Accessing configuration method 'load_test_config' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -706,7 +790,7 @@ def load_test_config():
     conf.load_test_config()
 
 
-def get(*args, **kwargs):
+def get(*args, **kwargs):   # noqa: D103
     warnings.warn(
         "Accessing configuration method 'get' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -717,7 +801,7 @@ def get(*args, **kwargs):
     return conf.get(*args, **kwargs)
 
 
-def getboolean(*args, **kwargs):
+def getboolean(*args, **kwargs):   # noqa: D103
     warnings.warn(
         "Accessing configuration method 'getboolean' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -728,7 +812,7 @@ def getboolean(*args, **kwargs):
     return conf.getboolean(*args, **kwargs)
 
 
-def getfloat(*args, **kwargs):
+def getfloat(*args, **kwargs):   # noqa: D103
     warnings.warn(
         "Accessing configuration method 'getfloat' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -739,7 +823,7 @@ def getfloat(*args, **kwargs):
     return conf.getfloat(*args, **kwargs)
 
 
-def getint(*args, **kwargs):
+def getint(*args, **kwargs):   # noqa: D103
     warnings.warn(
         "Accessing configuration method 'getint' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -750,7 +834,7 @@ def getint(*args, **kwargs):
     return conf.getint(*args, **kwargs)
 
 
-def getsection(*args, **kwargs):
+def getsection(*args, **kwargs):   # noqa: D103
     warnings.warn(
         "Accessing configuration method 'getsection' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -761,7 +845,7 @@ def getsection(*args, **kwargs):
     return conf.getint(*args, **kwargs)
 
 
-def has_option(*args, **kwargs):
+def has_option(*args, **kwargs):   # noqa: D103
     warnings.warn(
         "Accessing configuration method 'has_option' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -772,7 +856,7 @@ def has_option(*args, **kwargs):
     return conf.has_option(*args, **kwargs)
 
 
-def remove_option(*args, **kwargs):
+def remove_option(*args, **kwargs):   # noqa: D103
     warnings.warn(
         "Accessing configuration method 'remove_option' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -783,7 +867,7 @@ def remove_option(*args, **kwargs):
     return conf.remove_option(*args, **kwargs)
 
 
-def as_dict(*args, **kwargs):
+def as_dict(*args, **kwargs):   # noqa: D103
     warnings.warn(
         "Accessing configuration method 'as_dict' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "
@@ -794,7 +878,7 @@ def as_dict(*args, **kwargs):
     return conf.as_dict(*args, **kwargs)
 
 
-def set(*args, **kwargs):
+def set(*args, **kwargs):   # noqa: D103
     warnings.warn(
         "Accessing configuration method 'set' directly from the configuration module is "
         "deprecated. Please access the configuration from the 'configuration.conf' object via "

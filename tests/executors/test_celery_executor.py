@@ -21,14 +21,13 @@ import json
 import os
 import sys
 import unittest
-from multiprocessing import Pool
 from unittest import mock
 
 # leave this it is used by the test worker
 # noinspection PyUnresolvedReferences
 import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=unused-import
 import pytest
-from celery import Celery, states as celery_states
+from celery import Celery
 from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
@@ -36,6 +35,7 @@ from kombu.asynchronous import set_event_loop
 from parameterized import parameterized
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.executors import celery_executor
 from airflow.executors.celery_executor import BulkStateFetcher
 from airflow.models import TaskInstance
@@ -101,16 +101,20 @@ class TestCeleryExecutor(unittest.TestCase):
     @pytest.mark.integration("rabbitmq")
     @pytest.mark.backend("mysql", "postgres")
     def test_celery_integration(self, broker_url):
-        with _prepare_app(broker_url) as app:
+        success_command = ['airflow', 'tasks', 'run', 'true', 'some_parameter']
+        fail_command = ['airflow', 'version']
+
+        def fake_execute_command(command):
+            if command != success_command:
+                raise AirflowException("fail")
+
+        with _prepare_app(broker_url, execute=fake_execute_command) as app:
             executor = celery_executor.CeleryExecutor()
             executor.start()
 
             with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
-                success_command = ['true', 'some_parameter']
-                fail_command = ['false', 'some_parameter']
                 execute_date = datetime.datetime.now()
 
-                cached_celery_backend = celery_executor.execute_command.backend
                 task_tuples_to_send = [
                     (('success', 'fake_simple_ti', execute_date, 0),
                      None, success_command, celery_executor.celery_configuration['task_default_queue'],
@@ -120,25 +124,11 @@ class TestCeleryExecutor(unittest.TestCase):
                      celery_executor.execute_command)
                 ]
 
-                chunksize = executor._num_tasks_per_send_process(len(task_tuples_to_send))
-                num_processes = min(len(task_tuples_to_send), executor._sync_parallelism)
+                # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
+                for (key, simple_ti, command, queue, task) in task_tuples_to_send:  # pylint: disable=W0612
+                    executor.queued_tasks[key] = (command, 1, queue, simple_ti)
 
-                with Pool(processes=num_processes) as send_pool:
-                    key_and_async_results = send_pool.map(
-                        celery_executor.send_task_to_executor,
-                        task_tuples_to_send,
-                        chunksize=chunksize)
-
-                for task_instance_key, _, result in key_and_async_results:
-                    # Only pops when enqueued successfully, otherwise keep it
-                    # and expect scheduler loop to deal with it.
-                    result.backend = cached_celery_backend
-                    executor.running.add(task_instance_key)
-                    executor.tasks[task_instance_key] = result
-                    executor.last_state[task_instance_key] = celery_states.PENDING
-
-                executor.running.add(('success', 'fake_simple_ti', execute_date, 0))
-                executor.running.add(('fail', 'fake_simple_ti', execute_date, 0))
+                executor._process_tasks(task_tuples_to_send)
 
                 executor.end(synchronous=True)
 
@@ -201,6 +191,24 @@ class TestCeleryExecutor(unittest.TestCase):
                  mock.call('executor.queued_tasks', mock.ANY),
                  mock.call('executor.running_tasks', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)
+
+    @parameterized.expand((
+        [['true'], ValueError],
+        [['airflow', 'version'], ValueError],
+        [['airflow', 'tasks', 'run'], None]
+    ))
+    @mock.patch('subprocess.check_call')
+    def test_command_validation(self, command, expected_exception, mock_check_call):
+        # Check that we validate _on the receiving_ side, not just sending side
+        if expected_exception:
+            with pytest.raises(expected_exception):
+                celery_executor.execute_command(command)
+            mock_check_call.assert_not_called()
+        else:
+            celery_executor.execute_command(command)
+            mock_check_call.assert_called_once_with(
+                command, stderr=mock.ANY, close_fds=mock.ANY, env=mock.ANY,
+            )
 
 
 def test_operation_timeout_config():

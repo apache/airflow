@@ -18,8 +18,10 @@
 """
 This module contains Google DataFusion operators.
 """
-from typing import Any, Dict, Optional
+from time import sleep
+from typing import Any, Dict, List, Optional
 
+from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
 from airflow.models import BaseOperator
@@ -217,13 +219,20 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
             instance = hook.wait_for_operation(operation)
             self.log.info("Instance %s created successfully", self.instance_name)
         except HttpError as err:
-            if err.resp.status != 409:
+            if err.resp.status not in (409, '409'):
                 raise
             self.log.info("Instance %s already exists", self.instance_name)
             instance = hook.get_instance(
                 instance_name=self.instance_name, location=self.location, project_id=self.project_id
             )
-
+            # Wait for instance to be ready
+            for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
+                if instance['state'] != 'CREATING':
+                    break
+                sleep(time_to_wait)
+                instance = hook.get_instance(
+                    instance_name=self.instance_name, location=self.location, project_id=self.project_id
+                )
         return instance
 
 
@@ -616,6 +625,12 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     :type pipeline_name: str
     :param instance_name: The name of the instance.
     :type instance_name: str
+    :param success_states: If provided the operator will wait for pipeline to be in one of
+        the provided states.
+    :type success_states: List[str]
+    :param pipeline_timeout: How long (in seconds) operator should wait for the pipeline to be in one of
+        ``success_states``. Works only if ``success_states`` are provided.
+    :type pipeline_timeout: int
     :param location: The Cloud Data Fusion location in which to handle the request.
     :type location: str
     :param runtime_args: Optional runtime args to be passed to the pipeline
@@ -636,13 +651,15 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     template_fields = ("instance_name", "pipeline_name", "runtime_args")
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         pipeline_name: str,
         instance_name: str,
         location: str,
         runtime_args: Optional[Dict[str, Any]] = None,
+        success_states: Optional[List[str]] = None,
         namespace: str = "default",
+        pipeline_timeout: int = 10 * 60,
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
@@ -652,7 +669,9 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.pipeline_name = pipeline_name
+        self.success_states = success_states
         self.runtime_args = runtime_args
+        self.pipeline_timeout = pipeline_timeout
         self.namespace = namespace
         self.instance_name = instance_name
         self.location = location
@@ -674,14 +693,23 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
             project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
-        hook.start_pipeline(
+        pipeline_id = hook.start_pipeline(
             pipeline_name=self.pipeline_name,
             instance_url=api_url,
             namespace=self.namespace,
-            runtime_args=self.runtime_args
-
+            runtime_args=self.runtime_args,
         )
+
         self.log.info("Pipeline started")
+        if self.success_states:
+            hook.wait_for_pipeline_state(
+                success_states=self.success_states,
+                pipeline_id=pipeline_id,
+                pipeline_name=self.pipeline_name,
+                namespace=self.namespace,
+                instance_url=api_url,
+                timeout=self.pipeline_timeout
+            )
 
 
 class CloudDataFusionStopPipelineOperator(BaseOperator):

@@ -51,6 +51,12 @@ labelPRBasedOnFilePath:
     - tests/runtime/kubernetes/*
     - docs/kubernetes.rst
 
+  area:API:
+    - airflow/api_connexion/*
+    - airflow/api_connexion/**/*
+    - tests/api_connexion/*
+    - tests/api_connexion/**/*
+
   area:dev:
     - scripts/**/*
     - scripts/*
@@ -82,6 +88,10 @@ labelPRBasedOnFilePath:
     - docs/**/*
     - docs/*
 
+  area:helm-chart:
+    - chart/**/*
+    - chart/*
+
   area:Webserver:
     - airflow/cli/commands/webserver_command.py
     - airflow/www/**/*
@@ -109,7 +119,9 @@ labelPRBasedOnFilePath:
     - docs/lineage.rst
 
   area:Plugins:
+    - airflow/cli/commands/plugins_command.py
     - airflow/plugins_manager.py
+    - tests/cli/commands/test_plugins_command.py
     - tests/plugins/*
     - docs/plugins.rst
 
@@ -164,6 +176,9 @@ firstPRWelcomeComment: >
 
   - Be patient and persistent. It might take some time to get a review or get the final approval from
   Committers.
+
+  - Please follow [ASF Code of Conduct](https://www.apache.org/foundation/policies/conduct) for all
+  communication including (but not limited to) comments on Pull Requests, Mailing list and Slack.
 
   - Be sure to read the [Airflow Coding style](
   https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#coding-style-and-best-practices).

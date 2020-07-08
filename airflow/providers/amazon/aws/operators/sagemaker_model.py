@@ -23,7 +23,6 @@ from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerModelOperator(SageMakerBaseOperator):
-
     """
     Create a SageMaker model.
 

@@ -35,6 +35,9 @@ function run_test_package_import_all_classes() {
         --env VERBOSE_COMMANDS \
         --env HOST_USER_ID="$(id -ur)" \
         --env HOST_GROUP_ID="$(id -gr)" \
+        --env HOST_OS="$(uname -s)" \
+        --env HOST_HOME="${HOME}" \
+        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
         --rm \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/ci/in_container/run_test_package_import_all_classes.sh" \
@@ -42,7 +45,7 @@ function run_test_package_import_all_classes() {
 
 }
 
-get_ci_environment
+get_environment_for_builds_on_ci
 
 prepare_ci_build
 

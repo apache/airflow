@@ -562,8 +562,6 @@ def initdb():
 def _get_alembic_config():
     from alembic.config import Config
 
-    log.info("Creating tables")
-
     current_dir = os.path.dirname(os.path.abspath(__file__))
     package_dir = os.path.normpath(os.path.join(current_dir, '..'))
     directory = os.path.join(package_dir, 'migrations')
@@ -637,6 +635,7 @@ def drop_airflow_models(connection):
     @return: None
     """
     from airflow.models.base import Base
+
     # Drop connection and chart - those tables have been deleted and in case you
     # run resetdb on schema with chart or users table will fail
     chart = Table('chart', Base.metadata)

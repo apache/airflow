@@ -19,7 +19,7 @@
 import os
 
 from airflow import models
-from airflow.providers.google.cloud.operators.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils import dates
 
 # [START howto_gcs_environment_variables]
