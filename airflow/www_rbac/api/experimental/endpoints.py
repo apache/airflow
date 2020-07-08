@@ -96,12 +96,22 @@ def put_anaylysis_result():
         resp.status_code = 500
         return resp
 
+@csrf.exempt
+@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>/error_tag',
+                        methods=['POST'])
+@requires_authentication
+def save_curve_error_tag(dag_id, task_id, execution_date):
+    return _save_curve_error_tag(dag_id, task_id, execution_date)
 
 @csrf.exempt
 @api_experimental.route('/error_tag/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>',
                         methods=['POST'])
 @requires_authentication
-def save_curve_error_tag(dag_id, task_id, execution_date):
+def save_curve_error_tag_w_csrf(dag_id, task_id, execution_date):
+    return _save_curve_error_tag(dag_id, task_id, execution_date)
+
+
+def _save_curve_error_tag(dag_id, task_id, execution_date):
     try:
         execution_date = timezone.parse(execution_date)
     except ValueError:
@@ -119,7 +129,7 @@ def save_curve_error_tag(dag_id, task_id, execution_date):
         error_tags = json.dumps(params.get('error_tags', []))
         task = get_task_instance(dag_id, task_id, execution_date)
         task.set_error_tag(error_tags)
-        return jsonify({'response': 'ok'})
+        return jsonify(response='ok')
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))
