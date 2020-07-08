@@ -21,7 +21,7 @@ import random
 from typing import List
 
 from airflow import secrets
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = logging.getLogger(__name__)
@@ -82,6 +82,6 @@ class BaseHook(LoggingMixin):
         connection = cls.get_connection(conn_id)
         return connection.get_hook()
 
-    def get_conn(self):
+    def get_conn(self) -> None:
         """Returns connection for the hook."""
         raise NotImplementedError()
