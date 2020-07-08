@@ -25,8 +25,8 @@ from typing import Dict
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.mlengine import (
-    MLEngineCreateVersionOperator, MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator,
-    MLEngineListVersionsOperator, MLEngineCreateModelOperator, MLEngineGetModelOperator,
+    MLEngineCreateModelOperator, MLEngineCreateVersionOperator, MLEngineDeleteModelOperator,
+    MLEngineDeleteVersionOperator, MLEngineGetModelOperator, MLEngineListVersionsOperator,
     MLEngineSetDefaultVersionOperator, MLEngineStartBatchPredictionJobOperator,
     MLEngineStartTrainingJobOperator,
 )
