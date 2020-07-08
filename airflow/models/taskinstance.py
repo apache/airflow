@@ -136,8 +136,20 @@ class TaskInstanceKeyType(NamedTuple):
     try_number: int
 
     @property
-    def short(self) -> Tuple[str, str, datetime]:
+    def primary(self) -> Tuple[str, str, datetime]:
+        """
+        Return task instance primary key part of the key
+        """
         return self.dag_id, self.task_id, self.execution_date
+
+    @property
+    def reduced(self) -> 'TaskInstanceKeyType':
+        """
+        Remake the key by subtracting 1 from try number to match in memory information
+        """
+        return TaskInstanceKeyType(
+            self.dag_id, self.task_id, self.execution_date, max(1, self.try_number - 1)
+        )
 
 
 class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904

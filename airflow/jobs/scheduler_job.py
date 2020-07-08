@@ -1494,7 +1494,7 @@ class SchedulerJob(BaseJob):
         for key, value in event_buffer.items():
             state, info = value
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
-            ti_primary_key_to_try_number_map[key.short] = key.try_number
+            ti_primary_key_to_try_number_map[key.primary] = key.try_number
 
             self.log.info(
                 "Executor reports execution of %s.%s execution_date=%s "
@@ -1513,7 +1513,7 @@ class SchedulerJob(BaseJob):
         tis = session.query(TI).filter(filter_for_tis).all()
         for ti in tis:
             key = ti.key
-            try_number = ti_primary_key_to_try_number_map[key.short]
+            try_number = ti_primary_key_to_try_number_map[key.primary]
             buffer_key = TaskInstanceKeyType(key.dag_id, key.task_id, key.execution_date, try_number)
             state, info = event_buffer.pop(buffer_key)
 

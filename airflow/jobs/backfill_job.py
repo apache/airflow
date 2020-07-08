@@ -196,7 +196,7 @@ class BackfillJob(BaseJob):
 
         for ti in refreshed_tis:
             # Here we remake the key by subtracting 1 to match in memory information
-            key = (ti.dag_id, ti.task_id, ti.execution_date, max(1, ti.try_number - 1))
+            key = ti.key.reduced
             if ti.state == State.SUCCESS:
                 ti_status.succeeded.add(key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
