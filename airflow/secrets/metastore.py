@@ -19,9 +19,6 @@
 Objects relating to sourcing connections from metastore database
 """
 
-from typing import List
-
-from airflow.models.connection import Connection
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.db import provide_session
 
@@ -34,7 +31,7 @@ class MetastoreBackend(BaseSecretsBackend):
     # pylint: disable=missing-docstring
     @provide_session
     def get_connections(self, conn_id, session=None):
-        # type: (...) -> List[Connection]
+        from airflow.models.connection import Connection
         conn_list = session.query(Connection).filter(Connection.conn_id == conn_id).all()
         session.expunge_all()
         return conn_list
