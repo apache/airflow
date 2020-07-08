@@ -61,6 +61,14 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+### GCSTaskHandler has been moved
+The `GCSTaskHandler` class from `airflow.utils.log.gcs_task_handler` has been moved to
+`airflow.providers.google.cloud.log.gcs_task_handler`. This is because it has items specific to `google cloud`.
+
+### WasbTaskHandler has been moved
+The `WasbTaskHandler` class from `airflow.utils.log.wasb_task_handler` has been moved to
+`airflow.providers.microsoft.azure.log.wasb_task_handler`. This is because it has items specific to `azure`.
+
 ### StackdriverTaskHandler has been moved
 The `StackdriverTaskHandler` class from `airflow.utils.log.stackdriver_task_handler` has been moved to
 `airflow.providers.google.cloud.log.stackdriver_task_handler`. This is because it has items specific to `google cloud`.

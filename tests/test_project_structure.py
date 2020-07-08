@@ -32,6 +32,7 @@ MISSING_TEST_FILES = {
     'tests/providers/apache/cassandra/sensors/test_record.py',
     'tests/providers/apache/cassandra/sensors/test_table.py',
     'tests/providers/apache/hdfs/sensors/test_web_hdfs.py',
+    'tests/providers/google/cloud/log/test_gcs_task_handler.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
     'tests/providers/google/cloud/transfers/test_sql_to_gcs.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
@@ -40,6 +41,7 @@ MISSING_TEST_FILES = {
     'tests/providers/google/cloud/utils/test_mlengine_prediction_summary.py',
     'tests/providers/jenkins/hooks/test_jenkins.py',
     'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py',
+    'tests/providers/microsoft/azure/log/test_wasb_task_handler.py',
     'tests/providers/microsoft/mssql/hooks/test_mssql.py',
     'tests/providers/samba/hooks/test_samba.py',
     'tests/providers/yandex/hooks/test_yandex.py'
