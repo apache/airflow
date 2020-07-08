@@ -45,7 +45,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     If variables prefix is ``airflow/variables/hello``, this would be accessible
     if you provide ``{"variables_prefix": "airflow/variables"}`` and request variable key ``hello``.
     And if config_prefix is ``airflow/config/sql_alchemy_conn``, this would be accessible
-    if you provide ``{"config_prefix": "airflow/config"}`` and request variable
+    if you provide ``{"config_prefix": "airflow/config"}`` and request config
     key ``sql_alchemy_conn``.
 
     You can also pass additional keyword arguments like ``aws_secret_access_key``, ``aws_access_key_id``
