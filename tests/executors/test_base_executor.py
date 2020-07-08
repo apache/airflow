@@ -21,7 +21,7 @@ from datetime import datetime
 from unittest import mock
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.taskinstance import TaskInstanceKeyType
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.state import State
 
 
@@ -31,9 +31,9 @@ class TestBaseExecutor(unittest.TestCase):
 
         date = datetime.utcnow()
         try_number = 1
-        key1 = TaskInstanceKeyType("my_dag1", "my_task1", date, try_number)
-        key2 = TaskInstanceKeyType("my_dag2", "my_task1", date, try_number)
-        key3 = TaskInstanceKeyType("my_dag2", "my_task2", date, try_number)
+        key1 = TaskInstanceKey("my_dag1", "my_task1", date, try_number)
+        key2 = TaskInstanceKey("my_dag2", "my_task1", date, try_number)
+        key3 = TaskInstanceKey("my_dag2", "my_task2", date, try_number)
         state = State.SUCCESS
         executor.event_buffer[key1] = state, None
         executor.event_buffer[key2] = state, None

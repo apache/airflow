@@ -126,7 +126,7 @@ def clear_task_instances(tis,
             dr.start_date = timezone.utcnow()
 
 
-class TaskInstanceKeyType(NamedTuple):
+class TaskInstanceKey(NamedTuple):
     """
     Key used to identify task instance.
     """
@@ -143,11 +143,11 @@ class TaskInstanceKeyType(NamedTuple):
         return self.dag_id, self.task_id, self.execution_date
 
     @property
-    def reduced(self) -> 'TaskInstanceKeyType':
+    def reduced(self) -> 'TaskInstanceKey':
         """
         Remake the key by subtracting 1 from try number to match in memory information
         """
-        return TaskInstanceKeyType(
+        return TaskInstanceKey(
             self.dag_id, self.task_id, self.execution_date, max(1, self.try_number - 1)
         )
 
@@ -558,11 +558,11 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.log.debug("XCom data cleared")
 
     @property
-    def key(self) -> TaskInstanceKeyType:
+    def key(self) -> TaskInstanceKey:
         """
         Returns a tuple that identifies the task instance uniquely
         """
-        return TaskInstanceKeyType(self.dag_id, self.task_id, self.execution_date, self.try_number)
+        return TaskInstanceKey(self.dag_id, self.task_id, self.execution_date, self.try_number)
 
     @provide_session
     def set_state(self, state, session=None, commit=True):
@@ -1726,13 +1726,13 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
     @staticmethod
     def filter_for_tis(
-        tis: Iterable[Union["TaskInstance", TaskInstanceKeyType]]
+        tis: Iterable[Union["TaskInstance", TaskInstanceKey]]
     ) -> Optional[BooleanClauseList]:
         """Returns SQLAlchemy filter to query selected task instances"""
         TI = TaskInstance
         if not tis:
             return None
-        if all(isinstance(t, TaskInstanceKeyType) for t in tis):
+        if all(isinstance(t, TaskInstanceKey) for t in tis):
             filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
                                     TI.task_id == ti.task_id,
                                     TI.execution_date == ti.execution_date)
@@ -1745,12 +1745,12 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                                for ti in tis])
             return or_(*filter_for_tis)
 
-        raise TypeError("All elements must have the same type: `TaskInstance` or `TaskInstanceKeyType`.")
+        raise TypeError("All elements must have the same type: `TaskInstance` or `TaskInstanceKey`.")
 
 
 # State of the task instance.
 # Stores string version of the task state.
-TaskInstanceStateType = Tuple[TaskInstanceKeyType, str]
+TaskInstanceStateType = Tuple[TaskInstanceKey, str]
 
 
 class SimpleTaskInstance:
@@ -1822,7 +1822,7 @@ class SimpleTaskInstance:
         return self._queue
 
     @property
-    def key(self) -> TaskInstanceKeyType:
+    def key(self) -> TaskInstanceKey:
         return self._key
 
     @property

@@ -42,7 +42,7 @@ from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagModel, SlaMiss, errors
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -675,7 +675,7 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def _process_task_instances(
         self, dag: DAG, dag_runs: List[DagRun], session=None
-    ) -> List[TaskInstanceKeyType]:
+    ) -> List[TaskInstanceKey]:
         """
         This method schedules the tasks for a single DAG by looking at the
         active DAG runs and adding task instances that should run to the
@@ -735,7 +735,7 @@ class DagFileProcessor(LoggingMixin):
         use_job_schedule = conf.getboolean('scheduler', 'USE_JOB_SCHEDULE')
 
         # pylint: disable=too-many-nested-blocks
-        tis_out: List[TaskInstanceKeyType] = []
+        tis_out: List[TaskInstanceKey] = []
         dag_ids = [dag.dag_id for dag in dags]
         dag_runs = DagRun.find(dag_id=dag_ids, state=State.RUNNING, session=session)
         # As per the docs of groupby (https://docs.python.org/3/library/itertools.html#itertools.groupby)
@@ -886,7 +886,7 @@ class DagFileProcessor(LoggingMixin):
     def _schedule_task_instances(
         self,
         dagbag: models.DagBag,
-        ti_keys_to_schedule: List[TaskInstanceKeyType],
+        ti_keys_to_schedule: List[TaskInstanceKey],
         session=None
     ) -> None:
         """
@@ -1488,7 +1488,7 @@ class SchedulerJob(BaseJob):
         """
         ti_primary_key_to_try_number_map = {}
         event_buffer = self.executor.get_event_buffer(simple_dag_bag.dag_ids)
-        tis_with_right_state: List[TaskInstanceKeyType] = []
+        tis_with_right_state: List[TaskInstanceKey] = []
 
         # Report execution
         for key, value in event_buffer.items():
@@ -1514,7 +1514,7 @@ class SchedulerJob(BaseJob):
         for ti in tis:
             key = ti.key
             try_number = ti_primary_key_to_try_number_map[key.primary]
-            buffer_key = TaskInstanceKeyType(key.dag_id, key.task_id, key.execution_date, try_number)
+            buffer_key = TaskInstanceKey(key.dag_id, key.task_id, key.execution_date, try_number)
             state, info = event_buffer.pop(buffer_key)
 
             # TODO: should we fail RUNNING as well, as we do in Backfills?

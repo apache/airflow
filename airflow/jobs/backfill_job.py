@@ -34,7 +34,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
 from airflow.utils import timezone
@@ -67,17 +67,17 @@ class BackfillJob(BaseJob):
         it easier to pass it around.
 
         :param to_run: Tasks to run in the backfill
-        :type to_run: dict[tuple[TaskInstanceKeyType], airflow.models.TaskInstance]
+        :type to_run: dict[tuple[TaskInstanceKey], airflow.models.TaskInstance]
         :param running: Maps running task instance key to task instance object
-        :type running: dict[tuple[TaskInstanceKeyType], airflow.models.TaskInstance]
+        :type running: dict[tuple[TaskInstanceKey], airflow.models.TaskInstance]
         :param skipped: Tasks that have been skipped
-        :type skipped: set[tuple[TaskInstanceKeyType]]
+        :type skipped: set[tuple[TaskInstanceKey]]
         :param succeeded: Tasks that have succeeded so far
-        :type succeeded: set[tuple[TaskInstanceKeyType]]
+        :type succeeded: set[tuple[TaskInstanceKey]]
         :param failed: Tasks that have failed
-        :type failed: set[tuple[TaskInstanceKeyType]]
+        :type failed: set[tuple[TaskInstanceKey]]
         :param not_ready: Tasks not ready for execution
-        :type not_ready: set[tuple[TaskInstanceKeyType]]
+        :type not_ready: set[tuple[TaskInstanceKey]]
         :param deadlocked: Deadlocked tasks
         :type deadlocked: set[airflow.models.TaskInstance]
         :param active_runs: Active dag runs at a certain point in time
@@ -637,7 +637,7 @@ class BackfillJob(BaseJob):
 
     @provide_session
     def _collect_errors(self, ti_status, session=None):
-        def tabulate_ti_keys_set(set_ti_keys: Set[TaskInstanceKeyType]) -> str:
+        def tabulate_ti_keys_set(set_ti_keys: Set[TaskInstanceKey]) -> str:
             # Sorting by execution date first
             sorted_ti_keys = sorted(
                 set_ti_keys, key=lambda ti_key:

@@ -39,7 +39,7 @@ from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.timeout import timeout
@@ -102,12 +102,12 @@ class ExceptionWithTraceback:
 
 
 # Task instance that is sent over Celery queues
-# TaskInstanceKeyType, SimpleTaskInstance, Command, queue_name, CallableTask
-TaskInstanceInCelery = Tuple[TaskInstanceKeyType, SimpleTaskInstance, CommandType, Optional[str], Task]
+# TaskInstanceKey, SimpleTaskInstance, Command, queue_name, CallableTask
+TaskInstanceInCelery = Tuple[TaskInstanceKey, SimpleTaskInstance, CommandType, Optional[str], Task]
 
 
 def send_task_to_executor(task_tuple: TaskInstanceInCelery) \
-        -> Tuple[TaskInstanceKeyType, CommandType, Union[AsyncResult, ExceptionWithTraceback]]:
+        -> Tuple[TaskInstanceKey, CommandType, Union[AsyncResult, ExceptionWithTraceback]]:
     """Sends task to executor."""
     key, _, command, queue, task_to_run = task_tuple
     try:
@@ -235,7 +235,7 @@ class CeleryExecutor(BaseExecutor):
             if state:
                 self.update_task_state(key, state, info)
 
-    def update_task_state(self, key: TaskInstanceKeyType, state: str, info: Any) -> None:
+    def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
         """Updates state of a single task."""
         # noinspection PyBroadException
         try:
@@ -265,7 +265,7 @@ class CeleryExecutor(BaseExecutor):
         self.sync()
 
     def execute_async(self,
-                      key: TaskInstanceKeyType,
+                      key: TaskInstanceKey,
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None):
