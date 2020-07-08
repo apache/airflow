@@ -120,7 +120,7 @@ class ClsCurveStorage(ClsEntity):
                 self._bucket, self.ObjectName, f, length=len(data))
 
         except Exception as err:
-            raise Exception(u"写入曲线 失败: {}".format(err))
+            raise Exception(u"写入曲线失败: {}".format(str(err)))
 
     def csv_data_to_dict(self, data):
         data_set = Dataset()

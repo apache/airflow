@@ -2753,7 +2753,7 @@ class TaskInstanceModelView(AirflowModelView):
 
     page_size = PAGE_SIZE
 
-    list_columns = ['state', 'dag_id', 'task_id', 'entity_id', 'execution_date', 'measure_result', 'result',
+    list_columns = ['state', 'dag_id', 'task_id', 'line_code', 'entity_id', 'execution_date', 'measure_result', 'result',
                     'final_state',
                     'start_date', 'end_date', 'duration', 'job_id',
                     'priority_weight', 'try_number',

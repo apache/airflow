@@ -102,27 +102,33 @@ class ClsResultStorage(ClsEntity):
         return p
 
     @staticmethod
-    def result_pkg_validator(data: Optional[Dict]) -> bool:
-        ret = False
+    def result_pkg_validator(data: Optional[Dict]):
         if not data:
-            return ret
+            raise Exception('empty result package data')
         result_body: Optional[Dict] = data.get('result', None)
         curveFile: str = data.get('curveFile', None)
-        if not curveFile or not result_body:
-            return False
-        return True
+        if curveFile and result_body:
+            return
+        msg = ''
+        if not curveFile:
+            msg += 'empty curve data;'
+        if not result_body:
+            msg += 'empty result data;'
+        raise Exception(msg)
 
     def write_result(self, data: Optional[Dict]):
-        if not self.result_pkg_validator(data):
-            return
-        entity_id = self.entity_id
-        if not entity_id:
-            raise Exception("entity id Is Required!")
-        result_body: Optional[Dict] = data.get('result')  # 之前验证过了 无需再验证有效性
-        self.ensure_connect()
-        result_body.update({"entity_id": entity_id})  # 将 entity id 也保存到数据库中
-        result = self.package_result_point(result_body)
-        return self._write(result)
+        try:
+            self.result_pkg_validator(data)
+            entity_id = self.entity_id
+            if not entity_id:
+                raise Exception("entity id Is Required!")
+            result_body: Optional[Dict] = data.get('result')  # 之前验证过了 无需再验证有效性
+            self.ensure_connect()
+            result_body.update({"entity_id": entity_id, })  # 将 entity id 也保存到数据库中
+            result = self.package_result_point(result_body)
+            return self._write(result)
+        except Exception as err:
+            raise Exception(u"写入结果失败: {}".format(str(err)))
 
     def query_result(self):
         self.ensure_connect()
