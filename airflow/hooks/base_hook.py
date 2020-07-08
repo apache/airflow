@@ -18,7 +18,7 @@
 """Base class for all hooks"""
 import logging
 import random
-from typing import List
+from typing import Any, List
 
 from airflow import secrets
 from airflow.models.connection import Connection
