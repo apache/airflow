@@ -243,7 +243,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     needs: [static-checks-1, static-checks-2, trigger-tests]
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.6, 3.7]
         postgres-version: [9.6, 10]
         test-type: [Core, Integration]
       fail-fast: false
@@ -275,7 +275,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     needs: [static-checks-1, static-checks-2, trigger-tests]
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.7, 3.8]
         mysql-version: [5.7]
         test-type: [Core, Integration]
       fail-fast: false
@@ -307,7 +307,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     needs: [static-checks-1, static-checks-2, trigger-tests]
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.6, 3.8]
         test-type: [Core, Integration]
       fail-fast: false
     env:
