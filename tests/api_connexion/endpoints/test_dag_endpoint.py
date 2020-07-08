@@ -92,7 +92,7 @@ class TestGetDag(TestDagEndpoint):
         }, current_response)
 
     def test_should_response_404(self):
-        response = self.client.get("/api/v1/dags/INVALID_DAG/")
+        response = self.client.get("/api/v1/dags/INVALID_DAG")
         assert response.status_code == 404
 
 
