@@ -14,13 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import json
 import logging
 
 from flask import Response, current_app, request
 from itsdangerous import BadSignature, URLSafeSerializer
 
 from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.schemas.dag_source_schema import dag_source_schema
 from airflow.models.dagcode import DagCode
 
 log = logging.getLogger(__name__)
@@ -42,6 +42,6 @@ def get_dag_source(file_token: str):
     if return_type == 'text/plain':
         return Response(dag_source, headers={'Content-Type': return_type})
     if return_type == 'application/json':
-        content = json.dumps(dict(content=dag_source))
-        return Response(content, headers={'Content-Type': return_type})
+        content = dag_source_schema.dumps(dict(content=dag_source))
+        return Response(content.data, headers={'Content-Type': return_type})
     return Response("Not Allowed Accept Header", status=406)
