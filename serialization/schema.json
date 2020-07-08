@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://airflow.apache.com/schemas/serialized-dags.json",
+  "definitions": {
+    "datetime": {
+      "description": "A date time, stored as fractional seconds since the epoch",
+      "type": "number"
+    },
+    "timedelta": {
+      "type": "number",
+      "minimum": 0
+    },
+    "typed_timedelta": {
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "timedelta"
+        },
+        "__var": { "$ref": "#/definitions/timedelta" }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
+    "typed_relativedelta": {
+      "type": "object",
+      "description": "A dateutil.relativedelta.relativedelta object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "relativedelta"
+        },
+        "__var": {
+          "type": "object",
+          "properties": {
+            "weekday": {
+              "type": "array",
+              "items": { "type": "integer" },
+              "minItems": 1,
+              "maxItems": 2
+            }
+          },
+          "additionalProperties": { "type": "integer" }
+        }
+      }
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "dict": {
+      "description": "A python dictionary containing values of any type",
+      "type": "object"
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[a-fA-F0-9]{3,6}$"
+    },
+    "extra_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "minProperties": 1,
+        "maxProperties": 1
+      }
+    },
+    "dag": {
+      "type": "object",
+      "properties": {
+        "params": { "$ref": "#/definitions/dict" },
+        "_dag_id": { "type": "string" },
+        "tasks": {  "$ref": "#/definitions/tasks" },
+        "timezone": { "$ref": "#/definitions/timezone" },
+        "schedule_interval": {
+          "anyOf": [
+            { "type": "null" },
+            { "type": "string" },
+            { "$ref": "#/definitions/typed_timedelta" },
+            { "$ref": "#/definitions/typed_relativedelta" }
+          ]
+        },
+        "catchup": { "type": "boolean" },
+        "is_subdag": { "type": "boolean" },
+        "fileloc": { "type" : "string"},
+        "orientation": { "type" : "string"},
+        "_description": { "type" : "string"},
+        "_concurrency": { "type" : "number"},
+        "max_active_runs": { "type" : "number"},
+        "default_args": { "$ref": "#/definitions/dict" },
+        "start_date": { "$ref": "#/definitions/datetime" },
+        "end_date": { "$ref": "#/definitions/datetime" },
+        "dagrun_timeout": { "$ref": "#/definitions/timedelta" },
+        "doc_md": { "type" : "string"},
+        "_default_view": { "type" : "string"},
+        "_access_control": {"$ref": "#/definitions/dict" },
+        "is_paused_upon_creation":  { "type": "boolean" },
+        "tags": { "type": "array" }
+      },
+      "required": [
+        "_dag_id",
+        "fileloc",
+        "tasks"
+      ],
+      "additionalProperties": false
+    },
+    "tasks": {
+      "type": "array",
+      "additionalProperties": { "$ref": "#/definitions/operator" }
+    },
+    "operator": {
+      "$comment": "A task/operator in a DAG",
+      "type": "object",
+      "required": [
+        "_task_type",
+        "_task_module",
+        "task_id",
+        "ui_color",
+        "ui_fgcolor",
+        "template_fields"
+      ],
+      "properties": {
+        "_task_type": { "type": "string" },
+        "_task_module": { "type": "string" },
+        "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
+        "task_id": { "type": "string" },
+        "owner": { "type": "string" },
+        "start_date": { "$ref": "#/definitions/datetime" },
+        "end_date": { "$ref": "#/definitions/datetime" },
+        "trigger_rule": { "type": "string" },
+        "depends_on_past": { "type": "boolean" },
+        "wait_for_downstream": { "type": "boolean" },
+        "retries": { "type": "number" },
+        "queue": { "type": "string" },
+        "pool": { "type": "string" },
+        "pool_slots": { "type": "number" },
+        "execution_timeout": { "$ref": "#/definitions/timedelta" },
+        "retry_delay": { "$ref": "#/definitions/timedelta" },
+        "retry_exponential_backoff": { "type": "boolean" },
+        "params": { "$ref": "#/definitions/dict" },
+        "priority_weight": { "type": "number" },
+        "weight_rule": { "type": "string" },
+        "executor_config": { "$ref": "#/definitions/dict" },
+        "do_xcom_push": { "type": "boolean" },
+        "ui_color": { "$ref": "#/definitions/color" },
+        "ui_fgcolor": { "$ref": "#/definitions/color" },
+        "template_fields": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "subdag": { "$ref": "#/definitions/dag" },
+        "_downstream_task_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+
+  "type": "object",
+  "allOf": [
+    {
+      "type": "object",
+      "properties": {
+        "__version": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "dag": { "$ref": "#/definitions/dag" }
+      },
+      "additionalProperties": false,
+      "required": [ "__version", "dag" ]
+    }
+  ]
+}
