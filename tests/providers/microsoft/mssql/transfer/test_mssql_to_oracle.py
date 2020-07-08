@@ -56,7 +56,7 @@ class TestMsSqlToOracle(unittest.TestCase):
             source_sql_params=source_sql_params,
             rows_chunk=rows_chunk)
 
-        op._execute(mock_src_hook, mock_dest_hook, None)
+        op._execute(mock_src_hook, mock_dest_hook)
 
         assert mock_src_hook.get_conn.called
         assert mock_src_conn.cursor.called
