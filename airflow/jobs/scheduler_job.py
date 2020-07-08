@@ -1491,18 +1491,18 @@ class SchedulerJob(BaseJob):
         tis_with_right_state: List[TaskInstanceKey] = []
 
         # Report execution
-        for key, value in event_buffer.items():
+        for ti_key, value in event_buffer.items():
             state, info = value
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
-            ti_primary_key_to_try_number_map[key.primary] = key.try_number
+            ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
             self.log.info(
                 "Executor reports execution of %s.%s execution_date=%s "
                 "exited with status %s for try_number %s",
-                key.dag_id, key.task_id, key.execution_date, state, key.try_number
+                ti_key.dag_id, ti_key.task_id, ti_key.execution_date, state, ti_key.try_number
             )
             if state in (State.FAILED, State.SUCCESS):
-                tis_with_right_state.append(key)
+                tis_with_right_state.append(ti_key)
 
         # Return if no finished tasks
         if not tis_with_right_state:
@@ -1512,9 +1512,9 @@ class SchedulerJob(BaseJob):
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         tis = session.query(TI).filter(filter_for_tis).all()
         for ti in tis:
-            key = ti.key
-            try_number = ti_primary_key_to_try_number_map[key.primary]
-            buffer_key = TaskInstanceKey(key.dag_id, key.task_id, key.execution_date, try_number)
+            ti_key: TaskInstanceKey = ti.key
+            try_number = ti_primary_key_to_try_number_map[ti_key.primary]
+            buffer_key = ti_key.with_try_number(try_number)
             state, info = event_buffer.pop(buffer_key)
 
             # TODO: should we fail RUNNING as well, as we do in Backfills?

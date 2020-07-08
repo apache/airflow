@@ -230,9 +230,9 @@ class BaseExecutor(LoggingMixin):
             cleared_events = self.event_buffer
             self.event_buffer = {}
         else:
-            for key in list(self.event_buffer.keys()):
-                if key.dag_id in dag_ids:
-                    cleared_events[key] = self.event_buffer.pop(key)
+            for ti_key in list(self.event_buffer.keys()):
+                if ti_key.dag_id in dag_ids:
+                    cleared_events[ti_key] = self.event_buffer.pop(ti_key)
 
         return cleared_events
 

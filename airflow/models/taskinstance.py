@@ -151,6 +151,14 @@ class TaskInstanceKey(NamedTuple):
             self.dag_id, self.task_id, self.execution_date, max(1, self.try_number - 1)
         )
 
+    def with_try_number(self, try_number: int) -> 'TaskInstanceKey':
+        """
+        Returns TaskInstanceKey with provided ``try_number``
+        """
+        return TaskInstanceKey(
+            self.dag_id, self.task_id, self.execution_date, try_number
+        )
+
 
 class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
     """
@@ -1733,10 +1741,10 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         if not tis:
             return None
         if all(isinstance(t, TaskInstanceKey) for t in tis):
-            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
-                                    TI.task_id == ti.task_id,
-                                    TI.execution_date == ti.execution_date)
-                               for ti in tis])
+            filter_for_tis = ([and_(TI.dag_id == tik.dag_id,
+                                    TI.task_id == tik.task_id,
+                                    TI.execution_date == tik.execution_date)
+                               for tik in tis])
             return or_(*filter_for_tis)
         if all(isinstance(t, TaskInstance) for t in tis):
             filter_for_tis = ([and_(TI.dag_id == ti.dag_id,  # type: ignore
