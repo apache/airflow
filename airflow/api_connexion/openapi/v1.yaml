@@ -1054,17 +1054,17 @@ paths:
 
   /health:
     get:
-      summary: Checks if the API works
+      summary: Returns the status of Airflow's metadatabase and scheduler.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
       tags: [Monitoring]
       responses:
         '200':
-          description: It should always return "OK"
+          description: Returns info about metadatabase and last heart beat.
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/HealthInfo'
 
   /version:
     get:
@@ -1214,18 +1214,18 @@ components:
           format: date-time
           description: >
             The start time. The time when DAG Run was actually created..
-          readOnly: True
+          readOnly: true
         end_date:
           type: string
           format: date-time
-          readOnly: True
+          readOnly: true
           nullable: true
         state:
           $ref: '#/components/schemas/DagState'
         external_trigger:
           type: boolean
           default: true
-          readOnly: True
+          readOnly: true
         conf:
           type: object
           description: >
@@ -1281,6 +1281,14 @@ components:
           items:
             $ref: '#/components/schemas/EventLog'
 
+    HealthInfo:
+      type: object
+      properties:
+        metadatabase:
+          $ref: '#/components/schemas/MetadatabaseStatus'
+        scheduler:
+          $ref: '#/components/schemas/SchedulerStatus'
+
     ImportError:
       type: object
       properties:
@@ -1305,6 +1313,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ImportError'
+
+    MetadatabaseStatus:
+      type: object
+      description: Returns the status of the metadatabase
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
 
     Pool:
       type: object
@@ -1333,6 +1348,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Pool'
+
+    SchedulerStatus:
+      type: object
+      description: Returns the status and the latest scheduler heartbeat
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_scheduler_heartbeat:
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
 
     SLAMiss:
       type: object
@@ -2071,6 +2098,12 @@ components:
         - downstream
         - upstream
         - absolute
+
+    HealthStatus:
+      type: string
+      enum:
+        - healthy
+        - unhealthy
 
   # Reusable path, query, header and cookie parameters
   parameters:
