@@ -260,3 +260,34 @@ class TestVaultSecrets(TestCase):
 
         with self.assertRaisesRegex(FileNotFoundError, path):
             VaultBackend(**kwargs).get_connections(conn_id='test')
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_config_value(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            'request_id': '2d48a2ad-6bcb-e5b6-429d-da35fdf31f56',
+            'lease_id': '',
+            'renewable': False,
+            'lease_duration': 0,
+            'data': {'data': {'value': 'sqlite:////Users/airflow/airflow/airflow.db'},
+                     'metadata': {'created_time': '2020-03-28T02:10:54.301784Z',
+                                  'deletion_time': '',
+                                  'destroyed': False,
+                                  'version': 1}},
+            'wrap_info': None,
+            'warnings': None,
+            'auth': None
+        }
+
+        kwargs = {
+            "configs_path": "configurations",
+            "mount_point": "secret",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.FnL7qg0YnHZDpf4zKKuFy0UK"
+        }
+
+        test_client = VaultBackend(**kwargs)
+        returned_uri = test_client.get_config("sql_alchemy_conn")
+        self.assertEqual('sqlite:////Users/airflow/airflow/airflow.db', returned_uri)
