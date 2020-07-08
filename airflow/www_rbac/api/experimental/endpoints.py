@@ -43,8 +43,8 @@ from flask import g, Blueprint, jsonify, request, url_for
 from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
 import airflow.entities as entities
-import os
 import json
+from airflow.api.common.experimental.mark_tasks import modify_task_instance
 
 _log = LoggingMixin().log
 
@@ -52,15 +52,12 @@ requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
 
-PUSH_TRAINING_NOK = os.environ.get('PUSH_TRAINING_NOK', 'False')
-
 
 @csrf.exempt
 @api_experimental.route('/taskinstance/analysis_result', methods=['PUT'])
 @requires_authentication
 def put_anaylysis_result():
     try:
-        TiModel = models.TaskInstance
         data = request.get_json(force=True)
         dag_id = data.get('dag_id')
         task_id = data.get('task_id')
@@ -71,24 +68,8 @@ def put_anaylysis_result():
         curve_mode = int(data.get('result'))  # OK, NOK
         verify_error = int(data.get('verify_error'))  # OK, NOK
         rresult = 'OK' if curve_mode is 0 else 'NOK'
-        with create_session() as session:
-            ti = session.query(TiModel).filter(
-                TiModel.entity_id == real_task_id).first()
-            if not ti:
-                ti = session.query(TiModel).filter(
-                    TiModel.dag_id == dag_id,
-                    TiModel.task_id == task_id,
-                    TiModel.execution_date == execution_date).first()
-            if not ti:
-                response = jsonify(
-                    {'url': None,
-                     'error': "can't find dag {dag} or task_id {task_id}".format(
-                         dag=dag_id,
-                         task_id=task_id
-                     )}
-                )
-                response.status_code = 404
-                return response
+
+        def modifier(ti):
             ti.result = rresult
             ti.measure_result = measure_result
             ti.entity_id = entity_id
@@ -96,21 +77,22 @@ def put_anaylysis_result():
             if curve_mode is not 0:
                 ti.error_tag = json.dumps([curve_mode])
             ti.verify_error = verify_error
-            session.commit()
-        if PUSH_TRAINING_NOK == 'True' and rresult == 'NOK':
-            training_result = {
-                'result': rresult,
-                'entity_id': entity_id,
-                'execution_date': execution_date,
-                'task_id': task_id,
-                'dag_id': dag_id
-            }
-            entities.result_hook(training_result)
+
+        date = timezone.parse(execution_date)
+        modify_task_instance(dag_id, task_id, execution_date=date, modifier=modifier)
+        training_result = {
+            'result': rresult,
+            'entity_id': entity_id,
+            'execution_date': execution_date,
+            'task_id': task_id,
+            'dag_id': dag_id,
+        }
+        entities.result_hook(training_result)
         resp = jsonify({'response': 'ok'})
         resp.status_code = 200
         return resp
     except Exception as e:
-        resp = jsonify({'error': str(e)})
+        resp = jsonify({'error': repr(e)})
         resp.status_code = 500
         return resp
 
@@ -315,10 +297,11 @@ def updateConfirmData(task_data, verify_error, curve_mode):
 def docasInvaild(task_instance, final_state):
     """二次确认结果不同"""
     entity_id = task_instance.entity_id
+    factory_code = task_instance.factory_code
     cas_base_url = get_cas_base_url()
     url = "{}/cas/invalid-curve".format(cas_base_url)
     result = get_result(entity_id)
-    curve = get_curve(entity_id)
+    curve = get_curve(entity_id, factory_code)
     task_data = get_task_params(task_instance, entity_id)
     curve_mode = get_curve_mode(final_state, task_instance.error_tag)
     task_param = updateConfirmData(task_data,
