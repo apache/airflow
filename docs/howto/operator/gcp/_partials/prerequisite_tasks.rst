@@ -19,15 +19,15 @@
 
 To use these operators, you must do a few things:
 
-  * Select or create a Cloud Platform project using `Cloud Console <https://console.cloud.google.com/project>`__.
-  * Enable billing for your project, as described in `Google Cloud documentation <https://cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project>`__.
-  * Enable API, as described in `Cloud Console documentation <https://cloud.google.com/apis/docs/enable-disable-apis>`__.
+  * Select or create a Cloud Platform project using the `Cloud Console <https://console.cloud.google.com/project>`__.
+  * Enable billing for your project, as described in the `Google Cloud documentation <https://cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project>`__.
+  * Enable the API, as described in the `Cloud Console documentation <https://cloud.google.com/apis/docs/enable-disable-apis>`__.
   * Install API libraries via **pip**.
 
     .. code-block:: bash
 
       pip install 'apache-airflow[google]'
 
-    Detailed information is available :doc:`../../../../installation`
+    Detailed information is available for :doc:`../../../../installation`.
 
-  * :doc:`Setup Connection <../../connection/gcp>`.
+  * :doc:`Setup a GCP Connection <../../connection/gcp>`.
