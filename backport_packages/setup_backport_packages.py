@@ -44,7 +44,7 @@ PROVIDERS_PATH = os.path.join(AIRFLOW_PATH, "providers")
 sys.path.insert(0, SOURCE_DIR_PATH)
 
 # those imports need to come after the above sys.path.insert to make sure that Airflow
-# sources are importable witout having to add the airflow sources to the PYTHONPATH before
+# sources are importable without having to add the airflow sources to the PYTHONPATH before
 # running the script
 import tests.deprecated_classes  # noqa # isort:skip
 from backport_packages.import_all_provider_classes import import_all_provider_classes  # noqa # isort:skip
