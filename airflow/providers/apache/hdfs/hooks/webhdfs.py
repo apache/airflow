@@ -92,7 +92,7 @@ class WebHDFSHook(BaseHook):
                                connection.host, hdfs_error)
         return None
 
-    def _get_client(self, connection: Connection) -> Union[KerberosClient, InsecureClient]:
+    def _get_client(self, connection: Connection) -> Any:
         connection_str = 'http://{host}:{port}'.format(host=connection.host, port=connection.port)
 
         if _kerberos_security_mode:
