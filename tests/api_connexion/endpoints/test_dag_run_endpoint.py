@@ -381,7 +381,8 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
         response = self.client.get(url)
         assert response.status_code == 200
         assert response.json["total_entries"] == 2
-        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
+        dag_run_ids = [
+            dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
         assert dag_run_ids == expected_dag_run_ids
 
 
@@ -593,18 +594,6 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
         assert response.json["total_entries"] == 2
         dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
         assert dag_run_ids == expected_dag_run_ids
-
-
-class TestPatchDagRun(TestDagRunEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.patch("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID")
-        assert response.status_code == 200
-        self.assertEqual(response.json["total_entries"], 2)
-        dag_run_ids = [
-            dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run
-        ]
-        self.assertEqual(dag_run_ids, expected_dag_run_ids)
 
 
 class TestPostDagRun(TestDagRunEndpoint):
