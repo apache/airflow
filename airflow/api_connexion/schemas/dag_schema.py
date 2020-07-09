@@ -89,4 +89,5 @@ class DAGCollectionSchema(Schema):
 
 dags_collection_schema = DAGCollectionSchema()
 dag_schema = DAGSchema()
+
 dag_detail_schema = DAGDetailSchema()

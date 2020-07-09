@@ -19,11 +19,13 @@ import unittest
 from datetime import datetime
 
 import pytest
+from parameterized import parameterized
 
 from airflow import DAG
-from airflow.models import DagBag
+from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.session import provide_session
 from airflow.www import app
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -58,12 +60,40 @@ class TestDagEndpoint(unittest.TestCase):
     def tearDown(self) -> None:
         self.clean_db()
 
+    @provide_session
+    def _create_dag_models(self, count, session=None):
+        for num in range(1, count + 1):
+            dag_model = DagModel(
+                dag_id=f"TEST_DAG_{num}",
+                fileloc=f"/tmp/dag_{num}.py",
+                schedule_interval="2 2 * * *"
+            )
+            session.add(dag_model)
+
 
 class TestGetDag(TestDagEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
     def test_should_response_200(self):
-        response = self.client.get("/api/v1/dags/1/")
+        self._create_dag_models(1)
+        response = self.client.get("/api/v1/dags/TEST_DAG_1")
         assert response.status_code == 200
+
+        current_response = response.json
+        current_response["fileloc"] = "/tmp/test-dag.py"
+        self.assertEqual({
+            'dag_id': 'TEST_DAG_1',
+            'description': None,
+            'fileloc': '/tmp/test-dag.py',
+            'is_paused': False,
+            'is_subdag': False,
+            'owners': [],
+            'root_dag_id': None,
+            'schedule_interval': {'__type': 'CronExpression', 'value': '2 2 * * *'},
+            'tags': []
+        }, current_response)
+
+    def test_should_response_404(self):
+        response = self.client.get("/api/v1/dags/INVALID_DAG")
+        assert response.status_code == 404
 
 
 class TestGetDagDetails(TestDagEndpoint):
@@ -133,10 +163,100 @@ class TestGetDagDetails(TestDagEndpoint):
 
 
 class TestGetDags(TestDagEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
+
     def test_should_response_200(self):
-        response = self.client.get("/api/v1/dags/1")
+        self._create_dag_models(2)
+
+        response = self.client.get("api/v1/dags")
+
         assert response.status_code == 200
+
+        self.assertEqual(
+            {
+                "dags": [
+                    {
+                        "dag_id": "TEST_DAG_1",
+                        "description": None,
+                        "fileloc": "/tmp/dag_1.py",
+                        "is_paused": False,
+                        "is_subdag": False,
+                        "owners": [],
+                        "root_dag_id": None,
+                        "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+                        "tags": [],
+                    },
+                    {
+                        "dag_id": "TEST_DAG_2",
+                        "description": None,
+                        "fileloc": "/tmp/dag_2.py",
+                        "is_paused": False,
+                        "is_subdag": False,
+                        "owners": [],
+                        "root_dag_id": None,
+                        "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+                        "tags": [],
+                    },
+                ],
+                "total_entries": 2,
+            },
+            response.json,
+        )
+
+    @parameterized.expand(
+        [
+            ("api/v1/dags?limit=1", ["TEST_DAG_1"]),
+            ("api/v1/dags?limit=2", ["TEST_DAG_1", "TEST_DAG_10"]),
+            (
+                "api/v1/dags?offset=5",
+                [
+                    "TEST_DAG_5",
+                    "TEST_DAG_6",
+                    "TEST_DAG_7",
+                    "TEST_DAG_8",
+                    "TEST_DAG_9",
+                ],
+            ),
+            (
+                "api/v1/dags?offset=0",
+                [
+                    "TEST_DAG_1",
+                    "TEST_DAG_10",
+                    "TEST_DAG_2",
+                    "TEST_DAG_3",
+                    "TEST_DAG_4",
+                    "TEST_DAG_5",
+                    "TEST_DAG_6",
+                    "TEST_DAG_7",
+                    "TEST_DAG_8",
+                    "TEST_DAG_9",
+                ],
+            ),
+            ("api/v1/dags?limit=1&offset=5", ["TEST_DAG_5"]),
+            ("api/v1/dags?limit=1&offset=1", ["TEST_DAG_10"]),
+            ("api/v1/dags?limit=2&offset=2", ["TEST_DAG_2", "TEST_DAG_3"]),
+        ]
+    )
+    def test_should_response_200_and_handle_pagination(self, url, expected_dag_ids):
+        self._create_dag_models(10)
+
+        response = self.client.get(url)
+
+        assert response.status_code == 200
+
+        dag_ids = [dag["dag_id"] for dag in response.json['dags']]
+
+        self.assertEqual(expected_dag_ids, dag_ids)
+        self.assertEqual(10, response.json['total_entries'])
+
+    def test_should_response_200_default_limit(self):
+        self._create_dag_models(101)
+
+        response = self.client.get("api/v1/dags")
+
+        assert response.status_code == 200
+
+        self.assertEqual(100, len(response.json['dags']))
+        self.assertEqual(101, response.json['total_entries'])
 
 
 class TestPatchDag(TestDagEndpoint):
