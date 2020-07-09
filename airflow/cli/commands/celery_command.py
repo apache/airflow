@@ -115,7 +115,7 @@ def worker(args):
 
     if hasattr(celery_app.backend, 'ResultSession'):
         # Pre-create the database tables now, otherwise SQLA via Celery has a
-        # race condition where it one of the subprocesses can die with "Table
+        # race condition where one of the subprocesses can die with "Table
         # already exists" error, because SQLA checks for which tables exist,
         # then issues a CREATE TABLE, rather than doing CREATE TABLE IF NOT
         # EXISTS
