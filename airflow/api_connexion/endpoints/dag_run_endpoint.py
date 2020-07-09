@@ -133,7 +133,7 @@ def get_dag_runs_batch(session):
     """
     body = request.get_json()
     try:
-        data = dagruns_batch_form_schema.load(body).data
+        data = dagruns_batch_form_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=err.messages)
 
