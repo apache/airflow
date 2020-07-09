@@ -135,7 +135,7 @@ def get_dag_runs_batch(session):
     try:
         data = dagruns_batch_form_schema.load(body)
     except ValidationError as err:
-        raise BadRequest(detail=err.messages)
+        raise BadRequest(detail=str(err.messages))
 
     query = session.query(DagRun)
 
