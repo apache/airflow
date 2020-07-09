@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for HDFS operations"""
-from typing import Optional, Union
+from typing import Any, Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -63,7 +63,7 @@ class HDFSHook(BaseHook):
         self.proxy_user = proxy_user
         self.autoconfig = autoconfig
 
-    def get_conn(self) -> Union[AutoConfigClient, Client, HAClient]:
+    def get_conn(self) -> Any:
         """
         Returns a snakebite HDFSClient object.
         """
