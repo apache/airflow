@@ -168,7 +168,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         raise NotImplementedError()
 
     def get_pandas_df(
-        self, sql: str, parameters: Optional[Union[Iterable, Mapping]] = None, dialect: Optional[str] = None
+        self, sql: str, parameters: Optional[Union[Iterable, Mapping]] = None, dialect: Optional[str] = None,
+        **kwargs
     ) -> DataFrame:
         """
         Returns a Pandas DataFrame for the results produced by a BigQuery
@@ -196,7 +197,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                         project_id=project_id,
                         dialect=dialect,
                         verbose=False,
-                        credentials=credentials)
+                        credentials=credentials,
+                        **kwargs)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:
