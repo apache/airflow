@@ -121,7 +121,6 @@ class TestPluginsManager(unittest.TestCase):
             self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
             self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
 
-    @mock_plugin_manager(plugins=[])
     def test_should_warning_about_incompatible_plugins(self):
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
