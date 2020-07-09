@@ -161,7 +161,7 @@ class AzureContainerInstanceHook(BaseHook):
         :return: A list of log messages
         :rtype: list[str]
         """
-        logs = self.connection.container.list_logs(resource_group, name, name, tail=tail)
+        logs = self.connection.containers.list_logs(resource_group, name, name, tail=tail)
         return logs.content.splitlines(True)
 
     def delete(self, resource_group, name):
