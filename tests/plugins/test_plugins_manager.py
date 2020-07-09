@@ -21,6 +21,7 @@ from unittest import mock
 from airflow.hooks.base_hook import BaseHook
 from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
+from tests.test_utils.mock_plugins import mock_plugin_manager
 
 
 class TestPluginsRBAC(unittest.TestCase):
@@ -94,59 +95,52 @@ class TestPluginsRBAC(unittest.TestCase):
 
 
 class TestPluginsManager(unittest.TestCase):
-    class AirflowTestPropertyPlugin(AirflowPlugin):
-        name = "test_property_plugin"
+    def test_should_load_plugins_from_property(self):
+        class AirflowTestPropertyPlugin(AirflowPlugin):
+            name = "test_property_plugin"
 
-        @property
-        def operators(self):
-            from airflow.models.baseoperator import BaseOperator
+            @property
+            def operators(self):
+                from airflow.models.baseoperator import BaseOperator
 
-            class PluginPropertyOperator(BaseOperator):
+                class PluginPropertyOperator(BaseOperator):
+                    pass
+
+                return [PluginPropertyOperator]
+
+            class TestNonPropertyHook(BaseHook):
                 pass
 
-            return [PluginPropertyOperator]
+            hooks = [TestNonPropertyHook]
 
-        class TestNonPropertyHook(BaseHook):
-            pass
+        with mock_plugin_manager(plugins=[AirflowTestPropertyPlugin()]):
+            from airflow import plugins_manager
+            plugins_manager.integrate_dag_plugins()
 
-        hooks = [TestNonPropertyHook]
+            self.assertIn('AirflowTestPropertyPlugin', str(plugins_manager.plugins))
+            self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
+            self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
 
-    @mock.patch('airflow.plugins_manager.plugins', [AirflowTestPropertyPlugin()])
-    @mock.patch('airflow.plugins_manager.operators_modules', None)
-    @mock.patch('airflow.plugins_manager.sensors_modules', None)
-    @mock.patch('airflow.plugins_manager.hooks_modules', None)
-    @mock.patch('airflow.plugins_manager.macros_modules', None)
-    def test_should_load_plugins_from_property(self):
-        from airflow import plugins_manager
-        plugins_manager.integrate_dag_plugins()
-        self.assertIn('TestPluginsManager.AirflowTestPropertyPlugin', str(plugins_manager.plugins))
-        self.assertIn('PluginPropertyOperator', str(plugins_manager.operators_modules[0].__dict__))
-        self.assertIn("TestNonPropertyHook", str(plugins_manager.hooks_modules[0].__dict__))
-
-    @mock.patch('airflow.plugins_manager.plugins', [])
-    @mock.patch('airflow.plugins_manager.admin_views', None)
-    @mock.patch('airflow.plugins_manager.flask_blueprints', None)
-    @mock.patch('airflow.plugins_manager.menu_links', None)
-    @mock.patch('airflow.plugins_manager.flask_appbuilder_views', None)
-    @mock.patch('airflow.plugins_manager.flask_appbuilder_menu_links', None)
     def test_should_warning_about_incompatible_plugins(self):
-        class AirflowDeprecatedAdminViewsPlugin(AirflowPlugin):
+        class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
             admin_views = [mock.MagicMock()]
 
-        class AirflowDeprecatedAdminMenuLinksPlugin(AirflowPlugin):
+        class AirflowAdminMenuLinksPlugin(AirflowPlugin):
             name = "test_menu_links_plugin"
 
             menu_links = [mock.MagicMock()]
 
-        from airflow import plugins_manager
-        plugins_manager.plugins = [
-            AirflowDeprecatedAdminViewsPlugin(),
-            AirflowDeprecatedAdminMenuLinksPlugin()
-        ]
-        with self.assertLogs(plugins_manager.log) as cm:
-            plugins_manager.initialize_web_ui_plugins()
+        with mock_plugin_manager(plugins=[
+            AirflowAdminViewsPlugin(),
+            AirflowAdminMenuLinksPlugin()
+        ]):
+            from airflow import plugins_manager
+
+            # assert not logs
+            with self.assertLogs(plugins_manager.log) as cm:
+                plugins_manager.initialize_web_ui_plugins()
 
         self.assertEqual(cm.output, [
             'WARNING:airflow.plugins_manager:Plugin \'test_admin_views_plugin\' may not be '
@@ -156,3 +150,47 @@ class TestPluginsManager(unittest.TestCase):
             'compatible with the current Airflow version. Please contact the author of '
             'the plugin.'
         ])
+
+    def test_should_not_warning_about_fab_plugins(self):
+        class AirflowAdminViewsPlugin(AirflowPlugin):
+            name = "test_admin_views_plugin"
+
+            appbuilder_views = [mock.MagicMock()]
+
+        class AirflowAdminMenuLinksPlugin(AirflowPlugin):
+            name = "test_menu_links_plugin"
+
+            appbuilder_menu_items = [mock.MagicMock()]
+
+        with mock_plugin_manager(plugins=[
+            AirflowAdminViewsPlugin(),
+            AirflowAdminMenuLinksPlugin()
+        ]):
+            from airflow import plugins_manager
+
+            # assert not logs
+            with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
+                plugins_manager.initialize_web_ui_plugins()
+
+    def test_should_not_warning_about_fab_and_flask_admin_plugins(self):
+        class AirflowAdminViewsPlugin(AirflowPlugin):
+            name = "test_admin_views_plugin"
+
+            admin_views = [mock.MagicMock()]
+            appbuilder_views = [mock.MagicMock()]
+
+        class AirflowAdminMenuLinksPlugin(AirflowPlugin):
+            name = "test_menu_links_plugin"
+
+            menu_links = [mock.MagicMock()]
+            appbuilder_menu_items = [mock.MagicMock()]
+
+        with mock_plugin_manager(plugins=[
+            AirflowAdminViewsPlugin(),
+            AirflowAdminMenuLinksPlugin()
+        ]):
+            from airflow import plugins_manager
+
+            # assert not logs
+            with self.assertRaises(AssertionError), self.assertLogs(plugins_manager.log):
+                plugins_manager.initialize_web_ui_plugins()
