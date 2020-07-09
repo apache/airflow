@@ -36,7 +36,7 @@ class CronExpression(typing.NamedTuple):
 class TimeDeltaSchema(Schema):
     """Time delta schema"""
 
-    objectType = fields.Constant("TimeDelta", dump_to="__type")
+    objectType = fields.Constant("TimeDelta", data_key="__type")
     days = fields.Integer()
     seconds = fields.Integer()
     microseconds = fields.Integer()
@@ -53,7 +53,7 @@ class TimeDeltaSchema(Schema):
 class RelativeDeltaSchema(Schema):
     """Relative delta schema"""
 
-    objectType = fields.Constant("RelativeDelta", dump_to="__type")
+    objectType = fields.Constant("RelativeDelta", data_key="__type")
     years = fields.Integer()
     months = fields.Integer()
     days = fields.Integer()
@@ -83,7 +83,7 @@ class RelativeDeltaSchema(Schema):
 class CronExpressionSchema(Schema):
     """Cron expression schema"""
 
-    objectType = fields.Constant("CronExpression", dump_to="__type", required=True)
+    objectType = fields.Constant("CronExpression", data_key="__type", required=True)
     value = fields.String(required=True)
 
     @marshmallow.post_load

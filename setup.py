@@ -194,7 +194,7 @@ azure = [
     'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
     'azure-kusto-data>=0.0.43,<0.1',
-    'azure-mgmt-containerinstance>=1.5.0',
+    'azure-mgmt-containerinstance>=1.5.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
     'azure-storage>=0.34.0, <0.37.0',
@@ -215,7 +215,8 @@ cloudant = [
     'cloudant>=2.0',
 ]
 dask = [
-    'distributed>=2.11.1, <3',
+    'cloudpickle>=1.4.1, <1.5.0',
+    'distributed>=2.11.1, <2.20'
 ]
 databricks = [
     'requests>=2.20.0, <3',
@@ -588,7 +589,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'jdbc': jdbc,
     'jira': jira,
     'kerberos': kerberos,
-    'kubernetes': kubernetes,   # TODO: remove this in Airflow 2.1
+    'kubernetes': kubernetes,  # TODO: remove this in Airflow 2.1
     'ldap': ldap,
     "microsoft.azure": azure,
     "microsoft.mssql": mssql,
@@ -694,7 +695,7 @@ INSTALL_REQUIREMENTS = [
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
     'flask>=1.1.0, <2.0',
-    'flask-appbuilder~=2.3.4',
+    'flask-appbuilder>2.3.4,~=3.0',
     'flask-caching>=1.3.3, <1.4.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
@@ -710,7 +711,7 @@ INSTALL_REQUIREMENTS = [
     'lockfile>=0.12.2',
     'markdown>=2.5.2, <3.0',
     'markupsafe>=1.1.1, <2.0',
-    'marshmallow-oneofschema<2',
+    'marshmallow-oneofschema>=2.0.1',
     'pandas>=0.17.1, <2.0',
     'pendulum~=2.0',
     'pep562~=1.0;python_version<"3.7"',

@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from typing import List, Optional
 
 import hvac
@@ -268,8 +267,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
     def _auth_gcp(self, _client: hvac.Client) -> None:
         # noinspection PyProtectedMember
         from airflow.providers.google.cloud.utils.credentials_provider import (
-            get_credentials_and_project_id,
-            _get_scopes
+            _get_scopes, get_credentials_and_project_id,
         )
         scopes = _get_scopes(self.gcp_scopes)
         credentials, _ = get_credentials_and_project_id(key_path=self.gcp_key_path,

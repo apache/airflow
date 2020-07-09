@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import logging
 import unittest
 
@@ -24,9 +23,10 @@ import mock
 from airflow.exceptions import AirflowException
 
 try:
-    from airflow.providers.docker.operators.docker import DockerOperator
-    from airflow.providers.docker.hooks.docker import DockerHook
     from docker import APIClient
+
+    from airflow.providers.docker.hooks.docker import DockerHook
+    from airflow.providers.docker.operators.docker import DockerOperator
 except ImportError:
     pass
 

@@ -44,7 +44,7 @@ class TestErrorSchema(TestErrorSchemaBase):
         )
         session.add(import_error)
         session.commit()
-        serialized_data = import_error_schema.dump(import_error).data
+        serialized_data = import_error_schema.dump(import_error)
         serialized_data["import_error_id"] = 1
         self.assertEqual(
             {
@@ -76,14 +76,12 @@ class TestErrorCollectionSchema(TestErrorSchemaBase):
         session.commit()
         query = session.query(ImportError)
         query_list = query.all()
-        serialized_data = (
-            import_error_collection_schema.dump(
-                ImportErrorCollection(import_errors=query_list, total_entries=2)
-            ).data,
+        serialized_data = import_error_collection_schema.dump(
+            ImportErrorCollection(import_errors=query_list, total_entries=2)
         )
         # To maintain consistency in the key sequence accross the db in tests
-        serialized_data[0]["import_errors"][0]["import_error_id"] = 1
-        serialized_data[0]["import_errors"][1]["import_error_id"] = 2
+        serialized_data["import_errors"][0]["import_error_id"] = 1
+        serialized_data["import_errors"][1]["import_error_id"] = 2
         self.assertEqual(
             {
                 "import_errors": [
@@ -102,5 +100,5 @@ class TestErrorCollectionSchema(TestErrorSchemaBase):
                 ],
                 "total_entries": 2,
             },
-            serialized_data[0],
+            serialized_data,
         )

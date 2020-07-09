@@ -41,7 +41,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_jobs, clear_db_runs
 from tests.test_utils.mock_executor import MockExecutor
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -50,10 +50,15 @@ TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 
 class TestLocalTaskJob(unittest.TestCase):
     def setUp(self):
+        clear_db_jobs()
         clear_db_runs()
         patcher = patch('airflow.jobs.base_job.sleep')
         self.addCleanup(patcher.stop)
         self.mock_base_job_sleep = patcher.start()
+
+    def tearDown(self) -> None:
+        clear_db_jobs()
+        clear_db_runs()
 
     def test_localtaskjob_essential_attr(self):
         """
@@ -414,6 +419,7 @@ class TestLocalTaskJob(unittest.TestCase):
 @pytest.fixture()
 def clean_db_helper():
     yield
+    clear_db_jobs()
     clear_db_runs()
 
 

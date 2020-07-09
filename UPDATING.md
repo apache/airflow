@@ -61,9 +61,29 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+### GCSTaskHandler has been moved
+The `GCSTaskHandler` class from `airflow.utils.log.gcs_task_handler` has been moved to
+`airflow.providers.google.cloud.log.gcs_task_handler`. This is because it has items specific to `google cloud`.
+
+### WasbTaskHandler has been moved
+The `WasbTaskHandler` class from `airflow.utils.log.wasb_task_handler` has been moved to
+`airflow.providers.microsoft.azure.log.wasb_task_handler`. This is because it has items specific to `azure`.
+
+### StackdriverTaskHandler has been moved
+The `StackdriverTaskHandler` class from `airflow.utils.log.stackdriver_task_handler` has been moved to
+`airflow.providers.google.cloud.log.stackdriver_task_handler`. This is because it has items specific to `google cloud`.
+
 ### S3TaskHandler has been moved
 The `S3TaskHandler` class from `airflow.utils.log.s3_task_handler` has been moved to
-`airflow.providers.amazon.aws.log.s3_task_handler`. This is because it has items specific to `aws`
+`airflow.providers.amazon.aws.log.s3_task_handler`. This is because it has items specific to `aws`.
+
+### ElasticsearchTaskHandler has been moved
+The `ElasticsearchTaskHandler` class from `airflow.utils.log.es_task_handler` has been moved to
+`airflow.providers.elasticsearch.log.es_task_handler`. This is because it has items specific to `elasticsearch`.
+
+### CloudwatchTaskHandler has been  moved
+The `CloudwatchTaskHandler` class from `airflow.utils.log.cloudwatch_task_handler` has been moved to
+`airflow.providers.amazon.aws.log.cloudwatch_task_handler`. This is because it has items specific to `aws`.
 
 ### SendGrid emailer has been moved
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib

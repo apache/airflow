@@ -35,7 +35,7 @@ import re
 import subprocess
 import sys
 import textwrap
-import urllib.request as urllib
+from urllib import request as urllib
 
 try:
     import click

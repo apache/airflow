@@ -31,7 +31,7 @@ class TestVersionInfoSchema(unittest.TestCase):
     ])
     def test_serialize(self, git_commit):
         version_info = VersionInfo("VERSION", git_commit)
-        current_data = version_info_schema.dump(version_info).data
+        current_data = version_info_schema.dump(version_info)
 
         expected_result = {'version': 'VERSION', 'git_version': git_commit}
         self.assertEqual(expected_result, current_data)

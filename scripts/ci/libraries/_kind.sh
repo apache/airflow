@@ -294,7 +294,8 @@ function deploy_airflow_with_helm() {
         --set "defaultAirflowRepository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
         --set "images.airflow.repository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
         --set "images.airflow.tag=${AIRFLOW_PROD_BASE_TAG}" -v 1 \
-        --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}" -v 1
+        --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}" -v 1 \
+        --set "api.authBackend=airflow.api.auth.backend.default"
     echo
     popd || exit 1
 }

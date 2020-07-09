@@ -15,11 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from datetime import timedelta
 
+from airflow.jobs.base_job import BaseJob
+from airflow.utils import timezone
+from airflow.utils.session import create_session, provide_session
+from airflow.utils.state import State
 from airflow.www import app
 
+HEALTHY = "healthy"
+UNHEALTHY = "unhealthy"
 
-class TestGetHealthTest(unittest.TestCase):
+
+class TestHealthTestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -27,8 +35,58 @@ class TestGetHealthTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
+        with create_session() as session:
+            session.query(BaseJob).delete()
 
-    def test_should_response_200_and_ok(self):
-        response = self.client.get("/api/v1/health")
-        assert response.status_code == 200
-        assert response.data == b"OK"
+    def tearDown(self):
+        super().tearDown()
+        with create_session() as session:
+            session.query(BaseJob).delete()
+
+
+class TestGetHeath(TestHealthTestBase):
+    @provide_session
+    def test_healthy_scheduler_status(self, session):
+        last_scheduler_heartbeat_for_testing_1 = timezone.utcnow()
+        session.add(
+            BaseJob(
+                job_type="SchedulerJob",
+                state=State.RUNNING,
+                latest_heartbeat=last_scheduler_heartbeat_for_testing_1,
+            )
+        )
+        session.commit()
+        resp_json = self.client.get("/api/v1/health").json
+        self.assertEqual("healthy", resp_json["metadatabase"]["status"])
+        self.assertEqual("healthy", resp_json["scheduler"]["status"])
+        self.assertEqual(
+            last_scheduler_heartbeat_for_testing_1.isoformat(),
+            resp_json["scheduler"]["latest_scheduler_heartbeat"],
+        )
+
+    @provide_session
+    def test_unhealthy_scheduler_is_slow(self, session):
+        last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(
+            minutes=1
+        )
+        session.add(
+            BaseJob(
+                job_type="SchedulerJob",
+                state=State.RUNNING,
+                latest_heartbeat=last_scheduler_heartbeat_for_testing_2,
+            )
+        )
+        session.commit()
+        resp_json = self.client.get("/api/v1/health").json
+        self.assertEqual("healthy", resp_json["metadatabase"]["status"])
+        self.assertEqual("unhealthy", resp_json["scheduler"]["status"])
+        self.assertEqual(
+            last_scheduler_heartbeat_for_testing_2.isoformat(),
+            resp_json["scheduler"]["latest_scheduler_heartbeat"],
+        )
+
+    def test_unhealthy_scheduler_no_job(self):
+        resp_json = self.client.get("/api/v1/health").json
+        self.assertEqual("healthy", resp_json["metadatabase"]["status"])
+        self.assertEqual("unhealthy", resp_json["scheduler"]["status"])
+        self.assertIsNone(None, resp_json["scheduler"]["latest_scheduler_heartbeat"])

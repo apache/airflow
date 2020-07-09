@@ -1720,7 +1720,7 @@ class DagTag(Base):
 
 
 class DagModel(Base):
-    """Table containing DAG propoerties"""
+    """Table containing DAG properties"""
 
     __tablename__ = "dag"
     """

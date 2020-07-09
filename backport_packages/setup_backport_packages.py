@@ -33,10 +33,10 @@ from os.path import dirname
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
-from backport_packages.import_all_provider_classes import import_all_provider_classes
-from setup import PROVIDERS_REQUIREMENTS
 from setuptools import Command, find_packages, setup as setuptools_setup
 
+from backport_packages.import_all_provider_classes import import_all_provider_classes
+from setup import PROVIDERS_REQUIREMENTS
 from tests.deprecated_classes import HOOKS, OPERATORS, SECRETS, SENSORS, TRANSFERS
 
 # Note - we do not test protocols as they are not really part of the official API of
@@ -599,10 +599,10 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
     :param imported_classes: entities imported_from providers
     :return: dictionary of objects usable as context for JINJA2 templates - or None if there are some errors
     """
-    from airflow.secrets import BaseSecretsBackend
-    from airflow.sensors.base_sensor_operator import BaseSensorOperator
     from airflow.hooks.base_hook import BaseHook
     from airflow.models.baseoperator import BaseOperator
+    from airflow.secrets import BaseSecretsBackend
+    from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
     all_verified_entities: Dict[EntityType, VerifiedEntities] = {}
     all_verified_entities[EntityType.Operators] = find_all_entities(

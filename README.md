@@ -503,7 +503,7 @@ Currently **officially** using Airflow:
 1. [Plaid](https://www.plaid.com/) [[@plaid](https://github.com/plaid), [@AustinBGibbons](https://github.com/AustinBGibbons) & [@jeeyoungk](https://github.com/jeeyoungk)]
 1. [Playbuzz](https://www.playbuzz.com/) [[@clintonboys](https://github.com/clintonboys) & [@dbn](https://github.com/dbn)]
 1. [PMC](https://pmc.com/) [[@andrewm4894](https://github.com/andrewm4894)]
-1. [Polidea](https://www.polidea.com/) [[@potiuk](https://github.com/potiuk), [@mschickensoup](https://github.com/mschickensoup), [@mik-laj](https://github.com/mik-laj), [@turbaszek](https://github.com/turbaszek), [@michalslowikowski00](https://github.com/michalslowikowski00), [@olchas](https://github.com/olchas)]
+1. [Polidea](https://www.polidea.com/) [[@potiuk](https://github.com/potiuk), [@mschickensoup](https://github.com/mschickensoup), [@mik-laj](https://github.com/mik-laj), [@turbaszek](https://github.com/turbaszek), [@michalslowikowski00](https://github.com/michalslowikowski00), [@olchas](https://github.com/olchas)], [@debek](https://github.com/debek)
 1. [Poshmark](https://www.poshmark.com)
 1. [Postmates](http://www.postmates.com) [[@syeoryn](https://github.com/syeoryn)]
 1. [Premise](http://www.premise.com) [[@jmccallum-premise](https://github.com/jmccallum-premise)]
@@ -561,12 +561,13 @@ Currently **officially** using Airflow:
 1. [Telia Company](https://www.teliacompany.com/en)
 1. [Ternary Data](https://ternarydata.com/) [[@mhousley](https://github.com/mhousley), [@JoeReis](https://github.com/JoeReis)]
 1. [Tesla](https://www.tesla.com/) [[@thoralf-gutierrez](https://github.com/thoralf-gutierrez)]
+1. [The Climate Corporation](https://climate.com/)[[@jmelching](https://github.com/jmelching)]
 1. [The Home Depot](https://www.homedepot.com/)[[@apekshithr](https://github.com/apekshithr)]
 1. [THE ICONIC](https://www.theiconic.com.au/) [[@revathijay](https://github.com/revathijay)] [[@ilikedata](https://github.com/ilikedata)]
 1. [Thinking Machines](https://thinkingmachin.es) [[@marksteve](https://github.com/marksteve)]
 1. [Thinknear](https://www.thinknear.com/) [[@d3cay1](https://github.com/d3cay1), [@ccson](https://github.com/ccson), & [@ababian](https://github.com/ababian)]
 1. [ThoughtWorks](https://www.thoughtworks.com/) [[@sann3](https://github.com/sann3)]
-1. [Thumbtack](https://www.thumbtack.com/) [[@natekupp](https://github.com/natekupp)]
+1. [Thumbtack](https://www.thumbtack.com/) [[@kamalacharya](https://github.com/kamalacharya), [@dwjoss](https://github.com/dwjoss)]
 1. [Tictail](https://tictail.com/)
 1. [Tile](https://tile.com/) [[@ranjanmanish](https://github.com/ranjanmanish)]
 1. [Tinder](https://tinder.com/) [[@kbendick](https://github.com/kbendick)]

@@ -51,7 +51,7 @@ class TestDagSchema(unittest.TestCase):
                 "schedule_interval": {"__type": "CronExpression", "value": "5 4 * * *"},
                 "tags": [{"name": "tag-1"}, {"name": "tag-2"}],
             },
-            serialized_dag.data,
+            serialized_dag,
         )
 
 
@@ -89,7 +89,7 @@ class TestDAGCollectionSchema(unittest.TestCase):
                 ],
                 "total_entries": 2,
             },
-            schema.dump(instance).data,
+            schema.dump(instance),
         )
 
 
@@ -115,9 +115,10 @@ class TestDAGDetailSchema:
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',
+            'owners': [],
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'seconds': 0, 'microseconds': 0},
             'start_date': '2020-06-19T00:00:00+00:00',
             'tags': None,
             'timezone': "Timezone('UTC')"
         }
-        assert schema.dump(dag).data == expected
+        assert schema.dump(dag) == expected

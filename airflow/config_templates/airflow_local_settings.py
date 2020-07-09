@@ -223,7 +223,7 @@ if REMOTE_LOGGING:
         log_name = urlparse(REMOTE_BASE_LOG_FOLDER).path[1:]
         STACKDRIVER_REMOTE_HANDLERS = {
             'task': {
-                'class': 'airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler',
+                'class': 'airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler',
                 'formatter': 'airflow',
                 'name': log_name,
                 'gcp_key_path': key_path
@@ -241,7 +241,7 @@ if REMOTE_LOGGING:
 
         ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
             'task': {
-                'class': 'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler',
+                'class': 'airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler',
                 'formatter': 'airflow',
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 'log_id_template': ELASTICSEARCH_LOG_ID_TEMPLATE,

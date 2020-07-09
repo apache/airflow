@@ -19,7 +19,7 @@ import unittest
 from parameterized import parameterized
 
 from airflow.models import Connection
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import provide_session
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections
@@ -34,8 +34,7 @@ class TestConnectionEndpoint(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
         # we want only the connection created here for this test
-        with create_session() as session:
-            session.query(Connection).delete()
+        clear_db_connections(False)
 
     def tearDown(self) -> None:
         clear_db_connections()
@@ -386,7 +385,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "connection_id": "test-connection-id",
                     "conn_type": "test-type",
                     "extras": "{}",  # extras not a known field e.g typo
-                }, "Extra arguments passed: ['extras']"
+                }, "extras"
             ),
             (
                 {
@@ -394,7 +393,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "conn_type": "test-type",
                     "invalid_field": "invalid field",  # unknown field
                     "_password": "{}",  # _password not a known field
-                }, "Extra arguments passed:"
+                }, "_password"
             ),
         ]
     )

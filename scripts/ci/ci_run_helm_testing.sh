@@ -1,4 +1,4 @@
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,24 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Merge heads
+echo "Running helm tests"
 
-Revision ID: 4ebbffe0a39a
-Revises: dd4ecb8fbee3, cf5dc11e79ad
-Create Date: 2019-02-04 20:19:50.628137
+CHART_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../chart/"
 
-"""
+echo "Chart directory is $CHART_DIR"
 
-# revision identifiers, used by Alembic.
-revision = '4ebbffe0a39a'
-down_revision = ('dd4ecb8fbee3', 'cf5dc11e79ad')
-branch_labels = None
-depends_on = None
-
-
-def upgrade():   # noqa: D103
-    pass
-
-
-def downgrade():   # noqa: D103
-    pass
+docker run -w /airflow-chart -v "$CHART_DIR":/airflow-chart \
+  --entrypoint /bin/sh \
+  aneeshkj/helm-unittest \
+  -c "helm repo add stable https://kubernetes-charts.storage.googleapis.com; helm dependency update ; helm unittest ."

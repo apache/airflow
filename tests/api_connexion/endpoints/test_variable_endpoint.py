@@ -181,5 +181,5 @@ class TestPostVariables(TestVariableEndpoint):
             "title": "Invalid Variable schema",
             "status": 400,
             "type": "about:blank",
-            "detail": "{'value': ['Missing data for required field.']}",
+            "detail": "{'value': ['Missing data for required field.'], 'v': ['Unknown field.']}",
         }

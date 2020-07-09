@@ -32,4 +32,4 @@ class LogResponseObject(NamedTuple):
     continuation_token: str
 
 
-logs_schema = LogsSchema(strict=True)
+logs_schema = LogsSchema()
