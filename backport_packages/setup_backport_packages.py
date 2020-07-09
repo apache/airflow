@@ -822,7 +822,13 @@ def get_latest_release(provider_package_path: str) -> ReleaseInfo:
     :param provider_package_path: path of package
     :return: latest release information
     """
-    return get_all_releases(provider_package_path=provider_package_path)[0]
+    releases = get_all_releases(provider_package_path=provider_package_path)
+    if len(releases) == 0:
+        return ReleaseInfo(release_version="0.0.0",
+                           release_version_no_leading_zeros="0.0.0",
+                           last_commit_hash="no_hash",
+                           content="empty",
+                           file_name="no_file")
 
 
 def get_previous_release_info(previous_release_version: str,
