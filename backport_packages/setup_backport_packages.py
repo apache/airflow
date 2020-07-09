@@ -43,13 +43,12 @@ PROVIDERS_PATH = os.path.join(AIRFLOW_PATH, "providers")
 
 sys.path.insert(0, SOURCE_DIR_PATH)
 
-# isort:skip
-from setup import PROVIDERS_REQUIREMENTS  # noqa
-
-# isort:skip
-import tests.deprecated_classes  # noqa
-# isort:skip
-from backport_packages.import_all_provider_classes import import_all_provider_classes  # noqa
+# those imports need to come after the above sys.path.insert to make sure that Airflow
+# sources are importable witout having to add the airflow sources to the PYTHONPATH before
+# running the script
+import tests.deprecated_classes  # noqa # isort:skip
+from backport_packages.import_all_provider_classes import import_all_provider_classes  # noqa # isort:skip
+from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
 
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
@@ -829,6 +828,8 @@ def get_latest_release(provider_package_path: str) -> ReleaseInfo:
                            last_commit_hash="no_hash",
                            content="empty",
                            file_name="no_file")
+    else:
+        return releases[0]
 
 
 def get_previous_release_info(previous_release_version: str,
