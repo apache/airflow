@@ -123,7 +123,7 @@ def create_default_error_tags(session=None):
 def create_default_nd_line_controller_map_var(session=None):
     from airflow.models import Variable
     val = {
-        "1C1": [
+        "1T1": [
             "CON001@1T101/内饰1工位"
         ],
         "T1": [
