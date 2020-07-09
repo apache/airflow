@@ -1124,7 +1124,11 @@
       default: "airflow@example.com"
 - name: sentry
   description: |
-    Sentry (https://docs.sentry.io) integration
+    Sentry (https://docs.sentry.io) integration. Here you can supply
+    additional configuration options based on the Python platform. See:
+    https://docs.sentry.io/error-reporting/configuration/?platform=python.
+    Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,
+    ``ignore_errors``, ``before_breadcrumb``, ``before_send``, ``transport``.
   options:
     - name: sentry_dsn
       description: ~
