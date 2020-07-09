@@ -106,7 +106,7 @@ class DbApiHook(BaseHook):
             engine_kwargs = {}
         return create_engine(self.get_uri(), **engine_kwargs)
 
-    def get_pandas_df(self, sql, parameters=None):
+    def get_pandas_df(self, sql, parameters=None, **kwargs):
         """
         Executes the sql and returns a pandas dataframe
 
@@ -119,7 +119,7 @@ class DbApiHook(BaseHook):
         from pandas.io import sql as psql
 
         with closing(self.get_conn()) as conn:
-            return psql.read_sql(sql, con=conn, params=parameters)
+            return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
     def get_records(self, sql, parameters=None):
         """
