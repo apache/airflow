@@ -18,7 +18,7 @@
 """Hook for Web HDFS"""
 import logging
 import socket
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 from hdfs import HdfsError, InsecureClient
 
