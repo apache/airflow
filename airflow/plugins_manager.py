@@ -273,7 +273,7 @@ def initialize_web_ui_plugins():
             'blueprint': bp
         } for bp in plugin.flask_blueprints])
 
-        if (admin_views and not flask_appbuilder_views) or (menu_links and flask_appbuilder_menu_links):
+        if (admin_views and not flask_appbuilder_views) or (menu_links and not flask_appbuilder_menu_links):
             log.warning(
                 "Plugin \'%s\' may not be compatible with the current Airflow version. "
                 "Please contact the author of the plugin.",
