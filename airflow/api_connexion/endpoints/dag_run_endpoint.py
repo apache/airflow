@@ -16,11 +16,8 @@
 # under the License.
 from connexion import NoContent
 from flask import request
-from sqlalchemy import and_, func
-
-from flask import request
 from marshmallow import ValidationError
-from sqlalchemy import func
+from sqlalchemy import and_, func
 
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
@@ -39,9 +36,8 @@ def delete_dag_run(dag_id, dag_run_id, session):
     """
     if (
         session.query(DagRun)
-        .filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
-        .delete()
-        == 0
+            .filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+            .delete() == 0
     ):
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
     return NoContent, 204
@@ -102,7 +98,6 @@ def get_dag_runs(
 def _fetch_dag_runs(query, session, end_date_gte, end_date_lte,
                     execution_date_gte, execution_date_lte,
                     start_date_gte, start_date_lte, limit, offset):
-
     query = _apply_date_filters_to_query(query, end_date_gte, end_date_lte, execution_date_gte,
                                          execution_date_lte, start_date_gte, start_date_lte)
     # apply offset and limit
@@ -129,7 +124,7 @@ def _apply_date_filters_to_query(query, end_date_gte, end_date_lte, execution_da
     if end_date_lte:
         query = query.filter(DagRun.end_date <= end_date_lte)
     return query
- 
+
 
 @provide_session
 def get_dag_runs_batch(session):
@@ -166,9 +161,8 @@ def post_dag_run(dag_id, session):
 
     post_body = dagrun_schema.load(request.json, session=session)
     dagrun_instance = (
-        session.query(DagRun)
-        .filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"]))
-        .first()
+        session.query(DagRun).filter(
+            and_(DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"])).first()
     )
     if not dagrun_instance:
         dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL.value, **post_body)
