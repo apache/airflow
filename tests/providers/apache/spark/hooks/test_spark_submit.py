@@ -17,6 +17,7 @@
 # under the License.
 
 import io
+import os
 import unittest
 from unittest.mock import call, patch
 
@@ -651,8 +652,9 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         self.assertEqual(hook._driver_status, 'RUNNING')
 
+    @patch('airflow.providers.apache.spark.hooks.spark_submit.renew_from_kt')
     @patch('airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen')
-    def test_yarn_process_on_kill(self, mock_popen):
+    def test_yarn_process_on_kill(self, mock_popen, mock_renew_from_kt):
         # Given
         mock_popen.return_value.stdout = io.StringIO('stdout')
         mock_popen.return_value.stderr = io.StringIO('stderr')
@@ -679,7 +681,24 @@ class TestSparkSubmitHook(unittest.TestCase):
         # Then
         self.assertIn(call(['yarn', 'application', '-kill',
                             'application_1486558679801_1820'],
-                           stderr=-1, stdout=-1),
+                      env=None, stderr=-1, stdout=-1),
+                      mock_popen.mock_calls)
+        # resetting the mock to test  kill with keytab & principal
+        mock_popen.reset_mock()
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_yarn_cluster', keytab='privileged_user.keytab',
+                               principal='user/spark@airflow.org')
+        hook._process_spark_submit_log(log_lines)
+        hook.submit()
+
+        # When
+        hook.on_kill()
+        # Then
+        expected_env = os.environ.copy()
+        expected_env["KRB5CCNAME"] = '/tmp/airflow_krb5_ccache'
+        self.assertIn(call(['yarn', 'application', '-kill',
+                            'application_1486558679801_1820'],
+                      env=expected_env, stderr=-1, stdout=-1),
                       mock_popen.mock_calls)
 
     def test_standalone_cluster_process_on_kill(self):
