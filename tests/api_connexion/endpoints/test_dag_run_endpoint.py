@@ -390,7 +390,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
     def test_should_respond_200(self):
         self._create_test_dag_run()
         payload = {
-            "dag_ids": ["TEST_DAG_ID"],
+            "dag_ids": ["TEST_DAG_ID"]
         }
         response = self.client.post("api/v1/dags/~/dagRuns/list", json=payload)
         assert response.status_code == 200
@@ -429,7 +429,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             ({"dag_ids": "TEST_DAG_ID"},
              "'TEST_DAG_ID' is not of type 'array' - 'dag_ids'"),
             ({"start_date_gte": "2020-06-12T18"},
-             {'start_date_gte': ['Not a valid datetime.']}),
+             "{'start_date_gte': ['Not a valid datetime.']}"),
         ]
     )
     def test_payload_validation(self, payload, error):
