@@ -43,6 +43,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
+- [Building customized production images](#building-customized-production-images)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
 - [User Interface](#user-interface)
@@ -67,7 +68,7 @@ Apache Airflow is tested with:
 * Sqlite - latest stable (it is used mainly for development purpose)
 * Kubernetes - 1.16.2, 1.17.0
 
-### Stable version (1.10.10)
+### Stable version (1.10.11)
 
 * Python versions: 2.7, 3.5, 3.6, 3.7
 * Postgres DB: 9.6, 10
@@ -117,6 +118,26 @@ pip install apache-airflow==1.10.10 \
 pip install apache-airflow[postgres,gcp]==1.10.10 \
  --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
 ```
+
+## Building customized production images
+
+In order to use Airlfow in Docker Compose or Kubernetes, you might need to use or build production images
+of Apache Airflow. The community provides two types of support for the production images:
+
+* We provide pre-build relesed version of production image in PyPI build from released
+  sources of Apache Airflow - shortly after release. Those images are available in the DockerHub.
+  You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the
+  version number (for example 1.10.11). Additionally `docker pull apache/airflow` will pull latest
+  stable version of the image with default python version (currently 3.6)
+
+* In `master` branch of Airflow and in `v1-10-stable` branch we provide Dockerfiles and accompanying
+  files that allow to build your own customized version of the Airflow Production image. The instructions
+  on how to build your own image with additional dependencies (if needed) are provided in the
+  [IMAGES.rst](IMAGES.rst#production-images) if you want to build it using `docker build` command or in
+  [BREEZE.rst](BREEZE.rst#building-production-images) to use Breeze tool which easier interface,
+  auto-complete, and accompanying screencast video. Note, that while it is possible to use master
+  branch to build images for released Airflow versions, it might at times get broken so you should
+  rather rely on building your own images from the v1-10-stable branch.
 
 ## Beyond the Horizon
 
