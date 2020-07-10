@@ -15,13 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from os import getenv
 from typing import Any
 
-from azure.common.client_factory import get_client_from_auth_file
+from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -47,7 +46,7 @@ class AzureBaseHook(BaseHook):
         """
         conn = self.get_connection(self.conn_id)
 
-        key_path = conn.extra_dejson.get('key_path') or getenv('AZURE_AUTH_LOCATION')
+        key_path = conn.extra_dejson.get('key_path')
         if key_path:
             if not key_path.endswith('.json'):
                 raise AirflowException('Unrecognised extension for key file.')
@@ -57,12 +56,20 @@ class AzureBaseHook(BaseHook):
                 auth_path=key_path
             )
 
+        key_json = conn.extra_dejson.get('key_json')
+        if key_json:
+            self.log.info('Getting connection using a JSON config.')
+            return get_client_from_json_dict(
+                client_class=self.sdk_client,
+                config_dict=key_json
+            )
+
         self.log.info('Getting connection using specific credentials and subscription_id.')
         return self.sdk_client(
             credentials=ServicePrincipalCredentials(
                 client_id=conn.login,
                 secret=conn.password,
-                tenant=conn.extra_dejson['tenantId']
+                tenant=conn.extra_dejson.get('tenantId')
             ),
-            subscription_id=conn.extra_dejson['subscriptionId']
+            subscription_id=conn.extra_dejson.get('subscriptionId')
         )
