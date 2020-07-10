@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict, Tuple
 
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.decorators import apply_defaults
@@ -45,12 +46,12 @@ class MetastorePartitionSensor(SqlSensor):
 
     @apply_defaults
     def __init__(self,
-                 table,
-                 partition_name,
-                 schema="default",
-                 mysql_conn_id="metastore_mysql",
-                 *args,
-                 **kwargs):
+                 table: str,
+                 partition_name: str,
+                 schema: str = "default",
+                 mysql_conn_id: str = "metastore_mysql",
+                 *args: Tuple[Any, ...],
+                 **kwargs: Any):
 
         self.partition_name = partition_name
         self.table = table
@@ -64,7 +65,7 @@ class MetastorePartitionSensor(SqlSensor):
         # constructor below and apply_defaults will no longer throw an exception.
         super().__init__(*args, **kwargs)
 
-    def poke(self, context):
+    def poke(self, context: Dict[str, Any]) -> Any:
         if self.first_poke:
             self.first_poke = False
             if '.' in self.table:
