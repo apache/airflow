@@ -18,7 +18,7 @@
 """
 This module contains the Apache Livy sensor.
 """
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 from airflow.providers.apache.livy.hooks.livy import LivyHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -48,7 +48,7 @@ class LivySensor(BaseSensorOperator):
         super().__init__(*vargs, **kwargs)
         self._livy_conn_id = livy_conn_id
         self._batch_id = batch_id
-        self._livy_hook: LivyHook = self.get_hook()
+        self._livy_hook: Optional[LivyHook] = None
 
     def get_hook(self) -> LivyHook:
         """
@@ -57,10 +57,12 @@ class LivySensor(BaseSensorOperator):
         :return: hook
         :rtype: LivyHook
         """
-        return LivyHook(livy_conn_id=self._livy_conn_id)
+        if self._livy_hook is None or not isinstance(self._livy_hook, LivyHook):
+            self._livy_hook = LivyHook(livy_conn_id=self._livy_conn_id)
+        return self._livy_hook
 
     def poke(self, context: Dict[Any, Any]) -> bool:
         batch_id = self._batch_id
 
         status = self.get_hook().get_batch_state(batch_id)
-        return status in self._livy_hook.TERMINAL_STATES
+        return status in self.get_hook().TERMINAL_STATES

@@ -814,7 +814,6 @@ class HiveServer2Hook(DbApiHook):
     conn_name_attr = 'hiveserver2_conn_id'
     default_conn_name = 'hiveserver2_default'
     supports_autocommit = False
-    hiveserver2_conn_id = 'hiveserver2_conn_id'
 
     def get_conn(self, schema: Optional[str] = None
                  ) -> Any:
@@ -822,7 +821,9 @@ class HiveServer2Hook(DbApiHook):
         Returns a Hive connection object.
         """
         username: Optional[str] = None
-        db = self.get_connection(self.hiveserver2_conn_id)
+        # pylint: disable=no-member
+        db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
+
         auth_mechanism = db.extra_dejson.get('authMechanism', 'NONE')
         if auth_mechanism == 'NONE' and db.login is None:
             # we need to give a username
@@ -837,7 +838,7 @@ class HiveServer2Hook(DbApiHook):
             self.log.warning(
                 "Detected deprecated 'GSSAPI' for authMechanism "
                 "for %s. Please use 'KERBEROS' instead",
-                self.hiveserver2_conn_id
+                self.hiveserver2_conn_id  # type: ignore
             )
             auth_mechanism = 'KERBEROS'
 
@@ -851,6 +852,8 @@ class HiveServer2Hook(DbApiHook):
             password=db.password,
             database=schema or db.schema or 'default')
 
+        # pylint: enable=no-member
+
     def _get_results(self, hql: Union[str, Text, List[str]], schema: str = 'default',
                      fetch_size: Optional[int] = None,
                      hive_conf: Optional[Dict[Any, Any]] = None) -> Any:
@@ -863,7 +866,9 @@ class HiveServer2Hook(DbApiHook):
             cur.arraysize = fetch_size or 1000
 
             # not all query services (e.g. impala AIRFLOW-4434) support the set command
-            db = self.get_connection(self.hiveserver2_conn_id)
+            # pylint: disable=no-member
+            db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
+            # pylint: enable=no-member
             if db.extra_dejson.get('run_set_variable_statements', True):
                 env_context = get_context_from_env_var()
                 if hive_conf:

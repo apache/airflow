@@ -102,7 +102,11 @@ class HiveOperator(BaseOperator):
             'hive', 'mapred_job_name_template',
             fallback="Airflow HiveOperator task for {hostname}.{dag_id}.{task_id}.{execution_date}")
 
-        self.hook: HiveCliHook = self.get_hook()
+        # assigned lazily - just for consistency we can create the attribute with a
+        # `None` initial value, later it will be populated by the execute method.
+        # This also makes `on_kill` implementation consistent since it assumes `self.hook`
+        # is defined.
+        self.hook: Optional[HiveCliHook] = None
 
     def get_hook(self) -> HiveCliHook:
         """
@@ -124,6 +128,7 @@ class HiveOperator(BaseOperator):
 
     def execute(self, context: Dict[str, Any]) -> None:
         self.log.info('Executing: %s', self.hql)
+        self.hook = self.get_hook()
 
         # set the mapred_job_name if it's not set with dag, task, execution time info
         if not self.mapred_job_name:
