@@ -26,6 +26,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 1.10.11](#airflow-11011)
 - [Airflow 1.10.10](#airflow-11010)
 - [Airflow 1.10.9](#airflow-1109)
 - [Airflow 1.10.8](#airflow-1108)
@@ -317,11 +318,6 @@ plugins =
   airflow.mypy.plugin.decorators
 ```
 
-### XCom Values can no longer be added or changed from the Webserver
-
-Since XCom values can contain pickled data, we would no longer allow adding or
-changing XCom values from the UI.
-
 ### Use project_id argument consistently across GCP hooks and operators
 
 - Changed order of arguments in DataflowHook.start_python_dataflow. Uses
@@ -397,10 +393,6 @@ Remove unnecessary parameter ``open`` in PostgresHook function copy_expert for p
 ### Change parameter name in OpsgenieAlertOperator
 
 Change parameter name from ``visibleTo`` to ``visible_to`` in OpsgenieAlertOperator for pylint compatible
-
-### Use NULL as default value for dag.description
-
-Now use NULL as default value for dag.description in dag table
 
 ### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
 
@@ -1450,6 +1442,19 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 }
 ```
 
+## Airflow 1.10.11
+
+### Use NULL as default value for dag.description
+
+Now use NULL as default value for dag.description in dag table
+
+### Restrict editing DagRun State in the old UI (Flask-admin based UI)
+
+Before 1.10.11 it was possible to edit DagRun State in the `/admin/dagrun/` page
+ to any text.
+
+In Airflow 1.10.11+, the user can only choose the states from the list.
+
 ### Experimental API will deny all request by default.
 
 The previous default setting was to allow all API requests without authentication, but this poses security
@@ -1465,6 +1470,11 @@ the previous behaviour on a new install by setting this in your airflow.cfg:
 [api]
 auth_backend = airflow.api.auth.backend.default
 ```
+
+### XCom Values can no longer be added or changed from the Webserver
+
+Since XCom values can contain pickled data, we would no longer allow adding or
+changing XCom values from the UI.
 
 ## Airflow 1.10.10
 
