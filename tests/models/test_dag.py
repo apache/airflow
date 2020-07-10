@@ -1355,6 +1355,56 @@ class TestDag(unittest.TestCase):
         dr = dag.create_dagrun(run_id="custom_is_set_to_manual", state=State.NONE)
         assert dr.run_type == DagRunType.MANUAL.value
 
+    def test_clear_reset_dagruns(self):
+        dag_id = 'test_clear_dag_reset_dagruns'
+        self._clean_up(dag_id)
+        task_id = 't1'
+        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
+        t_1 = DummyOperator(task_id=task_id, dag=dag)
+
+        session = settings.Session()
+        dagrun_1 = dag.create_dagrun(
+            run_type=DagRunType.BACKFILL_JOB,
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+        )
+        session.merge(dagrun_1)
+
+        task_instance_1 = TI(t_1, execution_date=DEFAULT_DATE, state=State.RUNNING)
+        session.merge(task_instance_1)
+        session.commit()
+
+        dag.clear(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            reset_dag_runs=True,
+            include_subdags=False,
+            include_parentdag=False,
+            session=session,
+        )
+
+        dagruns = session.query(
+            DagRun,
+        ).filter(
+            DagRun.dag_id == dag_id,
+        ).all()
+
+        self.assertEqual(len(dagruns), 1)
+        dagrun = dagruns[0]  # type: DagRun
+        self.assertEqual(dagrun.state, State.NONE)
+
+        task_instances = session.query(
+            DagRun,
+        ).filter(
+            DagRun.dag_id == dag_id,
+        ).all()
+
+        self.assertEqual(len(task_instances), 1)
+        task_instance = task_instances[0]  # type: TI
+        self.assertEqual(task_instance.state, State.NONE)
+        self._clean_up(dag_id)
+
 
 class TestQueries(unittest.TestCase):
 

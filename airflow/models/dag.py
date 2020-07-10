@@ -1137,6 +1137,7 @@ class DAG(BaseDag, LoggingMixin):
                 self.set_dag_runs_state(session=session,
                                         start_date=start_date,
                                         end_date=end_date,
+                                        state=State.NONE,
                                         )
         else:
             count = 0
