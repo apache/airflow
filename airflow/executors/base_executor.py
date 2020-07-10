@@ -21,7 +21,7 @@ from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from airflow.configuration import conf
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKeyType
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -58,10 +58,10 @@ class BaseExecutor(LoggingMixin):
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism
-        self.queued_tasks: OrderedDict[TaskInstanceKeyType, QueuedTaskInstanceType] \
+        self.queued_tasks: OrderedDict[TaskInstanceKey, QueuedTaskInstanceType] \
             = OrderedDict()
-        self.running: Set[TaskInstanceKeyType] = set()
-        self.event_buffer: Dict[TaskInstanceKeyType, EventBufferValueType] = {}
+        self.running: Set[TaskInstanceKey] = set()
+        self.event_buffer: Dict[TaskInstanceKey, EventBufferValueType] = {}
 
     def start(self):  # pragma: no cover
         """
@@ -155,7 +155,7 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
-    def order_queued_tasks_by_priority(self) -> List[Tuple[TaskInstanceKeyType, QueuedTaskInstanceType]]:
+    def order_queued_tasks_by_priority(self) -> List[Tuple[TaskInstanceKey, QueuedTaskInstanceType]]:
         """
         Orders the queued tasks by priority.
 
@@ -183,7 +183,7 @@ class BaseExecutor(LoggingMixin):
                                queue=None,
                                executor_config=simple_ti.executor_config)
 
-    def change_state(self, key: TaskInstanceKeyType, state: str, info=None) -> None:
+    def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
         """
         Changes state of the task.
 
@@ -198,7 +198,7 @@ class BaseExecutor(LoggingMixin):
             self.log.debug('Could not find key: %s', str(key))
         self.event_buffer[key] = state, info
 
-    def fail(self, key: TaskInstanceKeyType, info=None) -> None:
+    def fail(self, key: TaskInstanceKey, info=None) -> None:
         """
         Set fail state for the event.
 
@@ -207,7 +207,7 @@ class BaseExecutor(LoggingMixin):
         """
         self.change_state(key, State.FAILED, info)
 
-    def success(self, key: TaskInstanceKeyType, info=None) -> None:
+    def success(self, key: TaskInstanceKey, info=None) -> None:
         """
         Set success state for the event.
 
@@ -216,7 +216,7 @@ class BaseExecutor(LoggingMixin):
         """
         self.change_state(key, State.SUCCESS, info)
 
-    def get_event_buffer(self, dag_ids=None) -> Dict[TaskInstanceKeyType, EventBufferValueType]:
+    def get_event_buffer(self, dag_ids=None) -> Dict[TaskInstanceKey, EventBufferValueType]:
         """
         Returns and flush the event buffer. In case dag_ids is specified
         it will only return and flush events for the given dag_ids. Otherwise
@@ -225,20 +225,19 @@ class BaseExecutor(LoggingMixin):
         :param dag_ids: to dag_ids to return events for, if None returns all
         :return: a dict of events
         """
-        cleared_events: Dict[TaskInstanceKeyType, EventBufferValueType] = {}
+        cleared_events: Dict[TaskInstanceKey, EventBufferValueType] = {}
         if dag_ids is None:
             cleared_events = self.event_buffer
             self.event_buffer = {}
         else:
-            for key in list(self.event_buffer.keys()):
-                dag_id, _, _, _ = key
-                if dag_id in dag_ids:
-                    cleared_events[key] = self.event_buffer.pop(key)
+            for ti_key in list(self.event_buffer.keys()):
+                if ti_key.dag_id in dag_ids:
+                    cleared_events[ti_key] = self.event_buffer.pop(ti_key)
 
         return cleared_events
 
     def execute_async(self,
-                      key: TaskInstanceKeyType,
+                      key: TaskInstanceKey,
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:  # pragma: no cover

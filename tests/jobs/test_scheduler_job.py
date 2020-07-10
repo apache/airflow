@@ -41,7 +41,7 @@ from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import DagFileProcessor, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, Pool, SlaMiss, TaskInstance, errors
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -1501,7 +1501,7 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler = SchedulerJob()
         executor = MagicMock()
         event_buffer = {
-            (dag_id, task_id, execution_date, try_number): (State.SUCCESS, None)
+            TaskInstanceKey(dag_id, task_id, execution_date, try_number): (State.SUCCESS, None)
         }
         executor.get_event_buffer.return_value = event_buffer
         scheduler.executor = executor
@@ -2584,7 +2584,7 @@ class TestSchedulerJob(unittest.TestCase):
                 len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()), 1)
             self.assertListEqual(
                 [
-                    ((dag.dag_id, 'dummy', DEFAULT_DATE, 1), (State.SUCCESS, None)),
+                    (TaskInstanceKey(dag.dag_id, 'dummy', DEFAULT_DATE, 1), (State.SUCCESS, None)),
                 ],
                 bf_exec.sorted_tasks
             )

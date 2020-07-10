@@ -24,7 +24,7 @@ import signal
 import time
 import warnings
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
@@ -126,9 +126,38 @@ def clear_task_instances(tis,
             dr.start_date = timezone.utcnow()
 
 
-# Key used to identify task instance
-# Tuple of: dag_id, task_id, execution_date, try_number
-TaskInstanceKeyType = Tuple[str, str, datetime, int]
+class TaskInstanceKey(NamedTuple):
+    """
+    Key used to identify task instance.
+    """
+    dag_id: str
+    task_id: str
+    execution_date: datetime
+    try_number: int
+
+    @property
+    def primary(self) -> Tuple[str, str, datetime]:
+        """
+        Return task instance primary key part of the key
+        """
+        return self.dag_id, self.task_id, self.execution_date
+
+    @property
+    def reduced(self) -> 'TaskInstanceKey':
+        """
+        Remake the key by subtracting 1 from try number to match in memory information
+        """
+        return TaskInstanceKey(
+            self.dag_id, self.task_id, self.execution_date, max(1, self.try_number - 1)
+        )
+
+    def with_try_number(self, try_number: int) -> 'TaskInstanceKey':
+        """
+        Returns TaskInstanceKey with provided ``try_number``
+        """
+        return TaskInstanceKey(
+            self.dag_id, self.task_id, self.execution_date, try_number
+        )
 
 
 class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
@@ -537,11 +566,11 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self.log.debug("XCom data cleared")
 
     @property
-    def key(self) -> TaskInstanceKeyType:
+    def key(self) -> TaskInstanceKey:
         """
         Returns a tuple that identifies the task instance uniquely
         """
-        return self.dag_id, self.task_id, self.execution_date, self.try_number
+        return TaskInstanceKey(self.dag_id, self.task_id, self.execution_date, self.try_number)
 
     @provide_session
     def set_state(self, state, session=None, commit=True):
@@ -1705,17 +1734,17 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
     @staticmethod
     def filter_for_tis(
-        tis: Iterable[Union["TaskInstance", TaskInstanceKeyType]]
+        tis: Iterable[Union["TaskInstance", TaskInstanceKey]]
     ) -> Optional[BooleanClauseList]:
         """Returns SQLAlchemy filter to query selected task instances"""
         TI = TaskInstance
         if not tis:
             return None
-        if all(isinstance(t, tuple) for t in tis):
-            filter_for_tis = ([and_(TI.dag_id == dag_id,
-                                    TI.task_id == task_id,
-                                    TI.execution_date == execution_date)
-                               for dag_id, task_id, execution_date, _ in tis])
+        if all(isinstance(t, TaskInstanceKey) for t in tis):
+            filter_for_tis = ([and_(TI.dag_id == tik.dag_id,
+                                    TI.task_id == tik.task_id,
+                                    TI.execution_date == tik.execution_date)
+                               for tik in tis])
             return or_(*filter_for_tis)
         if all(isinstance(t, TaskInstance) for t in tis):
             filter_for_tis = ([and_(TI.dag_id == ti.dag_id,  # type: ignore
@@ -1729,7 +1758,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
 # State of the task instance.
 # Stores string version of the task state.
-TaskInstanceStateType = Tuple[TaskInstanceKeyType, str]
+TaskInstanceStateType = Tuple[TaskInstanceKey, str]
 
 
 class SimpleTaskInstance:
@@ -1801,7 +1830,7 @@ class SimpleTaskInstance:
         return self._queue
 
     @property
-    def key(self) -> TaskInstanceKeyType:
+    def key(self) -> TaskInstanceKey:
         return self._key
 
     @property
