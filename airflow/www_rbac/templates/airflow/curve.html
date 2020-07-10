@@ -57,7 +57,7 @@
     <label for="error-tag-select" id="error-tag-label-container" class="mx-2 my-0 flex-fill">
       <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple disabled>
         {% for err in errorTags %}
-        <option value="{{err.id}}" data-value="{{err.value}}">{{err.label}}</option>
+        <option value="{{err.value}}" data-value="{{err.value}}">{{err.label}}</option>
         {% endfor %}
       </select>
     </label>

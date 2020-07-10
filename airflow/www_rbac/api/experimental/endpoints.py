@@ -287,12 +287,15 @@ def ensure_int(num):
 
 def get_curve_mode(final_state, error_tag):
     print(final_state, error_tag)
-    # todo: use error_tag
-    # if error_tag is not None:
-    #     return ensure_int(error_tag)
+    if error_tag is not None:
+        curve_modes = json.loads(error_tag)
+        if len(curve_modes) > 0:
+            # todo: send multiple error_tag
+            return ensure_int(curve_modes[0])
     if final_state is not None:
-        state = 0 if final_state == 'OK' else 1
+        state = 0 if final_state == 'OK' else None
         return state
+    return None
 
 
 def updateConfirmData(task_data, verify_error, curve_mode):
