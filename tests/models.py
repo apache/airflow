@@ -29,10 +29,12 @@ import urllib
 import textwrap
 import inspect
 
+from sqlalchemy.orm import Session
+
 from airflow import configuration, models, settings, AirflowException
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import DAG, TaskInstance as TI, DagRun
 from airflow.models import State as ST
 from airflow.models import DagModel, DagStat
 from airflow.operators import BaseOperator
@@ -241,6 +243,42 @@ class DagTest(unittest.TestCase):
         self.assertEqual(4, DAG.get_num_task_instances(test_dag_id, [test_task_id],
             states=[None, State.QUEUED, State.RUNNING], session=session))
         session.close()
+
+    def test_clear_dag_reset_dagruns(self):
+        dag_id = 'test_clear_dag_reset_dagruns'
+        task_id = 't1'
+        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
+        t1 = DummyOperator(task_id=task_id, dag=dag)
+
+        session = settings.Session()  # type: Session
+        dagrun_1 = dag.create_dagrun(run_id=DagRun.ID_PREFIX, state=State.RUNNING, start_date=DEFAULT_DATE)
+        session.merge(dagrun_1)
+
+        task_instance_1 = TI(t1, execution_date=DEFAULT_DATE, state=State.RUNNING)
+        session.merge(task_instance_1)
+        session.commit()
+
+        dag.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, reset_dag_runs=True)
+
+        dagruns = session.query(
+            DagRun,
+        ).filter(
+            DagRun.dag_id == dag_id,
+        ).all()
+
+        self.assertEqual(len(dagruns), 1)
+        dagrun = dagruns[0]  # type: DagRun
+        self.assertEqual(dagrun.state, State.NONE)
+
+        task_instances = session.query(
+            DagRun,
+        ).filter(
+            DagRun.dag_id == dag_id,
+        ).all()
+
+        self.assertEqual(len(task_instances), 1)
+        task_instance = task_instances[0]  # type: TI
+        self.assertEqual(task_instance.state, State.SHUTDOWN)
 
     def test_render_template_field(self):
         """Tests if render_template from a field works"""
@@ -682,7 +720,7 @@ class DagRunTest(unittest.TestCase):
         dag = DAG(
             dag_id='test_latest_runs_1',
             start_date=DEFAULT_DATE)
-        dag_1_run_1 = self.create_dag_run(dag, 
+        dag_1_run_1 = self.create_dag_run(dag,
                 execution_date=datetime.datetime(2015, 1, 1))
         dag_1_run_2 = self.create_dag_run(dag,
                 execution_date=datetime.datetime(2015, 1, 2))

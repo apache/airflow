@@ -3409,9 +3409,13 @@ class DAG(BaseDag, LoggingMixin):
         if do_it:
             clear_task_instances(tis, session)
             if reset_dag_runs:
+                # Setting the state of DagRun to NONE instead of
+                # RUNNING to avoid reaching max_active_runs limitation
+                # during backfill.
                 self.set_dag_runs_state(session=session,
                                         start_date=start_date,
                                         end_date=end_date,
+                                        state=State.NONE,
                                         )
         else:
             count = 0
