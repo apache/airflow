@@ -2528,12 +2528,22 @@ class DagRunModelView(AirflowModelView):
         'run_id': wwwutils.dag_run_link,
     }
 
+    @staticmethod
+    def notify(items, session):
+        for item in items:
+            dag_run = session.query(DagRun).filter(
+                DagRun.dag_id == item.dag_id,
+                DagRun.execution_date == item.execution_date
+            ).one()
+            dagbag.get_dag(item.dag_id).handle_callback(dag_run, success=False, reason='deleted', session=session)
+
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?",
             single=False)
     @has_dag_access(can_dag_edit=True)
     @provide_session
     def action_muldelete(self, items, session=None):
         self.datamodel.delete_all(items)
+        self.notify(items, session)
         self.update_redirect()
         dirty_ids = []
         for item in items:
