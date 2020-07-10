@@ -1759,6 +1759,7 @@
     - name: pod_template_file
       description: |
         Path to the YAML pod file. If set, all other kubernetes-related fields are ignored.
+        (This feature is experimental)
       version_added: 1.10.11
       type: string
       example: ~
