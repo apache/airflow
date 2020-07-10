@@ -50,6 +50,8 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
     :type variables_prefix: str
     :param profile_name: The name of a profile to use. If not given, then the default profile is used.
     :type profile_name: str
+    :param with_decryption: Return decrypted values for secure string parameters. This flag is ignored for String parameter types. The default is False.
+    :type with_decryption: bool
     """
 
     def __init__(
@@ -57,12 +59,14 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         connections_prefix: str = '/airflow/connections',
         variables_prefix: str = '/airflow/variables',
         profile_name: Optional[str] = None,
+        with_decryption: Optional[bool] = False,
         **kwargs
     ):
         super().__init__()
         self.connections_prefix = connections_prefix.rstrip("/")
         self.variables_prefix = variables_prefix.rstrip('/')
         self.profile_name = profile_name
+        self.with_decryption = with_decryption
         self.kwargs = kwargs
 
     @cached_property
@@ -103,7 +107,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         ssm_path = self.build_path(path_prefix, secret_id)
         try:
             response = self.client.get_parameter(
-                Name=ssm_path, WithDecryption=True
+                Name=ssm_path, WithDecryption=self.with_decryption
             )
             value = response["Parameter"]["Value"]
             return value
