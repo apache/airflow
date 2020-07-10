@@ -4,9 +4,9 @@ from airflow.utils.logger import generate_logger
 import os
 from airflow.models.variable import Variable
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
-import json
 
-CAS_BASE_URL = os.environ.get("CAS_BASE_URL", "http://localhost:9095")
+CAS_ANALYSIS_BASE_URL = os.environ.get("CAS_ANALYSIS_BASE_URL", "http://localhost:9095")
+CAS_TRAINING_BASE_URL = os.environ.get("CAS_TRAINING_BASE_URL", "http://localhost:9095")
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
 CRAFT_TYPE_MAP = {
@@ -32,14 +32,24 @@ else:
 _logger = generate_logger(__name__)
 
 
-def get_cas_base_url():
+def get_cas_analysis_base_url():
     connection_model = models.connection.Connection
     with create_session() as session:
-        cas_base_url = session.query(connection_model).filter(
-            connection_model.conn_id == 'cas_base_url').first()
-    if not cas_base_url:
-        cas_base_url = CAS_BASE_URL  # 从环境变量中获取URL配置
-    return cas_base_url.get_uri() if isinstance(cas_base_url, connection_model) else cas_base_url
+        url = session.query(connection_model).filter(
+            connection_model.conn_id == 'cas_analysis_base_url').first()
+    if not url:
+        url = CAS_ANALYSIS_BASE_URL  # 从环境变量中获取URL配置
+    return url.get_uri() if isinstance(url, connection_model) else url
+
+
+def get_cas_training_base_url():
+    connection_model = models.connection.Connection
+    with create_session() as session:
+        url = session.query(connection_model).filter(
+            connection_model.conn_id == 'cas_training_base_url').first()
+    if not url:
+        url = CAS_TRAINING_BASE_URL  # 从环境变量中获取URL配置
+    return url.get_uri() if isinstance(url, connection_model) else url
 
 
 def get_craft_type(craft_type: str = DEFAULT_CRAFT_TYPE) -> int:

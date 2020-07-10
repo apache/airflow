@@ -37,7 +37,7 @@ from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session, provide_session
-from .utils import get_cas_base_url, get_result_args, get_task_params, get_curve_args, get_craft_type, \
+from .utils import get_cas_training_base_url, get_result_args, get_task_params, get_curve_args, get_craft_type, \
     generate_bolt_number, get_curve_params
 from flask import g, Blueprint, jsonify, request, url_for
 from airflow.entities.result_storage import ClsResultStorage
@@ -96,12 +96,14 @@ def put_anaylysis_result():
         resp.status_code = 500
         return resp
 
+
 @csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>/error_tag',
                         methods=['POST'])
 @requires_authentication
 def save_curve_error_tag(dag_id, task_id, execution_date):
     return _save_curve_error_tag(dag_id, task_id, execution_date)
+
 
 @csrf.exempt
 @api_experimental.route('/error_tag/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>',
@@ -307,18 +309,16 @@ def updateConfirmData(task_data, verify_error, curve_mode):
 def docasInvaild(task_instance, final_state):
     """二次确认结果不同"""
     entity_id = task_instance.entity_id
-    factory_code = task_instance.factory_code
-    cas_base_url = get_cas_base_url()
-    url = "{}/cas/invalid-curve".format(cas_base_url)
+    base_url = get_cas_training_base_url()
+    url = "{}/cas/invalid-curve".format(base_url)
     result = get_result(entity_id)
-    curve = get_curve(entity_id, factory_code)
+    curve = get_curve(entity_id)
     task_data = get_task_params(task_instance, entity_id)
     curve_mode = get_curve_mode(final_state, task_instance.error_tag)
     task_param = updateConfirmData(task_data,
                                    task_instance.verify_error,
                                    curve_mode
                                    )
-    measure_result = result.get('measure_result', None)
     controller_name = result.get('controller_name', None)
     job = result.get('job', None)
     batch_count = result.get('batch_count', None)
