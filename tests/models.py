@@ -251,7 +251,12 @@ class DagTest(unittest.TestCase):
         t1 = DummyOperator(task_id=task_id, dag=dag)
 
         session = settings.Session()  # type: Session
-        dagrun_1 = dag.create_dagrun(run_id=DagRun.ID_PREFIX, state=State.RUNNING, start_date=DEFAULT_DATE)
+        dagrun_1 = dag.create_dagrun(
+            run_id=DagRun.ID_PREFIX,
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+        )
         session.merge(dagrun_1)
 
         task_instance_1 = TI(t1, execution_date=DEFAULT_DATE, state=State.RUNNING)
@@ -278,7 +283,7 @@ class DagTest(unittest.TestCase):
 
         self.assertEqual(len(task_instances), 1)
         task_instance = task_instances[0]  # type: TI
-        self.assertEqual(task_instance.state, State.SHUTDOWN)
+        self.assertEqual(task_instance.state, State.NONE)
 
     def test_render_template_field(self):
         """Tests if render_template from a field works"""
