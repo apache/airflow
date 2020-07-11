@@ -81,13 +81,13 @@ The flask-ouathlib has been replaced with authlib because flask-outhlib have als
 been deprecated in favour of authlib.
 The Old and New provider configuration keys that have changed are as follows
 
-|      Old Keys      |      New keys     |
-|--------------------|-------------------|
-| consumer_key       | client_id         |
-| consumer_secret   | client_secret    |
-| base_url           | api_base_url      |
-| request_token_url  | client_kwargs     |
-|--------------------|-------------------|
+|      Old Keys       |      New keys     |
+|---------------------|-------------------|
+| consumer_key        | client_id         |
+| consumer_secret     | client_secret     |
+| base_url            | api_base_url      |
+| request_token_params| client_kwargs     |
+
 For more information, visit https://docs.authlib.org/en/stable/
 
 ### GCSTaskHandler has been moved
