@@ -19,48 +19,45 @@
 import unittest
 from unittest import mock
 
-from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
 
 class TestJenkinsHook(unittest.TestCase):
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    @mock.patch('airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials')
-    def test_client_created_without_exceptions(self, get_credentials_mock,
+    def test_client_created_default_http(self,
                                                get_connection_mock):
-        """ tests `init` method to validate client creation when all parameters are passed """
+        """ tests `init` method to validate http client creation when all parameters are passed """
+        default_connection_id = 'jenkins_default'
 
-        # Inputs to constructor
-        default_folder_id = 'test_id'
-        default_public_ssh_key = 'test_key'
+        connectionHost = 'http://test.com'
+        connectionPort = 8080
+        get_connection_mock.return_value = mock. \
+            Mock(connection_id=default_connection_id,
+                 login='test', password='test', extra='',
+                 host=connectionHost, port=connectionPort)
 
-        extra_dejson = '{"extras": "extra"}'
-        get_connection_mock['extra_dejson'] = "sdsd"
-        get_connection_mock.extra_dejson = '{"extras": "extra"}'
-        get_connection_mock.return_value = mock.\
-            Mock(connection_id='yandexcloud_default', extra_dejson=extra_dejson)
-        get_credentials_mock.return_value = {"token": 122323}
+        complete_url = f'http://{connectionHost}:{connectionPort}/'
+        hook = JenkinsHook(default_connection_id)
+        self.assertIsNotNone(hook.jenkins_server)
+        self.assertEqual(hook.jenkins_server.server, complete_url)
 
-        hook = JenkinsHook(None,
-                                   default_folder_id, default_public_ssh_key)
-        self.assertIsNotNone(hook.client)
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    def test_get_credentials_raise_exception(self, get_connection_mock):
+    def test_client_created_default_https(self,
+                                               get_connection_mock):
+        """ tests `init` method to validate https client creation when all
+        parameters are passed """
+        default_connection_id = 'jenkins_default'
 
-        """ tests 'get_credentials' method raising exception if none of the required fields are passed."""
+        connectionHost = 'http://test.com'
+        connectionPort = 8080
+        get_connection_mock.return_value = mock. \
+            Mock(connection_id=default_connection_id,
+                 login='test', password='test', extra='true',
+                 host=connectionHost, port=connectionPort)
 
-        # Inputs to constructor
-        default_folder_id = 'test_id'
-        default_public_ssh_key = 'test_key'
-
-        extra_dejson = '{"extras": "extra"}'
-        get_connection_mock['extra_dejson'] = "sdsd"
-        get_connection_mock.extra_dejson = '{"extras": "extra"}'
-        get_connection_mock.return_value = mock.Mock(connection_id='yandexcloud_default',
-                                                     extra_dejson=extra_dejson)
-
-        self.assertRaises(AirflowException, JenkinsHook, None,
-                          default_folder_id, default_public_ssh_key)
-
+        complete_url = f'https://{connectionHost}:{connectionPort}/'
+        hook = JenkinsHook(default_connection_id)
+        self.assertIsNotNone(hook.jenkins_server)
+        self.assertEqual(hook.jenkins_server.server, complete_url)
