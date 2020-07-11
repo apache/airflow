@@ -21,6 +21,8 @@ import os
 import unittest
 from unittest.mock import call, patch
 
+from parameterized import parameterized
+
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
@@ -767,3 +769,49 @@ class TestSparkSubmitHook(unittest.TestCase):
         client.delete_namespaced_pod.assert_called_once_with(
             'spark-pi-edf2ace37be7353a958b38733a12f8e6-driver',
             'mynamespace', **kwargs)
+
+    @parameterized.expand(
+        (
+            (
+                ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo", "bar"),
+                "spark-submit foo --bar baz --password='******' --foo bar",
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", "--password='secret'"),
+                "spark-submit foo --bar baz --password='******'",
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", '--password="secret"'),
+                'spark-submit foo --bar baz --password="******"',
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", '--password=secret'),
+                'spark-submit foo --bar baz --password=******',
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", "--password 'secret'"),
+                "spark-submit foo --bar baz --password '******'",
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", "--password='sec\"ret'"),
+                "spark-submit foo --bar baz --password='******'",
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", '--password="sec\'ret"'),
+                'spark-submit foo --bar baz --password="******"',
+            ),
+            (
+                ("spark-submit",),
+                "spark-submit",
+            ),
+        )
+    )
+    def test_masks_passwords(self, command: str, expected: str) -> None:
+        # Given
+        hook = SparkSubmitHook()
+
+        # When
+        command_masked = hook._mask_cmd(command)
+
+        # Then
+        assert command_masked == expected
