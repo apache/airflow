@@ -66,7 +66,7 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
             ).wait())
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
 
-        self.extract_remote_logs("INFO - Task exited with return code 0", ti)
+        self.assert_remote_logs("INFO - Task exited with return code 0", ti)
 
     @provide_session
     def test_should_support_adc(self, session):
@@ -86,9 +86,9 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
             ).wait())
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
 
-        self.extract_remote_logs("INFO - Task exited with return code 0", ti)
+        self.assert_remote_logs("INFO - Task exited with return code 0", ti)
 
-    def extract_remote_logs(self, expected_message, ti):
+    def assert_remote_logs(self, expected_message, ti):
         with provide_gcp_context(GCP_STACKDDRIVER), conf_vars({
             ('logging', 'remote_logging'): 'True',
             ('logging', 'remote_base_log_folder'): f"stackdriver://{self.log_name}",
