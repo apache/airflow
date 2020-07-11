@@ -42,7 +42,7 @@ def is_terminal_support_colors():
     """
     if sys.platform == "win32":
         return False
-    if is_tty():
+    if not is_tty():
         return False
     if "COLORTERM" in os.environ:
         return True
