@@ -37,7 +37,7 @@ class CeleryQueueSensor(BaseSensorOperator):
     def __init__(
             self,
             celery_queue: str,
-            target_task_id: Optional[str]=None,
+            target_task_id: Optional[str] = None,
             *args,
             **kwargs) -> None:
 
@@ -60,7 +60,7 @@ class CeleryQueueSensor(BaseSensorOperator):
         celery_result = ti.xcom_pull(task_ids=self.target_task_id)
         return celery_result.ready()
 
-    def poke(self, context: Dict[str,Any]) -> bool:
+    def poke(self, context: Dict[str, Any]) -> bool:
 
         if self.target_task_id:
             return self._check_task_id(context)
