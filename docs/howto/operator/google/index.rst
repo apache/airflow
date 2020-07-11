@@ -29,4 +29,3 @@ Google Operators
     suite/sheets
     ads
     transfer/index
-
