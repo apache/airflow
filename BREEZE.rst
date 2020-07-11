@@ -69,6 +69,7 @@ Docker Community Edition
 
 Here is an example configuration with more than 200GB disk space for Docker:
 
+.. raw:: html
 
     <div align="center">
         <img src="images/disk_space_osx.png" width="640"
