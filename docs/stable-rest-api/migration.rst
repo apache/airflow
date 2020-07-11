@@ -176,5 +176,13 @@ to
 
 Lineage of a DAG
 ^^^^^^^^^^^^^^^^
-We currently do not have endpoint for the lineage of a DAG in the stable
-API
+The endpoint for returning the lineage of a dag have changed from
+
+.. http:get:: /api/experimental/lineage/<DAG_ID>/<string:execution_date>/
+
+to
+
+.. http:get:: /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries
+
+More information about using this endpoint can be found in the stable REST API
+documentation
