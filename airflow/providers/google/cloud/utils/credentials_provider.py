@@ -226,14 +226,12 @@ class _CredentialProvider(LoggingMixin):
         :return: Google Auth Credentials
         :type: Tuple[google.auth.credentials.Credentials, str]
         """
-        if not self.key_path and not self.keyfile_dict:
-            credentials, project_id = self._get_credentials_using_adc()
-        elif self.key_path:
+        if self.key_path:
             credentials, project_id = self._get_credentials_using_key_path()
         elif self.keyfile_dict:
             credentials, project_id = self._get_credentials_using_keyfile_dict()
         else:
-            raise ValueError("This situation should never happen.")
+            credentials, project_id = self._get_credentials_using_adc()
 
         if self.delegate_to:
             if hasattr(credentials, 'with_subject'):
