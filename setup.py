@@ -253,7 +253,7 @@ facebook = [
     'facebook-business>=6.0.2',
 ]
 flask_oauth = [
-    'Flask-OAuthlib>=0.9.1',
+    "Authlib>=0.14.3",
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
     'requests-oauthlib==1.1.0',
 ]
