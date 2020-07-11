@@ -174,7 +174,7 @@ to
 .. http:delete:: /api/v1/pools/{pool_name}
 
 DAG Lineage
-^^^^^^^^^^^^^^^^
+^^^^^^^^^^^
 The endpoint for returning the lineage of a dag have changed from
 
 .. http:get:: /api/experimental/lineage/<DAG_ID>/<string:execution_date>/
