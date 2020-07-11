@@ -41,8 +41,7 @@ MISSING_TEST_FILES = {
     'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py',
     'tests/providers/microsoft/azure/log/test_wasb_task_handler.py',
     'tests/providers/microsoft/mssql/hooks/test_mssql.py',
-    'tests/providers/samba/hooks/test_samba.py',
-    'tests/providers/yandex/hooks/test_yandex.py'
+    'tests/providers/samba/hooks/test_samba.py'
 }
 
 
