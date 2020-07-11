@@ -33,7 +33,7 @@ artifacts such as Docker containers or Java archives.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: /howto/operator/gcp/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:CloudBuildBuild:
 

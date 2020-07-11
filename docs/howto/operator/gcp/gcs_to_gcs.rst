@@ -61,7 +61,7 @@ In the next section they will be described.
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: /howto/operator/gcp/_partials/prerequisite_tasks.rst
 
 
 Operators

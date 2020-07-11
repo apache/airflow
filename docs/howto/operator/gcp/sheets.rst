@@ -39,7 +39,7 @@ For more information check `official documentation <https://developers.google.co
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: /howto/operator/gcp/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:GoogleSheetsCreateSpreadsheetOperator:
 

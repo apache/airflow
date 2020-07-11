@@ -29,7 +29,7 @@ This page shows how to download data from GCS to local filesystem.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: /howto/operator/gcp/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:GCSToLocalFilesystemOperator:
 
