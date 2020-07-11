@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-MIGRATION GUIDE FROM EXPERIMENTAL API TO STABLE API v1
+Migration Guide from Experimental API to Stable API v1
 ======================================================
 This article provides guidelines for migrating from experimental REST API to the
 stable REST API.
@@ -37,7 +37,7 @@ experimental base endpoint from ``/api/experimental/`` to ``/api/v1/``.
 
 Create a dag_run from a given dag_id
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The endpoint for creating a dag_run from a given dag_id have changed from
+The endpoint for creating a dag_run from a given dag_id has changed from
 
 .. http:post:: /api/experimental/dags/<DAG_ID>/dag_runs
 
@@ -48,7 +48,7 @@ to
 
 List dag_runs from a specific DAG ID
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The endpoint to get list of dag_runs for a specific dag_id have changed from
+The endpoint to get the list of dag_runs for a specific dag_id has changed from
 
 .. http:get:: /api/experimental/dags/<DAG_ID>/dag_runs
 
@@ -56,8 +56,7 @@ to
 
 .. http:get:: /api/v1/dags/{dag_id}/dagRuns
 
-This endpoint also allows you to filter dag_runs with parameters such as start
-date, end date, execution date etc in the query string.
+This endpoint also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
 Therefore the operation previously performed by this endpoint
 
 .. http:get:: /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
@@ -68,7 +67,7 @@ reference documentaion for more information
 Health endpoint
 ^^^^^^^^^^^^^^^
 The operation previously performed in the experimental REST API endpoint to check
-the health status have changed from
+the health status has changed from
 
 .. http:get:: /api/experimental/test
 
@@ -78,7 +77,7 @@ to
 
 Task information endpoint
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-The endpoint for getting a task information have changed from
+The endpoint for getting task information has changed from
 
 .. http:get:: /api/experimental/dags/<DAG_ID>/tasks/<TASK_ID>
 
@@ -88,8 +87,8 @@ to
 
 Task Instance
 ^^^^^^^^^^^^^
-The endpoint for getting task instance`s public instance variable
-have changed from
+The endpoint for getting task instance's public instance variable
+has changed from
 
 .. http:get:: /api/experimental/dags/<DAG_ID>/dag_runs/<string:execution_date>/tasks/<TASK_ID>
 
@@ -101,7 +100,7 @@ Please check the Stable API reference documentaion for more information
 
 DAG
 ^^^
-The endpoint for pausing a dag have changed from
+The endpoint for pausing a dag has changed from
 
 .. http:get:: /api/experimental/dags/<DAG_ID>/paused/<string:paused>
 
@@ -109,7 +108,7 @@ to
 
 .. http:patch:: /api/v1/dags/{dag_id}
 
-while getting information about the paused state of a dag have changed from
+while getting information about the paused state of a dag has changed from
 
 .. http:get:: /api/experimental/dags/<DAG_ID>/paused
 
@@ -134,9 +133,9 @@ Getting information about latest runs can be accomplished with the help of
 filters in the query string of this endpoint. Please check the Stable API
 reference documentation for more information
 
-Get all pools
+Get all Pools
 ^^^^^^^^^^^^^
-The endpoint for getting all pools have changed from
+The endpoint for getting all pools has changed from
 
 .. http:get:: /api/experimental/pools
 
@@ -146,7 +145,7 @@ to
 
 Get pool by a given name
 ^^^^^^^^^^^^^^^^^^^^^^^^
-The endpoint to get pool by a given name have changed from
+The endpoint to get pool by a given name has changed from
 
 .. http:get:: /api/experimental/pools/<string:name>
 
@@ -154,9 +153,9 @@ to
 
 .. http:get:: /api/v1/pools/{pool_name}
 
-Create a pool
+Create a Pool
 ^^^^^^^^^^^^^
-The endpoint for creating a pool have changed from
+The endpoint for creating a pool has changed from
 
 .. http:post:: /api/experimental/pools
 
@@ -164,9 +163,9 @@ to
 
 .. http:post:: /api/v1/pools
 
-Delete a pool
+Delete a Pool
 ^^^^^^^^^^^^^
-The endpoint for deleting a pool have changed from
+The endpoint for deleting a pool has changed from
 
 .. http:delete:: /api/experimental/pools/<string:name>
 
@@ -174,7 +173,7 @@ to
 
 .. http:delete:: /api/v1/pools/{pool_name}
 
-Lineage of a DAG
+DAG Lineage
 ^^^^^^^^^^^^^^^^
 The endpoint for returning the lineage of a dag have changed from
 
