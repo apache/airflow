@@ -30,7 +30,6 @@ from google.cloud.logging.resource import Resource
 from airflow import version
 from airflow.models import TaskInstance
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
-from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})
@@ -41,7 +40,7 @@ _DEFAULT_SCOPESS = frozenset([
 ])
 
 
-class StackdriverTaskHandler(logging.Handler, ExternalLoggingMixin):
+class StackdriverTaskHandler(logging.Handler):
     """Handler that directly makes Stackdriver logging API calls.
 
     This is a Python standard ``logging`` handler using that can be used to
@@ -300,6 +299,7 @@ class StackdriverTaskHandler(logging.Handler, ExternalLoggingMixin):
 
     @property
     def log_name(self):
+        """Return log name."""
         return self.LOG_NAME
 
     @cached_property
