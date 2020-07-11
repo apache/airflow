@@ -135,6 +135,7 @@ extensions = [
     'docroles',
     'removemarktransform',
     'sphinx_copybutton',
+    'redirects',
 ]
 
 autodoc_default_options = {
@@ -210,7 +211,7 @@ exclude_patterns: List[str] = [
     '_api/airflow/providers/google/cloud/_internal_client',
     # Templates or partials
     'autoapi_templates',
-    'howto/operator/gcp/_partials',
+    'howto/operator/google/_partials',
 ]
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -514,6 +515,9 @@ autoapi_root = '_api'
 
 # -- Options for example include ------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
+
+# -- Options for sphinxcontrib-redirects ----------------------------------
+redirects_file = 'redirects.txt'
 
 # -- Additional HTML Context variable
 html_context = {

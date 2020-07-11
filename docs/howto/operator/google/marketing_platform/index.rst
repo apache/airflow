@@ -17,28 +17,16 @@
 
 
 
-Using Operators
-===============
+Google Marketing Platform Operators
+===================================
 
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
-
-.. note::
-    See the :ref:`Operators Concepts <concepts:operators>` documentation and the
-    :doc:`Operators API Reference <../../_api/index>` for more
-    information.
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :glob:
 
-    bash
-    amazon/aws/index
-    apache/index
-    dingding
-    google/index
-    http/index
-    kubernetes
-    papermill
-    python
-    external_task_sensor
-    yandexcloud
+    *
+
+.. note::
+    You can learn how to use Google Cloud integrations by analyzing the
+    `source code <https://github.com/apache/airflow/tree/master/airflow/providers/google/marketing_platform/example_dags/>`_ of the particular example DAGs.
