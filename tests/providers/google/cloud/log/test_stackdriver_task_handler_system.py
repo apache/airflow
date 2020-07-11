@@ -40,7 +40,7 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
 
     def setUp(self) -> None:
         clear_db_runs()
-        self.log_name = 'stackdriver-tests-'.join(random.choice(string.ascii_lowercase) for _ in range(16))
+        self.log_name = 'stackdriver-tests-'.join(random.sample(string.ascii_lowercase, 16))
 
     def tearDown(self) -> None:
         from airflow.config_templates import airflow_local_settings
