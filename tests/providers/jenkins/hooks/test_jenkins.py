@@ -30,14 +30,14 @@ class TestJenkinsHook(unittest.TestCase):
         """ tests `init` method to validate http client creation when all parameters are passed """
         default_connection_id = 'jenkins_default'
 
-        connectionHost = 'http://test.com'
-        connectionPort = 8080
+        connection_host = 'http://test.com'
+        connection_port = 8080
         get_connection_mock.return_value = mock. \
             Mock(connection_id=default_connection_id,
                  login='test', password='test', extra='',
-                 host=connectionHost, port=connectionPort)
+                 host=connection_host, port=connection_port)
 
-        complete_url = f'http://{connectionHost}:{connectionPort}/'
+        complete_url = f'http://{connection_host}:{connection_port}/'
         hook = JenkinsHook(default_connection_id)
         self.assertIsNotNone(hook.jenkins_server)
         self.assertEqual(hook.jenkins_server.server, complete_url)
@@ -50,14 +50,14 @@ class TestJenkinsHook(unittest.TestCase):
         parameters are passed """
         default_connection_id = 'jenkins_default'
 
-        connectionHost = 'http://test.com'
-        connectionPort = 8080
+        connection_host = 'http://test.com'
+        connection_port = 8080
         get_connection_mock.return_value = mock. \
             Mock(connection_id=default_connection_id,
                  login='test', password='test', extra='true',
-                 host=connectionHost, port=connectionPort)
+                 host=connection_host, port=connection_port)
 
-        complete_url = f'https://{connectionHost}:{connectionPort}/'
+        complete_url = f'https://{connection_host}:{connection_port}/'
         hook = JenkinsHook(default_connection_id)
         self.assertIsNotNone(hook.jenkins_server)
         self.assertEqual(hook.jenkins_server.server, complete_url)
