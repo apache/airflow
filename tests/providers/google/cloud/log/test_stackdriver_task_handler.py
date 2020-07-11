@@ -58,7 +58,8 @@ class TestStackdriverLoggingHandlerStandalone(unittest.TestCase):
         )
         mock_client.assert_called_once_with(
             credentials='creds',
-            client_info=mock.ANY
+            client_info=mock.ANY,
+            project="project_id"
         )
 
 
@@ -279,6 +280,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         client = stackdriver_task_handler._client
 
         mock_get_creds_and_project_id.assert_called_once_with(
+            disable_logging=True,
             key_path='KEY_PATH',
             scopes=frozenset(
                 {
@@ -289,6 +291,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         )
         mock_client.assert_called_once_with(
             credentials='creds',
-            client_info=mock.ANY
+            client_info=mock.ANY,
+            project="project_id"
         )
         self.assertEqual(mock_client.return_value, client)
