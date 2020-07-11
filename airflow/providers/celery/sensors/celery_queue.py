@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from celery.app import control
 from typing import Any, Dict, Optional
+
+from celery.app import control
+
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
