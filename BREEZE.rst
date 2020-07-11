@@ -36,7 +36,7 @@ We called it *Airflow Breeze* as **It's a Breeze to contribute to Airflow**.
 The advantages and disadvantages of using the Breeze environment vs. other ways of testing Airflow
 are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-development-environment>`_.
 
-Watch the video below about Airflow Breeze. It explains motivation for Breeze
+Watch the video below about Airflow Breeze. It explains the motivation for Breeze
 and screencasts all its uses.
 
 .. raw:: html
