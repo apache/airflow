@@ -300,7 +300,6 @@ example:
     # configuration requirements.
     remote_logging = True
     remote_base_log_folder = stackdriver://logs-name
-    remote_log_conn_id = custom-conn-id
 
 All configuration options are in the ``[logging]`` section.
 
