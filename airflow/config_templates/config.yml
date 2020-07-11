@@ -149,7 +149,7 @@
         This is useful when you want to configure db engine args that SqlAlchemy won't parse
         in connection string.
         See https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine.params.connect_args
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: ~
@@ -787,7 +787,7 @@
       description: |
         If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
         then reload the gunicorn.
-      version_added: ~
+      version_added: 1.10.11
       type: boolean
       example: ~
       default: "False"
@@ -1797,7 +1797,7 @@
     - name: pod_template_file
       description: |
         Path to the YAML pod file. If set, all other kubernetes-related fields are ignored.
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: ""
@@ -1826,7 +1826,7 @@
       description: |
         If False (and delete_worker_pods is True),
         failed worker pods will not be deleted so users can investigate them.
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: "False"
@@ -1920,7 +1920,7 @@
     - name: dags_volume_mount_point
       description: |
         For either git sync or volume mounted DAGs, the worker will mount the volume in this path
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: ""

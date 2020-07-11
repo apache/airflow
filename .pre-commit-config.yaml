@@ -269,7 +269,8 @@ repos:
           ^airflow/providers/apache/hive/operators/hive_stats.py$|
           ^airflow/providers/apache/hive/PROVIDERS_CHANGES_*|
           ^airflow/providers/apache/hive/README.md$|
-          ^tests/providers/apache/cassandra/hooks/test_cassandra.py
+          ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
+          ^CHANGELOG.txt$
       - id: consistent-pylint
         language: pygrep
         name: Check for inconsitent pylint disable/enable without space
