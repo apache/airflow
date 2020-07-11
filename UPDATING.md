@@ -84,7 +84,7 @@ The Old and New provider configuration keys that have changed are as follows
 |      Old Keys      |      New keys     |
 |--------------------|-------------------|
 | consumer_key       | client_id         |
-| consumer_secrete   | client_secrete    |
+| consumer_secret   | client_secret    |
 | base_url           | api_base_url      |
 | request_token_url  | client_kwargs     |
 |--------------------|-------------------|
