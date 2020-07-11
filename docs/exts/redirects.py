@@ -44,7 +44,12 @@ def generate_redirects(app):
 
     with open(redirect_file_path) as redirects:
         for line in redirects.readlines():
-            if not line or line.startswith("#"):
+            # Skip empty line
+            if not line.strip():
+                continue
+
+            # Skip comments
+            if line.startswith("#"):
                 continue
 
             from_path, _, to_path = line.rstrip().partition(" ")
