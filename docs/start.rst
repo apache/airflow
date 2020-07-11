@@ -30,7 +30,7 @@ The installation is quick and straightforward.
     export AIRFLOW_HOME=~/airflow
 
     # install from pypi using pip
-    pip install apache-airflow
+    sudo pip install apache-airflow
 
     # initialize the database
     airflow db init
