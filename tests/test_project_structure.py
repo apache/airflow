@@ -130,10 +130,14 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'cassandra_to_gcs'),
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
+        ('cloud', 'gcs_to_local'),
+        ('ads', 'ads_to_gcs'),
     }
 
     def test_example_dags(self):
-        operators_modules = self.find_resource_files(resource_type="operators")
+        operators_modules = itertools.chain(
+            *[self.find_resource_files(resource_type=d) for d in ["operators", "sensors", "transfers"]]
+        )
         example_dags_files = self.find_resource_files(resource_type="example_dags")
         # Generate tuple of department and service e.g. ('marketing_platform', 'display_video')
         operator_sets = [
@@ -170,15 +174,28 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
                     "Can you remove it from the list of missing example, please?"
                 )
 
+        with self.subTest("Revmoe extra elements"):
+            extra_example_dags = set(self.MISSING_EXAMPLE_DAGS) - set(operator_sets)
+            if extra_example_dags:
+                new_example_dag_text = '\n'.join(str(f) for f in extra_example_dags)
+                self.fail(
+                    "You've added a example dag currently listed as missing:\n"
+                    f"{new_example_dag_text}"
+                    "\n"
+                    "Thank you very much.\n"
+                    "Can you remove it from the list of missing example, please?"
+                )
+
     @parameterized.expand(
         [
-            ("_system.py",),
-            ("_system_helper.py",),
+            (resource_type, suffix,)
+            for suffix in ["_system.py", "_system_helper.py"]
+            for resource_type in ["operators", "sensors", "tranfers"]
         ]
     )
-    def test_detect_invalid_system_tests(self, filename_suffix):
-        operators_tests = self.find_resource_files(top_level_directory="tests", resource_type="operators")
-        operators_files = self.find_resource_files(top_level_directory="airflow", resource_type="operators")
+    def test_detect_invalid_system_tests(self, resource_type, filename_suffix):
+        operators_tests = self.find_resource_files(top_level_directory="tests", resource_type=resource_type)
+        operators_files = self.find_resource_files(top_level_directory="airflow", resource_type=resource_type)
 
         files = {f for f in operators_tests if f.endswith(filename_suffix)}
 
