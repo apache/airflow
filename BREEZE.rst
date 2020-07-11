@@ -539,7 +539,7 @@ However in many cases you want to add your own custom version of the image - wit
 python dependencies, additional Airflow extras. Breeze's ``build-image`` command helps to build your own,
 customised variant of the image that contains everything you need.
 
-You can switch to building the production image by adding ``--production-image``flag to the ``build_image``
+You can switch to building the production image by adding ``--production-image`` flag to the ``build_image``
 command. Note, that the images can also be build using ``docker build`` command by passing appropriate
 build-args as described in `IMAGES.rst <IMAGES.rst>`_ , but Breeze provides several flags that
 makes it easier to do it. You can see all the flags by running ``./breeze build-image --help``,
