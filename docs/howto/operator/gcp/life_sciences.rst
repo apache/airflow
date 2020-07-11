@@ -31,7 +31,7 @@ and biomedical data at scale.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: /howto/operator/gcp/_partials/prerequisite_tasks.rst
 
 
 Pipeline Configuration

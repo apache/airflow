@@ -32,7 +32,7 @@ For more information about the service visit `Dataproc production documentation 
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: /howto/operator/gcp/_partials/prerequisite_tasks.rst
 
 
 .. _howto/operator:DataprocCreateClusterOperator:
