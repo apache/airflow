@@ -76,6 +76,23 @@ This section describes the major changes that have been made in this release.
 #### Python 2 support is going away
 
 > WARNING: Breaking change
+### Flask-ouathlib has been replaced with Authlib
+The flask-ouathlib has been replaced with authlib because flask-outhlib have also
+been deprecated in favour of authlib.
+The Old and New provider configuration keys that have changed are as follows
+
+|      Old Keys      |      New keys     |
+|--------------------|-------------------|
+| consumer_key       | client_id         |
+| consumer_secrete   | client_secrete    |
+| base_url           | api_base_url      |
+| request_token_url  | client_kwargs     |
+|--------------------|-------------------|
+For more information, visit https://docs.authlib.org/en/stable/
+
+### GCSTaskHandler has been moved
+The `GCSTaskHandler` class from `airflow.utils.log.gcs_task_handler` has been moved to
+`airflow.providers.google.cloud.log.gcs_task_handler`. This is because it has items specific to `google cloud`.
 
 Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.6 and up.
 
