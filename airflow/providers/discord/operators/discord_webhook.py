@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Any, Dict, Optional
+
 from airflow.exceptions import AirflowException
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.providers.http.operators.http import SimpleHttpOperator
@@ -56,15 +58,15 @@ class DiscordWebhookOperator(SimpleHttpOperator):
 
     @apply_defaults
     def __init__(self,
-                 http_conn_id=None,
-                 webhook_endpoint=None,
-                 message="",
-                 username=None,
-                 avatar_url=None,
-                 tts=False,
-                 proxy=None,
+                 http_conn_id: Optional[str] = None,
+                 webhook_endpoint: Optional[str] = None,
+                 message: str = "",
+                 username: Optional[str] = None,
+                 avatar_url: Optional[str] = None,
+                 tts: bool = False,
+                 proxy: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(endpoint=webhook_endpoint,
                          *args,
                          **kwargs)
@@ -81,7 +83,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
         self.proxy = proxy
         self.hook = None
 
-    def execute(self, context):
+    def execute(self, context: Dict[Any, Any]) -> None:
         """
         Call the DiscordWebhookHook to post message
         """
