@@ -24,6 +24,7 @@ from bs4 import BeautifulSoup
 from parameterized import parameterized
 
 from airflow.www import utils
+from airflow.www.utils import wrapped_markdown
 from tests.test_utils.config import conf_vars
 
 
@@ -229,3 +230,16 @@ class TestAttrRenderer(unittest.TestCase):
     def test_markdown_none(self):
         rendered = self.attr_renderer["python_callable"](None)
         self.assertEqual("", rendered)
+
+
+class TestWrappedMarkdown(unittest.TestCase):
+
+    def test_wrapped_markdown_with_docstring_curly_braces(self):
+        rendered = wrapped_markdown("{braces}", css_class="a_class")
+        self.assertEqual('<div class="rich_doc a_class" ><p>{braces}</p></div>', rendered)
+
+    def test_wrapped_markdown_with_some_markdown(self):
+        rendered = wrapped_markdown("*italic*\n**bold**\n", css_class="a_class")
+        self.assertEqual(
+            '''<div class="rich_doc a_class" ><p><em>italic</em>
+<strong>bold</strong></p></div>''', rendered)

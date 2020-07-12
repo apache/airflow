@@ -321,8 +321,8 @@ def wrapped_markdown(s, css_class=None):
         return None
 
     return Markup(
-        '<div class="rich_doc {css_class}" >' + markdown.markdown(s) + "</div>"
-    ).format(css_class=css_class)
+        '<div class="rich_doc {css_class}" >'.format(css_class=css_class) + markdown.markdown(s) + "</div>"
+    )
 
 
 def get_attr_renderer():
