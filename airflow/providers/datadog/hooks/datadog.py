@@ -18,9 +18,9 @@
 
 import time
 
-from datadog import api, initialize
-
 from typing import Any, Dict, List, Union
+
+from datadog import api, initialize
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -94,7 +94,7 @@ class DatadogHook(BaseHook, LoggingMixin):
     def query_metric(self,
                      query: str,
                      from_seconds_ago: int,
-                     to_seconds_ago: int) - > Dict[str, Any]:
+                     to_seconds_ago: int) -> Dict[str, Any]:
         """
         Queries datadog for a specific metric, potentially with some
         function applied to it and returns the results.
@@ -118,7 +118,7 @@ class DatadogHook(BaseHook, LoggingMixin):
 
     # pylint: disable=too-many-arguments
     def post_event(self, title: str, text: str, aggregation_key: str = None, alert_type: str = None, date_happened: int = None,
-                   handle: str = None, priority: str = None, related_event_id=None, tags: List[str] = None, device_name: List[str] = None):
+                   handle: str = None, priority: str = None, related_event_id: str = None, tags: List[str] = None, device_name: List[str] = None) -> Dict[str, Any]:
         """
         Posts an event to datadog (processing finished, potentially alerts, other issues)
         Think about this as a means to maintain persistence of alerts, rather than
