@@ -130,7 +130,7 @@ class TestFileToGcsOperator(unittest.TestCase):
             mock.call(
                 bucket_name=self._config['bucket'],
                 filename=filepath,
-                gzip=self._config['gzip'],f
+                gzip=self._config['gzip'],
                 mime_type=self._config['mime_type'],
                 object_name=object_name
             )
