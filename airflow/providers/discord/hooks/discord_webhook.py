@@ -18,7 +18,7 @@
 #
 import json
 import re
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -106,7 +106,7 @@ class DiscordWebhookHook(HttpHook):
 
         :return: Discord payload (str) to send
         """
-        payload = {}
+        payload: Dict[str, Any] = {}
 
         if self.username:
             payload['username'] = self.username

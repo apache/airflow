@@ -81,7 +81,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
         self.avatar_url = avatar_url
         self.tts = tts
         self.proxy = proxy
-        self.hook = None
+        self.hook: Optional[DiscordWebhookHook] = None
 
     def execute(self, context: Dict) -> None:
         """
