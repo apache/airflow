@@ -194,9 +194,10 @@ The following tables lists the configurable parameters of the Airflow chart and 
 | `webserver.resources.limits.memory`                   | Memory Limit of webserver                                                                                    | `~`                                               |
 | `webserver.resources.requests.cpu`                    | CPU Request of webserver                                                                                     | `~`                                               |
 | `webserver.resources.requests.memory`                 | Memory Request of webserver                                                                                  | `~`                                               |
+| `webserver.service.annotations`                       | Annotations to be added to the webserver service                                                             | `{}`                                              |
 | `webserver.defaultUser`                               | Optional default airflow user information                                                                    | `{}`                                              |
-| `dags.persistence.*`                               | Dag persistence configutation                                                                    | Please refer to `values.yaml`                                    |
-| `dags.gitSync.*`                               | Git sync configuration                                                                   | Please refer to `values.yaml`                                    |
+| `dags.persistence.*`                                  | Dag persistence configutation                                                                                | Please refer to `values.yaml`                     |
+| `dags.gitSync.*`                                      | Git sync configuration                                                                                       | Please refer to `values.yaml`                     |
 
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example,
