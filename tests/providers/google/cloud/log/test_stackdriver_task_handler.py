@@ -19,6 +19,7 @@ import logging
 import unittest
 from datetime import datetime
 from unittest import mock
+from urllib.parse import parse_qs, urlparse
 
 from google.cloud.logging.resource import Resource
 
@@ -295,3 +296,32 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
             project="project_id"
         )
         self.assertEqual(mock_client.return_value, client)
+
+    @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
+    @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client')
+    def test_should_return_valid_external_url(self, mock_client, mock_get_creds_and_project_id):
+        mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
+        mock_client.return_value.project = 'project_id'
+
+        stackdriver_task_handler = StackdriverTaskHandler(
+            gcp_key_path="KEY_PATH",
+        )
+
+        url = stackdriver_task_handler.get_external_log_url(self.ti, self.ti.try_number)
+
+        parsed_url = urlparse(url)
+        parsed_qs = parse_qs(parsed_url.query)
+        self.assertEqual('https', parsed_url.scheme)
+        self.assertEqual('console.cloud.google.com', parsed_url.netloc)
+        self.assertEqual('/logs/viewer', parsed_url.path)
+        self.assertCountEqual(['project', 'interval', 'resource', 'advancedFilter'], parsed_qs.keys())
+        self.assertIn('global', parsed_qs['resource'])
+
+        filter_params = parsed_qs['advancedFilter'][0].split('\n')
+        expected_filter = ['resource.type="global"',
+                           'logName="projects/project_id/logs/airflow"',
+                           f'labels.task_id="{self.ti.task_id}"',
+                           f'labels.dag_id="{self.dag.dag_id}"',
+                           f'labels.execution_date="{self.ti.execution_date.isoformat()}"',
+                           f'labels.try_number="{self.ti.try_number}"']
+        self.assertCountEqual(expected_filter, filter_params)

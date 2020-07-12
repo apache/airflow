@@ -343,3 +343,10 @@ To enable it, ``airflow.cfg`` must be configured as in the example below. Note t
     # Code will construct log_id using the log_id template from the argument above.
     # NOTE: The code will prefix the https:// automatically, don't include that here.
     frontend = <host_port>/{log_id}
+
+.. _log-link-stackdriver:
+
+Google Stackdriver External Link
+---------------------------------
+
+Airflow automatically shows a link to Google Stackdriver when configured to use it as the remote logging system.
