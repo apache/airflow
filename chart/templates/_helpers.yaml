@@ -91,6 +91,10 @@
     value: {{ printf "%s=%s" $config.secretName $config.secretKey }}
     {{- end }}
   {{ end }}
+  {{- if .Values.webserver.baseUrl }}
+  - name: AIRFLOW__WEBSERVER__BASE_URL
+    value: {{ .Values.webserver.baseUrl }}
+  {{ end }}
 {{- end }}
 
 {{/*  Git ssh key volume */}}

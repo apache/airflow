@@ -260,6 +260,9 @@ webserver:
   service:
     type: ClusterIP
 
+  # The base url of the website. Also sets the AIRFLOW__WEBSERVER__BASE_URL variable.
+  # baseUrl: ""
+
 # Flower settings
 flower:
   # Additional network policies as needed
