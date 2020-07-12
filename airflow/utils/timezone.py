@@ -49,7 +49,7 @@ def is_naive(value):
     return value.utcoffset() is None
 
 
-def utcnow():
+def utcnow() -> dt.datetime:
     """
     Get the current date and time in UTC
 
@@ -59,13 +59,13 @@ def utcnow():
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not pickable and also creates issues
     # when using replace()
-    date = dt.datetime.utcnow()
-    date = date.replace(tzinfo=utc)
+    result = dt.datetime.utcnow()
+    result = result.replace(tzinfo=utc)
 
-    return date
+    return result
 
 
-def utc_epoch():
+def utc_epoch() -> dt.datetime:
     """
     Gets the epoch in the users timezone
 
@@ -75,10 +75,10 @@ def utc_epoch():
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not pickable and also creates issues
     # when using replace()
-    date = dt.datetime(1970, 1, 1)
-    date = date.replace(tzinfo=utc)
+    result = dt.datetime(1970, 1, 1)
+    result = result.replace(tzinfo=utc)
 
-    return date
+    return result
 
 
 def convert_to_utc(value):

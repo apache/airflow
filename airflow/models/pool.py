@@ -181,7 +181,7 @@ class Pool(Base):
         ) or 0
 
     @provide_session
-    def open_slots(self, session: Session):
+    def open_slots(self, session: Session) -> float:
         """
         Get the number of slots open at the moment.
 
