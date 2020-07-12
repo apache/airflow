@@ -2902,9 +2902,8 @@ class TestSchedulerJob(unittest.TestCase):
 
         dagbag.bag_dag(dag=dag, root_dag=dag)
 
-        @mock.patch('airflow.models.DagBag', return_value=dagbag)
-        @mock.patch('airflow.models.DagBag.collect_dags')
-        def do_schedule(mock_dagbag, mock_collect_dags):
+        @mock.patch('airflow.jobs_scheduler_job.DagBag', return_value=dagbag)
+        def do_schedule(mock_dagbag):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.
@@ -2960,8 +2959,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         dagbag.bag_dag(dag=dag, root_dag=dag)
 
-        @mock.patch('airflow.models.DagBag', return_value=dagbag)
-        @mock.patch('airflow.models.DagBag.collect_dags')
+        @mock.patch('airflow.jobs_scheduler_job.DagBag', return_value=dagbag)
         def do_schedule(mock_dagbag, mock_collect_dags):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
