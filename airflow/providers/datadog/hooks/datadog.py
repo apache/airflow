@@ -18,7 +18,7 @@
 
 import time
 
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from datadog import api, initialize
 
@@ -65,7 +65,7 @@ class DatadogHook(BaseHook, LoggingMixin):
             self.log.error("Datadog returned: %s", response)
             raise AirflowException("Error status received from Datadog")
 
-    def send_metric(self, metric_name: str, datapoint: Union[float, int], tags: List[Any] = None, type_: str = None, interval: int = None) -> Dict[str, Any]:
+    def send_metric(self, metric_name: str, datapoint: Union[float, int], tags: Optional[List[Any]] = None, type_: Optional[str] = None, interval: Optional[int] = None) -> Dict[str, Any]:
         """
         Sends a single datapoint metric to DataDog
 
@@ -117,8 +117,8 @@ class DatadogHook(BaseHook, LoggingMixin):
         return response
 
     # pylint: disable=too-many-arguments
-    def post_event(self, title: str, text: str, aggregation_key: str = None, alert_type: str = None, date_happened: int = None,
-                   handle: str = None, priority: str = None, related_event_id: str = None, tags: List[str] = None, device_name: List[str] = None) -> Dict[str, Any]:
+    def post_event(self, title: str, text: str, aggregation_key: Optional[str] = None, alert_type: Optional[str] = None, date_happened: Optional[int] = None,
+                   handle: Optional[str] = None, priority: Optional[str] = None, related_event_id: Optional[str] = None, tags: Optional[List[str]] = None, device_name: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Posts an event to datadog (processing finished, potentially alerts, other issues)
         Think about this as a means to maintain persistence of alerts, rather than
