@@ -34,7 +34,6 @@ from datetime import timedelta
 from functools import wraps
 from textwrap import dedent
 
-import markdown
 import sqlalchemy as sqla
 import pendulum
 from flask import (
@@ -87,6 +86,7 @@ from airflow.utils.timezone import datetime
 from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
+from airflow.www.utils import wrapped_markdown
 from airflow.www.validators import GreaterEqualThan
 
 QUERY_LIMIT = 100000
@@ -247,15 +247,6 @@ def render(obj, lexer):
             out += Markup('<div>Dict item "{}"</div>'.format(k))
             out += Markup("<div>" + pygment_html_render(v, lexer) + "</div>")
     return out
-
-
-def wrapped_markdown(s, css_class=None):
-    if s is None:
-        return None
-
-    return Markup(
-        '<div class="rich_doc {css_class}" >' + markdown.markdown(s) + "</div>"
-    ).format(css_class=css_class)
 
 
 attr_renderer = {

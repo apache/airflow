@@ -30,6 +30,8 @@ from airflow.settings import Session
 from airflow.utils.state import State
 from airflow.utils import dates, timezone
 from airflow.www import utils, app as application
+from airflow.www.utils import wrapped_markdown
+from airflow.www_rbac.utils import wrapped_markdown as wrapped_markdown_rbac
 from tests.test_utils.config import conf_vars
 
 if six.PY2:
@@ -358,6 +360,32 @@ class TestDecorators(unittest.TestCase):
         self.session.commit()
         self.check_last_log("example_bash_operator", event="clear",
                             execution_date=self.EXAMPLE_DAG_DEFAULT_DATE)
+
+
+class TestWrappedMarkdown(unittest.TestCase):
+
+    def test_wrapped_markdown_with_docstring_curly_braces(self):
+        rendered = wrapped_markdown("{braces}", css_class="a_class")
+        self.assertEqual('<div class="rich_doc a_class" ><p>{braces}</p></div>', rendered)
+
+    def test_wrapped_markdown_with_some_markdown(self):
+        rendered = wrapped_markdown("*italic*\n**bold**\n", css_class="a_class")
+        self.assertEqual(
+            '''<div class="rich_doc a_class" ><p><em>italic</em>
+<strong>bold</strong></p></div>''', rendered)
+
+
+class TestWrappedMarkdownRbac(unittest.TestCase):
+
+    def test_wrapped_markdown_with_docstring_curly_braces(self):
+        rendered = wrapped_markdown_rbac("{braces}", css_class="a_class")
+        self.assertEqual('<div class="rich_doc a_class" ><p>{braces}</p></div>', rendered)
+
+    def test_wrapped_markdown_with_some_markdown(self):
+        rendered = wrapped_markdown_rbac("*italic*\n**bold**\n", css_class="a_class")
+        self.assertEqual(
+            '''<div class="rich_doc a_class" ><p><em>italic</em>
+<strong>bold</strong></p></div>''', rendered)
 
 
 if __name__ == '__main__':
