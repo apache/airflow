@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional
+from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
@@ -83,7 +83,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
         self.proxy = proxy
         self.hook = None
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: Dict) -> None:
         """
         Call the DiscordWebhookHook to post message
         """
