@@ -25,11 +25,10 @@ from airflow.providers.google.cloud.operators.vision import (  # noqa # pylint: 
     CloudVisionAddProductToProductSetOperator, CloudVisionCreateProductOperator,
     CloudVisionCreateProductSetOperator, CloudVisionCreateReferenceImageOperator,
     CloudVisionDeleteProductOperator, CloudVisionDeleteProductSetOperator,
-    CloudVisionDeleteReferenceImageOperator, CloudVisionDetectImageLabelsOperator,
-    CloudVisionDetectImageSafeSearchOperator, CloudVisionDetectTextOperator, CloudVisionGetProductOperator,
-    CloudVisionGetProductSetOperator, CloudVisionImageAnnotateOperator,
-    CloudVisionRemoveProductFromProductSetOperator, CloudVisionTextDetectOperator,
-    CloudVisionUpdateProductOperator, CloudVisionUpdateProductSetOperator,
+    CloudVisionDetectImageLabelsOperator, CloudVisionDetectImageSafeSearchOperator,
+    CloudVisionDetectTextOperator, CloudVisionGetProductOperator, CloudVisionGetProductSetOperator,
+    CloudVisionImageAnnotateOperator, CloudVisionRemoveProductFromProductSetOperator,
+    CloudVisionTextDetectOperator, CloudVisionUpdateProductOperator, CloudVisionUpdateProductSetOperator,
 )
 
 warnings.warn(
@@ -204,22 +203,6 @@ class CloudVisionReferenceImageCreateOperator(CloudVisionCreateReferenceImageOpe
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.operators.vision.CloudVisionCreateReferenceImageOperator`.""",
-            DeprecationWarning, stacklevel=3
-        )
-        super().__init__(*args, **kwargs)
-
-
-class CloudVisionReferenceImageDeleteOperator(CloudVisionDeleteReferenceImageOperator):
-    """
-    This class is deprecated.
-    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            """This class is deprecated.
-            Please use
-            `airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator`.""",
             DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
