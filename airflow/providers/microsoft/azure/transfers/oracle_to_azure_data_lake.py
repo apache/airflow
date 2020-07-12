@@ -18,7 +18,7 @@
 
 import os
 from tempfile import TemporaryDirectory
-from typing import Optional, Union, Any, Dict
+from typing import Any, Dict, Optional, Union
 
 import unicodecsv as csv
 
@@ -45,7 +45,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     :param sql: SQL query to execute against the Oracle database. (templated)
     :type sql: str
     :param sql_params: Parameters to use in sql query. (templated)
-    :type sql_params: str
+    :type sql_params: Optional[dict]
     :param delimiter: field delimiter in the file.
     :type delimiter: str
     :param encoding: encoding type for the file.
@@ -68,7 +68,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
             azure_data_lake_path: str,
             oracle_conn_id: str,
             sql: str,
-            sql_params: Optional[str] = None,
+            sql_params: Optional[dict] = None,
             delimiter: str = ",",
             encoding: str = "utf-8",
             quotechar: str = '"',
