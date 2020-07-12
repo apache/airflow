@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from azure.batch import models as batch_models
 
@@ -213,7 +213,7 @@ class AzureBatchOperator(BaseOperator):
         self.should_delete_pool = should_delete_pool
         self.hook = self.get_hook()
 
-    def _check_inputs(self):
+    def _check_inputs(self) -> Any:
 
         if self.use_latest_image:
             if not all(elem for elem in [self.vm_publisher, self.vm_offer, self.sku_starts_with]):
@@ -240,7 +240,8 @@ class AzureBatchOperator(BaseOperator):
             raise AirflowException("Some required parameters are missing.Please you must set "
                                    "all the required parameters. ")
 
-    def execute(self, context):
+    def execute(self,
+                context: Dict[Any, Any]) -> None:
         self._check_inputs()
         self.hook.connection.config.retry_policy = self.batch_max_retries
 
@@ -305,7 +306,7 @@ class AzureBatchOperator(BaseOperator):
         )
         self.log.info("Azure Batch job (%s) terminated: %s", self.batch_job_id, response)
 
-    def get_hook(self):
+    def get_hook(self) -> AzureBatchHook:
         """
         Create and return an AzureBatchHook.
 
@@ -314,7 +315,9 @@ class AzureBatchOperator(BaseOperator):
             azure_batch_conn_id=self.azure_batch_conn_id
         )
 
-    def clean_up(self, pool_id=None, job_id=None):
+    def clean_up(self,
+                 pool_id: Optional[str] = None,
+                 job_id: Optional[str] = None) -> None:
         """
         Delete the given pool and job in the batch account
 

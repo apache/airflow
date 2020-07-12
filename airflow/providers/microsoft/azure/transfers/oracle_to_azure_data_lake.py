@@ -18,6 +18,7 @@
 
 import os
 from tempfile import TemporaryDirectory
+from typing import Optional, Union, Tuple, Any, Dict
 
 import unicodecsv as csv
 
@@ -62,17 +63,18 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            filename,
-            azure_data_lake_conn_id,
-            azure_data_lake_path,
-            oracle_conn_id,
-            sql,
-            sql_params=None,
-            delimiter=",",
-            encoding="utf-8",
-            quotechar='"',
-            quoting=csv.QUOTE_MINIMAL,
-            *args, **kwargs):
+            filename: str,
+            azure_data_lake_conn_id: str,
+            azure_data_lake_path: str,
+            oracle_conn_id: str,
+            sql: str,
+            sql_params: Optional[str] = None,
+            delimiter: str = ",",
+            encoding: str = "utf-8",
+            quotechar: str = '"',
+            quoting: str = csv.QUOTE_MINIMAL,
+            *args,
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if sql_params is None:
             sql_params = {}
@@ -87,7 +89,9 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         self.quotechar = quotechar
         self.quoting = quoting
 
-    def _write_temp_file(self, cursor, path_to_save):
+    def _write_temp_file(self,
+                         cursor: Any,
+                         path_to_save: Union[str, bytes, int]) -> None:
         with open(path_to_save, 'wb') as csvfile:
             csv_writer = csv.writer(csvfile, delimiter=self.delimiter,
                                     encoding=self.encoding, quotechar=self.quotechar,
@@ -96,7 +100,8 @@ class OracleToAzureDataLakeOperator(BaseOperator):
             csv_writer.writerows(cursor)
             csvfile.flush()
 
-    def execute(self, context):
+    def execute(self,
+                context: Dict[Any, Any]) -> None:
         oracle_hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         azure_data_lake_hook = AzureDataLakeHook(
             azure_data_lake_conn_id=self.azure_data_lake_conn_id)
