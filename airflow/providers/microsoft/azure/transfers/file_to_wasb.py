@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Any, Dict, Optional
+
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.utils.decorators import apply_defaults
@@ -35,14 +37,19 @@ class FileToWasbOperator(BaseOperator):
     :type wasb_conn_id: str
     :param load_options: Optional keyword arguments that
         `WasbHook.load_file()` takes.
-    :type load_options: dict
+    :type load_options: Optional[dict]
     """
     template_fields = ('file_path', 'container_name', 'blob_name')
 
     @apply_defaults
-    def __init__(self, file_path, container_name, blob_name,
-                 wasb_conn_id='wasb_default', load_options=None, *args,
-                 **kwargs):
+    def __init__(self,
+                 file_path: str,
+                 container_name: str,
+                 blob_name: str,
+                 wasb_conn_id: str = 'wasb_default',
+                 load_options: Optional[dict] = None,
+                 *args,
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if load_options is None:
             load_options = {}
@@ -52,7 +59,8 @@ class FileToWasbOperator(BaseOperator):
         self.wasb_conn_id = wasb_conn_id
         self.load_options = load_options
 
-    def execute(self, context):
+    def execute(self,
+                context: Dict[Any, Any]) -> None:
         """Upload a file to Azure Blob Storage."""
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         self.log.info(
