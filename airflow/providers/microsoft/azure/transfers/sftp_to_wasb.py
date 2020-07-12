@@ -20,6 +20,7 @@ This module contains SFTP to Azure Blob Storage operator.
 """
 import os
 from tempfile import NamedTemporaryFile
+from typing import Any, Dict, List, Optional, Tuple
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -68,7 +69,7 @@ class SFTPToWasbOperator(BaseOperator):
         blob_name: str,
         sftp_conn_id: str = "ssh_default",
         wasb_conn_id: str = 'wasb_default',
-        load_options=None,
+        load_options: Optional[dict] = None,
         move_object: bool = False,
         *args,
         **kwargs
@@ -84,13 +85,14 @@ class SFTPToWasbOperator(BaseOperator):
         self.load_options = load_options if load_options is not None else {}
         self.move_object = move_object
 
-    def execute(self, context):
+    def execute(self,
+                context: Optional[Dict[Any, Any]]) -> None:
         """Upload a file from SFTP to Azure Blob Storage."""
         (sftp_hook, sftp_files) = self.get_sftp_files_map()
         uploaded_files = self.upload_wasb(sftp_hook, sftp_files)
         self.sftp_move(sftp_hook, uploaded_files)
 
-    def get_sftp_files_map(self):
+    def get_sftp_files_map(self) -> Tuple[SFTPHook, List[Dict[str, str]]]:
         """Get SFTP files from the source path, it may use a WILDCARD to this end."""
         sftp_files = []
         sftp_hook = SFTPHook(self.sftp_conn_id)
@@ -120,7 +122,7 @@ class SFTPToWasbOperator(BaseOperator):
 
         return sftp_hook, sftp_files
 
-    def check_wildcards_limit(self):
+    def check_wildcards_limit(self) -> Any:
         """Check if there is multiple Wildcard."""
         total_wildcards = self.sftp_source_path.count(WILDCARD)
         if total_wildcards > 1:
@@ -129,7 +131,9 @@ class SFTPToWasbOperator(BaseOperator):
                 "Found {} in {}.".format(total_wildcards, self.sftp_source_path)
             )
 
-    def upload_wasb(self, sftp_hook, sftp_files):
+    def upload_wasb(self,
+                    sftp_hook: SFTPHook,
+                    sftp_files: List[Dict[str, str]]) -> List[str]:
         """Upload a list of files from sftp_files to Azure Blob Storage with a new Blob Name."""
         uploaded_files = []
         wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
@@ -152,7 +156,9 @@ class SFTPToWasbOperator(BaseOperator):
 
         return uploaded_files
 
-    def sftp_move(self, sftp_hook, uploaded_files):
+    def sftp_move(self,
+                  sftp_hook: SFTPHook,
+                  uploaded_files: List[str]) -> None:
         """Performs a move of a list of files at SFTP to Azure Blob Storage."""
         if self.move_object:
             for sftp_file_path in uploaded_files:
