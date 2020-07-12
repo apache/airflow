@@ -1733,11 +1733,11 @@ class DagModel(Base):
     is_paused_at_creation = conf\
         .getboolean('core',
                     'dags_are_paused_at_creation')
-    is_paused = Column(Boolean, default=is_paused_at_creation)
+    is_paused = Column(Boolean(name='is_paused'), default=is_paused_at_creation)
     # Whether the DAG is a subdag
-    is_subdag = Column(Boolean, default=False)
+    is_subdag = Column(Boolean(name='is_subdag'), default=False)
     # Whether that DAG was seen on the last DagBag load
-    is_active = Column(Boolean, default=False)
+    is_active = Column(Boolean(name='is_active'), default=False)
     # Last time the scheduler started
     last_scheduler_run = Column(UtcDateTime)
     # Last time this DAG was pickled
@@ -1746,7 +1746,7 @@ class DagModel(Base):
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(UtcDateTime)
     # Whether (one  of) the scheduler is scheduling this DAG at the moment
-    scheduler_lock = Column(Boolean)
+    scheduler_lock = Column(Boolean(name='scheduler_lock'))
     # Foreign key to the latest pickle_id
     pickle_id = Column(Integer)
     # The location of the file containing the DAG object

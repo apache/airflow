@@ -33,10 +33,10 @@ class SlaMiss(Base):
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
-    email_sent = Column(Boolean, default=False)
+    email_sent = Column(Boolean(name='email_sent'), default=False)
     timestamp = Column(UtcDateTime)
     description = Column(Text)
-    notification_sent = Column(Boolean, default=False)
+    notification_sent = Column(Boolean(name='notification_sent'), default=False)
 
     __table_args__ = (
         Index('sm_dag', dag_id, unique=False),

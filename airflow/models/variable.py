@@ -42,7 +42,7 @@ class Variable(Base, LoggingMixin):
     id = Column(Integer, primary_key=True)
     key = Column(String(ID_LEN), unique=True)
     _val = Column('val', Text)
-    is_encrypted = Column(Boolean, unique=False, default=False)
+    is_encrypted = Column(Boolean(name='is_encrypted'), unique=False, default=False)
 
     def __init__(self, key=None, val=None):
         super().__init__()

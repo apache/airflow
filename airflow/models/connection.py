@@ -152,8 +152,8 @@ class Connection(Base, LoggingMixin):
     login = Column(String(500))
     _password = Column('password', String(5000))
     port = Column(Integer())
-    is_encrypted = Column(Boolean, unique=False, default=False)
-    is_extra_encrypted = Column(Boolean, unique=False, default=False)
+    is_encrypted = Column(Boolean(name='is_encrypted'), unique=False, default=False)
+    is_extra_encrypted = Column(Boolean(name='is_extra_encrypted'), unique=False, default=False)
     _extra = Column('extra', String(5000))
 
     def __init__(
