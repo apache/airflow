@@ -41,7 +41,7 @@ class DatadogSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(
             self,
-            datadog_conn_id: str ='datadog_default',
+            datadog_conn_id: str = 'datadog_default',
             from_seconds_ago: int = 3600,
             up_to_seconds_from_now: int = 0,
             priority: Optional[str] = None,
