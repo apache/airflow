@@ -17,7 +17,6 @@
 # under the License.
 
 import time
-
 from typing import Any, Dict, List, Optional, Union
 
 from datadog import api, initialize
