@@ -17,6 +17,7 @@
 import ast
 import os
 import unittest
+from unittest import mock
 
 from itsdangerous import URLSafeSerializer
 from parameterized import parameterized
@@ -25,20 +26,10 @@ from airflow import DAG
 from airflow.configuration import conf
 from airflow.models import DagBag
 from airflow.www import app
-from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
-
-
-class TestDagSourceEndpoint(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
-
-    def setUp(self) -> None:
-        self.client = self.app.test_client()  # type:ignore
 
 
 class TestGetSource(unittest.TestCase):
@@ -50,6 +41,11 @@ class TestGetSource(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
 
+    def tearDown(self) -> None:
+        clear_db_dags()
+        clear_db_serialized_dags()
+        clear_db_dag_code()
+
     @staticmethod
     def _get_dag_file_docstring(fileloc: str) -> str:
         with open(fileloc) as f:
@@ -58,12 +54,12 @@ class TestGetSource(unittest.TestCase):
         docstring = ast.get_docstring(module)
         return docstring
 
-    @parameterized.expand([("True",), ("False",)])
+    @parameterized.expand([(True,), (False,)])
     def test_should_response_200_text(self, store_dag_code):
         serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
-        with conf_vars(
-            {("core", "store_serialized_dags"): store_dag_code}
-        ):
+        with mock.patch(
+            "airflow.models.dag.settings.STORE_DAG_CODE", store_dag_code
+        ), mock.patch("airflow.models.dagcode.STORE_DAG_CODE", store_dag_code):
             dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
             dagbag.sync_to_db()
             first_dag: DAG = next(iter(dagbag.dags.values()))
@@ -78,12 +74,12 @@ class TestGetSource(unittest.TestCase):
             self.assertIn(dag_docstring, response.data.decode())
             self.assertEqual('text/plain', response.headers['Content-Type'])
 
-    @parameterized.expand([("True",), ("False",)])
+    @parameterized.expand([(True,), (False,)])
     def test_should_response_200_json(self, store_dag_code):
         serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
-        with conf_vars(
-            {("core", "store_serialized_dags"): store_dag_code}
-        ):
+        with mock.patch(
+            "airflow.models.dag.settings.STORE_DAG_CODE", store_dag_code
+        ), mock.patch("airflow.models.dagcode.STORE_DAG_CODE", store_dag_code):
             dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
             dagbag.sync_to_db()
             first_dag: DAG = next(iter(dagbag.dags.values()))
@@ -101,12 +97,12 @@ class TestGetSource(unittest.TestCase):
             )
             self.assertEqual('application/json', response.headers['Content-Type'])
 
-    @parameterized.expand([("True",), ("False",)])
+    @parameterized.expand([(True,), (False,)])
     def test_should_response_406(self, store_dag_code):
         serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
-        with conf_vars(
-            {("core", "store_serialized_dags"): store_dag_code}
-        ):
+        with mock.patch(
+            "airflow.models.dag.settings.STORE_DAG_CODE", store_dag_code
+        ), mock.patch("airflow.models.dagcode.STORE_DAG_CODE", store_dag_code):
             dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
             dagbag.sync_to_db()
             first_dag: DAG = next(iter(dagbag.dags.values()))
@@ -118,11 +114,11 @@ class TestGetSource(unittest.TestCase):
 
             self.assertEqual(406, response.status_code)
 
-    @parameterized.expand([("True",), ("False",)])
+    @parameterized.expand([(True,), (False,)])
     def test_should_response_404(self, store_dag_code):
-        with conf_vars(
-            {("core", "store_serialized_dags"): store_dag_code}
-        ):
+        with mock.patch(
+            "airflow.models.dag.settings.STORE_DAG_CODE", store_dag_code
+        ), mock.patch("airflow.models.dagcode.STORE_DAG_CODE", store_dag_code):
             wrong_fileloc = "abcd1234"
             url = f"/api/v1/dagSources/{wrong_fileloc}"
             response = self.client.get(url, headers={
