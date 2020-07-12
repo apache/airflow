@@ -2901,7 +2901,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         dagbag.bag_dag(dag=dag, root_dag=dag)
 
-        @mock.patch('airflow.jobs_scheduler_job.DagBag', return_value=dagbag)
+        @mock.patch('airflow.jobs.scheduler_job.DagBag', return_value=dagbag)
         def do_schedule(mock_dagbag):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
