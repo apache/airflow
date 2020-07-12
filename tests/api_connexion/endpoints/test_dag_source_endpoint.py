@@ -40,8 +40,13 @@ class TestGetSource(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
+        self.clear_db()
 
     def tearDown(self) -> None:
+        self.clear_db()
+
+    @staticmethod
+    def clear_db():
         clear_db_dags()
         clear_db_serialized_dags()
         clear_db_dag_code()
