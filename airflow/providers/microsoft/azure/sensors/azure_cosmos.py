@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict
+
 from airflow.providers.microsoft.azure.hooks.azure_cosmos import AzureCosmosDBHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from typing import Any, Dict
 
 
 class AzureCosmosDocumentSensor(BaseSensorOperator):

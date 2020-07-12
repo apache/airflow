@@ -18,7 +18,7 @@
 
 import os
 from tempfile import TemporaryDirectory
-from typing import Optional, Union, Tuple, Any, Dict
+from typing import Optional, Union, Any, Dict
 
 import unicodecsv as csv
 
