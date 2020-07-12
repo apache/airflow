@@ -21,7 +21,7 @@ Provides lineage support functions
 import json
 import logging
 from functools import wraps
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional, TypeVar, cast
 
 import attr
 import jinja2
@@ -79,7 +79,10 @@ def _to_dataset(obj: Any, source: str) -> Optional[Metadata]:
     return Metadata(type_name, source, data)
 
 
-def apply_lineage(func):
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+
+
+def apply_lineage(func: T) -> T:
     """
     Saves the lineage to XCom and if configured to do so sends it
     to the backend.
@@ -110,10 +113,10 @@ def apply_lineage(func):
 
         return ret_val
 
-    return wrapper
+    return cast(T, wrapper)
 
 
-def prepare_lineage(func):
+def prepare_lineage(func: T) -> T:
     """
     Prepares the lineage inlets and outlets. Inlets can be:
 
@@ -172,4 +175,4 @@ def prepare_lineage(func):
         self.log.debug("inlets: %s, outlets: %s", self.inlets, self.outlets)
         return func(self, context, *args, **kwargs)
 
-    return wrapper
+    return cast(T, wrapper)

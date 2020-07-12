@@ -46,7 +46,7 @@ depends_on = None
 Base = declarative_base()
 
 
-class DagRun(Base):
+class DagRun(Base):  # type: ignore
     """
     DagRun describes an instance of a Dag. It can be created
     by the scheduler (for regular runs) or by an external trigger
