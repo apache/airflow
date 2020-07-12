@@ -246,7 +246,7 @@ to run Kubernetes tests. See below for the list of arguments that should be prov
 production image from the local sources.
 
 The image is primarily optimised for size of the final image, but also for speed of rebuilds - the
-'airlfow-build-image' segment uses the same technique as the CI builds for pre-installing PIP dependencies.
+'airflow-build-image' segment uses the same technique as the CI builds for pre-installing PIP dependencies.
 It first pre-installs them from the right github branch and only after that final airflow installation is
 done from either local sources or remote location (PIP or github repository).
 

@@ -121,7 +121,7 @@ pip install apache-airflow[postgres,gcp]==1.10.10 \
 
 ## Building customized production images
 
-In order to use Airlfow in Docker Compose or Kubernetes, you might need to use or build production images
+In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images
 of Apache Airflow. The community provides two types of support for the production images:
 
 * We provide pre-build relesed version of production image in PyPI build from released
