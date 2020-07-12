@@ -86,7 +86,7 @@ class TestFileToGcsOperator(unittest.TestCase):
             object_name='test/test1.csv'
         )
 
-    @mock.patch('airflow.providers.google.cloud.operators.local_to_gcs.GCSHook',
+    @mock.patch('airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook',
                 autospec=True)
     def test_execute_multiple(self, mock_hook):
         mock_instance = mock_hook.return_value
@@ -112,7 +112,7 @@ class TestFileToGcsOperator(unittest.TestCase):
         ]
         mock_instance.upload.assert_has_calls(calls)
 
-    @mock.patch('airflow.providers.google.cloud.operators.local_to_gcs.GCSHook',
+    @mock.patch('airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook',
                 autospec=True)
     def test_execute_wildcard(self, mock_hook):
         mock_instance = mock_hook.return_value
@@ -130,7 +130,7 @@ class TestFileToGcsOperator(unittest.TestCase):
             mock.call(
                 bucket_name=self._config['bucket'],
                 filename=filepath,
-                gzip=self._config['gzip'],
+                gzip=self._config['gzip'],f
                 mime_type=self._config['mime_type'],
                 object_name=object_name
             )
@@ -138,7 +138,7 @@ class TestFileToGcsOperator(unittest.TestCase):
         ]
         mock_instance.upload.assert_has_calls(calls)
 
-    @mock.patch('airflow.providers.google.cloud.operators.local_to_gcs.GCSHook',
+    @mock.patch('airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook',
                 autospec=True)
     def test_execute_negative(self, mock_hook):
         mock_instance = mock_hook.return_value
