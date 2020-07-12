@@ -74,11 +74,8 @@ class SQLCheckOperator(BaseOperator):
     :type sql: str
     """
 
-    template_fields = ("sql",)  # type: Iterable[str]
-    template_ext = (
-        ".hql",
-        ".sql",
-    )  # type: Iterable[str]
+    template_fields: Iterable[str] = ("sql",)
+    template_ext: Iterable[str] = (".hql", ".sql",)
     ui_color = "#fff7e6"
 
     @apply_defaults
@@ -264,11 +261,8 @@ class SQLIntervalCheckOperator(BaseOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
-    template_fields = ("sql1", "sql2")  # type: Iterable[str]
-    template_ext = (
-        ".hql",
-        ".sql",
-    )  # type: Iterable[str]
+    template_fields: Iterable[str] = ("sql1", "sql2")
+    template_ext: Iterable[str] = (".hql", ".sql",)
     ui_color = "#fff7e6"
 
     ratio_formulas = {
@@ -415,7 +409,7 @@ class SQLThresholdCheckOperator(BaseOperator):
     :type max_threshold: numeric or str
     """
 
-    template_fields = ("sql", "min_threshold", "max_threshold")  # type: Iterable[str]
+    template_fields = ("sql", "min_threshold", "max_threshold")
     template_ext = (
         ".hql",
         ".sql",

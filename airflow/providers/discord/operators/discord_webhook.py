@@ -65,11 +65,11 @@ class DiscordWebhookOperator(SimpleHttpOperator):
                  avatar_url: Optional[str] = None,
                  tts: bool = False,
                  proxy: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(endpoint=webhook_endpoint,
-                         *args,
-                         **kwargs)
+        super().__init__(
+            endpoint=webhook_endpoint,
+            **kwargs
+        )
 
         if not http_conn_id:
             raise AirflowException('No valid Discord http_conn_id supplied.')

@@ -22,7 +22,7 @@ Google Cloud Storage operator.
 import os
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import Optional
+from typing import Optional, Sequence
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
@@ -94,7 +94,7 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
                 gcp_conn_id='google_cloud_default'
             )
     """
-    template_fields = ('src_adls', 'dest_gcs')
+    template_fields: Sequence[str] = ('src_adls', 'dest_gcs')
     ui_color = '#f0eee4'
 
     @apply_defaults
@@ -107,13 +107,11 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
                  delegate_to: Optional[str] = None,
                  replace: bool = False,
                  gzip: bool = False,
-                 *args,
                  **kwargs) -> None:
 
         super().__init__(
             path=src_adls,
             azure_data_lake_conn_id=azure_data_lake_conn_id,
-            *args,
             **kwargs
         )
 

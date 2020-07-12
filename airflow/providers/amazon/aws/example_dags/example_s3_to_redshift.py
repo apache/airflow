@@ -29,7 +29,7 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_s3_to_redshift_env_variables]
-S3_BUCKET = getenv("S3_BUCKET")
+S3_BUCKET = getenv("S3_BUCKET", "test-bucket")
 S3_KEY = getenv("S3_KEY", "key")
 REDSHIFT_TABLE = getenv("REDSHIFT_TABLE", "test_table")
 # [END howto_operator_s3_to_redshift_env_variables]

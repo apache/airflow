@@ -34,9 +34,9 @@ from airflow.utils import dates
 from airflow.utils.state import State
 
 PROFILE_ID = os.environ.get("MARKETING_PROFILE_ID", "123456789")
-FLOODLIGHT_ACTIVITY_ID = os.environ.get("FLOODLIGHT_ACTIVITY_ID", 12345)
-FLOODLIGHT_CONFIGURATION_ID = os.environ.get("FLOODLIGHT_CONFIGURATION_ID", 12345)
-ENCRYPTION_ENTITY_ID = os.environ.get("ENCRYPTION_ENTITY_ID", 12345)
+FLOODLIGHT_ACTIVITY_ID = int(os.environ.get("FLOODLIGHT_ACTIVITY_ID", 12345))
+FLOODLIGHT_CONFIGURATION_ID = int(os.environ.get("FLOODLIGHT_CONFIGURATION_ID", 12345))
+ENCRYPTION_ENTITY_ID = int(os.environ.get("ENCRYPTION_ENTITY_ID", 12345))
 DEVICE_ID = os.environ.get("DEVICE_ID", "12345")
 BUCKET = os.environ.get("MARKETING_BUCKET", "test-cm-bucket")
 REPORT_NAME = "test-report"
