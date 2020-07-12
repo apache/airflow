@@ -41,7 +41,7 @@ from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import DagFileProcessor, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, Pool, SlaMiss, TaskInstance, errors
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -1492,6 +1492,36 @@ class TestSchedulerJob(unittest.TestCase):
 
         mock_stats_incr.assert_called_once_with('scheduler.tasks.killed_externally')
 
+    def test_process_executor_events_uses_inmemory_try_number(self):
+        execution_date = DEFAULT_DATE
+        dag_id = "dag_id"
+        task_id = "task_id"
+        try_number = 42
+
+        scheduler = SchedulerJob()
+        executor = MagicMock()
+        event_buffer = {
+            TaskInstanceKey(dag_id, task_id, execution_date, try_number): (State.SUCCESS, None)
+        }
+        executor.get_event_buffer.return_value = event_buffer
+        scheduler.executor = executor
+
+        processor_agent = MagicMock()
+        scheduler.processor_agent = processor_agent
+
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
+        task = DummyOperator(dag=dag, task_id=task_id)
+
+        with create_session() as session:
+            ti = TaskInstance(task, DEFAULT_DATE)
+            ti.state = State.SUCCESS
+            session.merge(ti)
+
+        scheduler._process_executor_events(simple_dag_bag=MagicMock())
+        # Assert that the even_buffer is empty so the task was popped using right
+        # task instance key
+        self.assertEqual(event_buffer, {})
+
     def test_execute_task_instances_is_paused_wont_execute(self):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute'
         task_id_1 = 'dummy_task'
@@ -2554,7 +2584,7 @@ class TestSchedulerJob(unittest.TestCase):
                 len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()), 1)
             self.assertListEqual(
                 [
-                    ((dag.dag_id, 'dummy', DEFAULT_DATE, 1), (State.SUCCESS, None)),
+                    (TaskInstanceKey(dag.dag_id, 'dummy', DEFAULT_DATE, 1), (State.SUCCESS, None)),
                 ],
                 bf_exec.sorted_tasks
             )

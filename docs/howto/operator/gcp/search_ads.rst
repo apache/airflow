@@ -28,7 +28,7 @@ For more information check `Google Search Ads <https://developers.google.com/sea
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: /howto/operator/gcp/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:GoogleSearchAdsInsertReportOperator:
 

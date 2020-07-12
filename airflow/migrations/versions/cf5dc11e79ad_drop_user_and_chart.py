@@ -18,7 +18,7 @@
 """drop_user_and_chart
 
 Revision ID: cf5dc11e79ad
-Revises: 41f5f12752f8
+Revises: a66efa278eea
 Create Date: 2019-01-24 15:30:35.834740
 
 """
@@ -29,7 +29,7 @@ from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = 'cf5dc11e79ad'
-down_revision = '41f5f12752f8'
+down_revision = 'a66efa278eea'
 branch_labels = None
 depends_on = None
 
@@ -43,12 +43,16 @@ def upgrade():   # noqa: D103
 
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
 
-    if 'known_event' in inspector.get_table_names() != 'sqlite':
+    if 'known_event' in tables:
         op.drop_constraint('known_event_user_id_fkey', 'known_event')
 
-    op.drop_table("chart")
-    op.drop_table("users")
+    if "chart" in tables:
+        op.drop_table("chart", )
+
+    if "users" in tables:
+        op.drop_table("users")
 
 
 def downgrade():   # noqa: D103

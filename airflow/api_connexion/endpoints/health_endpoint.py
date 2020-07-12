@@ -14,13 +14,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.api_connexion.schemas.health_schema import health_schema
+from airflow.jobs.scheduler_job import SchedulerJob
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8144
+HEALTHY = "healthy"
+UNHEALTHY = "unhealthy"
 
 
 def get_health():
     """
-    Checks if the API works
+    Return the health of the airflow scheduler and metadatabase
     """
-    return "OK"
+    metadatabase_status = HEALTHY
+    latest_scheduler_heartbeat = None
+    scheduler_status = UNHEALTHY
+    try:
+        scheduler_job = SchedulerJob.most_recent_job()
+
+        if scheduler_job:
+            latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
+            if scheduler_job.is_alive():
+                scheduler_status = HEALTHY
+    except Exception:  # pylint: disable=broad-except
+        metadatabase_status = UNHEALTHY
+
+    payload = {
+        "metadatabase": {"status": metadatabase_status},
+        "scheduler": {
+            "status": scheduler_status,
+            "latest_scheduler_heartbeat": latest_scheduler_heartbeat,
+        },
+    }
+
+    return health_schema.dump(payload)

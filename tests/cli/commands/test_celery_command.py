@@ -62,6 +62,7 @@ class TestWorkerPrecheck(unittest.TestCase):
 
 @pytest.mark.integration("redis")
 @pytest.mark.integration("rabbitmq")
+@pytest.mark.backend("mysql", "postgres")
 class TestWorkerServeLogs(unittest.TestCase):
 
     @classmethod
@@ -91,6 +92,7 @@ class TestWorkerServeLogs(unittest.TestCase):
                 mock_popen.assert_not_called()
 
 
+@pytest.mark.backend("mysql", "postgres")
 class TestCeleryStopCommand(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -144,6 +146,7 @@ class TestCeleryStopCommand(unittest.TestCase):
         mock_read_pid_from_pidfile.assert_called_once_with(pid_file)
 
 
+@pytest.mark.backend("mysql", "postgres")
 class TestWorkerStart(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

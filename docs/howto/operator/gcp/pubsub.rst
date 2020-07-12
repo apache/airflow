@@ -35,7 +35,7 @@ By decoupling senders and receivers Google Cloud PubSub allows developers to com
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: /howto/operator/gcp/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:PubSubCreateTopicOperator:
 

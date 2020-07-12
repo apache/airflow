@@ -58,6 +58,6 @@ class XComCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-xcom_schema = XComSchema(strict=True)
-xcom_collection_item_schema = XComCollectionItemSchema(strict=True)
-xcom_collection_schema = XComCollectionSchema(strict=True)
+xcom_schema = XComSchema()
+xcom_collection_item_schema = XComCollectionItemSchema()
+xcom_collection_schema = XComCollectionSchema()

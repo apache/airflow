@@ -133,3 +133,16 @@ tests:
               secretKeyRef:
                 name: user-pass-secret
                 key: GIT_SYNC_PASSWORD
+  - it: should set the volume claim correctly when using an existing claim
+    set:
+      dags:
+        persistence:
+          enabled: true
+          existingClaim: test-claim
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: dags
+            persistentVolumeClaim:
+              claimName: test-claim

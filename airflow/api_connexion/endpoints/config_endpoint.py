@@ -59,7 +59,7 @@ def _config_to_text(config: Config) -> str:
 
 def _config_to_json(config: Config) -> str:
     """Convert a Config object to a JSON formatted string"""
-    return json.dumps(config_schema.dump(config).data, indent=4)
+    return json.dumps(config_schema.dump(config), indent=4)
 
 
 def get_config() -> Response:

@@ -20,7 +20,7 @@
 Add DagRun run_type
 
 Revision ID: 3c20cacc0044
-Revises: 952da73b5eff
+Revises: b25a55525161
 Create Date: 2020-04-08 13:35:25.671327
 
 """
@@ -28,6 +28,7 @@ Create Date: 2020-04-08 13:35:25.671327
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import Boolean, Column, Integer, PickleType, String
+from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
 
 from airflow.models.base import ID_LEN
@@ -38,7 +39,7 @@ from airflow.utils.types import DagRunType
 
 # revision identifiers, used by Alembic.
 revision = "3c20cacc0044"
-down_revision = "952da73b5eff"
+down_revision = "b25a55525161"
 branch_labels = None
 depends_on = None
 
@@ -68,28 +69,33 @@ def upgrade():
     """Apply Add DagRun run_type"""
     run_type_col_type = sa.String(length=50)
 
-    # Add nullable column
-    with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.add_column(sa.Column("run_type", run_type_col_type, nullable=True))
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    dag_run_columns = [col.get('name') for col in inspector.get_columns("dag_run")]
 
-    # Generate run type for existing records
-    connection = op.get_bind()
-    sessionmaker = sa.orm.sessionmaker()
-    session = sessionmaker(bind=connection)
+    if "run_type" not in dag_run_columns:
 
-    for run_type in DagRunType:
-        session.query(DagRun).filter(DagRun.run_id.like(f"{run_type.value}__%")).update(
-            {DagRun.run_type: run_type.value}, synchronize_session=False
+        # Add nullable column
+        with op.batch_alter_table("dag_run") as batch_op:
+            batch_op.add_column(sa.Column("run_type", run_type_col_type, nullable=True))
+
+        # Generate run type for existing records
+        sessionmaker = sa.orm.sessionmaker()
+        session = sessionmaker(bind=conn)
+
+        for run_type in DagRunType:
+            session.query(DagRun).filter(DagRun.run_id.like(f"{run_type.value}__%")).update(
+                {DagRun.run_type: run_type.value}, synchronize_session=False
+            )
+
+        session.query(DagRun).filter(DagRun.run_type.is_(None)).update(
+            {DagRun.run_type: DagRunType.MANUAL.value}, synchronize_session=False
         )
+        session.commit()
 
-    session.query(DagRun).filter(DagRun.run_type.is_(None)).update(
-        {DagRun.run_type: DagRunType.MANUAL.value}, synchronize_session=False
-    )
-    session.commit()
-
-    # Make run_type not nullable
-    with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.alter_column("run_type", type_=run_type_col_type, nullable=False)
+        # Make run_type not nullable
+        with op.batch_alter_table("dag_run") as batch_op:
+            batch_op.alter_column("run_type", type_=run_type_col_type, nullable=False)
 
 
 def downgrade():

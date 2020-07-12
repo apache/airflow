@@ -67,6 +67,11 @@ class ConfiguredSentry(DummySentry):
     )
     SCOPE_CRUMBS = frozenset(("task_id", "state", "operator", "duration"))
 
+    UNSUPPORTED_SENTRY_OPTIONS = frozenset(
+        ("integrations", "in_app_include", "in_app_exclude", "ignore_errors",
+         "before_breadcrumb", "before_send", "transport")
+    )
+
     def __init__(self):
         """
         Initialize the Sentry SDK.
@@ -86,13 +91,28 @@ class ConfiguredSentry(DummySentry):
             sentry_celery = CeleryIntegration()
             integrations.append(sentry_celery)
 
-        dsn = conf.get("sentry", "sentry_dsn")
+        dsn = None
+        sentry_config_opts = conf.getsection("sentry") or {}
+        if sentry_config_opts:
+            old_way_dsn = sentry_config_opts.pop("sentry_dsn", None)
+            new_way_dsn = sentry_config_opts.pop("dsn", None)
+            # supported backward compability with old way dsn option
+            dsn = old_way_dsn or new_way_dsn
+
+            unsupported_options = self.UNSUPPORTED_SENTRY_OPTIONS.intersection(
+                sentry_config_opts.keys())
+            if unsupported_options:
+                log.warning(
+                    "There are unsupported options in [sentry] section: %s",
+                    ", ".join(unsupported_options)
+                )
+
         if dsn:
-            init(dsn=dsn, integrations=integrations)
+            init(dsn=dsn, integrations=integrations, **sentry_config_opts)
         else:
             # Setting up Sentry using environment variables.
             log.debug("Defaulting to SENTRY_DSN in environment.")
-            init(integrations=integrations)
+            init(integrations=integrations, **sentry_config_opts)
 
     def add_tagging(self, task_instance):
         """

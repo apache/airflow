@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,25 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""Merge heads
-
-Revision ID: 4ebbffe0a39a
-Revises: dd4ecb8fbee3, cf5dc11e79ad
-Create Date: 2019-02-04 20:19:50.628137
-
-"""
-
-# revision identifiers, used by Alembic.
-revision = '4ebbffe0a39a'
-down_revision = ('dd4ecb8fbee3', 'cf5dc11e79ad')
-branch_labels = None
-depends_on = None
-
-
-def upgrade():   # noqa: D103
-    pass
-
-
-def downgrade():   # noqa: D103
-    pass

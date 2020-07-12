@@ -16,9 +16,10 @@
 # under the License.
 
 from abc import ABC
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
-from airflow.models.connection import Connection
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class BaseSecretsBackend(ABC):
@@ -52,13 +53,14 @@ class BaseSecretsBackend(ABC):
         """
         raise NotImplementedError()
 
-    def get_connections(self, conn_id: str) -> List[Connection]:
+    def get_connections(self, conn_id: str) -> List['Connection']:
         """
         Return connection object with a given ``conn_id``.
 
         :param conn_id: connection id
         :type conn_id: str
         """
+        from airflow.models.connection import Connection
         conn_uri = self.get_conn_uri(conn_id=conn_id)
         if not conn_uri:
             return []
@@ -73,3 +75,12 @@ class BaseSecretsBackend(ABC):
         :return: Variable Value
         """
         raise NotImplementedError()
+
+    def get_config(self, key: str) -> Optional[str]:    # pylint: disable=unused-argument
+        """
+        Return value for Airflow Config Key
+
+        :param key: Config Key
+        :return: Config Value
+        """
+        return None

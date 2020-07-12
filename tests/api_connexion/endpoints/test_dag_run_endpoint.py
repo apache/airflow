@@ -17,16 +17,15 @@
 import unittest
 from datetime import timedelta
 
-import pytest
 from parameterized import parameterized
 
-from airflow.models import DagRun
+from airflow.models import DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
 class TestDagRunEndpoint(unittest.TestCase):
@@ -38,17 +37,18 @@ class TestDagRunEndpoint(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
-        self.default_time = '2020-06-11T18:00:00+00:00'
-        self.default_time_2 = '2020-06-12T18:00:00+00:00'
+        self.default_time = "2020-06-11T18:00:00+00:00"
+        self.default_time_2 = "2020-06-12T18:00:00+00:00"
         clear_db_runs()
+        clear_db_dags()
 
     def tearDown(self) -> None:
         clear_db_runs()
 
-    def _create_test_dag_run(self, state='running', extra_dag=False):
+    def _create_test_dag_run(self, state="running", extra_dag=False):
         dagrun_model_1 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_1',
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID_1",
             run_type=DagRunType.MANUAL.value,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
@@ -56,39 +56,64 @@ class TestDagRunEndpoint(unittest.TestCase):
             state=state,
         )
         dagrun_model_2 = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID_2',
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID_2",
             run_type=DagRunType.MANUAL.value,
             execution_date=timezone.parse(self.default_time_2),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
         )
         if extra_dag:
-            dagrun_extra = [DagRun(
-                dag_id='TEST_DAG_ID_' + str(i),
-                run_id='TEST_DAG_RUN_ID_' + str(i),
-                run_type=DagRunType.MANUAL.value,
-                execution_date=timezone.parse(self.default_time_2),
-                start_date=timezone.parse(self.default_time),
-                external_trigger=True,
-            ) for i in range(3, 5)]
+            dagrun_extra = [
+                DagRun(
+                    dag_id="TEST_DAG_ID_" + str(i),
+                    run_id="TEST_DAG_RUN_ID_" + str(i),
+                    run_type=DagRunType.MANUAL.value,
+                    execution_date=timezone.parse(self.default_time_2),
+                    start_date=timezone.parse(self.default_time),
+                    external_trigger=True,
+                )
+                for i in range(3, 5)
+            ]
             return [dagrun_model_1, dagrun_model_2] + dagrun_extra
         return [dagrun_model_1, dagrun_model_2]
 
 
 class TestDeleteDagRun(TestDagRunEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.delete("api/v1/dags/TEST_DAG_ID}/dagRuns/TEST_DAG_RUN_ID")
-        assert response.status_code == 204
+    @provide_session
+    def test_should_response_204(self, session):
+        session.add_all(self._create_test_dag_run())
+        session.commit()
+        response = self.client.delete(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1"
+        )
+        self.assertEqual(response.status_code, 204)
+        # Check if the Dag Run is deleted from the database
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1")
+        self.assertEqual(response.status_code, 404)
+
+    def test_should_response_404(self):
+        response = self.client.delete(
+            "api/v1/dags/INVALID_DAG_RUN/dagRuns/INVALID_DAG_RUN"
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json,
+            {
+                "detail": "DAGRun with DAG ID: 'INVALID_DAG_RUN' and DagRun ID: 'INVALID_DAG_RUN' not found",
+                "status": 404,
+                "title": "Object not found",
+                "type": "about:blank",
+            },
+        )
 
 
 class TestGetDagRun(TestDagRunEndpoint):
     @provide_session
     def test_should_response_200(self, session):
         dagrun_model = DagRun(
-            dag_id='TEST_DAG_ID',
-            run_id='TEST_DAG_RUN_ID',
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
             run_type=DagRunType.MANUAL.value,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
@@ -103,14 +128,14 @@ class TestGetDagRun(TestDagRunEndpoint):
         self.assertEqual(
             response.json,
             {
-                'dag_id': 'TEST_DAG_ID',
-                'dag_run_id': 'TEST_DAG_RUN_ID',
-                'end_date': None,
-                'state': 'running',
-                'execution_date': self.default_time,
-                'external_trigger': True,
-                'start_date': self.default_time,
-                'conf': {},
+                "dag_id": "TEST_DAG_ID",
+                "dag_run_id": "TEST_DAG_RUN_ID",
+                "end_date": None,
+                "state": "running",
+                "execution_date": self.default_time,
+                "external_trigger": True,
+                "start_date": self.default_time,
+                "conf": {},
             },
         )
 
@@ -118,7 +143,13 @@ class TestGetDagRun(TestDagRunEndpoint):
         response = self.client.get("api/v1/dags/invalid-id/dagRuns/invalid-id")
         assert response.status_code == 404
         self.assertEqual(
-            {'detail': None, 'status': 404, 'title': 'DAGRun not found', 'type': 'about:blank'}, response.json
+            {
+                "detail": None,
+                "status": 404,
+                "title": "DAGRun not found",
+                "type": "about:blank",
+            },
+            response.json,
         )
 
 
@@ -137,24 +168,24 @@ class TestGetDagRuns(TestDagRunEndpoint):
             {
                 "dag_runs": [
                     {
-                        'dag_id': 'TEST_DAG_ID',
-                        'dag_run_id': 'TEST_DAG_RUN_ID_1',
-                        'end_date': None,
-                        'state': 'running',
-                        'execution_date': self.default_time,
-                        'external_trigger': True,
-                        'start_date': self.default_time,
-                        'conf': {},
+                        "dag_id": "TEST_DAG_ID",
+                        "dag_run_id": "TEST_DAG_RUN_ID_1",
+                        "end_date": None,
+                        "state": "running",
+                        "execution_date": self.default_time,
+                        "external_trigger": True,
+                        "start_date": self.default_time,
+                        "conf": {},
                     },
                     {
-                        'dag_id': 'TEST_DAG_ID',
-                        'dag_run_id': 'TEST_DAG_RUN_ID_2',
-                        'end_date': None,
-                        'state': 'running',
-                        'execution_date': self.default_time_2,
-                        'external_trigger': True,
-                        'start_date': self.default_time,
-                        'conf': {},
+                        "dag_id": "TEST_DAG_ID",
+                        "dag_run_id": "TEST_DAG_RUN_ID_2",
+                        "end_date": None,
+                        "state": "running",
+                        "execution_date": self.default_time_2,
+                        "external_trigger": True,
+                        "start_date": self.default_time,
+                        "conf": {},
                     },
                 ],
                 "total_entries": 2,
@@ -164,8 +195,12 @@ class TestGetDagRuns(TestDagRunEndpoint):
     @provide_session
     def test_should_return_all_with_tilde_as_dag_id(self, session):
         dagruns = self._create_test_dag_run(extra_dag=True)
-        expected_dag_run_ids = ['TEST_DAG_ID', 'TEST_DAG_ID',
-                                "TEST_DAG_ID_3", "TEST_DAG_ID_4"]
+        expected_dag_run_ids = [
+            "TEST_DAG_ID",
+            "TEST_DAG_ID",
+            "TEST_DAG_ID_3",
+            "TEST_DAG_ID_4",
+        ]
         session.add_all(dagruns)
         session.commit()
         result = session.query(DagRun).all()
@@ -180,7 +215,10 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
     @parameterized.expand(
         [
             ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=1", ["TEST_DAG_RUN_ID1"]),
-            ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=2", ["TEST_DAG_RUN_ID1", "TEST_DAG_RUN_ID2"]),
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?limit=2",
+                ["TEST_DAG_RUN_ID1", "TEST_DAG_RUN_ID2"],
+            ),
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?offset=5",
                 [
@@ -208,7 +246,10 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
             ),
             ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=1&offset=5", ["TEST_DAG_RUN_ID6"]),
             ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=1&offset=1", ["TEST_DAG_RUN_ID2"]),
-            ("api/v1/dags/TEST_DAG_ID/dagRuns?limit=2&offset=2", ["TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],),
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?limit=2&offset=2",
+                ["TEST_DAG_RUN_ID3", "TEST_DAG_RUN_ID4"],
+            ),
         ]
     )
     @provide_session
@@ -245,7 +286,7 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
 
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns?limit=180")
         assert response.status_code == 200
-        self.assertEqual(len(response.json['dag_runs']), 150)
+        self.assertEqual(len(response.json["dag_runs"]), 150)
 
     def _create_dag_runs(self, count):
         return [
@@ -275,18 +316,30 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?start_date_lte= 2020-06-15T18:00:00+00:00"
                 "&start_date_gte=2020-06-12T18:00:00Z",
-                ["TEST_START_EXEC_DAY_12", "TEST_START_EXEC_DAY_13",
-                 "TEST_START_EXEC_DAY_14", "TEST_START_EXEC_DAY_15"],
+                [
+                    "TEST_START_EXEC_DAY_12",
+                    "TEST_START_EXEC_DAY_13",
+                    "TEST_START_EXEC_DAY_14",
+                    "TEST_START_EXEC_DAY_15",
+                ],
             ),
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_lte=2020-06-13T18:00:00+00:00",
-                ["TEST_START_EXEC_DAY_10", "TEST_START_EXEC_DAY_11",
-                 "TEST_START_EXEC_DAY_12", "TEST_START_EXEC_DAY_13"],
+                [
+                    "TEST_START_EXEC_DAY_10",
+                    "TEST_START_EXEC_DAY_11",
+                    "TEST_START_EXEC_DAY_12",
+                    "TEST_START_EXEC_DAY_13",
+                ],
             ),
             (
                 "api/v1/dags/TEST_DAG_ID/dagRuns?execution_date_gte=2020-06-16T18:00:00+00:00",
-                ["TEST_START_EXEC_DAY_16", "TEST_START_EXEC_DAY_17",
-                 "TEST_START_EXEC_DAY_18", "TEST_START_EXEC_DAY_19"],
+                [
+                    "TEST_START_EXEC_DAY_16",
+                    "TEST_START_EXEC_DAY_17",
+                    "TEST_START_EXEC_DAY_18",
+                    "TEST_START_EXEC_DAY_19",
+                ],
             ),
         ]
     )
@@ -304,16 +357,16 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
 
     def _create_dag_runs(self):
         dates = [
-            '2020-06-10T18:00:00+00:00',
-            '2020-06-11T18:00:00+00:00',
-            '2020-06-12T18:00:00+00:00',
-            '2020-06-13T18:00:00+00:00',
-            '2020-06-14T18:00:00+00:00',
-            '2020-06-15T18:00:00Z',
-            '2020-06-16T18:00:00Z',
-            '2020-06-17T18:00:00Z',
-            '2020-06-18T18:00:00Z',
-            '2020-06-19T18:00:00Z',
+            "2020-06-10T18:00:00+00:00",
+            "2020-06-11T18:00:00+00:00",
+            "2020-06-12T18:00:00+00:00",
+            "2020-06-13T18:00:00+00:00",
+            "2020-06-14T18:00:00+00:00",
+            "2020-06-15T18:00:00Z",
+            "2020-06-16T18:00:00Z",
+            "2020-06-17T18:00:00Z",
+            "2020-06-18T18:00:00Z",
+            "2020-06-19T18:00:00Z",
         ]
 
         return [
@@ -324,7 +377,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
                 execution_date=timezone.parse(dates[i]),
                 start_date=timezone.parse(dates[i]),
                 external_trigger=True,
-                state='success',
+                state="success",
             )
             for i in range(len(dates))
         ]
@@ -347,19 +400,135 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
     )
     @provide_session
     def test_end_date_gte_lte(self, url, expected_dag_run_ids, session):
-        dagruns = self._create_test_dag_run('success')  # state==success, then end date is today
+        dagruns = self._create_test_dag_run(
+            "success"
+        )  # state==success, then end date is today
         session.add_all(dagruns)
         session.commit()
 
         response = self.client.get(url)
         assert response.status_code == 200
         self.assertEqual(response.json["total_entries"], 2)
-        dag_run_ids = [dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run]
+        dag_run_ids = [
+            dag_run["dag_run_id"] for dag_run in response.json["dag_runs"] if dag_run
+        ]
         self.assertEqual(dag_run_ids, expected_dag_run_ids)
 
 
 class TestPostDagRun(TestDagRunEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.post("/dags/TEST_DAG_ID/dagRuns")
-        assert response.status_code == 200
+    @parameterized.expand(
+        [
+            (
+                "All fields present",
+                {
+                    "dag_run_id": "TEST_DAG_RUN",
+                    "execution_date": "2020-06-11T18:00:00+00:00",
+                },
+            ),
+            ("dag_run_id missing", {"execution_date": "2020-06-11T18:00:00+00:00"}),
+            ("dag_run_id and execution_date missing", {}),
+        ]
+    )
+    @provide_session
+    def test_should_response_200(self, name, request_json, session):
+        del name
+        dag_instance = DagModel(dag_id="TEST_DAG_ID")
+        session.add(dag_instance)
+        session.commit()
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns", json=request_json
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            {
+                "conf": {},
+                "dag_id": "TEST_DAG_ID",
+                "dag_run_id": response.json["dag_run_id"],
+                "end_date": None,
+                "execution_date": response.json["execution_date"],
+                "external_trigger": True,
+                "start_date": response.json["start_date"],
+                "state": "running",
+            },
+            response.json,
+        )
+
+    def test_response_404(self):
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={"dag_run_id": "TEST_DAG_RUN", "execution_date": self.default_time},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            {
+                "detail": None,
+                "status": 404,
+                "title": "DAG with dag_id: 'TEST_DAG_ID' not found",
+                "type": "about:blank",
+            },
+            response.json,
+        )
+
+    @parameterized.expand(
+        [
+            (
+                "start_date in request json",
+                "api/v1/dags/TEST_DAG_ID/dagRuns",
+                {
+                    "start_date": "2020-06-11T18:00:00+00:00",
+                    "execution_date": "2020-06-12T18:00:00+00:00",
+                },
+                {
+                    "detail": "Property is read-only - 'start_date'",
+                    "status": 400,
+                    "title": "Bad Request",
+                    "type": "about:blank",
+                },
+            ),
+            (
+                "state in request json",
+                "api/v1/dags/TEST_DAG_ID/dagRuns",
+                {"state": "failed", "execution_date": "2020-06-12T18:00:00+00:00"},
+                {
+                    "detail": "Property is read-only - 'state'",
+                    "status": 400,
+                    "title": "Bad Request",
+                    "type": "about:blank",
+                },
+            ),
+        ]
+    )
+    @provide_session
+    def test_response_400(self, name, url, request_json, expected_response, session):
+        del name
+        dag_instance = DagModel(dag_id="TEST_DAG_ID")
+        session.add(dag_instance)
+        session.commit()
+        response = self.client.post(url, json=request_json)
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(expected_response, response.json)
+
+    @provide_session
+    def test_response_409(self, session):
+        dag_instance = DagModel(dag_id="TEST_DAG_ID")
+        session.add(dag_instance)
+        session.add_all(self._create_test_dag_run())
+        session.commit()
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={
+                "dag_run_id": "TEST_DAG_RUN_ID_1",
+                "execution_date": self.default_time,
+            },
+        )
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(
+            response.json,
+            {
+                "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
+                "DAGRun ID: 'TEST_DAG_RUN_ID_1' already exists",
+                "status": 409,
+                "title": "Object already exists",
+                "type": "about:blank",
+            },
+        )

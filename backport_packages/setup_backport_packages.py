@@ -1,3 +1,4 @@
+# pylint: disable=wrong-import-order
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -35,9 +36,19 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, 
 
 from setuptools import Command, find_packages, setup as setuptools_setup
 
-from backport_packages.import_all_provider_classes import import_all_provider_classes
-from setup import PROVIDERS_REQUIREMENTS
-from tests.deprecated_classes import HOOKS, OPERATORS, SECRETS, SENSORS, TRANSFERS
+MY_DIR_PATH = os.path.dirname(__file__)
+SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
+AIRFLOW_PATH = os.path.join(SOURCE_DIR_PATH, "airflow")
+PROVIDERS_PATH = os.path.join(AIRFLOW_PATH, "providers")
+
+sys.path.insert(0, SOURCE_DIR_PATH)
+
+# those imports need to come after the above sys.path.insert to make sure that Airflow
+# sources are importable without having to add the airflow sources to the PYTHONPATH before
+# running the script
+import tests.deprecated_classes  # noqa # isort:skip
+from backport_packages.import_all_provider_classes import import_all_provider_classes  # noqa # isort:skip
+from setup import PROVIDERS_REQUIREMENTS  # noqa # isort:skip
 
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
@@ -46,12 +57,6 @@ from tests.deprecated_classes import HOOKS, OPERATORS, SECRETS, SENSORS, TRANSFE
 logger = logging.getLogger(__name__)  # noqa
 
 PY3 = sys.version_info[0] == 3
-
-MY_DIR_PATH = os.path.dirname(__file__)
-
-SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
-AIRFLOW_PATH = os.path.join(SOURCE_DIR_PATH, "airflow")
-PROVIDERS_PATH = os.path.join(AIRFLOW_PATH, "providers")
 
 
 class EntityType(Enum):
@@ -184,11 +189,11 @@ import setup  # From AIRFLOW_SOURCES/setup.py # noqa  # isort:skip
 DEPENDENCIES_JSON_FILE = os.path.join(PROVIDERS_PATH, "dependencies.json")
 
 MOVED_ENTITIES: Dict[EntityType, Dict[str, str]] = {
-    EntityType.Operators: {value[0]: value[1] for value in OPERATORS},
-    EntityType.Sensors: {value[0]: value[1] for value in SENSORS},
-    EntityType.Hooks: {value[0]: value[1] for value in HOOKS},
-    EntityType.Secrets: {value[0]: value[1] for value in SECRETS},
-    EntityType.Transfers: {value[0]: value[1] for value in TRANSFERS},
+    EntityType.Operators: {value[0]: value[1] for value in tests.deprecated_classes.OPERATORS},
+    EntityType.Sensors: {value[0]: value[1] for value in tests.deprecated_classes.SENSORS},
+    EntityType.Hooks: {value[0]: value[1] for value in tests.deprecated_classes.HOOKS},
+    EntityType.Secrets: {value[0]: value[1] for value in tests.deprecated_classes.SECRETS},
+    EntityType.Transfers: {value[0]: value[1] for value in tests.deprecated_classes.TRANSFERS},
 }
 
 
@@ -604,8 +609,7 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
     from airflow.secrets import BaseSecretsBackend
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
-    all_verified_entities: Dict[EntityType, VerifiedEntities] = {}
-    all_verified_entities[EntityType.Operators] = find_all_entities(
+    all_verified_entities: Dict[EntityType, VerifiedEntities] = {EntityType.Operators: find_all_entities(
         imported_classes=imported_classes,
         base_package=full_package_name,
         sub_package_pattern_match=r".*\.operators\..*",
@@ -621,39 +625,35 @@ def get_package_class_summary(full_package_name: str, imported_classes: List[str
             'CloudTextToSpeechSynthesizeOperator',
             'CloudSpeechToTextRecognizeSpeechOperator',
         }
-    )
-    all_verified_entities[EntityType.Sensors] = find_all_entities(
+    ), EntityType.Sensors: find_all_entities(
         imported_classes=imported_classes,
         base_package=full_package_name,
         sub_package_pattern_match=r".*\.sensors\..*",
         ancestor_match=BaseSensorOperator,
         expected_class_name_pattern=SENSORS_PATTERN,
         unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN, SENSORS_PATTERN}
-    )
-    all_verified_entities[EntityType.Hooks] = find_all_entities(
+    ), EntityType.Hooks: find_all_entities(
         imported_classes=imported_classes,
         base_package=full_package_name,
         sub_package_pattern_match=r".*\.hooks\..*",
         ancestor_match=BaseHook,
         expected_class_name_pattern=HOOKS_PATTERN,
         unexpected_class_name_patterns=ALL_PATTERNS - {HOOKS_PATTERN}
-    )
-    all_verified_entities[EntityType.Secrets] = find_all_entities(
+    ), EntityType.Secrets: find_all_entities(
         imported_classes=imported_classes,
         sub_package_pattern_match=r".*\.secrets\..*",
         base_package=full_package_name,
         ancestor_match=BaseSecretsBackend,
         expected_class_name_pattern=SECRETS_PATTERN,
         unexpected_class_name_patterns=ALL_PATTERNS - {SECRETS_PATTERN},
-    )
-    all_verified_entities[EntityType.Transfers] = find_all_entities(
+    ), EntityType.Transfers: find_all_entities(
         imported_classes=imported_classes,
         base_package=full_package_name,
         sub_package_pattern_match=r".*\.transfers\..*",
         ancestor_match=BaseOperator,
         expected_class_name_pattern=TRANSFERS_PATTERN,
         unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN, TRANSFERS_PATTERN},
-    )
+    )}
     for entity in EntityType:
         print_wrong_naming(entity, all_verified_entities[entity].wrong_entities)
 
@@ -706,6 +706,8 @@ def convert_git_changes_to_table(changes: str, base_url: str) -> str:
     headers = ["Commit", "Committed", "Subject"]
     table_data = []
     for line in lines:
+        if line == "":
+            continue
         full_hash, short_hash, date, message = line.split(" ", maxsplit=3)
         table_data.append((f"[{short_hash}]({base_url}{full_hash})", date, message))
     return tabulate(table_data, headers=headers, tablefmt="pipe")
@@ -799,15 +801,16 @@ def get_all_releases(provider_package_path: str) -> List[ReleaseInfo]:
                 content = changes_file.read()
             found = re.search(r'/([a-z0-9]*)\)', content, flags=re.MULTILINE)
             if not found:
-                raise Exception(f"Commit not found in {changes_file_path}. Something is wrong there.")
-            last_commit_hash = found.group(1)
-            release_version = file_name[len(PROVIDERS_CHANGES_PREFIX):][:-3]
-            past_releases.append(
-                ReleaseInfo(release_version=release_version,
-                            release_version_no_leading_zeros=strip_leading_zeros(release_version),
-                            last_commit_hash=last_commit_hash,
-                            content=content,
-                            file_name=file_name))
+                print("No commit found. This seems to be first time you run it", file=sys.stderr)
+            else:
+                last_commit_hash = found.group(1)
+                release_version = file_name[len(PROVIDERS_CHANGES_PREFIX):][:-3]
+                past_releases.append(
+                    ReleaseInfo(release_version=release_version,
+                                release_version_no_leading_zeros=strip_leading_zeros(release_version),
+                                last_commit_hash=last_commit_hash,
+                                content=content,
+                                file_name=file_name))
     return past_releases
 
 
@@ -818,7 +821,15 @@ def get_latest_release(provider_package_path: str) -> ReleaseInfo:
     :param provider_package_path: path of package
     :return: latest release information
     """
-    return get_all_releases(provider_package_path=provider_package_path)[0]
+    releases = get_all_releases(provider_package_path=provider_package_path)
+    if len(releases) == 0:
+        return ReleaseInfo(release_version="0.0.0",
+                           release_version_no_leading_zeros="0.0.0",
+                           last_commit_hash="no_hash",
+                           content="empty",
+                           file_name="no_file")
+    else:
+        return releases[0]
 
 
 def get_previous_release_info(previous_release_version: str,
