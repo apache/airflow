@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
+
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -41,13 +43,13 @@ class MongoSensor(BaseSensorOperator):
     template_fields = ('collection', 'query')
 
     @apply_defaults
-    def __init__(self, collection, query, mongo_conn_id="mongo_default", *args, **kwargs):
+    def __init__(self, collection: str, query: dict, mongo_conn_id: str = "mongo_default", *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.mongo_conn_id = mongo_conn_id
         self.collection = collection
         self.query = query
 
-    def poke(self, context):
+    def poke(self, context: Optional[dict]) -> bool:
         self.log.info("Sensor check existence of the document "
                       "that matches the following query: %s", self.query)
         hook = MongoHook(self.mongo_conn_id)
