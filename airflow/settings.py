@@ -31,11 +31,10 @@ from sqlalchemy.pool import NullPool
 
 # noinspection PyUnresolvedReferences
 from airflow import api
-from airflow.logging_config import configure_logging
-from airflow.utils.orm_event_handlers import setup_event_handlers
-
 # pylint: disable=unused-import
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
+from airflow.logging_config import configure_logging
+from airflow.utils.orm_event_handlers import setup_event_handlers
 
 log = logging.getLogger(__name__)
 
