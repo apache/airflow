@@ -168,7 +168,7 @@ repos:
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/templates/.*\.yaml$
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.0.6
+    rev: 5.0.8
     hooks:
       - id: isort
         name: Run isort to sort imports
