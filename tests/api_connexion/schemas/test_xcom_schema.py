@@ -64,7 +64,7 @@ class TestXComCollectionItemSchema(TestXComSchemaBase):
         xcom_model = session.query(XCom).first()
         deserialized_xcom = xcom_collection_item_schema.dump(xcom_model)
         self.assertEqual(
-            deserialized_xcom[0],
+            deserialized_xcom,
             {
                 'key': 'test_key',
                 'timestamp': self.default_time,
@@ -84,7 +84,7 @@ class TestXComCollectionItemSchema(TestXComSchemaBase):
         }
         result = xcom_collection_item_schema.load(xcom_dump)
         self.assertEqual(
-            result[0],
+            result,
             {
                 'key': 'test_key',
                 'timestamp': self.default_time_parsed,
@@ -132,7 +132,7 @@ class TestXComCollectionSchema(TestXComSchemaBase):
             total_entries=xcom_models_query.count(),
         ))
         self.assertEqual(
-            deserialized_xcoms[0],
+            deserialized_xcoms,
             {
                 'xcom_entries': [
                     {
@@ -177,7 +177,7 @@ class TestXComSchema(TestXComSchemaBase):
         xcom_model = session.query(XCom).first()
         deserialized_xcom = xcom_schema.dump(xcom_model)
         self.assertEqual(
-            deserialized_xcom[0],
+            deserialized_xcom,
             {
                 'key': 'test_key',
                 'timestamp': self.default_time,
@@ -199,7 +199,7 @@ class TestXComSchema(TestXComSchemaBase):
         }
         result = xcom_schema.load(xcom_dump)
         self.assertEqual(
-            result[0],
+            result,
             {
                 'key': 'test_key',
                 'timestamp': self.default_time_parsed,

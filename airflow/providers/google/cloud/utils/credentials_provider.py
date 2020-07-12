@@ -27,10 +27,12 @@ from typing import Collection, Dict, Optional, Sequence, Tuple
 from urllib.parse import urlencode
 
 import google.auth
+import google.auth.credentials
 import google.oauth2.service_account
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 from airflow.exceptions import AirflowException
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import patch_environ
 
 log = logging.getLogger(__name__)
@@ -176,15 +178,9 @@ def provide_gcp_conn_and_credentials(
         yield
 
 
-def get_credentials_and_project_id(
-    key_path: Optional[str] = None,
-    keyfile_dict: Optional[Dict[str, str]] = None,
-    # See: https://github.com/PyCQA/pylint/issues/2377
-    scopes: Optional[Collection[str]] = None,  # pylint: disable=unsubscriptable-object
-    delegate_to: Optional[str] = None
-) -> Tuple[google.auth.credentials.Credentials, str]:
+class _CredentialProvider(LoggingMixin):
     """
-    Returns the Credentials object for Google API and the associated project_id
+    Prepare the Credentials object for Google API and the associated project_id
 
     Only either `key_path` or `keyfile_dict` should be provided, or an exception will
     occur. If neither of them are provided, return default credentials for the current environment
@@ -194,64 +190,113 @@ def get_credentials_and_project_id(
     :param keyfile_dict: A dict representing GCP Credential as in the Credential JSON file
     :type keyfile_dict: Dict[str, str]
     :param scopes:  OAuth scopes for the connection
-    :type scopes: Sequence[str]
+    :type scopes: Collection[str]
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :return: Google Auth Credentials
-    :type: google.auth.credentials.Credentials
+    :param disable_logging: If true, disable all log messages, which allows you to use this
+        class to configure Logger.
     """
-    if key_path and keyfile_dict:
-        raise AirflowException(
-            "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
-            "Please provide only one value."
-        )
-    if not key_path and not keyfile_dict:
-        log.info(
-            'Getting connection using `google.auth.default()` since no key file is defined for hook.'
-        )
-        credentials, project_id = google.auth.default(scopes=scopes)
-    elif key_path:
-        # Get credentials from a JSON file.
-        if key_path.endswith('.json'):
-            log.debug('Getting connection using JSON key file %s', key_path)
-            credentials = (
-                google.oauth2.service_account.Credentials.from_service_account_file(
-                    key_path, scopes=scopes)
+    def __init__(
+        self,
+        key_path: Optional[str] = None,
+        keyfile_dict: Optional[Dict[str, str]] = None,
+        # See: https://github.com/PyCQA/pylint/issues/2377
+        scopes: Optional[Collection[str]] = None,  # pylint: disable=unsubscriptable-object
+        delegate_to: Optional[str] = None,
+        disable_logging: bool = False
+    ):
+        super().__init__()
+        if key_path and keyfile_dict:
+            raise AirflowException(
+                "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
+                "Please provide only one value."
             )
-            project_id = credentials.project_id
-        elif key_path.endswith('.p12'):
+        self.key_path = key_path
+        self.keyfile_dict = keyfile_dict
+        self.scopes = scopes
+        self.delegate_to = delegate_to
+        self.disable_logging = disable_logging
+
+    def get_credentials_and_project(self):
+        """
+        Get current credentials and project ID.
+
+        :return: Google Auth Credentials
+        :type: Tuple[google.auth.credentials.Credentials, str]
+        """
+        if self.key_path:
+            credentials, project_id = self._get_credentials_using_key_path()
+        elif self.keyfile_dict:
+            credentials, project_id = self._get_credentials_using_keyfile_dict()
+        else:
+            credentials, project_id = self._get_credentials_using_adc()
+
+        if self.delegate_to:
+            if hasattr(credentials, 'with_subject'):
+                credentials = credentials.with_subject(self.delegate_to)
+            else:
+                raise AirflowException(
+                    "The `delegate_to` parameter cannot be used here as the current "
+                    "authentication method does not support account impersonate. "
+                    "Please use service-account for authorization."
+                )
+
+        return credentials, project_id
+
+    def _get_credentials_using_keyfile_dict(self):
+        self._log_debug('Getting connection using JSON Dict')
+        # Depending on how the JSON was formatted, it may contain
+        # escaped newlines. Convert those to actual newlines.
+        self.keyfile_dict['private_key'] = self.keyfile_dict['private_key'].replace('\\n', '\n')
+        credentials = (
+            google.oauth2.service_account.Credentials.from_service_account_info(
+                self.keyfile_dict, scopes=self.scopes)
+        )
+        project_id = credentials.project_id
+        return credentials, project_id
+
+    def _get_credentials_using_key_path(self):
+        if self.key_path.endswith('.p12'):
             raise AirflowException(
                 'Legacy P12 key file are not supported, use a JSON key file.'
             )
-        else:
-            raise AirflowException('Unrecognised extension for key file.')
-    else:
-        if not keyfile_dict:
-            raise ValueError("The keyfile_dict should be set")
-        # Depending on how the JSON was formatted, it may contain
-        # escaped newlines. Convert those to actual newlines.
-        keyfile_dict['private_key'] = keyfile_dict['private_key'].replace(
-            '\\n', '\n')
 
+        if not self.key_path.endswith('.json'):
+            raise AirflowException('Unrecognised extension for key file.')
+
+        self._log_debug('Getting connection using JSON key file %s', self.key_path)
         credentials = (
-            google.oauth2.service_account.Credentials.from_service_account_info(
-                keyfile_dict, scopes=scopes)
+            google.oauth2.service_account.Credentials.from_service_account_file(
+                self.key_path, scopes=self.scopes)
         )
         project_id = credentials.project_id
+        return credentials, project_id
 
-    if delegate_to:
-        if hasattr(credentials, 'with_subject'):
-            credentials = credentials.with_subject(delegate_to)
-        else:
-            raise AirflowException(
-                "The `delegate_to` parameter cannot be used here as the current "
-                "authentication method does not support account impersonate. "
-                "Please use service-account for authorization."
-            )
+    def _get_credentials_using_adc(self):
+        self._log_info(
+            'Getting connection using `google.auth.default()` since no key file is defined for hook.'
+        )
+        credentials, project_id = google.auth.default(scopes=self.scopes)
+        return credentials, project_id
 
-    return credentials, project_id
+    def _log_info(self, *args, **kwargs):
+        if not self.disable_logging:
+            self.log.info(*args, **kwargs)
+
+    def _log_debug(self, *args, **kwargs):
+        if not self.disable_logging:
+            self.log.debug(*args, **kwargs)
+
+
+def get_credentials_and_project_id(
+    *args, **kwargs
+) -> Tuple[google.auth.credentials.Credentials, str]:
+    """
+    Returns the Credentials object for Google API and the associated project_id.
+    """
+    return _CredentialProvider(*args, **kwargs).get_credentials_and_project()
 
 
 def _get_scopes(scopes: Optional[str] = None) -> Sequence[str]:

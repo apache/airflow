@@ -29,8 +29,6 @@ class ImportErrorSchema(SQLAlchemySchema):
         """Meta"""
 
         model = ImportError
-        load_instance = True
-        exclude = ("id", "stacktrace")
 
     import_error_id = auto_field("id", dump_only=True)
     timestamp = auto_field(format="iso")
@@ -52,5 +50,5 @@ class ImportErrorCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-import_error_schema = ImportErrorSchema(strict=True)
-import_error_collection_schema = ImportErrorCollectionSchema(strict=True)
+import_error_schema = ImportErrorSchema()
+import_error_collection_schema = ImportErrorCollectionSchema()

@@ -169,7 +169,7 @@ key6 = value6
         test_conf = AirflowConfigParser(
             default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
-        test_conf.as_command_stdout = test_conf.as_command_stdout | {
+        test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ('test', 'key2'),
             ('test', 'key4'),
         }
@@ -202,6 +202,46 @@ key6 = value6
         cfg_dict = test_conf.as_dict(include_cmds=False, display_sensitive=True)
         self.assertNotIn('key4', cfg_dict['test'])
         self.assertEqual('printf key4_result', cfg_dict['test']['key4_cmd'])
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @conf_vars({
+        ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+        ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+    })
+    def test_config_from_secret_backend(self, mock_hvac):
+        """Get Config Value from a Secret Backend"""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            'request_id': '2d48a2ad-6bcb-e5b6-429d-da35fdf31f56',
+            'lease_id': '',
+            'renewable': False,
+            'lease_duration': 0,
+            'data': {'data': {'value': 'sqlite:////Users/airflow/airflow/airflow.db'},
+                     'metadata': {'created_time': '2020-03-28T02:10:54.301784Z',
+                                  'deletion_time': '',
+                                  'destroyed': False,
+                                  'version': 1}},
+            'wrap_info': None,
+            'warnings': None,
+            'auth': None
+        }
+
+        test_config = '''[test]
+sql_alchemy_conn_secret = sql_alchemy_conn
+'''
+        test_config_default = '''[test]
+sql_alchemy_conn = airflow
+'''
+
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
+        test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
+            ('test', 'sql_alchemy_conn'),
+        }
+
+        self.assertEqual(
+            'sqlite:////Users/airflow/airflow/airflow.db', test_conf.get('test', 'sql_alchemy_conn'))
 
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""
@@ -434,7 +474,7 @@ AIRFLOW_HOME = /root/airflow
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
         conf.deprecated_options[('celery', "result_backend")] = ('celery', 'celery_result_backend')
-        conf.as_command_stdout.add(('celery', 'celery_result_backend'))
+        conf.sensitive_config_values.add(('celery', 'celery_result_backend'))
 
         conf.remove_option('celery', 'result_backend')
         with conf_vars({('celery', 'celery_result_backend_cmd'): '/bin/echo 99'}):
@@ -511,13 +551,13 @@ notacommand = OK
 '''
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.read_string(test_cmdenv_config)
-        test_cmdenv_conf.as_command_stdout.add(('testcmdenv', 'itsacommand'))
+        test_cmdenv_conf.sensitive_config_values.add(('testcmdenv', 'itsacommand'))
         with unittest.mock.patch.dict('os.environ'):
             # AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD maps to ('testcmdenv', 'itsacommand') in
-            # as_command_stdout and therefore should return 'OK' from the environment variable's
+            # sensitive_config_values and therefore should return 'OK' from the environment variable's
             # echo command, and must not return 'NOT OK' from the configuration
             self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'itsacommand'), 'OK')
-            # AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD maps to no entry in as_command_stdout and therefore
+            # AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD maps to no entry in sensitive_config_values and therefore
             # the option should return 'OK' from the configuration, and must not return 'NOT OK' from
             # the environement variable's echo command
             self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'notacommand'), 'OK')

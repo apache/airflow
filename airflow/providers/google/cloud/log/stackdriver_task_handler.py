@@ -51,7 +51,6 @@ class StackdriverTaskHandler(logging.Handler):
 
     This handler supports both an asynchronous and synchronous transport.
 
-
     :param gcp_key_path: Path to GCP Credential JSON file.
         If ommited, authorization based on `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
@@ -104,12 +103,14 @@ class StackdriverTaskHandler(logging.Handler):
     @cached_property
     def _client(self) -> gcp_logging.Client:
         """Google Cloud Library API client"""
-        credentials, _ = get_credentials_and_project_id(
+        credentials, project = get_credentials_and_project_id(
             key_path=self.gcp_key_path,
             scopes=self.scopes,
+            disable_logging=True
         )
         client = gcp_logging.Client(
             credentials=credentials,
+            project=project,
             client_info=ClientInfo(client_library_version='airflow_v' + version.version)
         )
         return client

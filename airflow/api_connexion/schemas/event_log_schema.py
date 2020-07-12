@@ -30,8 +30,8 @@ class EventLogSchema(SQLAlchemySchema):
         """ Meta """
         model = Log
 
-    id = auto_field(dump_to='event_log_id', dump_only=True)
-    dttm = auto_field(dump_to='when', dump_only=True)
+    id = auto_field(data_key='event_log_id', dump_only=True)
+    dttm = auto_field(data_key='when', dump_only=True)
     dag_id = auto_field(dump_only=True)
     task_id = auto_field(dump_only=True)
     event = auto_field(dump_only=True)
@@ -53,5 +53,5 @@ class EventLogCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-event_log_schema = EventLogSchema(strict=True)
-event_log_collection_schema = EventLogCollectionSchema(strict=True)
+event_log_schema = EventLogSchema()
+event_log_collection_schema = EventLogCollectionSchema()

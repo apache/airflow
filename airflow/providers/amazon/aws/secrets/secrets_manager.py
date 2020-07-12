@@ -42,8 +42,11 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     For example, if secrets prefix is ``airflow/connections/smtp_default``, this would be accessible
     if you provide ``{"connections_prefix": "airflow/connections"}`` and request conn_id ``smtp_default``.
-    And if variables prefix is ``airflow/variables/hello``, this would be accessible
+    If variables prefix is ``airflow/variables/hello``, this would be accessible
     if you provide ``{"variables_prefix": "airflow/variables"}`` and request variable key ``hello``.
+    And if config_prefix is ``airflow/config/sql_alchemy_conn``, this would be accessible
+    if you provide ``{"config_prefix": "airflow/config"}`` and request config
+    key ``sql_alchemy_conn``.
 
     You can also pass additional keyword arguments like ``aws_secret_access_key``, ``aws_access_key_id``
     or ``region_name`` to this class and they would be passed on to Boto3 client.
@@ -52,6 +55,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
     :type variables_prefix: str
+    :param config_prefix: Specifies the prefix of the secret to read to get Variables.
+    :type config_prefix: str
     :param profile_name: The name of a profile to use. If not given, then the default profile is used.
     :type profile_name: str
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "/"
@@ -62,6 +67,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         self,
         connections_prefix: str = 'airflow/connections',
         variables_prefix: str = 'airflow/variables',
+        config_prefix: str = 'airflow/config',
         profile_name: Optional[str] = None,
         sep: str = "/",
         **kwargs
@@ -69,6 +75,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         super().__init__()
         self.connections_prefix = connections_prefix.rstrip("/")
         self.variables_prefix = variables_prefix.rstrip('/')
+        self.config_prefix = config_prefix.rstrip('/')
         self.profile_name = profile_name
         self.sep = sep
         self.kwargs = kwargs
@@ -94,12 +101,21 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_variable(self, key: str) -> Optional[str]:
         """
-        Get Airflow Variable from Environment Variable
+        Get Airflow Variable
 
         :param key: Variable Key
         :return: Variable Value
         """
         return self._get_secret(self.variables_prefix, key)
+
+    def get_config(self, key: str) -> Optional[str]:
+        """
+        Get Airflow Configuration
+
+        :param key: Configuration Option Key
+        :return: Configuration Option Value
+        """
+        return self._get_secret(self.config_prefix, key)
 
     def _get_secret(self, path_prefix: str, secret_id: str) -> Optional[str]:
         """

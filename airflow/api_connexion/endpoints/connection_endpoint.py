@@ -73,11 +73,10 @@ def patch_connection(connection_id, session, update_mask=None):
     Update a connection entry
     """
     try:
-        body = connection_schema.load(request.json, partial=True)
+        data = connection_schema.load(request.json, partial=True)
     except ValidationError as err:
         # If validation get to here, it is extra field validation.
-        raise BadRequest(detail=err.messages.get('_schema', [err.messages])[0])
-    data = body.data
+        raise BadRequest(detail=str(err.messages))
     non_update_fields = ['connection_id', 'conn_id']
     connection = session.query(Connection).filter_by(conn_id=connection_id).first()
     if connection is None:
@@ -107,10 +106,9 @@ def post_connection(session):
     """
     body = request.json
     try:
-        result = connection_schema.load(body)
+        data = connection_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    data = result.data
     conn_id = data['conn_id']
     query = session.query(Connection)
     connection = query.filter_by(conn_id=conn_id).first()

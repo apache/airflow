@@ -495,6 +495,13 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.providers.amazon.aws.sensors.s3_key`,
        :mod:`airflow.providers.amazon.aws.sensors.s3_prefix`
 
+   * - `AWS Step Functions <https://aws.amazon.com/step-functions/>`__
+     -
+     - :mod:`airflow.providers.amazon.aws.hooks.step_function`
+     - :mod:`airflow.providers.amazon.aws.operators.step_function_start_execution`,
+       :mod:`airflow.providers.amazon.aws.operators.step_function_get_execution_output`,
+     - :mod:`airflow.providers.amazon.aws.sensors.step_function_execution`,
+
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
 

@@ -42,6 +42,7 @@ spec:
   triggers:
     - type: postgresql
       metadata:
+        targetQueryValue: "1"
         connection: AIRFLOW_CONN_AIRFLOW_DB
         query: "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance WHERE state='running' OR state='queued'"
 {{- end }}

@@ -29,7 +29,7 @@ This page shows how to upload data from local filesystem to GCS.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: /howto/operator/gcp/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:LocalFilesystemToGCSOperator:
 

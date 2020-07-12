@@ -25,11 +25,12 @@ from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
-from airflow import models
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.base import ID_LEN, Base
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import convert_camel_to_snake
@@ -268,22 +269,20 @@ class BaseJob(Base, LoggingMixin):
         running_tis = self.executor.running
 
         resettable_states = [State.SCHEDULED, State.QUEUED]
-        TI = models.TaskInstance
-        DR = models.DagRun
         if filter_by_dag_run is None:
             resettable_tis = (
                 session
-                .query(TI)
+                .query(TaskInstance)
                 .join(
-                    DR,
+                    DagRun,
                     and_(
-                        TI.dag_id == DR.dag_id,
-                        TI.execution_date == DR.execution_date))
+                        TaskInstance.dag_id == DagRun.dag_id,
+                        TaskInstance.execution_date == DagRun.execution_date))
                 .filter(
                     # pylint: disable=comparison-with-callable
-                    DR.state == State.RUNNING,
-                    DR.run_type != DagRunType.BACKFILL_JOB.value,
-                    TI.state.in_(resettable_states))).all()
+                    DagRun.state == State.RUNNING,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB.value,
+                    TaskInstance.state.in_(resettable_states))).all()
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,
                                                                   session=session)
@@ -300,9 +299,9 @@ class BaseJob(Base, LoggingMixin):
             if not items:
                 return result
 
-            filter_for_tis = TI.filter_for_tis(items)
-            reset_tis = session.query(TI).filter(
-                filter_for_tis, TI.state.in_(resettable_states)
+            filter_for_tis = TaskInstance.filter_for_tis(items)
+            reset_tis = session.query(TaskInstance).filter(
+                filter_for_tis, TaskInstance.state.in_(resettable_states)
             ).with_for_update().all()
 
             for ti in reset_tis:

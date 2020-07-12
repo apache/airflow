@@ -25,7 +25,7 @@ repos:
     rev: v1.1.7
     hooks:
       - id: forbid-tabs
-        exclude: ^docs/Makefile$
+        exclude: ^docs/Makefile$|^clients/gen/go.sh
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
@@ -168,7 +168,7 @@ repos:
         types: [yaml]
         exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/templates/.*\.yaml$
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.0.3
+    rev: 5.0.6
     hooks:
       - id: isort
         name: Run isort to sort imports
@@ -269,7 +269,8 @@ repos:
           ^airflow/providers/apache/hive/operators/hive_stats.py$|
           ^airflow/providers/apache/hive/PROVIDERS_CHANGES_*|
           ^airflow/providers/apache/hive/README.md$|
-          ^tests/providers/apache/cassandra/hooks/test_cassandra.py
+          ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
+          ^CHANGELOG.txt$
       - id: consistent-pylint
         language: pygrep
         name: Check for inconsitent pylint disable/enable without space

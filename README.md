@@ -43,6 +43,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
+- [Building customized production images](#building-customized-production-images)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
 - [User Interface](#user-interface)
@@ -67,7 +68,7 @@ Apache Airflow is tested with:
 * Sqlite - latest stable (it is used mainly for development purpose)
 * Kubernetes - 1.16.2, 1.17.0
 
-### Stable version (1.10.10)
+### Stable version (1.10.11)
 
 * Python versions: 2.7, 3.5, 3.6, 3.7
 * Postgres DB: 9.6, 10
@@ -117,6 +118,26 @@ pip install apache-airflow==1.10.10 \
 pip install apache-airflow[postgres,gcp]==1.10.10 \
  --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
 ```
+
+## Building customized production images
+
+In order to use Airlfow in Docker Compose or Kubernetes, you might need to use or build production images
+of Apache Airflow. The community provides two types of support for the production images:
+
+* We provide pre-build relesed version of production image in PyPI build from released
+  sources of Apache Airflow - shortly after release. Those images are available in the DockerHub.
+  You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the
+  version number (for example 1.10.11). Additionally `docker pull apache/airflow` will pull latest
+  stable version of the image with default python version (currently 3.6)
+
+* In `master` branch of Airflow and in `v1-10-stable` branch we provide Dockerfiles and accompanying
+  files that allow to build your own customized version of the Airflow Production image. The instructions
+  on how to build your own image with additional dependencies (if needed) are provided in the
+  [IMAGES.rst](IMAGES.rst#production-images) if you want to build it using `docker build` command or in
+  [BREEZE.rst](BREEZE.rst#building-production-images) to use Breeze tool which easier interface,
+  auto-complete, and accompanying screencast video. Note, that while it is possible to use master
+  branch to build images for released Airflow versions, it might at times get broken so you should
+  rather rely on building your own images from the v1-10-stable branch.
 
 ## Beyond the Horizon
 
@@ -470,6 +491,7 @@ Currently **officially** using Airflow:
 1. [Mercadoni](https://www.mercadoni.com.co) [[@demorenoc](https://github.com/demorenoc)]
 1. [Mercari](http://www.mercari.com/) [[@yu-iskw](https://github.com/yu-iskw)]
 1. [MFG Labs](https://github.com/MfgLabs)
+1. [Ministry of Economy of Brazil](https://www.gov.br/economia/) [[@nitaibezerra](https://github.com/nitaibezerra), [@vitorbellini](https://github.com/vitorbellini)]
 1. [MiNODES](https://www.minodes.com) [[@dice89](https://github.com/dice89), [@diazcelsa](https://github.com/diazcelsa)]
 1. [Modernizing Medicine](https://www.modmed.com/)[[@kehv1n](https://github.com/kehv1n), [@dalupus](https://github.com/dalupus)]
 1. [Movember](https://movember.com)
@@ -503,7 +525,7 @@ Currently **officially** using Airflow:
 1. [Plaid](https://www.plaid.com/) [[@plaid](https://github.com/plaid), [@AustinBGibbons](https://github.com/AustinBGibbons) & [@jeeyoungk](https://github.com/jeeyoungk)]
 1. [Playbuzz](https://www.playbuzz.com/) [[@clintonboys](https://github.com/clintonboys) & [@dbn](https://github.com/dbn)]
 1. [PMC](https://pmc.com/) [[@andrewm4894](https://github.com/andrewm4894)]
-1. [Polidea](https://www.polidea.com/) [[@potiuk](https://github.com/potiuk), [@mschickensoup](https://github.com/mschickensoup), [@mik-laj](https://github.com/mik-laj), [@turbaszek](https://github.com/turbaszek), [@michalslowikowski00](https://github.com/michalslowikowski00), [@olchas](https://github.com/olchas)]
+1. [Polidea](https://www.polidea.com/) [[@potiuk](https://github.com/potiuk), [@mschickensoup](https://github.com/mschickensoup), [@mik-laj](https://github.com/mik-laj), [@turbaszek](https://github.com/turbaszek), [@michalslowikowski00](https://github.com/michalslowikowski00), [@olchas](https://github.com/olchas)], [@debek](https://github.com/debek)
 1. [Poshmark](https://www.poshmark.com)
 1. [Postmates](http://www.postmates.com) [[@syeoryn](https://github.com/syeoryn)]
 1. [Premise](http://www.premise.com) [[@jmccallum-premise](https://github.com/jmccallum-premise)]
@@ -561,12 +583,13 @@ Currently **officially** using Airflow:
 1. [Telia Company](https://www.teliacompany.com/en)
 1. [Ternary Data](https://ternarydata.com/) [[@mhousley](https://github.com/mhousley), [@JoeReis](https://github.com/JoeReis)]
 1. [Tesla](https://www.tesla.com/) [[@thoralf-gutierrez](https://github.com/thoralf-gutierrez)]
+1. [The Climate Corporation](https://climate.com/)[[@jmelching](https://github.com/jmelching)]
 1. [The Home Depot](https://www.homedepot.com/)[[@apekshithr](https://github.com/apekshithr)]
 1. [THE ICONIC](https://www.theiconic.com.au/) [[@revathijay](https://github.com/revathijay)] [[@ilikedata](https://github.com/ilikedata)]
 1. [Thinking Machines](https://thinkingmachin.es) [[@marksteve](https://github.com/marksteve)]
 1. [Thinknear](https://www.thinknear.com/) [[@d3cay1](https://github.com/d3cay1), [@ccson](https://github.com/ccson), & [@ababian](https://github.com/ababian)]
 1. [ThoughtWorks](https://www.thoughtworks.com/) [[@sann3](https://github.com/sann3)]
-1. [Thumbtack](https://www.thumbtack.com/) [[@natekupp](https://github.com/natekupp)]
+1. [Thumbtack](https://www.thumbtack.com/) [[@kamalacharya](https://github.com/kamalacharya), [@dwjoss](https://github.com/dwjoss)]
 1. [Tictail](https://tictail.com/)
 1. [Tile](https://tile.com/) [[@ranjanmanish](https://github.com/ranjanmanish)]
 1. [Tinder](https://tinder.com/) [[@kbendick](https://github.com/kbendick)]

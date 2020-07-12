@@ -54,4 +54,4 @@ class Config(NamedTuple):
     sections: List[ConfigSection]
 
 
-config_schema = ConfigSchema(strict=True)
+config_schema = ConfigSchema()

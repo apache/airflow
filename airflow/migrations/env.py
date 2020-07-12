@@ -21,7 +21,7 @@ from logging.config import fileConfig
 from alembic import context
 
 from airflow import models, settings
-from airflow.models.serialized_dag import SerializedDagModel  # noqa
+from airflow.models.serialized_dag import SerializedDagModel  # pylint: disable=unused-import # noqa
 
 
 def include_object(_, name, type_, *args):

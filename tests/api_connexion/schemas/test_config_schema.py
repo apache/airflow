@@ -55,4 +55,4 @@ class TestConfigSchema:
                 },
             ]
         }
-        assert result.data == expected
+        assert result == expected

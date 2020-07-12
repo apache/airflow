@@ -56,7 +56,7 @@ class TestTaskSchema:
             "wait_for_downstream": False,
             "weight_rule": "downstream",
         }
-        assert expected == result.data
+        assert expected == result
 
 
 class TestTaskCollectionSchema:
@@ -96,4 +96,4 @@ class TestTaskCollectionSchema:
             ],
             "total_entries": 1,
         }
-        assert expected == result.data
+        assert expected == result
