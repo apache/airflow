@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datadog import api
-
 from typing import Any, Dict
+
+from datadog import api
 
 from airflow.exceptions import AirflowException
 from airflow.providers.datadog.hooks.datadog import DatadogHook
@@ -44,9 +44,9 @@ class DatadogSensor(BaseSensorOperator):
             datadog_conn_id: str ='datadog_default',
             from_seconds_ago: int = 3600,
             up_to_seconds_from_now: int = 0,
-            priority=None,
-            sources=None,
-            tags=None,
+            priority: str = None,
+            sources: List[Any] = None,
+            tags: List[Any] = None,
             response_check=None,
             *args,
             **kwargs) -> None:
