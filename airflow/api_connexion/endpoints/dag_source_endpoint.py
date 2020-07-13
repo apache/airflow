@@ -36,7 +36,7 @@ def get_dag_source(file_token: str):
         path = auth_s.loads(file_token)
         dag_source = DagCode.code(path)
     except (BadSignature, FileNotFoundError):
-        raise NotFound("Dag Source not found")
+        raise NotFound("Dag source not found")
 
     return_type = request.accept_mimetypes.best_match(['text/plain', 'application/json'])
     if return_type == 'text/plain':
