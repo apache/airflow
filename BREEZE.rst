@@ -562,7 +562,7 @@ This install additional pypi dependency - torchio in specified version.
 
 .. code-block:: bash
 
-     ./breeze build-image --production-image --additional-dev-deps "libasound2" \
+     ./breeze build-image --production-image --additional-dev-deps "libasound2-dev" \
         --additional-runtime-deps "libasound2"
 
 This install additional apt dependencies - ``libasound2-dev`` in build image and ``libasound`` in the
@@ -572,6 +572,13 @@ production image, they are only installed in the build "segment" of the producti
 as an intermediate step to build the final image. Usually names of the ``dev`` dependencies end with ``-dev``
 suffix and they need to also be paired with corresponding runtime dependency added for the runtime image
 (without -dev).
+
+.. code-block:: bash
+
+     ./breeze build-image --production-image --python 3.7 --additional-dev-deps "libasound2-dev" \
+        --additional-runtime-deps "libasound2"
+
+Same as above but uses python 3.7.
 
 .. raw:: html
 
