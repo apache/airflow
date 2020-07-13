@@ -44,7 +44,7 @@ Restart DataFusion Instance
 To restart Data Fusion instance use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionRestartInstanceOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_restart_instance_operator]
@@ -63,7 +63,7 @@ Delete DataFusion Instance
 To delete Data Fusion instance use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeleteInstanceOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_delete_instance_operator]
@@ -83,7 +83,7 @@ Create DataFusion Instance
 To create Data Fusion instance use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionCreateInstanceOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_create_instance_operator]
@@ -103,7 +103,7 @@ Update DataFusion Instance
 To update Data Fusion instance use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionUpdateInstanceOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_update_instance_operator]
@@ -122,7 +122,7 @@ Get DataFusion Instance
 To retrieve Data Fusion instance use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionGetInstanceOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_get_instance_operator]
@@ -142,7 +142,7 @@ Create a DataFusion pipeline
 To create Data Fusion pipeline use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionCreatePipelineOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_create_pipeline]
@@ -161,7 +161,7 @@ Start a DataFusion pipeline
 To start Data Fusion pipeline use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStartPipelineOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_start_pipeline]
@@ -180,7 +180,7 @@ Stop a DataFusion pipeline
 To stop Data Fusion pipeline use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStopPipelineOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_stop_pipeline]
@@ -199,7 +199,7 @@ Delete a DataFusion pipeline
 To delete Data Fusion pipeline use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeletePipelineOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_delete_pipeline]
@@ -219,7 +219,7 @@ List DataFusion pipelines
 To list Data Fusion pipelines use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionListPipelinesOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_list_pipelines]

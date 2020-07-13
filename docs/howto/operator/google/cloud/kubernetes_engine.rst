@@ -47,7 +47,7 @@ Create GKE cluster
 
 Here is an example of a cluster definition:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
     :language: python
     :start-after: [START howto_operator_gcp_gke_create_cluster_definition]
     :end-before: [END howto_operator_gcp_gke_create_cluster_definition]
@@ -57,7 +57,7 @@ A dict object like this, or a
 definition, is required when creating a cluster with
 :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKECreateClusterOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gke_create_cluster]
@@ -72,7 +72,7 @@ To delete a cluster, use
 :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEDeleteClusterOperator`.
 This would also delete all the nodes allocated to the cluster.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gke_delete_cluster]
@@ -121,7 +121,7 @@ is the path ``/airflow/xcom``. To provide values to the XCom, ensure your Pod wr
 ``return.json`` in the sidecar. The contents of this can then be used downstream in your DAG.
 Here is an example of it being used:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gke_start_pod_xcom]
@@ -129,7 +129,7 @@ Here is an example of it being used:
 
 And then use it in other operators:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_kubernetes_engine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gke_xcom_result]

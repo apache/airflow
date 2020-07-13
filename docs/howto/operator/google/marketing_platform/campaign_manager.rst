@@ -41,7 +41,7 @@ To delete Campaign Manager report you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDeleteReportOperator`.
 It deletes a report by its unique ID.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_delete_report_operator]
@@ -59,7 +59,7 @@ Downloading a report
 The :class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDownloadReportOperator`.
 allows you to download a Campaign Manager to Google Cloud Storage bucket.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_get_report_operator]
@@ -77,7 +77,7 @@ Waiting for a report
 Report are generated asynchronously. To wait for report to be ready for downloading
 you can use :class:`~airflow.providers.google.marketing_platform.sensors.campaign_manager.GoogleCampaignManagerReportSensor`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_wait_for_operation]
@@ -96,7 +96,7 @@ To insert a Campaign Manager report you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerInsertReportOperator`.
 Running this operator creates a new report.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_insert_report_operator]
@@ -116,7 +116,7 @@ Running a report
 To run Campaign Manager report you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerRunReportOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_run_report_operator]
@@ -135,7 +135,7 @@ Inserting a conversions
 To insert Campaign Manager conversions you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerBatchInsertConversionsOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_insert_conversions]
@@ -154,7 +154,7 @@ Updating a conversions
 To update Campaign Manager conversions you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerBatchUpdateConversionsOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_campaign_manager.py
     :language: python
     :dedent: 4
     :start-after: [START howto_campaign_manager_update_conversions]

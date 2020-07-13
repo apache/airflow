@@ -46,7 +46,7 @@ For more information about the available fields to pass when creating a cluster,
 
 A cluster configuration can look as followed:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_create_cluster]
@@ -55,7 +55,7 @@ A cluster configuration can look as followed:
 With this configuration we can create the cluster:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator`
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator]
@@ -69,7 +69,7 @@ For more information on updateMask and other parameters take a look at `Dataproc
 
 An example of a new cluster config and the updateMask:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_updatemask_cluster_operator]
@@ -78,7 +78,7 @@ An example of a new cluster config and the updateMask:
 To update a cluster you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocUpdateClusterOperator`
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_update_cluster_operator]
@@ -91,7 +91,7 @@ To delete a cluster you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteClusterOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_delete_cluster_operator]
@@ -110,7 +110,7 @@ file system. You can specify a file:/// path to refer to a local file on a clust
 The job configuration can be submitted by using:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_submit_job_to_cluster_operator]
@@ -125,7 +125,7 @@ There are more arguments to provide in the jobs than the examples show. For the 
 
 Example of the configuration for a PySpark Job:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_pyspark_config]
@@ -133,7 +133,7 @@ Example of the configuration for a PySpark Job:
 
 Example of the configuration for a SparkSQl Job:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_sparksql_config]
@@ -141,7 +141,7 @@ Example of the configuration for a SparkSQl Job:
 
 Example of the configuration for a Spark Job:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_spark_config]
@@ -149,7 +149,7 @@ Example of the configuration for a Spark Job:
 
 Example of the configuration for a Hive Job:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_hive_config]
@@ -157,7 +157,7 @@ Example of the configuration for a Hive Job:
 
 Example of the configuration for a Hadoop Job:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_hadoop_config]
@@ -165,7 +165,7 @@ Example of the configuration for a Hadoop Job:
 
 Example of the configuration for a Pig Job:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_pig_config]
@@ -174,7 +174,7 @@ Example of the configuration for a Pig Job:
 
 Example of the configuration for a SparkR:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_sparkr_config]

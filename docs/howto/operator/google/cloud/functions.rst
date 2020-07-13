@@ -42,7 +42,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_delete]
@@ -51,7 +51,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../../airflow/providers/google/cloud/operators/functions.py
+.. literalinclude:: /../airflow/providers/google/cloud/operators/functions.py
     :language: python
     :dedent: 4
     :start-after: [START gcf_function_delete_template_fields]
@@ -81,7 +81,7 @@ Arguments
 When a DAG is created, the default_args dictionary can be used to pass
 arguments common with other tasks:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
     :start-after: [START howto_operator_gcf_default_args]
     :end-before: [END howto_operator_gcf_default_args]
@@ -105,19 +105,19 @@ Using the operator
 Depending on the combination of parameters, the Function's source code can be obtained
 from different sources:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_body]
     :end-before: [END howto_operator_gcf_deploy_body]
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_variants]
     :end-before: [END howto_operator_gcf_deploy_variants]
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_deploy]
@@ -126,7 +126,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_functions.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_functions.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_deploy_no_project_id]
@@ -135,7 +135,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../../airflow/providers/google/cloud/operators/functions.py
+.. literalinclude:: /../airflow/providers/google/cloud/operators/functions.py
     :language: python
     :dedent: 4
     :start-after: [START gcf_function_deploy_template_fields]

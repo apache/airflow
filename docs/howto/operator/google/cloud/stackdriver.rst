@@ -44,7 +44,7 @@ Using the operator
 You can use this operator with or without project id to fetch all the alert policies.
 If project is is missing it wil be retrieved from GCP connection used.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_stackdriver.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_stackdriver_list_alert_policy]
@@ -64,7 +64,7 @@ Using the operator
 You can use this operator with or without project id to fetch all the alert policies.
 If project is is missing it wil be retrieved from GCP connection used.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_stackdriver.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_stackdriver_enable_alert_policy]
@@ -84,7 +84,7 @@ Using the operator
 You can use this operator with or without project id to fetch all the alert policies.
 If project is is missing it wil be retrieved from GCP connection used.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_stackdriver.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_stackdriver_disable_alert_policy]
@@ -105,7 +105,7 @@ Using the operator
 You can use this operator with or without project id to fetch all the alert policies.
 If project is is missing it wil be retrieved from GCP connection used.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_stackdriver.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_stackdriver_upsert_alert_policy]
@@ -124,7 +124,7 @@ Using the operator
 
 The name of the alert to be deleted should be given in the format projects/<PROJECT_NAME>/alertPolicies/<ALERT_NAME>
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_stackdriver.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_stackdriver_delete_alert_policy]
@@ -144,7 +144,7 @@ Using the operator
 You can use this operator with or without project id to fetch all the alert policies.
 If project is is missing it wil be retrieved from GCP connection used.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_stackdriver.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_stackdriver_list_notification_channel]
@@ -164,7 +164,7 @@ Using the operator
 You can use this operator with or without project id to fetch all the alert policies.
 If project is is missing it wil be retrieved from GCP connection used.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_stackdriver.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_stackdriver_enable_notification_channel]
@@ -184,7 +184,7 @@ Using the operator
 You can use this operator with or without project id to fetch all the alert policies.
 If project is is missing it wil be retrieved from GCP connection used.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_stackdriver.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_stackdriver_disable_notification_channel]
@@ -205,7 +205,7 @@ Using the operator
 You can use this operator with or without project id to fetch all the alert policies.
 If project is is missing it wil be retrieved from GCP connection used.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_stackdriver.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_stackdriver_disable_notification_channel]
@@ -224,7 +224,7 @@ Using the operator
 You can use this operator with or without project id to fetch all the alert policies.
 If project is is missing it wil be retrieved from GCP connection used.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_stackdriver.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_stackdriver.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_stackdriver_delete_notification_channel]

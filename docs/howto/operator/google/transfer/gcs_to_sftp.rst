@@ -53,7 +53,7 @@ Copying a single file
 
 The following Operator copies a single file.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_sftp.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_gcs_to_sftp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_sftp_copy_single_file]
@@ -66,7 +66,7 @@ To move the file use the ``move_object`` parameter. Once the file is copied to S
 the original file from the Google Storage is deleted. The ``destination_path`` parameter defines the
 full path of the file on the SFTP server.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_sftp.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_gcs_to_sftp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_sftp_move_single_file_destination]
@@ -78,7 +78,7 @@ Copying a directory
 
 Use the ``wildcard`` in ``source_path`` parameter to copy a directory.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_sftp.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_gcs_to_sftp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_sftp_copy_directory]
@@ -90,7 +90,7 @@ Moving specific files
 Use the ``wildcard`` in ``source_path`` parameter to move the specific files.
 The ``destination_path`` defines the path that is prefixed to all copied files.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_sftp.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_gcs_to_sftp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_sftp_move_specific_files]
