@@ -66,27 +66,7 @@
   {% include 'airflow/curve_chart.html' %}
 </div>
 
-<div class="modal" id="doubleCheckModal" tabindex="-1" role="dialog">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title m-0">二次确认</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <!--        <p>确认删除曲线？</p>-->
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default m-2  px-4 py-2 font-weight-bold " data-dismiss="modal">取消
-        </button>
-        <button type="button" class="btn btn-primary m-2 px-4 py-2 font-weight-bold " id="btnDoConfirmDoubleCheck">确认
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
+{% include 'airflow/dialog.html' %}
 {% endblock %}
 
 
@@ -297,15 +277,11 @@
   }
 
   function confirmDoubleCheck(status) {
-    const modal = $('#doubleCheckModal');
-    modal.find('.modal-body')
-      .html(`<p>二次确认曲线结果为：${status}？</p>`);
-    modal.find('#btnDoConfirmDoubleCheck').off('click');
-    modal.find('#btnDoConfirmDoubleCheck').on('click', () => {
-      submitDoubleCheck(status);
-      // modal.modal('hide');
+    showDialog('二次确认', `<p>二次确认曲线结果为：${status}？</p>`, {
+      onConfirm() {
+        submitDoubleCheck(status);
+      },
     });
-    modal.modal({});
   }
 
   $('#btn_double_check_failed').click((e) => {

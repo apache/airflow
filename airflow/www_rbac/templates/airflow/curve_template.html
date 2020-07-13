@@ -45,26 +45,7 @@
   </div>
 </div>
 
-<div class="modal" id="removeCurveDialog" tabindex="-1" role="dialog">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title m-0">删除曲线</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <p>确认删除曲线？</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default m-2  px-4 py-2 font-weight-bold " data-dismiss="modal">取消
-        </button>
-        <button type="button" class="btn btn-danger m-2 px-4 py-2 font-weight-bold " id="btnDoRemoveCurve">删除</button>
-      </div>
-    </div>
-  </div>
-</div>
+{% include 'airflow/dialog.html' %}
 {% endblock %}
 
 
@@ -144,20 +125,18 @@
 
   function showRemoveCurveDialog(name, color) {
     const curve = curves.find(c => c.name === name);
-    const modal = $('#removeCurveDialog');
-    modal.find('.modal-body')
-      .html(`<p>确认删除曲线 <span class="color-indicator" style="display:inline-block;background-color: ${color}"></span>${name}</p>`);
-    modal.find('#btnDoRemoveCurve').off('click');
-    modal.find('#btnDoRemoveCurve').on('click', () => {
-      doRemoveCurve(
-        curveTemplate.version || 0,
-        curve.mode,
-        curve.centroid,
-        curve.idx,
-      );
-      modal.modal('hide');
+    showDialog('删除曲线', `<p>确认删除曲线 <span class="color-indicator" style="display:inline-block;background-color: ${color}"></span>${name}</p>`, {
+      onConfirm() {
+        doRemoveCurve(
+          curveTemplate.version || 0,
+          curve.mode,
+          curve.centroid,
+          curve.idx,
+        );
+      },
+      confirmText: '删除',
+      confirmClass: 'btn-danger',
     });
-    modal.modal({});
   }
 
   function templateListInit() {
