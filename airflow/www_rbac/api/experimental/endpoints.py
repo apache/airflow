@@ -395,12 +395,15 @@ def double_confirm_task(dag_id, task_id, execution_date):
 @requires_authentication
 def get_curves():
     try:
-        craft_type = request.args.get('craft_type'),
-        bolt_number = request.args.get('bolt_number'),
+        craft_type = request.args.get('craft_type')
+        bolt_number = request.args.get('bolt_number')
         tasks = TaskInstance.list_tasks(craft_type, bolt_number)
         return jsonify(tasks)
-    except Exception as e:
+    except AirflowException as e:
         _log.info(e)
+        response = jsonify(error="{}".format(e))
+        response.status_code = e.status_code
+        return response
 
 
 @api_experimental.route(
@@ -411,7 +414,7 @@ def get_curves_by_entity_id():
     try:
         curves = []
 
-        vals = request.args.get('entity_ids'),
+        vals = request.args.get('entity_ids')
         entity_ids = str(vals).split(",")
         if entity_ids is None:
             return jsonify(curves)
@@ -422,8 +425,11 @@ def get_curves_by_entity_id():
                 curves.append(curve)
 
         return jsonify(curves)
-    except Exception as e:
+    except AirflowException as e:
         _log.info(e)
+        response = jsonify(error="{}".format(e))
+        response.status_code = e.status_code
+        return response
 
 
 # ToDo: Shouldn't this be a PUT method?
