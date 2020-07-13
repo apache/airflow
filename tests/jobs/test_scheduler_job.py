@@ -215,10 +215,9 @@ class TestDagFileProcessor(unittest.TestCase):
                 session.merge(ti)
 
             # scheduler._process_dags(simple_dag_bag)
-            @mock.patch('airflow.models.DagBag', return_value=dagbag)
-            @mock.patch('airflow.models.DagBag.collect_dags')
+            @mock.patch('airflow.jobs.scheduler_job.DagBag', return_value=dagbag)
             @mock.patch('airflow.jobs.scheduler_job.SchedulerJob._change_state_for_tis_without_dagrun')
-            def do_schedule(mock_dagbag, mock_collect_dags, mock_change_state):
+            def do_schedule(mock_dagbag, mock_change_state):
                 # Use a empty file since the above mock will return the
                 # expected DAGs. Also specify only a single file so that it doesn't
                 # try to schedule the above DAG repeatedly.
@@ -2902,9 +2901,8 @@ class TestSchedulerJob(unittest.TestCase):
 
         dagbag.bag_dag(dag=dag, root_dag=dag)
 
-        @mock.patch('airflow.models.DagBag', return_value=dagbag)
-        @mock.patch('airflow.models.DagBag.collect_dags')
-        def do_schedule(mock_dagbag, mock_collect_dags):
+        @mock.patch('airflow.jobs.scheduler_job.DagBag', return_value=dagbag)
+        def do_schedule(mock_dagbag):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.
@@ -2960,9 +2958,8 @@ class TestSchedulerJob(unittest.TestCase):
 
         dagbag.bag_dag(dag=dag, root_dag=dag)
 
-        @mock.patch('airflow.models.DagBag', return_value=dagbag)
-        @mock.patch('airflow.models.DagBag.collect_dags')
-        def do_schedule(mock_dagbag, mock_collect_dags):
+        @mock.patch('airflow.jobs.scheduler_job.DagBag', return_value=dagbag)
+        def do_schedule(mock_dagbag):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.

@@ -251,7 +251,7 @@ class DAG(BaseDag, LoggingMixin):
         self._dag_id = dag_id
         self._full_filepath = full_filepath if full_filepath else ''
         self._concurrency = concurrency
-        self._pickle_id = None
+        self._pickle_id: Optional[int] = None
 
         self._description = description
         # set file location to caller source path
@@ -304,7 +304,7 @@ class DAG(BaseDag, LoggingMixin):
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
-            self._default_view = default_view
+            self._default_view: str = default_view
         else:
             raise AirflowException(f'Invalid values of dag.default_view: only support '
                                    f'{DEFAULT_VIEW_PRESETS}, but get {default_view}')
@@ -507,27 +507,27 @@ class DAG(BaseDag, LoggingMixin):
                                include_externally_triggered=include_externally_triggered)
 
     @property
-    def dag_id(self):
+    def dag_id(self) -> str:
         return self._dag_id
 
     @dag_id.setter
-    def dag_id(self, value):
+    def dag_id(self, value: str) -> None:
         self._dag_id = value
 
     @property
-    def full_filepath(self):
+    def full_filepath(self) -> str:
         return self._full_filepath
 
     @full_filepath.setter
-    def full_filepath(self, value):
+    def full_filepath(self, value) -> None:
         self._full_filepath = value
 
     @property
-    def concurrency(self):
+    def concurrency(self) -> int:
         return self._concurrency
 
     @concurrency.setter
-    def concurrency(self, value):
+    def concurrency(self, value: int):
         self._concurrency = value
 
     @property
@@ -539,23 +539,23 @@ class DAG(BaseDag, LoggingMixin):
         self._access_control = value
 
     @property
-    def description(self):
+    def description(self) -> Optional[str]:
         return self._description
 
     @property
-    def default_view(self):
+    def default_view(self) -> str:
         return self._default_view
 
     @property
-    def pickle_id(self):
+    def pickle_id(self) -> Optional[int]:
         return self._pickle_id
 
     @pickle_id.setter
-    def pickle_id(self, value):
+    def pickle_id(self, value: int) -> None:
         self._pickle_id = value
 
     @property
-    def tasks(self):
+    def tasks(self) -> List[BaseOperator]:
         return list(self.task_dict.values())
 
     @tasks.setter
@@ -564,7 +564,7 @@ class DAG(BaseDag, LoggingMixin):
             'DAG.tasks can not be modified. Use dag.add_task() instead.')
 
     @property
-    def task_ids(self):
+    def task_ids(self) -> List[str]:
         return list(self.task_dict.keys())
 
     @property
@@ -1264,10 +1264,10 @@ class DAG(BaseDag, LoggingMixin):
 
         return dag
 
-    def has_task(self, task_id):
+    def has_task(self, task_id: str):
         return task_id in (t.task_id for t in self.tasks)
 
-    def get_task(self, task_id, include_subdags=False):
+    def get_task(self, task_id: str, include_subdags: bool = False) -> BaseOperator:
         if task_id in self.task_dict:
             return self.task_dict[task_id]
         if include_subdags:
@@ -1291,7 +1291,7 @@ class DAG(BaseDag, LoggingMixin):
         return d
 
     @provide_session
-    def pickle(self, session=None):
+    def pickle(self, session=None) -> DagPickle:
         dag = session.query(
             DagModel).filter(DagModel.dag_id == self.dag_id).first()
         dp = None

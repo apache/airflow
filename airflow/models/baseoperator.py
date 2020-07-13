@@ -979,7 +979,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         self.prepare_template()
 
     @property
-    def upstream_list(self) -> List[str]:
+    def upstream_list(self) -> List["BaseOperator"]:
         """@property: list of tasks directly upstream"""
         return [self.dag.get_task(tid) for tid in self._upstream_task_ids]
 
@@ -989,7 +989,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         return self._upstream_task_ids
 
     @property
-    def downstream_list(self) -> List[str]:
+    def downstream_list(self) -> List["BaseOperator"]:
         """@property: list of tasks directly downstream"""
         return [self.dag.get_task(tid) for tid in self._downstream_task_ids]
 
@@ -1123,7 +1123,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         else:
             return self._downstream_task_ids
 
-    def get_direct_relatives(self, upstream: bool = False) -> List[str]:
+    def get_direct_relatives(self, upstream: bool = False) -> List["BaseOperator"]:
         """
         Get list of the direct relatives to the current task, upstream or
         downstream.

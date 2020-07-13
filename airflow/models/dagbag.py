@@ -25,7 +25,7 @@ import sys
 import textwrap
 import zipfile
 from datetime import datetime, timedelta
-from typing import List, NamedTuple
+from typing import Dict, List, NamedTuple, Optional
 
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from tabulate import tabulate
@@ -79,18 +79,20 @@ class DagBag(BaseDagBag, LoggingMixin):
 
     def __init__(
             self,
-            dag_folder=None,
-            include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
-            safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-            store_serialized_dags=False,
+            dag_folder: Optional[str] = None,
+            include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
+            safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+            store_serialized_dags: bool = False,
     ):
+        # Avoid circular import
+        from airflow.models.dag import DAG
         super().__init__()
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
-        self.dags = {}
+        self.dags: Dict[str, DAG] = {}
         # the file's last modified timestamp when we last read it
-        self.file_last_changed = {}
-        self.import_errors = {}
+        self.file_last_changed: Dict[str, datetime] = {}
+        self.import_errors: Dict[str, str] = {}
         self.has_logged = False
         self.store_serialized_dags = store_serialized_dags
 
@@ -99,7 +101,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             include_examples=include_examples,
             safe_mode=safe_mode)
 
-    def size(self):
+    def size(self) -> int:
         """
         :return: the amount of dags contained in this dagbag
         """
