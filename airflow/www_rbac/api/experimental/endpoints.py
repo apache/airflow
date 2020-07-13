@@ -38,11 +38,10 @@ from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session, provide_session
 from .utils import get_cas_training_base_url, get_result_args, get_task_params, get_curve_args, get_craft_type, \
-    generate_bolt_number, get_curve_params
+    generate_bolt_number, get_curve_params, form_analysis_result
 from flask import g, Blueprint, jsonify, request, url_for
 from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
-import airflow.entities as entities
 import json
 from airflow.api.common.experimental.mark_tasks import modify_task_instance
 
@@ -53,6 +52,16 @@ requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 api_experimental = Blueprint('api_experimental', __name__)
 
 
+def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task_id, dag_id):
+    analysis_result = form_analysis_result(result, entity_id, execution_date, task_id, dag_id)
+    push_result_dat_id = 'publish_result_dag'
+    conf = {
+        'data': analysis_result,
+        'data_type': data_type
+    }
+    trigger.trigger_dag(push_result_dat_id, conf=conf, replace_microseconds=False)
+
+
 @csrf.exempt
 @api_experimental.route('/taskinstance/analysis_result', methods=['PUT'])
 @requires_authentication
@@ -61,7 +70,6 @@ def put_anaylysis_result():
         data = request.get_json(force=True)
         dag_id = data.get('dag_id')
         task_id = data.get('task_id')
-        real_task_id = data.get('real_task_id')
         execution_date = data.get('exec_date')
         entity_id = data.get('entity_id')
         measure_result = data.get('measure_result')
@@ -80,14 +88,7 @@ def put_anaylysis_result():
 
         date = timezone.parse(execution_date)
         modify_task_instance(dag_id, task_id, execution_date=date, modifier=modifier)
-        training_result = {
-            'result': rresult,
-            'entity_id': entity_id,
-            'execution_date': execution_date,
-            'task_id': task_id,
-            'dag_id': dag_id,
-        }
-        entities.result_hook(training_result)
+        trigger_push_result_to_mq('analysis_result', rresult, entity_id, execution_date, task_id, dag_id)
         resp = jsonify({'response': 'ok'})
         resp.status_code = 200
         return resp
@@ -352,7 +353,7 @@ def docasInvaild(task_instance, final_state):
 @requires_authentication
 def double_confirm_task(dag_id, task_id, execution_date):
     try:
-        execution_date = timezone.parse(execution_date)
+        date = timezone.parse(execution_date)
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
@@ -367,19 +368,18 @@ def double_confirm_task(dag_id, task_id, execution_date):
         params = request.get_json(force=True)  # success failed
         final_state = params.get('final_state', None)
 
-        task = get_task_instance(dag_id, task_id, execution_date)
+        task = get_task_instance(dag_id, task_id, execution_date=date)
         if not task.result:
             raise AirflowException(u"分析结果还没有生成，请等待分析结果生成后再进行二次确认")
         if not final_state or final_state not in ['OK', 'NOK']:
             raise AirflowException("二次确认参数未定义或数值不正确!")
-        # if task.result != final_state:
-        # 分析结果与二次确认结果不同
-        docasInvaild(task, final_state)
+        docasInvaild(task, final_state)  # 总是触发
         set_dag_run_final_state(
             task_id=task_id,
             dag_id=dag_id,
-            execution_date=execution_date,
+            execution_date=date,
             final_state=final_state)
+        trigger_push_result_to_mq('final_result', final_state, task.entity_id, execution_date, task_id, dag_id)
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))
@@ -505,7 +505,7 @@ def do_remove_curve_from_curve_template(bolt_no=None, craft_type=None, version=N
     conf = {
         'template_names': [template_name]
     }
-    trigger.trigger_dag(dag_id, conf=conf, replace_microseconds=True)
+    trigger.trigger_dag(dag_id, conf=conf, replace_microseconds=False)
     return curve_template
 
 
