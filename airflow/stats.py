@@ -22,7 +22,7 @@ import socket
 import string
 import textwrap
 from functools import wraps
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
@@ -255,5 +255,8 @@ class _Stats(type):
             return tags
 
 
-class Stats(metaclass=_Stats):  # noqa: D101
-    pass
+if TYPE_CHECKING:
+    Stats: StatsLogger
+else:
+    class Stats(metaclass=_Stats):  # noqa: D101
+        pass

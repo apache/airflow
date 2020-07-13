@@ -339,7 +339,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                          ignore_task_deps: Optional[bool] = False,
                          ignore_ti_state: Optional[bool] = False,
                          local: Optional[bool] = False,
-                         pickle_id: Optional[str] = None,
+                         pickle_id: Optional[int] = None,
                          file_path: Optional[str] = None,
                          raw: Optional[bool] = False,
                          job_id: Optional[str] = None,
@@ -372,7 +372,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         :type local: Optional[bool]
         :param pickle_id: If the DAG was serialized to the DB, the ID
             associated with the pickled DAG
-        :type pickle_id: Optional[str]
+        :type pickle_id: Optional[int]
         :param file_path: path to the file containing the DAG definition
         :type file_path: Optional[str]
         :param raw: raw mode (needs more details)
@@ -391,7 +391,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         if mark_success:
             cmd.extend(["--mark-success"])
         if pickle_id:
-            cmd.extend(["--pickle", pickle_id])
+            cmd.extend(["--pickle", str(pickle_id)])
         if job_id:
             cmd.extend(["--job-id", str(job_id)])
         if ignore_all_deps:
@@ -573,7 +573,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         return TaskInstanceKey(self.dag_id, self.task_id, self.execution_date, self.try_number)
 
     @provide_session
-    def set_state(self, state, session=None, commit=True):
+    def set_state(self, state: str, session=None, commit: bool = True):
         """
         Set TaskInstance state
 
@@ -1779,9 +1779,7 @@ class SimpleTaskInstance:
         self._run_as_user: Optional[str] = None
         if hasattr(ti, 'run_as_user'):
             self._run_as_user = ti.run_as_user
-        self._pool: Optional[str] = None
-        if hasattr(ti, 'pool'):
-            self._pool = ti.pool
+        self._pool: str = ti.pool
         self._priority_weight: Optional[int] = None
         if hasattr(ti, 'priority_weight'):
             self._priority_weight = ti.priority_weight
@@ -1818,7 +1816,7 @@ class SimpleTaskInstance:
         return self._state
 
     @property
-    def pool(self) -> Any:
+    def pool(self) -> str:
         return self._pool
 
     @property

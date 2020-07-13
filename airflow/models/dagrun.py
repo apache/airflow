@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
-from typing import List, Optional, Tuple, Union, cast
+from typing import Any, List, Optional, Tuple, Union, cast
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
@@ -66,8 +66,17 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint('dag_id', 'run_id'),
     )
 
-    def __init__(self, dag_id=None, run_id=None, execution_date=None, start_date=None, external_trigger=None,
-                 conf=None, state=None, run_type=None):
+    def __init__(
+        self,
+        dag_id: Optional[str] = None,
+        run_id: Optional[str] = None,
+        execution_date: Optional[datetime] = None,
+        start_date: Optional[datetime] = None,
+        external_trigger: Optional[bool] = None,
+        conf: Optional[Any] = None,
+        state: Optional[str] = None,
+        run_type: Optional[str] = None
+    ):
         self.dag_id = dag_id
         self.run_id = run_id
         self.execution_date = execution_date
@@ -131,8 +140,9 @@ class DagRun(Base, LoggingMixin):
         no_backfills: Optional[bool] = False,
         run_type: Optional[DagRunType] = None,
         session: Session = None,
-        execution_start_date=None, execution_end_date=None
-    ):
+        execution_start_date: Optional[datetime] = None,
+        execution_end_date: Optional[datetime] = None
+    ) -> List["DagRun"]:
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -281,7 +291,7 @@ class DagRun(Base, LoggingMixin):
         ).first()
 
     @provide_session
-    def update_state(self, session=None):
+    def update_state(self, session=None) -> List[TI]:
         """
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
@@ -291,7 +301,7 @@ class DagRun(Base, LoggingMixin):
         """
 
         dag = self.get_dag()
-        ready_tis = []
+        ready_tis: List[TI] = []
         tis = [ti for ti in self.get_task_instances(session=session,
                                                     state=State.task_states + (State.SHUTDOWN,))]
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))

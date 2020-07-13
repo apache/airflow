@@ -1025,12 +1025,18 @@ paths:
                 properties:
                   content:
                     type: string
+            plain/text:
+              schema:
+                type: string
+
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
 
   /config:
     get:
@@ -2401,6 +2407,13 @@ components:
     # 404
     'NotFound':
       description: A specified resource is not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 406
+    'NotAcceptable':
+      description: A specified Accept header is not allowed.
       content:
         application/json:
           schema:

@@ -35,7 +35,7 @@ determine what actually executes when your DAG runs.
     amazon/aws/index
     apache/index
     dingding
-    gcp/index
+    google/index
     http/index
     kubernetes
     papermill

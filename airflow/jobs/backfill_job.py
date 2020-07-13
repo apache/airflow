@@ -20,7 +20,7 @@
 import time
 from collections import OrderedDict
 from datetime import datetime
-from typing import Set
+from typing import Optional, Set
 
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
@@ -295,12 +295,14 @@ class BackfillJob(BaseJob):
 
         # check if we are scheduling on top of a already existing dag_run
         # we could find a "scheduled" run instead of a "backfill"
-        run = DagRun.find(dag_id=dag.dag_id,
-                          execution_date=run_date,
-                          session=session)
-
-        if run is not None and len(run) > 0:
-            run = run[0]
+        runs = DagRun.find(
+            dag_id=dag.dag_id,
+            execution_date=run_date,
+            session=session
+        )
+        run: Optional[DagRun]
+        if runs:
+            run = runs[0]
             if run.state == State.RUNNING:
                 respect_dag_max_active_limit = False
         else:

@@ -16,12 +16,13 @@
 # under the License.
 from connexion import NoContent
 from flask import request
+from marshmallow import ValidationError
 from sqlalchemy import and_, func
 
-from airflow.api_connexion.exceptions import AlreadyExists, NotFound
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dag_run_schema import (
-    DAGRunCollection, dagrun_collection_schema, dagrun_schema,
+    DAGRunCollection, dagrun_collection_schema, dagrun_schema, dagruns_batch_form_schema,
 )
 from airflow.models import DagModel, DagRun
 from airflow.utils.session import provide_session
@@ -35,9 +36,8 @@ def delete_dag_run(dag_id, dag_run_id, session):
     """
     if (
         session.query(DagRun)
-        .filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
-        .delete()
-        == 0
+            .filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+            .delete() == 0
     ):
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
     return NoContent, 204
@@ -87,41 +87,68 @@ def get_dag_runs(
     if dag_id != "~":
         query = query.filter(DagRun.dag_id == dag_id)
 
-    # filter start date
-    if start_date_gte:
-        query = query.filter(DagRun.start_date >= start_date_gte)
+    dag_run, total_entries = _fetch_dag_runs(query, session, end_date_gte, end_date_lte, execution_date_gte,
+                                             execution_date_lte, start_date_gte, start_date_lte,
+                                             limit, offset)
 
-    if start_date_lte:
-        query = query.filter(DagRun.start_date <= start_date_lte)
+    return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run,
+                                                          total_entries=total_entries))
 
-    # filter execution date
-    if execution_date_gte:
-        query = query.filter(DagRun.execution_date >= execution_date_gte)
 
-    if execution_date_lte:
-        query = query.filter(DagRun.execution_date <= execution_date_lte)
-
-    # filter end date
-    if end_date_gte:
-        query = query.filter(DagRun.end_date >= end_date_gte)
-
-    if end_date_lte:
-        query = query.filter(DagRun.end_date <= end_date_lte)
-
+def _fetch_dag_runs(query, session, end_date_gte, end_date_lte,
+                    execution_date_gte, execution_date_lte,
+                    start_date_gte, start_date_lte, limit, offset):
+    query = _apply_date_filters_to_query(query, end_date_gte, end_date_lte, execution_date_gte,
+                                         execution_date_lte, start_date_gte, start_date_lte)
     # apply offset and limit
     dag_run = query.order_by(DagRun.id).offset(offset).limit(limit).all()
     total_entries = session.query(func.count(DagRun.id)).scalar()
-
-    return dagrun_collection_schema.dump(
-        DAGRunCollection(dag_runs=dag_run, total_entries=total_entries)
-    )
+    return dag_run, total_entries
 
 
-def get_dag_runs_batch():
+def _apply_date_filters_to_query(query, end_date_gte, end_date_lte, execution_date_gte,
+                                 execution_date_lte, start_date_gte, start_date_lte):
+    # filter start date
+    if start_date_gte:
+        query = query.filter(DagRun.start_date >= start_date_gte)
+    if start_date_lte:
+        query = query.filter(DagRun.start_date <= start_date_lte)
+    # filter execution date
+    if execution_date_gte:
+        query = query.filter(DagRun.execution_date >= execution_date_gte)
+    if execution_date_lte:
+        query = query.filter(DagRun.execution_date <= execution_date_lte)
+    # filter end date
+    if end_date_gte:
+        query = query.filter(DagRun.end_date >= end_date_gte)
+    if end_date_lte:
+        query = query.filter(DagRun.end_date <= end_date_lte)
+    return query
+
+
+@provide_session
+def get_dag_runs_batch(session):
     """
     Get list of DAG Runs
     """
-    raise NotImplementedError("Not implemented yet.")
+    body = request.get_json()
+    try:
+        data = dagruns_batch_form_schema.load(body)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+
+    query = session.query(DagRun)
+
+    if data["dag_ids"]:
+        query = query.filter(DagRun.dag_id.in_(data["dag_ids"]))
+
+    dag_runs, total_entries = _fetch_dag_runs(query, session, data["end_date_gte"], data["end_date_lte"],
+                                              data["execution_date_gte"], data["execution_date_lte"],
+                                              data["start_date_gte"], data["start_date_lte"],
+                                              data["page_limit"], data["page_offset"])
+
+    return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs,
+                                                          total_entries=total_entries))
 
 
 @provide_session
@@ -134,9 +161,8 @@ def post_dag_run(dag_id, session):
 
     post_body = dagrun_schema.load(request.json, session=session)
     dagrun_instance = (
-        session.query(DagRun)
-        .filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"]))
-        .first()
+        session.query(DagRun).filter(
+            and_(DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"])).first()
     )
     if not dagrun_instance:
         dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL.value, **post_body)
