@@ -27,7 +27,7 @@ consider migrating to the stable API so that your application continues to
 work.
 
 The stable API exposes many endpoints available through the webserver. Here are the
-differences between the two endpoints that will help you in migrating from the
+differences between the two endpoints that will help you migrate from the
 experimental REST API to the stable REST API.
 
 Base Endpoint
@@ -61,8 +61,7 @@ Therefore the operation previously performed by this endpoint
 
 .. http:get:: /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
 
-can now be handled with filter parameters in the query string. Please check the
-reference documentaion for more information
+can now be handled with filter parameters in the query string.
 
 Health endpoint
 ^^^^^^^^^^^^^^^
@@ -96,7 +95,6 @@ to
 
 .. http:get:: /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}
 
-Please check the Stable API reference documentaion for more information
 
 DAG
 ^^^
@@ -116,7 +114,6 @@ to
 
 .. http:get:: /api/v1/dags/{dag_id}
 
-Please check the Stable API reference documentaion for more information
 
 Latest DAG Runs
 ^^^^^^^^^^^^^^^
@@ -182,6 +179,3 @@ The endpoint for returning the lineage of a dag have changed from
 to
 
 .. http:get:: /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries
-
-More information about using this endpoint can be found in the stable REST API
-documentation
