@@ -59,7 +59,7 @@ class PoolSchema(SQLAlchemySchema):
         return obj.queued_slots()
 
     @staticmethod
-    def get_open_slots(obj: Pool) -> int:
+    def get_open_slots(obj: Pool) -> float:
         """
         Returns the open slots of the pool.
         """
