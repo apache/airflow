@@ -353,7 +353,7 @@ def docasInvaild(task_instance, final_state):
 @requires_authentication
 def double_confirm_task(dag_id, task_id, execution_date):
     try:
-        execution_date = timezone.parse(execution_date)
+        date = timezone.parse(execution_date)
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
@@ -368,7 +368,7 @@ def double_confirm_task(dag_id, task_id, execution_date):
         params = request.get_json(force=True)  # success failed
         final_state = params.get('final_state', None)
 
-        task = get_task_instance(dag_id, task_id, execution_date)
+        task = get_task_instance(dag_id, task_id, execution_date=date)
         if not task.result:
             raise AirflowException(u"分析结果还没有生成，请等待分析结果生成后再进行二次确认")
         if not final_state or final_state not in ['OK', 'NOK']:
@@ -377,7 +377,7 @@ def double_confirm_task(dag_id, task_id, execution_date):
         set_dag_run_final_state(
             task_id=task_id,
             dag_id=dag_id,
-            execution_date=execution_date,
+            execution_date=date,
             final_state=final_state)
         trigger_push_result_to_mq('final_result', final_state, task.entity_id, execution_date, task_id, dag_id)
     except AirflowException as err:
