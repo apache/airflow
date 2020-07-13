@@ -65,3 +65,7 @@ howto/operator/gcp/vision.rst howto/operator/google/cloud/vision.rst
 # Departments without a separate index yet
 howto/operator/google/suite/index.rst howto/operator/google/index.rst
 howto/operator/google/firebase/index.rst howto/operator/google/index.rst
+
+# Other redirects
+howto/operator/http/http.rst howto/operator/http.rst
+docs/howto/operator/http/index.rst howto/operator/http.rst
