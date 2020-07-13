@@ -34,18 +34,29 @@ Endpoints
 
   Creates a dag_run for a given dag id.
   Note: If execution_date is not specified in the body, airflow by default creates only one DAG per second for a given DAG_ID.
-  In order to create multiple DagRun within one second, execution_date must be specified with the format "YYYY-mm-DDTHH:MM:SS.ssssss".
+  In order to create multiple DagRun within one second, you should set parameter ``"replace_microseconds"`` to ``"false"`` (boolean as string).
+
+  The execution_date must be specified with the format ``YYYY-mm-DDTHH:MM:SS.ssssss``.
 
   **Trigger DAG with config, example:**
 
   .. code-block:: bash
 
     curl -X POST \
-      http://localhost:8080/api/experimental/dags/<DAG_ID>/dag_runs \
+      'http://localhost:8080/api/experimental/dags/<DAG_ID>/dag_runs' \
       -H 'Cache-Control: no-cache' \
       -H 'Content-Type: application/json' \
       -d '{"conf":"{\"key\":\"value\"}"}'
 
+  **Trigger DAG with milliseconds precision, example:**
+
+  .. code-block:: bash
+
+    curl -X POST  \
+      'http://localhost:8080/api/experimental/dags/<DAG_ID>/dag_runs' \
+      -H 'Content-Type: application/json' \
+      -H 'Cache-Control: no-cache' \
+      --data '{"replace_microseconds":"false"}'
 
 .. http:get:: /api/experimental/dags/<DAG_ID>/dag_runs
 
