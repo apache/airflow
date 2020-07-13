@@ -30,7 +30,7 @@ from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
-from airflow.models import Variable
+from airflow.models import Variable, TaskInstance
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.strings import to_boolean
 from airflow.utils import timezone
@@ -387,6 +387,43 @@ def double_confirm_task(dag_id, task_id, execution_date):
         return response
 
     return jsonify({'response': 'ok'})
+
+
+@api_experimental.route(
+    '/curve-entities',
+    methods=['GET'])
+@requires_authentication
+def get_curves():
+    try:
+        craft_type = request.args.get('craft_type'),
+        bolt_number = request.args.get('bolt_number'),
+        tasks = TaskInstance.list_tasks(craft_type, bolt_number)
+        return jsonify(tasks)
+    except Exception as e:
+        _log.info(e)
+
+
+@api_experimental.route(
+    '/curves',
+    methods=['GET'])
+@requires_authentication
+def get_curves_by_entity_id():
+    try:
+        curves = []
+
+        vals = request.args.get('entity_ids'),
+        entity_ids = str(vals).split(",")
+        if entity_ids is None:
+            return jsonify(curves)
+
+        for entity_id in entity_ids:
+            curve = get_curve(entity_id)
+            if curve is not None:
+                curves.append(curve)
+
+        return jsonify(curves)
+    except Exception as e:
+        _log.info(e)
 
 
 # ToDo: Shouldn't this be a PUT method?
