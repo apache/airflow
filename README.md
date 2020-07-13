@@ -109,13 +109,13 @@ in the URL.
 
 ```bash
 pip install apache-airflow==1.10.11 \
- --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+ --constraint https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt
 ```
 
 2. Installing with extras (for example postgres,gcp)
 ```bash
 pip install apache-airflow[postgres,gcp]==1.10.11 \
- --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+ --constraint https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt
 ```
 
 ## Building customized production images
