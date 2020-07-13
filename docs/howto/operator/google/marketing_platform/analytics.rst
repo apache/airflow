@@ -40,7 +40,7 @@ List the Accounts
 To list accounts from Analytics you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsListAccountsOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_analytics.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_marketing_platform_list_accounts_operator]
@@ -58,7 +58,7 @@ Returns a web property-Google Ads link to which the user has access.
 To list web property-Google Ads link you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsGetAdsLinkOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_analytics.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_marketing_platform_get_ads_link_operator]
@@ -76,7 +76,7 @@ Operator returns a list of entity Google Ads links.
 To list Google Ads links you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsRetrieveAdsLinksListOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_analytics.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_marketing_platform_retrieve_ads_links_list_operator]

@@ -924,14 +924,14 @@ Note that SubDAG operators should contain a factory method that returns a DAG
 object. This will prevent the SubDAG from being treated like a separate DAG in
 the main UI. For example:
 
-.. exampleinclude:: ../airflow/example_dags/subdags/subdag.py
+.. exampleinclude:: /../airflow/example_dags/subdags/subdag.py
     :language: python
     :start-after: [START subdag]
     :end-before: [END subdag]
 
 This SubDAG can then be referenced in your main DAG file:
 
-.. exampleinclude:: ../airflow/example_dags/example_subdag_operator.py
+.. exampleinclude:: /../airflow/example_dags/example_subdag_operator.py
     :language: python
     :start-after: [START example_subdag_operator]
     :end-before: [END example_subdag_operator]
@@ -1101,7 +1101,7 @@ right now is not between its ``execution_time`` and the next scheduled
 
 For example, consider the following DAG:
 
-.. exampleinclude:: ../airflow/example_dags/example_latest_only_with_trigger.py
+.. exampleinclude:: /../airflow/example_dags/example_latest_only_with_trigger.py
     :language: python
     :start-after: [START example]
     :end-before: [END example]

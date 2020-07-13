@@ -47,7 +47,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_bigtable.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_instance_create]
@@ -67,7 +67,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_bigtable.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_instance_delete]
@@ -87,7 +87,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_bigtable.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_cluster_update]
@@ -111,7 +111,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_bigtable.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_table_create]
@@ -139,7 +139,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_bigtable.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_table_delete]
@@ -164,7 +164,7 @@ timeout hits and does not raise any exception.
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_bigtable.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigtable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_table_wait_for_replication]

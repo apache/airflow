@@ -49,7 +49,7 @@ Environment variables
 
 These examples rely on the following variables, which can be passed via OS environment variables.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_basic.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_basic.py
     :language: python
     :start-after: [START howto_operator_google_api_to_s3_transfer_basic_env_variables]
     :end-before: [END howto_operator_google_api_to_s3_transfer_basic_env_variables]
@@ -61,7 +61,7 @@ Get Google Sheets Sheet Values
 
 In the following code we are requesting a Google Sheet via the ``sheets.spreadsheets.values.get`` endpoint.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_basic.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_basic.py
     :language: python
     :start-after: [START howto_operator_google_api_to_s3_transfer_basic_task_1]
     :end-before: [END howto_operator_google_api_to_s3_transfer_basic_task_1]
@@ -83,7 +83,7 @@ Environment variables
 
 This example relies on the following variables, which can be passed via OS environment variables.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
     :language: python
     :start-after: [START howto_operator_google_api_to_s3_transfer_advanced_env_variables]
     :end-before: [END howto_operator_google_api_to_s3_transfer_advanced_env_variables]
@@ -97,7 +97,7 @@ First it searches for up to 50 videos (due to pagination) in a given time range
 (``YOUTUBE_VIDEO_PUBLISHED_AFTER``, ``YOUTUBE_VIDEO_PUBLISHED_BEFORE``) on a YouTube channel (``YOUTUBE_CHANNEL_ID``)
 saves the response in S3 and also pushes the data to xcom.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
     :language: python
     :start-after: [START howto_operator_google_api_to_s3_transfer_advanced_task_1]
     :end-before: [END howto_operator_google_api_to_s3_transfer_advanced_task_1]
@@ -105,12 +105,12 @@ saves the response in S3 and also pushes the data to xcom.
 From there a ``BranchPythonOperator`` will extract the xcom data and bring the IDs in a format the next
 request needs it + it also decides whether we need to request any videos or not.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
     :language: python
     :start-after: [START howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
     :end-before: [END howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
     :language: python
     :start-after: [START howto_operator_google_api_to_s3_transfer_advanced_task_1_1]
     :end-before: [END howto_operator_google_api_to_s3_transfer_advanced_task_1_1]
@@ -118,14 +118,14 @@ request needs it + it also decides whether we need to request any videos or not.
 If there are YouTube Video IDs available, it passes over the YouTube IDs to the next request which then gets the
 information (``YOUTUBE_VIDEO_FIELDS``) for the requested videos and saves them in S3 (``S3_DESTINATION_KEY``).
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
     :language: python
     :start-after: [START howto_operator_google_api_to_s3_transfer_advanced_task_2]
     :end-before: [END howto_operator_google_api_to_s3_transfer_advanced_task_2]
 
 If not do nothing - and track it.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_google_api_to_s3_transfer_advanced.py
     :language: python
     :start-after: [START howto_operator_google_api_to_s3_transfer_advanced_task_2_1]
     :end-before: [END howto_operator_google_api_to_s3_transfer_advanced_task_2_1]

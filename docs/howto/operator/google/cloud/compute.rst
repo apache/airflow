@@ -43,7 +43,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_start]
@@ -52,7 +52,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection id used:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_start_no_project_id]
@@ -62,7 +62,7 @@ from the GCP connection id used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_start_template_fields]
@@ -89,7 +89,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_stop]
@@ -98,7 +98,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_stop_no_project_id]
@@ -107,7 +107,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_stop_template_fields]
@@ -139,7 +139,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_set_machine_type]
@@ -148,7 +148,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_set_machine_type_no_project_id]
@@ -157,7 +157,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_set_machine_type_template_fields]
@@ -185,12 +185,12 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :start-after: [START howto_operator_compute_template_copy_args]
     :end-before: [END howto_operator_compute_template_copy_args]
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_copy_template]
@@ -199,7 +199,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_copy_template_no_project_id]
@@ -208,7 +208,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_template_copy_operator_template_fields]
@@ -239,12 +239,12 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :start-after: [START howto_operator_compute_igm_update_template_args]
     :end-before: [END howto_operator_compute_igm_update_template_args]
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_update_template]
@@ -253,7 +253,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_update_template_no_project_id]
@@ -263,7 +263,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_igm_update_template_operator_template_fields]

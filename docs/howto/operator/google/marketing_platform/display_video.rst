@@ -37,7 +37,7 @@ Creating a report
 To create Display&Video 360 report use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateReportOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_display_video_createquery_report_operator]
@@ -57,7 +57,7 @@ Deleting a report
 To delete Display&Video 360 report use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DeleteReportOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_display_video_deletequery_report_operator]
@@ -75,7 +75,7 @@ Waiting for report
 To wait for the report use
 :class:`~airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360ReportSensor`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_display_video_wait_report_operator]
@@ -93,7 +93,7 @@ Downloading a report
 To download a report to GCS bucket use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadReportOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_display_video_getquery_report_operator]
@@ -112,7 +112,7 @@ Running a report
 To run Display&Video 360 report use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360RunReportOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_display_video_runquery_report_operator]
@@ -141,7 +141,7 @@ The operator accepts body request:
 To download line items in CSV format report use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadLineItemsOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_display_video_download_line_items_operator]
@@ -160,7 +160,7 @@ Upload line items
 To run Display&Video 360 uploading line items use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360UploadLineItemsOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_display_video_upload_line_items_operator]
@@ -178,7 +178,7 @@ Create SDF download task
 To create SDF download task use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_display_video_create_sdf_download_task_operator]
@@ -197,7 +197,7 @@ Save SDF files in the Google Cloud Storage
 To save SDF files and save them in the Google Cloud Storage use
 :class:`~airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_display_video_save_sdf_in_gcs_operator]
@@ -215,7 +215,7 @@ Waiting for SDF operation
 Wait for SDF operation is executed by:
 :class:`~airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360GetSDFDownloadOperationSensor`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_display_video.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_display_video_wait_for_operation_sensor]

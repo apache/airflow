@@ -38,7 +38,7 @@ Use the
 :class:`~airflow.providers.google.cloud.transfers.gcs_to_bigquery.GCSToBigQueryOperator`
 to execute a BigQuery load job.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_bigquery.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_gcs_to_bigquery.py
     :language: python
     :start-after: [START howto_operator_gcs_to_bigquery]
     :end-before: [END howto_operator_gcs_to_bigquery]
@@ -56,7 +56,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_bucket_create_acl_entry_task]
@@ -65,7 +65,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../../airflow/providers/google/cloud/operators/gcs.py
+.. literalinclude:: /../airflow/providers/google/cloud/operators/gcs.py
     :language: python
     :dedent: 4
     :start-after: [START gcs_bucket_create_acl_template_fields]
@@ -90,7 +90,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_object_create_acl_entry_task]
@@ -99,7 +99,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../../airflow/providers/google/cloud/operators/gcs.py
+.. literalinclude:: /../airflow/providers/google/cloud/operators/gcs.py
     :language: python
     :dedent: 4
     :start-after: [START gcs_object_create_acl_template_fields]
@@ -128,7 +128,7 @@ Deleting Bucket allows you to remove bucket object from the Google Cloud Storage
 It is performed through the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator` operator.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_delete_bucket]

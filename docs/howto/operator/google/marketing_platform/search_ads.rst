@@ -38,7 +38,7 @@ Inserting a report
 To insert a Search Ads report use the
 :class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsInsertReportOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_generate_report_operator]
@@ -50,7 +50,7 @@ parameters which allows you to dynamically determine values. You can provide rep
 .json`` file as this operator supports this template extension.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_get_report_id]
@@ -64,7 +64,7 @@ Awaiting for a report
 To wait for a report to be ready for download use
 :class:`~airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_get_report_operator]
@@ -82,7 +82,7 @@ Downloading a report
 To download a Search Ads report to Google Cloud Storage bucket use the
 :class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsDownloadReportOperator`.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
+.. exampleinclude:: /../airflow/providers/google/marketing_platform/example_dags/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_getfile_report_operator]

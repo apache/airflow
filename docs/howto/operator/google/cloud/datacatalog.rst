@@ -63,7 +63,7 @@ operators.
 
 The ``CloudDataCatalogGetEntryOperator`` use Project ID, Entry Group ID, Entry ID to get the entry.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_get_entry]
@@ -75,7 +75,7 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_get_entry_result]
@@ -83,7 +83,7 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 The ``CloudDataCatalogLookupEntryOperator`` use the resource name to get the entry.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_lookup_entry_linked_resource]
@@ -95,7 +95,7 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_lookup_entry_result]
@@ -109,7 +109,7 @@ Creating an entry
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryOperator`
 operator create the entry.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_entry_gcs]
@@ -121,7 +121,7 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_entry_gcs_result2]
@@ -129,7 +129,7 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 The newly created entry ID can be read with the ``entry_id`` key.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_entry_gcs_result]
@@ -143,7 +143,7 @@ Updating an entry
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateEntryOperator`
 operator update the entry.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_update_entry]
@@ -161,7 +161,7 @@ Deleting a entry
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator`
 operator delete the entry.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_delete_entry]
@@ -190,7 +190,7 @@ Creating an entry group
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryGroupOperator`
 operator create the entry group.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_entry_group]
@@ -202,7 +202,7 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_entry_group_result2]
@@ -210,7 +210,7 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 The newly created entry group ID can be read with the ``entry_group_id`` key.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_entry_group_result2]
@@ -224,7 +224,7 @@ Getting an entry group
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetEntryGroupOperator`
 operator get the entry group.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_get_entry_group]
@@ -236,7 +236,7 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_get_entry_group_result]
@@ -250,7 +250,7 @@ Deleting an entry group
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryGroupOperator`
 operator delete the entry group.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_delete_entry_group]
@@ -279,7 +279,7 @@ Creating a tag templates
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateOperator`
 operator get the tag template.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_tag_template]
@@ -291,7 +291,7 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_tag_template_result2]
@@ -299,7 +299,7 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 The newly created tag template ID can be read with the ``tag_template_id`` key.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_tag_template_result]
@@ -313,7 +313,7 @@ Deleting a tag template
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateOperator`
 operator delete the tag template.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_delete_tag_template]
@@ -332,7 +332,7 @@ Getting a tag template
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetTagTemplateOperator`
 operator get the tag template.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_get_tag_template]
@@ -344,7 +344,7 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_get_tag_template_result]
@@ -358,7 +358,7 @@ Updating a tag template
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateOperator`
 operator update the tag template.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_update_tag_template]
@@ -387,7 +387,7 @@ Creating a tag on an entry
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagOperator`
 operator get the tag template.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_tag]
@@ -399,7 +399,7 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_tag_result2]
@@ -407,7 +407,7 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 The newly created tag ID can be read with the ``tag_id`` key.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_entry_group_result2]
@@ -421,7 +421,7 @@ Updating an tag
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagOperator`
 operator update the tag template.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_update_tag_template]
@@ -439,7 +439,7 @@ Deleting an tag
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagOperator`
 operator delete the tag template.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_delete_tag_template]
@@ -457,7 +457,7 @@ Listing an tags on an entry
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogListTagsOperator`
 operator get list of the tags on the entry.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_list_tags]
@@ -469,7 +469,7 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_list_tags_result]
@@ -495,7 +495,7 @@ Creating a field
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateFieldOperator`
 operator get the tag template field.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_tag_template_field]
@@ -507,7 +507,7 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_tag_template_field_result2]
@@ -515,7 +515,7 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 
 The newly created field ID can be read with the ``tag_template_field_id`` key.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_create_entry_group_result2]
@@ -529,7 +529,7 @@ Renaming a field
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogRenameTagTemplateFieldOperator`
 operator rename the tag template field.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_rename_tag_template_field]
@@ -547,7 +547,7 @@ Updating a field
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateFieldOperator`
 operator get the tag template field.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_update_tag_template_field]
@@ -566,7 +566,7 @@ Deleting a field
 The :class:`~airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateFieldOperator`
 operator delete the tag template field.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_delete_tag_template_field]
@@ -587,7 +587,7 @@ operator searches Data Catalog for multiple resources like entries, tags that ma
 
 The ``query`` parameters should defined using `search syntax <https://cloud.google.com/data-catalog/docs/how-to/search-reference>`__.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_search_catalog]
@@ -599,7 +599,7 @@ parameters which allows you to dynamically determine values.
 
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_datacatalog.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_datacatalog.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_datacatalog_search_catalog_result]

@@ -49,7 +49,7 @@ All parameters are described in the reference documentation - :class:`~airflow.p
 
 An example operator call might look like this:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_presto_to_gcs.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_presto_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_presto_to_gcs_basic]
@@ -67,7 +67,7 @@ You can specify these options by the ``export_format`` parameter.
 
 If you want a CSV file to be created, your operator call might look like this:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_presto_to_gcs.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_presto_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_presto_to_gcs_csv]
@@ -81,7 +81,7 @@ will be dumped from the database and upload to the bucket.
 
 If you want to create a schema file, then an example operator call might look like this:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_presto_to_gcs.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_presto_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_presto_to_gcs_multiple_types]
@@ -102,7 +102,7 @@ maximum allowed file size for a single object.
 
 If you want to create 10 MB files, your code might look like this:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_presto_to_gcs.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_presto_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_read_data_from_gcs_many_chunks]
@@ -123,7 +123,7 @@ For example, if you want to create an external table that allows you to create q
 read data directly from GCS, then you can use :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateExternalTableOperator`.
 Using this operator looks like this:
 
-.. exampleinclude:: ../../../../../airflow/providers/google/cloud/example_dags/example_presto_to_gcs.py
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_presto_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_external_table_multiple_types]

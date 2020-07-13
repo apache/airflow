@@ -37,7 +37,7 @@ Google Ads to GCS
 To query the Google Ads API and generate a CSV report of the results use
 :class:`~airflow.providers.google.ads.transfers.ads_to_gcs.GoogleAdsToGcsOperator`.
 
-.. exampleinclude:: ../../../../airflow/providers/google/ads/example_dags/example_ads.py
+.. exampleinclude:: /../airflow/providers/google/ads/example_dags/example_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_google_ads_to_gcs_operator]
@@ -56,7 +56,7 @@ Upload Google Ads Accounts to GCS
 To upload Google Ads accounts to Google Cloud Storage bucket use the
 :class:`~airflow.providers.google.ads.transfers.ads_to_gcs.GoogleAdsListAccountsOperator`.
 
-.. exampleinclude:: ../../../../airflow/providers/google/ads/example_dags/example_ads.py
+.. exampleinclude:: /../airflow/providers/google/ads/example_dags/example_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_ads_list_accounts_operator]
