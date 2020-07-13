@@ -38,7 +38,7 @@ from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session, provide_session
 from .utils import get_cas_training_base_url, get_result_args, get_task_params, get_curve_args, get_craft_type, \
-    generate_bolt_number, get_curve_params, form_analysis_result
+    generate_bolt_number, get_curve_params, form_analysis_result, get_curve_entity_ids
 from flask import g, Blueprint, jsonify, request, url_for
 from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
@@ -397,8 +397,8 @@ def get_curves():
     try:
         craft_type = request.args.get('craft_type')
         bolt_number = request.args.get('bolt_number')
-        tasks = TaskInstance.list_tasks(craft_type, bolt_number)
-        return jsonify(tasks)
+        entity_ids = get_curve_entity_ids(bolt_number,craft_type)
+        return jsonify(entity_ids)
     except AirflowException as e:
         _log.info(e)
         response = jsonify(error="{}".format(e))

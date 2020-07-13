@@ -3,6 +3,7 @@ from airflow.utils.db import create_session
 from airflow.utils.logger import generate_logger
 import os
 from airflow.models.variable import Variable
+from airflow.models.taskinstance import TaskInstance
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
 
 CAS_ANALYSIS_BASE_URL = os.environ.get("CAS_ANALYSIS_BASE_URL", "http://localhost:9095")
@@ -133,3 +134,8 @@ def form_analysis_result(result, entity_id, execution_date, task_id, dag_id):
         'task_id': task_id,
         'dag_id': dag_id,
     }
+
+
+def get_curve_entity_ids(bolt_number=None, craft_type=None):
+    tasks = TaskInstance.list_tasks(craft_type, bolt_number)
+    return list(map(lambda ti: ti.entity_id, tasks))
