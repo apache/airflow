@@ -73,7 +73,7 @@ def generate_bolt_number(controller_name, program, batch_count=None):
         raise BaseException(u'{}参数未正确定义'.format('generateBoltNumber'))
     if not isinstance(program, str):
         program = str(program)
-    return '-'.join([controller_name, program, str(batch_count)])
+    return '_'.join([controller_name, program, str(batch_count)])
 
 
 def generate_curve_name(nut_no):
