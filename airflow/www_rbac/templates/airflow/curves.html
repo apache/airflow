@@ -10,7 +10,7 @@
 <link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/bootstrap3-extend.css') }}">
 <link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/curve_template.css') }}">
+      href="{{ url_for('static', filename='css/curves.css') }}">
 <link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/bootstrap-treeview.min.css') }}">
 <script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
@@ -18,77 +18,17 @@
 
 {% block body %}
 <div id="root">
-  <div id="result-container" class="panel panel-default overflow-hidden border rounded-sm d-flex shadow-sm m-1 rounded">
-    <div class="panel-heading">
-      <h5 class="m-0 panel-title">曲线参数</h5>
-    </div>
-    <div class="panel-body overflow-auto p-0">
-      <table id="result_table" class="table">
-        <thead>
-        <tr class="result-content-row active">
-          <th class="position-sticky " style="top:0">参数</th>
-          <th class="position-sticky " style="top:0">值</th>
-        </tr>
-        </thead>
-        <tbody id="result_detail"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div id="echarts-container" style="flex:1"
-       class="panel panel-default border rounded-sm d-flex p-2 bd-highlight shadow p-2 m-1 rounded flex-column">
-    <div class="flex-row mb-2" id="actions-container">
-      <span class="btn-group btn-group-toggle" data-toggle="buttons">
-        <label class="btn active btn-default font-weight-bold " for="update-chart-w-m"
-               id="update-chart-w-m-label"
-               title="Also include past task instances when clearing this one">
-          <input id="update-chart-w-m" type="radio" name="chart-type" checked autocomplete="off">
-          角度/扭矩
-        </label>
-        <label class="btn btn-default font-weight-bold " for="update-chart-t-m" id="update-chart-t-m-label"
-               title="Also include past task instances when clearing this one">
-          <input id="update-chart-t-m" type="radio" name="chart-type" autocomplete="off">
-          时间/扭矩
-        </label>
-        <label class="btn btn-default font-weight-bold " for="update-chart-t-w" id="update-chart-t-w-label"
-               title="Also include past task instances when clearing this one">
-          <input id="update-chart-t-w" type="radio" name="chart-type" autocomplete="off">
-          时间/角度
-        </label>
-      </span>
-    </div>
-    <div style="flex:1">
-      <div id="echarts-main" style="width: 100%;height:100%;"></div>
-    </div>
-  </div>
   <div class="panel panel-default overflow-hidden border rounded-sm d-flex shadow-sm m-1  rounded flex-column">
     <div class="panel-heading">
-      <h5 class="m-0 panel-title">曲线模板簇</h5>
+      <h5 class="m-0 panel-title">曲线列表</h5>
     </div>
-    <div id="tree" class="panel-body overflow-auto"></div>
+    <div id="tree" class="panel-body overflow-auto">
+
+    </div>
   </div>
+  {% include 'airflow/curve_chart.html' %}
 </div>
 
-<div class="modal" id="removeCurveDialog" tabindex="-1" role="dialog">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title m-0">删除曲线</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <p>确认删除曲线？</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default m-2  px-4 py-2 font-weight-bold " data-dismiss="modal">取消
-        </button>
-        <button type="button" class="btn btn-danger m-2 px-4 py-2 font-weight-bold " id="btnDoRemoveCurve">删除</button>
-      </div>
-    </div>
-  </div>
-</div>
 {% endblock %}
 
 
@@ -96,9 +36,11 @@
 {{ super() }}
 <script src="{{ url_for('static', filename='js/bootstrap-treeview.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
-
+  const entityIds = JSON.parse('{{ entity_ids|tojson|safe }}');
   $(document).ready(() => {
-    render();
+    chartInit();
+    console.log(entityIds);
+
   });
 </script>
 {% endblock %}
