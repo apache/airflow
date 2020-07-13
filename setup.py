@@ -748,6 +748,7 @@ def do_setup():
         version=version,
         packages=find_packages(exclude=['tests*']),
         package_data={
+            'airflow': ['py.typed'],
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
                  "airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
             'airflow.api_connexion.openapi': ['*.yaml'],
