@@ -680,7 +680,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Vision ReferenceImage create documentation
+See `Google Cloud Vision ReferenceImage delete documentation
 <https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.create_reference_image>`_.
 
 .. _howto/operator:CloudVisionDeleteReferenceImageOperator:
