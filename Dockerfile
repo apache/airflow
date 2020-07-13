@@ -357,7 +357,7 @@ COPY scripts/prod/clean-logs.sh /clean-logs
 
 ARG EMBEDDED_DAGS="empty"
 
-COPY --chown=airflow:airflow ${EMBEDDED_DAGS}/ ${AIRFLOW_HOME}/dags/
+COPY --chown=airflow:root ${EMBEDDED_DAGS}/ ${AIRFLOW_HOME}/dags/
 
 RUN chmod a+x /entrypoint /clean-logs
 
