@@ -44,28 +44,27 @@ class TestFileToGcsOperator(unittest.TestCase):
             'start_date': datetime.datetime(2017, 1, 1)
         }
         self.dag = DAG('test_dag_id', default_args=args)
-        self.testfile1 = tempfile.NamedTemporaryFile(delete=False)
-        self.testfile1.write(b"x" * 393216)
-        self.testfile1.flush()
-        self.testfile2 = tempfile.NamedTemporaryFile(delete=False)
-        self.testfile2.write(b"x" * 393216)
-        self.testfile2.flush()
-        self.testfiles = [self.testfile1.name, self.testfile2.name]
+        self.testfile1 = '/tmp/fake1.csv'
+        with open(self.testfile1, 'wb') as f:
+            f.write(b"x" * 393216)
+        self.testfile2 = '/tmp/fake2.csv'
+        with open(self.testfile2, 'wb') as f:
+            f.write(b"x" * 393216)
+        self.testfiles = [self.testfile1, self.testfile2]
 
     def tearDown(self):
-        print('cleaning up files')
-        os.remove(self.testfile1.name)
-        os.remove(self.testfile2.name)
+        os.remove(self.testfile1)
+        os.remove(self.testfile2)
 
     def test_init(self):
         operator = LocalFilesystemToGCSOperator(
             task_id='file_to_gcs_operator',
             dag=self.dag,
-            src=self.testfile1.name,
+            src=self.testfile1,
             dst='test/test1.csv',
             **self._config
         )
-        self.assertEqual(operator.src, self.testfile1.name)
+        self.assertEqual(operator.src, self.testfile1)
         self.assertEqual(operator.dst, 'test/test1.csv')
         self.assertEqual(operator.bucket, self._config['bucket'])
         self.assertEqual(operator.mime_type, self._config['mime_type'])
@@ -78,14 +77,14 @@ class TestFileToGcsOperator(unittest.TestCase):
         operator = LocalFilesystemToGCSOperator(
             task_id='gcs_to_file_sensor',
             dag=self.dag,
-            src=self.testfile1.name,
+            src=self.testfile1,
             dst='test/test1.csv',
             **self._config
         )
         operator.execute(None)
         mock_instance.upload.assert_called_once_with(
             bucket_name=self._config['bucket'],
-            filename=self.testfile1.name,
+            filename=self.testfile1,
             gzip=self._config['gzip'],
             mime_type=self._config['mime_type'],
             object_name='test/test1.csv'
@@ -124,13 +123,13 @@ class TestFileToGcsOperator(unittest.TestCase):
         operator = LocalFilesystemToGCSOperator(
             task_id='gcs_to_file_sensor',
             dag=self.dag,
-            src='/tmp/tmp[0-9]*',
+            src='/tmp/fake*.csv',
             dst='test/',
             **self._config
         )
         operator.execute(None)
-        object_names = ['test/' + os.path.basename(fp) for fp in glob('/tmp/tmp[0-9].*')]
-        files_objects = zip(glob('/tmp/tmp[0-9]*'), object_names)
+        object_names = ['test/' + os.path.basename(fp) for fp in glob('/tmp/fake*.csv')]
+        files_objects = zip(glob('/tmp/fake*.csv'), object_names)
         calls = [
             mock.call(
                 bucket_name=self._config['bucket'],
@@ -150,11 +149,11 @@ class TestFileToGcsOperator(unittest.TestCase):
         operator = LocalFilesystemToGCSOperator(
             task_id='gcs_to_file_sensor',
             dag=self.dag,
-            src='/tmp/tmp[0-9]*',
+            src='/tmp/fake*.csv',
             dst='test/test1.csv',
             **self._config
         )
-        print(glob('/tmp/tmp[0-9]*'))
+        print(glob('/tmp/fake*.csv'))
         with pytest.raises(ValueError):
             operator.execute(None)
         mock_instance.assert_not_called()
