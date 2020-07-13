@@ -123,3 +123,13 @@ def get_curve_args():
         "secret_key": Variable.get('oss_secret', 'minio123'),
         "secure": False
     }
+
+
+def form_analysis_result(result, entity_id, execution_date, task_id, dag_id):
+    return {
+        'result': result,
+        'entity_id': entity_id,
+        'execution_date': execution_date,
+        'task_id': task_id,
+        'dag_id': dag_id,
+    }
