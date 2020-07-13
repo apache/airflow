@@ -1,4 +1,5 @@
 {% extends "appbuilder/base.html" %}
+{% import 'airflow/panel.html' as panel %}
 
 
 {% block head_css %}
@@ -18,14 +19,9 @@
 
 {% block body %}
 <div id="root">
-  <div class="panel panel-default overflow-hidden border rounded-sm d-flex shadow-sm m-1  rounded flex-column">
-    <div class="panel-heading">
-      <h5 class="m-0 panel-title">曲线列表</h5>
-    </div>
-    <div id="tree" class="panel-body overflow-auto">
+  {% call panel.panel('曲线列表') %}
 
-    </div>
-  </div>
+  {% endcall %}
   {% include 'airflow/curve_chart.html' %}
 </div>
 

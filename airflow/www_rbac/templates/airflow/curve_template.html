@@ -1,4 +1,5 @@
 {% extends "appbuilder/base.html" %}
+{% import 'airflow/panel.html' as panel %}
 
 
 {% block head_css %}
@@ -18,31 +19,24 @@
 
 {% block body %}
 <div id="root">
-  <div id="result-container" class="panel panel-default overflow-hidden border rounded-sm d-flex shadow-sm m-1 rounded">
-    <div class="panel-heading">
-      <h5 class="m-0 panel-title">曲线参数</h5>
-    </div>
-    <div class="panel-body overflow-auto p-0">
-      <table id="result_table" class="table">
-        <thead>
-        <tr class="result-content-row active">
-          <th class="position-sticky " style="top:0">参数</th>
-          <th class="position-sticky " style="top:0">值</th>
-        </tr>
-        </thead>
-        <tbody id="result_detail"></tbody>
-      </table>
-    </div>
+  {% call panel.panel('曲线参数', 'result-container') %}
+  <div class=" overflow-auto p-0">
+    <table id="result_table" class="table">
+      <thead>
+      <tr class="result-content-row active">
+        <th class="position-sticky " style="top:0">参数</th>
+        <th class="position-sticky " style="top:0">值</th>
+      </tr>
+      </thead>
+      <tbody id="result_detail"></tbody>
+    </table>
   </div>
+  {% endcall %}
 
   {% include 'airflow/curve_chart.html' %}
-
-  <div class="panel panel-default overflow-hidden border rounded-sm d-flex shadow-sm m-1  rounded flex-column">
-    <div class="panel-heading">
-      <h5 class="m-0 panel-title">曲线模板簇</h5>
-    </div>
-    <div id="tree" class="panel-body overflow-auto"></div>
-  </div>
+  {% call panel.panel('曲线模板簇', 'cluster-container') %}
+  <div id="tree" class="panel-body overflow-auto"></div>
+  {% endcall %}
 </div>
 
 {% include 'airflow/dialog.html' %}

@@ -1,0 +1,11 @@
+{% macro panel(name, id, class ='panel-default flex-column') %}
+<div class="panel overflow-hidden border rounded-sm d-flex shadow-sm m-1 rounded  {{class}} "
+     id="{{id}}">
+  {% if name %}
+  <div class="panel-heading">
+    <h5 class="m-0 panel-title">{{name}}</h5>
+  </div>
+  {% endif %}
+  {{ caller() }}
+</div>
+{%- endmacro %}
