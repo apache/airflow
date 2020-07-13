@@ -52,6 +52,11 @@ class TestFileToGcsOperator(unittest.TestCase):
         self.testfile2.flush()
         self.testfiles = [self.testfile1.name, self.testfile2.name]
 
+    def tearDown(self):
+        print('cleaning up files')
+        os.remove(self.testfile1.name)
+        os.remove(self.testfile2.name)
+
     def test_init(self):
         operator = LocalFilesystemToGCSOperator(
             task_id='file_to_gcs_operator',
