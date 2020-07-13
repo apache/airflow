@@ -424,10 +424,10 @@ class Airflow(AirflowBaseView):
                                     can_verify=can_verify,
                                     errorTags=error_tags)
 
-    @expose('/curve_multiple/<string:bolt_no>/<string:craft_type>')
+    @expose('/curves/<string:bolt_no>/<string:craft_type>')
     @has_access
-    def view_curve_multiple(self, bolt_no, craft_type):
-        return self.render_template('airflow/curve_multiple.html')
+    def view_curves(self, bolt_no, craft_type):
+        return self.render_template('airflow/curves.html')
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
     @has_access
