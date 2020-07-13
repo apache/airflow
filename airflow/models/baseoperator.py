@@ -961,7 +961,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
                 if content is None:  # pylint: disable=no-else-continue
                     continue
                 elif isinstance(content, str) and \
-                        any([content.endswith(ext) for ext in self.template_ext]):
+                        any(content.endswith(ext) for ext in self.template_ext):
                     env = self.get_template_env()
                     try:
                         setattr(self, field, env.loader.get_source(env, content)[0])
@@ -971,7 +971,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
                     env = self.dag.get_template_env()
                     for i in range(len(content)):  # pylint: disable=consider-using-enumerate
                         if isinstance(content[i], str) and \
-                                any([content[i].endswith(ext) for ext in self.template_ext]):
+                                any(content[i].endswith(ext) for ext in self.template_ext):
                             try:
                                 content[i] = env.loader.get_source(env, content[i])[0]
                             except Exception as e:  # pylint: disable=broad-except
