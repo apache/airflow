@@ -44,6 +44,7 @@ import logging
 import os
 from functools import wraps
 from socket import getfqdn
+from typing import Callable, TypeVar, cast
 
 import kerberos
 # noinspection PyProtectedMember
@@ -126,7 +127,10 @@ def _gssapi_authenticate(token):
             kerberos.authGSSServerClean(state)
 
 
-def requires_authentication(function):
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+
+
+def requires_authentication(function: T):
     """Decorator for functions that require authentication with Kerberos"""
     @wraps(function)
     def decorated(*args, **kwargs):
@@ -147,4 +151,4 @@ def requires_authentication(function):
             if return_code != kerberos.AUTH_GSS_CONTINUE:
                 return _forbidden()
         return _unauthorized()
-    return decorated
+    return cast(T, decorated)

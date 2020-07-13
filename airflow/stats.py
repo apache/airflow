@@ -16,13 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 import logging
 import socket
 import string
 import textwrap
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
@@ -94,7 +93,10 @@ def get_current_handler_stat_name_func() -> Callable[[str], str]:
     return conf.getimport('scheduler', 'stat_name_handler') or stat_name_default_handler
 
 
-def validate_stat(fn):
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+
+
+def validate_stat(fn: T) -> T:
     """Check if stat name contains invalid characters.
     Log and not emit stats if name is invalid
     """
@@ -108,7 +110,7 @@ def validate_stat(fn):
             log.error('Invalid stat name: %s.', stat, exc_info=True)
             return
 
-    return wrapper
+    return cast(T, wrapper)
 
 
 class AllowListValidator:

@@ -27,7 +27,7 @@ from inspect import signature
 from itertools import islice
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar, cast
 
 import dill
 
@@ -254,7 +254,14 @@ class _PythonFunctionalOperator(BaseOperator):
         return return_value
 
 
-def task(python_callable: Optional[Callable] = None, multiple_outputs: bool = False, **kwargs):
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+
+
+def task(
+    python_callable: Optional[Callable] = None,
+    multiple_outputs: bool = False,
+    **kwargs
+) -> Callable[[T], T]:
     """
     Python operator decorator. Wraps a function into an Airflow operator.
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
@@ -268,7 +275,7 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: bool = Fa
     :type multiple_outputs: bool
 
     """
-    def wrapper(f):
+    def wrapper(f: T):
         """
         Python wrapper to generate PythonFunctionalOperator out of simple python functions.
         Used for Airflow functional interface
@@ -281,7 +288,7 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: bool = Fa
             op = _PythonFunctionalOperator(python_callable=f, op_args=args, op_kwargs=f_kwargs,
                                            multiple_outputs=multiple_outputs, **kwargs)
             return XComArg(op)
-        return factory
+        return cast(T, factory)
     if callable(python_callable):
         return wrapper(python_callable)
     elif python_callable is not None:

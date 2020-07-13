@@ -29,7 +29,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from tempfile import TemporaryDirectory
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, Callable, Dict, List, Optional, TypeVar, cast
 
 from googleapiclient.discovery import build
 
@@ -47,12 +47,12 @@ JOB_ID_PATTERN = re.compile(
     r'Submitted job: (?P<job_id_java>.*)|Created job with id: \[(?P<job_id_python>.*)\]'
 )
 
-RT = TypeVar('RT')  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def _fallback_variable_parameter(parameter_name, variable_key_name):
+def _fallback_variable_parameter(parameter_name: str, variable_key_name: str) -> Callable[[T], T]:
 
-    def _wrapper(func: Callable[..., RT]) -> Callable[..., RT]:
+    def _wrapper(func: T) -> T:
         """
         Decorator that provides fallback for location from `region` key in `variables` parameters.
 
@@ -60,7 +60,7 @@ def _fallback_variable_parameter(parameter_name, variable_key_name):
         :return: result of the function call
         """
         @functools.wraps(func)
-        def inner_wrapper(self: "DataflowHook", *args, **kwargs) -> RT:
+        def inner_wrapper(self: "DataflowHook", *args, **kwargs):
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than positional")
@@ -81,7 +81,7 @@ def _fallback_variable_parameter(parameter_name, variable_key_name):
                 kwargs['variables'] = copy_variables
 
             return func(self, *args, **kwargs)
-        return inner_wrapper
+        return cast(T, inner_wrapper)
 
     return _wrapper
 

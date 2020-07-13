@@ -17,7 +17,7 @@
 # under the License.
 """Authentication backend that denies all requests"""
 from functools import wraps
-from typing import Optional
+from typing import Callable, Optional, TypeVar, cast
 
 from flask import Response
 
@@ -30,7 +30,10 @@ def init_app(_):
     """Initializes authentication"""
 
 
-def requires_authentication(function):
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+
+
+def requires_authentication(function: T):
     """Decorator for functions that require authentication"""
 
     # noinspection PyUnusedLocal
@@ -38,4 +41,4 @@ def requires_authentication(function):
     def decorated(*args, **kwargs):  # pylint: disable=unused-argument
         return Response("Forbidden", 403)
 
-    return decorated
+    return cast(T, decorated)
