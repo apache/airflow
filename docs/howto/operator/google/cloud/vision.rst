@@ -698,7 +698,7 @@ Using the operator
 
 We are using the :class:`~google.cloud.vision_v1.types.ReferenceImage` and :class:`~google.api_core.retry.Retry` objects from Google libraries:
 
-.. exampleinclude:: airflow/airflow/providers/google/cloud/example_dags/example_vision.py
+.. exampleinclude:: /../airflow/airflow/providers/google/cloud/example_dags/example_vision.py
       :language: python
       :start-after: [START howto_operator_vision_reference_image_import]
       :end-before: [END howto_operator_vision_reference_image_import]
