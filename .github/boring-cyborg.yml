@@ -142,6 +142,7 @@ labelPRBasedOnFilePath:
     - airflow/providers/**/log/*
     - airflow/utils/log/*
     - docs/howto/write-logs.rst
+    - tests/providers/**/log/*
     - tests/utils/log/*
     - tests/utils/log/**/*
 
