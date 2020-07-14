@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from collections import Iterable
+from collections.abc import Iterable
 from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
