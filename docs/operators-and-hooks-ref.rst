@@ -764,12 +764,6 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.cloud_memorystore`
      -
 
-   * - `ML Engine <https://cloud.google.com/ai-platform/>`__
-     - :doc:`How to use <howto/operator/gcp/mlengine>`
-     - :mod:`airflow.providers.google.cloud.hooks.mlengine`
-     - :mod:`airflow.providers.google.cloud.operators.mlengine`
-     -
-
    * - `Natural Language <https://cloud.google.com/natural-language/>`__
      - :doc:`How to use <howto/operator/google/cloud/natural_language>`
      - :mod:`airflow.providers.google.cloud.hooks.natural_language`
