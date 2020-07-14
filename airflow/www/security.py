@@ -323,7 +323,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if not isinstance(role_name_or_list, list):
             role_name_or_list = [role_name_or_list]
         return any(
-            [r.name in role_name_or_list for r in self.get_user_roles()])
+            r.name in role_name_or_list for r in self.get_user_roles())
 
     def _has_perm(self, permission_name, view_menu_name):
         """

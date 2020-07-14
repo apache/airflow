@@ -95,7 +95,7 @@ class SQLCheckOperator(BaseOperator):
         self.log.info("Record: %s", records)
         if not records:
             raise AirflowException("The query returned None")
-        elif not all([bool(r) for r in records]):
+        elif not all(bool(r) for r in records):
             raise AirflowException(
                 "Test failed.\nQuery:\n{query}\nResults:\n{records!s}".format(
                     query=self.sql, records=records

@@ -260,7 +260,7 @@ class CeleryExecutor(BaseExecutor):
 
     def end(self, synchronous: bool = False) -> None:
         if synchronous:
-            while any([task.state not in celery_states.READY_STATES for task in self.tasks.values()]):
+            while any(task.state not in celery_states.READY_STATES for task in self.tasks.values()):
                 time.sleep(5)
         self.sync()
 

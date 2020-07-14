@@ -207,4 +207,4 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: Optional[zipfil
             return True
         with open(file_path, 'rb') as dag_file:
             content = dag_file.read()
-    return all([s in content for s in (b'DAG', b'airflow')])
+    return all(s in content for s in (b'DAG', b'airflow'))
