@@ -232,6 +232,7 @@ doc = [
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
+    "sphinxcontrib-redoc>=1.6.0"
 ]
 docker = [
     'docker~=3.0',

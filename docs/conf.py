@@ -136,6 +136,10 @@ extensions = [
     'removemarktransform',
     'sphinx_copybutton',
     'redirects',
+    # First, generate redoc
+    'sphinxcontrib.redoc',
+    # Second, update redoc script
+    "sphinx_script_update",
 ]
 
 autodoc_default_options = {
@@ -518,6 +522,25 @@ exampleinclude_sourceroot = os.path.abspath('..')
 
 # -- Options for sphinxcontrib-redirects ----------------------------------
 redirects_file = 'redirects.txt'
+
+# -- Options for redoc docs ----------------------------------
+OPENAPI_FILE = os.path.join(
+    os.path.dirname(__file__),
+    "..", "airflow", "api_connexion", "openapi", "v1.yaml"
+)
+redoc = [
+    {
+        'name': 'Airflow REST API',
+        'page': 'stable-rest-api/redoc',
+        'spec': OPENAPI_FILE,
+        'opts': {
+            'hide-hostname': True,
+        }
+    },
+]
+
+# Options for script updater
+redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.30/bundles/redoc.standalone.js"
 
 # -- Additional HTML Context variable
 html_context = {

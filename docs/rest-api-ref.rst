@@ -15,10 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-
-
-REST API Reference
-==================
+Experimental REST API Reference
+===============================
 
 Airflow exposes an REST API. It is available through the webserver. Endpoints are
 available at ``/api/experimental/``.
