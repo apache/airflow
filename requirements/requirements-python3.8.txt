@@ -181,7 +181,6 @@ humanize==2.5.0
 hvac==0.10.4
 identify==1.4.23
 idna==2.10
-ijson==2.6.1
 imagesize==1.2.0
 importlib-metadata==1.7.0
 inflection==0.5.0
@@ -202,10 +201,11 @@ jsonpickle==1.4.1
 jsonpointer==2.0
 jsonschema==3.2.0
 junit-xml==1.9
-jupyter-client==6.1.5
+jupyter-client==6.1.6
 jupyter-core==4.6.3
 kombu==4.6.11
 kubernetes==11.0.0
+kylinpy==2.8.1
 lazy-object-proxy==1.5.0
 ldap3==2.7
 lockfile==0.12.2

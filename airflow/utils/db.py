@@ -309,6 +309,17 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id='kylin_default',
+            conn_type='kylin',
+            host='localhost',
+            port=7070,
+            login="ADMIN",
+            password="KYLIN"
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="livy_default",
             conn_type="livy",
             host="livy",

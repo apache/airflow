@@ -205,10 +205,11 @@ jsonpickle==1.4.1
 jsonpointer==2.0
 jsonschema==3.2.0
 junit-xml==1.9
-jupyter-client==6.1.5
+jupyter-client==6.1.6
 jupyter-core==4.6.3
 kombu==4.6.11
 kubernetes==11.0.0
+kylinpy==2.8.1
 lazy-object-proxy==1.5.0
 ldap3==2.7
 lockfile==0.12.2

@@ -320,6 +320,9 @@ kubernetes = [
     'cryptography>=2.0.0',
     'kubernetes>=3.0.0',
 ]
+kylin = [
+    'kylinpy>=2.6'
+]
 ldap = [
     'ldap3>=2.5.1',
 ]
@@ -491,6 +494,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
+    "apache.kylin": kylin,
     "apache.livy": [],
     "apache.pig": [],
     "apache.pinot": pinot,
@@ -555,6 +559,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
+    "apache.kylin": kylin,
     "apache.pinot": pinot,
     "apache.webhdfs": webhdfs,
     'async': async_packages,
@@ -589,7 +594,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'jdbc': jdbc,
     'jira': jira,
     'kerberos': kerberos,
-    'kubernetes': kubernetes,  # TODO: remove this in Airflow 2.1
+    'kubernetes': kubernetes,   # TODO: remove this in Airflow 2.1
     'ldap': ldap,
     "microsoft.azure": azure,
     "microsoft.mssql": mssql,

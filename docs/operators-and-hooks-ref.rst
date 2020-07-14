@@ -144,6 +144,12 @@ Foundation.
        :mod:`airflow.providers.apache.hive.sensors.hive_partition`,
        :mod:`airflow.providers.apache.hive.sensors.metastore_partition`
 
+   * - `Apache Kylin <https://kylin.apache.org/>`__
+     -
+     - :mod:`airflow.providers.apache.kylin.hooks.kylin`
+     - :mod:`airflow.providers.apache.kylin.operators.kylin_cube`
+     -
+
    * - `Apache Livy <https://livy.apache.org/>`__
      -
      - :mod:`airflow.providers.apache.livy.hooks.livy`
