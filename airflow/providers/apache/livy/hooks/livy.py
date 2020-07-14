@@ -24,31 +24,10 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import requests
-from mypy_extensions import TypedDict
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.utils.log.logging_mixin import LoggingMixin
-
-
-class Body(TypedDict, total=False):
-    """Typed Dictionary to provide type hint"""
-    file: str
-    args: Optional[Sequence[Union[str, int, float]]]
-    className: Optional[str]
-    jars: Optional[List[str]]
-    pyFiles: Optional[List[str]]
-    files: Optional[List[str]]
-    archives: Optional[List[str]]
-    name: Optional[str]
-    driverMemory: Optional[str]
-    driverCores: Optional[Union[int, str]]
-    executorMemory: Optional[str]
-    executorCores: Optional[Union[int, str]]
-    numExecutors: Optional[Union[int, str]]
-    queue: Optional[str]
-    proxyUser: Optional[str]
-    conf: Optional[Dict[Any, Any]]
 
 
 class BatchState(Enum):
@@ -348,7 +327,8 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         # pylint: disable-msg=too-many-arguments
 
-        body = Body(file=file)
+        body: Dict[str, Any] = {'file': file}
+
         if proxy_user:
             body['proxyUser'] = proxy_user
         if class_name:
