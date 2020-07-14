@@ -32,7 +32,7 @@ if [[ ${STORED_SETUP_PY_HASH} != "${CURRENT_SETUP_PY_HASH}" && ${CHECK_REQUIREME
     echo
     echo "ERROR! Setup.py changed since last time requirements were generated"
     echo
-    echo "     When you update setup.py, you have to run"
+    echo "     When you update setup.py, you have to run the following command and commit the change:"
     echo
     echo "           breeze generate-requirements --python ${PYTHON_MAJOR_MINOR_VERSION}"
     echo
