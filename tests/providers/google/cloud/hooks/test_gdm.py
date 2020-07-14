@@ -19,6 +19,7 @@
 import unittest
 from unittest import mock
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gdm import GoogleDeploymentManagerHook
 
 
@@ -74,6 +75,23 @@ class TestDeploymentManagerHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
     def test_delete_deployment(self, mock_get_conn):
         self.gdm_hook.delete_deployment(project_id=TEST_PROJECT, deployment=TEST_DEPLOYMENT)
+        mock_get_conn.assert_called_once_with()
+        mock_get_conn.return_value.deployments().delete.assert_called_once_with(
+            project=TEST_PROJECT,
+            deployment=TEST_DEPLOYMENT,
+            deletePolicy=None
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.gdm.GoogleDeploymentManagerHook.get_conn")
+    def test_delete_deployment_delete_fails(self, mock_get_conn):
+
+        resp = {'error': {'errors': [{'message': 'error deleting things.', 'domain': 'global'}]}}
+
+        mock_get_conn.return_value.deployments.return_value.delete.return_value.execute.return_value = resp
+
+        with self.assertRaises(AirflowException):
+            self.gdm_hook.delete_deployment(project_id=TEST_PROJECT, deployment=TEST_DEPLOYMENT)
+
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.deployments().delete.assert_called_once_with(
             project=TEST_PROJECT,
