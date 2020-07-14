@@ -259,6 +259,8 @@ webserver:
 
   service:
     type: ClusterIP
+    ## service annotations
+    annotations: {}
 
 # Flower settings
 flower:
