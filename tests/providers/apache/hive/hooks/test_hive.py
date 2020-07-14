@@ -559,9 +559,8 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
 
     @mock.patch('hmsclient.genthrift.hive_metastore.ThriftHiveMetastore.Client.drop_partition')
     def test_drop_partition(self, thrift_mock):
-        self.hook.drop_partitions(self.table, db=self.database,
-                                                  part_vals=[DEFAULT_DATE_DS])
-        self.hook.drop_partitions.assert_called_once_with(thrift_mock)
+        self.hook.drop_partitions(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS])
+        thrift_mock.assert_called_once()
 
 
 class TestHiveServer2Hook(unittest.TestCase):
