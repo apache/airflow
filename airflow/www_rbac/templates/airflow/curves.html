@@ -36,7 +36,6 @@
 <script src="{{ url_for('static', filename='js/bootstrap-treeview.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
   const entityIds = JSON.parse('{{ entity_ids|tojson|safe }}');
-  // const entityIds = ['3002/0000000055/1594635642', '3002/0000000052/1594635612', '3002/0000000041/1594635502'];
   const selectedEIds = [];
   let curvesData = {};
 
@@ -81,8 +80,7 @@
   }
 
   function render() {
-        console.log('render');
-
+    console.log('render');
     renderChart();
   }
 
@@ -113,7 +111,7 @@
   }
 
   function renderChart() {
-    console.log('render chart')
+    console.log('render chart');
     const { xName, yName } = chartParams;
     const option = {
       title: {
@@ -158,7 +156,13 @@
 
 
   function queryCurves(selectedEntityIds) {
-    const entityIdsStr = selectedEntityIds.join(',');
+    const queryEntityIds = selectedEntityIds.filter(id => !Object.hasOwnProperty.call(curvesData, id));
+    if (queryEntityIds.length === 0) {
+      return new Promise((resolve) => {
+        resolve([]);
+      });
+    }
+    const entityIdsStr = queryEntityIds.join(',');
     return $.ajax({
       type: 'GET',
       url: "{{ url_for('api_experimental.get_curves_by_entity_id') }}",
@@ -174,7 +178,7 @@
       if (error) {
         throw new Error(error);
       }
-      if (!curves || curves.length === 0) {
+      if (!curves) {
         throw new Error('没有选择的曲线数据');
       }
       return curves;
