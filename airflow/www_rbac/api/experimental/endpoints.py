@@ -397,7 +397,7 @@ def get_curves():
     try:
         craft_type = request.args.get('craft_type')
         bolt_number = request.args.get('bolt_number')
-        entity_ids = get_curve_entity_ids(bolt_number,craft_type)
+        entity_ids = get_curve_entity_ids(bolt_number, craft_type)
         return jsonify(entity_ids)
     except AirflowException as e:
         _log.info(e)
@@ -422,12 +422,15 @@ def get_curves_by_entity_id():
         for entity_id in entity_ids:
             curve = get_curve(entity_id)
             if curve is not None:
-                curves.append(curve)
+                curves.append({
+                    'entity_id': entity_id,
+                    'curve': curve
+                })
 
-        return jsonify(curves)
+        return jsonify(curves=curves)
     except AirflowException as e:
         _log.info(e)
-        response = jsonify(error="{}".format(e))
+        response = jsonify(error="{}".format(repr(e)))
         response.status_code = e.status_code
         return response
 
