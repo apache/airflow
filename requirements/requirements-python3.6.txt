@@ -1,7 +1,7 @@
 # Editable install with no version control (apache-airflow==2.0.0.dev0)
 Authlib==0.14.3
 Babel==2.8.0
-Flask-AppBuilder==3.0.0
+Flask-AppBuilder==3.0.1
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.3.3
@@ -12,7 +12,7 @@ Flask-OpenID==1.2.5
 Flask-SQLAlchemy==2.4.3
 Flask-WTF==0.14.3
 Flask==1.1.2
-GitPython==3.1.3
+GitPython==3.1.7
 HeapDict==1.0.1
 JPype1==0.7.5
 JayDeBeApi==1.2.3
@@ -27,7 +27,7 @@ PySmbClient==0.1.5
 PyYAML==5.3.1
 Pygments==2.6.1
 SQLAlchemy-JSONField==0.9.0
-SQLAlchemy-Utils==0.36.7
+SQLAlchemy-Utils==0.36.8
 SQLAlchemy==1.3.18
 Sphinx==3.1.2
 Unidecode==1.1.1
@@ -43,7 +43,7 @@ ansiwrap==0.8.4
 apipkg==1.5
 apispec==3.3.1
 appdirs==1.4.4
-argcomplete==1.11.1
+argcomplete==1.12.0
 asn1crypto==1.3.0
 astroid==2.4.2
 async-generator==1.10
@@ -54,7 +54,7 @@ aws-sam-translator==1.25.0
 aws-xray-sdk==2.6.0
 azure-batch==9.0.0
 azure-common==1.1.25
-azure-cosmos==3.1.2
+azure-cosmos==3.2.0
 azure-datalake-store==0.0.48
 azure-kusto-data==0.0.45
 azure-mgmt-containerinstance==1.5.0
@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.14.16
+boto3==1.14.20
 boto==2.49.0
-botocore==1.17.16
+botocore==1.17.20
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.1
@@ -95,7 +95,7 @@ colorama==0.4.3
 colorlog==4.0.2
 connexion==2.7.0
 contextvars==2.4
-coverage==5.1
+coverage==5.2
 croniter==0.3.34
 cryptography==2.9.2
 curlify==2.2.1
@@ -121,12 +121,12 @@ entrypoints==0.3
 eventlet==0.25.2
 execnet==1.7.1
 facebook-business==7.0.3
-fastavro==0.23.5
+fastavro==0.23.6
 filelock==3.0.12
 fissix==20.5.1
 flake8-colors==0.1.6
 flake8==3.8.3
-flaky==3.6.1
+flaky==3.7.0
 flask-swagger==0.2.13
 flower==0.9.5
 freezegun==0.3.15
@@ -140,9 +140,9 @@ gitdb==4.0.5
 google-ads==4.0.0
 google-api-core==1.21.0
 google-api-python-client==1.9.3
-google-auth-httplib2==0.0.3
+google-auth-httplib2==0.0.4
 google-auth-oauthlib==0.4.1
-google-auth==1.18.0
+google-auth==1.19.0
 google-cloud-automl==1.0.1
 google-cloud-bigquery-datatransfer==1.1.0
 google-cloud-bigquery==1.25.0
@@ -156,7 +156,7 @@ google-cloud-kms==1.4.0
 google-cloud-language==1.3.0
 google-cloud-logging==1.15.0
 google-cloud-monitoring==1.0.0
-google-cloud-pubsub==1.6.0
+google-cloud-pubsub==1.7.0
 google-cloud-redis==1.0.0
 google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.17.1
@@ -169,7 +169,7 @@ google-cloud-videointelligence==1.15.0
 google-cloud-vision==1.0.0
 google-resumable-media==0.5.1
 googleapis-common-protos==1.52.0
-graphviz==0.14
+graphviz==0.14.1
 greenlet==0.4.16
 grpc-google-iam-v1==0.12.3
 grpcio-gcp==0.2.2
@@ -180,7 +180,7 @@ hmsclient==0.1.1
 httplib2==0.18.1
 humanize==2.5.0
 hvac==0.10.4
-identify==1.4.21
+identify==1.4.23
 idna-ssl==1.1.0
 idna==2.10
 imagesize==1.2.0
@@ -215,7 +215,7 @@ lockfile==0.12.2
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==2.0.1
 marshmallow-sqlalchemy==0.23.1
-marshmallow==3.6.1
+marshmallow==3.7.0
 mccabe==0.6.1
 mock==4.0.2
 mongomock==3.19.0
@@ -232,7 +232,7 @@ mypy==0.770
 mysql-connector-python==8.0.18
 mysqlclient==1.3.14
 natsort==7.0.1
-nbclient==0.4.0
+nbclient==0.4.1
 nbformat==5.0.7
 nest-asyncio==1.3.3
 networkx==2.4
@@ -252,7 +252,7 @@ paramiko==2.7.1
 parso==0.7.0
 pathspec==0.8.0
 pbr==5.4.5
-pendulum==2.1.0
+pendulum==2.1.1
 pep562==1.0
 pexpect==4.8.0
 pickleshare==0.7.5
@@ -297,7 +297,7 @@ pytest-forked==1.2.0
 pytest-instafail==0.4.2
 pytest-rerunfailures==9.0
 pytest-timeout==1.4.1
-pytest-xdist==1.32.0
+pytest-xdist==1.33.0
 pytest==5.4.3
 python-daemon==2.2.4
 python-dateutil==2.8.1
@@ -309,7 +309,7 @@ python-nvd3==0.15.0
 python-slugify==4.0.1
 python3-openid==3.2.0
 pytz==2020.1
-pytzdata==2019.3
+pytzdata==2020.1
 pywinrm==0.4.1
 pyzmq==19.0.1
 qds-sdk==1.16.0
@@ -326,9 +326,9 @@ rsa==4.6
 s3transfer==0.3.3
 sasl==0.2.1
 semver==2.10.2
-sendgrid==6.4.1
+sendgrid==6.4.3
 sentinels==1.0.0
-sentry-sdk==0.16.0
+sentry-sdk==0.16.1
 setproctitle==1.1.10
 sh==1.13.1
 simple-salesforce==1.1.0
@@ -375,21 +375,21 @@ tqdm==4.47.0
 traitlets==4.3.3
 typed-ast==1.4.1
 typing-extensions==3.7.4.2
-typing==3.7.4.1
+typing==3.7.4.3
 tzlocal==1.5.1
 unicodecsv==0.14.1
 uritemplate==3.0.1
 urllib3==1.25.9
 vertica-python==0.10.4
 vine==1.3.0
-virtualenv==20.0.25
+virtualenv==20.0.26
 watchtower==0.7.3
 wcwidth==0.2.5
 websocket-client==0.57.0
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.23.0
-yandexcloud==0.42.0
+yandexcloud==0.43.0
 yarl==1.4.2
 zdesk==2.7.1
 zict==2.0.0
