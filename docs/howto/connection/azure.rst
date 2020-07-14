@@ -70,3 +70,14 @@ Extra (optional)
       It specifies the path to the json file that contains the authentication information.
     * ``key_json``: If set, it uses the *JSON dictionary* authentication mechanism.
       It specifies the json that contains the authentication information. See
+
+When specifying the connection in environment variable you should specify
+it using URI syntax.
+
+Note that all components of the URI should be URL-encoded.
+
+For example:
+
+.. code-block:: bash
+
+   export AIRFLOW_CONN_AZURE_DEFAULT='azure://?key_path=%2Fkeys%2Fkey.json'

@@ -39,6 +39,7 @@ labelPRBasedOnFilePath:
     - airflow/providers/microsoft/azure/**/*
     - tests/providers/microsoft/azure/**/*
     - tests/providers/microsoft/azure/*
+    - docs/howto/connection/azure.rst
 
   provider:Apache:
     - airflow/providers/apache/**/*
