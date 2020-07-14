@@ -1476,6 +1476,28 @@ auth_backend = airflow.api.auth.backend.default
 Since XCom values can contain pickled data, we would no longer allow adding or
 changing XCom values from the UI.
 
+### Default for `run_as_user` configured has been changed to 50000 from 0
+
+The UID to run the first process of the Worker PODs when using has been changed to `50000`
+from the previous default of `0`. The previous default was an empty string but the code used `0` if it was
+empty string.
+
+**Before**:
+
+```ini
+[kubernetes]
+run_as_user =
+```
+
+**After**:
+
+```ini
+[kubernetes]
+run_as_user = 50000
+```
+
+This is done to avoid running the container as `root` user.
+
 ## Airflow 1.10.10
 
 ### Setting Empty string to a Airflow Variable will return an empty string
