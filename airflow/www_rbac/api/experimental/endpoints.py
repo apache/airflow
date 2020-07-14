@@ -17,11 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
-from http import HTTPStatus
-import requests
 import airflow.api
-from airflow.api.common.experimental.mark_tasks import set_dag_run_final_state
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
@@ -30,18 +26,15 @@ from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
-from airflow.models import Variable, TaskInstance
+from airflow.models import Variable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.strings import to_boolean
 from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
 from airflow import models
-from airflow.utils.db import create_session, provide_session
-from .utils import get_cas_training_base_url, get_result_args, get_task_params, get_curve_args, get_craft_type, \
-    generate_bolt_number, get_curve_params, form_analysis_result, get_curve_entity_ids
+from airflow.utils.db import create_session
+from .utils import trigger_training_dag, get_curve_entity_ids, get_curve, trigger_push_result_to_mq
 from flask import g, Blueprint, jsonify, request, url_for
-from airflow.entities.result_storage import ClsResultStorage
-from airflow.entities.curve_storage import ClsCurveStorage
 import json
 from airflow.api.common.experimental.mark_tasks import modify_task_instance
 
@@ -50,16 +43,6 @@ _log = LoggingMixin().log
 requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
-
-
-def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task_id, dag_id):
-    analysis_result = form_analysis_result(result, entity_id, execution_date, task_id, dag_id)
-    push_result_dat_id = 'publish_result_dag'
-    conf = {
-        'data': analysis_result,
-        'data_type': data_type
-    }
-    trigger.trigger_dag(push_result_dat_id, conf=conf, replace_microseconds=False)
 
 
 @csrf.exempt
@@ -266,87 +249,6 @@ def task_info(dag_id, task_id):
     return jsonify(fields)
 
 
-def get_result(entity_id):
-    st = ClsResultStorage(**get_result_args())
-    st.metadata = {'entity_id': entity_id}
-    result = st.query_result()
-    return result if result else {}
-
-
-def get_curve(entity_id):
-    st = ClsCurveStorage(**get_curve_args())
-    st.metadata = {'entity_id': entity_id}
-    return st.query_curve()
-
-
-def ensure_int(num):
-    try:
-        return int(num)
-    except Exception as e:
-        return num
-
-
-def get_curve_mode(final_state, error_tag):
-    print(final_state, error_tag)
-    if error_tag is not None:
-        curve_modes = json.loads(error_tag)
-        if len(curve_modes) > 0:
-            # todo: send multiple error_tag
-            return ensure_int(curve_modes[0])
-    if final_state is not None:
-        state = 0 if final_state == 'OK' else None
-        return state
-    return None
-
-
-def updateConfirmData(task_data, verify_error, curve_mode):
-    data = task_data.get('task', {})
-    data.update({
-        "curve_mode": curve_mode,
-        "verify_error": verify_error
-    })
-    return {
-        'task': data
-    }
-
-
-def docasInvaild(task_instance, final_state):
-    """二次确认结果不同"""
-    entity_id = task_instance.entity_id
-    base_url = get_cas_training_base_url()
-    url = "{}/cas/invalid-curve".format(base_url)
-    result = get_result(entity_id)
-    curve = get_curve(entity_id)
-    task_data = get_task_params(task_instance, entity_id)
-    curve_mode = get_curve_mode(final_state, task_instance.error_tag)
-    task_param = updateConfirmData(task_data,
-                                   task_instance.verify_error,
-                                   curve_mode
-                                   )
-    controller_name = result.get('controller_name', None)
-    job = result.get('job', None)
-    batch_count = result.get('batch_count', None)
-    bolt_number = generate_bolt_number(controller_name, job, batch_count)
-    curve_params = get_curve_params(bolt_number)
-    data = {
-        'entity_id': entity_id,
-        'result': result,
-        'curve': curve,
-        'craft_type': get_craft_type()
-    }
-    data.update(task_param)
-    data.update(curve_params)
-    json_data = {
-        'conf': data
-    }
-    try:
-        resp = requests.post(headers={'Content-Type': 'application/json'}, url=url, json=json_data)
-        if resp.status_code != HTTPStatus.OK:
-            raise Exception(resp.content)
-    except Exception as e:
-        raise AirflowException(str(e))
-
-
 @api_experimental.route(
     '/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>/confirm',
     methods=['POST'])
@@ -373,13 +275,7 @@ def double_confirm_task(dag_id, task_id, execution_date):
             raise AirflowException(u"分析结果还没有生成，请等待分析结果生成后再进行二次确认")
         if not final_state or final_state not in ['OK', 'NOK']:
             raise AirflowException("二次确认参数未定义或数值不正确!")
-        docasInvaild(task, final_state)  # 总是触发
-        set_dag_run_final_state(
-            task_id=task_id,
-            dag_id=dag_id,
-            execution_date=date,
-            final_state=final_state)
-        trigger_push_result_to_mq('final_result', final_state, task.entity_id, execution_date, task_id, dag_id)
+        trigger_training_dag(dag_id, task_id, execution_date, final_state)
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))

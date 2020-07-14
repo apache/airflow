@@ -80,8 +80,7 @@ from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DagRunForm, ConnectionForm, ErrorTagForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
 from flask_wtf.csrf import CSRFProtect
-from airflow.www_rbac.api.experimental.endpoints import get_curve, get_result
-from airflow.www_rbac.api.experimental.utils import get_curve_entity_ids
+from airflow.www_rbac.api.experimental.utils import get_curve_entity_ids, get_curve, get_result
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 
 csrf = CSRFProtect()
