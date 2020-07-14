@@ -557,7 +557,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         self.hook.metastore.__enter__().get_table.assert_called_with(
             dbname='default', tbl_name='does-not-exist')
 
-    mock.patch('hmsclient.genthrift.hive_metastore.ThriftHiveMetastore.Client.drop_partition')
+    @mock.patch('hmsclient.genthrift.hive_metastore.ThriftHiveMetastore.Client.drop_partition')
     def test_drop_partition(self, thrift_mock):
         self.assertTrue(self.hook.drop_partitions(self.table, db=self.database,
                                                   part_vals=[DEFAULT_DATE_DS]))
