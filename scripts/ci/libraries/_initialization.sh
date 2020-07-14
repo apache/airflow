@@ -21,6 +21,18 @@ function initialize_common_environment {
     # default python Major/Minor version
     PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
 
+    PYTHON_BASE_IMAGE_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
+    if [[ ${PYTHON_BASE_IMAGE_VERSION} == "3.8" ]]; then
+        # Temporary fix for Python 3.8.4 failing our tests
+        # TODO: Remove after it gets fixed
+        PYTHON_BASE_IMAGE_VERSION="3.8.3"
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo " WARNING! Temporary switching to ${PYTHON_BASE_IMAGE_VERSION}"
+        echo "          Until we find root cause of problem introduced by 3.8.4"
+        echo
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    fi
+
     # extra flags passed to docker run for CI image
     # shellcheck disable=SC2034
     EXTRA_DOCKER_FLAGS=()
