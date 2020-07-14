@@ -16,11 +16,11 @@
 {% block body %}
 <div id="root">
   {% call panel.panel('曲线列表') %}
-  <div class="panel-body d-flex w-100 h-100 flex-column">
-    <div class="flex-grow-1 overflow-auto">
+  <div class="d-flex w-100 h-100 flex-column overflow-hidden">
+    <div class="panel-body flex-grow-1 overflow-auto">
       <div id="tree" class=""></div>
     </div>
-    <div>
+    <div class="panel-body">
       <button id="btn-view-curves" class="btn btn-primary btn-block">查看</button>
     </div>
   </div>
