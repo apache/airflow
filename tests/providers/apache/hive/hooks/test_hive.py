@@ -561,7 +561,7 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
     def test_drop_partition(self, thrift_mock):
         self.hook.drop_partitions(self.table, db=self.database,
                                                   part_vals=[DEFAULT_DATE_DS])
-         self.hook.drop_partitions.assert_called_once_with(thrift_mock)
+        self.hook.drop_partitions.assert_called_once_with(thrift_mock)
 
 
 class TestHiveServer2Hook(unittest.TestCase):
