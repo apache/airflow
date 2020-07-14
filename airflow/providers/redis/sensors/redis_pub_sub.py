@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Dict, List, Union
+
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -34,14 +36,14 @@ class RedisPubSubSensor(BaseSensorOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, channels, redis_conn_id, *args, **kwargs):
+    def __init__(self, channels: Union[List[str], str], redis_conn_id: str, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.channels = channels
         self.redis_conn_id = redis_conn_id
         self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
         self.pubsub.subscribe(self.channels)
 
-    def poke(self, context):
+    def poke(self, context: Dict) -> bool:
         """
         Check for message on subscribed channels and write to xcom the message with key ``message``
 
