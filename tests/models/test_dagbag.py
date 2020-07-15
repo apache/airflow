@@ -642,7 +642,7 @@ class TestDagBag(unittest.TestCase):
     def test_serialized_dags_are_written_to_db_on_sync(self):
         """
         Test that when dagbag.sync_to_db is called the DAGs are Serialized and written to DB
-        even when dagbag.store_serialized_dags is False
+        even when dagbag.read_dags_from_db is False
         """
         with create_session() as session:
             serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
@@ -653,7 +653,7 @@ class TestDagBag(unittest.TestCase):
                 include_examples=False)
             dagbag.sync_to_db()
 
-            self.assertFalse(dagbag.store_serialized_dags)
+            self.assertFalse(dagbag.read_dags_from_db)
 
             new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
             self.assertEqual(new_serialized_dags_count, 1)

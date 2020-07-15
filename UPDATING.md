@@ -1442,6 +1442,40 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 }
 ```
 
+### Change in DagBag signature
+
+Passing `store_serialized_dags` argument to DagBag.__init__ and accessing `DagBag.store_serialized_dags` property
+are deprecated and will be removed in future versions.
+
+
+**Previous signature**:
+
+```python
+DagBag(
+    dag_folder=None,
+    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+    store_serialized_dags=False
+):
+```
+
+**current**:
+```python
+DagBag(
+    dag_folder=None,
+    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+    read_dags_from_db=False
+):
+```
+
+If you were using positional arguments, it requires no change but if you were using keyword
+arguments, please change `store_serialized_dags` to `read_dags_from_db`.
+
+Similarly, if you were using `DagBag().store_serialized_dags` property, change it to
+`DagBag().read_dags_from_db`.
+
+
 ## Airflow 1.10.11
 
 ### Use NULL as default value for dag.description
