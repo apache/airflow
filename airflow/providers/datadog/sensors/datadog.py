@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from datadog import api
 
@@ -47,7 +47,7 @@ class DatadogSensor(BaseSensorOperator):
             priority: Optional[str] = None,
             sources: Optional[List[Any]] = None,
             tags: Optional[List[Any]] = None,
-            response_check=None,
+            response_check: Optional[Callable[[], Any]] = None,
             *args,
             **kwargs) -> None:
         super().__init__(*args, **kwargs)

@@ -127,7 +127,7 @@ class DatadogHook(BaseHook, LoggingMixin):
                    date_happened: Optional[int] = None,
                    handle: Optional[str] = None,
                    priority: Optional[str] = None,
-                   related_event_id: Optional[str] = None,
+                   related_event_id: Optional[int] = None,
                    tags: Optional[List[str]] = None,
                    device_name: Optional[List[str]] = None) -> Dict[str, Any]:
         """
