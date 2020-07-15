@@ -723,6 +723,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.datastore`
      -
 
+   * - `Deployment Manager <https://cloud.google.com/deployment-manager/>`__
+     -
+     - :mod:`airflow.providers.google.cloud.hooks.gdm`
+     -
+     -
+
    * - `Cloud Functions <https://cloud.google.com/functions/>`__
      - :doc:`How to use <howto/operator/google/cloud/functions>`
      - :mod:`airflow.providers.google.cloud.hooks.functions`
