@@ -345,7 +345,6 @@ class PodGenerator(object):
 
         if resources is None:
             def extract(cpu, memory):
-                nonlocal namespaced
                 resources_obj = {
                     'cpu': namespaced.pop(cpu, None),
                     'memory': namespaced.pop(memory, None),
@@ -355,11 +354,11 @@ class PodGenerator(object):
 
                 if all(r is None for r in resources_obj):
                     resources_obj = None
-                return resources_obj
+                return namespaced, resources_obj
 
             ephemeral_storage = namespaced.pop('ephemeral-storage', None)
-            requests = extract('request_cpu', 'request_memory')
-            limits = extract('limit_cpu', 'limit_memory')
+            namespaced, requests = extract('request_cpu', 'request_memory')
+            namespaced, limits = extract('limit_cpu', 'limit_memory')
             if requests is None and limits is None:
                 resources = None
             else:
