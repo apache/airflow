@@ -78,7 +78,7 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
                  min_objects: int = 1,
                  previous_objects: Optional[Set[str]] = None,
                  allow_delete: bool = True,
-                 aws_conn_id: str = 'google_cloud_default',
+                 aws_conn_id: str = 'aws_default',
                  delegate_to: Optional[str] = None,
                  *args, **kwargs) -> None:
 
