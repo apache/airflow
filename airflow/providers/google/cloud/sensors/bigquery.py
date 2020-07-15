@@ -71,4 +71,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         hook = BigQueryHook(
             bigquery_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to)
-        return hook.table_exists(self.project_id, self.dataset_id, self.table_id)
+        return hook.table_exists(
+            project_id=self.project_id,
+            dataset_id=self.dataset_id,
+            table_id=self.table_id)
