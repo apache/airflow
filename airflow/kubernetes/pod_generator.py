@@ -344,18 +344,23 @@ class PodGenerator(object):
         resources = namespaced.get('resources')
 
         if resources is None:
-            requests = {
-                'cpu': namespaced.get('request_cpu'),
-                'memory': namespaced.get('request_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage')
-            }
-            limits = {
-                'cpu': namespaced.get('limit_cpu'),
-                'memory': namespaced.get('limit_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage')
-            }
-            all_resources = list(requests.values()) + list(limits.values())
-            if all(r is None for r in all_resources):
+            def extract(cpu, memory):
+                nonlocal namespaced
+                resources_obj = {
+                    'cpu': namespaced.pop(cpu, None),
+                    'memory': namespaced.pop(memory, None),
+                    'ephemeral-storage': ephemeral_storage
+                }
+                resources_obj = {k: v for k, v in resources_obj.items() if v is not None}
+
+                if all(r is None for r in resources_obj):
+                    resources_obj = None
+                return resources_obj
+
+            ephemeral_storage = namespaced.pop('ephemeral-storage', None)
+            requests = extract('request_cpu', 'request_memory')
+            limits = extract('limit_cpu', 'limit_memory')
+            if requests is None and limits is None:
                 resources = None
             else:
                 resources = k8s.V1ResourceRequirements(
@@ -371,6 +376,7 @@ class PodGenerator(object):
                 'iam.cloud.google.com/service-account': gcp_service_account_key
             })
 
+        namespaced['resources'] = resources
         return PodGenerator(**namespaced).gen_pod()
 
     @staticmethod
