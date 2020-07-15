@@ -1,4 +1,21 @@
-import enum
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import unittest
 
 import pytest
@@ -14,8 +31,8 @@ class TestSerialize(unittest.TestCase):
         assert serialize(300) == 300
 
     def test_boolean(self):
-        assert serialize(True) == True
-        assert serialize(False) == False
+        assert serialize(True)
+        assert not serialize(False)
 
     def test_string(self):
         assert serialize("string") == "string"
@@ -24,7 +41,7 @@ class TestSerialize(unittest.TestCase):
         assert serialize(0.1) == 0.1
 
     def test_list_of_primitives(self):
-        assert serialize([1,"a",True]) == [1,"a", True]
+        assert serialize([1, "a", True]) == [1, "a", True]
 
     def test_list_of_sets(self):
         values = [
@@ -83,6 +100,14 @@ class TestSerialize(unittest.TestCase):
         }
         assert serialize(value) == expected_serialization
 
+    def test_tuple(self):
+        value = (1, 2, 3)
+        expected_serialization = {
+            Encoding.VAR: [1, 2, 3],
+            Encoding.TYPE: DAT.TUPLE
+        }
+        assert serialize(value) == expected_serialization
+
     def test_enum_raises_exception(self):
         value = Encoding.VAR
         with pytest.raises(TypeError) as err:
@@ -97,8 +122,8 @@ class TestDeserialize(unittest.TestCase):
         assert deserialize(300) == 300
 
     def test_boolean(self):
-        assert deserialize(True) == True
-        assert deserialize(False) == False
+        assert deserialize(True)
+        assert not deserialize(False)
 
     def test_string(self):
         assert deserialize("string") == "string"
@@ -107,7 +132,7 @@ class TestDeserialize(unittest.TestCase):
         assert deserialize(0.1) == 0.1
 
     def test_list_of_primitives(self):
-        assert deserialize([1,"a",True]) == [1,"a", True]
+        assert deserialize([1, "a", True]) == [1, "a", True]
 
     def test_list_of_sets(self):
         values = [
@@ -132,7 +157,7 @@ class TestDeserialize(unittest.TestCase):
             Encoding.TYPE: DAT.DICT
         }
         expected_deserialization = {"key": "value"}
-        
+
         assert deserialize(value) == expected_deserialization
 
     def test_dictionary_of_list_of_sets(self):
@@ -164,14 +189,22 @@ class TestDeserialize(unittest.TestCase):
             Encoding.VAR: [1, 2, 3],
             Encoding.TYPE: DAT.SET
         }
-        expected_deserialization = {1, 2, 3} 
+        expected_deserialization = {1, 2, 3}
+        assert deserialize(value) == expected_deserialization
+
+    def test_tuple(self):
+        value = {
+            Encoding.VAR: [1, 2, 3],
+            Encoding.TYPE: DAT.TUPLE
+        }
+        expected_deserialization = (1, 2, 3)
         assert deserialize(value) == expected_deserialization
 
     def test_unsupported_value(self):
         value = Encoding.VAR
         with pytest.raises(ValueError) as err:
             deserialize(value)
-        assert err.value.args[0] == "Unable to deserialize <enum 'Encoding'>" 
+        assert err.value.args[0] == "Unable to deserialize <enum 'Encoding'>"
 
     def test_unsupported_dict_type(self):
         value = {
@@ -180,4 +213,4 @@ class TestDeserialize(unittest.TestCase):
         }
         with pytest.raises(TypeError) as err:
             deserialize(value)
-        assert err.value.args[0] == "Unable to deserialize dict of __type: dag" 
+        assert err.value.args[0] == "Unable to deserialize dict of __type: dag"

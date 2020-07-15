@@ -28,6 +28,7 @@ from sqlalchemy.orm import Query, Session, reconstructor
 
 from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.serialization.json import deserialize, serialize
 from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -251,7 +252,8 @@ class BaseXCom(Base, LoggingMixin):
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
         try:
-            return json.dumps(value).encode('UTF-8')
+            dict_ = serialize(value)
+            return json.dumps(dict_).encode('UTF-8')
         except (ValueError, TypeError):
             log.error("Could not serialize the XCOM value into JSON. "
                       "If you are using pickles instead of JSON "
@@ -269,7 +271,8 @@ class BaseXCom(Base, LoggingMixin):
             return pickle.loads(result.value)
 
         try:
-            return json.loads(result.value.decode('UTF-8'))
+            dict_ = json.loads(result.value.decode('UTF-8'))
+            return deserialize(dict_)
         except JSONDecodeError:
             log.error("Could not deserialize the XCOM value from JSON. "
                       "If you are using pickles instead of JSON "
