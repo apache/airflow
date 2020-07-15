@@ -70,7 +70,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         with airflow or not
     :type include_examples: bool
     :param store_serialized_dags: Read DAGs from DB if store_serialized_dags is ``True``.
-        If ``False`` DAGs are read from python files.
+        If ``False`` DAGs are read from python files. This property is not used when
+        determining whether or not to write Serialized DAGs, that is done by checking
+        the config ``store_serialized_dags``.
     :type store_serialized_dags: bool
     """
 
@@ -434,6 +436,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG
         from airflow.models.serialized_dag import SerializedDagModel
+        self.log.debug("Calling the DAG.bulk_sync_to_db method")
         DAG.bulk_sync_to_db(self.dags.values())
-        if self.store_serialized_dags:
+        # Write Serialized DAGs to DB if DAG Serialization is turned on
+        # Even though self.store_serialized_dags is False
+        if settings.STORE_SERIALIZED_DAGS:
+            self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
             SerializedDagModel.bulk_sync_to_db(self.dags.values())
