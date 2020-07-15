@@ -125,10 +125,10 @@ class TestDagFileProcessor(unittest.TestCase):
         return dag
 
     @classmethod
+    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     def setUpClass(cls):
         # Ensure the DAGs we are looking at from the DB are up-to-date
         non_serialized_dagbag = DagBag(store_serialized_dags=False, include_examples=False)
-        non_serialized_dagbag.store_serialized_dags = True
         non_serialized_dagbag.sync_to_db()
         cls.dagbag = DagBag(store_serialized_dags=True)
 
@@ -1370,10 +1370,10 @@ class TestSchedulerJob(unittest.TestCase):
         self.null_exec = MockExecutor()
 
     @classmethod
+    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     def setUpClass(cls):
         # Ensure the DAGs we are looking at from the DB are up-to-date
         non_serialized_dagbag = DagBag(store_serialized_dags=False, include_examples=False)
-        non_serialized_dagbag.store_serialized_dags = True
         non_serialized_dagbag.sync_to_db()
         cls.dagbag = DagBag(store_serialized_dags=True)
 
