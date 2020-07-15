@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import logging
+from functools import wraps
+from typing import Callable, TypeVar, cast
 
-from flask import Blueprint, g, jsonify, request, url_for
+from flask import Blueprint, current_app, g, jsonify, request, url_for
 
-import airflow.api
 from airflow import models
 from airflow.api.common.experimental import delete_dag as delete, pool as pool_api, trigger_dag as trigger
 from airflow.api.common.experimental.get_code import get_code
@@ -35,7 +36,17 @@ from airflow.version import version
 
 log = logging.getLogger(__name__)
 
-requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+
+
+def requires_authentication(function: T):
+    """Decorator for functions that require authentication"""
+    @wraps(function)
+    def decorated(*args, **kwargs):
+        return current_app.api_auth.requires_authentication(function)(*args, **kwargs)
+
+    return cast(T, decorated)
+
 
 api_experimental = Blueprint('api_experimental', __name__)
 

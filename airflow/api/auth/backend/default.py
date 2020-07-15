@@ -17,7 +17,7 @@
 # under the License.
 """Default authentication backend - everything is allowed"""
 from functools import wraps
-from typing import Callable, Optional, TypeVar, cast
+from typing import Callable, TypeVar, cast
 
 from airflow.typing_compat import Protocol
 
@@ -31,9 +31,6 @@ class ClientAuthProtocol(Protocol):
         CLIENT_AUTH.handle_response method
         """
         ...
-
-
-CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
 
 
 def init_app(_):
