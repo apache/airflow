@@ -181,10 +181,8 @@ class DbApiHook(BaseHook):
 
             with closing(conn.cursor()) as cur:
                 for sql_statement in sql:
-                    logstr = "Running statement: {}".format(sql_statement)
-                    if parameters:
-                        logstr += " with parameters {}".format(parameters)
-                    self.log.info(logstr)
+
+                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                     cur.execute(sql_statement, parameters)
                     if hasattr(cur, 'rowcount'):
                         self.log.info("Rows affected: %s", cur.rowcount)
