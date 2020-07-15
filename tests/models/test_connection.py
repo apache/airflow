@@ -30,6 +30,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection, crypto
 from airflow.models.connection import CONN_TYPE_TO_HOOK
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+from airflow.utils.module_loading import import_string
 from tests.test_utils.config import conf_vars
 
 ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
@@ -533,3 +534,7 @@ class TestConnTypeToHook(unittest.TestCase):
         expected_keys = sorted(current_keys)
 
         self.assertEqual(expected_keys, current_keys)
+
+    def test_hooks_importable(self):
+        for conn_type in CONN_TYPE_TO_HOOK:
+            self.assertTrue(issubclass(import_string(CONN_TYPE_TO_HOOK[conn_type][0]), BaseHook))

@@ -72,7 +72,7 @@ CONN_TYPE_TO_HOOK = {
     "jira": ("airflow.providers.jira.hooks.jira.JiraHook", "jira_conn_id"),
     "kubernetes": ("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook", "kubernetes_conn_id"),
     "mongo": ("airflow.providers.mongo.hooks.mongo.MongoHook", "conn_id"),
-    "mssql": ("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook", "mssql_conn_id"),
+    "mssql": ("airflow.providers.odbc.hooks.odbc.OdbcHook", "odbc_conn_id"),
     "mysql": ("airflow.providers.mysql.hooks.mysql.MySqlHook", "mysql_conn_id"),
     "odbc": ("airflow.providers.odbc.hooks.odbc.OdbcHook", "odbc_conn_id"),
     "oracle": ("airflow.providers.oracle.hooks.oracle.OracleHook", "oracle_conn_id"),
