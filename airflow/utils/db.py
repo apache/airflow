@@ -107,16 +107,29 @@ def add_default_pool_if_not_exists(session=None):
         session.commit()
 
 
+default_error_tags = {
+    '100': '提前松手',
+    '101': '螺栓放偏',
+    '102': '螺栓空转，没办法旋入',
+    '103': '螺栓被错误的预拧紧',
+    '104': '螺纹胶涂胶识别有无',
+    '105': '螺纹胶涂覆位置错误-前后',
+    '106': '螺钉太长',
+    '107': '螺钉太短',
+    '108': '工件开裂',
+    '109': '尖叫螺栓',
+    '110': '提前进入屈服阶段',
+    '111': '转角法监控扭矩小于下限值',
+    '112': '转角法监控扭矩大于上限值-或者临界上限值'
+}
+
+
 @provide_session
 def create_default_error_tags(session=None):
     from airflow.models import ErrorTag
     # todo: error tag init
-    merge_error_tag(
-        ErrorTag(lable='测试错误代码1', value='100')
-    )
-    merge_error_tag(
-        ErrorTag(lable='测试错误代码2', value='101')
-    )
+    for key, value in default_error_tags.items():
+        merge_error_tag(err_tag=ErrorTag(lable=value, value=key))
 
 
 @provide_session
@@ -231,7 +244,7 @@ def create_default_nd_line_controller_map_var(session=None):
             "MFE-006R@MFE-006R/前装模块线1工位"
         ]
     }
-    line_code_controllers_map = Variable.get('line_code_controllers_map', {} , deserialize_json=True)
+    line_code_controllers_map = Variable.get('line_code_controllers_map', {}, deserialize_json=True)
     if not line_code_controllers_map:
         # 不存在时候才进行设定
         Variable.set(key='line_code_controllers_map', value=val, serialize_json=True)
