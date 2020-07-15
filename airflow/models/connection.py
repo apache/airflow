@@ -80,6 +80,7 @@ CONN_TYPE_TO_HOOK = {
     "postgres": ("airflow.providers.postgres.hooks.postgres.PostgresHook", "postgres_conn_id"),
     "presto": ("airflow.providers.presto.hooks.presto.PrestoHook", "presto_conn_id"),
     "redis": ("airflow.providers.redis.hooks.redis.RedisHook", "redis_conn_id"),
+    "snowflake": ("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook", "snowflake_conn_id"),
     "sqlite": ("airflow.providers.sqlite.hooks.sqlite.SqliteHook", "sqlite_conn_id"),
     "tableau": ("airflow.providers.salesforce.hooks.tableau.TableauHook", "tableau_conn_id"),
     "vertica": ("airflow.providers.vertica.hooks.vertica.VerticaHook", "vertica_conn_id"),
