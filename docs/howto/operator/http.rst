@@ -24,7 +24,7 @@ The following code examples use the ``http_default`` connection which means the 
 .. _howto/operator:HttpSensor:
 
 HttpSensor
-==========
+----------
 
 Use the :class:`~airflow.providers.http.sensors.http.HttpSensor` to poke until the ``response_check`` callable evaluates
 to ``true``.
@@ -39,7 +39,7 @@ Here we are poking until httpbin gives us a response text containing ``httpbin``
 .. _howto/operator:SimpleHttpOperator:
 
 SimpleHttpOperator
-==================
+------------------
 
 Use the :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` to call HTTP requests and get
 the response text back.

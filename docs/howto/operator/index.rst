@@ -36,7 +36,7 @@ determine what actually executes when your DAG runs.
     apache/index
     dingding
     google/index
-    http/index
+    http
     kubernetes
     papermill
     python
