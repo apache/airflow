@@ -212,3 +212,31 @@ class TestXCom(unittest.TestCase):
 
         for result in results:
             self.assertEqual(result.value, json_obj)
+
+    @conf_vars({("core", "xcom_enable_pickling"): "False"})
+    def test_xcom_enable_set_type(self):
+        set_obj = {"set-value1", "set-value2"}
+        execution_date = timezone.utcnow()
+        key = "xcom_test5"
+        dag_id = "test_dag5"
+        task_id = "test_task5"
+        XCom.set(key=key,
+                 value=set_obj,
+                 dag_id=dag_id,
+                 task_id=task_id,
+                 execution_date=execution_date)
+
+        ret_value = XCom.get_one(key=key,
+                                 dag_id=dag_id,
+                                 task_id=task_id,
+                                 execution_date=execution_date)
+
+        self.assertEqual(ret_value, set_obj)
+
+        session = settings.Session()
+        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
+                                               XCom.task_id == task_id,
+                                               XCom.execution_date == execution_date
+                                               ).first().value
+
+        self.assertEqual(ret_value, set_obj)
