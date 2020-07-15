@@ -69,11 +69,11 @@ class DagBag(BaseDagBag, LoggingMixin):
     :param include_examples: whether to include the examples that ship
         with airflow or not
     :type include_examples: bool
-    :param store_serialized_dags: Read DAGs from DB if store_serialized_dags is ``True``.
+    :param read_dags_from_db: Read DAGs from DB if store_serialized_dags is ``True``.
         If ``False`` DAGs are read from python files. This property is not used when
         determining whether or not to write Serialized DAGs, that is done by checking
         the config ``store_serialized_dags``.
-    :type store_serialized_dags: bool
+    :type read_dags_from_db: bool
     """
 
     DAGBAG_IMPORT_TIMEOUT = conf.getint('core', 'DAGBAG_IMPORT_TIMEOUT')
@@ -84,7 +84,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             dag_folder: Optional[str] = None,
             include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
             safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-            store_serialized_dags: bool = False,
+            read_dags_from_db: bool = False,
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
@@ -96,7 +96,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.file_last_changed: Dict[str, datetime] = {}
         self.import_errors: Dict[str, str] = {}
         self.has_logged = False
-        self.store_serialized_dags = store_serialized_dags
+        self.read_dags_from_db = read_dags_from_db
 
         self.collect_dags(
             dag_folder=dag_folder,
@@ -123,8 +123,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         # Avoid circular import
         from airflow.models.dag import DagModel
 
-        # Only read DAGs from DB if this dagbag is store_serialized_dags.
-        if self.store_serialized_dags:
+        # Only read DAGs from DB if this dagbag is read_dags_from_db.
+        if self.read_dags_from_db:
             # Import here so that serialized dag is only imported when serialization is enabled
             from airflow.models.serialized_dag import SerializedDagModel
             if dag_id not in self.dags:
@@ -363,7 +363,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         **Note**: The patterns in .airflowignore are treated as
         un-anchored regexes, not shell-like glob patterns.
         """
-        if self.store_serialized_dags:
+        if self.read_dags_from_db:
             return
 
         self.log.info("Filling up the DagBag from %s", dag_folder)
@@ -439,7 +439,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.log.debug("Calling the DAG.bulk_sync_to_db method")
         DAG.bulk_sync_to_db(self.dags.values())
         # Write Serialized DAGs to DB if DAG Serialization is turned on
-        # Even though self.store_serialized_dags is False
+        # Even though self.read_dags_from_db is False
         if settings.STORE_SERIALIZED_DAGS:
             self.log.debug("Calling the SerializedDagModel.bulk_sync_to_db method")
             SerializedDagModel.bulk_sync_to_db(self.dags.values())
