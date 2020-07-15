@@ -24,9 +24,6 @@ from freezegun import freeze_time
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.amazon.aws.sensors.s3_upload_session_complete import S3UploadSessionCompleteSensor
 
-TEST_BUCKET = "TEST_BUCKET"
-TEST_OBJECT = "TEST_OBJECT"
-TEST_DELEGATE_TO = "TEST_DELEGATE_TO"
 TEST_DAG_ID = 'unit_tests_aws_sensor'
 DEFAULT_DATE = datetime(2015, 1, 1)
 

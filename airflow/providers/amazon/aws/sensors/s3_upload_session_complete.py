@@ -18,7 +18,7 @@
 
 import os
 from datetime import datetime
-from typing import Optional, Set
+from typing import Optional, Set, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -74,11 +74,12 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
     def __init__(self,
                  bucket_name: str,
                  prefix: str,
+                 aws_conn_id: str = 'aws_default',
+                 verify: Optional[Union[bool, str]] = None,
                  inactivity_period: float = 60 * 60,
                  min_objects: int = 1,
                  previous_objects: Optional[Set[str]] = None,
                  allow_delete: bool = True,
-                 aws_conn_id: str = 'aws_default',
                  *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
@@ -93,12 +94,13 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
         self.inactivity_seconds = 0
         self.allow_delete = allow_delete
         self.aws_conn_id = aws_conn_id
+        self.verify = verify
         self.last_activity_time: Optional[datetime] = None
         self.hook = None
 
     def _get_aws_hook(self):
         if not self.hook:
-            self.hook = S3Hook()
+            self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         return self.hook
 
     def is_bucket_updated(self, current_objects: Set[str]) -> bool:
