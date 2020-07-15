@@ -433,7 +433,8 @@ class TestCliDags(unittest.TestCase):
                 subdir=cli_args.subdir, dag_id='example_bash_operator'
             ),
             mock.call().clear(
-                start_date=cli_args.execution_date, end_date=cli_args.execution_date, reset_dag_runs=True
+                start_date=cli_args.execution_date, end_date=cli_args.execution_date,
+                dag_run_state=State.NONE,
             ),
             mock.call().run(
                 executor=mock_executor.return_value,
@@ -461,7 +462,9 @@ class TestCliDags(unittest.TestCase):
                 subdir=cli_args.subdir, dag_id='example_bash_operator'
             ),
             mock.call().clear(
-                start_date=cli_args.execution_date, end_date=cli_args.execution_date, reset_dag_runs=True
+                start_date=cli_args.execution_date,
+                end_date=cli_args.execution_date,
+                dag_run_state=State.NONE,
             ),
             mock.call().run(
                 executor=mock_executor.return_value,
