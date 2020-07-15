@@ -1024,27 +1024,26 @@ class DAG(BaseDag, LoggingMixin):
             tis = session.query(TI).filter(TI.dag_id == self.dag_id)
             tis = tis.filter(TI.task_id.in_(self.task_ids))
 
-        if include_parentdag and self.is_subdag:
-            if self.parent_dag is not None:
-                p_dag = self.parent_dag.sub_dag(
-                    task_regex=r"^{}$".format(self.dag_id.split('.')[1]),
-                    include_upstream=False,
-                    include_downstream=True)
+        if include_parentdag and self.is_subdag and self.parent_dag is not None:
+            p_dag = self.parent_dag.sub_dag(
+                task_regex=r"^{}$".format(self.dag_id.split('.')[1]),
+                include_upstream=False,
+                include_downstream=True)
 
-                tis = tis.union(p_dag.clear(
-                    start_date=start_date, end_date=end_date,
-                    only_failed=only_failed,
-                    only_running=only_running,
-                    confirm_prompt=confirm_prompt,
-                    include_subdags=include_subdags,
-                    include_parentdag=False,
-                    dag_run_state=dag_run_state,
-                    get_tis=True,
-                    session=session,
-                    recursion_depth=recursion_depth,
-                    max_recursion_depth=max_recursion_depth,
-                    dag_bag=dag_bag
-                ))
+            tis = tis.union(p_dag.clear(
+                start_date=start_date, end_date=end_date,
+                only_failed=only_failed,
+                only_running=only_running,
+                confirm_prompt=confirm_prompt,
+                include_subdags=include_subdags,
+                include_parentdag=False,
+                dag_run_state=dag_run_state,
+                get_tis=True,
+                session=session,
+                recursion_depth=recursion_depth,
+                max_recursion_depth=max_recursion_depth,
+                dag_bag=dag_bag
+            ))
 
         if start_date:
             tis = tis.filter(TI.execution_date >= start_date)
