@@ -24,13 +24,16 @@ from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest.mock import patch
 
+from sqlalchemy import func
+
 import airflow.example_dags
 from airflow import models
 from airflow.models import DagBag, DagModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.session import create_session
 from tests.models import TEST_DAGS_FOLDER
+from tests.test_utils import db
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags
 
 
 class TestDagBag(unittest.TestCase):
@@ -43,10 +46,12 @@ class TestDagBag(unittest.TestCase):
         shutil.rmtree(cls.empty_dir)
 
     def setUp(self) -> None:
-        clear_db_dags()
+        db.clear_db_dags()
+        db.clear_db_serialized_dags()
 
     def tearDown(self) -> None:
-        clear_db_dags()
+        db.clear_db_dags()
+        db.clear_db_serialized_dags()
 
     def test_get_existing_dag(self):
         """
@@ -632,3 +637,23 @@ class TestDagBag(unittest.TestCase):
         # clean up
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
+
+    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
+    def test_serialized_dags_are_written_to_db_on_sync(self):
+        """
+        Test that when dagbag.sync_to_db is called the DAGs are Serialized and written to DB
+        even when dagbag.store_serialized_dags is False
+        """
+        with create_session() as session:
+            serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
+            self.assertEqual(serialized_dags_count, 0)
+
+            dagbag = DagBag(
+                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
+                include_examples=False)
+            dagbag.sync_to_db()
+
+            self.assertFalse(dagbag.store_serialized_dags)
+
+            new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
+            self.assertEqual(new_serialized_dags_count, 1)
