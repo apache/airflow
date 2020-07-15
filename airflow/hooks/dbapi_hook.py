@@ -181,12 +181,13 @@ class DbApiHook(BaseHook):
 
             with closing(conn.cursor()) as cur:
                 for sql_statement in sql:
-                    if parameters is not None:
-                        self.log.info("%s with parameters %s", sql_statement, parameters)
-                        cur.execute(sql_statement, parameters)
-                    else:
-                        self.log.info(sql_statement)
-                        cur.execute(sql_statement)
+                    logstr = "Running statement: {}".format(sql_statement)
+                    if parameters:
+                        logstr += " with parameters {}".format(parameters)
+                    self.log.info(logstr)
+                    cur.execute(sql_statement, parameters)
+                    if hasattr(cur, 'rowcount'):
+                        self.log.info("Rows affected: %s", cur.rowcount)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.
