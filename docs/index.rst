@@ -111,4 +111,5 @@ Content
     Macros <macros-ref>
     Python API <_api/index>
     Experimental REST API <rest-api-ref>
+    Stable REST API <stable-rest-api/redoc>
     Configurations <configurations-ref>
