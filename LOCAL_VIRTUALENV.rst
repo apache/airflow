@@ -116,13 +116,13 @@ To create and initialize the local virtualenv:
 
    .. code-block:: bash
 
-    pip install -U -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -U -e ".[devel,gcp,postgres]"
+    pip install -U -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -U -e ".[devel,google,postgres]"
 
 Note: when you first initialize database (the next step), you may encounter some problems.
-This is because airflow by default will try to load in example dags where some of them requires dependencies ``gcp`` and ``postgres``.
+This is because airflow by default will try to load in example dags where some of them requires dependencies ``google`` and ``postgres``.
 You can solve the problem by:
 
-- installing the extras i.e. ``[devel,gcp,postgres]`` or
+- installing the extras i.e. ``[devel,google,postgres]`` or
 - disable the example dags with environment variable: ``export AIRFLOW__CORE__LOAD_EXAMPLES=False`` or
 - simply ignore the error messages and proceed
 
