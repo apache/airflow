@@ -79,7 +79,6 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
                  previous_objects: Optional[Set[str]] = None,
                  allow_delete: bool = True,
                  aws_conn_id: str = 'aws_default',
-                 delegate_to: Optional[str] = None,
                  *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
@@ -94,7 +93,6 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
         self.inactivity_seconds = 0
         self.allow_delete = allow_delete
         self.aws_conn_id = aws_conn_id
-        self.delegate_to = delegate_to
         self.last_activity_time: Optional[datetime] = None
         self.hook = None
 
