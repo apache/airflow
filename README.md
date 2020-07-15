@@ -112,9 +112,9 @@ pip install apache-airflow==1.10.11 \
  --constraint https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt
 ```
 
-2. Installing with extras (for example postgres,gcp)
+2. Installing with extras (for example postgres,google)
 ```bash
-pip install apache-airflow[postgres,gcp]==1.10.11 \
+pip install apache-airflow[postgres,google]==1.10.11 \
  --constraint https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt
 ```
 
