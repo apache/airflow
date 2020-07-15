@@ -129,7 +129,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
 
         conn = boto3.client('s3')
         result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
-        self.assertEqual(b'input', result['Body'].read())
+        assert self.bio.getvalue() == result['Body']
 
     @staticmethod
     def mock_process(mock_popen, return_code=0, process_output=None):
