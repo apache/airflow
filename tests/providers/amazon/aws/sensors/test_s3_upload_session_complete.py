@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime, timedelta
-from unittest import TestCase, mock
+from datetime import datetime
+from unittest import TestCase
+
+from freezegun import freeze_time
 
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.amazon.aws.sensors.s3_upload_session_complete import S3UploadSessionCompleteSensor
@@ -27,19 +29,6 @@ TEST_OBJECT = "TEST_OBJECT"
 TEST_DELEGATE_TO = "TEST_DELEGATE_TO"
 TEST_DAG_ID = 'unit_tests_aws_sensor'
 DEFAULT_DATE = datetime(2015, 1, 1)
-MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10)
-                   for i in range(25)]
-
-
-def next_time_side_effect():
-    """
-    This each time this is called mock a time 10 seconds later
-    than the previous call.
-    """
-    return MOCK_DATE_ARRAY.pop()
-
-
-mock_time = mock.Mock(side_effect=next_time_side_effect)
 
 
 class TestS3UploadSessionCompleteSensor(TestCase):
@@ -64,15 +53,13 @@ class TestS3UploadSessionCompleteSensor(TestCase):
             dag=self.dag
         )
 
-        self.last_mocked_date = datetime(2019, 4, 24, 0, 0, 0)
-
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3_upload_session_complete.get_time', mock_time)
+    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_files_deleted_between_pokes_throw_error(self):
         self.sensor.is_bucket_updated({'a', 'b'})
         with self.assertRaises(AirflowException):
             self.sensor.is_bucket_updated({'a'})
 
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3_upload_session_complete.get_time', mock_time)
+    @freeze_time(DEFAULT_DATE)
     def test_files_deleted_between_pokes_allow_delete(self):
         self.sensor = S3UploadSessionCompleteSensor(
             task_id='sensor_2',
@@ -91,13 +78,8 @@ class TestS3UploadSessionCompleteSensor(TestCase):
         self.assertEqual(self.sensor.inactivity_seconds, 0)
         self.sensor.is_bucket_updated({'a', 'c'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated({'a', 'd'})
-        self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated({'a', 'd'})
-        self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertTrue(self.sensor.is_bucket_updated({'a', 'd'}))
 
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3_upload_session_complete.get_time', mock_time)
+    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_incoming_data(self):
         self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
@@ -106,14 +88,14 @@ class TestS3UploadSessionCompleteSensor(TestCase):
         self.sensor.is_bucket_updated({'a', 'b', 'c'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
 
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3_upload_session_complete.get_time', mock_time)
+    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_no_new_data(self):
         self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
         self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
 
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3_upload_session_complete.get_time', mock_time)
+    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_no_new_data_success_criteria(self):
         self.sensor.is_bucket_updated({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
@@ -121,7 +103,7 @@ class TestS3UploadSessionCompleteSensor(TestCase):
         self.assertEqual(self.sensor.inactivity_seconds, 10)
         self.assertTrue(self.sensor.is_bucket_updated({'a'}))
 
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3_upload_session_complete.get_time', mock_time)
+    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_not_enough_objects(self):
         self.sensor.is_bucket_updated(set())
         self.assertEqual(self.sensor.inactivity_seconds, 0)

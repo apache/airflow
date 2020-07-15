@@ -95,7 +95,7 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
         self.allow_delete = allow_delete
         self.aws_conn_id = aws_conn_id
         self.delegate_to = delegate_to
-        self.last_activity_time = None
+        self.last_activity_time: Optional[datetime] = None
         self.hook = None
 
     def _get_aws_hook(self):
@@ -119,7 +119,7 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
                           os.path.join(self.bucket, self.prefix))
             self.log.debug("New objects: %s",
                            "\n".join(current_objects - self.previous_objects))
-            self.last_activity_time = get_time()
+            self.last_activity_time = datetime.now()
             self.inactivity_seconds = 0
             self.previous_objects = current_objects
             return False
@@ -128,7 +128,7 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
             # During the last poke interval objects were deleted.
             if self.allow_delete:
                 self.previous_objects = current_objects
-                self.last_activity_time = get_time()
+                self.last_activity_time = datetime.now()
                 self.log.warning(
                     """
                     Objects were deleted during the last
@@ -146,10 +146,10 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
             )
 
         if self.last_activity_time:
-            self.inactivity_seconds = (get_time() - self.last_activity_time).total_seconds()
+            self.inactivity_seconds = int((datetime.now() - self.last_activity_time).total_seconds())
         else:
             # Handles the first poke where last inactivity time is None.
-            self.last_activity_time = get_time()
+            self.last_activity_time = datetime.now()
             self.inactivity_seconds = 0
 
         if self.inactivity_seconds >= self.inactivity_period:
@@ -169,11 +169,3 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
 
     def poke(self, context):
         return self.is_bucket_updated(set(self._get_aws_hook().list_keys(self.bucket, prefix=self.prefix)))
-
-
-def get_time():
-    """
-    This is just a wrapper of datetime.datetime.now to simplify mocking in the
-    unittests.
-    """
-    return datetime.now()
