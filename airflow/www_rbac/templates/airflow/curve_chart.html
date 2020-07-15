@@ -1,0 +1,83 @@
+<div id="echarts-container" style="flex:1"
+     class="panel panel-default border rounded-sm d-flex p-2 bd-highlight shadow p-2 m-1 rounded flex-column">
+  <div class="flex-row mb-2" id="actions-container">
+      <span class="btn-group btn-group-toggle" data-toggle="buttons">
+        <label class="btn active btn-default font-weight-bold " for="update-chart-w-m"
+               id="update-chart-w-m-label"
+               title="Also include past task instances when clearing this one">
+          <input id="update-chart-w-m" type="radio" name="chart-type" checked autocomplete="off">
+          角度/扭矩
+        </label>
+        <label class="btn btn-default font-weight-bold " for="update-chart-t-m" id="update-chart-t-m-label"
+               title="Also include past task instances when clearing this one">
+          <input id="update-chart-t-m" type="radio" name="chart-type" autocomplete="off">
+          时间/扭矩
+        </label>
+        <label class="btn btn-default font-weight-bold " for="update-chart-t-w" id="update-chart-t-w-label"
+               title="Also include past task instances when clearing this one">
+          <input id="update-chart-t-w" type="radio" name="chart-type" autocomplete="off">
+          时间/角度
+        </label>
+      </span>
+  </div>
+  <div style="flex:1">
+    <div id="echarts-main" style="width: 100%;height:100%;"></div>
+  </div>
+</div>
+
+<script>
+  let curveChart = null;
+
+  const curKeyMap = {
+    cur_w: '角度',
+    cur_m: '扭矩',
+    cur_t: '时间',
+  };
+
+  const chartParams = {
+    xKey: 'cur_w',
+    yKey: 'cur_m',
+    xName: curKeyMap.cur_w,
+    yName: curKeyMap.cur_m,
+  };
+
+  function setChartParams(xKey, yKey) {
+    chartParams.xKey = xKey;
+    chartParams.yKey = yKey;
+    chartParams.xName = curKeyMap[xKey];
+    chartParams.yName = curKeyMap[yKey];
+  }
+
+  $('#update-chart-w-m').change(() => {
+    setChartParams('cur_w', 'cur_m');
+    renderChart();
+  });
+
+  $('#update-chart-t-m').change(() => {
+    setChartParams('cur_t', 'cur_m');
+    renderChart();
+  });
+
+  $('#update-chart-t-w').change(() => {
+    setChartParams('cur_t', 'cur_w');
+    renderChart();
+  });
+
+  function chartInit() {
+    curveChart = echarts.init(document.getElementById('echarts-main'), null, { renderer: 'svg' });
+
+    // 指定图表的配置项和数据
+    const option = {};
+
+    // 使用刚指定的配置项和数据显示图表。
+    curveChart.setOption(option);
+    setChartParams('cur_w', 'cur_m');
+  }
+
+  $(window).resize(() => {
+    if (!curveChart) {
+      return;
+    }
+    curveChart.resize();
+  });
+</script>

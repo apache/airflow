@@ -173,6 +173,8 @@ class TaskInstance(Base, LoggingMixin):
     line_code = Column(String(100))  # 产线代码
     factory_code = Column(String(100))  # 工厂代码
     controller_name = Column(String(100))  # 控制器名称@工位编号/工位名称
+    bolt_number = Column(String(1000)) # 螺栓编号
+    craft_type = Column(Integer) # 工艺类型
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
@@ -1613,3 +1615,14 @@ class TaskInstance(Base, LoggingMixin):
         """
         self.raw = raw
         self._set_context(self)
+
+    @classmethod
+    @provide_session
+    def list_tasks(cls, craft_type=None, bolt_number=None, session=None):
+
+        tasks = session.query(TaskInstance).filter(
+            TaskInstance.craft_type == craft_type,
+            TaskInstance.bolt_number == bolt_number,
+        ).all()
+
+        return tasks

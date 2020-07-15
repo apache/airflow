@@ -3,7 +3,12 @@ from airflow.utils.db import create_session
 from airflow.utils.logger import generate_logger
 import os
 from airflow.models.variable import Variable
+from airflow.models.taskinstance import TaskInstance
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
+from airflow.entities.result_storage import ClsResultStorage
+from airflow.entities.curve_storage import ClsCurveStorage
+from airflow.api.common.experimental import trigger_dag as trigger
+import json
 
 CAS_ANALYSIS_BASE_URL = os.environ.get("CAS_ANALYSIS_BASE_URL", "http://localhost:9095")
 CAS_TRAINING_BASE_URL = os.environ.get("CAS_TRAINING_BASE_URL", "http://localhost:9095")
@@ -30,6 +35,13 @@ else:
     write_options = ASYNCHRONOUS
 
 _logger = generate_logger(__name__)
+
+
+def ensure_int(num):
+    try:
+        return int(num)
+    except Exception as e:
+        return num
 
 
 def get_cas_analysis_base_url():
@@ -60,12 +72,17 @@ def get_craft_type(craft_type: str = DEFAULT_CRAFT_TYPE) -> int:
         return CRAFT_TYPE_MAP.get(DEFAULT_CRAFT_TYPE, None)
 
 
-def get_curve_mode(measure_result: str) -> int:
-    scurveMode = measure_result.upper()
-    if scurveMode not in CURVE_MODE_MAP.keys():
-        return CURVE_MODE_MAP.get('OK')
-    else:
-        return CURVE_MODE_MAP.get(scurveMode)
+def get_curve_mode(final_state, error_tag):
+    print(final_state, error_tag)
+    if error_tag is not None:
+        curve_modes = json.loads(error_tag)
+        if len(curve_modes) > 0:
+            # todo: send multiple error_tag
+            return ensure_int(curve_modes[0])
+    if final_state is not None:
+        state = 0 if final_state == 'OK' else None
+        return state
+    return None
 
 
 def generate_bolt_number(controller_name, program, batch_count=None):
@@ -133,3 +150,42 @@ def form_analysis_result(result, entity_id, execution_date, task_id, dag_id):
         'task_id': task_id,
         'dag_id': dag_id,
     }
+
+
+def get_curve_entity_ids(bolt_number=None, craft_type=None):
+    tasks = TaskInstance.list_tasks(craft_type, bolt_number)
+    return list(map(lambda ti: ti.entity_id, tasks))
+
+
+def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task_id, dag_id):
+    analysis_result = form_analysis_result(result, entity_id, execution_date, task_id, dag_id)
+    push_result_dag_id = 'publish_result_dag'
+    conf = {
+        'data': analysis_result,
+        'data_type': data_type
+    }
+    trigger.trigger_dag(push_result_dag_id, conf=conf, replace_microseconds=False)
+
+
+def trigger_training_dag(dag_id, task_id, execution_date, final_state):
+    trigger_training_dag_id = 'curve_training_dag'
+    conf = {
+        'dag_id': dag_id,
+        'task_id': task_id,
+        'execution_date': execution_date,
+        'final_state': final_state
+    }
+    trigger.trigger_dag(trigger_training_dag_id, conf=conf, replace_microseconds=False)
+
+
+def get_result(entity_id):
+    st = ClsResultStorage(**get_result_args())
+    st.metadata = {'entity_id': entity_id}
+    result = st.query_result()
+    return result if result else {}
+
+
+def get_curve(entity_id):
+    st = ClsCurveStorage(**get_curve_args())
+    st.metadata = {'entity_id': entity_id}
+    return st.query_curve()

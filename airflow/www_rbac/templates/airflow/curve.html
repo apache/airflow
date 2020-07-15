@@ -1,4 +1,5 @@
 {% extends "appbuilder/base.html" %}
+{% import 'airflow/panel.html' as panel %}
 
 
 {% block head_css %}
@@ -13,44 +14,42 @@
 
 {% block body %}
 <div id="root" class="">
-  <div id="base-info-container" class="panel rounded-sm d-flex p-1 shadow-sm m-1 rounded flex-row">
-    <div class="panel base-info-item flex-column shadow-sm m-1 {{ 'panel-danger' if task_instance.final_state =='NOK'
-    else ('panel-success' if task_instance.final_state =='OK' else 'panel-default')}}" id="double-check-card">
-      <div class="panel-heading base-info-title"><h5 class="m-0 panel-title">二次确认</h5></div>
-      <div class="panel-body d-flex flex-row justify-content-center align-items-center" id="double-check-result">
-        {% if task_instance.final_state %}
-        <h4 class="m-0">{{task_instance.final_state}}</h4>
-        {% elif can_verify %}
-        <button id="btn_double_check_success" style="width:80px"
-                class="button-double-check btn btn-success mr-2 font-weight-bold">
-          <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
-          OK
-        </button>
-        <button id="btn_double_check_failed" style="width:80px"
-                class="button-double-check btn btn-danger ml-2 font-weight-bold">
-          <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
-          NOK
-        </button>
-        {% else %}
-          <h4 class="m-0">未确认</h4>
-        {% endif %}
-      </div>
-    </div>
+  {% call panel.panel('','base-info-container','flex-row') %}
+  {% call panel.panel('二次确认', 'double-check-card','panel-danger base-info-item' if task_instance.final_state =='NOK'
+  else ('panel-success base-info-item' if task_instance.final_state =='OK' else 'panel-default base-info-item')) %}
+  <div class="panel-body d-flex flex-row justify-content-center align-items-center" id="double-check-result">
+    {% if task_instance.final_state %}
+    <h4 class="m-0">{{task_instance.final_state}}</h4>
+    {% elif can_verify %}
+    <button id="btn_double_check_success" style="width:80px"
+            class="button-double-check btn btn-success mr-2 font-weight-bold">
+      <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
+      OK
+    </button>
+    <button id="btn_double_check_failed" style="width:80px"
+            class="button-double-check btn btn-danger ml-2 font-weight-bold">
+      <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+      NOK
+    </button>
+    {% else %}
+    <h4 class="m-0">未确认</h4>
+    {% endif %}
   </div>
-  <div id="result-container" class="panel panel-default panel rounded-sm shadow-sm m-1  rounded">
-    <div class="panel-heading"><h5 class="m-0 panel-title">结果数据</h5></div>
-    <div class=" overflow-auto p-0">
-      <table id="result_table" class="table position-relative ">
-        <thead>
-        <tr class="result-content-row active">
-          <th class="position-sticky" style="top:0">字段</th>
-          <th class="position-sticky " style="top:0">值</th>
-        </tr>
-        </thead>
-        <tbody id="result_detail"></tbody>
-      </table>
-    </div>
+  {% endcall %}
+  {% endcall %}
+  {% call panel.panel('结果数据','result-container') %}
+  <div class=" overflow-auto p-0">
+    <table id="result_table" class="table position-relative ">
+      <thead>
+      <tr class="result-content-row active">
+        <th class="position-sticky" style="top:0">字段</th>
+        <th class="position-sticky " style="top:0">值</th>
+      </tr>
+      </thead>
+      <tbody id="result_detail"></tbody>
+    </table>
   </div>
+  {% endcall %}
   <div id="error-tag-container"
        class="panel rounded-sm d-flex p-2 align-items-center shadow-sm m-1  rounded flex-row justify-content-between">
     曲线标签
@@ -63,57 +62,10 @@
     </label>
     <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>
   </div>
-  <div id="echarts-container" style="flex:1"
-       class=" rounded-sm d-flex p-2 bd-highlight shadow p-2 m-1 panel rounded flex-column">
-    <div class="flex-row mb-2" id="actions-container">
-        <span class="btn-group btn-group-toggle " data-toggle="buttons">
-          <label class="btn active btn-default font-weight-bold " for="update-chart-w-m"
-                 id="update-chart-w-m-label"
-                 title="Also include past task instances when clearing this one">
-            <input id="update-chart-w-m" type="radio" name="chart-type" checked autocomplete="off">
-            角度/扭矩
-          </label>
-          <label class="btn btn-default font-weight-bold " for="update-chart-t-m"
-                 id="update-chart-t-m-label"
-                 title="Also include past task instances when clearing this one">
-            <input id="update-chart-t-m" type="radio" name="chart-type" autocomplete="off">
-            时间/扭矩
-          </label>
-          <label class="btn btn-default font-weight-bold " for="update-chart-t-w"
-                 id="update-chart-t-w-label"
-                 title="Also include past task instances when clearing this one">
-            <input id="update-chart-t-w" type="radio" name="chart-type" autocomplete="off">
-            时间/角度
-          </label>
-        </span>
-    </div>
-    <div style="flex:1">
-      <div id="echarts-main" style="width: 100%;height:100%;"></div>
-    </div>
-  </div>
+  {% include 'airflow/curve_chart.html' %}
 </div>
 
-<div class="modal" id="doubleCheckModal" tabindex="-1" role="dialog">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title m-0">二次确认</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <!--        <p>确认删除曲线？</p>-->
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default m-2  px-4 py-2 font-weight-bold " data-dismiss="modal">取消
-        </button>
-        <button type="button" class="btn btn-primary m-2 px-4 py-2 font-weight-bold " id="btnDoConfirmDoubleCheck">确认
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
+{% include 'airflow/dialog.html' %}
 {% endblock %}
 
 
@@ -122,7 +74,6 @@
 <script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('static', filename='js/select2.min.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
-  let curveChart = null;
   const result = JSON.parse('{{ result|tojson|safe }}');
   const curve = JSON.parse('{{ curve|tojson|safe }}');
   const analysisErrs = JSON.parse('{{ analysisErrorMessageMapping|tojson|safe }}');
@@ -131,7 +82,8 @@
   const resultKeys = JSON.parse('{{ resultKeysTranslationMapping|tojson|safe }}');
 
 
-  function genData(xKey, yKey) {
+  function genData() {
+    const { xKey, yKey } = chartParams;
     const data = [];
     const xData = curve[xKey];
     const yData = curve[yKey];
@@ -141,7 +93,9 @@
     return data;
   }
 
-  function updateChart(xKey, yKey, xName, yName) {
+  function renderChart() {
+    const { xName, yName } = chartParams;
+
     const option = {
       title: {
         text: `${xName}-${yName}图`,
@@ -155,7 +109,7 @@
       series: [{
         name: yName,
         type: 'line',
-        data: genData(xKey, yKey),
+        data: genData(),
         symbol: 'none',
         markLine: {
           data: [
@@ -191,17 +145,6 @@
       },
     };
     curveChart.setOption(option);
-  }
-
-  function chartInit() {
-    curveChart = echarts.init(document.getElementById('echarts-main'), null, { renderer: 'svg' });
-
-    // 指定图表的配置项和数据
-    const option = {};
-
-    // 使用刚指定的配置项和数据显示图表。
-    curveChart.setOption(option);
-    updateChart('cur_w', 'cur_m', '角度', '扭矩');
   }
 
   function isEmptyValue(val) {
@@ -254,15 +197,7 @@
     $('#result_detail').append($rows);
   }
 
-  $(window).resize(() => {
-    if (!curveChart) {
-      return;
-    }
-    curveChart.resize();
-  });
-
   const info = [
-
     {
       title: '螺栓编号',
       content: result.nut_no,
@@ -317,18 +252,6 @@
     $('#base-info-container').prepend($info);
   });
 
-  $('#update-chart-w-m').change(() => {
-    updateChart('cur_w', 'cur_m', '角度', '扭矩');
-  });
-
-  $('#update-chart-t-m').change(() => {
-    updateChart('cur_t', 'cur_m', '时间', '扭矩');
-  });
-
-  $('#update-chart-t-w').change(() => {
-    updateChart('cur_t', 'cur_w', '时间', '角度');
-  });
-
   function submitDoubleCheck(finalState) {
     $.ajax({
       type: 'POST',
@@ -353,15 +276,11 @@
   }
 
   function confirmDoubleCheck(status) {
-    const modal = $('#doubleCheckModal');
-    modal.find('.modal-body')
-      .html(`<p>二次确认曲线结果为：${status}？</p>`);
-    modal.find('#btnDoConfirmDoubleCheck').off('click');
-    modal.find('#btnDoConfirmDoubleCheck').on('click', () => {
-      submitDoubleCheck(status);
-      // modal.modal('hide');
+    showDialog('二次确认', `<p>二次确认曲线结果为：${status}？</p>`, {
+      onConfirm() {
+        submitDoubleCheck(status);
+      },
     });
-    modal.modal({});
   }
 
   $('#btn_double_check_failed').click((e) => {
@@ -400,6 +319,7 @@
 
   $(document).ready(() => {
     chartInit();
+    renderChart();
     renderResultDetail();
     const $errorTagInput = $('.error-tag-select-input');
     const $errorTagButton = $('#error-tag-button');

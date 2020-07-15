@@ -80,7 +80,7 @@ from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DagRunForm, ConnectionForm, ErrorTagForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
 from flask_wtf.csrf import CSRFProtect
-from airflow.www_rbac.api.experimental.endpoints import get_curve, get_result
+from airflow.www_rbac.api.experimental.utils import get_curve_entity_ids, get_curve, get_result
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 
 csrf = CSRFProtect()
@@ -423,6 +423,12 @@ class Airflow(AirflowBaseView):
                                     verify_error_map=verify_error_map,
                                     can_verify=can_verify,
                                     errorTags=error_tags)
+
+    @expose('/curves/<string:bolt_no>/<string:craft_type>')
+    @has_access
+    def view_curves(self, bolt_no, craft_type):
+        entity_ids = get_curve_entity_ids(bolt_number=bolt_no, craft_type=craft_type)
+        return self.render_template('airflow/curves.html', entity_ids=entity_ids)
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
     @has_access
@@ -2753,7 +2759,8 @@ class TaskInstanceModelView(AirflowModelView):
 
     page_size = PAGE_SIZE
 
-    list_columns = ['state', 'dag_id', 'task_id', 'line_code', 'entity_id', 'execution_date', 'measure_result', 'result',
+    list_columns = ['state', 'dag_id', 'task_id', 'line_code', 'entity_id', 'execution_date', 'measure_result',
+                    'result',
                     'final_state',
                     'start_date', 'end_date', 'duration', 'job_id',
                     'priority_weight', 'try_number',

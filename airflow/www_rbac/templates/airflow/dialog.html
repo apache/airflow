@@ -1,0 +1,53 @@
+<div class="modal" id="dialogModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title m-0"></h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default m-2  px-4 py-2 font-weight-bold " id="btnDialogCancel"
+                data-dismiss="modal">取消
+        </button>
+        <button type="button" class="btn btn-primary m-2 px-4 py-2 font-weight-bold " data-dismiss="modal"
+                id="btnDialogConfirm">确认
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  function showDialog(title, body, config) {
+    const {
+      onConfirm, confirmText, onCancel, cancelText, confirmClass, cancelClass,
+    } = config;
+    const modal = $('#dialogModal');
+    modal.find('.modal-body').html(body);
+    modal.find('.modal-title').html(title);
+    modal.find('#btnDialogConfirm').off('click');
+    const defaultFunction = function (ev) {
+      console.log(ev);
+    };
+    const btnConfirm = modal.find('#btnDialogConfirm');
+    const btnCancel = modal.find('#btnDialogCancel');
+
+    btnConfirm.html(confirmText || '确认');
+    btnConfirm.off('click');
+    btnConfirm.on('click', onConfirm || defaultFunction);
+
+    btnCancel.html(cancelText || '取消');
+    btnCancel.off('click');
+    btnCancel.on('click', onCancel || defaultFunction);
+    if (confirmClass) {
+      btnConfirm.addClass(confirmClass);
+    }
+    if (cancelClass) {
+      btnConfirm.addClass(cancelClass);
+    }
+    modal.modal({});
+  }
+</script>

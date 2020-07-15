@@ -60,8 +60,6 @@ class ClsCurveStorage(ClsEntity):
     @property
     def ObjectName(self):
         entity_id = self.entity_id
-        if self._fileName:
-            return self._fileName
         if entity_id:
             self._fileName = "{}.csv".format(entity_id)
         else:
