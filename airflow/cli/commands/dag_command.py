@@ -124,6 +124,7 @@ def dag_backfill(args, dag=None):
                 end_date=args.end_date,
                 confirm_prompt=not args.yes,
                 include_subdags=True,
+                dag_run_state=State.NONE,
             )
 
         dag.run(

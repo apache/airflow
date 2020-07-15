@@ -25,6 +25,7 @@ import re
 import unittest
 from contextlib import redirect_stdout
 from tempfile import NamedTemporaryFile
+from typing import Optional
 from unittest import mock
 from unittest.mock import patch
 
@@ -1409,15 +1410,15 @@ class TestDag(unittest.TestCase):
     @parameterized.expand([
         (state, State.NONE)
         for state in State.task_states if state != State.RUNNING
-    ] + [(State.RUNNING, State.SHUTDOWN)])
-    def test_clear_dag(self, ti_state_begin, ti_state_end):
+    ] + [(State.RUNNING, State.SHUTDOWN)])  # type: ignore
+    def test_clear_dag(self, ti_state_begin, ti_state_end: Optional[str]):
         dag_id = 'test_clear_dag'
         self._clean_up(dag_id)
         task_id = 't1'
         dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
         t_1 = DummyOperator(task_id=task_id, dag=dag)
 
-        session = settings.Session()
+        session = settings.Session()  # type: ignore
         dagrun_1 = dag.create_dagrun(
             run_type=DagRunType.BACKFILL_JOB,
             state=State.RUNNING,
