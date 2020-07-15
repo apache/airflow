@@ -35,6 +35,8 @@ Prerequisite tasks
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+.. _howto/operator:MLEngineStartTrainingJobOperator:
+
 Launching a Job
 ^^^^^^^^^^^^^^^
 To start a machine learning operation with AI Platform, you must launch a training job.
@@ -48,6 +50,8 @@ contains the main application code. A job can be initiated with the
     :start-after: [START howto_operator_gcp_mlengine_training]
     :end-before: [END howto_operator_gcp_mlengine_training]
 
+.. _howto/operator:MLEngineCreateModelOperator:
+
 Creating a model
 ^^^^^^^^^^^^^^^^
 A model is a container that can hold multiple model versions. A new model can be created through the
@@ -60,6 +64,8 @@ The ``model`` field should be defined with a dictionary containing the informati
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_create_model]
     :end-before: [END howto_operator_gcp_mlengine_create_model]
+
+.. _howto/operator:MLEngineGetModelOperator:
 
 Getting a model
 ^^^^^^^^^^^^^^^
@@ -84,6 +90,8 @@ allowing them to be used by other operators. In this case, the
     :start-after: [START howto_operator_gcp_mlengine_print_model]
     :end-before: [END howto_operator_gcp_mlengine_print_model]
 
+.. _howto/operator:MLEngineCreateVersionOperator:
+
 Creating model versions
 ^^^^^^^^^^^^^^^^^^^^^^^
 A model version is a subset of the model container where the code runs. A new version of the model can be created
@@ -106,6 +114,9 @@ can also be used to create more versions with varying parameters.
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_create_version2]
     :end-before: [END howto_operator_gcp_mlengine_create_version2]
+
+.. _howto/operator:MLEngineSetDefaultVersionOperator:
+.. _howto/operator:MLEngineListVersionsOperator:
 
 Managing model versions
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -140,6 +151,8 @@ allowing them to be used by other operators. In this case, the
     :start-after: [START howto_operator_gcp_mlengine_print_versions]
     :end-before: [END howto_operator_gcp_mlengine_print_versions]
 
+.. _howto/operator:MLEngineStartBatchPredictionJobOperator:
+
 Making predictions
 ^^^^^^^^^^^^^^^^^^
 A Google Cloud AI Platform prediction job can be started with the
@@ -152,6 +165,9 @@ For specifying the model origin, you need to provide either the ``model_name``, 
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_get_prediction]
     :end-before: [END howto_operator_gcp_mlengine_get_prediction]
+
+.. _howto/operator:MLEngineDeleteVersionOperator:
+.. _howto/operator:MLEngineDeleteModelOperator:
 
 Cleaning up
 ^^^^^^^^^^^
