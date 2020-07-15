@@ -22,6 +22,7 @@ This module contains a sqoop 1 operator
 """
 import os
 import signal
+from typing import Any, Dict, Optional, Tuple
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -95,40 +96,41 @@ class SqoopOperator(BaseOperator):
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(self,
-                 conn_id='sqoop_default',
-                 cmd_type='import',
-                 table=None,
-                 query=None,
-                 target_dir=None,
-                 append=None,
-                 file_type='text',
-                 columns=None,
-                 num_mappers=None,
-                 split_by=None,
-                 where=None,
-                 export_dir=None,
-                 input_null_string=None,
-                 input_null_non_string=None,
-                 staging_table=None,
-                 clear_staging_table=False,
-                 enclosed_by=None,
-                 escaped_by=None,
-                 input_fields_terminated_by=None,
-                 input_lines_terminated_by=None,
-                 input_optionally_enclosed_by=None,
-                 batch=False,
-                 direct=False,
-                 driver=None,
-                 verbose=False,
-                 relaxed_isolation=False,
-                 properties=None,
-                 hcatalog_database=None,
-                 hcatalog_table=None,
-                 create_hcatalog_table=False,
-                 extra_import_options=None,
-                 extra_export_options=None,
-                 *args,
-                 **kwargs):
+                 conn_id: str = 'sqoop_default',
+                 cmd_type: str = 'import',
+                 table: Optional[str] = None,
+                 query: Optional[str] = None,
+                 target_dir: Optional[str] = None,
+                 append: bool = False,
+                 file_type: str = 'text',
+                 columns: Optional[str] = None,
+                 num_mappers: Optional[int] = None,
+                 split_by: Optional[str] = None,
+                 where: Optional[str] = None,
+                 export_dir: Optional[str] = None,
+                 input_null_string: Optional[str] = None,
+                 input_null_non_string: Optional[str] = None,
+                 staging_table: Optional[str] = None,
+                 clear_staging_table: bool = False,
+                 enclosed_by: Optional[str] = None,
+                 escaped_by: Optional[str] = None,
+                 input_fields_terminated_by: Optional[str] = None,
+                 input_lines_terminated_by: Optional[str] = None,
+                 input_optionally_enclosed_by: Optional[str] = None,
+                 batch: bool = False,
+                 direct: bool = False,
+                 driver: Optional[Any] = None,
+                 verbose: bool = False,
+                 relaxed_isolation: bool = False,
+                 properties: Optional[Dict[str, Any]] = None,
+                 hcatalog_database: Optional[str] = None,
+                 hcatalog_table: Optional[str] = None,
+                 create_hcatalog_table: bool = False,
+                 extra_import_options: Optional[Dict[str, Any]] = None,
+                 extra_export_options: Optional[Dict[str, Any]] = None,
+                 *args: Tuple[str, Any],
+                 **kwargs: Any
+                 ) -> None:
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
         self.cmd_type = cmd_type
@@ -162,24 +164,18 @@ class SqoopOperator(BaseOperator):
         self.properties = properties
         self.extra_import_options = extra_import_options or {}
         self.extra_export_options = extra_export_options or {}
-        self.hook = None
+        self.hook: Optional[SqoopHook] = None
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, Any]) -> None:
         """
         Execute sqoop job
         """
-        self.hook = SqoopHook(
-            conn_id=self.conn_id,
-            verbose=self.verbose,
-            num_mappers=self.num_mappers,
-            hcatalog_database=self.hcatalog_database,
-            hcatalog_table=self.hcatalog_table,
-            properties=self.properties
-        )
+        if self.hook is None:
+            self.hook = self._get_hook()
 
         if self.cmd_type == 'export':
             self.hook.export_table(
-                table=self.table,
+                table=self.table,  # type: ignore
                 export_dir=self.export_dir,
                 input_null_string=self.input_null_string,
                 input_null_non_string=self.input_null_non_string,
@@ -234,6 +230,18 @@ class SqoopOperator(BaseOperator):
         else:
             raise AirflowException("cmd_type should be 'import' or 'export'")
 
-    def on_kill(self):
+    def on_kill(self) -> None:
+        if self.hook is None:
+            self.hook = self._get_hook()
         self.log.info('Sending SIGTERM signal to bash process group')
         os.killpg(os.getpgid(self.hook.sub_process.pid), signal.SIGTERM)
+
+    def _get_hook(self) -> SqoopHook:
+        return SqoopHook(
+            conn_id=self.conn_id,
+            verbose=self.verbose,
+            num_mappers=self.num_mappers,
+            hcatalog_database=self.hcatalog_database,
+            hcatalog_table=self.hcatalog_table,
+            properties=self.properties
+        )

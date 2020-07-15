@@ -22,6 +22,7 @@ This module contains a sqoop 1.x hook
 """
 import subprocess
 from copy import deepcopy
+from typing import Any, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -53,9 +54,14 @@ class SqoopHook(BaseHook):
     :type properties: dict
     """
 
-    def __init__(self, conn_id='sqoop_default', verbose=False,
-                 num_mappers=None, hcatalog_database=None,
-                 hcatalog_table=None, properties=None):
+    def __init__(self,
+                 conn_id: str = 'sqoop_default',
+                 verbose: bool = False,
+                 num_mappers: Optional[int] = None,
+                 hcatalog_database: Optional[str] = None,
+                 hcatalog_table: Optional[str] = None,
+                 properties: Optional[Dict[str, Any]] = None
+                 ) -> None:
         # No mutable types in the default parameters
         super().__init__()
         self.conn = self.get_connection(conn_id)
@@ -73,12 +79,12 @@ class SqoopHook(BaseHook):
         self.properties = properties or {}
         self.log.info("Using connection to: %s:%s/%s",
                       self.conn.host, self.conn.port, self.conn.schema)
-        self.sub_process = None
+        self.sub_process: Any = None
 
-    def get_conn(self):
+    def get_conn(self) -> Any:
         return self.conn
 
-    def cmd_mask_password(self, cmd_orig):
+    def cmd_mask_password(self, cmd_orig: List[str]) -> List[str]:
         """
         Mask command password for safety
         """
@@ -90,7 +96,7 @@ class SqoopHook(BaseHook):
             self.log.debug("No password in sqoop cmd")
         return cmd
 
-    def popen(self, cmd, **kwargs):
+    def popen(self, cmd: List[str], **kwargs: Any) -> None:
         """
         Remote Popen
 
@@ -106,7 +112,7 @@ class SqoopHook(BaseHook):
             stderr=subprocess.STDOUT,
             **kwargs)
 
-        for line in iter(self.sub_process.stdout):
+        for line in iter(self.sub_process.stdout):  # type: ignore
             self.log.info(line.strip())
 
         self.sub_process.wait()
@@ -116,7 +122,7 @@ class SqoopHook(BaseHook):
         if self.sub_process.returncode:
             raise AirflowException("Sqoop command failed: {}".format(masked_cmd))
 
-    def _prepare_command(self, export=False):
+    def _prepare_command(self, export: bool = False) -> List[str]:
         sqoop_cmd_type = "export" if export else "import"
         connection_cmd = ["sqoop", sqoop_cmd_type]
 
@@ -158,7 +164,7 @@ class SqoopHook(BaseHook):
         return connection_cmd
 
     @staticmethod
-    def _get_export_format_argument(file_type='text'):
+    def _get_export_format_argument(file_type: str = 'text') -> List[str]:
         if file_type == "avro":
             return ["--as-avrodatafile"]
         elif file_type == "sequence":
@@ -171,8 +177,9 @@ class SqoopHook(BaseHook):
             raise AirflowException("Argument file_type should be 'avro', "
                                    "'sequence', 'parquet' or 'text'.")
 
-    def _import_cmd(self, target_dir, append, file_type, split_by, direct,
-                    driver, extra_import_options):
+    def _import_cmd(self, target_dir: Optional[str], append: bool, file_type: str,
+                    split_by: Optional[str], direct: Optional[bool],
+                    driver: Any, extra_import_options: Any) -> List[str]:
 
         cmd = self._prepare_command(export=False)
 
@@ -202,9 +209,18 @@ class SqoopHook(BaseHook):
         return cmd
 
     # pylint: disable=too-many-arguments
-    def import_table(self, table, target_dir=None, append=False, file_type="text",
-                     columns=None, split_by=None, where=None, direct=False,
-                     driver=None, extra_import_options=None):
+    def import_table(self,
+                     table: str,
+                     target_dir: Optional[str] = None,
+                     append: bool = False,
+                     file_type: str = "text",
+                     columns: Optional[str] = None,
+                     split_by: Optional[str] = None,
+                     where: Optional[str] = None,
+                     direct: bool = False,
+                     driver: Any = None,
+                     extra_import_options: Optional[Dict[str, Any]] = None
+                     ) -> Any:
         """
         Imports table from remote location to target dir. Arguments are
         copies of direct sqoop command line arguments
@@ -235,8 +251,15 @@ class SqoopHook(BaseHook):
 
         self.popen(cmd)
 
-    def import_query(self, query, target_dir, append=False, file_type="text",
-                     split_by=None, direct=None, driver=None, extra_import_options=None):
+    def import_query(self, query: str,
+                     target_dir: Optional[str] = None,
+                     append: bool = False,
+                     file_type: str = "text",
+                     split_by: Optional[str] = None,
+                     direct: Optional[bool] = None,
+                     driver: Optional[Any] = None,
+                     extra_import_options: Optional[Dict[str, Any]] = None
+                     ) -> Any:
         """
         Imports a specific query from the rdbms to hdfs
 
@@ -259,11 +282,21 @@ class SqoopHook(BaseHook):
         self.popen(cmd)
 
     # pylint: disable=too-many-arguments
-    def _export_cmd(self, table, export_dir, input_null_string,
-                    input_null_non_string, staging_table, clear_staging_table,
-                    enclosed_by, escaped_by, input_fields_terminated_by,
-                    input_lines_terminated_by, input_optionally_enclosed_by,
-                    batch, relaxed_isolation, extra_export_options):
+    def _export_cmd(self, table: str,
+                    export_dir: Optional[str] = None,
+                    input_null_string: Optional[str] = None,
+                    input_null_non_string: Optional[str] = None,
+                    staging_table: Optional[str] = None,
+                    clear_staging_table: bool = False,
+                    enclosed_by: Optional[str] = None,
+                    escaped_by: Optional[str] = None,
+                    input_fields_terminated_by: Optional[str] = None,
+                    input_lines_terminated_by: Optional[str] = None,
+                    input_optionally_enclosed_by: Optional[str] = None,
+                    batch: bool = False,
+                    relaxed_isolation: bool = False,
+                    extra_export_options: Optional[Dict[str, Any]] = None
+                    ) -> List[str]:
 
         cmd = self._prepare_command(export=True)
 
@@ -316,13 +349,22 @@ class SqoopHook(BaseHook):
         return cmd
 
     # pylint: disable=too-many-arguments
-    def export_table(self, table, export_dir, input_null_string,
-                     input_null_non_string, staging_table,
-                     clear_staging_table, enclosed_by,
-                     escaped_by, input_fields_terminated_by,
-                     input_lines_terminated_by,
-                     input_optionally_enclosed_by, batch,
-                     relaxed_isolation, extra_export_options=None):
+    def export_table(self,
+                     table: str,
+                     export_dir: Optional[str] = None,
+                     input_null_string: Optional[str] = None,
+                     input_null_non_string: Optional[str] = None,
+                     staging_table: Optional[str] = None,
+                     clear_staging_table: bool = False,
+                     enclosed_by: Optional[str] = None,
+                     escaped_by: Optional[str] = None,
+                     input_fields_terminated_by: Optional[str] = None,
+                     input_lines_terminated_by: Optional[str] = None,
+                     input_optionally_enclosed_by: Optional[str] = None,
+                     batch: bool = False,
+                     relaxed_isolation: bool = False,
+                     extra_export_options: Optional[Dict[str, Any]] = None
+                     ) -> None:
         """
         Exports Hive table to remote location. Arguments are copies of direct
         sqoop command line Arguments
