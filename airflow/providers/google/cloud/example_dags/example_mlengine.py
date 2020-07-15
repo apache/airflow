@@ -62,6 +62,7 @@ with models.DAG(
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag:
+    # [START howto_operator_gcp_mlengine_training]
     training = MLEngineStartTrainingJobOperator(
         task_id="training",
         project_id=PROJECT_ID,
@@ -74,7 +75,9 @@ with models.DAG(
         training_python_module=TRAINER_PY_MODULE,
         training_args=[],
     )
+    # [END howto_operator_gcp_mlengine_training]
 
+    # [START howto_operator_gcp_mlengine_create_model]
     create_model = MLEngineCreateModelOperator(
         task_id="create-model",
         project_id=PROJECT_ID,
@@ -82,18 +85,24 @@ with models.DAG(
             "name": MODEL_NAME,
         },
     )
+    # [END howto_operator_gcp_mlengine_create_model]
 
+    # [START howto_operator_gcp_mlengine_get_model]
     get_model = MLEngineGetModelOperator(
         task_id="get-model",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
     )
+    # [END howto_operator_gcp_mlengine_get_model]
 
+    # [START howto_operator_gcp_mlengine_print_model]
     get_model_result = BashOperator(
         bash_command="echo \"{{ task_instance.xcom_pull('get-model') }}\"",
         task_id="get-model-result",
     )
+    # [END howto_operator_gcp_mlengine_print_model]
 
+    # [START howto_operator_gcp_mlengine_create_version1]
     create_version = MLEngineCreateVersionOperator(
         task_id="create-version",
         project_id=PROJECT_ID,
@@ -108,7 +117,9 @@ with models.DAG(
             "pythonVersion": "3.7"
         }
     )
+    # [END howto_operator_gcp_mlengine_create_version1]
 
+    # [START howto_operator_gcp_mlengine_create_version2]
     create_version_2 = MLEngineCreateVersionOperator(
         task_id="create-version-2",
         project_id=PROJECT_ID,
@@ -123,25 +134,33 @@ with models.DAG(
             "pythonVersion": "3.7"
         }
     )
+    # [END howto_operator_gcp_mlengine_create_version2]
 
+    # [START howto_operator_gcp_mlengine_default_version]
     set_defaults_version = MLEngineSetDefaultVersionOperator(
         task_id="set-default-version",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
         version_name="v2",
     )
+    # [END howto_operator_gcp_mlengine_default_version]
 
+    # [START howto_operator_gcp_mlengine_list_versions]
     list_version = MLEngineListVersionsOperator(
         task_id="list-version",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
     )
+    # [END howto_operator_gcp_mlengine_list_versions]
 
+    # [START howto_operator_gcp_mlengine_print_versions]
     list_version_result = BashOperator(
         bash_command="echo \"{{ task_instance.xcom_pull('list-version') }}\"",
         task_id="list-version-result",
     )
+    # [END howto_operator_gcp_mlengine_print_versions]
 
+    # [START howto_operator_gcp_mlengine_get_prediction]
     prediction = MLEngineStartBatchPredictionJobOperator(
         task_id="prediction",
         project_id=PROJECT_ID,
@@ -152,20 +171,25 @@ with models.DAG(
         input_paths=[PREDICTION_INPUT],
         output_path=PREDICTION_OUTPUT,
     )
+    # [END howto_operator_gcp_mlengine_get_prediction]
 
+    # [START howto_operator_gcp_mlengine_delete_version]
     delete_version = MLEngineDeleteVersionOperator(
         task_id="delete-version",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
         version_name="v1"
     )
+    # [END howto_operator_gcp_mlengine_delete_version]
 
+    # [START howto_operator_gcp_mlengine_delete_model]
     delete_model = MLEngineDeleteModelOperator(
         task_id="delete-model",
         project_id=PROJECT_ID,
         model_name=MODEL_NAME,
         delete_contents=True
     )
+    # [END howto_operator_gcp_mlengine_delete_model]
 
     training >> create_version
     training >> create_version_2
@@ -178,6 +202,7 @@ with models.DAG(
     list_version >> delete_version
     delete_version >> delete_model
 
+    # [START howto_operator_gcp_mlengine_get_metric]
     def get_metric_fn_and_keys():
         """
         Gets metric function and keys used to generate summary
@@ -186,7 +211,9 @@ with models.DAG(
             val = float(inst['dense_4'][0])
             return tuple([val])  # returns a tuple.
         return normalize_value, ['val']  # key order must match.
+    # [END howto_operator_gcp_mlengine_get_metric]
 
+    # [START howto_operator_gcp_mlengine_validate_error]
     def validate_err_and_count(summary: Dict) -> Dict:
         """
         Validate summary result
@@ -198,7 +225,9 @@ with models.DAG(
         if summary['count'] != 20:
             raise ValueError('Invalid value val != 20; summary={}'.format(summary))
         return summary
+    # [END howto_operator_gcp_mlengine_validate_error]
 
+    # [START howto_operator_gcp_mlengine_evaluate]
     evaluate_prediction, evaluate_summary, evaluate_validation = mlengine_operator_utils.create_evaluate_ops(
         task_prefix="evaluate-ops",
         data_format="TEXT",
@@ -218,6 +247,7 @@ with models.DAG(
         version_name="v1",
         py_interpreter="python3",
     )
+    # [END howto_operator_gcp_mlengine_evaluate]
 
     create_model >> create_version >> evaluate_prediction
     evaluate_validation >> delete_version

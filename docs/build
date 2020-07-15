@@ -358,7 +358,6 @@ MISSING_GOOGLLE_DOC_GUIDES = {
     'datastore',
     'dlp',
     'gcs_to_bigquery',
-    'mlengine',
     'mssql_to_gcs',
     'mysql_to_gcs',
     'postgres_to_gcs',
