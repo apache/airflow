@@ -23,6 +23,7 @@ import importlib.util
 import os
 import sys
 import textwrap
+import warnings
 import zipfile
 from datetime import datetime, timedelta
 from typing import Dict, List, NamedTuple, Optional
@@ -80,15 +81,24 @@ class DagBag(BaseDagBag, LoggingMixin):
     SCHEDULER_ZOMBIE_TASK_THRESHOLD = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
     def __init__(
-            self,
-            dag_folder: Optional[str] = None,
-            include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
-            safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-            read_dags_from_db: bool = False,
+        self,
+        dag_folder: Optional[str] = None,
+        include_examples: bool = conf.getboolean('core', 'LOAD_EXAMPLES'),
+        safe_mode: bool = conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+        read_dags_from_db: bool = False,
+        store_serialized_dags: Optional[bool] = None,
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
         super().__init__()
+
+        if store_serialized_dags:
+            warnings.warn(
+                "The store_serialized_dags parameter has been deprecated. "
+                "You should pass the read_dags_from_db parameter.",
+                DeprecationWarning, stacklevel=2)
+            read_dags_from_db = store_serialized_dags
+
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
         self.dags: Dict[str, DAG] = {}
@@ -108,6 +118,15 @@ class DagBag(BaseDagBag, LoggingMixin):
         :return: the amount of dags contained in this dagbag
         """
         return len(self.dags)
+
+    @property
+    def store_serialized_dags(self) -> bool:
+        """Whether or not to read dags from DB"""
+        warnings.warn(
+            "The store_serialized_dags property has been deprecated. "
+            "Use read_dags_from_db instead.", DeprecationWarning, stacklevel=2
+        )
+        return self.read_dags_from_db
 
     @property
     def dag_ids(self) -> List[str]:
