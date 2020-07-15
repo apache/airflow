@@ -20,7 +20,7 @@ import os
 import re
 import subprocess
 import time
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
@@ -237,7 +237,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         return connection_cmd
 
-    def _mask_cmd(self, connection_cmd: List[str]) -> str:
+    def _mask_cmd(self, connection_cmd: Union[str, List[str]]) -> str:
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
         connection_cmd_masked = re.sub(
