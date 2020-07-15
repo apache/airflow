@@ -71,6 +71,10 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
     """
     Start a Google Cloud ML Engine prediction job.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MLEngineStartBatchPredictionJobOperator`
+
     NOTE: For model origin, users should consider exactly one from the
     three options below:
 
@@ -351,6 +355,10 @@ class MLEngineCreateModelOperator(BaseOperator):
     """
     Creates a new model.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MLEngineCreateModelOperator`
+
     The model should be provided by the `model` parameter.
 
     :param model: A dictionary containing the information about the model.
@@ -395,6 +403,10 @@ class MLEngineGetModelOperator(BaseOperator):
     """
     Gets a particular model
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MLEngineGetModelOperator`
+
     The name of model shold be specified in `model_name`.
 
     :param model_name: The name of the model.
@@ -437,6 +449,10 @@ class MLEngineGetModelOperator(BaseOperator):
 class MLEngineDeleteModelOperator(BaseOperator):
     """
     Deletes a model.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MLEngineDeleteModelOperator`
 
     The model should be provided by the `model_name` parameter.
 
@@ -615,6 +631,10 @@ class MLEngineCreateVersionOperator(BaseOperator):
     """
     Creates a new version in the model
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MLEngineCreateVersionOperator`
+
     Model should be specified by `model_name`, in which case the `version` parameter should contain all the
     information to create that version
 
@@ -677,6 +697,10 @@ class MLEngineCreateVersionOperator(BaseOperator):
 class MLEngineSetDefaultVersionOperator(BaseOperator):
     """
     Sets a version in the model.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MLEngineSetDefaultVersionOperator`
 
     The model should be specified by `model_name` to be the default. The name of the version should be
     specified in the `version_name` parameter.
@@ -741,6 +765,10 @@ class MLEngineListVersionsOperator(BaseOperator):
     """
     Lists all available versions of the model
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MLEngineListVersionsOperator`
+
     The model should be specified by `model_name`.
 
     :param model_name: The name of the Google Cloud ML Engine model that the version
@@ -793,6 +821,10 @@ class MLEngineListVersionsOperator(BaseOperator):
 class MLEngineDeleteVersionOperator(BaseOperator):
     """
     Deletes the version from the model.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MLEngineDeleteVersionOperator`
 
     The name of the version should be specified in `version_name` parameter from the model specified
     by `model_name`.
@@ -873,6 +905,10 @@ class AIPlatformConsoleLink(BaseOperatorLink):
 class MLEngineStartTrainingJobOperator(BaseOperator):
     """
     Operator for launching a MLEngine training job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MLEngineStartTrainingJobOperator`
 
     :param job_id: A unique templated id for the submitted Google MLEngine
         training job. (templated)
