@@ -81,7 +81,7 @@ class SimpleHttpOperator(BaseOperator):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
-    def execute(self, context: Dict[Any, Any]) -> str:
+    def execute(self, context: Dict[str, Any]) -> Any:
         http = HttpHook(self.method, http_conn_id=self.http_conn_id)
 
         self.log.info("Calling HTTP method")

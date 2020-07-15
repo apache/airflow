@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Union
 
 import requests
 import tenacity
@@ -90,9 +90,9 @@ class HttpHook(BaseHook):
 
     def run(self,
             endpoint: str,
-            data: Optional[Dict[Any, Any]] = None,
-            headers: Optional[Dict[Any, Any]] = None,
-            extra_options: Optional[Dict[Any, Any]] = None,
+            data: Optional[Union[Dict[str, Any], str]] = None,
+            headers: Optional[Dict[str, Any]] = None,
+            extra_options: Optional[Dict[str, Any]] = None,
             **request_kwargs: Any) -> Any:
         r"""
         Performs the request
