@@ -53,6 +53,17 @@ class TestS3UploadSessionCompleteSensor(TestCase):
             dag=self.dag
         )
 
+    def test_reschedule_mode_not_allowed(self):
+        with self.assertRaises(ValueError):
+            S3UploadSessionCompleteSensor(
+                task_id='sensor_2',
+                bucket_name='test-bucket',
+                prefix='test-prefix/path',
+                poke_interval=10,
+                mode='reschedule',
+                dag=self.dag
+            )
+
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_files_deleted_between_pokes_throw_error(self):
         self.sensor.is_bucket_updated({'a', 'b'})
