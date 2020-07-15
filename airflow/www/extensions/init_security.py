@@ -14,8 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
+from importlib import import_module
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException, AirflowException
+
+log = logging.getLogger(__name__)
 
 
 def init_xframe_protection(app):
@@ -37,8 +42,19 @@ def init_xframe_protection(app):
 
 
 def init_api_experimental_auth(app):
-    """Initialize authorization in Experimental API"""
-    from airflow import api
+    """Loads authentication backend"""
+    auth_backend = 'airflow.api.auth.backend.default'
+    try:
+        auth_backend = conf.get("api", "auth_backend")
+    except AirflowConfigException:
+        pass
 
-    api.load_auth()
-    api.API_AUTH.api_auth.init_app(app)
+    try:
+        app.api_auth = import_module(auth_backend)
+        app.api_auth.init_app(app)
+    except ImportError as err:
+        log.critical(
+            "Cannot import %s for API authentication due to: %s",
+            auth_backend, err
+        )
+        raise AirflowException(err)
