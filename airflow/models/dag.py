@@ -27,7 +27,7 @@ import traceback
 import warnings
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
+from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union, cast
 
 import jinja2
 import pendulum
@@ -297,7 +297,7 @@ class DAG(BaseDag, LoggingMixin):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
         self.template_undefined = template_undefined
-        self.parent_dag = None  # Gets set when DAGs are loaded
+        self.parent_dag: Optional[DAG] = None  # Gets set when DAGs are loaded
         self.last_loaded = timezone.utcnow()
         self.safe_dag_id = dag_id.replace('.', '__dot__')
         self.max_active_runs = max_active_runs
@@ -966,7 +966,7 @@ class DAG(BaseDag, LoggingMixin):
             confirm_prompt=False,
             include_subdags=True,
             include_parentdag=True,
-            reset_dag_runs=True,
+            dag_run_state: str = State.RUNNING,
             dry_run=False,
             session=None,
             get_tis=False,
@@ -993,8 +993,7 @@ class DAG(BaseDag, LoggingMixin):
         :type include_subdags: bool
         :param include_parentdag: Clear tasks in the parent dag of the subdag.
         :type include_parentdag: bool
-        :param reset_dag_runs: Set state of dag to RUNNING
-        :type reset_dag_runs: bool
+        :param dag_run_state: state to set DagRun to
         :param dry_run: Find the tasks to clear but don't clear them.
         :type dry_run: bool
         :param session: The sqlalchemy session to use
@@ -1025,8 +1024,7 @@ class DAG(BaseDag, LoggingMixin):
             tis = session.query(TI).filter(TI.dag_id == self.dag_id)
             tis = tis.filter(TI.task_id.in_(self.task_ids))
 
-        if include_parentdag and self.is_subdag:
-
+        if include_parentdag and self.is_subdag and self.parent_dag is not None:
             p_dag = self.parent_dag.sub_dag(
                 task_regex=r"^{}$".format(self.dag_id.split('.')[1]),
                 include_upstream=False,
@@ -1039,7 +1037,7 @@ class DAG(BaseDag, LoggingMixin):
                 confirm_prompt=confirm_prompt,
                 include_subdags=include_subdags,
                 include_parentdag=False,
-                reset_dag_runs=reset_dag_runs,
+                dag_run_state=dag_run_state,
                 get_tis=True,
                 session=session,
                 recursion_depth=recursion_depth,
@@ -1065,12 +1063,13 @@ class DAG(BaseDag, LoggingMixin):
             instances = tis.all()
             for ti in instances:
                 if ti.operator == ExternalTaskMarker.__name__:
-                    ti.task = self.get_task(ti.task_id)
+                    task: ExternalTaskMarker = cast(ExternalTaskMarker, self.get_task(ti.task_id))
+                    ti.task = task
 
                     if recursion_depth == 0:
                         # Maximum recursion depth allowed is the recursion_depth of the first
                         # ExternalTaskMarker in the tasks to be cleared.
-                        max_recursion_depth = ti.task.recursion_depth
+                        max_recursion_depth = task.recursion_depth
 
                     if recursion_depth + 1 > max_recursion_depth:
                         # Prevent cycles or accidents.
@@ -1080,10 +1079,10 @@ class DAG(BaseDag, LoggingMixin):
                                                .format(max_recursion_depth,
                                                        ExternalTaskMarker.__name__, ti.task_id))
                     ti.render_templates()
-                    external_tis = session.query(TI).filter(TI.dag_id == ti.task.external_dag_id,
-                                                            TI.task_id == ti.task.external_task_id,
+                    external_tis = session.query(TI).filter(TI.dag_id == task.external_dag_id,
+                                                            TI.task_id == task.external_task_id,
                                                             TI.execution_date ==
-                                                            pendulum.parse(ti.task.execution_date))
+                                                            pendulum.parse(task.execution_date))
 
                     for tii in external_tis:
                         if not dag_bag:
@@ -1103,7 +1102,7 @@ class DAG(BaseDag, LoggingMixin):
                                                          confirm_prompt=confirm_prompt,
                                                          include_subdags=include_subdags,
                                                          include_parentdag=False,
-                                                         reset_dag_runs=reset_dag_runs,
+                                                         dag_run_state=dag_run_state,
                                                          get_tis=True,
                                                          session=session,
                                                          recursion_depth=recursion_depth + 1,
@@ -1134,16 +1133,18 @@ class DAG(BaseDag, LoggingMixin):
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
-            clear_task_instances(tis,
-                                 session,
-                                 dag=self,
-                                 )
-            if reset_dag_runs:
-                self.set_dag_runs_state(session=session,
-                                        start_date=start_date,
-                                        end_date=end_date,
-                                        state=State.NONE,
-                                        )
+            clear_task_instances(
+                tis,
+                session,
+                dag=self,
+                activate_dag_runs=False,  # We will set DagRun state later.
+            )
+            self.set_dag_runs_state(
+                session=session,
+                start_date=start_date,
+                end_date=end_date,
+                state=dag_run_state,
+            )
         else:
             count = 0
             print("Bail. Nothing was cleared.")
@@ -1161,7 +1162,7 @@ class DAG(BaseDag, LoggingMixin):
             confirm_prompt=False,
             include_subdags=True,
             include_parentdag=False,
-            reset_dag_runs=True,
+            dag_run_state=State.RUNNING,
             dry_run=False,
     ):
         all_tis = []
@@ -1174,7 +1175,7 @@ class DAG(BaseDag, LoggingMixin):
                 confirm_prompt=False,
                 include_subdags=include_subdags,
                 include_parentdag=include_parentdag,
-                reset_dag_runs=reset_dag_runs,
+                dag_run_state=dag_run_state,
                 dry_run=True)
             all_tis.extend(tis)
 
@@ -1202,7 +1203,7 @@ class DAG(BaseDag, LoggingMixin):
                           only_running=only_running,
                           confirm_prompt=False,
                           include_subdags=include_subdags,
-                          reset_dag_runs=reset_dag_runs,
+                          dag_run_state=dag_run_state,
                           dry_run=False,
                           )
         else:
