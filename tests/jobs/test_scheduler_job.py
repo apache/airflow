@@ -128,9 +128,9 @@ class TestDagFileProcessor(unittest.TestCase):
     @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     def setUpClass(cls):
         # Ensure the DAGs we are looking at from the DB are up-to-date
-        non_serialized_dagbag = DagBag(store_serialized_dags=False, include_examples=False)
+        non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
         non_serialized_dagbag.sync_to_db()
-        cls.dagbag = DagBag(store_serialized_dags=True)
+        cls.dagbag = DagBag(read_dags_from_db=True)
 
     def test_dag_file_processor_sla_miss_callback(self):
         """
@@ -1373,9 +1373,9 @@ class TestSchedulerJob(unittest.TestCase):
     @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     def setUpClass(cls):
         # Ensure the DAGs we are looking at from the DB are up-to-date
-        non_serialized_dagbag = DagBag(store_serialized_dags=False, include_examples=False)
+        non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
         non_serialized_dagbag.sync_to_db()
-        cls.dagbag = DagBag(store_serialized_dags=True)
+        cls.dagbag = DagBag(read_dags_from_db=True)
 
     def test_is_alive(self):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)

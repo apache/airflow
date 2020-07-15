@@ -32,7 +32,7 @@ def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:
 
     dagbag = DagBag(
         dag_folder=dag_model.fileloc,
-        store_serialized_dags=conf.getboolean('core', 'store_serialized_dags')
+        read_dags_from_db=conf.getboolean('core', 'store_serialized_dags')
     )
     dag = dagbag.get_dag(dag_id)  # prefetch dag if it is stored serialized
     if dag_id not in dagbag.dags:
