@@ -86,3 +86,4 @@ input_notebook.ipynb
 
 # .git might be a file in case of worktree
 .git
+tmp

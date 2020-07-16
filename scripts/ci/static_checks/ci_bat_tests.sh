@@ -16,16 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+function run_bats_tests() {
+    FILES=("$@")
+    if [[ "${#FILES[@]}" == "0" ]]; then
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r /airflow/tests/bats
+    else
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r "${FILES[@]}"
+    fi
+}
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
-
-trap in_container_script_end EXIT
+run_bats_tests "$@"

@@ -15,17 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
-set -euo pipefail
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+prepare_prod_build
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
-
-trap in_container_script_end EXIT
+push_prod_images

@@ -378,10 +378,10 @@ to run the tests manually one by one.
 
     Running kubernetes tests
 
-      ./scripts/ci/ci_run_kubernetes_tests.sh                      - runs all kubernetes tests
-      ./scripts/ci/ci_run_kubernetes_tests.sh TEST [TEST ...]      - runs selected kubernetes tests (from kubernetes_tests folder)
-      ./scripts/ci/ci_run_kubernetes_tests.sh [-i|--interactive]   - Activates virtual environment ready to run tests and drops you in
-      ./scripts/ci/ci_run_kubernetes_tests.sh [--help]             - Prints this help message
+      ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh                      - runs all kubernetes tests
+      ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh TEST [TEST ...]      - runs selected kubernetes tests (from kubernetes_tests folder)
+      ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [-i|--interactive]   - Activates virtual environment ready to run tests and drops you in
+      ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [--help]             - Prints this help message
 
 
 You can also run the same tests command with Breeze, using ``kind-cluster test`` command (to run all

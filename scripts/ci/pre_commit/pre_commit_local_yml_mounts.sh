@@ -18,14 +18,24 @@
 
 set -euo pipefail
 
-# This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
+TMP_OUTPUT=$(mktemp)
 
-in_container_basic_sanity_check
+# Remove temp file if it's hanging around
+trap 'rm -rf -- "${TMP_OUTPUT}" 2>/dev/null' EXIT
 
-in_container_script_start
+LOCAL_YML_FILE="${AIRFLOW_SOURCES}/scripts/ci/docker-compose/local.yml"
 
-trap in_container_script_end EXIT
+LEAD='      # START automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh'
+TAIL='      # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh'
+
+generate_local_mounts_list "      - ../../../"
+
+sed -ne "0,/$LEAD/ p" "${LOCAL_YML_FILE}" > "${TMP_OUTPUT}"
+
+printf '%s\n' "${LOCAL_MOUNTS[@]}" >> "${TMP_OUTPUT}"
+sed -ne "/$TAIL/,\$ p" "${LOCAL_YML_FILE}" >> "${TMP_OUTPUT}"
+
+mv "${TMP_OUTPUT}" "${LOCAL_YML_FILE}"

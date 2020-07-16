@@ -15,17 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 set -euo pipefail
 
-# This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
+export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
+export KUBERNETES_MODE=${KUBERNETES_MODE:="image"}
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
+# adding trap to exiting trap
+HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
+# shellcheck disable=SC2064
+trap "${HANDLERS}${HANDLERS:+;}dump_kind_logs" EXIT
 
-in_container_basic_sanity_check
-
-in_container_script_start
-
-trap in_container_script_end EXIT
+get_environment_for_builds_on_ci
+initialize_kind_variables
+make_sure_kubernetes_tools_are_installed
+build_prod_image_for_kubernetes_tests
+load_image_to_kind_cluster
+deploy_airflow_with_helm
+forward_port_to_kind_webserver
+deploy_test_kubernetes_resources

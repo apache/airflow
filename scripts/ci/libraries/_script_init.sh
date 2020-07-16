@@ -18,14 +18,23 @@
 
 set -euo pipefail
 
-# This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+_CURRENT_DIR=$(dirname "${BASH_SOURCE[0]}")
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
+SCRIPTS_CI_DIR="$(cd "${_CURRENT_DIR}"/.. && pwd)"
+export SCRIPTS_CI_DIR
 
-in_container_basic_sanity_check
+# Sets to where airflow sources are located
+AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${SCRIPTS_CI_DIR}/../../" && pwd)}
+export AIRFLOW_SOURCES
 
-in_container_script_start
 
-trap in_container_script_end EXIT
+# shellcheck source=scripts/ci/libraries/_all_libs.sh
+. "${SCRIPTS_CI_DIR}"/libraries/_all_libs.sh
+
+initialize_common_environment
+
+basic_sanity_checks
+
+script_start
+
+trap script_end EXIT
