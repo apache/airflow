@@ -98,13 +98,8 @@ class SerializedDagModel(Base):
             ).scalar():
                 return
 
-        log.debug("Checking if DAG (%s) is updated or same", dag.dag_id)
-        serialized_dag_from_db: SerializedDagModel = (
-            session
-            .query(cls)
-            .filter(cls.dag_id == dag.dag_id)
-            .one_or_none()
-        )
+        log.debug("Checking if DAG (%s) changed", dag.dag_id)
+        serialized_dag_from_db: SerializedDagModel = session.query(cls).get(dag.dag_id)
         new_serialized_dag = cls(dag)
         if serialized_dag_from_db and (serialized_dag_from_db.data == new_serialized_dag.data):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
