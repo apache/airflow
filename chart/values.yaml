@@ -437,9 +437,87 @@ postgresql:
   postgresqlPassword: postgres
   postgresqlUsername: postgres
 
-# Authentication backend used for the experimental API
-api:
-  authBackend: airflow.api.auth.backend.deny_all
+# Config settings to go into the mounted airflow.cfg
+#
+# Please note that these values are passed through the `tpl` function, so are
+# all subject to being rendered as go templates. If you need to include a
+# litera `{{` in a value, it must be expessed like this:
+#
+#    a: '{{ "{{ not a template }}" }}'
+#
+# yamllint disable rule:line-length
+config:
+  core:
+    dags_folder: '{{ include "airflow_dags" . }}'
+    load_examples: 'False'
+    colored_console_log: 'False'
+    executor: '{{ .Values.executor }}'
+    remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
+  # Authentication backend used for the experimental API
+  api:
+    auth_backend: airflow.api.auth.backend.deny_all
+  logging:
+    logging_level: DEBUG
+  webserver:
+    enable_proxy_fix: 'True'
+    expose_config: 'True'
+    rbac: 'True'
+
+  celery:
+    default_queue: celery
+
+  scheduler:
+    scheduler_heartbeat_sec: 5
+    statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
+    statsd_port: 9125
+    statsd_prefix: airflow
+    statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
+
+    # Restart Scheduler every 41460 seconds (11 hours 31 minutes)
+    # The odd time is chosen so it is not always restarting on the same "hour" boundary
+    run_duration: 41460
+  elasticsearch:
+    json_format: 'True'
+    log_id_template: "{dag_id}_{task_id}_{execution_date}_{try_number}"
+  elasticsearch_configs:
+    max_retries: 3
+    timeout: 30
+    retry_timeout: 'True'
+
+  kubernetes:
+    namespace: '{{ .Release.Namespace }}'
+    airflow_configmap: '{{ include "airflow_config" . }}'
+    airflow_local_settings_configmap: '{{ include "airflow_config" . }}'
+    worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
+    worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
+    worker_container_image_pull_policy: '{{ .Values.images.airflow.pullPolicy }}'
+    worker_service_account_name: '{{ .Release.Name }}-worker-serviceaccount'
+    image_pull_secrets: '{{ template "registry_secret" . }}'
+    dags_in_image: '{{ ternary "False" "True" (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}'
+    delete_worker_pods: 'True'
+    run_as_user: '{{ .Values.uid }}'
+    fs_group: '{{ .Values.gid }}'
+    git_dags_folder_mount_point: '{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}{{ include "airflow_dags_mount_path" . }}{{end}}'
+    dags_volume_mount_point: '{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}{{ include "airflow_dags_mount_path" . }}{{ end }}'
+    dags_volume_claim: '{{- if .Values.dags.persistence.enabled }}{{ include "airflow_dags_volume_claim" . }}{{ end }}'
+    dags_volume_subpath: '{{- if .Values.dags.persistence.enabled }}{{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}{{ end }}'
+    git_repo: '{{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}{{ .Values.dags.gitSync.repo }}{{ end }}'
+    git_branch: '{{ .Values.dags.gitSync.branch }}'
+    git_sync_rev: '{{ .Values.dags.gitSync.rev }}'
+    git_sync_depth: '{{ .Values.dags.gitSync.depth }}'
+    git_sync_root: '{{ .Values.dags.gitSync.root }}'
+    git_sync_dest: '{{ .Values.dags.gitSync.dest }}'
+    git_sync_container_repository: '{{ .Values.dags.gitSync.containerRepository }}'
+    git_sync_container_tag: '{{ .Values.dags.gitSync.containerTag }}'
+    git_sync_init_container_name: '{{ .Values.dags.gitSync.containerName }}'
+    git_sync_run_as_user: '{{ .Values.uid }}'
+    git_ssh_known_hosts_configmap_name: '{{- if .Values.dags.gitSync.knownHosts }}{{ include "airflow_config" . }}{{ end }}'
+    git_ssh_key_secret_name: '{{- if .Values.dags.gitSync.sshKeySecret }}{{ .Values.dags.gitSync.sshKeySecret }}{{ end }}'
+    git_sync_credentials_secret: '{{- if .Values.dags.gitSync.credentialsSecret }}{{ .Values.dags.gitSync.credentialsSecret }}{{ end }}'
+  kubernetes_secrets:
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: '{{ printf "%s=connection" (include "airflow_metadata_secret" .) }}'
+    AIRFLOW__CORE__FERNET_KEY: '{{ printf "%s=fernet-key" (include "fernet_key_secret" .) }}'
+# yamllint enable rule:line-length
 
 # Git sync
 dags:

@@ -30,116 +30,17 @@ metadata:
     heritage: {{ .Release.Service }}
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
-{{- end }}
+{{- end -}}
+{{- $Global := . }}
 data:
   # These are system-specified config overrides.
-  airflow.cfg: |
-    [core]
-    dags_folder = {{ include "airflow_dags" . }}
-    load_examples = False
-    colored_console_log = False
-    executor = {{ .Values.executor }}
-{{- if .Values.elasticsearch.enabled }}
-    remote_logging = True
-{{- end }}
-
-    [api]
-    auth_backend = {{ .Values.api.authBackend }}
-
-    [logging]
-    logging_level = DEBUG
-    [webserver]
-    enable_proxy_fix = True
-    expose_config = True
-    rbac = True
-
-{{- if eq .Values.executor "CeleryExecutor" }}
-    [celery]
-    default_queue = celery
-{{- end }}
-
-    [scheduler]
-    scheduler_heartbeat_sec = 5
-{{- if .Values.statsd.enabled }}
-    statsd_on = True
-    statsd_port = 9125
-    statsd_prefix = airflow
-    statsd_host = {{ printf "%s-statsd" .Release.Name }}
-{{- end }}
-    # Restart Scheduler every 41460 seconds (11 hours 31 minutes)
-    # The odd time is chosen so it is not always restarting on the same "hour" boundary
-    run_duration = 41460
-
-{{- if .Values.elasticsearch.enabled }}
-    [elasticsearch]
-    # The elasticsearch variables were updated to the shorter names in v1.10.4
-    write_stdout = True
-    json_format = True
-    log_id_template = {dag_id}_{task_id}_{execution_date}_{try_number}
-
-    [elasticsearch_configs]
-    max_retries = 3
-    timeout = 30
-    retry_timeout = True
-{{- end }}
-
-{{- if eq .Values.executor "KubernetesExecutor" }}
-    [kubernetes]
-    namespace = {{ .Release.Namespace }}
-    airflow_configmap = {{ include "airflow_config" . }}
-    airflow_local_settings_configmap = {{ include "airflow_config" . }}
-    worker_container_repository = {{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}
-    worker_container_tag = {{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}
-    worker_container_image_pull_policy = {{ .Values.images.airflow.pullPolicy }}
-    worker_service_account_name = {{ .Release.Name }}-worker-serviceaccount
-    image_pull_secrets = {{ template "registry_secret" . }}
-    dags_in_image = {{ if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}False{{ else }}True{{ end }}
-    delete_worker_pods = True
-    run_as_user = {{ .Values.uid }}
-    fs_group = {{ .Values.gid }}
-    {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
-    git_dags_folder_mount_point = {{ include "airflow_dags_mount_path" . }}
-    dags_volume_mount_point = {{ include "airflow_dags_mount_path" . }}
-    {{- if .Values.dags.persistence.enabled }}
-    dags_volume_claim = {{ include "airflow_dags_volume_claim" . }}
-    dags_volume_subpath = {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
-    {{- else }}
-    git_repo = {{ .Values.dags.gitSync.repo }}
-    git_branch = {{ .Values.dags.gitSync.branch }}
-    git_sync_rev = {{ .Values.dags.gitSync.rev }}
-    git_sync_depth = {{ .Values.dags.gitSync.depth }}
-    git_sync_root = {{ .Values.dags.gitSync.root }}
-    git_sync_dest = {{ .Values.dags.gitSync.dest }}
-    git_sync_container_repository = {{ .Values.dags.gitSync.containerRepository }}
-    git_sync_container_tag = {{ .Values.dags.gitSync.containerTag }}
-    git_sync_init_container_name = {{ .Values.dags.gitSync.containerName }}
-    git_sync_run_as_user = {{ .Values.uid }}
-    {{- if  .Values.dags.gitSync.knownHosts }}
-    git_ssh_known_hosts_configmap_name = {{ include "airflow_config" . }}
+  airflow.cfg: |-
+    {{- range $section, $settings := .Values.config }}
+    [{{ $section }}]
+    {{- range $key, $val := $settings }}
+    {{ $key }} = {{ tpl ($val | toString) $Global }}
     {{- end }}
-    {{- if .Values.dags.gitSync.sshKeySecret }}
-    git_ssh_key_secret_name = {{ .Values.dags.gitSync.sshKeySecret }}
-    {{- else if .Values.dags.gitSync.credentialsSecret }}
-    git_sync_credentials_secret = {{ .Values.dags.gitSync.credentialsSecret }}
-    {{- end }}
-    {{- end }}
-    {{- end }}
-
-    [kubernetes_secrets]
-    AIRFLOW__CORE__SQL_ALCHEMY_CONN = {{ printf "%s=connection" (include "airflow_metadata_secret" .) }}
-    AIRFLOW__CORE__FERNET_KEY = {{ printf "%s=fernet-key" (include "fernet_key_secret" .) }}
-{{- if .Values.elasticsearch.enabled }}
-    AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST = {{ printf "%s=connection" (include "elasticsearch_secret" .) }}
-{{- end }}
-
-    [kubernetes_labels]
-    tier = airflow
-    component = worker
-    release = {{ .Release.Name }}
-    {{- range $key, $value := .Values.labels }}
-    {{ printf "%s = %s" $key $value }}
-    {{- end }}
-{{- end }}
+    {{ end }}
 
 {{- if .Values.webserver.webserverConfig }}
   webserver_config.py: |
