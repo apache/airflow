@@ -344,21 +344,24 @@ class PodGenerator(object):
         resources = namespaced.get('resources')
 
         if resources is None:
-            def extract(cpu, memory):
+            def extract(cpu, memory, ephemeral_storage, limit_gpu=None):
                 resources_obj = {
                     'cpu': namespaced.pop(cpu, None),
                     'memory': namespaced.pop(memory, None),
-                    'ephemeral-storage': ephemeral_storage
+                    'ephemeral-storage': namespaced.pop(ephemeral_storage, None),
                 }
+                if limit_gpu is not None:
+                    resources_obj['nvidia.com/gpu'] = namespaced.pop(limit_gpu, None)
+
                 resources_obj = {k: v for k, v in resources_obj.items() if v is not None}
 
                 if all(r is None for r in resources_obj):
                     resources_obj = None
                 return namespaced, resources_obj
 
-            ephemeral_storage = namespaced.pop('ephemeral-storage', None)
-            namespaced, requests = extract('request_cpu', 'request_memory')
-            namespaced, limits = extract('limit_cpu', 'limit_memory')
+            namespaced, requests = extract('request_cpu', 'request_memory', 'request_ephemeral_storage')
+            namespaced, limits = extract('limit_cpu', 'limit_memory', 'limit_ephemeral_storage', limit_gpu='limit_gpu')
+
             if requests is None and limits is None:
                 resources = None
             else:
