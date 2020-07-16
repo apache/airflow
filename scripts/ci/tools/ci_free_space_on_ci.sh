@@ -15,17 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-set -euo pipefail
-
-# This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
-
-trap in_container_script_end EXIT
+sudo swapoff -a
+sudo rm -f /swapfile
+sudo apt clean
+docker system prune --all
+df -h

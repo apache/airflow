@@ -265,13 +265,12 @@ Running Static Code Checks via Scripts from the Host
 ....................................................
 
 You can trigger the static checks from the host environment, without entering the Docker container. To do
-this, run the following scripts (the same is done in the CI builds):
+this, run the following scripts:
 
-* `<scripts/ci/ci_check_license.sh>`_ - checks the licenses.
-* `<scripts/ci/ci_docs.sh>`_ - checks that documentation can be built without warnings.
-* `<scripts/ci/ci_flake8.sh>`_ - runs Flake8 source code style enforcement tool.
-* `<scripts/ci/ci_lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
-* `<scripts/ci/ci_mypy.sh>`_ - runs a check for mypy type annotation consistency.
+* `<scripts/ci/static_checks/ci_check_license.sh>`_ - checks the licenses.
+* `<scripts/ci/static_checks/ci_flake8.sh>`_ - runs Flake8 source code style enforcement tool.
+* `<scripts/ci/static_checks/ci_lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
+* `<scripts/ci/static_checks/ci_mypy.sh>`_ - runs a check for mypy type annotation consistency.
 
 The scripts may ask you to rebuild the images, if needed.
 
@@ -314,8 +313,8 @@ On the host:
 
 .. code-block::
 
-  ./scripts/ci/ci_mypy.sh ./airflow/example_dags/
+  ./scripts/ci/static_checks/ci_mypy.sh ./airflow/example_dags/
 
 .. code-block::
 
-  ./scripts/ci/ci_mypy.sh ./airflow/example_dags/test_utils.py
+  ./scripts/ci/static_checks/ci_mypy.sh ./airflow/example_dags/test_utils.py

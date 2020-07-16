@@ -15,17 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export PYTHON_MAJOR_MINOR_VERSION=3.6
 
-set -euo pipefail
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
+    echo
+    echo "Skip tests"
+    echo
+    exit
+fi
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
+get_environment_for_builds_on_ci
 
-in_container_basic_sanity_check
+prepare_ci_build
 
-in_container_script_start
+rebuild_ci_image_if_needed
 
-trap in_container_script_end EXIT
+if [[ $# == "0" ]]; then
+    pre-commit run --all-files --show-diff-on-failure --color always
+else
+    for PRE_COMMIT in "${@}"
+    do
+        pre-commit run "${PRE_COMMIT}" --all-files --show-diff-on-failure --color always
+    done
+fi

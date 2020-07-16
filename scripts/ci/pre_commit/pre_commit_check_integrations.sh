@@ -15,17 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 set -euo pipefail
 
-# This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PRE_COMMIT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+AIRFLOW_SOURCES=$(cd "${PRE_COMMIT_DIR}/../../../" && pwd);
+cd "${AIRFLOW_SOURCES}" || exit 1
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-in_container_basic_sanity_check
+. breeze-complete
 
-in_container_script_start
-
-trap in_container_script_end EXIT
+if [[ ${AVAILABLE_INTEGRATIONS} != "${_BREEZE_ALLOWED_INTEGRATIONS}" ]]; then
+  echo
+  echo "Error: Allowed integrations do not match!"
+  echo
+  echo "The ./common/_common_values.sh integrations (AVAILABLE_INTEGRATIONS):"
+  echo "${AVAILABLE_INTEGRATIONS}"
+  echo
+  echo "The ./breeze-complete integrations (_BREEZE_ALLOWED_INTEGRATIONS):"
+  echo "${_BREEZE_ALLOWED_INTEGRATIONS}"
+  echo
+  echo "Please align the two!"
+  echo
+  exit 1
+fi

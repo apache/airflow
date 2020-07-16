@@ -15,17 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
+export REMEMBER_LAST_ANSWER="true"
 
-set -euo pipefail
+if [[ $# -eq 0 ]]; then
+    PARAMS=("tests/bats")
+else
+    PARAMS=("${@}")
+fi
 
-# This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
-
-trap in_container_script_end EXIT
+# shellcheck source=scripts/ci/static_checks/ci_bat_tests.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/ci_bat_tests.sh" "${PARAMS[@]}"

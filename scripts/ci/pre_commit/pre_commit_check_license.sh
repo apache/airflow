@@ -15,17 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 set -euo pipefail
 
-# This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
+export REMEMBER_LAST_ANSWER="true"
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
-
-trap in_container_script_end EXIT
+# Hide lines between ****/**** (detailed list of files)
+"$( dirname "${BASH_SOURCE[0]}" )/../static_checks/ci_check_license.sh" 2>&1 | \
+    (sed "/Files with Apache License headers will be marked AL.*$/,/^\**$/d" || true)
