@@ -308,10 +308,12 @@ class TestPodGenerator(unittest.TestCase):
                     },
                 ],
                 'request_cpu': "200m",
-                'limit_cpu': "200m",
+                'limit_cpu': "400m",
                 'request_memory': "500Mi",
-                'limit_memory': "500Mi",
-                'ephemeral-storage': '2Gi',
+                'limit_memory': "1000Mi",
+                'limit_gpu': "2",
+                'request_ephemeral_storage': '2Gi',
+                'limit_ephemeral_storage': '4Gi',
             }
         })
         result = self.k8s_client.sanitize_for_serialization(result)
@@ -332,9 +334,10 @@ class TestPodGenerator(unittest.TestCase):
                     'ports': [],
                     'resources': {
                         'limits': {
-                            'cpu': '200m',
-                            'ephemeral-storage': '2Gi',
-                            'memory': '500Mi',
+                            'cpu': '400m',
+                            'ephemeral-storage': '4Gi',
+                            'memory': '1000Mi',
+                            'nvidia.com/gpu': "2",
                         },
                         'requests': {
                             'cpu': '200m',
