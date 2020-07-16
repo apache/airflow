@@ -36,10 +36,11 @@ from airflow.providers.amazon.aws.operators.s3_file_transform import S3FileTrans
 class TestS3FileTransformOperator(unittest.TestCase):
 
     def setUp(self):
+        self.content = b"input"
         self.bucket = "bucket"
         self.input_key = "foo"
         self.output_key = "bar"
-        self.bio = io.BytesIO(b"input")
+        self.bio = io.BytesIO(self.content)
         self.tmp_dir = mkdtemp(prefix='test_tmpS3FileTransform_')
         self.transform_script = os.path.join(self.tmp_dir, "transform.py")
         os.mknod(self.transform_script)
@@ -129,7 +130,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
 
         conn = boto3.client('s3')
         result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
-        assert self.bio.getvalue() == result['Body'].read()
+        self.assertEqual(self.content, result['Body'].read())
 
     @staticmethod
     def mock_process(mock_popen, return_code=0, process_output=None):
