@@ -50,6 +50,10 @@ spec:
 {{ toYaml .Values.affinity | indent 8 }}
       tolerations:
 {{ toYaml .Values.tolerations | indent 8 }}
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
       containers:
         - name: create-user
           image: {{ template "airflow_image" . }}

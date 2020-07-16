@@ -17,20 +17,11 @@
 # under the License.
 """Default authentication backend - everything is allowed"""
 from functools import wraps
-from typing import Callable, TypeVar, cast
+from typing import Callable, Optional, Tuple, TypeVar, Union, cast
 
-from airflow.typing_compat import Protocol
+from requests.auth import AuthBase
 
-
-class ClientAuthProtocol(Protocol):
-    """
-    Protocol type for CLIENT_AUTH
-    """
-    def handle_response(self, _):
-        """
-        CLIENT_AUTH.handle_response method
-        """
-        ...
+CLIENT_AUTH: Optional[Union[Tuple[str, str], AuthBase]] = None
 
 
 def init_app(_):

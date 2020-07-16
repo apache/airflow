@@ -922,7 +922,7 @@ by the root user, you can fix the ownership of those files by running this scrip
 
 .. code-block::
 
-  ./scripts/ci/ci_fix_ownership.sh
+  ./scripts/ci/tools/ci_fix_ownership.sh
 
 Mounting Local Sources to Breeze
 --------------------------------
