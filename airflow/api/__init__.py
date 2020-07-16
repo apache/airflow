@@ -34,7 +34,9 @@ def load_auth():
         pass
 
     try:
-        return import_module(auth_backend)
+        auth_backend = import_module(auth_backend)
+        log.info("Loaded API auth backend: %s", auth_backend)
+        return auth_backend
     except ImportError as err:
         log.critical(
             "Cannot import %s for API authentication due to: %s",

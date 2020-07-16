@@ -19,8 +19,6 @@
 
 from urllib.parse import urljoin
 
-import requests
-
 from airflow.api.client import api_client
 
 
@@ -30,12 +28,10 @@ class Client(api_client.Client):
     def _request(self, url, method='GET', json=None):
         params = {
             'url': url,
-            'auth': self._auth,
         }
         if json is not None:
             params['json'] = json
-
-        resp = getattr(requests, method.lower())(**params)  # pylint: disable=not-callable
+        resp = getattr(self._session, method.lower())(**params)  # pylint: disable=not-callable
         if not resp.ok:
             # It is justified here because there might be many resp types.
             # noinspection PyBroadException
