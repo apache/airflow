@@ -36,6 +36,11 @@ from airflow.providers.amazon.aws.operators.s3_file_transform import S3FileTrans
 class TestS3FileTransformOperator(unittest.TestCase):
 
     def setUp(self):
+        self.content = b"input"
+        self.bucket = "bucket"
+        self.input_key = "foo"
+        self.output_key = "bar"
+        self.bio = io.BytesIO(self.content)
         self.tmp_dir = mkdtemp(prefix='test_tmpS3FileTransform_')
         self.transform_script = os.path.join(self.tmp_dir, "transform.py")
         os.mknod(self.transform_script)
@@ -123,6 +128,10 @@ class TestS3FileTransformOperator(unittest.TestCase):
             expression=select_expression
         )
 
+        conn = boto3.client('s3')
+        result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
+        self.assertEqual(self.content, result['Body'].read())
+
     @staticmethod
     def mock_process(mock_popen, return_code=0, process_output=None):
         process = mock_popen.return_value
@@ -130,19 +139,13 @@ class TestS3FileTransformOperator(unittest.TestCase):
         process.wait.return_value = None
         process.returncode = return_code
 
-    @staticmethod
-    def s3_paths():
-        bucket = "bucket"
-        input_key = "foo"
-        output_key = "bar"
-        bio = io.BytesIO(b"input")
-
+    def s3_paths(self):
         conn = boto3.client('s3')
-        conn.create_bucket(Bucket=bucket)
-        conn.upload_fileobj(Bucket=bucket, Key=input_key, Fileobj=bio)
+        conn.create_bucket(Bucket=self.bucket)
+        conn.upload_fileobj(Bucket=self.bucket, Key=self.input_key, Fileobj=self.bio)
 
         s3_url = "s3://{0}/{1}"
-        input_path = s3_url.format(bucket, input_key)
-        output_path = s3_url.format(bucket, output_key)
+        input_path = s3_url.format(self.bucket, self.input_key)
+        output_path = s3_url.format(self.bucket, self.output_key)
 
         return input_path, output_path
