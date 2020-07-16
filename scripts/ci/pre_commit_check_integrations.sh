@@ -26,7 +26,7 @@ cd "${MY_DIR}/../../" || exit;
 
 . breeze-complete
 
-if [[ ${AVAILABLE_INTEGRATIONS} != "${_BREEZE_ALLOWED_INTEGRATIONS}" ]]; then
+if [[ "${AVAILABLE_INTEGRATIONS} all" != "${_BREEZE_ALLOWED_INTEGRATIONS}" ]]; then
   echo
   echo "Error: Allowed integrations do not match!"
   echo
