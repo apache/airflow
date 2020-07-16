@@ -62,8 +62,8 @@ function setup_default_breeze_variables() {
 
     # load all the common functions here - those are the functions that are shared between Breeze
     # and CI scripts (CI scripts do not use Breeze as execution environment)
-    # shellcheck source=scripts/ci/_all_libs.sh
-    . "${SCRIPTS_CI_DIR}/_all_libs.sh"
+    # shellcheck source=scripts/ci/libraries/_all_libs.sh
+    . "${SCRIPTS_CI_DIR}/libraries/_all_libs.sh"
 
     # We have different versions of images depending on the python version used. We keep up with the
     # Latest patch-level changes in Python (this is done automatically during CI builds) so we have

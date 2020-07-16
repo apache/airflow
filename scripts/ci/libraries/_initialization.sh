@@ -37,10 +37,6 @@ function initialize_common_environment {
     # shellcheck disable=SC2034
     FILES_TO_CLEANUP_ON_EXIT=()
 
-    # Sets to where airflow sources are located
-    AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
-    export AIRFLOW_SOURCES
-
     # Sets to the build cache directory - status of build and convenience scripts are stored there
     BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
     export BUILD_CACHE_DIR
@@ -176,7 +172,7 @@ function initialize_common_environment {
     fi
 
     # Read airflow version from the version.py
-    AIRFLOW_VERSION=$(grep version "airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
+    AIRFLOW_VERSION=$(grep version "${AIRFLOW_SOURCES}/airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
     export AIRFLOW_VERSION
 
     # default version of python used to tag the "master" and "latest" images in DockerHub

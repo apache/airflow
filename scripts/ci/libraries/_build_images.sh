@@ -415,7 +415,7 @@ function rebuild_ci_image_if_needed() {
             if [[ ${SYSTEM} != "Darwin" ]]; then
                 ROOT_FILES_COUNT=$(find "airflow" "tests" -user root | wc -l | xargs)
                 if [[ ${ROOT_FILES_COUNT} != "0" ]]; then
-                    ./scripts/ci/ci_fix_ownership.sh
+                    ./scripts/ci/tools/ci_fix_ownership.sh
                 fi
             fi
             print_info

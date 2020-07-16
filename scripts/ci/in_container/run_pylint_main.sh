@@ -24,7 +24,7 @@ set +e
 
 if [[ ${#@} == "0" ]]; then
     echo
-    echo "Running pylint for all sources except 'tests' folder"
+    echo "Running pylint for all sources except 'tests' and 'kubernetes_tests' folder"
     echo
 
     # Using path -prune is much better in the local environment on OSX because we have host
@@ -39,6 +39,7 @@ if [[ ${#@} == "0" ]]; then
     -path "./docs/_build" -prune -o \
     -path "./build" -prune -o \
     -path "./tests" -prune -o \
+    -path "./kubernetes_tests" -prune -o \
     -name "*.py" \
     -not -name 'webserver_config.py' | \
         grep  ".*.py$" | \
