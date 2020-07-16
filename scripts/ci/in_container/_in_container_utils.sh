@@ -151,15 +151,15 @@ function in_container_refresh_pylint_todo() {
         -name "*.py" \
         -not -name 'webserver_config.py' | \
         grep  ".*.py$" | \
-        xargs pylint | tee "${MY_DIR}/../pylint_todo_main.txt"
+        xargs pylint | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt"
 
-    grep -v "\*\*" < "${MY_DIR}/../pylint_todo_main.txt" | \
+    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" | \
        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-       awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq > "${MY_DIR}/../pylint_todo_new.txt"
+       awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq > "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
 
     if [[ ${VERBOSE} == "true" ]]; then
         echo
-        echo "So far found $(wc -l <"${MY_DIR}/../pylint_todo_new.txt") files"
+        echo "So far found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt") files"
         echo
 
         echo
@@ -167,18 +167,18 @@ function in_container_refresh_pylint_todo() {
         echo
     fi
     find "./tests" -name "*.py" -print0 | \
-        xargs -0 pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" | tee "${MY_DIR}/../pylint_todo_tests.txt"
+        xargs -0 pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
 
-    grep -v "\*\*" < "${MY_DIR}/../pylint_todo_tests.txt" | \
+    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt" | \
         grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >> "${MY_DIR}/../pylint_todo_new.txt"
+        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >> "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
 
-    rm -fv "${MY_DIR}/../pylint_todo_main.txt" "${MY_DIR}/../pylint_todo_tests.txt"
-    mv -v "${MY_DIR}/../pylint_todo_new.txt" "${MY_DIR}/../pylint_todo.txt"
+    rm -fv "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
+    mv -v "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt"
 
     if [[ ${VERBOSE} == "true" ]]; then
         echo
-        echo "Found $(wc -l <"${MY_DIR}/../pylint_todo.txt") files"
+        echo "Found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt") files"
         echo
     fi
 }
@@ -212,7 +212,7 @@ function setup_kerberos() {
     PASS="airflow"
     KRB5_KTNAME=/etc/airflow.keytab
 
-    sudo cp "${MY_DIR}/krb5/krb5.conf" /etc/krb5.conf
+    sudo cp "${AIRFLOW_SOURCES}/scripts/ci/in_container/krb5/krb5.conf" /etc/krb5.conf
 
     echo -e "${PASS}\n${PASS}" | \
         sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \

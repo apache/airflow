@@ -228,15 +228,15 @@ contributor to Airflow, you can choose one of the sub-tasks as your first issue 
 To fix a pylint issue, do the following:
 
 1.  Remove module/modules from the
-    `scripts/ci/pylint_todo.txt <scripts/ci/pylint_todo.txt>`__.
+    `scripts/ci/static_checks/pylint_todo.txt <scripts/ci/pylint_todo.txt>`__.
 
-2.  Run `scripts/ci/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
-    `scripts/ci/ci_pylint_tests.sh <scripts/ci/ci_pylint_tests.sh>`__.
+2.  Run `scripts/ci/static_checks/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
+    `scripts/ci/ci_pylint_tests.sh <scripts/ci/static_checks/ci_pylint_tests.sh>`__.
 
 3.  Fix all the issues reported by pylint.
 
-4.  Re-run `scripts/ci/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
-    `scripts/ci/ci_pylint_tests.sh <scripts/ci/ci_pylint_tests.sh>`__.
+4.  Re-run `scripts/ci/static_checks/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
+    `scripts/ci/ci_pylint_tests.sh <scripts/ci/static_checks/ci_pylint_tests.sh>`__.
 
 5.  If you see "success", submit a PR following
     `Pull Request guidelines <#pull-request-guidelines>`__.
@@ -368,15 +368,15 @@ Running Static Code Checks via Scripts from the Host
 ....................................................
 
 You can trigger the static checks from the host environment, without entering the Docker container. To do
-this, run the following scripts (the same is done in the CI builds):
+this, run the following scripts:
 
-* `<scripts/ci/ci_check_license.sh>`_ - checks the licenses.
-* `<scripts/ci/ci_docs.sh>`_ - checks that documentation can be built without warnings.
-* `<scripts/ci/ci_flake8.sh>`_ - runs Flake8 source code style enforcement tool.
-* `<scripts/ci/ci_lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
-* `<scripts/ci/ci_mypy.sh>`_ - runs a check for mypy type annotation consistency.
-* `<scripts/ci/ci_pylint_main.sh>`_ - runs pylint static code checker for main files.
-* `<scripts/ci/ci_pylint_tests.sh>`_ - runs pylint static code checker for tests.
+* `<scripts/ci/docs/ci_docs.sh>`_ - checks that documentation can be built without warnings.
+* `<scripts/ci/static_checks/ci_check_license.sh>`_ - checks the licenses.
+* `<scripts/ci/static_checks/ci_flake8.sh>`_ - runs Flake8 source code style enforcement tool.
+* `<scripts/ci/static_checks/ci_lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
+* `<scripts/ci/static_checks/ci_mypy.sh>`_ - runs a check for mypy type annotation consistency.
+* `<scripts/ci/static_checks/ci_pylint_main.sh>`_ - runs pylint static code checker for main files.
+* `<scripts/ci/static_checks/ci_pylint_tests.sh>`_ - runs pylint static code checker for tests.
 
 The scripts may ask you to rebuild the images, if needed.
 
@@ -421,8 +421,8 @@ On the host:
 
 .. code-block::
 
-  ./scripts/ci/ci_pylint.sh ./airflow/example_dags/
+  ./scripts/ci/static_checks/ci_pylint.sh ./airflow/example_dags/
 
 .. code-block::
 
-  ./scripts/ci/ci_pylint.sh ./airflow/example_dags/test_utils.py
+  ./scripts/ci/static_checks/ci_pylint.sh ./airflow/example_dags/test_utils.py

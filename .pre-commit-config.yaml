@@ -205,7 +205,7 @@ repos:
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system
-        entry: "./scripts/ci/pre_commit_lint_dockerfile.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_lint_dockerfile.sh"
         files: ^Dockerfile.*$
         pass_filenames: true
       - id: setup-order
@@ -213,35 +213,35 @@ repos:
         language: python
         files: ^setup.py$
         pass_filenames: false
-        entry: ./scripts/ci/pre_commit_check_order_setup.py
+        entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
-        entry: "./scripts/ci/pre_commit_breeze_cmd_line.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh"
         language: system
         files: ^BREEZE.rst$|^breeze$|^breeze-complete$
         pass_filenames: false
       - id: update-local-yml-file
         name: Update mounts in the local yml file
-        entry: "./scripts/ci/pre_commit_local_yml_mounts.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_local_yml_mounts.sh"
         language: system
         files: ^scripts/ci/libraries/_local_mounts.sh$|s^scripts/ci/docker_compose/local.yml"
         pass_filenames: false
       - id: update-setup-cfg-file
         name: Update setup.cfg file with all licenses
-        entry: "./scripts/ci/pre_commit_setup_cfg_file.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_setup_cfg_file.sh"
         language: system
         files: ^setup.cfg$
         pass_filenames: false
       - id: build-providers-dependencies
         name: Build cross-dependencies for providers packages
-        entry: "./scripts/ci/pre_commit_build_providers_dependencies.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.sh"
         language: system
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
         pass_filenames: false
       - id: update-extras
         name: Update extras in documentation
-        entry: "./scripts/ci/pre_commit_update_extras.sh"
-        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
+        language: python
         files: ^setup.py$|^INSTALL$|^CONTRIBUTING.rst$
         pass_filenames: false
       - id: pydevd
@@ -324,41 +324,41 @@ repos:
         pass_filenames: true
       - id: check-integrations
         name: Check if integration list is aligned
-        entry: ./scripts/ci/pre_commit_check_integrations.sh
+        entry: ./scripts/ci/pre_commit/pre_commit_check_integrations.sh
         language: system
         pass_filenames: false
         files: ^common/_common_values.sh$|^breeze-complete$
       - id: build
         name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit_ci_build.sh 3.6 false
+        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
         language: system
         always_run: true
         pass_filenames: false
       - id: check-apache-license
         name: Check if licenses are OK for Apache
-        entry: "./scripts/ci/pre_commit_check_license.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_check_license.sh"
         language: system
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
       - id: airflow-config-yaml
         name: Checks for consistency between config.yml and default_config.cfg
         language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_yaml_to_cfg.py
         files: "config.yml$|default_airflow.cfg$|default.cfg$"
         pass_filenames: false
-        require_serial: false
-        entry: ./scripts/ci/pre_commit_yaml_to_cfg.py
+        require_serial: true
         additional_dependencies: ['pyyaml']
       - id: mypy
         name: Run mypy
         language: system
-        entry: "./scripts/ci/pre_commit_mypy.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: \.py$
         exclude: ^dev|^backport_packages
         require_serial: true
       - id: pylint
         name: Run pylint for main sources
         language: system
-        entry: "./scripts/ci/pre_commit_pylint_main.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_pylint_main.sh"
         files: \.py$
         exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
         pass_filenames: true
@@ -366,20 +366,20 @@ repos:
       - id: pylint-tests
         name: Run pylint for tests
         language: system
-        entry: "./scripts/ci/pre_commit_pylint_tests.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_pylint_tests.sh"
         files: ^tests/.*\.py$
         pass_filenames: true
         require_serial: true
       - id: flake8
         name: Run flake8
         language: system
-        entry: "./scripts/ci/pre_commit_flake8.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
         files: \.py$
         pass_filenames: true
       - id: bat-tests
         name: Run BATS bash tests for changed bash files
         language: system
-        entry: "./scripts/ci/pre_commit_bat_tests.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh"
         files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
         pass_filenames: false
       - id: stylelint

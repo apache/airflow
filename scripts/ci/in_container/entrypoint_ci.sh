@@ -22,7 +22,7 @@ fi
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . /opt/airflow/scripts/ci/in_container/_in_container_script_init.sh
 
-AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
+AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../../.." || exit 1; pwd)
 
 PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
 BACKEND=${BACKEND:=sqlite}
@@ -47,8 +47,8 @@ INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
 if [[ ${CI} == "false" ]]; then
     # Create links for useful CLI tools
-    # shellcheck source=scripts/ci/run_cli_tool.sh
-    source <(bash scripts/ci/run_cli_tool.sh)
+    # shellcheck source=scripts/ci/in_container/run_cli_tool.sh
+    source <(bash scripts/ci/in_container/run_cli_tool.sh)
 fi
 
 if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
@@ -98,10 +98,10 @@ export PATH=${PATH}:${AIRFLOW_SOURCES}
 unset AIRFLOW__CORE__UNIT_TEST_MODE
 
 mkdir -pv "${AIRFLOW_HOME}/logs/"
-cp -f "${MY_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
+cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
 set +e
-"${MY_DIR}/check_environment.sh"
+"${IN_CONTAINER_DIR}/check_environment.sh"
 ENVIRONMENT_EXIT_CODE=$?
 set -e
 if [[ ${ENVIRONMENT_EXIT_CODE} != 0 ]]; then
@@ -150,7 +150,7 @@ done
 ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 
 # shellcheck source=scripts/ci/in_container/configure_environment.sh
-. "${MY_DIR}/configure_environment.sh"
+. "${IN_CONTAINER_DIR}/configure_environment.sh"
 
 cd "${AIRFLOW_SOURCES}"
 
@@ -211,7 +211,7 @@ fi
 ARGS=("${EXTRA_PYTEST_ARGS[@]}" "${TESTS_TO_RUN[@]}")
 
 if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
-    "${MY_DIR}/run_system_tests.sh" "${ARGS[@]}"
+    "${IN_CONTAINER_DIR}/run_system_tests.sh" "${ARGS[@]}"
 else
-    "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
+    "${IN_CONTAINER_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 fi
