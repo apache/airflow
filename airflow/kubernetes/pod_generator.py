@@ -360,7 +360,8 @@ class PodGenerator(object):
                 return namespaced, resources_obj
 
             namespaced, requests = extract('request_cpu', 'request_memory', 'request_ephemeral_storage')
-            namespaced, limits = extract('limit_cpu', 'limit_memory', 'limit_ephemeral_storage', limit_gpu='limit_gpu')
+            namespaced, limits = extract('limit_cpu', 'limit_memory', 'limit_ephemeral_storage',
+                                         limit_gpu='limit_gpu')
 
             if requests is None and limits is None:
                 resources = None
