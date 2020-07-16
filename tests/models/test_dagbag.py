@@ -24,12 +24,14 @@ from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest.mock import patch
 
+from freezegun import freeze_time
 from sqlalchemy import func
 
 import airflow.example_dags
 from airflow import models
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
@@ -657,3 +659,35 @@ class TestDagBag(unittest.TestCase):
 
             new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
             self.assertEqual(new_serialized_dags_count, 1)
+
+    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
+    def test_get_dag_with_dag_serialization(self):
+        """
+        Test that Serialized DAG is updated in DagBag when it is updated in
+        Serialized DAG table after MIN_SERIALIZED_DAG_UPDATE_INTERVAL seconds are passed.
+        """
+
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)):
+            example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+
+        dag_bag = DagBag(read_dags_from_db=True)
+        ser_dag_1 = dag_bag.get_dag("example_bash_operator")
+        ser_dag_1_update_time = dag_bag.dags_last_changed["example_bash_operator"]
+        self.assertEqual(example_bash_op_dag.tags, ser_dag_1.tags)
+        self.assertEqual(ser_dag_1_update_time, tz.datetime(2020, 1, 5, 0, 0, 0))
+
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 6)):
+            example_bash_op_dag.tags += ["new_tag"]
+            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 4)):
+            self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example"])
+
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 8)):
+            updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
+            updated_ser_dag_1_update_time = dag_bag.dags_last_changed["example_bash_operator"]
+
+        self.assertCountEqual(updated_ser_dag_1.tags, ["example", "new_tag"])
+        self.assertGreater(updated_ser_dag_1_update_time, ser_dag_1_update_time)
