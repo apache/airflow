@@ -557,10 +557,10 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         self.hook.metastore.__enter__().get_table.assert_called_with(
             dbname='default', tbl_name='does-not-exist')
 
-    @mock.patch('hmsclient.genthrift.hive_metastore.ThriftHiveMetastore.Client.send_drop_partition')
+    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.drop_partitions')
     def test_drop_partition(self, thrift_mock):
         self.hook.drop_partitions(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS])
-        thrift_mock.assert_called_once()
+        thrift_mock.assert_called_once_with(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS])
 
 
 class TestHiveServer2Hook(unittest.TestCase):
