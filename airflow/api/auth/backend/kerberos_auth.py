@@ -44,7 +44,7 @@ import logging
 import os
 from functools import wraps
 from socket import getfqdn
-from typing import Callable, TypeVar, cast, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, TypeVar, Union, cast
 
 import kerberos
 # noinspection PyProtectedMember

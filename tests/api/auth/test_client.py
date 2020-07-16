@@ -19,7 +19,7 @@ import unittest
 from unittest import mock
 
 from airflow.api.client import get_current_api_client
-from test_utils.config import conf_vars
+from tests.test_utils.config import conf_vars
 
 
 class TestGetCurrentApiClient(unittest.TestCase):
@@ -38,4 +38,3 @@ class TestGetCurrentApiClient(unittest.TestCase):
             api_base_url='http://localhost:1234', auth='CLIENT_AUTH'
         )
         self.assertEqual(mock_client.return_value, result)
-
