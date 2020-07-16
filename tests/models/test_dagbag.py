@@ -662,10 +662,11 @@ class TestDagBag(unittest.TestCase):
 
     @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
     def test_get_dag_with_dag_serialization(self):
         """
         Test that Serialized DAG is updated in DagBag when it is updated in
-        Serialized DAG table after MIN_SERIALIZED_DAG_UPDATE_INTERVAL seconds are passed.
+        Serialized DAG table after 'min_serialized_dag_fetch_interval' seconds are passed.
         """
 
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)):
@@ -678,13 +679,18 @@ class TestDagBag(unittest.TestCase):
         self.assertEqual(example_bash_op_dag.tags, ser_dag_1.tags)
         self.assertEqual(ser_dag_1_update_time, tz.datetime(2020, 1, 5, 0, 0, 0))
 
+        # Check that if min_serialized_dag_fetch_interval has not passed we do not fetch the DAG
+        # from DB
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 4)):
+            self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example"])
+
+        # Make a change in the DAG and write Serialized DAG to the DB
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 6)):
             example_bash_op_dag.tags += ["new_tag"]
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
-        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 4)):
-            self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example"])
-
+        # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
+        # fetches the Serialized DAG from DB
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 8)):
             updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
             updated_ser_dag_1_update_time = dag_bag.dags_last_changed["example_bash_operator"]

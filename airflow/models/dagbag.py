@@ -151,10 +151,10 @@ class DagBag(BaseDagBag, LoggingMixin):
                 # Load from DB if not (yet) in the bag
                 self._add_dag_from_db(dag_id=dag_id)
 
-            min_serialized_dag_update_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL)
+            min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
             if (
                 dag_id in self.dags_last_changed and
-                timezone.utcnow() > self.dags_last_changed[dag_id] + min_serialized_dag_update_secs
+                timezone.utcnow() > self.dags_last_changed[dag_id] + min_serialized_dag_fetch_secs
             ):
                 sd_last_updated_date = SerializedDagModel.get_last_updated_date(dag_id=dag_id)
                 if sd_last_updated_date > self.dags_last_changed[dag_id]:

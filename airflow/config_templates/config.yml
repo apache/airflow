@@ -330,6 +330,14 @@
       type: string
       example: ~
       default: "30"
+    - name: min_serialized_dag_fetch_interval
+      description: |
+        Fetching serialized DAG can not be faster than a minimum interval to reduce database
+        read rate. This config controls when your DAGs are updated in the Webserver
+      version_added: ~
+      type: string
+      example: ~
+      default: "10"
     - name: store_dag_code
       description: |
         Whether to persist DAG files code in DB.

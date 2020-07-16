@@ -58,11 +58,16 @@ Add the following settings in ``airflow.cfg``:
     [core]
     store_serialized_dags = True
     min_serialized_dag_update_interval = 30
+    min_serialized_dag_fetch_interval = 10
+    store_dag_code = True
 
 *   ``store_serialized_dags``: This flag decides whether to serialise DAGs and persist them in DB.
     If set to True, Webserver reads from DB instead of parsing DAG files
 *   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
     the serialized DAG in DB should be updated. This helps in reducing database write rate.
+*   ``min_serialized_dag_fetch_interval``: This flag sets the minimum interval (in seconds) after which
+    the serialized DAG will be fetched from DB from the Webserver. This helps in reducing database read rate.
+    This config controls when your DAGs are updated in the Webserver.
 *   ``store_dag_code``: This flag decides whether to persist DAG files code in DB.
     If set to True, Webserver reads file contents from DB instead of trying to access files in a DAG folder.
 
