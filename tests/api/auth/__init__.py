@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,24 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-API Client that allows interacting with Airflow API
-"""
-from importlib import import_module
-from typing import Any
-
-from airflow import api
-from airflow.api.client.api_client import Client
-from airflow.configuration import conf
-
-
-def get_current_api_client() -> Client:
-    """
-    Return current API Client based on current Airflow configuration
-    """
-    api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
-    api_client = api_module.Client(
-        api_base_url=conf.get('cli', 'endpoint_url'),
-        auth=api.load_auth().CLIENT_AUTH
-    )
-    return api_client

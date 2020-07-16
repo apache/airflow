@@ -44,11 +44,12 @@ import logging
 import os
 from functools import wraps
 from socket import getfqdn
-from typing import Callable, TypeVar, cast
+from typing import Callable, Optional, Tuple, TypeVar, Union, cast
 
 import kerberos
 # noinspection PyProtectedMember
 from flask import Response, _request_ctx_stack as stack, g, make_response, request  # type: ignore
+from requests.auth import AuthBase
 from requests_kerberos import HTTPKerberosAuth
 
 from airflow.configuration import conf
@@ -56,7 +57,7 @@ from airflow.configuration import conf
 log = logging.getLogger(__name__)
 
 # pylint: disable=c-extension-no-member
-CLIENT_AUTH = HTTPKerberosAuth(service='airflow')
+CLIENT_AUTH: Optional[Union[Tuple[str, str], AuthBase]] = HTTPKerberosAuth(service='airflow')
 
 
 class KerberosService:  # pylint: disable=too-few-public-methods
