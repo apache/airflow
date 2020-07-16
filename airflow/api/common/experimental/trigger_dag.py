@@ -80,7 +80,6 @@ def _trigger_dag(
     if conf:
         run_conf = conf if isinstance(conf, dict) else json.loads(conf)
 
-    run_conf = run_conf or {}
     triggers = []
     dags_to_trigger = [dag] + dag.subdags
     for _dag in dags_to_trigger:

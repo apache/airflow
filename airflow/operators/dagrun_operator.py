@@ -52,7 +52,7 @@ class TriggerDagRunOperator(BaseOperator):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.trigger_dag_id = trigger_dag_id
-        self.conf = conf or {}
+        self.conf = conf
 
         if not isinstance(execution_date, (str, datetime.datetime, type(None))):
             raise TypeError(

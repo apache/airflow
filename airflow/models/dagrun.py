@@ -82,7 +82,7 @@ class DagRun(Base, LoggingMixin):
         self.execution_date = execution_date
         self.start_date = start_date
         self.external_trigger = external_trigger
-        self.conf = conf
+        self.conf = conf or {}
         self.state = state
         self.run_type = run_type
         super().__init__()
