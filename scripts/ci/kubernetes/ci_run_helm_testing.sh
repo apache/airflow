@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,22 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
----
-name: OpenAPI Build
-on:
-  push:
-    branches: ['master']
-  pull_request:
-    branches: ['master']
 
-jobs:
-  test-openapi-client-generation:
-    name: "Test OpenAPI client generation"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-        with:
-          fetch-depth: 0
-      - name: "Generate client codegen diff"
-        run: ./scripts/ci/openapi/client_codegen_diff.sh
+echo "Running helm tests"
+
+CHART_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../../chart/"
+
+echo "Chart directory is $CHART_DIR"
+
+docker run -w /airflow-chart -v "$CHART_DIR":/airflow-chart \
+  --entrypoint /bin/sh \
+  aneeshkj/helm-unittest \
+  -c "helm repo add stable https://kubernetes-charts.storage.googleapis.com; helm dependency update ; helm unittest ."

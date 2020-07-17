@@ -15,14 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-echo "Running helm tests"
-
-CHART_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../chart/"
-
-echo "Chart directory is $CHART_DIR"
-
-docker run -w /airflow-chart -v "$CHART_DIR":/airflow-chart \
-  --entrypoint /bin/sh \
-  aneeshkj/helm-unittest \
-  -c "helm repo add stable https://kubernetes-charts.storage.googleapis.com; helm dependency update ; helm unittest ."
+set -euo pipefail
+echo "Getting workflow id for ${WORKFLOW}. Github Repo: ${GITHUB_REPOSITORY}"
+URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW}.yml"
+echo "Calling URL: ${URL}"
+WORKFLOW_ID=$(curl "Authorization: token ${GITHUB_TOKEN}" "${URL}" | jq '.id')
+echo "Workflow id for ${WORKFLOW}: ${WORKFLOW_ID}"
+echo "::set-env name=WORKFLOW_ID::${WORKFLOW_ID}"

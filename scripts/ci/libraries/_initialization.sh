@@ -272,7 +272,7 @@ function get_environment_for_builds_on_ci() {
             fi
         elif [[ ${GITHUB_ACTIONS:=} == "true" ]]; then
             export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
-            export CI_TARGET_BRANCH="${GITHUB_BASE_REF}"
+            export CI_TARGET_BRANCH="${GITHUB_BASE_REF:=${CI_TARGET_BRANCH}}"
             export CI_BUILD_ID="${GITHUB_RUN_ID}"
             export CI_JOB_ID="${GITHUB_JOB}"
             if [[ ${GITHUB_EVENT_NAME:=} == "pull_request" ]]; then
