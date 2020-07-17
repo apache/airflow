@@ -133,6 +133,23 @@ will be used.
     [cli]
     google_key_path = <KEY_PATH>
 
+You can get the authorization token with the ``gcloud auth print-identity-token`` command. An example request
+look like the following.
+
+  .. code-block:: bash
+
+      ENDPOINT_URL="http://locahost:8080/"
+
+      AUDIENCE="project-id-random-value.apps.googleusercontent.com"
+      ID_TOKEN="$(gcloud auth print-identity-token "--audience=${AUDIENCE}")"
+
+      curl -X GET  \
+          "${ENDPOINT_URL}/api/experimental/pools" \
+          -H 'Content-Type: application/json' \
+          -H 'Cache-Control: no-cache' \
+          -H "Authorization: Bearer ${ID_TOKEN}" \
+          --data '{"replace_microseconds":"false"}'
+
 Kerberos
 --------
 
