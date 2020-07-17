@@ -63,7 +63,7 @@ class TestGoogleOpenID(unittest.TestCase):
             self.assertEqual("test@fab.org", current_user.email)
 
         self.assertEqual(200, response.status_code)
-        self.assertIn("Default pool", response.json)
+        self.assertIn("Default pool", str(response.json))
 
     @parameterized.expand([("bearer",), ("JWT_TOKEN",), ("bearer ",)])
     @mock.patch("google.oauth2.id_token.verify_token")

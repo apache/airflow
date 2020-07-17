@@ -216,12 +216,12 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 
 def _get_rst_filepath_from_path(filepath: str):
     if os.path.isdir(filepath):
-        result = f"{filepath}/index.rst"
+        result = filepath
     elif os.path.isfile(filepath) and filepath.endswith('/__init__.py'):
         result = filepath.rpartition("/")[0]
-        result += "/index.rst"
     else:
-        result = filepath.replace(".py", ".rst")
+        result = filepath.rpartition(".",)[0]
+    result += "/index.rst"
 
     result = f"_api/{os.path.relpath(result, ROOT_DIR)}"
     return result
