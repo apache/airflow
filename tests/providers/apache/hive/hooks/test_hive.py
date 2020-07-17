@@ -564,8 +564,8 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         table_exist_mock.return_value = True
         ret = self.hook.drop_partitions(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS])
         table_exist_mock.assert_called_once_with(self.table, self.database)
-        assert (metastore_mock.drop_partition(self.table, db=self.database,
-                                             part_vals=[DEFAULT_DATE_DS]), ret)
+        assert metastore_mock.drop_partition(
+            self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]), ret
 
 
 class TestHiveServer2Hook(unittest.TestCase):
