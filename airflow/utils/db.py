@@ -107,16 +107,29 @@ def add_default_pool_if_not_exists(session=None):
         session.commit()
 
 
+default_error_tags = {
+    '100': '提前松手',
+    '101': '螺栓放偏',
+    '102': '螺栓空转，没办法旋入',
+    '103': '螺栓被错误的预拧紧',
+    '104': '螺纹胶涂胶识别有无',
+    '105': '螺纹胶涂覆位置错误-前后',
+    '106': '螺钉太长',
+    '107': '螺钉太短',
+    '108': '工件开裂',
+    '109': '尖叫螺栓',
+    '110': '提前进入屈服阶段',
+    '111': '转角法监控扭矩小于下限值',
+    '112': '转角法监控扭矩大于上限值-或者临界上限值'
+}
+
+
 @provide_session
 def create_default_error_tags(session=None):
     from airflow.models import ErrorTag
     # todo: error tag init
-    merge_error_tag(
-        ErrorTag(lable='测试错误代码1', value='100')
-    )
-    merge_error_tag(
-        ErrorTag(lable='测试错误代码2', value='101')
-    )
+    for key, value in default_error_tags.items():
+        merge_error_tag(err_tag=ErrorTag(lable=value, value=key))
 
 
 @provide_session
@@ -157,8 +170,8 @@ def create_default_nd_line_controller_map_var(session=None):
             "C2-004R@C2-004R/底盘二5工位",
             "C2-005L@C2-005L/底盘二6工位",
             "C2-005R@C2-005R/底盘二7工位",
-            "C2-006R@C2-006R/底盘二8工位",
-            "C2-006R@C2-006R/底盘二9工位",
+            "C2-006R-EFDS80-450@C2-006R/底盘二8工位",
+            "C2-006R-EAD440-250@C2-006R/底盘二9工位",
             "C2-007M1@C2-007M1/底盘二10工位",
             "C2-008M3@C2-008M3/底盘二11工位",
             "C2-015L2@C2-015L2/底盘二12工位",
@@ -190,8 +203,8 @@ def create_default_nd_line_controller_map_var(session=None):
             "FL-013R@FL-013R/最终线1工位"
         ],
         "E0": [
-            "E0-012R@E0-012R/发动机1工位",
-            "E0-012R@E0-012R/发动机2工位",
+            "E0-012R-EAD80-650@E0-012R/发动机1工位",
+            "E0-012R-EAD280-370R@E0-012R/发动机2工位",
             "E0-013R@E0-013R/发动机3工位",
             "E0-014R@E0-014R/发动机4工位"
         ],
@@ -202,17 +215,17 @@ def create_default_nd_line_controller_map_var(session=None):
             "E1-007R@E1-007R/发动机8工位"
         ],
         "CA": [
-            "CA-004L@CA-004L/底盘模块1工位",
+            "CA-004L-EAD160-430@CA-004L/底盘模块1工位",
             "CA-005L@CA-005L/底盘模块2工位",
-            "CA-007L@CA-007L/底盘模块3工位",
-            "CA-007R@CA-007R/底盘模块4工位",
-            "CA-007L@CA-007L/底盘模块5工位",
-            "CA-007R@CA-007R/底盘模块6工位",
-            "CA-008L@CA-008L/底盘模块7工位",
-            "CA-008R@CA-008R/底盘模块8工位",
-            "CA-008L@CA-008L/底盘模块9工位",
-            "CA-08L@CA-08L/底盘模块10工位",
-            "CA-008R@CA-008R/底盘模块11工位",
+            "CA-007L-EAD70-700-HAD@CA-007L/底盘模块3工位",
+            "CA-007R-EAD70-700-HAD@CA-007R/底盘模块4工位",
+            "CA-007L-EAD160-430-HAD@CA-007L/底盘模块5工位",
+            "CA-007R-EAD160-430-HAD@CA-007R/底盘模块6工位",
+            "CA-008L-EAD160-430@CA-008L/底盘模块7工位",
+            "CA-008R-EAD160-430@CA-008R/底盘模块8工位",
+            "CA-008L-EAD160-430-HAD@CA-008L/底盘模块9工位",
+            "CA-08L-EAD105-500@CA-08L/底盘模块10工位",
+            "CA-008R-EAD160-430-HAD@CA-008R/底盘模块11工位",
             "CA-010L@CA-010L/底盘模块12工位",
             "CA-010R@CA-010R/底盘模块13工位"
         ],
@@ -231,7 +244,7 @@ def create_default_nd_line_controller_map_var(session=None):
             "MFE-006R@MFE-006R/前装模块线1工位"
         ]
     }
-    line_code_controllers_map = Variable.get('line_code_controllers_map', {} , deserialize_json=True)
+    line_code_controllers_map = Variable.get('line_code_controllers_map', {}, deserialize_json=True)
     if not line_code_controllers_map:
         # 不存在时候才进行设定
         Variable.set(key='line_code_controllers_map', value=val, serialize_json=True)
