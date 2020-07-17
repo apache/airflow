@@ -63,9 +63,7 @@ class TestGoogleOpenID(unittest.TestCase):
             self.assertEqual("test@fab.org", current_user.email)
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            [{"description": "Default pool", "id": 1, "pool": "default_pool", "slots": 128}], response.json
-        )
+        self.assertIn("Default pool", response.json)
 
     @parameterized.expand([("bearer",), ("JWT_TOKEN",), ("bearer ",)])
     @mock.patch("google.oauth2.id_token.verify_token")
@@ -128,7 +126,9 @@ class TestGoogleOpenID(unittest.TestCase):
         mock_verify_token.side_effect = GoogleAuthError("Invalid token")
 
         with self.app.test_client() as test_client:
-            response = test_client.get("/api/experimental/pools", {"Authorization": "bearer JWT_TOKEN"})
+            response = test_client.get(
+                "/api/experimental/pools", headers={"Authorization": "bearer JWT_TOKEN"}
+            )
 
         self.assertEqual(403, response.status_code)
         self.assertEqual("Forbidden", response.data.decode())

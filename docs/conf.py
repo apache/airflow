@@ -253,13 +253,23 @@ providers_package_indexes = {
 
 exclude_patterns.extend(providers_package_indexes)
 
-# Exclude auth_backend, utils, _internal_client, example_dags in providers paackages
+# Exclude auth_backend, utils, _internal_client, example_dags in providers packages
 excluded_packages_in_providers = {
-    _get_rst_filepath_from_path(name)
+    name
     for entity in ['auth_backend', 'utils', '_internal_client', 'example_dags']
     for name in glob(f"{ROOT_DIR}/airflow/providers/**/{entity}/", recursive=True)
 }
-exclude_patterns.extend(excluded_packages_in_providers)
+excluded_files_in_providers = {
+    _get_rst_filepath_from_path(path)
+    for p in excluded_packages_in_providers
+    for path in glob(f"{p}/**/*", recursive=True)
+}
+excluded_files_in_providers |= {
+    _get_rst_filepath_from_path(name)
+    for name in excluded_packages_in_providers
+}
+
+exclude_patterns.extend(excluded_files_in_providers)
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
