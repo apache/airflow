@@ -55,6 +55,7 @@ class TestSqliteHook(unittest.TestCase):
 
         class UnitTestSqliteHook(SqliteHook):
             conn_name_attr = 'test_conn_id'
+            log = mock.MagicMock()
 
             def get_conn(self):
                 return conn
@@ -95,3 +96,8 @@ class TestSqliteHook(unittest.TestCase):
         self.assertEqual(result_sets[1][0], df.values.tolist()[1][0])
 
         self.cur.execute.assert_called_once_with(statement)
+
+    def test_run_log(self):
+        statement = 'SQL'
+        self.db_hook.run(statement)
+        assert self.db_hook.log.info.call_count == 2
