@@ -231,7 +231,7 @@ The happy flow consists of the following stages:
 2. Scheduled (scheduler determined task instance needs to run)
 3. Queued (scheduler sent task to executor to run on the queue)
 4. Running (worker picked up a task and is now running it)
-5. Success (task completed)8
+5. Success (task completed)
 
 There is also visual difference between scheduled and manually triggered
 DAGs/tasks:
