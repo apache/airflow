@@ -35,6 +35,9 @@ you to create and run Pods on a Kubernetes cluster.
   :ref:`GKEStartPodOperator <howto/operator:GKEStartPodOperator>` operator as it
   simplifies the Kubernetes authorization process.
 
+.. note::
+  The :doc:`Kubernetes executor <../../../executor/kubernetes>` is **not** required to use this operator.
+
 How does this operator work?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The ``KubernetesPodOperator`` uses the Kubernetes API to launch a pod in a Kubernetes cluster. By supplying an
