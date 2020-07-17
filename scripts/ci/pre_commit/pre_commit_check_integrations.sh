@@ -21,6 +21,9 @@ PRE_COMMIT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 AIRFLOW_SOURCES=$(cd "${PRE_COMMIT_DIR}/../../../" && pwd);
 cd "${AIRFLOW_SOURCES}" || exit 1
 
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
 . breeze-complete
 
 if [[ ${AVAILABLE_INTEGRATIONS} != "${_BREEZE_ALLOWED_INTEGRATIONS}" ]]; then
