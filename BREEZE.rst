@@ -1849,11 +1849,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -i, --integration <INTEGRATION>
           Integration to start during tests - it determines which integrations are started
           for integration tests. There can be more than one integration started, or all to
-          }
           start all integrations. Selected integrations are not saved for future execution.
           One of:
 
-                 cassandra kerberos mongo openldap presto rabbitmq redis
+                 cassandra kerberos mongo openldap presto rabbitmq redis all
 
   ****************************************************************************************************
    Kind kubernetes and Kubernetes tests configuration(optional)

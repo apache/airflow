@@ -26,7 +26,7 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 
 . breeze-complete
 
-if [[ ${AVAILABLE_INTEGRATIONS} != "${_BREEZE_ALLOWED_INTEGRATIONS}" ]]; then
+if [[ "${AVAILABLE_INTEGRATIONS} all" != "${_BREEZE_ALLOWED_INTEGRATIONS}" ]]; then
   echo
   echo "Error: Allowed integrations do not match!"
   echo
@@ -35,6 +35,8 @@ if [[ ${AVAILABLE_INTEGRATIONS} != "${_BREEZE_ALLOWED_INTEGRATIONS}" ]]; then
   echo
   echo "The ./breeze-complete integrations (_BREEZE_ALLOWED_INTEGRATIONS):"
   echo "${_BREEZE_ALLOWED_INTEGRATIONS}"
+  echo
+  echo "_BREEZE_ALLOWED_INTEGRATIONS should match AVAILABLE_INTEGRATIONS plus 'all'"
   echo
   echo "Please align the two!"
   echo
