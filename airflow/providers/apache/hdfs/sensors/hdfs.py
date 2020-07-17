@@ -121,7 +121,7 @@ class HdfsSensor(BaseSensorOperator):
             return False
 
 
-class HdfsSensorRegex(HdfsSensor):
+class HdfsRegexSensor(HdfsSensor):
     """
     Waits for matching files by matching on regex
     """
@@ -151,7 +151,7 @@ class HdfsSensorRegex(HdfsSensor):
         return bool(result)
 
 
-class HdfsSensorFolder(HdfsSensor):
+class HdfsFolderSensor(HdfsSensor):
     """
     Waits for a non-empty directory
     """

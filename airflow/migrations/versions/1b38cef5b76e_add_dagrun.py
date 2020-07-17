@@ -34,7 +34,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     op.create_table('dag_run',
                     sa.Column('id', sa.Integer(), nullable=False),
                     sa.Column('dag_id', sa.String(length=250), nullable=True),
@@ -47,5 +47,5 @@ def upgrade():
                     sa.UniqueConstraint('dag_id', 'run_id'))
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_table('dag_run')

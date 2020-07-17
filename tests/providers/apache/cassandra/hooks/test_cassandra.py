@@ -113,7 +113,7 @@ class TestCassandraHook(unittest.TestCase):
                                    TokenAwarePolicy,
                                    expected_child_policy_type=RoundRobinPolicy)
 
-    def test_get_lb_policy_no_host_for_white_list(self):
+    def test_get_lb_policy_no_host_for_allow_list(self):
         # test host not specified for WhiteListRoundRobinPolicy should throw exception
         self._assert_get_lb_policy('WhiteListRoundRobinPolicy',
                                    {},

@@ -20,6 +20,8 @@ import multiprocessing
 import os
 import time
 import unittest
+import uuid
+from unittest import mock
 
 import pytest
 from mock import patch
@@ -38,7 +40,8 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.asserts import assert_queries_count
+from tests.test_utils.db import clear_db_jobs, clear_db_runs
 from tests.test_utils.mock_executor import MockExecutor
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -47,10 +50,15 @@ TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 
 class TestLocalTaskJob(unittest.TestCase):
     def setUp(self):
+        clear_db_jobs()
         clear_db_runs()
         patcher = patch('airflow.jobs.base_job.sleep')
         self.addCleanup(patcher.stop)
         self.mock_base_job_sleep = patcher.start()
+
+    def tearDown(self) -> None:
+        clear_db_jobs()
+        clear_db_runs()
 
     def test_localtaskjob_essential_attr(self):
         """
@@ -406,3 +414,31 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertTrue(data['called'])
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
+
+
+@pytest.fixture()
+def clean_db_helper():
+    yield
+    clear_db_jobs()
+    clear_db_runs()
+
+
+@pytest.mark.usefixtures("clean_db_helper")
+class TestLocalTaskJobPerformance:
+    @pytest.mark.parametrize("return_codes", [[0], 9 * [None] + [0]])  # type: ignore
+    @mock.patch("airflow.jobs.local_task_job.get_task_runner")
+    def test_number_of_queries_single_loop(self, mock_get_task_runner, return_codes):
+        unique_prefix = str(uuid.uuid4())
+        dag = DAG(dag_id=f'{unique_prefix}_test_number_of_queries', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='test_state_succeeded1', dag=dag)
+
+        dag.clear()
+        dag.create_dagrun(run_id=unique_prefix, state=State.NONE)
+
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+
+        mock_get_task_runner.return_value.return_code.side_effects = return_codes
+
+        job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
+        with assert_queries_count(12):
+            job.run()

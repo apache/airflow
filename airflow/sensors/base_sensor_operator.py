@@ -25,7 +25,9 @@ from typing import Any, Dict, Iterable
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSensorTimeout, AirflowSkipException,
 )
-from airflow.models import BaseOperator, SkipMixin, TaskReschedule
+from airflow.models import BaseOperator
+from airflow.models.skipmixin import SkipMixin
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
@@ -199,8 +201,7 @@ def poke_mode_only(cls):
 
         def mode_setter(_, value):
             if value != 'poke':
-                raise ValueError(
-                    f"cannot set mode to 'poke'.")
+                raise ValueError("cannot set mode to 'poke'.")
 
         if not issubclass(cls_type, BaseSensorOperator):
             raise ValueError(f"poke_mode_only decorator should only be "

@@ -44,6 +44,9 @@ class HttpSensor(BaseSensorOperator):
 
         HttpSensor(task_id='my_http_sensor', ..., response_check=response_check)
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:HttpSensor`
 
     :param http_conn_id: The connection to run the sensor against
     :type http_conn_id: str

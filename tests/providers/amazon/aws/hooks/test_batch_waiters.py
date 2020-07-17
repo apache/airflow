@@ -45,7 +45,7 @@ import pytest
 from moto import mock_batch, mock_ec2, mock_ecs, mock_iam, mock_logs
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.batch_waiters import AwsBatchWaiters
+from airflow.providers.amazon.aws.hooks.batch_waiters import AwsBatchWaitersHook
 
 # Use dummy AWS credentials
 AWS_REGION = "eu-west-1"
@@ -225,9 +225,9 @@ def batch_infrastructure(
 
 
 def test_aws_batch_waiters(aws_region):
-    assert inspect.isclass(AwsBatchWaiters)
-    batch_waiters = AwsBatchWaiters(region_name=aws_region)
-    assert isinstance(batch_waiters, AwsBatchWaiters)
+    assert inspect.isclass(AwsBatchWaitersHook)
+    batch_waiters = AwsBatchWaitersHook(region_name=aws_region)
+    assert isinstance(batch_waiters, AwsBatchWaitersHook)
 
 
 @mock_batch
@@ -254,7 +254,7 @@ def test_aws_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_defi
     aws_resources = batch_infrastructure(
         aws_clients, aws_region, job_queue_name, job_definition_name
     )
-    batch_waiters = AwsBatchWaiters(region_name=aws_resources.aws_region)
+    batch_waiters = AwsBatchWaitersHook(region_name=aws_resources.aws_region)
 
     job_exists_waiter = batch_waiters.get_waiter("JobExists")
     assert job_exists_waiter
@@ -339,7 +339,7 @@ class TestAwsBatchWaiters(unittest.TestCase):
         self.job_id = "8ba9d676-4108-4474-9dca-8bbac1da9b19"
         self.region_name = AWS_REGION
 
-        self.batch_waiters = AwsBatchWaiters(region_name=self.region_name)
+        self.batch_waiters = AwsBatchWaitersHook(region_name=self.region_name)
         self.assertEqual(self.batch_waiters.aws_conn_id, 'aws_default')
         self.assertEqual(self.batch_waiters.region_name, self.region_name)
 

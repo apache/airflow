@@ -20,9 +20,10 @@ import datetime
 from typing import Dict, Optional, Union
 
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, DagRun
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.types import DagRunType
 
 
 class TriggerDagRunOperator(BaseOperator):
@@ -63,13 +64,14 @@ class TriggerDagRunOperator(BaseOperator):
 
     def execute(self, context: Dict):
         if isinstance(self.execution_date, datetime.datetime):
-            run_id = "trig__{}".format(self.execution_date.isoformat())
+            execution_date = self.execution_date
         elif isinstance(self.execution_date, str):
-            run_id = "trig__{}".format(self.execution_date)
-            self.execution_date = timezone.parse(self.execution_date)  # trigger_dag() expects datetime
+            execution_date = timezone.parse(self.execution_date)
+            self.execution_date = execution_date
         else:
-            run_id = "trig__{}".format(timezone.utcnow().isoformat())
+            execution_date = timezone.utcnow()
 
+        run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
         # Ignore MyPy type for self.execution_date because it doesn't pick up the timezone.parse() for strings
         trigger_dag(
             dag_id=self.trigger_dag_id,

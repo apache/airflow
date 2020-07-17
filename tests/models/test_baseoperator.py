@@ -15,13 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 import uuid
 from datetime import date, datetime
 from unittest import mock
 
 import jinja2
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -29,8 +29,9 @@ from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import chain, cross_downstream
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.decorators import apply_defaults
 from tests.models import DEFAULT_DATE
-from tests.test_utils.mock_operators import MockNamedTuple, MockOperator
+from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
 
 
 class ClassWithCustomAttributes:
@@ -347,3 +348,70 @@ class TestBaseOperatorMethods(unittest.TestCase):
         task4 = DummyOperator(task_id="op4", dag=dag)
         task4 > [inlet, outlet, extra]
         self.assertEqual(task4.get_outlet_defs(), [inlet, outlet, extra])
+
+    def test_warnings_are_properly_propagated(self):
+        with self.assertWarns(DeprecationWarning) as warns:
+            DeprecatedOperator(task_id="test")
+            assert len(warns.warnings) == 1
+            warning = warns.warnings[0]
+            # Here we check that the trace points to the place
+            # where the deprecated class was used
+            assert warning.filename == __file__
+
+
+class CustomOp(DummyOperator):
+    template_fields = ("field", "field2")
+
+    @apply_defaults
+    def __init__(self, field=None, field2=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.field = field
+        self.field2 = field2
+
+    def execute(self, context):
+        self.field = None
+
+
+class TestXComArgsRelationsAreResolved:
+    def test_setattr_performs_no_custom_action_at_execute_time(self):
+        op = CustomOp(task_id="test_task")
+        op_copy = op.prepare_for_execution()
+
+        with mock.patch(
+            "airflow.models.baseoperator.BaseOperator.set_xcomargs_dependencies"
+        ) as method_mock:
+            op_copy.execute({})
+        assert method_mock.call_count == 0
+
+    def test_upstream_is_set_when_template_field_is_xcomarg(self):
+        with DAG("xcomargs_test", default_args={"start_date": datetime.today()}):
+            op1 = DummyOperator(task_id="op1")
+            op2 = CustomOp(task_id="op2", field=op1.output)
+
+        assert op1 in op2.upstream_list
+        assert op2 in op1.downstream_list
+
+    def test_set_xcomargs_dependencies_works_recursively(self):
+        with DAG("xcomargs_test", default_args={"start_date": datetime.today()}):
+            op1 = DummyOperator(task_id="op1")
+            op2 = DummyOperator(task_id="op2")
+            op3 = CustomOp(task_id="op3", field=[op1.output, op2.output])
+            op4 = CustomOp(task_id="op4", field={"op1": op1.output, "op2": op2.output})
+
+        assert op1 in op3.upstream_list
+        assert op2 in op3.upstream_list
+        assert op1 in op4.upstream_list
+        assert op2 in op4.upstream_list
+
+    def test_set_xcomargs_dependencies_works_when_set_after_init(self):
+        with DAG(dag_id='xcomargs_test', default_args={"start_date": datetime.today()}):
+            op1 = DummyOperator(task_id="op1")
+            op2 = CustomOp(task_id="op2")
+            op2.field = op1.output  # value is set after init
+
+        assert op1 in op2.upstream_list
+
+    def test_set_xcomargs_dependencies_error_when_outside_dag(self):
+        with pytest.raises(AirflowException):
+            op1 = DummyOperator(task_id="op1")
+            CustomOp(task_id="op2", field=op1.output)

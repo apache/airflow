@@ -131,23 +131,23 @@ Running Tests for a Specified Target Using Breeze from the Host
 ---------------------------------------------------------------
 
 If you wish to only run tests and not to drop into shell, apply the
-``-t``, ``--test-target`` flag. You can add extra pytest flags after ``--`` in the command line.
+``tests`` command. You can add extra targets and pytest flags after the ``tests`` command.
 
 .. code-block:: bash
 
-     ./breeze test-target tests/hooks/test_druid_hook.py -- --logging-level=DEBUG
+     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --logging-level=DEBUG
 
-You can run the whole test suite with a special '.' test target:
+You can run the whole test suite with a 'tests' test target:
 
 .. code-block:: bash
 
-    ./breeze test-target .
+    ./breeze tests tests
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze test-target tests/test_core.py::TestCore
+    ./breeze tests tests/test_core.py::TestCore
 
 
 Airflow Integration Tests
@@ -325,98 +325,213 @@ Those tests are skipped by default. You can enable them with ``--include-quarant
 can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
 
 Running Tests with Kubernetes
------------------------------
+=============================
 
-Starting Kubernetes Cluster when Starting Breeze
-................................................
+Starting Kubernetes Cluster
+---------------------------
 
-To run Kubernetes in Breeze, you can start Breeze with the ``--kind-cluster-start`` switch. This
-automatically creates a Kind Kubernetes cluster in the same ``docker`` engine that is used to run Breeze.
-Setting up the Kubernetes cluster takes some time so the cluster continues running
-until it is stopped with the ``--kind-cluster-stop`` switch or until the ``--kind-cluster-recreate``
-switch is used rather than ``--kind-cluster-start``. Starting Breeze with the Kind Cluster automatically
-sets ``runtime`` to ``kubernetes`` (see below).
+For your testing you manage Kind cluster with ``kind-cluster`` breeze command:
 
-The cluster name follows the pattern ``airflow-python-X.Y.Z-vA.B.C`` where X.Y.Z is a Python version
+.. code-block:: bash
+
+    ./breeze kind-cluster [ start | stop | recreate | status | deploy | test | shell ]
+
+The command allows you to start/stop/recreate/status Kind Kubernetes cluster, deploy Airflow via Helm
+chart as well as interact with the cluster (via test and shell commands).
+
+Setting up the Kind Kubernetes cluster takes some time so once you started it, the cluster continues running
+until it is stopped with the ``kind-cluster stop`` command or until ``kind-cluster recreate``
+command is used (it will stop and recreate the cluster image).
+
+The cluster name follows the pattern ``airflow-python-X.Y-vA.B.C`` where X.Y is a Python version
 and A.B.C is a Kubernetes version. This way you can have multiple clusters set up and running at the same
 time for different Python versions and different Kubernetes versions.
 
-The Control Plane is available from inside the Docker image via ``<CLUSTER_NAME>-control-plane:6443``
-host:port, the worker of the Kind Cluster is available at  <CLUSTER_NAME>-worker
-and the webserver port for the worker is 30809.
 
-After the Kubernetes Cluster is started, you need to deploy Airflow to the cluster:
+Deploying Airflow to Kubernetes Cluster
+---------------------------------------
 
-1. Build the image.
-2. Load it to the Kubernetes cluster.
-3. Deploy the Airflow application.
+Deploying Airflow to the Kubernetes cluster created is also done via ``kind-cluster deploy`` breeze command:
 
-It can be done with a single script: ``./scripts/ci/in_container/deploy_airflow_to_kubernetes.sh``.
+.. code-block:: bash`
 
-You can, however, work separately on the image in Kubernetes and deploying the Airflow app in the cluster.
+    ./breeze kind-cluster deploy
 
-Building and Loading Airflow Images to Kubernetes Cluster
-..............................................................
+The deploy commands performs tthose steps:
 
-Use the script ``./scripts/ci/in_container/kubernetes/docker/rebuild_airflow_image.sh`` that does the following:
+1. It rebuilds the latest ``apache/airflow:master-pythonX.Y`` production images using the
+   latest sources using local cachine. It also adds example DAGs to the image, so that they do not
+   have to be mounted inside.
+2. Loads the image to the Kind Cluster using the ``kind load`` command.
+3. Starts airflow in the cluster using the official helm chart (in ``airflow`` namespace)
+4. Forwards Local 8080 port to the webserver running in the cluster
+5. Applies the volumes.yaml to get the volumes deployed to ``default`` namespace - this is where
+   KubernetesExecutor starts its pods.
 
-1. Rebuilds the latest ``apache/airflow:master-pythonX.Y-ci`` images using the latest sources.
-2. Builds a new Kubernetes image based on the  ``apache/airflow:master-pythonX.Y-ci`` using
-   necessary scripts added to run in Kubernetes. The image is tagged as
-   ``apache/airflow:master-pythonX.Y-ci-kubernetes``.
-3. Loads the image to the Kind Cluster using the ``kind load`` command.
+Running tests with Kubernetes Cluster
+-------------------------------------
 
-Deploying the Airflow Application in the Kubernetes Cluster
-...........................................................
-
-Use the script ``./scripts/ci/in_container/kubernetes/app/deploy_app.sh`` that does the following:
-
-1. Prepares Kubernetes resources by processing a template from the ``template`` directory and replacing
-   variables with the right images and locations:
-   - configmaps.yaml
-   - airflow.yaml
-2. Uses the existing resources without replacing any variables inside:
-   - secrets.yaml
-   - postgres.yaml
-   - volumes.yaml
-3. Applies all the resources to the Kind Cluster.
-4. Waits for all the applications to be ready and reachable.
-
-After the deployment is finished, you can run Kubernetes tests immediately in the same way as other tests.
-The Kubernetes tests are available in the ``tests/runtime/kubernetes`` folder.
-
-You can run all the integration tests for Kubernetes with ``pytest tests/runtime/kubernetes``.
-
-
-Running Runtime-Specific Tests
-------------------------------
-
-Tests using a specific runtime are marked with a custom pytest marker ``pytest.mark.runtime``.
-The marker has a single parameter - the name of a runtime. At the moment the only supported runtime is
-``kubernetes``. This runtime is set when you run Breeze with one of the ``--kind-cluster-*`` flags.
-Runtime-specific tests run only when the selectd runtime is started.
-
-
-.. code-block:: python
-
-    @pytest.mark.runtime("kubernetes")
-    class TestKubernetesExecutor(unittest.TestCase):
-
-
-You can use the custom ``--runtime`` switch in pytest to only run tests specific for that backend.
-
-To run only kubernetes-runtime backend tests, enter:
+You can either run all tests or you can select which tests to run. You can also enter interactive virtualenv
+to run the tests manually one by one.
 
 .. code-block:: bash
 
-    pytest --runtime kubernetes
+    Running kubernetes tests
 
-**NOTE:** For convenience and faster search, all runtime tests are stored in the ``tests.runtime`` package. In this case, you
-can speed up the collection of tests by running:
+      ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh                      - runs all kubernetes tests
+      ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh TEST [TEST ...]      - runs selected kubernetes tests (from kubernetes_tests folder)
+      ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [-i|--interactive]   - Activates virtual environment ready to run tests and drops you in
+      ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [--help]             - Prints this help message
+
+
+You can also run the same tests command with Breeze, using ``kind-cluster test`` command (to run all
+kubernetes tests) and with ``kind-cluster shell`` command you can enter interactive shell when you can
+run tests.
+
+
+Typical testing pattern for Kubernetes tests
+--------------------------------------------
+
+The typical session for tests with Kubernetes looks like follows:
+
+1. Start the Kind cluster:
 
 .. code-block:: bash
 
-    pytest --runtime kubernetes tests/runtime
+    ./breeze kind-cluster start
+
+    Starts Kind Kubernetes cluster
+
+       Use CI image.
+
+       Branch name:             master
+       Docker image:            apache/airflow:master-python3.7-ci
+
+       Airflow source version:  2.0.0.dev0
+       Python version:          3.7
+       DockerHub user:          apache
+       DockerHub repo:          airflow
+       Backend:                 postgres 9.6
+
+    No kind clusters found.
+
+    Creating cluster
+
+    Creating cluster "airflow-python-3.7-v1.17.0" ...
+     ✓ Ensuring node image (kindest/node:v1.17.0) 🖼
+     ✓ Preparing nodes 📦 📦
+     ✓ Writing configuration 📜
+     ✓ Starting control-plane 🕹️
+     ✓ Installing CNI 🔌
+    Could not read storage manifest, falling back on old k8s.io/host-path default ...
+     ✓ Installing StorageClass 💾
+     ✓ Joining worker nodes 🚜
+    Set kubectl context to "kind-airflow-python-3.7-v1.17.0"
+    You can now use your cluster with:
+
+    kubectl cluster-info --context kind-airflow-python-3.7-v1.17.0
+
+    Have a question, bug, or feature request? Let us know! https://kind.sigs.k8s.io/#community 🙂
+
+    Created cluster airflow-python-3.7-v1.17.0
+
+
+2. Check the status of the cluster
+
+.. code-block:: bash
+
+    ./breeze kind-cluster status
+
+    Checks status of Kind Kubernetes cluster
+
+       Use CI image.
+
+       Branch name:             master
+       Docker image:            apache/airflow:master-python3.7-ci
+
+       Airflow source version:  2.0.0.dev0
+       Python version:          3.7
+       DockerHub user:          apache
+       DockerHub repo:          airflow
+       Backend:                 postgres 9.6
+
+    airflow-python-3.7-v1.17.0-control-plane
+    airflow-python-3.7-v1.17.0-worker
+
+3. Deploy Airflow to the cluster
+
+.. code-block:: bash
+
+    ./breeze kind-cluster deploy
+
+4. Run Kubernetes tests
+
+Note that the tests are executed in production container not in the CI container.
+There is no need for the tests to run inside the Airflow CI container image as they only
+communicate with the Kubernetes-run Airflow deployed via the production image.
+Those Kubernetes tests require virtualenv to be created locally with airflow installed.
+The virtualenv required will be created automatically when the scripts are run.
+
+4a) You can run all the tests
+
+.. code-block:: bash
+
+    ./breeze kind-cluster test
+
+
+4b) You can enter an interactive shell to run tests one-by-one
+
+This prepares and enters the virtualenv in ``.build/.kubernetes_venv`` folder:
+
+.. code-block:: bash
+
+    ./breeze kind-cluster shell
+
+
+Once you enter the environment you receive this information:
+
+
+.. code-block:: bash
+
+    Activating the virtual environment for kubernetes testing
+
+    You can run kubernetes testing via 'pytest kubernetes_tests/....'
+    You can add -s to see the output of your tests on screen
+
+    The webserver is available at http://localhost:30809/
+
+    User/password: admin/admin
+
+    You are entering the virtualenv now. Type exit to exit back to the original shell
+
+
+You can iterate with tests while you are in the virtualenv. All the tests requiring kubernetes cluster
+are in "kubernetes_tests" folder. You can add extra ``pytest`` parameters then (for example ``-s`` will
+print output generated test logs and print statements to the terminal immediately.
+
+
+.. code-block:: bash
+
+    pytest kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
+
+
+You can modify the tests or KubernetesPodOperator and re-run them without re-deploying
+airflow to KinD cluster.
+
+However, when you change Airflow Kubernetes executor implementation you need to redeploy
+Airflow to the cluster.
+
+.. code-block:: bash
+
+    ./breeze kind-cluster deploy
+
+
+5. Stop KinD cluster when you are done
+
+.. code-block:: bash
+
+    ./breeze kind-cluster stop
+
 
 Airflow System Tests
 ====================
@@ -495,12 +610,10 @@ credentials stored in your ``home`` directory. Use this feature with care as it 
 visible to anything that you have installed inside the Docker container.
 
 Currently forwarded credentials are:
-  * all credentials stored in ``${HOME}/.config`` (for example, GCP credentials)
-  * credentials stored in ``${HOME}/.gsutil`` for ``gsutil`` tool from GCS
-  * credentials stored in ``${HOME}/.aws``, ``${HOME}/.boto``, and ``${HOME}/.s3`` (for AWS authentication)
-  * credentials stored in ``${HOME}/.docker`` for docker
-  * credentials stored in ``${HOME}/.kube`` for kubectl
-
+  * credentials stored in ``${HOME}/.aws`` for the aws Amazon Web Services client
+  * credentials stored in ``${HOME}/.azure`` for the az Microsoft Azure client
+  * credentials stored in ``${HOME}/.config`` for gcloud Google Cloud Platform client (among others)
+  * credentials stored in ``${HOME}/.docker`` for docker client
 
 Adding a New System Test
 --------------------------

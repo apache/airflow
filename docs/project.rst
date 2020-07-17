@@ -64,9 +64,9 @@ Committers
 - @milton0825 (Chao-Han Tsai)
 - @feluelle (Felix Uellendall)
 - @sekikn (Kengo Seki)
-- @nuclearpinguin (Tomasz Urbaszek)
+- @turbaszek (Tomasz Urbaszek)
 - @zhongjiajie (Jiajie Zhong)
-
+- @houqp (Qingping Hou)
 
 For the full list of contributors, take a look at `Airflow's Github
 Contributor page:
@@ -76,7 +76,7 @@ Contributor page:
 Resources & links
 -----------------
 
-* `Airflow's official documentation <http://airflow.apache.org/>`_
+* `Airflow's official documentation <http://airflow.apache.org/docs/>`_
 * Mailing lists:
 
   * Developer's mailing list: dev-subscribe@airflow.apache.org

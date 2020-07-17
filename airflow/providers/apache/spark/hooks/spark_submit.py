@@ -21,8 +21,10 @@ import re
 import subprocess
 import time
 
+from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 try:
@@ -237,8 +239,23 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
         connection_cmd_masked = re.sub(
-            r"(\S*?(?:secret|password)\S*?\s*=\s*')[^']*(?=')",
-            r'\1******', ' '.join(connection_cmd), flags=re.I)
+            r"("
+            r"\S*?"                 # Match all non-whitespace characters before...
+            r"(?:secret|password)"  # ...literally a "secret" or "password"
+                                    # word (not capturing them).
+            r"\S*?"                 # All non-whitespace characters before either...
+            r"(?:=|\s+)"            # ...an equal sign or whitespace characters
+                                    # (not capturing them).
+            r"(['\"]?)"             # An optional single or double quote.
+            r")"                    # This is the end of the first capturing group.
+            r"(?:(?!\2\s).)*"       # All characters between optional quotes
+                                    # (matched above); if the value is quoted,
+                                    # it may contain whitespace.
+            r"(\2)",                # Optional matching quote.
+            r'\1******\3',
+            ' '.join(connection_cmd),
+            flags=re.I,
+        )
 
         return connection_cmd_masked
 
@@ -617,15 +634,23 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             self._submit_sp.kill()
 
             if self._yarn_application_id:
-                self.log.info('Killing application %s on YARN', self._yarn_application_id)
-
                 kill_cmd = "yarn application -kill {}" \
                     .format(self._yarn_application_id).split()
+                env = None
+                if self._keytab is not None and self._principal is not None:
+                    # we are ignoring renewal failures from renew_from_kt
+                    # here as the failure could just be due to a non-renewable ticket,
+                    # we still attempt to kill the yarn application
+                    renew_from_kt(self._principal, self._keytab, exit_on_fail=False)
+                    env = os.environ.copy()
+                    env["KRB5CCNAME"] = airflow_conf.get('kerberos', 'ccache')
+
                 yarn_kill = subprocess.Popen(kill_cmd,
+                                             env=env,
                                              stdout=subprocess.PIPE,
                                              stderr=subprocess.PIPE)
 
-                self.log.info("YARN killed with return code: %s", yarn_kill.wait())
+                self.log.info("YARN app killed with return code: %s", yarn_kill.wait())
 
             if self._kubernetes_driver_pod:
                 self.log.info('Killing pod %s on Kubernetes', self._kubernetes_driver_pod)

@@ -26,7 +26,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator,
     BigQueryExecuteQueryOperator,
 )
-from airflow.providers.google.cloud.operators.presto_to_gcs import PrestoToGCSOperator
+from airflow.providers.google.cloud.transfers.presto_to_gcs import PrestoToGCSOperator
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", 'example-project')

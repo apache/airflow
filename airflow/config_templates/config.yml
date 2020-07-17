@@ -149,7 +149,7 @@
         This is useful when you want to configure db engine args that SqlAlchemy won't parse
         in connection string.
         See https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine.params.connect_args
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: ~
@@ -338,8 +338,8 @@
         ``store_serialized_dags`` setting.
       version_added: 1.10.10
       type: string
-      example: ~
-      default: "%(store_serialized_dags)s"
+      example: "False"
+      default: ~
     - name: max_num_rendered_ti_fields_per_task
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
@@ -394,6 +394,16 @@
       type: string
       example: ~
       default: ""
+    - name: stackdriver_key_path
+      description: |
+        Path to GCP Credential JSON file. If ommited, authorization based on `the Application Default
+        Credentials
+        <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
+        be used.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     - name: remote_base_log_folder
       description: |
         Storage bucket URL for remote logging
@@ -401,6 +411,7 @@
         Cloudwatch log groups should start with "cloudwatch://"
         GCS buckets should start with "gs://"
         WASB buckets should start with "wasb" just to help Airflow select correct handler
+        Stackdriver logs should start with "stackdriver://"
       version_added: ~
       type: string
       example: ~
@@ -564,11 +575,29 @@
   options:
     - name: auth_backend
       description: |
-        How to authenticate users of the API
+        How to authenticate users of the API. See
+        https://airflow.apache.org/docs/stable/security.html for possible values.
+        ("airflow.api.auth.backend.default" allows all requests for historic reasons)
       version_added: ~
       type: string
       example: ~
-      default: "airflow.api.auth.backend.default"
+      default: "airflow.api.auth.backend.deny_all"
+    - name: maximum_page_limit
+      description: |
+        Used to set the maximum page limit for API requests
+      version_added: ~
+      type: integer
+      example: ~
+      default: "100"
+    - name: fallback_page_limit
+      description: |
+        Used to set the default page limit when limit is zero. A default limit
+        of 100 is set on OpenApi spec. However, this particular default limit
+        only work when limit is set equal to zero(0) from API requests.
+        If no limit is supplied, the OpenApi spec default is used.
+      type: integer
+      example: ~
+      default: "100"
 - name: lineage
   description: ~
   options:
@@ -672,7 +701,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "Airflow HiveOperator task for {{hostname}}.{{dag_id}}.{{task_id}}.{{execution_date}}"
+      default: ~
 - name: webserver
   description: ~
   options:
@@ -755,6 +784,14 @@
       type: string
       example: ~
       default: "30"
+    - name: reload_on_plugin_change
+      description: |
+        If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
+        then reload the gunicorn.
+      version_added: 1.10.11
+      type: boolean
+      example: ~
+      default: "False"
     - name: secret_key
       description: |
         Secret key used to run your flask app
@@ -1088,7 +1125,11 @@
       default: "airflow@example.com"
 - name: sentry
   description: |
-    Sentry (https://docs.sentry.io) integration
+    Sentry (https://docs.sentry.io) integration. Here you can supply
+    additional configuration options based on the Python platform. See:
+    https://docs.sentry.io/error-reporting/configuration/?platform=python.
+    Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,
+    ``ignore_errors``, ``before_breadcrumb``, ``before_send``, ``transport``.
   options:
     - name: sentry_dsn
       description: ~
@@ -1668,6 +1709,13 @@
       type: string
       example: ~
       default: "True"
+    - name: sensitive_variable_fields
+      description: |
+        A comma-separated list of sensitive keywords to look for in variables names.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
 - name: elasticsearch
   description: ~
   options:
@@ -1750,7 +1798,7 @@
     - name: pod_template_file
       description: |
         Path to the YAML pod file. If set, all other kubernetes-related fields are ignored.
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: ""
@@ -1779,7 +1827,7 @@
       description: |
         If False (and delete_worker_pods is True),
         failed worker pods will not be deleted so users can investigate them.
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: "False"
@@ -1873,7 +1921,7 @@
     - name: dags_volume_mount_point
       description: |
         For either git sync or volume mounted DAGs, the worker will mount the volume in this path
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: ""
@@ -1945,6 +1993,14 @@
       type: string
       example: ~
       default: ""
+    - name: git_sync_depth
+      description: |
+        Use a shallow clone with a history truncated to the specified number of commits.
+        0 - do not use shallow clone.
+      version_added: 1.10.11
+      type: string
+      example: ~
+      default: "1"
     - name: git_subpath
       description: |
         Subpath of git repo to be pulled for DAGs. This allows users to maintain multiple DAG

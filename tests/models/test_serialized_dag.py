@@ -19,7 +19,6 @@
 """Unit tests for SerializedDagModel."""
 
 import unittest
-from unittest import mock
 
 from airflow import DAG, example_dags as example_dags_module
 from airflow.models import DagBag
@@ -117,7 +116,6 @@ class SerializedDagModelTest(unittest.TestCase):
         self.assertFalse(SDM.has_dag(stale_dag.dag_id))
         self.assertTrue(SDM.has_dag(fresh_dag.dag_id))
 
-    @mock.patch('airflow.models.serialized_dag.STORE_SERIALIZED_DAGS', True)
     def test_bulk_sync_to_db(self):
         dags = [
             DAG("dag_1"), DAG("dag_2"), DAG("dag_3"),

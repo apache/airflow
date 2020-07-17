@@ -127,7 +127,7 @@ class BaseParameters:
         self.password = password
         self.version = version
         self.version_rc = version_rc
-        self.template_arguments = dict()
+        self.template_arguments = {}
 
     def __repr__(self):
         return f"Apache Credentials: {self.email}/{self.username}/{self.version}/{self.version_rc}"

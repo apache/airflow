@@ -46,7 +46,7 @@ from airflow.kubernetes.pod_generator import MAX_POD_ID_LEN, PodGenerator
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
-from airflow.models.taskinstance import TaskInstanceKeyType
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -54,10 +54,10 @@ from airflow.utils.state import State
 MAX_LABEL_LEN = 63
 
 # TaskInstance key, command, configuration
-KubernetesJobType = Tuple[TaskInstanceKeyType, CommandType, Any]
+KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any]
 
 # key, state, pod_id, namespace, resource_version
-KubernetesResultsType = Tuple[TaskInstanceKeyType, Optional[str], str, str, str]
+KubernetesResultsType = Tuple[TaskInstanceKey, Optional[str], str, str, str]
 
 # pod_id, namespace, state, labels, resource_version
 KubernetesWatchType = Tuple[str, str, Optional[str], Dict[str, str], str]
@@ -130,6 +130,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.git_repo = conf.get(self.kubernetes_section, 'git_repo')
         # The branch of the repository to be checked out
         self.git_branch = conf.get(self.kubernetes_section, 'git_branch')
+        # Clone depth for git sync
+        self.git_sync_depth = conf.get(self.kubernetes_section, 'git_sync_depth')
         # Optionally, the directory in the git repository containing the dags
         self.git_subpath = conf.get(self.kubernetes_section, 'git_subpath')
         # Optionally, the root directory for git operations
@@ -454,8 +456,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         key, command, kube_executor_config = next_job
         dag_id, task_id, execution_date, try_number = key
 
-        if isinstance(command, str):
-            command = [command]
+        if command[0:3] != ["airflow", "tasks", "run"]:
+            raise ValueError('The command must start with ["airflow", "tasks", "run"].')
 
         pod = PodGenerator.construct_pod(
             namespace=self.namespace,
@@ -538,7 +540,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     @staticmethod
     def _make_safe_pod_id(safe_dag_id: str, safe_task_id: str, safe_uuid: str) -> str:
-        """
+        r"""
         Kubernetes pod names must be <= 253 chars and must pass the following regex for
         validation
         ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
@@ -586,7 +588,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
 
-    def _labels_to_key(self, labels: Dict[str, str]) -> Optional[TaskInstanceKeyType]:
+    def _labels_to_key(self, labels: Dict[str, str]) -> Optional[TaskInstanceKey]:
         try_num = 1
         try:
             try_num = int(labels.get('try_number', '1'))
@@ -616,7 +618,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     'Found matching task %s-%s (%s) with current state of %s',
                     task.dag_id, task.task_id, task.execution_date, task.state
                 )
-                return (dag_id, task_id, ex_time, try_num)
+                return TaskInstanceKey(dag_id, task_id, ex_time, try_num)
             else:
                 self.log.warning(
                     'task_id/dag_id are not safe to use as Kubernetes labels. This can cause '
@@ -647,7 +649,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     )
                     dag_id = task.dag_id
                     task_id = task.task_id
-                    return dag_id, task_id, ex_time, try_num
+                    return TaskInstanceKey(dag_id, task_id, ex_time, try_num)
         self.log.warning(
             'Failed to find and match task details to a pod; labels: %s',
             labels
@@ -796,7 +798,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.clear_not_launched_queued_tasks()
 
     def execute_async(self,
-                      key: TaskInstanceKeyType,
+                      key: TaskInstanceKey,
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
@@ -869,7 +871,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         # pylint: enable=too-many-nested-blocks
 
     def _change_state(self,
-                      key: TaskInstanceKeyType,
+                      key: TaskInstanceKey,
                       state: Optional[str],
                       pod_id: str,
                       namespace: str) -> None:
@@ -884,7 +886,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 self.running.remove(key)
             except KeyError:
                 self.log.debug('Could not find key: %s', str(key))
-        self.event_buffer[key] = state
+        self.event_buffer[key] = state, None
 
     def _flush_task_queue(self) -> None:
         if not self.task_queue:

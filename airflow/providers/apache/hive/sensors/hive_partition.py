@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -67,7 +68,6 @@ class HivePartitionSensor(BaseSensorOperator):
             'Poking for table %s.%s, partition %s', self.schema, self.table, self.partition
         )
         if not hasattr(self, 'hook'):
-            from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
             hook = HiveMetastoreHook(
                 metastore_conn_id=self.metastore_conn_id)
         return hook.check_for_partition(

@@ -17,12 +17,11 @@
 """
 Classes for interacting with Kubernetes API.
 """
-
 from abc import ABC, abstractmethod
 from functools import reduce
 from typing import List, Optional
 
-import kubernetes.client.models as k8s
+from kubernetes.client import models as k8s
 
 
 class K8SModel(ABC):

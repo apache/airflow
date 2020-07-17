@@ -56,7 +56,17 @@ class BaseHook(LoggingMixin):
         """
         conn = random.choice(list(cls.get_connections(conn_id)))
         if conn.host:
-            log.info("Using connection to: %s", conn.log_info())
+            log.info(
+                "Using connection to: id: %s. Host: %s, Port: %s, Schema: %s, Login: %s, Password: %s, "
+                "extra: %s",
+                conn.conn_id,
+                conn.host,
+                conn.port,
+                conn.schema,
+                conn.login,
+                "XXXXXXXX" if conn.password else None,
+                "XXXXXXXX" if conn.extra_dejson else None
+            )
         return conn
 
     @classmethod

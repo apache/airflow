@@ -40,7 +40,7 @@ class GcfFunctionDeleteOperator(CloudFunctionDeleteFunctionOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.operators.function.CloudFunctionDeleteFunctionOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -56,6 +56,6 @@ class GcfFunctionDeployOperator(CloudFunctionDeployFunctionOperator):
             """This class is deprecated.
             Please use
             `airflow.providers.google.cloud.operators.function.CloudFunctionDeployFunctionOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

@@ -139,7 +139,7 @@ these guidelines:
 
 -   Follow our project's `Coding style and best practices`_.
 
-    These are things that aren't currently enforced programtically (either because they are too hard or just
+    These are things that aren't currently enforced programmatically (either because they are too hard or just
     not yet done.)
 
 -   `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__, squash
@@ -314,14 +314,14 @@ This is the full list of those extras:
   .. START EXTRAS HERE
 
 all_dbs, amazon, apache.atlas, apache_beam, apache.cassandra, apache.druid, apache.hdfs,
-apache.hive, apache.pinot, apache.webhdfs, async, atlas, aws, azure, cassandra, celery, cgroups,
-cloudant, cncf.kubernetes, dask, databricks, datadog, devel, devel_hadoop, doc, docker, druid,
-elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise, google, google_auth, grpc,
-hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap, microsoft.azure, microsoft.mssql,
-microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password, pinot, postgres,
-presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry, singularity, slack,
-snowflake, spark, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm, yandexcloud, all,
-devel_ci
+apache.hive, apache.kylin, apache.pinot, apache.webhdfs, async, atlas, aws, azure, cassandra,
+celery, cgroups, cloudant, cncf.kubernetes, dask, databricks, datadog, devel, devel_hadoop, doc,
+docker, druid, elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise, google,
+google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap, microsoft.azure,
+microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password,
+pinot, postgres, presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry,
+singularity, slack, snowflake, spark, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm,
+yandexcloud, all, devel_ci
 
   .. END EXTRAS HERE
 
@@ -453,7 +453,7 @@ Here is the list of packages and their extras:
 ========================== ===========================
 Package                    Extras
 ========================== ===========================
-amazon                     apache.hive,google,imap,mongo,postgres,ssh
+amazon                     apache.hive,google,imap,mongo,mysql,postgres,ssh
 apache.druid               apache.hive
 apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
 apache.livy                http
@@ -468,6 +468,7 @@ opsgenie                   http
 postgres                   amazon
 sftp                       ssh
 slack                      http
+snowflake                  slack
 ========================== ===========================
 
   .. END PACKAGE DEPENDENCIES HERE
@@ -541,8 +542,71 @@ We support the following types of tests:
 
 For details on running different types of Airflow tests, see `TESTING.rst <TESTING.rst>`_.
 
+
+Naming Conventions for provider packages
+========================================
+
+In Airflow 2.0 we standardized and enforced naming for provider packages, modules and classes.
+those rules (introduced as AIP-21) were not only introduced but enforced using automated checks
+that verify if the naming conventions are followed. Here is a brief summary of the rules, for
+detailed discussion you can go to [AIP-21 Changes in import paths](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
+
+The rules are as follows:
+
+* Provider packages are all placed in 'airflow.providers'
+
+* Providers are usually direct sub-packages of the 'airflow.providers' package but in some cases they can be
+  further split into sub-packages (for example 'apache' package has 'cassandra', 'druid' ... providers ) out
+  of which several different provider packages are produced (apache.cassandra, apache.druid). This is
+  case when the providers are connected under common umbrella but very loosely coupled on the code level.
+
+* In some cases the package can have sub-packages but they are all delivered as single provider
+  package (for example 'google' package contains 'ads', 'cloud' etc. sub-packages). This is in case
+  the providers are connected under common umbrella and they are also tightly coupled on the code level.
+
+* Typical structure of provider package:
+    * example_dags -> example DAGs are stored here (used for documentation and System Tests)
+    * hooks -> hooks are stored here
+    * operators -> operators are stored here
+    * sensors -> sensors are stored here
+    * secrets -> secret backends are stored here
+    * transfers -> transfer operators are stored here
+
+* Module names do not contain word "hooks" , "operators" etc. The right type comes from
+  the package. For example 'hooks.datastore' module contains DataStore hook and 'operators.datastore'
+  contains DataStore operators.
+
+* Class names contain 'Operator', 'Hook', 'Sensor' - for example DataStoreHook, DataStoreExportOperator
+
+* Operator name usually follows the convention: <Subject><Action><Entity>Operator
+  (BigQueryExecuteQueryOperator) is a good example
+
+* Transfer Operators are those that actively push data from one service/provider and send it to another
+  service (might be for the same or another provider). This usually involves two hooks. The convention
+  for those <Source>To<Destination>Operator. They are not named *TransferOperator nor *Transfer.
+
+* Operators that use external service to perform transfer (for example CloudDataTransferService operators
+  are not placed in "transfers" package and do not have to follow the naming convention for
+  transfer operators.
+
+* It is often debatable where to put transfer operators but we agreed to the following criteria:
+
+  * We use "maintainability" of the operators as the main criteria - so the transfer operator
+    should be kept at the provider which has highest "interest" in the transfer operator
+
+  * For Cloud Providers or Service providers that usually means that the transfer operators
+    should land at the "target" side of the transfer
+
+* Secret Backend name follows the convention: <SecretEngine>Backend.
+
+* Tests are grouped in parallel packages under "tests.providers" top level package.  Module name is usually
+  "test_<object_to_test>.py',
+
+* System tests (not yet fully automated but allowing to run e2e testing of particular provider) are
+  named with _system.py suffix.
+
 Metadata Database Updates
-==============================
+=========================
 
 When developing features, you may need to persist information to the metadata
 database. Airflow has `Alembic <https://github.com/sqlalchemy/alembic>`__ built-in
@@ -622,7 +686,7 @@ could get a reproducible build. See the `Yarn docs
 
 
 Generate Bundled Files with yarn
-----------------------------------
+--------------------------------
 
 To parse and generate bundled files for Airflow, run either of the following
 commands:
@@ -663,6 +727,9 @@ Contribution Workflow Example
 
 Typically, you start your first contribution by reviewing open tickets
 at `GitHub issues <https://github.com/apache/airflow/issues>`__.
+
+If you create pull-request, you don't have to create an issue first, but if you want, you can do it.
+Creating an issue will allow you to collect feedback or share plans with other people.
 
 For example, you want to have the following sample ticket assigned to you:
 `#7782: Add extra CC: to the emails sent by Aiflow <https://github.com/apache/airflow/issues/7782>`_.
@@ -885,6 +952,8 @@ community are far more important than their contribution.
 
 This means that communication plays a big role in it, and this chapter is all about it.
 
+In our communication, everyone is expected to follow the `ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`_.
+
 We have various channels of communication - starting from the official devlist, comments
 in the Pull Requests, Slack, wiki.
 
@@ -906,6 +975,7 @@ You can join the channels via links at the `Airflow Community page <https://airf
 * The deprecated `JIRA issues <https://issues.apache.org/jira/projects/AIRFLOW/issues/AIRFLOW-4470?filter=allopenissues>`_ for:
    * checking out old but still valuable issues that are not on Github yet
    * mentioning the JIRA issue number in the title of the related PR you would like to open on Github
+
 **IMPORTANT**
 We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable tickets inside of it. However, each new PR should be created on `Github issues <https://github.com/apache/airflow/issues>`_ as stated in `Contribution Workflow Example <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contribution-workflow-example>`_
 

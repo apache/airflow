@@ -28,7 +28,7 @@ import shutil
 from functools import wraps
 from inspect import signature
 from tempfile import NamedTemporaryFile
-from typing import Optional
+from typing import Callable, Optional, TypeVar, cast
 from urllib.parse import urlparse
 
 from botocore.exceptions import ClientError
@@ -37,8 +37,10 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.helpers import chunks
 
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
-def provide_bucket_name(func):
+
+def provide_bucket_name(func: T) -> T:
     """
     Function decorator that provides a bucket name taken from the connection
     in case no bucket name has been passed to the function.
@@ -59,10 +61,10 @@ def provide_bucket_name(func):
 
         return func(*bound_args.args, **bound_args.kwargs)
 
-    return wrapper
+    return cast(T, wrapper)
 
 
-def unify_bucket_name_and_key(func):
+def unify_bucket_name_and_key(func: T) -> T:
     """
     Function decorator that unifies bucket name and key taken from the key
     in case no bucket name and at least a key has been passed to the function.
@@ -88,7 +90,7 @@ def unify_bucket_name_and_key(func):
 
         return func(*bound_args.args, **bound_args.kwargs)
 
-    return wrapper
+    return cast(T, wrapper)
 
 
 class S3Hook(AwsBaseHook):
@@ -514,6 +516,7 @@ class S3Hook(AwsBaseHook):
         bytes_data = string_data.encode(encoding)
         file_obj = io.BytesIO(bytes_data)
         self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
+        file_obj.close()
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -548,6 +551,7 @@ class S3Hook(AwsBaseHook):
         """
         file_obj = io.BytesIO(bytes_data)
         self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
+        file_obj.close()
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -663,6 +667,26 @@ class S3Hook(AwsBaseHook):
                                                CopySource=copy_source,
                                                ACL=acl_policy)
         return response
+
+    @provide_bucket_name
+    def delete_bucket(self, bucket_name: str, force_delete: bool = False) -> None:
+        """
+        To delete s3 bucket, delete all s3 bucket objects and then delete the bucket.
+
+        :param bucket_name: Bucket name
+        :type bucket_name: str
+        :param force_delete: Enable this to delete bucket even if not empty
+        :type force_delete: bool
+        :return: None
+        :rtype: None
+        """
+        if force_delete:
+            bucket_keys = self.list_keys(bucket_name=bucket_name)
+            if bucket_keys:
+                self.delete_objects(bucket=bucket_name, keys=bucket_keys)
+        self.conn.delete_bucket(
+            Bucket=bucket_name
+        )
 
     def delete_objects(self, bucket, keys):
         """

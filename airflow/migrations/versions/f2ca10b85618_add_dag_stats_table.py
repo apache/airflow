@@ -33,7 +33,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     op.create_table('dag_stats',
                     sa.Column('dag_id', sa.String(length=250), nullable=False),
                     sa.Column('state', sa.String(length=50), nullable=False),
@@ -42,5 +42,5 @@ def upgrade():
                     sa.PrimaryKeyConstraint('dag_id', 'state'))
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_table('dag_stats')

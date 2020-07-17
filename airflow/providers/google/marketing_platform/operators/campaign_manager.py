@@ -18,6 +18,7 @@
 """
 This module contains Google CampaignManager operators.
 """
+import json
 import tempfile
 import uuid
 from typing import Any, Dict, List, Optional
@@ -298,6 +299,12 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
+    def prepare_template(self) -> None:
+        # If .json is passed then we have to read the file
+        if isinstance(self.report, str) and self.report.endswith('.json'):
+            with open(self.report, 'r') as file:
+                self.report = json.load(file)
+
     def execute(self, context: Dict):
         hook = GoogleCampaignManagerHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -349,7 +356,6 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         "gcp_conn_id",
         "delegate_to",
     )
-    template_ext = (".json",)
 
     @apply_defaults
     def __init__(

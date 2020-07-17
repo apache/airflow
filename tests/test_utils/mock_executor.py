@@ -19,6 +19,7 @@
 from collections import defaultdict
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -79,11 +80,11 @@ class MockExecutor(BaseExecutor):
     def end(self):
         self.sync()
 
-    def change_state(self, key, state):
-        super().change_state(key, state)
+    def change_state(self, key, state, info=None):
+        super().change_state(key, state, info=info)
         # The normal event buffer is cleared after reading, we want to keep
         # a list of all events for testing
-        self.sorted_tasks.append((key, state))
+        self.sorted_tasks.append((key, (state, info)))
 
     def mock_task_fail(self, dag_id, task_id, date, try_number=1):
         """
@@ -93,4 +94,4 @@ class MockExecutor(BaseExecutor):
         If the task identified by the tuple ``(dag_id, task_id, date,
         try_number)`` is run by this executor it's state will be FAILED.
         """
-        self.mock_task_results[(dag_id, task_id, date, try_number)] = State.FAILED
+        self.mock_task_results[TaskInstanceKey(dag_id, task_id, date, try_number)] = State.FAILED

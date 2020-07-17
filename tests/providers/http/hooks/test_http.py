@@ -132,7 +132,7 @@ class TestHttpHook(unittest.TestCase):
     @requests_mock.mock()
     @mock.patch('requests.Request')
     def test_hook_with_method_in_lowercase(self, mock_requests, request_mock):
-        from requests.exceptions import MissingSchema, InvalidURL
+        from requests.exceptions import InvalidURL, MissingSchema
         with mock.patch(
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection_with_port

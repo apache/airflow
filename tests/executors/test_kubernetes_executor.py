@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import random
 import re
 import string
@@ -30,9 +29,10 @@ from tests.test_utils.config import conf_vars
 
 try:
     from kubernetes.client.rest import ApiException
-    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler
-    from airflow.executors.kubernetes_executor import KubernetesExecutor
-    from airflow.executors.kubernetes_executor import KubeConfig
+
+    from airflow.executors.kubernetes_executor import (
+        AirflowKubernetesScheduler, KubeConfig, KubernetesExecutor,
+    )
     from airflow.kubernetes import pod_generator
     from airflow.kubernetes.pod_generator import PodGenerator
     from airflow.utils.state import State
@@ -205,7 +205,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         try_number = 1
         kubernetes_executor.execute_async(key=('dag', 'task', datetime.utcnow(), try_number),
                                           queue=None,
-                                          command='command',
+                                          command=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
                                           executor_config={})
         kubernetes_executor.sync()
         kubernetes_executor.sync()
@@ -240,7 +240,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor.start()
         key = ('dag_id', 'task_id', 'ex_time', 'try_number1')
         executor._change_state(key, State.RUNNING, 'pod_id', 'default')
-        self.assertTrue(executor.event_buffer[key] == State.RUNNING)
+        self.assertTrue(executor.event_buffer[key][0] == State.RUNNING)
 
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
@@ -251,7 +251,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         test_time = timezone.utcnow()
         key = ('dag_id', 'task_id', test_time, 'try_number2')
         executor._change_state(key, State.SUCCESS, 'pod_id', 'default')
-        self.assertTrue(executor.event_buffer[key] == State.SUCCESS)
+        self.assertTrue(executor.event_buffer[key][0] == State.SUCCESS)
         mock_delete_pod.assert_called_once_with('pod_id', 'default')
 
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
@@ -270,7 +270,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         test_time = timezone.utcnow()
         key = ('dag_id', 'task_id', test_time, 'try_number3')
         executor._change_state(key, State.FAILED, 'pod_id', 'default')
-        self.assertTrue(executor.event_buffer[key] == State.FAILED)
+        self.assertTrue(executor.event_buffer[key][0] == State.FAILED)
         mock_delete_pod.assert_not_called()
 # pylint: enable=unused-argument
 
@@ -287,7 +287,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor.start()
         key = ('dag_id', 'task_id', test_time, 'try_number2')
         executor._change_state(key, State.SUCCESS, 'pod_id', 'default')
-        self.assertTrue(executor.event_buffer[key] == State.SUCCESS)
+        self.assertTrue(executor.event_buffer[key][0] == State.SUCCESS)
         mock_delete_pod.assert_not_called()
 
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
@@ -301,5 +301,5 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor.start()
         key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
         executor._change_state(key, State.FAILED, 'pod_id', 'test-namespace')
-        self.assertTrue(executor.event_buffer[key] == State.FAILED)
+        self.assertTrue(executor.event_buffer[key][0] == State.FAILED)
         mock_delete_pod.assert_called_once_with('pod_id', 'test-namespace')

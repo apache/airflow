@@ -26,6 +26,8 @@ from inspect import signature
 from json import JSONDecodeError
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+import yaml
+
 from airflow.exceptions import AirflowException, AirflowFileParseException, FileSyntaxError
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.file import COMMENT_PATTERN
@@ -45,7 +47,7 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
     """
     Parse a file in the ``.env '' format.
 
-   .. code-block:: text
+    .. code-block:: text
 
         MY_CONN_ID=my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2
 
@@ -84,6 +86,30 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
     return secrets, errors
 
 
+def _parse_yaml_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
+    """
+    Parse a file in the YAML format.
+
+    :param file_path: The location of the file that will be processed.
+    :type file_path: str
+    :return: Tuple with mapping of key and list of values and list of syntax errors
+    """
+    with open(file_path) as f:
+        content = f.read()
+
+    if not content:
+        return {}, [FileSyntaxError(line_no=1, message="The file is empty.")]
+    try:
+        secrets = yaml.safe_load(content)
+
+    except yaml.MarkedYAMLError as e:
+        return {}, [FileSyntaxError(line_no=e.problem_mark.line, message=str(e))]
+    if not isinstance(secrets, dict):
+        return {}, [FileSyntaxError(line_no=1, message="The file should contain the object.")]
+
+    return secrets, []
+
+
 def _parse_json_file(file_path: str) -> Tuple[Dict[str, Any], List[FileSyntaxError]]:
     """
     Parse a file in the JSON format.
@@ -110,6 +136,7 @@ def _parse_json_file(file_path: str) -> Tuple[Dict[str, Any], List[FileSyntaxErr
 FILE_PARSERS = {
     "env": _parse_env_file,
     "json": _parse_json_file,
+    "yaml": _parse_yaml_file,
 }
 
 
@@ -154,7 +181,7 @@ def _create_connection(conn_id: str, value: Any):
     if isinstance(value, str):
         return Connection(conn_id=conn_id, uri=value)
     if isinstance(value, dict):
-        connection_parameter_names = get_connection_parameter_names()
+        connection_parameter_names = get_connection_parameter_names() | {"extra_dejson"}
         current_keys = set(value.keys())
         if not current_keys.issubset(connection_parameter_names):
             illegal_keys = current_keys - connection_parameter_names
@@ -163,6 +190,14 @@ def _create_connection(conn_id: str, value: Any):
                 f"The object have illegal keys: {illegal_keys_list}. "
                 f"The dictionary can only contain the following keys: {connection_parameter_names}"
             )
+        if "extra" in value and "extra_dejson" in value:
+            raise AirflowException(
+                "The extra and extra_dejson parameters are mutually exclusive. "
+                "Please provide only one parameter."
+            )
+        if "extra_dejson" in value:
+            value["extra"] = json.dumps(value["extra_dejson"])
+            del value["extra_dejson"]
 
         if "conn_id" in current_keys and conn_id != value["conn_id"]:
             raise AirflowException(

@@ -82,11 +82,17 @@ class TestBackfillJob(unittest.TestCase):
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
 
-    def setUp(self):
+    @staticmethod
+    def clean_db():
         clear_db_runs()
         clear_db_pools()
 
+    def setUp(self):
+        self.clean_db()
         self.parser = cli_parser.get_parser()
+
+    def tearDown(self) -> None:
+        self.clean_db()
 
     def test_unfinished_dag_runs_set_to_failed(self):
         dag = self._get_dummy_dag('dummy_dag')
@@ -194,7 +200,7 @@ class TestBackfillJob(unittest.TestCase):
             ("run_this_last", end_date),
         ]
         self.assertListEqual(
-            [((dag.dag_id, task_id, when, 1), State.SUCCESS)
+            [((dag.dag_id, task_id, when, 1), (State.SUCCESS, None))
              for (task_id, when) in expected_execution_order],
             executor.sorted_tasks
         )
@@ -274,7 +280,7 @@ class TestBackfillJob(unittest.TestCase):
 
         job.run()
         self.assertListEqual(
-            [((dag_id, task_id, DEFAULT_DATE, 1), State.SUCCESS)
+            [((dag_id, task_id, DEFAULT_DATE, 1), (State.SUCCESS, None))
              for task_id in expected_execution_order],
             executor.sorted_tasks
         )
@@ -904,7 +910,7 @@ class TestBackfillJob(unittest.TestCase):
 
         dagruns = DagRun.find(dag_id=dag.dag_id)
         self.assertEqual(2, len(dagruns))
-        self.assertTrue(all([run.state == State.SUCCESS for run in dagruns]))
+        self.assertTrue(all(run.state == State.SUCCESS for run in dagruns))
 
     def test_backfill_max_limit_check(self):
         dag_id = 'test_backfill_max_limit_check'
@@ -1063,7 +1069,7 @@ class TestBackfillJob(unittest.TestCase):
         drs = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
         dr = drs[0]
 
-        self.assertEqual(f"{DagRunType.BACKFILL_JOB.value}__{DEFAULT_DATE.isoformat()}", dr.run_id)
+        self.assertEqual(DagRun.generate_run_id(DagRunType.BACKFILL_JOB, DEFAULT_DATE), dr.run_id)
         for ti in dr.get_task_instances():
             if ti.task_id == 'leave1' or ti.task_id == 'leave2':
                 self.assertEqual(State.SUCCESS, ti.state)
@@ -1297,7 +1303,7 @@ class TestBackfillJob(unittest.TestCase):
         job = BackfillJob(dag=dag)
 
         session = settings.Session()
-        dr = dag.create_dagrun(run_id=DagRunType.SCHEDULED.value,
+        dr = dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                                state=State.RUNNING,
                                execution_date=DEFAULT_DATE,
                                start_date=DEFAULT_DATE,
@@ -1431,7 +1437,7 @@ class TestBackfillJob(unittest.TestCase):
 
         queued_times = [ti.queued_dttm for ti in tis]
         self.assertTrue(queued_times == sorted(queued_times, reverse=True))
-        self.assertTrue(all([ti.state == State.SUCCESS for ti in tis]))
+        self.assertTrue(all(ti.state == State.SUCCESS for ti in tis))
 
         dag.clear()
         session.close()

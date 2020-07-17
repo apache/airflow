@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import inspect
 import os
 import shutil
@@ -25,11 +24,15 @@ from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest.mock import patch
 
+from sqlalchemy import func
+
 import airflow.example_dags
 from airflow import models
 from airflow.models import DagBag, DagModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.session import create_session
 from tests.models import TEST_DAGS_FOLDER
+from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
 
@@ -41,6 +44,14 @@ class TestDagBag(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.empty_dir)
+
+    def setUp(self) -> None:
+        db.clear_db_dags()
+        db.clear_db_serialized_dags()
+
+    def tearDown(self) -> None:
+        db.clear_db_dags()
+        db.clear_db_serialized_dags()
 
     def test_get_existing_dag(self):
         """
@@ -129,15 +140,16 @@ class TestDagBag(unittest.TestCase):
         test the loading of a DAG from within a zip file that skips another file because
         it doesn't have "airflow" and "DAG"
         """
-        from unittest.mock import Mock
-        with patch('airflow.models.DagBag.log') as log_mock:
-            log_mock.info = Mock()
+        with self.assertLogs() as cm:
             test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
             dagbag = models.DagBag(dag_folder=test_zip_path, include_examples=False)
 
             self.assertTrue(dagbag.has_logged)
-            log_mock.info.assert_any_call("File %s assumed to contain no DAGs. Skipping.",
-                                          test_zip_path)
+            self.assertIn(
+                f'INFO:airflow.models.dagbag.DagBag:File {test_zip_path}:file_no_airflow_dag.py '
+                'assumed to contain no DAGs. Skipping.',
+                cm.output
+            )
 
     def test_zip(self):
         """
@@ -311,10 +323,11 @@ class TestDagBag(unittest.TestCase):
     def test_load_subdags(self):
         # Define Dag to load
         def standard_subdag():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'master'
             default_args = {
                 'owner': 'owner1',
@@ -366,10 +379,11 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdags():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'master'
             default_args = {
                 'owner': 'owner1',
@@ -464,9 +478,10 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def basic_cycle():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'cycle_dag'
             default_args = {
                 'owner': 'owner1',
@@ -497,10 +512,11 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdag_cycle():
+            import datetime  # pylint: disable=redefined-outer-name,reimported
+
             from airflow.models import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
-            import datetime  # pylint: disable=redefined-outer-name,reimported
             dag_name = 'nested_cycle'
             default_args = {
                 'owner': 'owner1',
@@ -621,3 +637,23 @@ class TestDagBag(unittest.TestCase):
         # clean up
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
+
+    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
+    def test_serialized_dags_are_written_to_db_on_sync(self):
+        """
+        Test that when dagbag.sync_to_db is called the DAGs are Serialized and written to DB
+        even when dagbag.read_dags_from_db is False
+        """
+        with create_session() as session:
+            serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
+            self.assertEqual(serialized_dags_count, 0)
+
+            dagbag = DagBag(
+                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
+                include_examples=False)
+            dagbag.sync_to_db()
+
+            self.assertFalse(dagbag.read_dags_from_db)
+
+            new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
+            self.assertEqual(new_serialized_dags_count, 1)

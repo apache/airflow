@@ -25,15 +25,6 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 log = logging.getLogger(__name__)
 
 
-class ApiAuth:  # pylint: disable=too-few-public-methods
-    """Class to keep module of Authentication API  """
-    def __init__(self):
-        self.api_auth = None
-
-
-API_AUTH = ApiAuth()
-
-
 def load_auth():
     """Loads authentication backend"""
     auth_backend = 'airflow.api.auth.backend.default'
@@ -43,7 +34,7 @@ def load_auth():
         pass
 
     try:
-        API_AUTH.api_auth = import_module(auth_backend)
+        return import_module(auth_backend)
     except ImportError as err:
         log.critical(
             "Cannot import %s for API authentication due to: %s",

@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigquery_to_bigquery`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.transfers.bigquery_to_bigquery`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.google.cloud.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator  # noqa
+from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigquery_to_bigquery`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.transfers.bigquery_to_bigquery`.",
     DeprecationWarning, stacklevel=2
 )

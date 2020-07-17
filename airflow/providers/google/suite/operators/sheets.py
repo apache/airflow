@@ -21,13 +21,13 @@ from airflow.models import BaseOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 
 
-class GoogleSheetsCreateSpreadsheet(BaseOperator):
+class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
     """
     Creates a new spreadsheet.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleSheetsCreateSpreadsheet`
+        :ref:`howto/operator:GoogleSheetsCreateSpreadsheetOperator`
 
     :param spreadsheet: an instance of Spreadsheet
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets#Spreadsheet

@@ -25,13 +25,13 @@ import re
 import unittest
 from contextlib import redirect_stdout
 from tempfile import NamedTemporaryFile
+from typing import Optional
 from unittest import mock
 from unittest.mock import patch
 
 import pendulum
 from dateutil.relativedelta import relativedelta
 from parameterized import parameterized
-from pendulum import utcnow
 
 from airflow import models, settings
 from airflow.configuration import conf
@@ -56,10 +56,14 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 class TestDag(unittest.TestCase):
 
+    def setUp(self) -> None:
+        clear_db_runs()
+
+    def tearDown(self) -> None:
+        clear_db_runs()
+
     @staticmethod
     def _clean_up(dag_id: str):
-        if os.environ.get('KUBERNETES_VERSION') is not None:
-            return
         with create_session() as session:
             session.query(DagRun).filter(
                 DagRun.dag_id == dag_id).delete(
@@ -320,7 +324,7 @@ class TestDag(unittest.TestCase):
             start_date=DEFAULT_DATE,
             default_args={'owner': 'owner1'})
 
-        self.assertEqual(tuple(), dag.topological_sort())
+        self.assertEqual((), dag.topological_sort())
 
     def test_dag_naive_start_date_string(self):
         DAG('DAG', default_args={'start_date': '2019-06-01'})
@@ -1101,8 +1105,7 @@ class TestDag(unittest.TestCase):
             start_date=DEFAULT_DATE))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        run_id = f"{DagRunType.SCHEDULED.value}__{DEFAULT_DATE.isoformat()}"
-        dag.create_dagrun(run_id=run_id,
+        dag.create_dagrun(run_type=DagRunType.SCHEDULED,
                           execution_date=DEFAULT_DATE,
                           state=State.SUCCESS,
                           external_trigger=True)
@@ -1213,7 +1216,7 @@ class TestDag(unittest.TestCase):
         """
         session = settings.Session()
         delta = datetime.timedelta(days=1)
-        now = utcnow()
+        now = pendulum.now('UTC')
         start_date = now.subtract(weeks=1)
 
         runs = (now - start_date).days
@@ -1345,6 +1348,106 @@ class TestDag(unittest.TestCase):
 
         assert len(drs) == 3
         assert all(dr.state == State.NONE for dr in drs)
+
+    def test_create_dagrun_run_id_is_generated(self):
+        dag = DAG(dag_id="run_id_is_generated")
+        dr = dag.create_dagrun(run_type=DagRunType.MANUAL, execution_date=DEFAULT_DATE, state=State.NONE)
+        assert dr.run_id == f"{DagRunType.MANUAL.value}__{DEFAULT_DATE.isoformat()}"
+
+    def test_create_dagrun_run_type_is_obtained_from_run_id(self):
+        dag = DAG(dag_id="run_type_is_obtained_from_run_id")
+        dr = dag.create_dagrun(run_id=f"{DagRunType.SCHEDULED.value}__", state=State.NONE)
+        assert dr.run_type == DagRunType.SCHEDULED.value
+
+        dr = dag.create_dagrun(run_id="custom_is_set_to_manual", state=State.NONE)
+        assert dr.run_type == DagRunType.MANUAL.value
+
+    @parameterized.expand(
+        [
+            (State.NONE,),
+            (State.RUNNING,),
+        ]
+    )
+    def test_clear_set_dagrun_state(self, dag_run_state):
+        dag_id = 'test_clear_set_dagrun_state'
+        self._clean_up(dag_id)
+        task_id = 't1'
+        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
+        t_1 = DummyOperator(task_id=task_id, dag=dag)
+
+        session = settings.Session()
+        dagrun_1 = dag.create_dagrun(
+            run_type=DagRunType.BACKFILL_JOB,
+            state=State.FAILED,
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+        )
+        session.merge(dagrun_1)
+
+        task_instance_1 = TI(t_1, execution_date=DEFAULT_DATE, state=State.RUNNING)
+        session.merge(task_instance_1)
+        session.commit()
+
+        dag.clear(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            dag_run_state=dag_run_state,
+            include_subdags=False,
+            include_parentdag=False,
+            session=session,
+        )
+
+        dagruns = session.query(
+            DagRun,
+        ).filter(
+            DagRun.dag_id == dag_id,
+        ).all()
+
+        self.assertEqual(len(dagruns), 1)
+        dagrun = dagruns[0]  # type: DagRun
+        self.assertEqual(dagrun.state, dag_run_state)
+
+    @parameterized.expand([
+        (state, State.NONE)
+        for state in State.task_states if state != State.RUNNING
+    ] + [(State.RUNNING, State.SHUTDOWN)])  # type: ignore
+    def test_clear_dag(self, ti_state_begin, ti_state_end: Optional[str]):
+        dag_id = 'test_clear_dag'
+        self._clean_up(dag_id)
+        task_id = 't1'
+        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
+        t_1 = DummyOperator(task_id=task_id, dag=dag)
+
+        session = settings.Session()  # type: ignore
+        dagrun_1 = dag.create_dagrun(
+            run_type=DagRunType.BACKFILL_JOB,
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+        )
+        session.merge(dagrun_1)
+
+        task_instance_1 = TI(t_1, execution_date=DEFAULT_DATE, state=ti_state_begin)
+        task_instance_1.job_id = 123
+        session.merge(task_instance_1)
+        session.commit()
+
+        dag.clear(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            session=session,
+        )
+
+        task_instances = session.query(
+            TI,
+        ).filter(
+            TI.dag_id == dag_id,
+        ).all()
+
+        self.assertEqual(len(task_instances), 1)
+        task_instance = task_instances[0]  # type: TI
+        self.assertEqual(task_instance.state, ti_state_end)
+        self._clean_up(dag_id)
 
 
 class TestQueries(unittest.TestCase):

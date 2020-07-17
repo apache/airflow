@@ -116,13 +116,13 @@ To create and initialize the local virtualenv:
 
    .. code-block:: bash
 
-    pip install -U -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -U -e ".[devel,gcp,postgres]"
+    pip install -U -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -U -e ".[devel,google,postgres]"
 
 Note: when you first initialize database (the next step), you may encounter some problems.
-This is because airflow by default will try to load in example dags where some of them requires dependencies ``gcp`` and ``postgres``.
+This is because airflow by default will try to load in example dags where some of them requires dependencies ``google`` and ``postgres``.
 You can solve the problem by:
 
-- installing the extras i.e. ``[devel,gcp,postgres]`` or
+- installing the extras i.e. ``[devel,google,postgres]`` or
 - disable the example dags with environment variable: ``export AIRFLOW__CORE__LOAD_EXAMPLES=False`` or
 - simply ignore the error messages and proceed
 
@@ -141,11 +141,18 @@ You can solve the problem by:
 
 Note that if you have the Breeze development environment installed, the ``breeze``
 script can automate initializing the created virtualenv (steps 2 and 3).
-Simply enter the Breeze environment by using ``workon`` and, once you are in it, run:
+Activate your virtualenv, e.g. by using ``workon``, and once you are in it, run:
 
 .. code-block:: bash
 
   ./breeze initialize-local-virtualenv
+
+5. (optionally) run yarn build if you plan to run the webserver
+
+.. code-block:: bash
+
+    cd airflow/www
+    yarn build
 
 Running Tests
 -------------

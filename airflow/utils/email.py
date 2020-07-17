@@ -32,17 +32,17 @@ from airflow.exceptions import AirflowConfigException
 log = logging.getLogger(__name__)
 
 
-def send_email(to, subject, html_content,
+def send_email(to: Union[List[str], Iterable[str]], subject: str, html_content: str,
                files=None, dryrun=False, cc=None, bcc=None,
                mime_subtype='mixed', mime_charset='utf-8', **kwargs):
     """
     Send email using backend specified in EMAIL_BACKEND.
     """
     backend = conf.getimport('email', 'EMAIL_BACKEND')
-    to = get_email_address_list(to)
-    to = ", ".join(to)
+    to_list = get_email_address_list(to)
+    to_comma_seperated = ", ".join(to_list)
 
-    return backend(to, subject, html_content, files=files,
+    return backend(to_comma_seperated, subject, html_content, files=files,
                    dryrun=dryrun, cc=cc, bcc=bcc,
                    mime_subtype=mime_subtype, mime_charset=mime_charset, **kwargs)
 

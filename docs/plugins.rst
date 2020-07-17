@@ -28,6 +28,9 @@ The python modules in the ``plugins`` folder get imported,
 and **hooks**, **operators**, **sensors**, **macros** and web **views**
 get integrated to Airflow's main collections and become available for use.
 
+To troubleshoot issue with plugins, you can use ``airflow plugins`` command.
+This command dumps information about loaded plugins.
+
 What for?
 ---------
 
@@ -73,7 +76,7 @@ you want to plug into Airflow. Here's what the class you need to derive
 looks like:
 
 
-.. code:: python
+.. code-block:: python
 
     class AirflowPlugin:
         # The name of your plugin (str)
@@ -115,14 +118,15 @@ looks like:
         # buttons.
         operator_extra_links = []
 
-You can derive it by inheritance (please refer to the example below).
-Please note ``name`` inside this class must be specified.
+You can derive it by inheritance (please refer to the example below). In the example, all options have been
+defined as class attributes, but you can also define them as properties if you need to perform
+additional initialization. Please note ``name`` inside this class must be specified.
 
 After the plugin is imported into Airflow,
 you can invoke it using statement like
 
 
-.. code:: python
+.. code-block:: python
 
     from airflow.{type, like "operators", "sensors"}.{name specified inside the plugin class} import *
 
@@ -145,7 +149,7 @@ Example
 The code below defines a plugin that injects a set of dummy object
 definitions in Airflow.
 
-.. code:: python
+.. code-block:: python
 
     # This is the class you derive to create a plugin
     from airflow.plugins_manager import AirflowPlugin
@@ -157,7 +161,7 @@ definitions in Airflow.
     from airflow.hooks.base_hook import BaseHook
     from airflow.models import BaseOperator
     from airflow.models.baseoperator import BaseOperatorLink
-    from airflow.providers.amazon.aws.operators.gcs_to_s3 import GCSToS3Operator
+    from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
     # Will show up under airflow.hooks.test_plugin.PluginHook
@@ -249,6 +253,20 @@ Airflow 1.10 introduced role based views using FlaskAppBuilder. You can configur
 ``rbac = True``. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
 the fields ``appbuilder_views`` and ``appbuilder_menu_items`` were added to the ``AirflowTestPlugin`` class.
 
+Exclude views from CSRF protection
+----------------------------------
+
+We strongly suggest that you should protect all your views with CSRF. But if needed, you can exclude
+some views using a decorator.
+
+.. code-block:: python
+
+    from airflow.www.app import csrf
+
+    @csrf.exempt
+    def my_handler():
+        # ...
+        return 'ok'
 
 Plugins as Python packages
 --------------------------
@@ -300,3 +318,12 @@ This will create a hook, and an operator accessible at:
 
 - ``airflow.hooks.my_namespace.MyHook``
 - ``airflow.operators.my_namespace.MyOperator``
+
+Automatic reloading webserver
+-----------------------------
+
+To enable automatic reloading of the webserver, when changes in a directory with plugins has been detected,
+you should set ``reload_on_plugin_change`` option in ``[webserver]`` section to ``True``.
+
+.. note::
+    For more information on setting the configuration, see :doc:`/howto/set-config`

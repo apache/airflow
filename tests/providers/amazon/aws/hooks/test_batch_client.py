@@ -25,7 +25,7 @@ import mock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClient
+from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
 
 # Use dummy AWS credentials
 AWS_REGION = "eu-west-1"
@@ -46,7 +46,7 @@ class TestAwsBatchClient(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
     def setUp(self, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
-        self.batch_client = AwsBatchClient(
+        self.batch_client = AwsBatchClientHook(
             max_retries=self.MAX_RETRIES,
             status_retries=self.STATUS_RETRIES,
             aws_conn_id='airflow_test',
@@ -253,7 +253,7 @@ class TestAwsBatchClientDelays(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     def setUp(self):
-        self.batch_client = AwsBatchClient(
+        self.batch_client = AwsBatchClientHook(
             aws_conn_id='airflow_test',
             region_name=AWS_REGION)
 
@@ -273,12 +273,12 @@ class TestAwsBatchClientDelays(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.uniform")
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.sleep")
     def test_delay_defaults(self, mock_sleep, mock_uniform):
-        self.assertEqual(AwsBatchClient.DEFAULT_DELAY_MIN, 1)
-        self.assertEqual(AwsBatchClient.DEFAULT_DELAY_MAX, 10)
+        self.assertEqual(AwsBatchClientHook.DEFAULT_DELAY_MIN, 1)
+        self.assertEqual(AwsBatchClientHook.DEFAULT_DELAY_MAX, 10)
         mock_uniform.return_value = 0
         self.batch_client.delay()
         mock_uniform.assert_called_once_with(
-            AwsBatchClient.DEFAULT_DELAY_MIN, AwsBatchClient.DEFAULT_DELAY_MAX
+            AwsBatchClientHook.DEFAULT_DELAY_MIN, AwsBatchClientHook.DEFAULT_DELAY_MAX
         )
         mock_sleep.assert_called_once_with(0)
 

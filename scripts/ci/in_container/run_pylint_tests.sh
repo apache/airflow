@@ -24,9 +24,9 @@ set +e
 
 if [[ ${#@} == "0" ]]; then
     echo
-    echo "Running pylint for 'tests' folder"
+    echo "Running pylint for 'tests' and 'kubernetes_tests' folder"
     echo
-    find "./tests" -name "*.py" | \
+    find "./tests" "./kubernetes_tests" -name "*.py" | \
     grep -vFf scripts/ci/pylint_todo.txt | \
     # running pylint using built-in parallel functionality might speed it up
     xargs pylint -j 0 --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized

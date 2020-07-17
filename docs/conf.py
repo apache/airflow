@@ -134,6 +134,12 @@ extensions = [
     'exampleinclude',
     'docroles',
     'removemarktransform',
+    'sphinx_copybutton',
+    'redirects',
+    # First, generate redoc
+    'sphinxcontrib.redoc',
+    # Second, update redoc script
+    "sphinx_script_update",
 ]
 
 autodoc_default_options = {
@@ -189,8 +195,6 @@ release = airflow.__version__
 exclude_patterns: List[str] = [
     # We only link to selected subpackages.
     '_api/airflow/index.rst',
-    # Required by airflow/contrib/plugins
-    '_api/main',
     # We have custom page - operators-and-hooks-ref.rst
     '_api/airflow/providers/index.rst',
     # Packages with subpackages
@@ -201,11 +205,17 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/apache/index.rst",
     "_api/airflow/providers/yandex/index.rst",
     "_api/airflow/providers/cncf/index.rst",
-    # Utils for internal use
+    # Packages without operators
+    "_api/airflow/providers/sendgrid",
+    # Utils
     '_api/airflow/providers/google/cloud/utils',
+    # Internal client for Hashicorp Vault
+    '_api/airflow/providers/hashicorp/_internal_client',
+    # Internal client for GCP Secret Manager
+    '_api/airflow/providers/google/cloud/_internal_client',
     # Templates or partials
     'autoapi_templates',
-    'howto/operator/gcp/_partials',
+    'howto/operator/google/_partials',
 ]
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -495,10 +505,7 @@ autoapi_template_dir = 'autoapi_templates'
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
     '*/airflow/kubernetes/kubernetes_request_factory/*',
-    '*/airflow/contrib/sensors/*',
-    '*/airflow/contrib/hooks/*',
-    '*/airflow/contrib/operators/*',
-
+    '*/_internal*',
     '*/node_modules/*',
     '*/migrations/*',
 ]
@@ -512,6 +519,28 @@ autoapi_root = '_api'
 
 # -- Options for example include ------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
+
+# -- Options for sphinxcontrib-redirects ----------------------------------
+redirects_file = 'redirects.txt'
+
+# -- Options for redoc docs ----------------------------------
+OPENAPI_FILE = os.path.join(
+    os.path.dirname(__file__),
+    "..", "airflow", "api_connexion", "openapi", "v1.yaml"
+)
+redoc = [
+    {
+        'name': 'Airflow REST API',
+        'page': 'stable-rest-api/redoc',
+        'spec': OPENAPI_FILE,
+        'opts': {
+            'hide-hostname': True,
+        }
+    },
+]
+
+# Options for script updater
+redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.30/bundles/redoc.standalone.js"
 
 # -- Additional HTML Context variable
 html_context = {

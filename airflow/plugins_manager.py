@@ -29,7 +29,8 @@ from typing import Any, Dict, List, Optional, Type
 
 import pkg_resources
 
-from airflow import settings
+from airflow import settings  # type: ignore
+from airflow.utils.file import find_path_from_directory  # type: ignore
 
 log = logging.getLogger(__name__)
 
@@ -145,11 +146,12 @@ def load_entrypoint_plugins():
     for entry_point in entry_points:  # pylint: disable=too-many-nested-blocks
         log.debug('Importing entry_point plugin %s', entry_point.name)
         try:
-            plugin_obj = entry_point.load()
-            if is_valid_plugin(plugin_obj):
-                if callable(getattr(plugin_obj, 'on_load', None)):
-                    plugin_obj.on_load()
-                    plugins.append(plugin_obj)
+            plugin_class = entry_point.load()
+            if is_valid_plugin(plugin_class):
+                plugin_instance = plugin_class()
+                if callable(getattr(plugin_instance, 'on_load', None)):
+                    plugin_instance.on_load()
+                    plugins.append(plugin_instance)
         except Exception as e:  # pylint: disable=broad-except
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module_name] = str(e)
@@ -157,45 +159,45 @@ def load_entrypoint_plugins():
 
 def load_plugins_from_plugin_directory():
     """
-    Load and register Airflow Plugins from plugins directory.
+    Load and register Airflow Plugins from plugins directory
     """
     global import_errors  # pylint: disable=global-statement
     global plugins  # pylint: disable=global-statement
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
-    # Crawl through the plugins folder to find AirflowPlugin derivatives
-    for root, _, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):  # noqa # pylint: disable=too-many-nested-blocks
-        for f in files:
-            filepath = os.path.join(root, f)
-            try:
-                if not os.path.isfile(filepath):
-                    continue
-                mod_name, file_ext = os.path.splitext(
-                    os.path.split(filepath)[-1])
-                if file_ext != '.py':
-                    continue
+    for file_path in find_path_from_directory(
+            settings.PLUGINS_FOLDER, ".airflowignore"):
 
-                log.debug('Importing plugin module %s', filepath)
+        if not os.path.isfile(file_path):
+            continue
+        mod_name, file_ext = os.path.splitext(os.path.split(file_path)[-1])
+        if file_ext != '.py':
+            continue
 
-                loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
-                spec = importlib.util.spec_from_loader(mod_name, loader)
-                mod = importlib.util.module_from_spec(spec)
-                sys.modules[spec.name] = mod
-                loader.exec_module(mod)
-                for obj in list(mod.__dict__.values()):
-                    if is_valid_plugin(obj):
-                        plugins.append(obj)
-            except Exception as e:  # pylint: disable=broad-except
-                log.exception(e)
-                path = filepath or str(f)
-                log.error('Failed to import plugin %s', path)
-                import_errors[path] = str(e)
+        try:
+            loader = importlib.machinery.SourceFileLoader(mod_name, file_path)
+            spec = importlib.util.spec_from_loader(mod_name, loader)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = mod
+            loader.exec_module(mod)
+            log.debug('Importing plugin module %s', file_path)
+
+            for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
+                plugin_instance = mod_attr_value()
+                plugins.append(plugin_instance)
+
+        except Exception as e:  # pylint: disable=broad-except
+            log.exception(e)
+            log.error('Failed to import plugin %s', file_path)
+            import_errors[file_path] = str(e)
 
 
 # pylint: disable=protected-access
 # noinspection Mypy,PyTypeHints
 def make_module(name: str, objects: List[Any]):
     """Creates new module."""
+    if not objects:
+        return None
     log.debug('Creating module %s', name)
     name = name.lower()
     module = types.ModuleType(name)
@@ -271,6 +273,13 @@ def initialize_web_ui_plugins():
             'blueprint': bp
         } for bp in plugin.flask_blueprints])
 
+        if (admin_views and not flask_appbuilder_views) or (menu_links and not flask_appbuilder_menu_links):
+            log.warning(
+                "Plugin \'%s\' may not be compatible with the current Airflow version. "
+                "Please contact the author of the plugin.",
+                plugin.name
+            )
+
 
 def initialize_extra_operators_links_plugins():
     """Creates modules for loaded extension from extra operators links plugins"""
@@ -331,11 +340,9 @@ def integrate_executor_plugins() -> None:
         plugin_name: str = plugin.name
 
         executors_module = make_module('airflow.executors.' + plugin_name, plugin.executors)
-        executors_modules.append(executors_module)
-
-        sys.modules[executors_module.__name__] = executors_module  # pylint: disable=no-member
-        # noinspection PyProtectedMember
-        globals()[executors_module._name] = executors_module  # pylint: disable=protected-access
+        if executors_module:
+            executors_modules.append(executors_module)
+            sys.modules[executors_module.__name__] = executors_module  # pylint: disable=no-member
 
 
 def integrate_dag_plugins() -> None:
@@ -369,30 +376,24 @@ def integrate_dag_plugins() -> None:
     for plugin in plugins:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
-        plugin_name: str = plugin.name
 
-        operators_module = make_module(f'airflow.operators.{plugin_name}', plugin.operators + plugin.sensors)
-        sensors_module = make_module(f'airflow.sensors.{plugin_name}', plugin.sensors)
-        hooks_module = make_module(f'airflow.hooks.{plugin_name}', plugin.hooks)
-        macros_module = make_module(f'airflow.macros.{plugin_name}', plugin.macros)
+        operators_module = make_module(f'airflow.operators.{plugin.name}', plugin.operators + plugin.sensors)
+        sensors_module = make_module(f'airflow.sensors.{plugin.name}', plugin.sensors)
+        hooks_module = make_module(f'airflow.hooks.{plugin.name}', plugin.hooks)
+        macros_module = make_module(f'airflow.macros.{plugin.name}', plugin.macros)
 
-        operators_modules.append(operators_module)
-        sensors_modules.append(sensors_module)
-        hooks_modules.append(hooks_module)
-        macros_modules.append(macros_module)
+        if operators_module:
+            operators_modules.append(operators_module)
+            sys.modules[operators_module.__name__] = operators_module  # pylint: disable=no-member
 
-        sys.modules[operators_module.__name__] = operators_module  # pylint: disable=no-member
-        # noinspection PyProtectedMember
-        globals()[operators_module._name] = operators_module  # pylint: disable=protected-access
+        if sensors_module:
+            sensors_modules.append(sensors_module)
+            sys.modules[sensors_module.__name__] = sensors_module  # pylint: disable=no-member
 
-        sys.modules[sensors_module.__name__] = sensors_module  # pylint: disable=no-member
-        # noinspection PyProtectedMember
-        globals()[sensors_module._name] = sensors_module  # pylint: disable=protected-access
+        if hooks_module:
+            hooks_modules.append(hooks_module)
+            sys.modules[hooks_module.__name__] = hooks_module  # pylint: disable=no-member
 
-        sys.modules[hooks_module.__name__] = hooks_module  # pylint: disable=no-member
-        # noinspection PyProtectedMember
-        globals()[hooks_module._name] = hooks_module  # pylint: disable=protected-access
-
-        sys.modules[macros_module.__name__] = macros_module  # pylint: disable=no-member
-        # noinspection PyProtectedMember
-        globals()[macros_module._name] = macros_module  # pylint: disable=protected-access
+        if macros_module:
+            macros_modules.append(macros_module)
+            sys.modules[macros_module.__name__] = macros_module  # pylint: disable=no-member

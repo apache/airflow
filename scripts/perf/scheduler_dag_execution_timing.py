@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import gc
 import os
 import statistics
 import sys
+import textwrap
 import time
 from argparse import Namespace
 from operator import attrgetter
@@ -30,18 +30,18 @@ MAX_DAG_RUNS_ALLOWED = 1
 
 
 class ShortCircuitExecutorMixin:
-    '''
+    """
     Mixin class to manage the scheduler state during the performance test run.
-    '''
+    """
     def __init__(self, dag_ids_to_watch, num_runs):
         super().__init__()
         self.num_runs_per_dag = num_runs
         self.reset(dag_ids_to_watch)
 
     def reset(self, dag_ids_to_watch):
-        '''
+        """
         Capture the value that will determine when the scheduler is reset.
-        '''
+        """
         self.dags_to_watch = {
             dag_id: Namespace(
                 waiting_for=self.num_runs_per_dag,
@@ -52,13 +52,13 @@ class ShortCircuitExecutorMixin:
             ) for dag_id in dag_ids_to_watch
         }
 
-    def change_state(self, key, state):
-        '''
+    def change_state(self, key, state, info=None):
+        """
         Change the state of scheduler by waiting till the tasks is complete
         and then shut down the scheduler after the task is complete
-        '''
+        """
         from airflow.utils.state import State
-        super().change_state(key, state)
+        super().change_state(key, state, info=info)
 
         dag_id, _, execution_date, __ = key
         if dag_id not in self.dags_to_watch:
@@ -71,6 +71,7 @@ class ShortCircuitExecutorMixin:
         run = self.dags_to_watch[dag_id].runs.get(execution_date)
         if not run:
             import airflow.models
+
             # odd `list()` is to work across Airflow versions.
             run = list(airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date))[0]
             self.dags_to_watch[dag_id].runs[execution_date] = run
@@ -90,33 +91,37 @@ class ShortCircuitExecutorMixin:
                          sum(map(attrgetter('waiting_for'), self.dags_to_watch.values())))
 
 
-def get_executor_under_test():
-    '''
+def get_executor_under_test(dotted_path):
+    """
     Create and return a MockExecutor
-    '''
+    """
 
-    try:
-        # Run against master and 1.10.x releases
-        from tests.test_utils.mock_executor import MockExecutor
-    except ImportError:
-        from tests.executors.test_executor import TestExecutor as MockExecutor
+    from airflow.executors.executor_loader import ExecutorLoader
 
-    # from airflow.executors.local_executor import LocalExecutor
+    if dotted_path == "MockExecutor":
+        try:
+            # Run against master and 1.10.x releases
+            from tests.test_utils.mock_executor import MockExecutor as Executor
+        except ImportError:
+            from tests.executors.test_executor import TestExecutor as Executor
+
+    else:
+        Executor = ExecutorLoader.load_executor(dotted_path)
 
     # Change this to try other executors
-    class ShortCircuitExecutor(ShortCircuitExecutorMixin, MockExecutor):
-        '''
+    class ShortCircuitExecutor(ShortCircuitExecutorMixin, Executor):
+        """
         Placeholder class that implements the inheritance hierarchy
-        '''
+        """
         scheduler_job = None
 
     return ShortCircuitExecutor
 
 
 def reset_dag(dag, session):
-    '''
+    """
     Delete all dag and task instances and then un_pause the Dag.
-    '''
+    """
     import airflow.models
 
     DR = airflow.models.DagRun
@@ -132,17 +137,17 @@ def reset_dag(dag, session):
 
 
 def pause_all_dags(session):
-    '''
+    """
     Pause all Dags
-    '''
+    """
     from airflow.models.dag import DagModel
     session.query(DagModel).update({'is_paused': True})
 
 
 def create_dag_runs(dag, num_runs, session):
-    '''
+    """
     Create  `num_runs` of dag runs for sub-sequent schedules
-    '''
+    """
     from airflow.utils import timezone
     from airflow.utils.state import State
 
@@ -175,8 +180,13 @@ def create_dag_runs(dag, num_runs, session):
 
         Warning: this makes the scheduler do (slightly) less work so may skew your numbers. Use sparingly!
         ''')
+@click.option('--executor-class', default='MockExecutor',
+              help=textwrap.dedent('''
+          Dotted path Executor class to test, for example
+          'airflow.executors.local_executor.LocalExecutor'. Defaults to MockExcutor which doesn't run tasks.
+      '''))
 @click.argument('dag_ids', required=True, nargs=-1)
-def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too-many-locals
+def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):  # pylint: disable=too-many-locals
     """
     This script can be used to measure the total "scheduler overhead" of Airflow.
 
@@ -245,7 +255,7 @@ def main(num_runs, repeat, pre_create_dag_runs, dag_ids):  # pylint: disable=too
             if pre_create_dag_runs:
                 create_dag_runs(dag, num_runs, session)
 
-    ShortCircutExecutor = get_executor_under_test()
+    ShortCircutExecutor = get_executor_under_test(executor_class)
 
     executor = ShortCircutExecutor(dag_ids_to_watch=dag_ids, num_runs=num_runs)
     scheduler_job = SchedulerJob(dag_ids=dag_ids, do_pickle=False, executor=executor)

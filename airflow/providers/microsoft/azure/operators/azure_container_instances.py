@@ -19,7 +19,7 @@
 import re
 from collections import namedtuple
 from time import sleep
-from typing import Dict, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from azure.mgmt.containerinstance.models import (
     Container, ContainerGroup, EnvironmentVariable, ResourceRequests, ResourceRequirements, VolumeMount,
@@ -69,10 +69,10 @@ class AzureContainerInstancesOperator(BaseOperator):
     :type region: str
     :param environment_variables: key,value pairs containing environment
         variables which will be passed to the running container
-    :type environment_variables: dict
+    :type environment_variables: Optional[dict]
     :param secured_variables: names of environmental variables that should not
         be exposed outside the container (typically passwords).
-    :type secured_variables: [str]
+    :type secured_variables: Optional[str]
     :param volumes: list of ``Volume`` tuples to be mounted to the container.
         Currently only Azure Fileshares are supported.
     :type volumes: list[<conn_id, account_name, share_name, mount_path, read_only>]
@@ -83,12 +83,12 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param gpu: GPU Resource for the container.
     :type gpu: azure.mgmt.containerinstance.models.GpuResource
     :param command: the command to run inside the container
-    :type command: [str]
+    :type command: Optional[str]
     :param container_timeout: max time allowed for the execution of
         the container instance.
     :type container_timeout: datetime.timedelta
     :param tags: azure tags as dict of str:str
-    :type tags: dict[str, str]
+    :type tags: Optional[dict[str, str]]
 
     **Example**::
 
@@ -123,24 +123,24 @@ class AzureContainerInstancesOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(self,
-                 ci_conn_id,
-                 registry_conn_id,
-                 resource_group,
-                 name,
-                 image,
-                 region,
-                 environment_variables=None,
-                 secured_variables=None,
-                 volumes=None,
-                 memory_in_gb=None,
-                 cpu=None,
-                 gpu=None,
-                 command=None,
-                 remove_on_error=True,
-                 fail_if_exists=True,
-                 tags=None,
+                 ci_conn_id: str,
+                 registry_conn_id: Optional[str],
+                 resource_group: str,
+                 name: str,
+                 image: str,
+                 region: str,
+                 environment_variables: Optional[Dict[Any, Any]] = None,
+                 secured_variables: Optional[str] = None,
+                 volumes: Optional[List[Any]] = None,
+                 memory_in_gb: Optional[Any] = None,
+                 cpu: Optional[Any] = None,
+                 gpu: Optional[Any] = None,
+                 command: Optional[str] = None,
+                 remove_on_error: bool = True,
+                 fail_if_exists: bool = True,
+                 tags: Optional[Dict[str, str]] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.ci_conn_id = ci_conn_id
@@ -158,10 +158,11 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.command = command
         self.remove_on_error = remove_on_error
         self.fail_if_exists = fail_if_exists
-        self._ci_hook = None
+        self._ci_hook: Any = None
         self.tags = tags
 
-    def execute(self, context):
+    def execute(self,
+                context: Dict[Any, Any]) -> int:
         # Check name again in case it was templated.
         self._check_name(self.name)
 
@@ -174,7 +175,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         if self.registry_conn_id:
             registry_hook = AzureContainerRegistryHook(self.registry_conn_id)
-            image_registry_credentials = [registry_hook.connection, ]
+            image_registry_credentials: Optional[List[Any]] = [registry_hook.connection, ]
         else:
             image_registry_credentials = None
 
@@ -186,8 +187,8 @@ class AzureContainerInstancesOperator(BaseOperator):
                 e = EnvironmentVariable(name=key, value=value)
             environment_variables.append(e)
 
-        volumes = []
-        volume_mounts = []
+        volumes: List[Union[Volume, Volume]] = []
+        volume_mounts: List[Union[VolumeMount, VolumeMount]] = []
         for conn_id, account_name, share_name, mount_path, read_only in self.volumes:
             hook = AzureContainerVolumeHook(conn_id)
 
@@ -250,7 +251,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             if exit_code == 0 or self.remove_on_error:
                 self.on_kill()
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         if self.remove_on_error:
             self.log.info("Deleting container group")
             try:
@@ -258,7 +259,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             except Exception:  # pylint: disable=broad-except
                 self.log.exception("Could not delete container group")
 
-    def _monitor_logging(self, resource_group, name):
+    def _monitor_logging(self, resource_group: str, name: str) -> int:
         last_state = None
         last_message_logged = None
         last_line_logged = None
@@ -318,7 +319,9 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         sleep(1)
 
-    def _log_last(self, logs, last_line_logged):
+    def _log_last(self,
+                  logs: Optional[List[Any]],
+                  last_line_logged: Any) -> Optional[Any]:
         if logs:
             # determine the last line which was logged before
             last_line_index = 0
@@ -336,7 +339,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         return None
 
     @staticmethod
-    def _check_name(name):
+    def _check_name(name: str) -> str:
         if '{{' in name:
             # Let macros pass as they cannot be checked at construction time
             return name

@@ -31,12 +31,16 @@ services:
       - ../../../.kube:/root/.kube:cached
       - ../../../files:/files:cached
       - ../../../dist:/dist:cached
-      - ../../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached
+      - ../../../scripts/prod/entrypoint_prod.sh:/entrypoint:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
-      - ../../../tmp:/opt/airflow/tmp:cached
+      - ../../../tmp:/tmp:cached
+      - ../../../metastore_browser:/opt/airflow/metastore_browser:cached
     environment:
       - HOST_USER_ID
       - HOST_GROUP_ID
+      - HOST_HOME=${HOME}
+      - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+      - HOST_OS
       - PYTHONDONTWRITEBYTECODE

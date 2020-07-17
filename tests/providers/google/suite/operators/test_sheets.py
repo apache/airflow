@@ -17,7 +17,7 @@
 
 import mock
 
-from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheet
+from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
 
 GCP_CONN_ID = "test"
 SPREADSHEET_URL = "https://example/sheets"
@@ -27,7 +27,7 @@ SPREADSHEET_ID = "1234567890"
 class TestGoogleSheetsCreateSpreadsheet:
     @mock.patch("airflow.providers.google.suite.operators.sheets.GSheetsHook")
     @mock.patch(
-        "airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheet.xcom_push"
+        "airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheetOperator.xcom_push"
     )
     def test_execute(self, mock_xcom, mock_hook):
         context = {}
@@ -36,7 +36,7 @@ class TestGoogleSheetsCreateSpreadsheet:
             "spreadsheetId": SPREADSHEET_ID,
             "spreadsheetUrl": SPREADSHEET_URL,
         }
-        op = GoogleSheetsCreateSpreadsheet(
+        op = GoogleSheetsCreateSpreadsheetOperator(
             task_id="test_task", spreadsheet=spreadsheet, gcp_conn_id=GCP_CONN_ID
         )
         op.execute(context)
