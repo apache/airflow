@@ -29,13 +29,6 @@ from airflow.models import DagRun as DR, XCom
 from airflow.utils.session import provide_session
 
 
-def delete_xcom_entry():
-    """
-    Delete an XCom entry
-    """
-    raise NotImplementedError("Not implemented yet.")
-
-
 @format_parameters({
     'limit': check_limit
 })
@@ -92,17 +85,3 @@ def get_xcom_entry(
     if not query_object:
         raise NotFound("XCom entry not found")
     return xcom_collection_item_schema.dump(query_object)
-
-
-def patch_xcom_entry():
-    """
-    Update an XCom entry
-    """
-    raise NotImplementedError("Not implemented yet.")
-
-
-def post_xcom_entries():
-    """
-    Create an XCom entry
-    """
-    raise NotImplementedError("Not implemented yet.")

@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import unittest
 from unittest.mock import ANY
 
@@ -25,15 +24,15 @@ from parameterized import parameterized
 from tests.test_utils.config import conf_vars
 
 try:
-    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler
-    from airflow.executors.kubernetes_executor import KubeConfig
-    from airflow.kubernetes.worker_configuration import WorkerConfiguration
-    from airflow.kubernetes.pod_generator import PodGenerator
-    from airflow.exceptions import AirflowConfigException
-    from airflow.kubernetes.secret import Secret
-    from airflow.version import version as airflow_version
-    import kubernetes.client.models as k8s
+    from kubernetes.client import models as k8s
     from kubernetes.client.api_client import ApiClient
+
+    from airflow.exceptions import AirflowConfigException
+    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler, KubeConfig
+    from airflow.kubernetes.pod_generator import PodGenerator
+    from airflow.kubernetes.secret import Secret
+    from airflow.kubernetes.worker_configuration import WorkerConfiguration
+    from airflow.version import version as airflow_version
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
@@ -244,6 +243,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         env = init_containers[0].env
 
         self.assertIn(k8s.V1EnvVar(name='GIT_SSH_KEY_FILE', value='/etc/git-secret/ssh'), env)
+        self.assertIn(k8s.V1EnvVar(name='GIT_SYNC_ADD_USER', value='true'), env)
         self.assertIn(k8s.V1EnvVar(name='GIT_KNOWN_HOSTS', value='false'), env)
         self.assertIn(k8s.V1EnvVar(name='GIT_SYNC_SSH', value='true'), env)
 
@@ -264,6 +264,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         env = init_containers[0].env
 
         self.assertIn(k8s.V1EnvVar(name='GIT_SSH_KEY_FILE', value='/etc/git-secret/ssh'), env)
+        self.assertIn(k8s.V1EnvVar(name='GIT_SYNC_ADD_USER', value='true'), env)
         self.assertIn(k8s.V1EnvVar(name='GIT_KNOWN_HOSTS', value='true'), env)
         self.assertIn(k8s.V1EnvVar(
             name='GIT_SSH_KNOWN_HOSTS_FILE',
@@ -290,6 +291,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         env = init_containers[0].env
 
         self.assertNotIn(k8s.V1EnvVar(name='GIT_SSH_KEY_FILE', value='/etc/git-secret/ssh'), env)
+        self.assertNotIn(k8s.V1EnvVar(name='GIT_SYNC_ADD_USER', value='true'), env)
         self.assertIn(k8s.V1EnvVar(name='GIT_SYNC_USERNAME', value='git_user'), env)
         self.assertIn(k8s.V1EnvVar(name='GIT_SYNC_PASSWORD', value='git_password'), env)
         self.assertIn(k8s.V1EnvVar(name='GIT_KNOWN_HOSTS', value='false'), env)
@@ -318,6 +320,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         env = init_containers[0].env
 
         self.assertNotIn(k8s.V1EnvVar(name='GIT_SSH_KEY_FILE', value='/etc/git-secret/ssh'), env)
+        self.assertNotIn(k8s.V1EnvVar(name='GIT_SYNC_ADD_USER', value='true'), env)
         self.assertIn(k8s.V1EnvVar(name='GIT_SYNC_USERNAME', value='git_user'), env)
         self.assertIn(k8s.V1EnvVar(name='GIT_SYNC_PASSWORD', value='git_password'), env)
         self.assertIn(k8s.V1EnvVar(name='GIT_KNOWN_HOSTS', value='true'), env)

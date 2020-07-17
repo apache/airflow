@@ -961,7 +961,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
                 if content is None:  # pylint: disable=no-else-continue
                     continue
                 elif isinstance(content, str) and \
-                        any([content.endswith(ext) for ext in self.template_ext]):
+                        any(content.endswith(ext) for ext in self.template_ext):
                     env = self.get_template_env()
                     try:
                         setattr(self, field, env.loader.get_source(env, content)[0])
@@ -971,7 +971,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
                     env = self.dag.get_template_env()
                     for i in range(len(content)):  # pylint: disable=consider-using-enumerate
                         if isinstance(content[i], str) and \
-                                any([content[i].endswith(ext) for ext in self.template_ext]):
+                                any(content[i].endswith(ext) for ext in self.template_ext):
                             try:
                                 content[i] = env.loader.get_source(env, content[i])[0]
                             except Exception as e:  # pylint: disable=broad-except
@@ -979,7 +979,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         self.prepare_template()
 
     @property
-    def upstream_list(self) -> List[str]:
+    def upstream_list(self) -> List["BaseOperator"]:
         """@property: list of tasks directly upstream"""
         return [self.dag.get_task(tid) for tid in self._upstream_task_ids]
 
@@ -989,7 +989,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         return self._upstream_task_ids
 
     @property
-    def downstream_list(self) -> List[str]:
+    def downstream_list(self) -> List["BaseOperator"]:
         """@property: list of tasks directly downstream"""
         return [self.dag.get_task(tid) for tid in self._downstream_task_ids]
 
@@ -1123,7 +1123,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         else:
             return self._downstream_task_ids
 
-    def get_direct_relatives(self, upstream: bool = False) -> List[str]:
+    def get_direct_relatives(self, upstream: bool = False) -> List["BaseOperator"]:
         """
         Get list of the direct relatives to the current task, upstream or
         downstream.

@@ -96,6 +96,7 @@ Content
     lineage
     dag-serialization
     Using the REST API <stable-rest-api/index.rst>
+    REST API Migration Guide <stable-rest-api/migration.rst>
     changelog
     best-practices
     faq
@@ -110,4 +111,5 @@ Content
     Macros <macros-ref>
     Python API <_api/index>
     Experimental REST API <rest-api-ref>
+    Stable REST API <stable-rest-api/redoc>
     Configurations <configurations-ref>

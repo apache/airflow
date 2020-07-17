@@ -224,6 +224,7 @@ RUN AIRFLOW_SITE_PACKAGE="/root/.local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/s
         yarn --cwd "${WWW_DIR}" install --frozen-lockfile --no-cache; \
         yarn --cwd "${WWW_DIR}" run prod; \
         rm -rf "${WWW_DIR}/node_modules"; \
+        rm -vf "${WWW_DIR}"/{package.json,yarn.lock,.eslintignore,.eslintrc,.stylelintignore,.stylelintrc,compile_assets.sh,webpack.config.js} ;\
     fi
 
 # make sure that all directories and files in .local are also group accessible
@@ -357,7 +358,7 @@ COPY scripts/prod/clean-logs.sh /clean-logs
 
 ARG EMBEDDED_DAGS="empty"
 
-COPY --chown=airflow:airflow ${EMBEDDED_DAGS}/ ${AIRFLOW_HOME}/dags/
+COPY --chown=airflow:root ${EMBEDDED_DAGS}/ ${AIRFLOW_HOME}/dags/
 
 RUN chmod a+x /entrypoint /clean-logs
 

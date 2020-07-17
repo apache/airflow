@@ -244,7 +244,7 @@ class TestPostPool(TestBasePoolEndpoints):
             (
                 "for extra fields",
                 {"name": "invalid_pool", "slots": 3, "extra_field_1": "extra"},
-                "Extra arguments passed: ['extra_field_1']",
+                "{'extra_field_1': ['Unknown field.']}",
             ),
         ]
     )
@@ -292,7 +292,7 @@ class TestPatchPool(TestBasePoolEndpoints):
             ("'slots' is a required property", {"name": "test_pool_a"}),
             # Extra properties
             (
-                "Extra arguments passed: ['extra_field']",
+                "{'extra_field': ['Unknown field.']}",
                 {"name": "test_pool_a", "slots": 3, "extra_field": "extra"},
             ),
         ]

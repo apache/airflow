@@ -25,13 +25,16 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
+from tests.test_utils import db
 
 
 class TestClearTasks(unittest.TestCase):
 
+    def setUp(self) -> None:
+        db.clear_db_runs()
+
     def tearDown(self):
-        with create_session() as session:
-            session.query(TI).delete()
+        db.clear_db_runs()
 
     def test_clear_task_instances(self):
         dag = DAG('test_clear_task_instances', start_date=DEFAULT_DATE,

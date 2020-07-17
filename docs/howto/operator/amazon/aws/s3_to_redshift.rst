@@ -49,7 +49,7 @@ Environment variables
 
 This example relies on the following variables, which can be passed via OS environment variables.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py
     :language: python
     :start-after: [START howto_operator_s3_to_redshift_env_variables]
     :end-before: [END howto_operator_s3_to_redshift_env_variables]
@@ -62,7 +62,7 @@ Copy S3 key into Redshift table
 In the following code we are copying the S3 key ``s3://{S3_BUCKET}/{S3_KEY}/{REDSHIFT_TABLE}`` into the Redshift table
 ``PUBLIC.{REDSHIFT_TABLE}``.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_s3_to_redshift.py
     :language: python
     :start-after: [START howto_operator_s3_to_redshift_task_1]
     :end-before: [END howto_operator_s3_to_redshift_task_1]

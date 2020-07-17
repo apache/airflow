@@ -18,6 +18,7 @@
 #
 import json
 import re
+from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -54,15 +55,15 @@ class DiscordWebhookHook(HttpHook):
     """
 
     def __init__(self,
-                 http_conn_id=None,
-                 webhook_endpoint=None,
-                 message="",
-                 username=None,
-                 avatar_url=None,
-                 tts=False,
-                 proxy=None,
+                 http_conn_id: Optional[str] = None,
+                 webhook_endpoint: Optional[str] = None,
+                 message: str = "",
+                 username: Optional[str] = None,
+                 avatar_url: Optional[str] = None,
+                 tts: bool = False,
+                 proxy: Optional[str] = None,
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.http_conn_id = http_conn_id
         self.webhook_endpoint = self._get_webhook_endpoint(http_conn_id, webhook_endpoint)
@@ -72,7 +73,7 @@ class DiscordWebhookHook(HttpHook):
         self.tts = tts
         self.proxy = proxy
 
-    def _get_webhook_endpoint(self, http_conn_id, webhook_endpoint):
+    def _get_webhook_endpoint(self, http_conn_id: Optional[str], webhook_endpoint: Optional[str]) -> str:
         """
         Given a Discord http_conn_id, return the default webhook endpoint or override if a
         webhook_endpoint is manually supplied.
@@ -98,14 +99,14 @@ class DiscordWebhookHook(HttpHook):
 
         return endpoint
 
-    def _build_discord_payload(self):
+    def _build_discord_payload(self) -> str:
         """
         Construct the Discord JSON payload. All relevant parameters are combined here
         to a valid Discord JSON payload.
 
         :return: Discord payload (str) to send
         """
-        payload = {}
+        payload: Dict[str, Any] = {}
 
         if self.username:
             payload['username'] = self.username
@@ -122,7 +123,7 @@ class DiscordWebhookHook(HttpHook):
 
         return json.dumps(payload)
 
-    def execute(self):
+    def execute(self) -> None:
         """
         Execute the Discord webhook call
         """

@@ -60,7 +60,7 @@ class TestEventLogSchema(TestEventLogSchemaBase):
         log_model = session.query(Log).first()
         deserialized_log = event_log_schema.dump(log_model)
         self.assertEqual(
-            deserialized_log[0],
+            deserialized_log,
             {
                 "event_log_id": event_log_model.id,
                 "event": "TEST_EVENT",
@@ -95,7 +95,7 @@ class TestEventLogCollection(TestEventLogSchemaBase):
                                       total_entries=2)
         deserialized_event_logs = event_log_collection_schema.dump(instance)
         self.assertEqual(
-            deserialized_event_logs.data,
+            deserialized_event_logs,
             {
                 "event_logs": [
                     {

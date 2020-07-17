@@ -18,7 +18,7 @@
 import re
 from typing import Dict, List, Optional, Tuple
 
-import kubernetes.client.models as k8s
+from kubernetes.client import models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher

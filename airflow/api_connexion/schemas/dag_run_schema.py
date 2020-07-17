@@ -18,22 +18,24 @@
 import json
 from typing import List, NamedTuple
 
-from marshmallow import fields
+from marshmallow import fields, pre_load
 from marshmallow.schema import Schema
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.schemas.enum_schemas import DagStateField
 from airflow.models.dagrun import DagRun
+from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 
 class ConfObject(fields.Field):
     """ The conf field"""
-    def _serialize(self, value, attr, obj):
+    def _serialize(self, value, attr, obj, **kwargs):
         if not value:
             return {}
         return json.loads(value) if isinstance(value, str) else value
 
-    def _deserialize(self, value, attr, data):
+    def _deserialize(self, value, attr, data, **kwargs):
         if isinstance(value, str):
             return json.loads(value)
         return value
@@ -46,17 +48,31 @@ class DAGRunSchema(SQLAlchemySchema):
 
     class Meta:
         """ Meta """
-        model = DagRun
-        dateformat = 'iso'
 
-    run_id = auto_field(dump_to='dag_run_id', load_from='dag_run_id')
+        model = DagRun
+        dateformat = "iso"
+
+    run_id = auto_field(data_key='dag_run_id')
     dag_id = auto_field(dump_only=True)
     execution_date = auto_field()
     start_date = auto_field(dump_only=True)
     end_date = auto_field(dump_only=True)
-    state = DagStateField()
+    state = DagStateField(dump_only=True)
     external_trigger = auto_field(default=True, dump_only=True)
     conf = ConfObject()
+
+    @pre_load
+    def autogenerate(self, data, **kwargs):
+        """
+        Auto generate run_id and execution_date if they are not loaded
+        """
+        if "execution_date" not in data.keys():
+            data["execution_date"] = str(timezone.utcnow())
+        if "dag_run_id" not in data.keys():
+            data["dag_run_id"] = DagRun.generate_run_id(
+                DagRunType.MANUAL, timezone.parse(data["execution_date"])
+            )
+        return data
 
 
 class DAGRunCollection(NamedTuple):
@@ -68,9 +84,30 @@ class DAGRunCollection(NamedTuple):
 
 class DAGRunCollectionSchema(Schema):
     """DAGRun Collection schema"""
+
     dag_runs = fields.List(fields.Nested(DAGRunSchema))
     total_entries = fields.Int()
 
 
+class DagRunsBatchFormSchema(Schema):
+    """ Schema to validate and deserialize the Form(request payload) submitted to DagRun Batch endpoint"""
+
+    class Meta:
+        """ Meta """
+        datetimeformat = 'iso'
+        strict = True
+
+    page_offset = fields.Int(missing=0, min=0)
+    page_limit = fields.Int(missing=100, min=1)
+    dag_ids = fields.List(fields.Str(), missing=None)
+    execution_date_gte = fields.DateTime(missing=None)
+    execution_date_lte = fields.DateTime(missing=None)
+    start_date_gte = fields.DateTime(missing=None)
+    start_date_lte = fields.DateTime(missing=None)
+    end_date_gte = fields.DateTime(missing=None)
+    end_date_lte = fields.DateTime(missing=None)
+
+
 dagrun_schema = DAGRunSchema()
 dagrun_collection_schema = DAGRunCollectionSchema()
+dagruns_batch_form_schema = DagRunsBatchFormSchema()

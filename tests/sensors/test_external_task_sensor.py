@@ -457,7 +457,7 @@ def dag_bag_ext():
     task_a_3 >> task_b_3
 
     for dag in [dag_0, dag_1, dag_2, dag_3]:
-        dag_bag.bag_dag(dag, None, dag)
+        dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     return dag_bag
 
@@ -562,7 +562,7 @@ def dag_bag_cyclic():
     task_a_1 >> task_b_1
 
     for dag in [dag_0, dag_1]:
-        dag_bag.bag_dag(dag, None, dag)
+        dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     return dag_bag
 
@@ -587,8 +587,8 @@ def dag_bag_multiple():
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
     daily_dag = DAG("daily_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
     agg_dag = DAG("agg_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
-    dag_bag.bag_dag(daily_dag, None, daily_dag)
-    dag_bag.bag_dag(agg_dag, None, agg_dag)
+    dag_bag.bag_dag(dag=daily_dag, root_dag=daily_dag)
+    dag_bag.bag_dag(dag=agg_dag, root_dag=agg_dag)
 
     daily_task = DummyOperator(task_id="daily_tas", dag=daily_dag)
 

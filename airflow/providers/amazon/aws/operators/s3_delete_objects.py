@@ -40,6 +40,9 @@ class S3DeleteObjectsOperator(BaseOperator):
 
         You may specify up to 1000 keys.
     :type keys: str or list
+    :param prefix: Prefix of objects to delete. (templated)
+        All objects matching this prefix in the bucket will be deleted.
+    :type prefix: str
     :param aws_conn_id: Connection id of the S3 connection to use
     :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
@@ -56,22 +59,31 @@ class S3DeleteObjectsOperator(BaseOperator):
     :type verify: bool or str
     """
 
-    template_fields = ('keys', 'bucket')
+    template_fields = ('keys', 'bucket', 'prefix')
 
     @apply_defaults
     def __init__(
             self,
             bucket,
-            keys,
+            keys=None,
+            prefix=None,
             aws_conn_id='aws_default',
             verify=None,
             *args, **kwargs):
+
+        if not bool(keys) ^ bool(prefix):
+            raise ValueError("Either keys or prefix should be set.")
+
         super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.keys = keys
+        self.prefix = prefix
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
     def execute(self, context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        s3_hook.delete_objects(bucket=self.bucket, keys=self.keys)
+
+        keys = self.keys or s3_hook.list_keys(bucket_name=self.bucket, prefix=self.prefix)
+        if keys:
+            s3_hook.delete_objects(bucket=self.bucket, keys=keys)

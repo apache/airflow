@@ -97,7 +97,7 @@ class TestGetLog(unittest.TestCase):
         dagbag = self.app.dag_bag  # pylint: disable=no-member
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
         dag.sync_to_db()
-        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+        dagbag.bag_dag(dag=dag, root_dag=dag)
         with create_session() as session:
             self.ti = TaskInstance(
                 task=DummyOperator(task_id=self.TASK_ID, dag=dag),

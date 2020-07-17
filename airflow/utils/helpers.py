@@ -21,7 +21,7 @@ import warnings
 from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
-from typing import Any, Callable, Dict, Iterable, Optional
+from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, TypeVar
 
 from jinja2 import Template
 
@@ -100,7 +100,11 @@ def as_tuple(obj):
         return tuple([obj])
 
 
-def chunks(items, chunk_size):
+T = TypeVar('T')  # pylint: disable=invalid-name
+S = TypeVar('S')  # pylint: disable=invalid-name
+
+
+def chunks(items: List[T], chunk_size: int) -> Generator[List[T], None, None]:
     """
     Yield successive chunks of a given size from a list of items
     """
@@ -110,7 +114,12 @@ def chunks(items, chunk_size):
         yield items[i:i + chunk_size]
 
 
-def reduce_in_chunks(fn, iterable, initializer, chunk_size=0):
+def reduce_in_chunks(
+    fn: Callable[[S, List[T]], S],
+    iterable: List[T],
+    initializer: S,
+    chunk_size: int = 0
+):
     """
     Reduce the given list of items by splitting it into chunks
     of the given size and passing each chunk through the reducer
@@ -122,7 +131,7 @@ def reduce_in_chunks(fn, iterable, initializer, chunk_size=0):
     return reduce(fn, chunks(iterable, chunk_size), initializer)
 
 
-def as_flattened_list(iterable):
+def as_flattened_list(iterable: Iterable[Iterable[T]]) -> List[T]:
     """
     Return an iterable with one level flattened
 

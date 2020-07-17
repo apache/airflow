@@ -26,6 +26,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 1.10.11](#airflow-11011)
 - [Airflow 1.10.10](#airflow-11010)
 - [Airflow 1.10.9](#airflow-1109)
 - [Airflow 1.10.8](#airflow-1108)
@@ -61,9 +62,29 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+### GCSTaskHandler has been moved
+The `GCSTaskHandler` class from `airflow.utils.log.gcs_task_handler` has been moved to
+`airflow.providers.google.cloud.log.gcs_task_handler`. This is because it has items specific to `google cloud`.
+
+### WasbTaskHandler has been moved
+The `WasbTaskHandler` class from `airflow.utils.log.wasb_task_handler` has been moved to
+`airflow.providers.microsoft.azure.log.wasb_task_handler`. This is because it has items specific to `azure`.
+
+### StackdriverTaskHandler has been moved
+The `StackdriverTaskHandler` class from `airflow.utils.log.stackdriver_task_handler` has been moved to
+`airflow.providers.google.cloud.log.stackdriver_task_handler`. This is because it has items specific to `google cloud`.
+
 ### S3TaskHandler has been moved
 The `S3TaskHandler` class from `airflow.utils.log.s3_task_handler` has been moved to
-`airflow.providers.amazon.aws.log.s3_task_handler`. This is because it has items specific to `aws`
+`airflow.providers.amazon.aws.log.s3_task_handler`. This is because it has items specific to `aws`.
+
+### ElasticsearchTaskHandler has been moved
+The `ElasticsearchTaskHandler` class from `airflow.utils.log.es_task_handler` has been moved to
+`airflow.providers.elasticsearch.log.es_task_handler`. This is because it has items specific to `elasticsearch`.
+
+### CloudwatchTaskHandler has been  moved
+The `CloudwatchTaskHandler` class from `airflow.utils.log.cloudwatch_task_handler` has been moved to
+`airflow.providers.amazon.aws.log.cloudwatch_task_handler`. This is because it has items specific to `aws`.
 
 ### SendGrid emailer has been moved
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
@@ -297,11 +318,6 @@ plugins =
   airflow.mypy.plugin.decorators
 ```
 
-### XCom Values can no longer be added or changed from the Webserver
-
-Since XCom values can contain pickled data, we would no longer allow adding or
-changing XCom values from the UI.
-
 ### Use project_id argument consistently across GCP hooks and operators
 
 - Changed order of arguments in DataflowHook.start_python_dataflow. Uses
@@ -377,10 +393,6 @@ Remove unnecessary parameter ``open`` in PostgresHook function copy_expert for p
 ### Change parameter name in OpsgenieAlertOperator
 
 Change parameter name from ``visibleTo`` to ``visible_to`` in OpsgenieAlertOperator for pylint compatible
-
-### Use NULL as default value for dag.description
-
-Now use NULL as default value for dag.description in dag table
 
 ### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
 
@@ -1430,6 +1442,53 @@ Now the `dag_id` will not appear repeated in the payload, and the response forma
 }
 ```
 
+### Change in DagBag signature
+
+Passing `store_serialized_dags` argument to DagBag.__init__ and accessing `DagBag.store_serialized_dags` property
+are deprecated and will be removed in future versions.
+
+
+**Previous signature**:
+
+```python
+DagBag(
+    dag_folder=None,
+    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+    store_serialized_dags=False
+):
+```
+
+**current**:
+```python
+DagBag(
+    dag_folder=None,
+    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+    read_dags_from_db=False
+):
+```
+
+If you were using positional arguments, it requires no change but if you were using keyword
+arguments, please change `store_serialized_dags` to `read_dags_from_db`.
+
+Similarly, if you were using `DagBag().store_serialized_dags` property, change it to
+`DagBag().read_dags_from_db`.
+
+
+## Airflow 1.10.11
+
+### Use NULL as default value for dag.description
+
+Now use NULL as default value for dag.description in dag table
+
+### Restrict editing DagRun State in the old UI (Flask-admin based UI)
+
+Before 1.10.11 it was possible to edit DagRun State in the `/admin/dagrun/` page
+ to any text.
+
+In Airflow 1.10.11+, the user can only choose the states from the list.
+
 ### Experimental API will deny all request by default.
 
 The previous default setting was to allow all API requests without authentication, but this poses security
@@ -1445,6 +1504,33 @@ the previous behaviour on a new install by setting this in your airflow.cfg:
 [api]
 auth_backend = airflow.api.auth.backend.default
 ```
+
+### XCom Values can no longer be added or changed from the Webserver
+
+Since XCom values can contain pickled data, we would no longer allow adding or
+changing XCom values from the UI.
+
+### Default for `run_as_user` configured has been changed to 50000 from 0
+
+The UID to run the first process of the Worker PODs when using has been changed to `50000`
+from the previous default of `0`. The previous default was an empty string but the code used `0` if it was
+empty string.
+
+**Before**:
+
+```ini
+[kubernetes]
+run_as_user =
+```
+
+**After**:
+
+```ini
+[kubernetes]
+run_as_user = 50000
+```
+
+This is done to avoid running the container as `root` user.
 
 ## Airflow 1.10.10
 

@@ -24,4 +24,4 @@ class VersionInfoSchema(Schema):
     git_version = fields.String(dump_only=True)
 
 
-version_info_schema = VersionInfoSchema(strict=True)
+version_info_schema = VersionInfoSchema()

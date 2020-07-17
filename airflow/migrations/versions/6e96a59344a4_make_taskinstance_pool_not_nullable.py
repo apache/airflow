@@ -44,7 +44,7 @@ Base = declarative_base()
 ID_LEN = 250
 
 
-class TaskInstance(Base):
+class TaskInstance(Base):  # type: ignore
     """
     Task instances store the state of a task instance. This table is the
     authority and single source of truth around what tasks have run and the

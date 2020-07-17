@@ -41,7 +41,7 @@ from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import DagFileProcessor, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, Pool, SlaMiss, TaskInstance, errors
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -55,7 +55,8 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
-    clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
+    clear_db_dags, clear_db_errors, clear_db_jobs, clear_db_pools, clear_db_runs, clear_db_sla_miss,
+    set_default_pool_slots,
 )
 from tests.test_utils.mock_executor import MockExecutor
 
@@ -88,23 +89,25 @@ def disable_load_example():
 
 @pytest.mark.usefixtures("disable_load_example")
 class TestDagFileProcessor(unittest.TestCase):
-    def setUp(self):
+
+    @staticmethod
+    def clean_db():
         clear_db_runs()
         clear_db_pools()
         clear_db_dags()
         clear_db_sla_miss()
         clear_db_errors()
+        clear_db_jobs()
+
+    def setUp(self):
+        self.clean_db()
 
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
         self.null_exec = MockExecutor()
 
     def tearDown(self) -> None:
-        clear_db_runs()
-        clear_db_pools()
-        clear_db_dags()
-        clear_db_sla_miss()
-        clear_db_errors()
+        self.clean_db()
 
     def create_test_dag(self, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + timedelta(hours=1), **kwargs):
         dag = DAG(
@@ -122,12 +125,12 @@ class TestDagFileProcessor(unittest.TestCase):
         return dag
 
     @classmethod
+    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     def setUpClass(cls):
         # Ensure the DAGs we are looking at from the DB are up-to-date
-        non_serialized_dagbag = DagBag(store_serialized_dags=False, include_examples=False)
-        non_serialized_dagbag.store_serialized_dags = True
+        non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
         non_serialized_dagbag.sync_to_db()
-        cls.dagbag = DagBag(store_serialized_dags=True)
+        cls.dagbag = DagBag(read_dags_from_db=True)
 
     def test_dag_file_processor_sla_miss_callback(self):
         """
@@ -197,7 +200,7 @@ class TestDagFileProcessor(unittest.TestCase):
             dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"))
             dag = self.create_test_dag()
             dag.clear()
-            dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
+            dagbag.bag_dag(dag=dag, root_dag=dag)
             dag = self.create_test_dag()
             dag.clear()
             task = DummyOperator(
@@ -212,10 +215,9 @@ class TestDagFileProcessor(unittest.TestCase):
                 session.merge(ti)
 
             # scheduler._process_dags(simple_dag_bag)
-            @mock.patch('airflow.models.DagBag', return_value=dagbag)
-            @mock.patch('airflow.models.DagBag.collect_dags')
+            @mock.patch('airflow.jobs.scheduler_job.DagBag', return_value=dagbag)
             @mock.patch('airflow.jobs.scheduler_job.SchedulerJob._change_state_for_tis_without_dagrun')
-            def do_schedule(mock_dagbag, mock_collect_dags, mock_change_state):
+            def do_schedule(mock_dagbag, mock_change_state):
                 # Use a empty file since the above mock will return the
                 # expected DAGs. Also specify only a single file so that it doesn't
                 # try to schedule the above DAG repeatedly.
@@ -1368,12 +1370,12 @@ class TestSchedulerJob(unittest.TestCase):
         self.null_exec = MockExecutor()
 
     @classmethod
+    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     def setUpClass(cls):
         # Ensure the DAGs we are looking at from the DB are up-to-date
-        non_serialized_dagbag = DagBag(store_serialized_dags=False, include_examples=False)
-        non_serialized_dagbag.store_serialized_dags = True
+        non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
         non_serialized_dagbag.sync_to_db()
-        cls.dagbag = DagBag(store_serialized_dags=True)
+        cls.dagbag = DagBag(read_dags_from_db=True)
 
     def test_is_alive(self):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
@@ -1488,6 +1490,36 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.processor_agent.send_callback_to_execute.assert_not_called()
 
         mock_stats_incr.assert_called_once_with('scheduler.tasks.killed_externally')
+
+    def test_process_executor_events_uses_inmemory_try_number(self):
+        execution_date = DEFAULT_DATE
+        dag_id = "dag_id"
+        task_id = "task_id"
+        try_number = 42
+
+        scheduler = SchedulerJob()
+        executor = MagicMock()
+        event_buffer = {
+            TaskInstanceKey(dag_id, task_id, execution_date, try_number): (State.SUCCESS, None)
+        }
+        executor.get_event_buffer.return_value = event_buffer
+        scheduler.executor = executor
+
+        processor_agent = MagicMock()
+        scheduler.processor_agent = processor_agent
+
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
+        task = DummyOperator(dag=dag, task_id=task_id)
+
+        with create_session() as session:
+            ti = TaskInstance(task, DEFAULT_DATE)
+            ti.state = State.SUCCESS
+            session.merge(ti)
+
+        scheduler._process_executor_events(simple_dag_bag=MagicMock())
+        # Assert that the even_buffer is empty so the task was popped using right
+        # task instance key
+        self.assertEqual(event_buffer, {})
 
     def test_execute_task_instances_is_paused_wont_execute(self):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute'
@@ -2551,7 +2583,7 @@ class TestSchedulerJob(unittest.TestCase):
                 len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()), 1)
             self.assertListEqual(
                 [
-                    ((dag.dag_id, 'dummy', DEFAULT_DATE, 1), (State.SUCCESS, None)),
+                    (TaskInstanceKey(dag.dag_id, 'dummy', DEFAULT_DATE, 1), (State.SUCCESS, None)),
                 ],
                 bf_exec.sorted_tasks
             )
@@ -2867,11 +2899,10 @@ class TestSchedulerJob(unittest.TestCase):
             orm_dag.is_paused = False
             session.merge(orm_dag)
 
-        dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
+        dagbag.bag_dag(dag=dag, root_dag=dag)
 
-        @mock.patch('airflow.models.DagBag', return_value=dagbag)
-        @mock.patch('airflow.models.DagBag.collect_dags')
-        def do_schedule(mock_dagbag, mock_collect_dags):
+        @mock.patch('airflow.jobs.scheduler_job.DagBag', return_value=dagbag)
+        def do_schedule(mock_dagbag):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.
@@ -2925,11 +2956,10 @@ class TestSchedulerJob(unittest.TestCase):
             orm_dag.is_paused = False
             session.merge(orm_dag)
 
-        dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
+        dagbag.bag_dag(dag=dag, root_dag=dag)
 
-        @mock.patch('airflow.models.DagBag', return_value=dagbag)
-        @mock.patch('airflow.models.DagBag.collect_dags')
-        def do_schedule(mock_dagbag, mock_collect_dags):
+        @mock.patch('airflow.jobs.scheduler_job.DagBag', return_value=dagbag)
+        def do_schedule(mock_dagbag):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.

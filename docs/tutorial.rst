@@ -30,7 +30,7 @@ Example Pipeline definition
 Here is an example of a basic pipeline definition. Do not worry if this looks
 complicated, a line by line explanation follows below.
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]
@@ -60,7 +60,7 @@ Importing Modules
 An Airflow pipeline is just a Python script that happens to define an
 Airflow DAG object. Let's start by importing the libraries we will need.
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START import_module]
     :end-before: [END import_module]
@@ -72,7 +72,7 @@ explicitly pass a set of arguments to each task's constructor
 (which would become redundant), or (better!) we can define a dictionary
 of default parameters that we can use when creating tasks.
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START default_args]
     :end-before: [END default_args]
@@ -93,7 +93,7 @@ that defines the ``dag_id``, which serves as a unique identifier for your DAG.
 We also pass the default argument dictionary that we just defined and
 define a ``schedule_interval`` of 1 day for the DAG.
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START instantiate_dag]
     :end-before: [END instantiate_dag]
@@ -104,7 +104,7 @@ Tasks are generated when instantiating operator objects. An object
 instantiated from an operator is called a constructor. The first argument
 ``task_id`` acts as a unique identifier for the task.
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START basic_task]
     :end-before: [END basic_task]
@@ -139,7 +139,7 @@ this feature exists, get you familiar with double curly brackets, and
 point to the most common template variable: ``{{ ds }}`` (today's "date
 stamp").
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START jinja_template]
     :end-before: [END jinja_template]
@@ -181,7 +181,7 @@ We can add documentation for DAG or each single task. DAG documentation only sup
 markdown so far and task documentation support plain text, markdown, reStructuredText,
 json, yaml
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START documentation]
     :end-before: [END documentation]
@@ -228,7 +228,7 @@ Recap
 Alright, so we have a pretty basic DAG. At this point your code should look
 something like this:
 
-.. exampleinclude:: ../airflow/example_dags/tutorial.py
+.. exampleinclude:: /../airflow/example_dags/tutorial.py
     :language: python
     :start-after: [START tutorial]
     :end-before: [END tutorial]

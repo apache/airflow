@@ -16,14 +16,14 @@
 # under the License.
 import unittest
 
-import pytest
 from parameterized import parameterized
 
 from airflow.models import DagRun as DR, XCom
 from airflow.utils.dates import parse_execution_date
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.db import clear_db_runs, clear_db_xcom
 
 
 class TestXComEndpoint(unittest.TestCase):
@@ -32,32 +32,24 @@ class TestXComEndpoint(unittest.TestCase):
         super().setUpClass()
         cls.app = app.create_app(testing=True)  # type:ignore
 
+    @staticmethod
+    def clean_db():
+        clear_db_runs()
+        clear_db_xcom()
+
     def setUp(self) -> None:
         """
         Setup For XCom endpoint TC
         """
         self.client = self.app.test_client()  # type:ignore
         # clear existing xcoms
-        with create_session() as session:
-            session.query(XCom).delete()
-            session.query(DR).delete()
+        self.clean_db()
 
     def tearDown(self) -> None:
         """
         Clear Hanging XComs
         """
-        with create_session() as session:
-            session.query(XCom).delete()
-            session.query(DR).delete()
-
-
-class TestDeleteXComEntry(TestXComEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.delete(
-            "/dags/TEST_DAG_ID/taskInstances/TEST_TASK_ID/2005-04-02T00:00:00Z/xcomEntries/XCOM_KEY"
-        )
-        assert response.status_code == 204
+        self.clean_db()
 
 
 class TestGetXComEntry(TestXComEndpoint):
@@ -243,21 +235,3 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
             dag_id=self.dag_id,
             timestamp=self.execution_date_parsed,
         ) for i in range(1, count + 1)]
-
-
-class TestPatchXComEntry(TestXComEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.patch(
-            "/dags/TEST_DAG_ID/taskInstances/TEST_TASK_ID/2005-04-02T00:00:00Z/xcomEntries"
-        )
-        assert response.status_code == 200
-
-
-class TestPostXComEntry(TestXComEndpoint):
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.post(
-            "/dags/TEST_DAG_ID/taskInstances/TEST_TASK_ID/2005-04-02T00:00:00Z/xcomEntries/XCOM_KEY"
-        )
-        assert response.status_code == 200

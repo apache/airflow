@@ -218,7 +218,7 @@ RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 
 # By changing the CI build epoch we can force reinstalling Arflow from the current master
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="1"
+ARG AIRFLOW_CI_BUILD_EPOCH="2"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 
 # In case of CI builds we want to pre-install master version of airflow dependencies so that

@@ -246,7 +246,7 @@ to run Kubernetes tests. See below for the list of arguments that should be prov
 production image from the local sources.
 
 The image is primarily optimised for size of the final image, but also for speed of rebuilds - the
-'airlfow-build-image' segment uses the same technique as the CI builds for pre-installing PIP dependencies.
+'airflow-build-image' segment uses the same technique as the CI builds for pre-installing PIP dependencies.
 It first pre-installs them from the right github branch and only after that final airflow installation is
 done from either local sources or remote location (PIP or github repository).
 
@@ -555,10 +555,9 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.10" \
-    --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt" \
-    --build-arg ENTRYPOINT_FILE="https://raw.githubusercontent.com/apache/airflow/1.10.10/entrypoint.sh" \
-    --build-arg AIRFLOW_SOURCES_FROM="entrypoint.sh" \
-    --build-arg AIRFLOW_SOURCES_TO="/entrypoint" \
+    --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt" \
+    --build-arg AIRFLOW_SOURCES_FROM="empty" \
+    --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"
     --build-arg ADDITIONAL_DEV_DEPS="gcc g++"
     --build-arg ADDITIONAL_RUNTIME_DEPS="default-jre-headless"
@@ -646,6 +645,9 @@ The entrypoint performs those operations:
 
 Using the PROD image
 ====================
+
+The entrypoint in the PROD image contains all the initialisation needed for tests to be immediately executed.
+It is copied from ``scripts/ci/in_container/entrypoint_prod.sh``.
 
 The PROD image entrypoint works as follows:
 

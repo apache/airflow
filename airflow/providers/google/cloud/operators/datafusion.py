@@ -81,7 +81,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
             delegate_to=self.delegate_to,
             api_version=self.api_version,
         )
-        self.log.info("Restarting Data Fusion instace: %s", self.instance_name)
+        self.log.info("Restarting Data Fusion instance: %s", self.instance_name)
         operation = hook.restart_instance(
             instance_name=self.instance_name,
             location=self.location,
@@ -142,7 +142,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
             delegate_to=self.delegate_to,
             api_version=self.api_version,
         )
-        self.log.info("Deleting Data Fusion instace: %s", self.instance_name)
+        self.log.info("Deleting Data Fusion instance: %s", self.instance_name)
         operation = hook.delete_instance(
             instance_name=self.instance_name,
             location=self.location,
@@ -208,7 +208,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
             delegate_to=self.delegate_to,
             api_version=self.api_version,
         )
-        self.log.info("Creating Data Fusion instace: %s", self.instance_name)
+        self.log.info("Creating Data Fusion instance: %s", self.instance_name)
         try:
             operation = hook.create_instance(
                 instance_name=self.instance_name,
@@ -301,7 +301,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
             delegate_to=self.delegate_to,
             api_version=self.api_version,
         )
-        self.log.info("Updating Data Fusion instace: %s", self.instance_name)
+        self.log.info("Updating Data Fusion instance: %s", self.instance_name)
         operation = hook.patch_instance(
             instance_name=self.instance_name,
             instance=self.instance,

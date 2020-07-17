@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import io
 import unittest
 from unittest import mock
@@ -127,8 +126,8 @@ class TestIntegrationFTPHook(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        from airflow.utils import db
         from airflow.models import Connection
+        from airflow.utils import db
 
         db.merge_conn(
             Connection(

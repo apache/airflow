@@ -46,7 +46,21 @@ the key like this:
     [core]
     sql_alchemy_conn_cmd = bash_command_to_run
 
-The following config options support this ``_cmd`` version:
+You can also derive the connection string at run time by appending ``_secret`` to
+the key like this:
+
+.. code-block:: ini
+
+    [core]
+    sql_alchemy_conn_secret = sql_alchemy_conn
+    # You can also add a nested path
+    # example:
+    # sql_alchemy_conn_secret = core/sql_alchemy_conn
+
+This will retrieve config option from Secret Backends e.g Hashicorp Vault. See
+:ref:`Secrets Backends<secrets_backend_configuration>` for more details.
+
+The following config options support this ``_cmd`` and ``_secret`` version:
 
 * ``sql_alchemy_conn`` in ``[core]`` section
 * ``fernet_key`` in ``[core]`` section
@@ -65,14 +79,23 @@ the same way the usual config options can. For example:
 
     export AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD=bash_command_to_run
 
+Similarly, ``_secret`` config options can also be set using a corresponding environment variable.
+For example:
+
+.. code-block:: bash
+
+    export AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET=sql_alchemy_conn
+
 The idea behind this is to not store passwords on boxes in plain text files.
 
 The universal order of precedence for all configuration options is as follows:
 
-#. set as an environment variable
-#. set as a command environment variable
+#. set as an environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN``)
+#. set as a command environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD``)
+#. set as a secret environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET``)
 #. set in ``airflow.cfg``
 #. command in ``airflow.cfg``
+#. secret key in ``airflow.cfg``
 #. Airflow's built in defaults
 
 .. note::

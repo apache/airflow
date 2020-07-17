@@ -22,9 +22,10 @@ from airflow import DAG
 from airflow.models import Log, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import provide_session
 from airflow.www import app
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_logs
 
 
 class TestEventLogEndpoint(unittest.TestCase):
@@ -35,14 +36,12 @@ class TestEventLogEndpoint(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
-        with create_session() as session:
-            session.query(Log).delete()
+        clear_db_logs()
         self.default_time = "2020-06-10T20:00:00+00:00"
         self.default_time_2 = '2020-06-11T07:00:00+00:00'
 
     def tearDown(self) -> None:
-        with create_session() as session:
-            session.query(Log).delete()
+        clear_db_logs()
 
     def _create_task_instance(self):
         dag = DAG('TEST_DAG_ID', start_date=timezone.parse(self.default_time),

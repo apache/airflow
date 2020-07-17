@@ -51,4 +51,4 @@ def get_import_errors(session, limit, offset=None):
     import_errors = session.query(ImportError).order_by(ImportError.id).offset(offset).limit(limit).all()
     return import_error_collection_schema.dump(
         ImportErrorCollection(import_errors=import_errors, total_entries=total_entries)
-    ).data
+    )

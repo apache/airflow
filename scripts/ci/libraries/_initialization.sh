@@ -21,6 +21,10 @@ function initialize_common_environment {
     # default python Major/Minor version
     PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
 
+    # python image version to use
+    # shellcheck disable=SC2034
+    PYTHON_BASE_IMAGE_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
+
     # extra flags passed to docker run for CI image
     # shellcheck disable=SC2034
     EXTRA_DOCKER_FLAGS=()
@@ -32,10 +36,6 @@ function initialize_common_environment {
     # files that should be cleaned up when the script exits
     # shellcheck disable=SC2034
     FILES_TO_CLEANUP_ON_EXIT=()
-
-    # Sets to where airflow sources are located
-    AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
-    export AIRFLOW_SOURCES
 
     # Sets to the build cache directory - status of build and convenience scripts are stored there
     BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
@@ -172,7 +172,7 @@ function initialize_common_environment {
     fi
 
     # Read airflow version from the version.py
-    AIRFLOW_VERSION=$(grep version "airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
+    AIRFLOW_VERSION=$(grep version "${AIRFLOW_SOURCES}/airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
     export AIRFLOW_VERSION
 
     # default version of python used to tag the "master" and "latest" images in DockerHub

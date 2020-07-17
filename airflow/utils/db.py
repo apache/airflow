@@ -309,6 +309,17 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id='kylin_default',
+            conn_type='kylin',
+            host='localhost',
+            port=7070,
+            login="ADMIN",
+            password="KYLIN"
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="livy_default",
             conn_type="livy",
             host="livy",
@@ -635,6 +646,7 @@ def drop_airflow_models(connection):
     @return: None
     """
     from airflow.models.base import Base
+
     # Drop connection and chart - those tables have been deleted and in case you
     # run resetdb on schema with chart or users table will fail
     chart = Table('chart', Base.metadata)

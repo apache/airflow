@@ -135,6 +135,11 @@ extensions = [
     'docroles',
     'removemarktransform',
     'sphinx_copybutton',
+    'redirects',
+    # First, generate redoc
+    'sphinxcontrib.redoc',
+    # Second, update redoc script
+    "sphinx_script_update",
 ]
 
 autodoc_default_options = {
@@ -210,7 +215,7 @@ exclude_patterns: List[str] = [
     '_api/airflow/providers/google/cloud/_internal_client',
     # Templates or partials
     'autoapi_templates',
-    'howto/operator/gcp/_partials',
+    'howto/operator/google/_partials',
 ]
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -514,6 +519,28 @@ autoapi_root = '_api'
 
 # -- Options for example include ------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
+
+# -- Options for sphinxcontrib-redirects ----------------------------------
+redirects_file = 'redirects.txt'
+
+# -- Options for redoc docs ----------------------------------
+OPENAPI_FILE = os.path.join(
+    os.path.dirname(__file__),
+    "..", "airflow", "api_connexion", "openapi", "v1.yaml"
+)
+redoc = [
+    {
+        'name': 'Airflow REST API',
+        'page': 'stable-rest-api/redoc',
+        'spec': OPENAPI_FILE,
+        'opts': {
+            'hide-hostname': True,
+        }
+    },
+]
+
+# Options for script updater
+redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.30/bundles/redoc.standalone.js"
 
 # -- Additional HTML Context variable
 html_context = {

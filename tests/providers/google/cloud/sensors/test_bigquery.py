@@ -47,7 +47,7 @@ class TestBigqueryTableExistenceSensor(TestCase):
             delegate_to=TEST_DELEGATE_TO
         )
         mock_hook.return_value.table_exists.assert_called_once_with(
-            TEST_PROJECT_ID,
-            TEST_DATASET_ID,
-            TEST_TABLE_ID
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID
         )

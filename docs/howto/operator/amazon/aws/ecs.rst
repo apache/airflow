@@ -43,7 +43,7 @@ It overrides the command in the ``hello-world-container`` container.
 
 Before using ECSOperator, *cluster* and *task definition* need to be created.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_ecs_fargate.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_ecs_fargate.py
     :language: python
     :start-after: [START howto_operator_ecs]
     :end-before: [END howto_operator_ecs]

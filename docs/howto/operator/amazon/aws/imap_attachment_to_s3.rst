@@ -48,7 +48,7 @@ Environment variables
 
 These examples rely on the following variables, which can be passed via OS environment variables.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_imap_attachment_to_s3.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_imap_attachment_to_s3.py
     :language: python
     :start-after: [START howto_operator_imap_attachment_to_s3_env_variables]
     :end-before: [END howto_operator_imap_attachment_to_s3_env_variables]
@@ -56,7 +56,7 @@ These examples rely on the following variables, which can be passed via OS envir
 Transfer Mail Attachments via IMAP to S3
 """"""""""""""""""""""""""""""""""""""""
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_imap_attachment_to_s3.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_imap_attachment_to_s3.py
     :language: python
     :start-after: [START howto_operator_imap_attachment_to_s3_task_1]
     :end-before: [END howto_operator_imap_attachment_to_s3_task_1]

@@ -51,7 +51,7 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
         connection_model = session.query(Connection).first()
         deserialized_connection = connection_collection_item_schema.dump(connection_model)
         self.assertEqual(
-            deserialized_connection[0],
+            deserialized_connection,
             {
                 'connection_id': "mysql_default",
                 'conn_type': 'mysql',
@@ -79,7 +79,7 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
         result_2 = connection_collection_item_schema.load(connection_dump_2)
 
         self.assertEqual(
-            result_1[0],
+            result_1,
             {
                 'conn_id': "mysql_default_1",
                 'conn_type': 'mysql',
@@ -90,7 +90,7 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
             }
         )
         self.assertEqual(
-            result_2[0],
+            result_2,
             {
                 'conn_id': "mysql_default_2",
                 'conn_type': "postgres",
@@ -136,7 +136,7 @@ class TestConnectionCollectionSchema(unittest.TestCase):
         )
         deserialized_connections = connection_collection_schema.dump(instance)
         self.assertEqual(
-            deserialized_connections[0],
+            deserialized_connections,
             {
                 'connections': [
                     {
@@ -187,7 +187,7 @@ class TestConnectionSchema(unittest.TestCase):
         connection_model = session.query(Connection).first()
         deserialized_connection = connection_schema.dump(connection_model)
         self.assertEqual(
-            deserialized_connection[0],
+            deserialized_connection,
             {
                 'connection_id': "mysql_default",
                 'conn_type': 'mysql',
@@ -211,7 +211,7 @@ class TestConnectionSchema(unittest.TestCase):
         }
         result = connection_schema.load(den)
         self.assertEqual(
-            result[0],
+            result,
             {
                 'conn_id': "mysql_default",
                 'conn_type': 'mysql',

@@ -32,11 +32,11 @@ class CloudantHook(BaseHook):
     :type cloudant_conn_id: str
     """
 
-    def __init__(self, cloudant_conn_id='cloudant_default'):
+    def __init__(self, cloudant_conn_id: str = 'cloudant_default') -> None:
         super().__init__()
         self.cloudant_conn_id = cloudant_conn_id
 
-    def get_conn(self):
+    def get_conn(self) -> cloudant:
         """
         Opens a connection to the cloudant service and closes it automatically if used as context manager.
 
@@ -57,7 +57,7 @@ class CloudantHook(BaseHook):
 
         return cloudant_session
 
-    def _validate_connection(self, conn):
+    def _validate_connection(self, conn: cloudant) -> None:
         for conn_param in ['login', 'password']:
             if not getattr(conn, conn_param):
                 raise AirflowException('missing connection parameter {conn_param}'.format(
