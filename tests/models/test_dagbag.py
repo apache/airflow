@@ -35,6 +35,7 @@ from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 
 
@@ -673,16 +674,17 @@ class TestDagBag(unittest.TestCase):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
-        dag_bag = DagBag(read_dags_from_db=True)
-        ser_dag_1 = dag_bag.get_dag("example_bash_operator")
-        ser_dag_1_update_time = dag_bag.dags_last_changed["example_bash_operator"]
-        self.assertEqual(example_bash_op_dag.tags, ser_dag_1.tags)
-        self.assertEqual(ser_dag_1_update_time, tz.datetime(2020, 1, 5, 0, 0, 0))
+            dag_bag = DagBag(read_dags_from_db=True)
+            ser_dag_1 = dag_bag.get_dag("example_bash_operator")
+            ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+            self.assertEqual(example_bash_op_dag.tags, ser_dag_1.tags)
+            self.assertEqual(ser_dag_1_update_time, tz.datetime(2020, 1, 5, 0, 0, 0))
 
         # Check that if min_serialized_dag_fetch_interval has not passed we do not fetch the DAG
         # from DB
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 4)):
-            self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example"])
+            with assert_queries_count(0):
+                self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example"])
 
         # Make a change in the DAG and write Serialized DAG to the DB
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 6)):
@@ -692,8 +694,9 @@ class TestDagBag(unittest.TestCase):
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 8)):
-            updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
-            updated_ser_dag_1_update_time = dag_bag.dags_last_changed["example_bash_operator"]
+            with assert_queries_count(2):
+                updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
+                updated_ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
 
         self.assertCountEqual(updated_ser_dag_1.tags, ["example", "new_tag"])
         self.assertGreater(updated_ser_dag_1_update_time, ser_dag_1_update_time)

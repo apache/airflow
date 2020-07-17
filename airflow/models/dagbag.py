@@ -108,7 +108,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.has_logged = False
         self.read_dags_from_db = read_dags_from_db
         # Only used by read_dags_from_db=True
-        self.dags_last_changed: Dict[str, datetime] = {}
+        self.dags_last_fetched: Dict[str, datetime] = {}
 
         self.collect_dags(
             dag_folder=dag_folder,
@@ -150,14 +150,19 @@ class DagBag(BaseDagBag, LoggingMixin):
             if dag_id not in self.dags:
                 # Load from DB if not (yet) in the bag
                 self._add_dag_from_db(dag_id=dag_id)
+                return self.dags.get(dag_id)
 
+            # If DAG is in the DagBag, check the following
+            # 1. if time has come to check if DAG is updated (controlled by min_serialized_dag_fetch_secs)
+            # 2. check the last_updated column in SerializedDag table to see if Serialized DAG is updated
+            # 3. if (2) is yes, fetch the Serialized DAG.
             min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
             if (
-                dag_id in self.dags_last_changed and
-                timezone.utcnow() > self.dags_last_changed[dag_id] + min_serialized_dag_fetch_secs
+                dag_id in self.dags_last_fetched and
+                timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
             ):
-                sd_last_updated_date = SerializedDagModel.get_last_updated_date(dag_id=dag_id)
-                if sd_last_updated_date > self.dags_last_changed[dag_id]:
+                sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(dag_id=dag_id)
+                if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
                     self._add_dag_from_db(dag_id=dag_id)
 
             return self.dags.get(dag_id)
@@ -201,7 +206,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         for subdag in dag.subdags:
             self.dags[subdag.dag_id] = subdag
         self.dags[dag.dag_id] = dag
-        self.dags_last_changed[dag.dag_id] = row.last_updated
+        self.dags_last_fetched[dag.dag_id] = timezone.utcnow()
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """
