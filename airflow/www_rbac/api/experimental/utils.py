@@ -74,14 +74,13 @@ def get_craft_type(craft_type: str = DEFAULT_CRAFT_TYPE) -> int:
 
 def get_curve_mode(final_state, error_tag):
     print(final_state, error_tag)
+    if final_state == 'OK':
+        return 0
     if error_tag is not None:
         curve_modes = json.loads(error_tag)
         if len(curve_modes) > 0:
             # todo: send multiple error_tag
             return ensure_int(curve_modes[0])
-    if final_state is not None:
-        state = 0 if final_state == 'OK' else None
-        return state
     return None
 
 
