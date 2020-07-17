@@ -32,6 +32,7 @@ ALLOWED_CONN_TYPE = {
     "oracle",
     "postgres",
     "presto",
+    "snowflake",
     "sqlite",
     "vertica",
 }
