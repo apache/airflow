@@ -536,5 +536,5 @@ class TestConnTypeToHook(unittest.TestCase):
         self.assertEqual(expected_keys, current_keys)
 
     def test_hooks_importable(self):
-        for conn_type in CONN_TYPE_TO_HOOK:
-            self.assertTrue(issubclass(import_string(CONN_TYPE_TO_HOOK[conn_type][0]), BaseHook))
+        for hook_path, _ in CONN_TYPE_TO_HOOK.values():
+            self.assertTrue(issubclass(import_string(hook_path), BaseHook))
