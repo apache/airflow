@@ -2864,14 +2864,14 @@ class TaskInstanceModelView(AirflowModelView):
         self.update_redirect()
         return redirect(self.get_redirect())
 
-    @action('set_final_state_nok', "Set Final State to 'failed'", '', single=False)
+    @action('set_final_state_nok', "Set Final State to 'failed'", '', single=False, multiple=False)
     @has_dag_access(can_dag_edit=True)
     def action_set_final_state_nok(self, tis):
         self.set_task_instance_final_state(tis, State.FINALNOK)
         self.update_redirect()
         return redirect(self.get_redirect())
 
-    @action('set_final_state_ok', "Set Final State to 'success'", '', single=False)
+    @action('set_final_state_ok', "Set Final State to 'success'", '', single=False, multiple=False)
     @has_dag_access(can_dag_edit=True)
     def action_set_final_state_ok(self, tis):
         self.set_task_instance_final_state(tis, State.FINALOK)
