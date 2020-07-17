@@ -42,44 +42,31 @@ env:
 
 jobs:
 
-  static-checks-1:
+  cancel-previous-workflow-run:
     timeout-minutes: 60
-    name: "Checks: some checks"
+    name: "Cancel previous workflow run"
     runs-on: ubuntu-latest
-    env:
-      MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
-      CI_JOB_TYPE: "Static checks"
     steps:
       - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
-        with:
-          python-version: '3.x'
-      - name: Cache pre-commit env
-        uses: actions/cache@v2
+      - name: Get ci workflow id
+        run: "scripts/ci/cancel/get_workflow_id.sh"
         env:
-          cache-name: cache-pre-commit-v3
+          WORKFLOW: ci
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repositoru }}
+      - name: Cancel workflow ${{ github.workflow }}
+        uses: styfle/cancel-workflow-action@0.3.2
         with:
-          path: ~/.cache/pre-commit
-          key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
-      - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Build CI image"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Static checks"
-        if: success()
-        env:
-          PYTHON_VERSION: 3.6
-        run: |
-          python -m pip install pre-commit \
-              --constraint requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt
-          ./scripts/ci/static_checks/ci_run_static_checks.sh pylint-tests mypy yamllint flake8
+          workflow_id: ${{ env.WORKFLOW_ID }}
+          access_token: ${{ github.token }}
 
-  static-checks-2:
+  static-checks:
     timeout-minutes: 60
-    name: "Checks: all other"
+    name: "Static checks"
     runs-on: ubuntu-latest
+    needs:
+      - cancel-previous-workflow-run
     env:
-      SKIP: pylint-tests,mypy,yamllint,flake8
       MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
       CI_JOB_TYPE: "Static checks"
     steps:
@@ -103,11 +90,12 @@ jobs:
           python -m pip install pre-commit \
               --constraint requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt
           ./scripts/ci/static_checks/ci_run_static_checks.sh
-
   docs:
     timeout-minutes: 60
-    name: Build docs
+    name: "Build docs"
     runs-on: ubuntu-latest
+    needs:
+      - cancel-previous-workflow-run
     env:
       CI_JOB_TYPE: "Documentation"
     steps:
@@ -117,33 +105,18 @@ jobs:
       - name: "Build docs"
         run: ./scripts/ci/docs/ci_docs.sh
 
-  build-prod-image:
-    timeout-minutes: 60
-    name: "Build prod image Py${{ matrix.python-version }}"
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.6, 3.7, 3.8]
-    env:
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      CI_JOB_TYPE: "Prod image"
-    steps:
-      - uses: actions/checkout@master
-      - name: "Build PROD image ${{ matrix.python-version }}"
-        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-
   prepare-backport-packages:
     timeout-minutes: 60
     name: "Backport packages"
     runs-on: ubuntu-latest
+    needs:
+      - cancel-previous-workflow-run
     env:
       INSTALL_AIRFLOW_VERSION: "1.10.10"
       CI_JOB_TYPE: "Prepare & test packages"
       PYTHON_MAJOR_MINOR_VERSION: 3.6
     steps:
       - uses: actions/checkout@master
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v1
         with:
           python-version: '3.x'
@@ -152,30 +125,27 @@ jobs:
       - name: "Build CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Prepare & test backport packages"
-        run: |
-          ./scripts/ci/backport_packages/ci_prepare_and_test_backport_packages.sh
+        run: "./scripts/ci/backport_packages/ci_prepare_and_test_backport_packages.sh"
 
   trigger-tests:
-    timeout-minutes: 10
-    name: "Count changed important files"
+    timeout-minutes: 5
+    name: "Checks if tests should be run"
     runs-on: ubuntu-latest
+    needs:
+      - cancel-previous-workflow-run
     outputs:
-      count: ${{ steps.trigger-tests.outputs.count }}
+      run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
     steps:
       - uses: actions/checkout@master
-      - name: "Get count of changed python files"
-        run: |
-          set +e
-          ./scripts/ci/tools/ci_count_changed_files.sh ${GITHUB_SHA} \
-              '^airflow|.github/workflows/|^Dockerfile|^scripts|^chart|^setup.py|^requirements|^tests|^kubernetes_tests'
-          echo "::set-output name=count::$?"
+      - name: "Check if tests should be run"
+        run: "./scripts/ci/tools/ci_check_if_tests_should_be_run.sh"
         id: trigger-tests
 
   tests-kubernetes:
     timeout-minutes: 80
     name: "K8s: ${{matrix.kube-mode}} ${{matrix.python-version}} ${{matrix.kubernetes-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks-1, static-checks-2, trigger-tests]
+    needs: [trigger-tests]
     strategy:
       matrix:
         python-version: [3.6, 3.7]
@@ -201,8 +171,7 @@ jobs:
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
       KIND_VERSION: "${{ matrix.kind-version }}"
       HELM_VERSION: "${{ matrix.helm-version }}"
-    # For pull requests only run tests when important files changed
-    if: needs.trigger-tests.outputs.count != '0' || github.event_name != 'pull_request'
+    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -240,7 +209,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     timeout-minutes: 80
     name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks-1, static-checks-2, trigger-tests]
+    needs: [trigger-tests]
     strategy:
       matrix:
         python-version: [3.6, 3.7]
@@ -254,8 +223,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
-    # For pull requests only run tests when important files changed
-    if: needs.trigger-tests.outputs.count != '0' || github.event_name != 'pull_request'
+    if: needs.trigger-tests.outputs.count == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -272,7 +240,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     timeout-minutes: 80
     name: "${{matrix.test-type}}:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks-1, static-checks-2, trigger-tests]
+    needs: [trigger-tests]
     strategy:
       matrix:
         python-version: [3.7, 3.8]
@@ -286,8 +254,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
-    # For pull requests only run tests when important files changed
-    if: needs.trigger-tests.outputs.count != '0' || github.event_name != 'pull_request'
+    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -304,7 +271,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     timeout-minutes: 80
     name: "${{matrix.test-type}}:Sqlite Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
-    needs: [static-checks-1, static-checks-2, trigger-tests]
+    needs: [trigger-tests]
     strategy:
       matrix:
         python-version: [3.6, 3.8]
@@ -316,8 +283,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       TEST_TYPE: ${{ matrix.test-type }}
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
-    # For pull requests only run tests when python files changed
-    if: needs.trigger-tests.outputs.count != '0' || github.event_name != 'pull_request'
+    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -335,7 +301,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
     runs-on: ubuntu-latest
     continue-on-error: true
-    needs: [static-checks-1, static-checks-2, trigger-tests]
+    needs: [trigger-tests]
     strategy:
       matrix:
         python-version: [3.6]
@@ -349,8 +315,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       RUN_TESTS: "true"
       CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
-    # For pull requests only run tests when important files changed
-    if: needs.trigger-tests.outputs.count != '0' || github.event_name != 'pull_request'
+    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -367,12 +332,14 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     timeout-minutes: 5
     name: "Checks: Helm tests"
     runs-on: ubuntu-latest
+    needs:
+      - cancel-previous-workflow-run
     env:
       CI_JOB_TYPE: "Tests"
     steps:
       - uses: actions/checkout@master
       - name: "Helm Tests"
-        run: ./scripts/ci/ci_run_helm_testing.sh
+        run: ./scripts/ci/kubernetes/ci_run_helm_testing.sh
 
   requirements:
     timeout-minutes: 80
@@ -382,6 +349,8 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       matrix:
         python-version: [3.6, 3.7, 3.8]
       fail-fast: false
+    needs:
+      - cancel-previous-workflow-run
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       CHECK_REQUIREMENTS_ONLY: true
@@ -396,6 +365,23 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Generate requirements"
         run: ./scripts/ci/requirements/ci_generate_requirements.sh
+
+  build-prod-image:
+    timeout-minutes: 60
+    name: "Build prod image Py${{ matrix.python-version }}"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+    needs:
+      - cancel-previous-workflow-run
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      CI_JOB_TYPE: "Prod image"
+    steps:
+      - uses: actions/checkout@master
+      - name: "Build PROD image ${{ matrix.python-version }}"
+        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
 
   push-prod-images-to-github-cache:
     timeout-minutes: 80
@@ -486,3 +472,24 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
           tags: true
           force: true
           branch: master
+
+  test-openapi-client-generation:
+    name: "Test OpenAPI client generation"
+    runs-on: ubuntu-latest
+    needs:
+      - cancel-previous-workflow-run
+    steps:
+      - uses: actions/checkout@master
+      - name: Get workflow id
+        run: "scripts/ci/cancel/get_workflow_id.sh"
+        env:
+          WORKFLOW: openapi
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repositoru }}
+      - name: Cancel workflow ${{ github.workflow }}
+        uses: styfle/cancel-workflow-action@0.3.2
+        with:
+          workflow_id: ${{ env.WORKFLOW_ID }}
+          access_token: ${{ github.token }}
+      - name: "Generate client codegen diff"
+        run: ./scripts/ci/openapi/client_codegen_diff.sh
