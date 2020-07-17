@@ -562,11 +562,10 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
     def test_drop_partition(self, get_metastore_client_mock, table_exist_mock):
         metastore_mock = get_metastore_client_mock.return_value
         table_exist_mock.return_value = True
-        self.hook.drop_partitions(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS])
+        ret = self.hook.drop_partitions(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS])
         table_exist_mock.assert_called_once_with(self.table, self.database)
-        metastore_mock.drop_partition(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS])
-        metastore_mock.drop_partition.assert_called_once_with(self.table, 
-                                                              db=self.database, part_vals=[DEFAULT_DATE_DS])
+        assert metastore_mock.drop_partition(self.table, db=self.database,
+                                             part_vals=[DEFAULT_DATE_DS]) == ret
 
 
 class TestHiveServer2Hook(unittest.TestCase):
