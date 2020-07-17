@@ -89,6 +89,8 @@ looks like:
         hooks = []
         # A list of references to inject into the macros namespace
         macros = []
+        # A list of functions to be imported from airflow.utils
+        utils = []
         # A list of Blueprint object created from flask.Blueprint. For use with the flask_appbuilder based GUI
         flask_blueprints = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
@@ -181,6 +183,10 @@ definitions in Airflow.
     def plugin_macro():
         pass
 
+    # You can import the function like from airflow.utils.test_plugin import plugin_util
+    def plugin_util():
+        pass
+
     # Creating a flask blueprint to integrate the templates and static folder
     bp = Blueprint(
         "test_plugin", __name__,
@@ -238,6 +244,7 @@ definitions in Airflow.
         sensors = [PluginSensorOperator]
         hooks = [PluginHook]
         macros = [plugin_macro]
+        utils = [plugin_util]
         flask_blueprints = [bp]
         appbuilder_views = [v_appbuilder_package]
         appbuilder_menu_items = [appbuilder_mitem]

@@ -43,6 +43,7 @@ operators_modules: Optional[List[Any]] = None
 sensors_modules: Optional[List[Any]] = None
 hooks_modules: Optional[List[Any]] = None
 macros_modules: Optional[List[Any]] = None
+utils_modules: Optional[List[Any]] = None
 executors_modules: Optional[List[Any]] = None
 
 # Plugin components to integrate directly
@@ -73,6 +74,7 @@ class AirflowPlugin:
     hooks: List[Any] = []
     executors: List[Any] = []
     macros: List[Any] = []
+    utils: List[Any] = []
     admin_views: List[Any] = []
     flask_blueprints: List[Any] = []
     menu_links: List[Any] = []
@@ -353,11 +355,13 @@ def integrate_dag_plugins() -> None:
     global sensors_modules
     global hooks_modules
     global macros_modules
+    global utils_modules
     # pylint: enable=global-statement
 
     if operators_modules is not None and \
             sensors_modules is not None and \
             hooks_modules is not None and \
+            utils_modules is not None and \
             macros_modules is not None:
         return
 
@@ -372,6 +376,7 @@ def integrate_dag_plugins() -> None:
     sensors_modules = []
     hooks_modules = []
     macros_modules = []
+    utils_modules = []
 
     for plugin in plugins:
         if plugin.name is None:
@@ -381,6 +386,7 @@ def integrate_dag_plugins() -> None:
         sensors_module = make_module(f'airflow.sensors.{plugin.name}', plugin.sensors)
         hooks_module = make_module(f'airflow.hooks.{plugin.name}', plugin.hooks)
         macros_module = make_module(f'airflow.macros.{plugin.name}', plugin.macros)
+        utils_module = make_module(f'airflow.utils.{plugin.name}', plugin.utils)
 
         if operators_module:
             operators_modules.append(operators_module)
@@ -397,3 +403,7 @@ def integrate_dag_plugins() -> None:
         if macros_module:
             macros_modules.append(macros_module)
             sys.modules[macros_module.__name__] = macros_module  # pylint: disable=no-member
+
+        if utils_module:
+            utils_modules.append(utils_module)
+            sys.modules[utils_module.__name__] = utils_module  # pylint: disable=no-member
