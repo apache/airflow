@@ -36,6 +36,7 @@ class TestDbApiHook(unittest.TestCase):
 
         class UnitTestDbApiHook(DbApiHook):
             conn_name_attr = 'test_conn_id'
+            log = mock.MagicMock()
 
             def get_conn(self):
                 return conn
@@ -171,3 +172,8 @@ class TestDbApiHook(unittest.TestCase):
             port=1
         ))
         self.assertEqual("conn_type://login:password@host:1/", self.db_hook.get_uri())
+
+    def test_run_log(self):
+        statement = 'SQL'
+        self.db_hook.run(statement)
+        assert self.db_hook.log.info.call_count == 2
