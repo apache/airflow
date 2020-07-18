@@ -34,95 +34,16 @@ from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class AwsBaseHook(BaseHook):
-    """
-    Interact with AWS.
-    This class is a thin wrapper around the boto3 python library.
-
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
-        running Airflow in a distributed manner and aws_conn_id is None or
-        empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).
-    :type aws_conn_id: str
-    :param verify: Whether or not to verify SSL certificates.
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :type verify: Union[bool, str, None]
-    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-    :type region_name: Optional[str]
-    :param client_type: boto3.client client_type. Eg 's3', 'emr' etc
-    :type client_type: Optional[str]
-    :param resource_type: boto3.resource resource_type. Eg 'dynamodb' etc
-    :type resource_type: Optional[str]
-    :param config: Configuration for botocore client.
-        (https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html)
-    :type config: Optional[botocore.client.Config]
-    """
-
-    def __init__(
-        self,
-        aws_conn_id: Optional[str] = "aws_default",
-        verify: Union[bool, str, None] = None,
-        region_name: Optional[str] = None,
-        client_type: Optional[str] = None,
-        resource_type: Optional[str] = None,
-        config: Optional[Config] = None
-    ) -> None:
+class _SessionFactory(LoggingMixin):
+    def __init__(self, conn_id: str, config: Config):
         super().__init__()
-        self.aws_conn_id = aws_conn_id
-        self.verify = verify
-        self.client_type = client_type
-        self.resource_type = resource_type
-        self.region_name = region_name
+        self.aws_conn_id = conn_id
         self.config = config
 
-        if not (self.client_type or self.resource_type):
-            raise AirflowException(
-                'Either client_type or resource_type'
-                ' must be provided.')
-
-    # pylint: disable=too-many-statements, too-many-nested-blocks
-    def _get_credentials(self, region_name):
-
-        if not self.aws_conn_id:
-            session = boto3.session.Session(region_name=region_name)
-            return session, None
-
-        self.log.info("Airflow Connection: aws_conn_id=%s", self.aws_conn_id)
-
-        try:
-            # Fetch the Airflow connection object
-            connection_object = self.get_connection(self.aws_conn_id)
-            extra_config = connection_object.extra_dejson
-            endpoint_url = extra_config.get("host")
-
-            # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
-            if "config_kwargs" in extra_config:
-                self.log.info(
-                    "Retrieving config_kwargs from Connection.extra_config['config_kwargs']: %s",
-                    extra_config["config_kwargs"]
-                )
-                self.config = Config(**extra_config["config_kwargs"])
-
-            session = self._create_session(connection_object, region_name)
-
-            return session, endpoint_url
-
-        except AirflowException:
-            self.log.warning("Unable to use Airflow Connection for credentials.")
-            self.log.info("Fallback on boto3 credential strategy")
-            # http://boto3.readthedocs.io/en/latest/guide/configuration.html
-
-        self.log.info(
-            "Creating session using boto3 credential strategy region_name=%s",
-            region_name,
-        )
-        session = boto3.session.Session(region_name=region_name)
-        return session, None
-
-    def _create_session(self, connection_object, region_name):
+    def create_session(self, connection_object, region_name):
         extra_config = connection_object.extra_dejson
         session_kwargs = {}
         if "session_kwargs" in extra_config:
@@ -265,11 +186,11 @@ class AwsBaseHook(BaseHook):
         return aws_access_key_id, aws_secret_access_key
 
     def _assume_role(
-            self,
-            sts_client: boto3.client,
-            extra_config: dict,
-            role_arn: str,
-            assume_role_kwargs: dict):
+        self,
+        sts_client: boto3.client,
+        extra_config: dict,
+        role_arn: str,
+        assume_role_kwargs: dict):
         if "external_id" in extra_config:  # Backwards compatibility
             assume_role_kwargs["ExternalId"] = extra_config.get(
                 "external_id"
@@ -287,11 +208,11 @@ class AwsBaseHook(BaseHook):
         )
 
     def _assume_role_with_saml(
-            self,
-            sts_client: boto3.client,
-            extra_config: dict,
-            role_arn: str,
-            assume_role_kwargs: dict):
+        self,
+        sts_client: boto3.client,
+        extra_config: dict,
+        role_arn: str,
+        assume_role_kwargs: dict):
 
         saml_config = extra_config['assume_role_with_saml']
         principal_arn = saml_config['principal_arn']
@@ -363,6 +284,95 @@ class AwsBaseHook(BaseHook):
             SAMLAssertion=saml_assertion,
             **assume_role_kwargs
         )
+
+
+class AwsBaseHook(BaseHook):
+    """
+    Interact with AWS.
+    This class is a thin wrapper around the boto3 python library.
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :type aws_conn_id: str
+    :param verify: Whether or not to verify SSL certificates.
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :type verify: Union[bool, str, None]
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :type region_name: Optional[str]
+    :param client_type: boto3.client client_type. Eg 's3', 'emr' etc
+    :type client_type: Optional[str]
+    :param resource_type: boto3.resource resource_type. Eg 'dynamodb' etc
+    :type resource_type: Optional[str]
+    :param config: Configuration for botocore client.
+        (https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html)
+    :type config: Optional[botocore.client.Config]
+    """
+
+    def __init__(
+        self,
+        aws_conn_id: Optional[str] = "aws_default",
+        verify: Union[bool, str, None] = None,
+        region_name: Optional[str] = None,
+        client_type: Optional[str] = None,
+        resource_type: Optional[str] = None,
+        config: Optional[Config] = None
+    ) -> None:
+        super().__init__()
+        self.aws_conn_id = aws_conn_id
+        self.verify = verify
+        self.client_type = client_type
+        self.resource_type = resource_type
+        self.region_name = region_name
+        self.config = config
+
+        if not (self.client_type or self.resource_type):
+            raise AirflowException(
+                'Either client_type or resource_type'
+                ' must be provided.')
+
+    # pylint: disable=too-many-statements, too-many-nested-blocks
+    def _get_credentials(self, region_name):
+
+        if not self.aws_conn_id:
+            session = boto3.session.Session(region_name=region_name)
+            return session, None
+
+        self.log.info("Airflow Connection: aws_conn_id=%s", self.aws_conn_id)
+
+        try:
+            # Fetch the Airflow connection object
+            connection_object = self.get_connection(self.aws_conn_id)
+            extra_config = connection_object.extra_dejson
+            endpoint_url = extra_config.get("host")
+
+            # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
+            if "config_kwargs" in extra_config:
+                self.log.info(
+                    "Retrieving config_kwargs from Connection.extra_config['config_kwargs']: %s",
+                    extra_config["config_kwargs"]
+                )
+                self.config = Config(**extra_config["config_kwargs"])
+
+            session = _SessionFactory(
+                self.aws_conn_id, self.config
+            ).create_session(connection_object, region_name)
+
+            return session, endpoint_url
+
+        except AirflowException:
+            self.log.warning("Unable to use Airflow Connection for credentials.")
+            self.log.info("Fallback on boto3 credential strategy")
+            # http://boto3.readthedocs.io/en/latest/guide/configuration.html
+
+        self.log.info(
+            "Creating session using boto3 credential strategy region_name=%s",
+            region_name,
+        )
+        session = boto3.session.Session(region_name=region_name)
+        return session, None
 
     def get_client_type(self, client_type, region_name=None, config=None):
         """Get the underlying boto3 client using boto3 session"""
