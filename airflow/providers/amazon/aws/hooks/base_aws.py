@@ -83,151 +83,155 @@ class AwsBaseHook(BaseHook):
                 'Either client_type or resource_type'
                 ' must be provided.')
 
-    # pylint: disable=too-many-statements
+    # pylint: disable=too-many-statements, too-many-nested-blocks
     def _get_credentials(self, region_name):
+
+        if not self.aws_conn_id:
+            session = boto3.session.Session(region_name=region_name)
+            return session, None
+
+        self.log.info("Airflow Connection: aws_conn_id=%s", self.aws_conn_id)
+
         aws_access_key_id = None
         aws_secret_access_key = None
         aws_session_token = None
         endpoint_url = None
         session_kwargs = {}
 
-        if self.aws_conn_id:  # pylint: disable=too-many-nested-blocks
-            self.log.info("Airflow Connection: aws_conn_id=%s",
-                          self.aws_conn_id)
-            try:
-                # Fetch the Airflow connection object
-                connection_object = self.get_connection(self.aws_conn_id)
-                extra_config = connection_object.extra_dejson
-                creds_from = None
-                if connection_object.login:
-                    creds_from = "login"
-                    aws_access_key_id = connection_object.login
-                    aws_secret_access_key = connection_object.password
+        try:
+            # Fetch the Airflow connection object
+            connection_object = self.get_connection(self.aws_conn_id)
+            extra_config = connection_object.extra_dejson
+            creds_from = None
+            if connection_object.login:
+                creds_from = "login"
+                aws_access_key_id = connection_object.login
+                aws_secret_access_key = connection_object.password
 
-                elif (
-                    "aws_access_key_id" in extra_config and
-                    "aws_secret_access_key" in extra_config
-                ):
-                    creds_from = "extra_config"
-                    aws_access_key_id = extra_config["aws_access_key_id"]
-                    aws_secret_access_key = extra_config["aws_secret_access_key"]
+            elif (
+                "aws_access_key_id" in extra_config and
+                "aws_secret_access_key" in extra_config
+            ):
+                creds_from = "extra_config"
+                aws_access_key_id = extra_config["aws_access_key_id"]
+                aws_secret_access_key = extra_config["aws_secret_access_key"]
 
-                elif "s3_config_file" in extra_config:
-                    creds_from = "extra_config['s3_config_file']"
-                    aws_access_key_id, aws_secret_access_key = _parse_s3_config(
-                        extra_config["s3_config_file"],
-                        extra_config.get("s3_config_format"),
-                        extra_config.get("profile"),
+            elif "s3_config_file" in extra_config:
+                creds_from = "extra_config['s3_config_file']"
+                aws_access_key_id, aws_secret_access_key = _parse_s3_config(
+                    extra_config["s3_config_file"],
+                    extra_config.get("s3_config_format"),
+                    extra_config.get("profile"),
+                )
+
+            if "aws_session_token" in extra_config:
+                aws_session_token = extra_config["aws_session_token"]
+
+            if creds_from:
+                self.log.info(
+                    "Credentials retrieved from %s.%s", self.aws_conn_id, creds_from
+                )
+            else:
+                self.log.info(
+                    "No credentials retrieved from Connection %s", self.aws_conn_id)
+
+            # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
+            if "config_kwargs" in extra_config:
+                self.log.info(
+                    "Retrieving config_kwargs from Connection.extra_config['config_kwargs']: %s",
+                    extra_config["config_kwargs"]
+                )
+                self.config = Config(**extra_config["config_kwargs"])
+
+            if region_name is None and 'region_name' in extra_config:
+                self.log.info(
+                    "Retrieving region_name from Connection.extra_config['region_name']"
+                )
+                region_name = extra_config.get("region_name")
+            self.log.info("region_name=%s", region_name)
+
+            role_arn = extra_config.get("role_arn")
+
+            aws_account_id = extra_config.get("aws_account_id")
+            aws_iam_role = extra_config.get("aws_iam_role")
+
+            if (
+                role_arn is None and
+                aws_account_id is not None and
+                aws_iam_role is not None
+            ):
+                self.log.info(
+                    "Constructing role_arn from aws_account_id and aws_iam_role"
+                )
+                role_arn = "arn:aws:iam::{}:role/{}".format(
+                    aws_account_id, aws_iam_role
+                )
+            self.log.info("role_arn is %s", role_arn)
+
+            if "session_kwargs" in extra_config:
+                self.log.info(
+                    "Retrieving session_kwargs from Connection.extra_config['session_kwargs']: %s",
+                    extra_config["session_kwargs"]
+                )
+                session_kwargs = extra_config["session_kwargs"]
+
+            # If role_arn was specified then STS + assume_role
+            if role_arn is not None:
+                # Create STS session and client
+                self.log.info(
+                    "Creating sts_session with aws_access_key_id=%s",
+                    aws_access_key_id,
+                )
+                sts_session = boto3.session.Session(
+                    aws_access_key_id=aws_access_key_id,
+                    aws_secret_access_key=aws_secret_access_key,
+                    region_name=region_name,
+                    aws_session_token=aws_session_token,
+                    **session_kwargs
+                )
+                sts_client = sts_session.client("sts", config=self.config)
+
+                assume_role_kwargs = {}
+                if "assume_role_kwargs" in extra_config:
+                    assume_role_kwargs = extra_config["assume_role_kwargs"]
+
+                assume_role_method = None
+                if "assume_role_method" in extra_config:
+                    assume_role_method = extra_config['assume_role_method']
+                self.log.info("assume_role_method=%s", assume_role_method)
+                if not assume_role_method or assume_role_method == 'assume_role':
+                    sts_response = self._assume_role(
+                        sts_client=sts_client,
+                        extra_config=extra_config,
+                        role_arn=role_arn,
+                        assume_role_kwargs=assume_role_kwargs
                     )
-
-                if "aws_session_token" in extra_config:
-                    aws_session_token = extra_config["aws_session_token"]
-
-                if creds_from:
-                    self.log.info(
-                        "Credentials retrieved from %s.%s", self.aws_conn_id, creds_from
+                elif assume_role_method == 'assume_role_with_saml':
+                    sts_response = self._assume_role_with_saml(
+                        sts_client=sts_client,
+                        extra_config=extra_config,
+                        role_arn=role_arn,
+                        assume_role_kwargs=assume_role_kwargs
                     )
                 else:
-                    self.log.info(
-                        "No credentials retrieved from Connection %s", self.aws_conn_id)
+                    raise NotImplementedError(
+                        f'assume_role_method={assume_role_method} in Connection {self.aws_conn_id} Extra.'
+                        'Currently "assume_role" or "assume_role_with_saml" are supported.'
+                        '(Exclude this setting will default to "assume_role").')
 
-                # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
-                if "config_kwargs" in extra_config:
-                    self.log.info(
-                        "Retrieving config_kwargs from Connection.extra_config['config_kwargs']: %s",
-                        extra_config["config_kwargs"]
-                    )
-                    self.config = Config(**extra_config["config_kwargs"])
+                # Use credentials retrieved from STS
+                credentials = sts_response["Credentials"]
+                aws_access_key_id = credentials["AccessKeyId"]
+                aws_secret_access_key = credentials["SecretAccessKey"]
+                aws_session_token = credentials["SessionToken"]
 
-                if region_name is None and 'region_name' in extra_config:
-                    self.log.info(
-                        "Retrieving region_name from Connection.extra_config['region_name']"
-                    )
-                    region_name = extra_config.get("region_name")
-                self.log.info("region_name=%s", region_name)
+            endpoint_url = extra_config.get("host")
 
-                role_arn = extra_config.get("role_arn")
-
-                aws_account_id = extra_config.get("aws_account_id")
-                aws_iam_role = extra_config.get("aws_iam_role")
-
-                if (
-                    role_arn is None and
-                    aws_account_id is not None and
-                    aws_iam_role is not None
-                ):
-                    self.log.info(
-                        "Constructing role_arn from aws_account_id and aws_iam_role"
-                    )
-                    role_arn = "arn:aws:iam::{}:role/{}".format(
-                        aws_account_id, aws_iam_role
-                    )
-                self.log.info("role_arn is %s", role_arn)
-
-                if "session_kwargs" in extra_config:
-                    self.log.info(
-                        "Retrieving session_kwargs from Connection.extra_config['session_kwargs']: %s",
-                        extra_config["session_kwargs"]
-                    )
-                    session_kwargs = extra_config["session_kwargs"]
-
-                # If role_arn was specified then STS + assume_role
-                if role_arn is not None:
-                    # Create STS session and client
-                    self.log.info(
-                        "Creating sts_session with aws_access_key_id=%s",
-                        aws_access_key_id,
-                    )
-                    sts_session = boto3.session.Session(
-                        aws_access_key_id=aws_access_key_id,
-                        aws_secret_access_key=aws_secret_access_key,
-                        region_name=region_name,
-                        aws_session_token=aws_session_token,
-                        **session_kwargs
-                    )
-                    sts_client = sts_session.client("sts", config=self.config)
-
-                    assume_role_kwargs = {}
-                    if "assume_role_kwargs" in extra_config:
-                        assume_role_kwargs = extra_config["assume_role_kwargs"]
-
-                    assume_role_method = None
-                    if "assume_role_method" in extra_config:
-                        assume_role_method = extra_config['assume_role_method']
-                    self.log.info("assume_role_method=%s", assume_role_method)
-                    if not assume_role_method or assume_role_method == 'assume_role':
-                        sts_response = self._assume_role(
-                            sts_client=sts_client,
-                            extra_config=extra_config,
-                            role_arn=role_arn,
-                            assume_role_kwargs=assume_role_kwargs
-                        )
-                    elif assume_role_method == 'assume_role_with_saml':
-                        sts_response = self._assume_role_with_saml(
-                            sts_client=sts_client,
-                            extra_config=extra_config,
-                            role_arn=role_arn,
-                            assume_role_kwargs=assume_role_kwargs
-                        )
-                    else:
-                        raise NotImplementedError(
-                            f'assume_role_method={assume_role_method} in Connection {self.aws_conn_id} Extra.'
-                            'Currently "assume_role" or "assume_role_with_saml" are supported.'
-                            '(Exclude this setting will default to "assume_role").')
-
-                    # Use credentials retrieved from STS
-                    credentials = sts_response["Credentials"]
-                    aws_access_key_id = credentials["AccessKeyId"]
-                    aws_secret_access_key = credentials["SecretAccessKey"]
-                    aws_session_token = credentials["SessionToken"]
-
-                endpoint_url = extra_config.get("host")
-
-            except AirflowException:
-                self.log.warning(
-                    "Unable to use Airflow Connection for credentials.")
-                self.log.info("Fallback on boto3 credential strategy")
-                # http://boto3.readthedocs.io/en/latest/guide/configuration.html
+        except AirflowException:
+            self.log.warning(
+                "Unable to use Airflow Connection for credentials.")
+            self.log.info("Fallback on boto3 credential strategy")
+            # http://boto3.readthedocs.io/en/latest/guide/configuration.html
 
         self.log.info(
             "Creating session with aws_access_key_id=%s region_name=%s",
