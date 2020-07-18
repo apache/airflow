@@ -102,38 +102,29 @@ class AwsBaseHook(BaseHook):
             # Fetch the Airflow connection object
             connection_object = self.get_connection(self.aws_conn_id)
             extra_config = connection_object.extra_dejson
-            creds_from = None
             if connection_object.login:
-                creds_from = "login"
                 aws_access_key_id = connection_object.login
                 aws_secret_access_key = connection_object.password
-
+                self.log.info("Credentials retrieved from login")
             elif (
                 "aws_access_key_id" in extra_config and
                 "aws_secret_access_key" in extra_config
             ):
-                creds_from = "extra_config"
                 aws_access_key_id = extra_config["aws_access_key_id"]
                 aws_secret_access_key = extra_config["aws_secret_access_key"]
-
+                self.log.info("Credentials retrieved from extra_config")
             elif "s3_config_file" in extra_config:
-                creds_from = "extra_config['s3_config_file']"
                 aws_access_key_id, aws_secret_access_key = _parse_s3_config(
                     extra_config["s3_config_file"],
                     extra_config.get("s3_config_format"),
                     extra_config.get("profile"),
                 )
+                self.log.info("Credentials retrieved from extra_config['s3_config_file']")
+            else:
+                self.log.info("No credentials retrieved from Connection")
 
             if "aws_session_token" in extra_config:
                 aws_session_token = extra_config["aws_session_token"]
-
-            if creds_from:
-                self.log.info(
-                    "Credentials retrieved from %s.%s", self.aws_conn_id, creds_from
-                )
-            else:
-                self.log.info(
-                    "No credentials retrieved from Connection %s", self.aws_conn_id)
 
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
             if "config_kwargs" in extra_config:
