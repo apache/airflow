@@ -21,15 +21,38 @@ from unittest.mock import patch
 
 from airflow.providers.apache.cassandra.sensors.record import CassandraRecordSensor
 
+TEST_CASSANDRA_CONN_ID = 'cassandra_default'
+TEST_CASSANDRA_TABLE = 't'
+TEST_CASSANDRA_KEY = {'foo': 'bar'}
+
 
 class TestCassandraRecordSensor(unittest.TestCase):
     @patch("airflow.providers.apache.cassandra.sensors.record.CassandraHook")
     def test_poke(self, mock_hook):
         sensor = CassandraRecordSensor(
             task_id='test_task',
-            cassandra_conn_id='cassandra_default',
-            table='t',
-            keys={'foo': 'bar'}
+            cassandra_conn_id=TEST_CASSANDRA_CONN_ID,
+            table=TEST_CASSANDRA_TABLE,
+            keys=TEST_CASSANDRA_KEY,
         )
-        sensor.poke(None)
-        mock_hook.return_value.record_exists.assert_called_once_with('t', {'foo': 'bar'})
+        exists = sensor.poke(dict())
+
+        self.assertTrue(exists)
+
+        mock_hook.return_value.record_exists.assert_called_once_with(TEST_CASSANDRA_TABLE, TEST_CASSANDRA_KEY)
+        mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
+
+    @patch("airflow.providers.apache.cassandra.sensors.record.CassandraHook")
+    def test_poke_should_not_fail_with_empty_keys(self, mock_hook):
+        sensor = CassandraRecordSensor(
+            task_id='test_task',
+            cassandra_conn_id=TEST_CASSANDRA_CONN_ID,
+            table=TEST_CASSANDRA_TABLE,
+            keys=None,
+        )
+        exists = sensor.poke(dict())
+
+        self.assertTrue(exists)
+
+        mock_hook.return_value.record_exists.assert_called_once_with(TEST_CASSANDRA_TABLE, None)
+        mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
