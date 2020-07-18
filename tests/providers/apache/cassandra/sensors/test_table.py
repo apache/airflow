@@ -42,6 +42,22 @@ class TestCassandraTableSensor(unittest.TestCase):
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
 
     @patch("airflow.providers.apache.cassandra.sensors.table.CassandraHook")
+    def test_poke_should_return_false_for_non_existing_table(self, mock_hook):
+        mock_hook.return_value.table_exists.return_value = False
+
+        sensor = CassandraTableSensor(
+            task_id='test_task',
+            cassandra_conn_id=TEST_CASSANDRA_CONN_ID,
+            table=TEST_CASSANDRA_TABLE,
+        )
+        exists = sensor.poke(dict())
+
+        self.assertFalse(exists)
+
+        mock_hook.return_value.table_exists.assert_called_once_with(TEST_CASSANDRA_TABLE)
+        mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
+
+    @patch("airflow.providers.apache.cassandra.sensors.table.CassandraHook")
     def test_poke_should_succeed_for_table_with_mentioned_keyspace(self, mock_hook):
         sensor = CassandraTableSensor(
             task_id='test_task',
