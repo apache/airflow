@@ -63,6 +63,13 @@ https://developers.google.com/style/inclusive-documentation
 -->
 ## Airflow 1.10.13
 
+### TimeSensor will consider default_timezone setting.
+
+Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
+
+Now it will compare `target_time` with the current time in the timezone set by `default_timezone` under the `core`
+section of the config.
+
 ### Removed Kerberos support for HDFS hook
 
 The HDFS hook's Kerberos support has been removed due to removed python-krbV dependency from PyPI
