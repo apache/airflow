@@ -58,8 +58,7 @@ def _load_credentials_from_file(
     """
     Loads credentials from a file.
 
-    The credentials file must be a service account key. The stored authorized user credential are
-    not supported.
+    The credentials file must be a service account key or a stored authorized user credential.
 
     :param filename: The full path to the credentials file.
     :type filename: str

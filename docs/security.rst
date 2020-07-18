@@ -147,8 +147,7 @@ look like the following.
           "${ENDPOINT_URL}/api/experimental/pools" \
           -H 'Content-Type: application/json' \
           -H 'Cache-Control: no-cache' \
-          -H "Authorization: Bearer ${ID_TOKEN}" \
-          --data '{"replace_microseconds":"false"}'
+          -H "Authorization: Bearer ${ID_TOKEN}"
 
 Kerberos
 --------
