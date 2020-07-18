@@ -34,17 +34,19 @@ from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class _SessionFactory(LoggingMixin):
-    def __init__(self, conn_id: str, config: Config):
+    def __init__(self, conn: Connection, region_name: str, config: Config):
         super().__init__()
-        self.aws_conn_id = conn_id
+        self.conn = conn
+        self.region_name = region_name
         self.config = config
 
-    def create_session(self, connection_object, region_name):
-        extra_config = connection_object.extra_dejson
+    def create_session(self):
+        extra_config = self.conn.extra_dejson
         session_kwargs = {}
         if "session_kwargs" in extra_config:
             self.log.info(
@@ -52,9 +54,7 @@ class _SessionFactory(LoggingMixin):
                 extra_config["session_kwargs"]
             )
             session_kwargs = extra_config["session_kwargs"]
-        session = self._create_basic_session(
-            connection_object=connection_object, region_name=region_name, session_kwargs=session_kwargs
-        )
+        session = self._create_basic_session(session_kwargs=session_kwargs)
         role_arn = self._read_role_arn_from_extra_config(extra_config)
         if role_arn is None:
             return session
@@ -66,21 +66,18 @@ class _SessionFactory(LoggingMixin):
         )
         return session
 
-    def _create_basic_session(self, connection_object, region_name, session_kwargs):
-        extra_config = connection_object.extra_dejson
-        aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection(
-            connection_object
-        )
+    def _create_basic_session(self, session_kwargs):
+        extra_config = self.conn.extra_dejson
+        aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection()
         aws_session_token = extra_config.get("aws_session_token")
-        if region_name is None and 'region_name' in extra_config:
+        region_name = self.region_name
+        if self.region_name is None and 'region_name' in extra_config:
             self.log.info(
                 "Retrieving region_name from Connection.extra_config['region_name']"
             )
             region_name = extra_config.get("region_name")
         self.log.info(
-            "Creating session with aws_access_key_id=%s region_name=%s",
-            aws_access_key_id,
-            region_name,
+            "Creating session with aws_access_key_id=%s region_name=%s", aws_access_key_id, region_name,
         )
         session = boto3.session.Session(
             aws_access_key_id=aws_access_key_id,
@@ -119,7 +116,7 @@ class _SessionFactory(LoggingMixin):
             )
         else:
             raise NotImplementedError(
-                f'assume_role_method={assume_role_method} in Connection {self.aws_conn_id} Extra.'
+                f'assume_role_method={assume_role_method} in Connection {self.conn.conn_id} Extra.'
                 'Currently "assume_role" or "assume_role_with_saml" are supported.'
                 '(Exclude this setting will default to "assume_role").')
         # Use credentials retrieved from STS
@@ -159,13 +156,13 @@ class _SessionFactory(LoggingMixin):
         self.log.info("role_arn is %s", role_arn)
         return role_arn
 
-    def _read_credentials_from_connection(self, connection_object) -> Tuple[Optional[str], Optional[str]]:
+    def _read_credentials_from_connection(self) -> Tuple[Optional[str], Optional[str]]:
         aws_access_key_id = None
         aws_secret_access_key = None
-        extra_config = connection_object.extra_dejson
-        if connection_object.login:
-            aws_access_key_id = connection_object.login
-            aws_secret_access_key = connection_object.password
+        extra_config = self.conn.extra_dejson
+        if self.conn.login:
+            aws_access_key_id = self.conn.login
+            aws_secret_access_key = self.conn.password
             self.log.info("Credentials retrieved from login")
         elif (
             "aws_access_key_id" in extra_config and
@@ -195,7 +192,7 @@ class _SessionFactory(LoggingMixin):
             assume_role_kwargs["ExternalId"] = extra_config.get(
                 "external_id"
             )
-        role_session_name = f"Airflow_{self.aws_conn_id}"
+        role_session_name = f"Airflow_{self.conn.conn_id}"
         self.log.info(
             "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
             role_arn,
@@ -239,7 +236,7 @@ class _SessionFactory(LoggingMixin):
                     auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.DISABLED)
                 else:
                     raise NotImplementedError(
-                        f'mutual_authentication={mutual_auth} in Connection {self.aws_conn_id} Extra.'
+                        f'mutual_authentication={mutual_auth} in Connection {self.conn.conn_id} Extra.'
                         'Currently "REQUIRED", "OPTIONAL" and "DISABLED" are supported.'
                         '(Exclude this setting will default to HTTPSPNEGOAuth() ).')
 
@@ -271,7 +268,7 @@ class _SessionFactory(LoggingMixin):
                 raise ValueError('Invalid SAML Assertion')
         else:
             raise NotImplementedError(
-                f'idp_auth_method={idp_auth_method} in Connection {self.aws_conn_id} Extra.'
+                f'idp_auth_method={idp_auth_method} in Connection {self.conn.conn_id} Extra.'
                 'Currently only "http_spegno_auth" is supported, and must be specified.')
 
         self.log.info(
@@ -357,8 +354,8 @@ class AwsBaseHook(BaseHook):
                 self.config = Config(**extra_config["config_kwargs"])
 
             session = _SessionFactory(
-                self.aws_conn_id, self.config
-            ).create_session(connection_object, region_name)
+                conn=connection_object, region_name=region_name, config=self.config
+            ).create_session()
 
             return session, endpoint_url
 
