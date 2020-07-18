@@ -149,48 +149,11 @@ class AwsBaseHook(BaseHook):
             if role_arn is None:
                 return session, endpoint_url
 
-            # If role_arn was specified then STS + assume_role
-            sts_client = session.client("sts", config=self.config)
-
-            assume_role_kwargs = extra_config.get("assume_role_kwargs")
-            assume_role_method = extra_config.get('assume_role_method')
-            self.log.info("assume_role_method=%s", assume_role_method)
-            if not assume_role_method or assume_role_method == 'assume_role':
-                sts_response = self._assume_role(
-                    sts_client=sts_client,
-                    extra_config=extra_config,
-                    role_arn=role_arn,
-                    assume_role_kwargs=assume_role_kwargs
-                )
-            elif assume_role_method == 'assume_role_with_saml':
-                sts_response = self._assume_role_with_saml(
-                    sts_client=sts_client,
-                    extra_config=extra_config,
-                    role_arn=role_arn,
-                    assume_role_kwargs=assume_role_kwargs
-                )
-            else:
-                raise NotImplementedError(
-                    f'assume_role_method={assume_role_method} in Connection {self.aws_conn_id} Extra.'
-                    'Currently "assume_role" or "assume_role_with_saml" are supported.'
-                    '(Exclude this setting will default to "assume_role").')
-
-            # Use credentials retrieved from STS
-            credentials = sts_response["Credentials"]
-            aws_access_key_id = credentials["AccessKeyId"]
-            aws_secret_access_key = credentials["SecretAccessKey"]
-            aws_session_token = credentials["SessionToken"]
-            self.log.info(
-                "Creating session with aws_access_key_id=%s region_name=%s",
-                aws_access_key_id,
-                region_name,
-            )
-            session = boto3.session.Session(
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                region_name=region_name,
-                aws_session_token=aws_session_token,
-                **session_kwargs
+            session = self._impersonate_to_role(
+                extra_config=extra_config,
+                role_arn=role_arn,
+                session=session,
+                session_kwargs=session_kwargs
             )
             return session, endpoint_url
 
@@ -215,6 +178,56 @@ class AwsBaseHook(BaseHook):
             ),
             endpoint_url,
         )
+
+    def _impersonate_to_role(
+        self,
+        extra_config: dict,
+        role_arn: str,
+        session: boto3.session.Session,
+        session_kwargs: dict
+    ) -> boto3.session.Session:
+        # If role_arn was specified then STS + assume_role
+        sts_client = session.client("sts", config=self.config)
+        assume_role_kwargs = extra_config.get("assume_role_kwargs", {})
+        assume_role_method = extra_config.get('assume_role_method')
+        self.log.info("assume_role_method=%s", assume_role_method)
+        if not assume_role_method or assume_role_method == 'assume_role':
+            sts_response = self._assume_role(
+                sts_client=sts_client,
+                extra_config=extra_config,
+                role_arn=role_arn,
+                assume_role_kwargs=assume_role_kwargs
+            )
+        elif assume_role_method == 'assume_role_with_saml':
+            sts_response = self._assume_role_with_saml(
+                sts_client=sts_client,
+                extra_config=extra_config,
+                role_arn=role_arn,
+                assume_role_kwargs=assume_role_kwargs
+            )
+        else:
+            raise NotImplementedError(
+                f'assume_role_method={assume_role_method} in Connection {self.aws_conn_id} Extra.'
+                'Currently "assume_role" or "assume_role_with_saml" are supported.'
+                '(Exclude this setting will default to "assume_role").')
+        # Use credentials retrieved from STS
+        credentials = sts_response["Credentials"]
+        aws_access_key_id = credentials["AccessKeyId"]
+        aws_secret_access_key = credentials["SecretAccessKey"]
+        aws_session_token = credentials["SessionToken"]
+        self.log.info(
+            "Creating session with aws_access_key_id=%s region_name=%s",
+            aws_access_key_id,
+            session.region_name,
+        )
+        session = boto3.session.Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=session.region_name,
+            aws_session_token=aws_session_token,
+            **session_kwargs
+        )
+        return session
 
     def _read_role_arn_from_extra_config(self, extra_config: dict) -> Optional[str]:
         aws_account_id = extra_config.get("aws_account_id")
