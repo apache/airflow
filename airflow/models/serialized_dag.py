@@ -76,6 +76,9 @@ class SerializedDagModel(Base):
         self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()
 
+    def __repr__(self):
+        return f"<SerializedDag: {self.dag_id}>"
+
     @classmethod
     @provide_session
     def write_dag(cls, dag: DAG, min_update_interval: Optional[int] = None, session=None):
