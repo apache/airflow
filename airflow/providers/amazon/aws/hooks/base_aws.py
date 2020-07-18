@@ -96,6 +96,7 @@ class AwsBaseHook(BaseHook):
             # Fetch the Airflow connection object
             connection_object = self.get_connection(self.aws_conn_id)
             extra_config = connection_object.extra_dejson
+            endpoint_url = extra_config.get("host")
 
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
             if "config_kwargs" in extra_config:
@@ -105,31 +106,8 @@ class AwsBaseHook(BaseHook):
                 )
                 self.config = Config(**extra_config["config_kwargs"])
 
-            endpoint_url = extra_config.get("host")
+            session = self._create_session(connection_object, region_name)
 
-            session_kwargs = {}
-            if "session_kwargs" in extra_config:
-                self.log.info(
-                    "Retrieving session_kwargs from Connection.extra_config['session_kwargs']: %s",
-                    extra_config["session_kwargs"]
-                )
-                session_kwargs = extra_config["session_kwargs"]
-
-            session = self._create_basic_session(
-                connection_object=connection_object, region_name=region_name, session_kwargs=session_kwargs
-            )
-
-            role_arn = self._read_role_arn_from_extra_config(extra_config)
-
-            if role_arn is None:
-                return session, endpoint_url
-
-            session = self._impersonate_to_role(
-                extra_config=extra_config,
-                role_arn=role_arn,
-                session=session,
-                session_kwargs=session_kwargs
-            )
             return session, endpoint_url
 
         except AirflowException:
@@ -143,6 +121,29 @@ class AwsBaseHook(BaseHook):
         )
         session = boto3.session.Session(region_name=region_name)
         return session, None
+
+    def _create_session(self, connection_object, region_name):
+        extra_config = connection_object.extra_dejson
+        session_kwargs = {}
+        if "session_kwargs" in extra_config:
+            self.log.info(
+                "Retrieving session_kwargs from Connection.extra_config['session_kwargs']: %s",
+                extra_config["session_kwargs"]
+            )
+            session_kwargs = extra_config["session_kwargs"]
+        session = self._create_basic_session(
+            connection_object=connection_object, region_name=region_name, session_kwargs=session_kwargs
+        )
+        role_arn = self._read_role_arn_from_extra_config(extra_config)
+        if role_arn is None:
+            return session
+        session = self._impersonate_to_role(
+            extra_config=extra_config,
+            role_arn=role_arn,
+            session=session,
+            session_kwargs=session_kwargs
+        )
+        return session
 
     def _create_basic_session(self, connection_object, region_name, session_kwargs):
         extra_config = connection_object.extra_dejson
