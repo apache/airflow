@@ -413,8 +413,10 @@ way as when you enter the environment. You can do it multiple times and open as 
 CLIs for cloud providers
 ------------------------
 
-Restarting Breeze environment
------------------------------
+For development convenience we installed simple wrappers for the most common cloud providers CLIs. Those
+CLIs are not installed when you build or pull the image - they will be downloaded as docker images
+the first time you attempt to use them. It is downloaded and executed in your host's docker engine so once
+it is downloaded, it will stay until you remove the downloaded images from your host container.
 
 For each of those CLI credentials are taken (automatically) from the credentials you have defined in
 your ${HOME} directory on host.
@@ -697,7 +699,7 @@ Generating requirements
 Whenever you modify and commit setup.py, you need to re-generate requirement files. Those requirement
 files ara stored separately for each python version in the ``requirements`` folder. Those are
 constraints rather than requirements as described in detail in the
-`CONTRIBUTING <CONTRIBUTING.rst#pinned-requirement-files>`_ documentation.
+`CONTRIBUTING <CONTRIBUTING.rst#pinned-requirement-files>`_ contributing documentation.
 
 In case you modify setup.py you need to update the requirements - for every python version supported.
 
@@ -1736,11 +1738,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -i, --integration <INTEGRATION>
           Integration to start during tests - it determines which integrations are started
           for integration tests. There can be more than one integration started, or all to
-          }
           start all integrations. Selected integrations are not saved for future execution.
           One of:
 
-                 cassandra kerberos mongo openldap rabbitmq redis
+                 cassandra kerberos mongo openldap rabbitmq redis all
 
   ****************************************************************************************************
    Kind kubernetes and Kubernetes tests configuration(optional)
