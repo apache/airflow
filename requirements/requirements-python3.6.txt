@@ -94,6 +94,7 @@ cloudpickle==1.4.1
 colorama==0.4.3
 colorlog==4.0.2
 connexion==2.7.0
+contextvars==2.4
 coverage==5.2
 croniter==0.3.34
 cryptography==2.9.2
@@ -136,7 +137,7 @@ future==0.18.2
 gcsfs==0.6.2
 gevent==20.6.2
 gitdb==4.0.5
-google-ads==6.0.0
+google-ads==4.0.0
 google-api-core==1.21.0
 google-api-python-client==1.10.0
 google-auth-httplib2==0.0.4
@@ -180,9 +181,12 @@ httplib2==0.18.1
 humanize==2.5.0
 hvac==0.10.4
 identify==1.4.23
+idna-ssl==1.1.0
 idna==2.10
 imagesize==1.2.0
+immutables==0.14
 importlib-metadata==1.7.0
+importlib-resources==3.0.0
 inflection==0.5.0
 ipdb==0.13.3
 ipython-genutils==0.2.0
@@ -208,7 +212,6 @@ kubernetes==11.0.0
 kylinpy==2.8.1
 lazy-object-proxy==1.5.0
 ldap3==2.7
-libcst==0.3.7
 lockfile==0.12.2
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==2.0.1
@@ -251,6 +254,7 @@ parso==0.7.0
 pathspec==0.8.0
 pbr==5.4.5
 pendulum==2.1.1
+pep562==1.0
 pexpect==4.8.0
 pickleshare==0.7.5
 pinotdb==0.1.1
@@ -261,7 +265,6 @@ presto-python-client==0.7.0
 prison==0.1.3
 prometheus-client==0.8.0
 prompt-toolkit==3.0.5
-proto-plus==1.3.0
 protobuf==3.12.2
 psutil==5.7.2
 psycopg2-binary==2.8.5
@@ -374,7 +377,7 @@ tqdm==4.48.0
 traitlets==4.3.3
 typed-ast==1.4.1
 typing-extensions==3.7.4.2
-typing-inspect==0.6.0
+typing==3.7.4.3
 tzlocal==1.5.1
 unicodecsv==0.14.1
 uritemplate==3.0.1
