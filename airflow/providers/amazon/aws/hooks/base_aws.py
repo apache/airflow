@@ -103,11 +103,6 @@ class AwsBaseHook(BaseHook):
             connection_object = self.get_connection(self.aws_conn_id)
             extra_config = connection_object.extra_dejson
 
-            aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection(
-                connection_object
-            )
-            aws_session_token = extra_config.get("aws_session_token")
-
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
             if "config_kwargs" in extra_config:
                 self.log.info(
@@ -116,12 +111,6 @@ class AwsBaseHook(BaseHook):
                 )
                 self.config = Config(**extra_config["config_kwargs"])
 
-            if region_name is None and 'region_name' in extra_config:
-                self.log.info(
-                    "Retrieving region_name from Connection.extra_config['region_name']"
-                )
-                region_name = extra_config.get("region_name")
-            self.log.info("region_name=%s", region_name)
             endpoint_url = extra_config.get("host")
 
             if "session_kwargs" in extra_config:
@@ -131,17 +120,8 @@ class AwsBaseHook(BaseHook):
                 )
                 session_kwargs = extra_config["session_kwargs"]
 
-            self.log.info(
-                "Creating session with aws_access_key_id=%s region_name=%s",
-                aws_access_key_id,
-                region_name,
-            )
-            session = boto3.session.Session(
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                region_name=region_name,
-                aws_session_token=aws_session_token,
-                **session_kwargs
+            session = self._create_basic_session(
+                connection_object=connection_object, region_name=region_name, session_kwargs=session_kwargs
             )
 
             role_arn = self._read_role_arn_from_extra_config(extra_config)
@@ -178,6 +158,31 @@ class AwsBaseHook(BaseHook):
             ),
             endpoint_url,
         )
+
+    def _create_basic_session(self, connection_object, region_name, session_kwargs):
+        extra_config = connection_object.extra_dejson
+        aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection(
+            connection_object
+        )
+        aws_session_token = extra_config.get("aws_session_token")
+        if region_name is None and 'region_name' in extra_config:
+            self.log.info(
+                "Retrieving region_name from Connection.extra_config['region_name']"
+            )
+            region_name = extra_config.get("region_name")
+        self.log.info(
+            "Creating session with aws_access_key_id=%s region_name=%s",
+            aws_access_key_id,
+            region_name,
+        )
+        session = boto3.session.Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=region_name,
+            aws_session_token=aws_session_token,
+            **session_kwargs
+        )
+        return session
 
     def _impersonate_to_role(
         self,
