@@ -189,9 +189,6 @@ async_packages = [
 atlas = [
     'atlasclient>=0.1.2',
 ]
-authlib = [
-    "Authlib>=0.14.3",
-]
 azure = [
     'azure-batch>=8.0.0',
     'azure-cosmos>=3.0.1,<4',
@@ -254,6 +251,11 @@ exasol = [
 ]
 facebook = [
     'facebook-business>=6.0.2',
+]
+flask_oauth = [
+    'Flask-OAuthlib>=0.9.1',
+    'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
+    'requests-oauthlib==1.1.0',
 ]
 google = [
     'PyOpenSSL',
@@ -584,9 +586,9 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'facebook': facebook,
     'gcp': google,  # TODO: remove this in Airflow 2.1
     'gcp_api': google,  # TODO: remove this in Airflow 2.1
-    'github_enterprise': authlib,
+    'github_enterprise': flask_oauth,
     'google': google,
-    'google_auth': authlib,
+    'google_auth': flask_oauth,
     'grpc': grpc,
     'hashicorp': hashicorp,
     'hdfs': hdfs,  # TODO: remove this in Airflow 2.1
