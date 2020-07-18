@@ -54,7 +54,7 @@ class MongoSensor(BaseSensorOperator):
         self.collection = collection
         self.query = query
 
-    def poke(self, context: Optional[dict]) -> bool:
+    def poke(self, context: dict) -> bool:
         self.log.info("Sensor check existence of the document "
                       "that matches the following query: %s", self.query)
         hook = MongoHook(self.mongo_conn_id)
