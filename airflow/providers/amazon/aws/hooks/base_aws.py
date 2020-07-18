@@ -92,12 +92,6 @@ class AwsBaseHook(BaseHook):
 
         self.log.info("Airflow Connection: aws_conn_id=%s", self.aws_conn_id)
 
-        aws_access_key_id = None
-        aws_secret_access_key = None
-        aws_session_token = None
-        endpoint_url = None
-        session_kwargs = {}
-
         try:
             # Fetch the Airflow connection object
             connection_object = self.get_connection(self.aws_conn_id)
@@ -113,6 +107,7 @@ class AwsBaseHook(BaseHook):
 
             endpoint_url = extra_config.get("host")
 
+            session_kwargs = {}
             if "session_kwargs" in extra_config:
                 self.log.info(
                     "Retrieving session_kwargs from Connection.extra_config['session_kwargs']: %s",
@@ -138,26 +133,16 @@ class AwsBaseHook(BaseHook):
             return session, endpoint_url
 
         except AirflowException:
-            self.log.warning(
-                "Unable to use Airflow Connection for credentials.")
+            self.log.warning("Unable to use Airflow Connection for credentials.")
             self.log.info("Fallback on boto3 credential strategy")
             # http://boto3.readthedocs.io/en/latest/guide/configuration.html
 
         self.log.info(
-            "Creating session with aws_access_key_id=%s region_name=%s",
-            aws_access_key_id,
+            "Creating session using boto3 credential strategy region_name=%s",
             region_name,
         )
-        return (
-            boto3.session.Session(
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                aws_session_token=aws_session_token,
-                region_name=region_name,
-                **session_kwargs
-            ),
-            endpoint_url,
-        )
+        session = boto3.session.Session(region_name=region_name)
+        return session, None
 
     def _create_basic_session(self, connection_object, region_name, session_kwargs):
         extra_config = connection_object.extra_dejson
