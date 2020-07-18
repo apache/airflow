@@ -195,23 +195,25 @@ class AwsBaseHook(BaseHook):
                     if "assume_role_method" in extra_config:
                         assume_role_method = extra_config['assume_role_method']
                     self.log.info("assume_role_method=%s", assume_role_method)
-                    method = None
                     if not assume_role_method or assume_role_method == 'assume_role':
-                        method = self._assume_role
+                        sts_response = self._assume_role(
+                            sts_client=sts_client,
+                            extra_config=extra_config,
+                            role_arn=role_arn,
+                            assume_role_kwargs=assume_role_kwargs
+                        )
                     elif assume_role_method == 'assume_role_with_saml':
-                        method = self._assume_role_with_saml
+                        sts_response = self._assume_role_with_saml(
+                            sts_client=sts_client,
+                            extra_config=extra_config,
+                            role_arn=role_arn,
+                            assume_role_kwargs=assume_role_kwargs
+                        )
                     else:
                         raise NotImplementedError(
                             f'assume_role_method={assume_role_method} in Connection {self.aws_conn_id} Extra.'
                             'Currently "assume_role" or "assume_role_with_saml" are supported.'
                             '(Exclude this setting will default to "assume_role").')
-
-                    sts_response = method(
-                        sts_client,
-                        extra_config,
-                        role_arn,
-                        assume_role_kwargs
-                    )
 
                     # Use credentials retrieved from STS
                     credentials = sts_response["Credentials"]
