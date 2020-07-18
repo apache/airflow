@@ -44,22 +44,22 @@ class _SessionFactory(LoggingMixin):
         self.conn = conn
         self.region_name = region_name
         self.config = config
+        self.extra_config = self.conn.extra_dejson
 
     def create_session(self):
-        extra_config = self.conn.extra_dejson
+        """Create AWS session."""
         session_kwargs = {}
-        if "session_kwargs" in extra_config:
+        if "session_kwargs" in self.extra_config:
             self.log.info(
                 "Retrieving session_kwargs from Connection.extra_config['session_kwargs']: %s",
-                extra_config["session_kwargs"]
+                self.extra_config["session_kwargs"]
             )
-            session_kwargs = extra_config["session_kwargs"]
+            session_kwargs = self.extra_config["session_kwargs"]
         session = self._create_basic_session(session_kwargs=session_kwargs)
-        role_arn = self._read_role_arn_from_extra_config(extra_config)
+        role_arn = self._read_role_arn_from_extra_config()
         if role_arn is None:
             return session
         session = self._impersonate_to_role(
-            extra_config=extra_config,
             role_arn=role_arn,
             session=session,
             session_kwargs=session_kwargs
@@ -90,27 +90,24 @@ class _SessionFactory(LoggingMixin):
 
     def _impersonate_to_role(
         self,
-        extra_config: dict,
         role_arn: str,
         session: boto3.session.Session,
         session_kwargs: dict
     ) -> boto3.session.Session:
         # If role_arn was specified then STS + assume_role
         sts_client = session.client("sts", config=self.config)
-        assume_role_kwargs = extra_config.get("assume_role_kwargs", {})
-        assume_role_method = extra_config.get('assume_role_method')
+        assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
+        assume_role_method = self.extra_config.get('assume_role_method')
         self.log.info("assume_role_method=%s", assume_role_method)
         if not assume_role_method or assume_role_method == 'assume_role':
             sts_response = self._assume_role(
                 sts_client=sts_client,
-                extra_config=extra_config,
                 role_arn=role_arn,
                 assume_role_kwargs=assume_role_kwargs
             )
         elif assume_role_method == 'assume_role_with_saml':
             sts_response = self._assume_role_with_saml(
                 sts_client=sts_client,
-                extra_config=extra_config,
                 role_arn=role_arn,
                 assume_role_kwargs=assume_role_kwargs
             )
@@ -138,10 +135,10 @@ class _SessionFactory(LoggingMixin):
         )
         return session
 
-    def _read_role_arn_from_extra_config(self, extra_config: dict) -> Optional[str]:
-        aws_account_id = extra_config.get("aws_account_id")
-        aws_iam_role = extra_config.get("aws_iam_role")
-        role_arn = extra_config.get("role_arn")
+    def _read_role_arn_from_extra_config(self) -> Optional[str]:
+        aws_account_id = self.extra_config.get("aws_account_id")
+        aws_iam_role = self.extra_config.get("aws_iam_role")
+        role_arn = self.extra_config.get("role_arn")
         if (
             role_arn is None and
             aws_account_id is not None and
@@ -159,23 +156,22 @@ class _SessionFactory(LoggingMixin):
     def _read_credentials_from_connection(self) -> Tuple[Optional[str], Optional[str]]:
         aws_access_key_id = None
         aws_secret_access_key = None
-        extra_config = self.conn.extra_dejson
         if self.conn.login:
             aws_access_key_id = self.conn.login
             aws_secret_access_key = self.conn.password
             self.log.info("Credentials retrieved from login")
         elif (
-            "aws_access_key_id" in extra_config and
-            "aws_secret_access_key" in extra_config
+            "aws_access_key_id" in self.extra_config and
+            "aws_secret_access_key" in self.extra_config
         ):
-            aws_access_key_id = extra_config["aws_access_key_id"]
-            aws_secret_access_key = extra_config["aws_secret_access_key"]
+            aws_access_key_id = self.extra_config["aws_access_key_id"]
+            aws_secret_access_key = self.extra_config["aws_secret_access_key"]
             self.log.info("Credentials retrieved from extra_config")
-        elif "s3_config_file" in extra_config:
+        elif "s3_config_file" in self.extra_config:
             aws_access_key_id, aws_secret_access_key = _parse_s3_config(
-                extra_config["s3_config_file"],
-                extra_config.get("s3_config_format"),
-                extra_config.get("profile"),
+                self.extra_config["s3_config_file"],
+                self.extra_config.get("s3_config_format"),
+                self.extra_config.get("profile"),
             )
             self.log.info("Credentials retrieved from extra_config['s3_config_file']")
         else:
@@ -185,11 +181,10 @@ class _SessionFactory(LoggingMixin):
     def _assume_role(
         self,
         sts_client: boto3.client,
-        extra_config: dict,
         role_arn: str,
         assume_role_kwargs: dict):
-        if "external_id" in extra_config:  # Backwards compatibility
-            assume_role_kwargs["ExternalId"] = extra_config.get(
+        if "external_id" in self.extra_config:  # Backwards compatibility
+            assume_role_kwargs["ExternalId"] = self.extra_config.get(
                 "external_id"
             )
         role_session_name = f"Airflow_{self.conn.conn_id}"
@@ -207,11 +202,10 @@ class _SessionFactory(LoggingMixin):
     def _assume_role_with_saml(
         self,
         sts_client: boto3.client,
-        extra_config: dict,
         role_arn: str,
-        assume_role_kwargs: dict):
-
-        saml_config = extra_config['assume_role_with_saml']
+        assume_role_kwargs: dict
+    ):
+        saml_config = self.extra_config['assume_role_with_saml']
         principal_arn = saml_config['principal_arn']
 
         idp_url = saml_config["idp_url"]
