@@ -26,7 +26,7 @@ This module contains Base AWS Hook.
 
 import configparser
 import logging
-from typing import Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import boto3
 from botocore.config import Config
@@ -46,53 +46,44 @@ class _SessionFactory(LoggingMixin):
         self.config = config
         self.extra_config = self.conn.extra_dejson
 
-    def create_session(self):
+    def create_session(self) -> boto3.session.Session:
         """Create AWS session."""
         session_kwargs = {}
         if "session_kwargs" in self.extra_config:
             self.log.info(
                 "Retrieving session_kwargs from Connection.extra_config['session_kwargs']: %s",
-                self.extra_config["session_kwargs"]
+                self.extra_config["session_kwargs"],
             )
             session_kwargs = self.extra_config["session_kwargs"]
         session = self._create_basic_session(session_kwargs=session_kwargs)
         role_arn = self._read_role_arn_from_extra_config()
         if role_arn is None:
             return session
-        session = self._impersonate_to_role(
-            role_arn=role_arn,
-            session=session,
-            session_kwargs=session_kwargs
-        )
-        return session
 
-    def _create_basic_session(self, session_kwargs):
+        return self._impersonate_to_role(role_arn=role_arn, session=session, session_kwargs=session_kwargs)
+
+    def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
         extra_config = self.conn.extra_dejson
         aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection()
         aws_session_token = extra_config.get("aws_session_token")
         region_name = self.region_name
         if self.region_name is None and 'region_name' in extra_config:
-            self.log.info(
-                "Retrieving region_name from Connection.extra_config['region_name']"
-            )
+            self.log.info("Retrieving region_name from Connection.extra_config['region_name']")
             region_name = extra_config.get("region_name")
         self.log.info(
             "Creating session with aws_access_key_id=%s region_name=%s", aws_access_key_id, region_name,
         )
-        session = boto3.session.Session(
+
+        return boto3.session.Session(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             region_name=region_name,
             aws_session_token=aws_session_token,
-            **session_kwargs
+            **session_kwargs,
         )
-        return session
 
     def _impersonate_to_role(
-        self,
-        role_arn: str,
-        session: boto3.session.Session,
-        session_kwargs: dict
+        self, role_arn: str, session: boto3.session.Session, session_kwargs: Dict[str, Any]
     ) -> boto3.session.Session:
         # If role_arn was specified then STS + assume_role
         sts_client = session.client("sts", config=self.config)
@@ -101,21 +92,18 @@ class _SessionFactory(LoggingMixin):
         self.log.info("assume_role_method=%s", assume_role_method)
         if not assume_role_method or assume_role_method == 'assume_role':
             sts_response = self._assume_role(
-                sts_client=sts_client,
-                role_arn=role_arn,
-                assume_role_kwargs=assume_role_kwargs
+                sts_client=sts_client, role_arn=role_arn, assume_role_kwargs=assume_role_kwargs
             )
         elif assume_role_method == 'assume_role_with_saml':
             sts_response = self._assume_role_with_saml(
-                sts_client=sts_client,
-                role_arn=role_arn,
-                assume_role_kwargs=assume_role_kwargs
+                sts_client=sts_client, role_arn=role_arn, assume_role_kwargs=assume_role_kwargs
             )
         else:
             raise NotImplementedError(
                 f'assume_role_method={assume_role_method} in Connection {self.conn.conn_id} Extra.'
                 'Currently "assume_role" or "assume_role_with_saml" are supported.'
-                '(Exclude this setting will default to "assume_role").')
+                '(Exclude this setting will default to "assume_role").'
+            )
         # Use credentials retrieved from STS
         credentials = sts_response["Credentials"]
         aws_access_key_id = credentials["AccessKeyId"]
@@ -126,30 +114,22 @@ class _SessionFactory(LoggingMixin):
             aws_access_key_id,
             session.region_name,
         )
-        session = boto3.session.Session(
+
+        return boto3.session.Session(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             region_name=session.region_name,
             aws_session_token=aws_session_token,
-            **session_kwargs
+            **session_kwargs,
         )
-        return session
 
     def _read_role_arn_from_extra_config(self) -> Optional[str]:
         aws_account_id = self.extra_config.get("aws_account_id")
         aws_iam_role = self.extra_config.get("aws_iam_role")
         role_arn = self.extra_config.get("role_arn")
-        if (
-            role_arn is None and
-            aws_account_id is not None and
-            aws_iam_role is not None
-        ):
-            self.log.info(
-                "Constructing role_arn from aws_account_id and aws_iam_role"
-            )
-            role_arn = "arn:aws:iam::{}:role/{}".format(
-                aws_account_id, aws_iam_role
-            )
+        if role_arn is None and aws_account_id is not None and aws_iam_role is not None:
+            self.log.info("Constructing role_arn from aws_account_id and aws_iam_role")
+            role_arn = f"arn:aws:iam::{aws_account_id}:role/{aws_iam_role}"
         self.log.info("role_arn is %s", role_arn)
         return role_arn
 
@@ -160,10 +140,7 @@ class _SessionFactory(LoggingMixin):
             aws_access_key_id = self.conn.login
             aws_secret_access_key = self.conn.password
             self.log.info("Credentials retrieved from login")
-        elif (
-            "aws_access_key_id" in self.extra_config and
-            "aws_secret_access_key" in self.extra_config
-        ):
+        elif "aws_access_key_id" in self.extra_config and "aws_secret_access_key" in self.extra_config:
             aws_access_key_id = self.extra_config["aws_access_key_id"]
             aws_secret_access_key = self.extra_config["aws_secret_access_key"]
             self.log.info("Credentials retrieved from extra_config")
@@ -179,32 +156,21 @@ class _SessionFactory(LoggingMixin):
         return aws_access_key_id, aws_secret_access_key
 
     def _assume_role(
-        self,
-        sts_client: boto3.client,
-        role_arn: str,
-        assume_role_kwargs: dict):
+        self, sts_client: boto3.client, role_arn: str, assume_role_kwargs: Dict[str, Any]
+    ) -> Dict:
         if "external_id" in self.extra_config:  # Backwards compatibility
-            assume_role_kwargs["ExternalId"] = self.extra_config.get(
-                "external_id"
-            )
+            assume_role_kwargs["ExternalId"] = self.extra_config.get("external_id")
         role_session_name = f"Airflow_{self.conn.conn_id}"
         self.log.info(
-            "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
-            role_arn,
-            role_session_name,
+            "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)", role_arn, role_session_name,
         )
         return sts_client.assume_role(
-            RoleArn=role_arn,
-            RoleSessionName=role_session_name,
-            **assume_role_kwargs
+            RoleArn=role_arn, RoleSessionName=role_session_name, **assume_role_kwargs
         )
 
     def _assume_role_with_saml(
-        self,
-        sts_client: boto3.client,
-        role_arn: str,
-        assume_role_kwargs: dict
-    ):
+        self, sts_client: boto3.client, role_arn: str, assume_role_kwargs: Dict[str, Any]
+    ) -> Dict[str, Any]:
         saml_config = self.extra_config['assume_role_with_saml']
         principal_arn = saml_config['principal_arn']
 
@@ -215,10 +181,13 @@ class _SessionFactory(LoggingMixin):
 
         idp_auth_method = saml_config['idp_auth_method']
         if idp_auth_method == 'http_spegno_auth':
+            import requests
             # requests_gssapi will need paramiko > 2.6 since you'll need
             # 'gssapi' not 'python-gssapi' from PyPi.
             # https://github.com/paramiko/paramiko/pull/1311
             import requests_gssapi
+            from lxml import etree
+
             auth = requests_gssapi.HTTPSPNEGOAuth()
             if 'mutual_authentication' in saml_config:
                 mutual_auth = saml_config['mutual_authentication']
@@ -232,27 +201,25 @@ class _SessionFactory(LoggingMixin):
                     raise NotImplementedError(
                         f'mutual_authentication={mutual_auth} in Connection {self.conn.conn_id} Extra.'
                         'Currently "REQUIRED", "OPTIONAL" and "DISABLED" are supported.'
-                        '(Exclude this setting will default to HTTPSPNEGOAuth() ).')
+                        '(Exclude this setting will default to HTTPSPNEGOAuth() ).'
+                    )
 
             # Query the IDP
-            import requests
-            idp_reponse = requests.get(
-                idp_url, auth=auth, **idp_request_kwargs)
+            idp_reponse = requests.get(idp_url, auth=auth, **idp_request_kwargs)
             idp_reponse.raise_for_status()
 
             # Assist with debugging. Note: contains sensitive info!
             xpath = saml_config['saml_response_xpath']
-            log_idp_response = 'log_idp_response' in saml_config and saml_config[
-                'log_idp_response']
+            log_idp_response = 'log_idp_response' in saml_config and saml_config['log_idp_response']
             if log_idp_response:
                 self.log.warning(
-                    'The IDP response contains sensitive information,'
-                    ' but log_idp_response is ON (%s).', log_idp_response)
+                    'The IDP response contains sensitive information,' ' but log_idp_response is ON (%s).',
+                    log_idp_response,
+                )
                 self.log.info('idp_reponse.content= %s', idp_reponse.content)
                 self.log.info('xpath= %s', xpath)
 
             # Extract SAML Assertion from the returned HTML / XML
-            from lxml import etree
             xml = etree.fromstring(idp_reponse.content)
             saml_assertion = xml.xpath(xpath)
             if isinstance(saml_assertion, list):
@@ -263,17 +230,12 @@ class _SessionFactory(LoggingMixin):
         else:
             raise NotImplementedError(
                 f'idp_auth_method={idp_auth_method} in Connection {self.conn.conn_id} Extra.'
-                'Currently only "http_spegno_auth" is supported, and must be specified.')
+                'Currently only "http_spegno_auth" is supported, and must be specified.'
+            )
 
-        self.log.info(
-            "Doing sts_client.assume_role_with_saml to role_arn=%s",
-            role_arn
-        )
+        self.log.info("Doing sts_client.assume_role_with_saml to role_arn=%s", role_arn)
         return sts_client.assume_role_with_saml(
-            RoleArn=role_arn,
-            PrincipalArn=principal_arn,
-            SAMLAssertion=saml_assertion,
-            **assume_role_kwargs
+            RoleArn=role_arn, PrincipalArn=principal_arn, SAMLAssertion=saml_assertion, **assume_role_kwargs
         )
 
 
