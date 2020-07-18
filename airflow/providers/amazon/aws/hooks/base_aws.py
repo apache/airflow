@@ -174,59 +174,9 @@ class _SessionFactory(LoggingMixin):
         saml_config = self.extra_config['assume_role_with_saml']
         principal_arn = saml_config['principal_arn']
 
-        idp_url = saml_config["idp_url"]
-        self.log.info("idp_url= %s", idp_url)
-
-        idp_request_kwargs = saml_config["idp_request_kwargs"]
-
         idp_auth_method = saml_config['idp_auth_method']
         if idp_auth_method == 'http_spegno_auth':
-            import requests
-            # requests_gssapi will need paramiko > 2.6 since you'll need
-            # 'gssapi' not 'python-gssapi' from PyPi.
-            # https://github.com/paramiko/paramiko/pull/1311
-            import requests_gssapi
-            from lxml import etree
-
-            auth = requests_gssapi.HTTPSPNEGOAuth()
-            if 'mutual_authentication' in saml_config:
-                mutual_auth = saml_config['mutual_authentication']
-                if mutual_auth == 'REQUIRED':
-                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.REQUIRED)
-                elif mutual_auth == 'OPTIONAL':
-                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.OPTIONAL)
-                elif mutual_auth == 'DISABLED':
-                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.DISABLED)
-                else:
-                    raise NotImplementedError(
-                        f'mutual_authentication={mutual_auth} in Connection {self.conn.conn_id} Extra.'
-                        'Currently "REQUIRED", "OPTIONAL" and "DISABLED" are supported.'
-                        '(Exclude this setting will default to HTTPSPNEGOAuth() ).'
-                    )
-
-            # Query the IDP
-            idp_reponse = requests.get(idp_url, auth=auth, **idp_request_kwargs)
-            idp_reponse.raise_for_status()
-
-            # Assist with debugging. Note: contains sensitive info!
-            xpath = saml_config['saml_response_xpath']
-            log_idp_response = 'log_idp_response' in saml_config and saml_config['log_idp_response']
-            if log_idp_response:
-                self.log.warning(
-                    'The IDP response contains sensitive information,' ' but log_idp_response is ON (%s).',
-                    log_idp_response,
-                )
-                self.log.info('idp_reponse.content= %s', idp_reponse.content)
-                self.log.info('xpath= %s', xpath)
-
-            # Extract SAML Assertion from the returned HTML / XML
-            xml = etree.fromstring(idp_reponse.content)
-            saml_assertion = xml.xpath(xpath)
-            if isinstance(saml_assertion, list):
-                if len(saml_assertion) == 1:
-                    saml_assertion = saml_assertion[0]
-            if not saml_assertion:
-                raise ValueError('Invalid SAML Assertion')
+            saml_assertion = self._fetch_saml_assertion_using_http_spegno_auth(saml_config)
         else:
             raise NotImplementedError(
                 f'idp_auth_method={idp_auth_method} in Connection {self.conn.conn_id} Extra.'
@@ -237,6 +187,55 @@ class _SessionFactory(LoggingMixin):
         return sts_client.assume_role_with_saml(
             RoleArn=role_arn, PrincipalArn=principal_arn, SAMLAssertion=saml_assertion, **assume_role_kwargs
         )
+
+    def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: Dict[str, Any]):
+        import requests
+        # requests_gssapi will need paramiko > 2.6 since you'll need
+        # 'gssapi' not 'python-gssapi' from PyPi.
+        # https://github.com/paramiko/paramiko/pull/1311
+        import requests_gssapi
+        from lxml import etree
+
+        idp_url = saml_config["idp_url"]
+        self.log.info("idp_url= %s", idp_url)
+        idp_request_kwargs = saml_config["idp_request_kwargs"]
+        auth = requests_gssapi.HTTPSPNEGOAuth()
+        if 'mutual_authentication' in saml_config:
+            mutual_auth = saml_config['mutual_authentication']
+            if mutual_auth == 'REQUIRED':
+                auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.REQUIRED)
+            elif mutual_auth == 'OPTIONAL':
+                auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.OPTIONAL)
+            elif mutual_auth == 'DISABLED':
+                auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.DISABLED)
+            else:
+                raise NotImplementedError(
+                    f'mutual_authentication={mutual_auth} in Connection {self.conn.conn_id} Extra.'
+                    'Currently "REQUIRED", "OPTIONAL" and "DISABLED" are supported.'
+                    '(Exclude this setting will default to HTTPSPNEGOAuth() ).'
+                )
+        # Query the IDP
+        idp_reponse = requests.get(idp_url, auth=auth, **idp_request_kwargs)
+        idp_reponse.raise_for_status()
+        # Assist with debugging. Note: contains sensitive info!
+        xpath = saml_config['saml_response_xpath']
+        log_idp_response = 'log_idp_response' in saml_config and saml_config['log_idp_response']
+        if log_idp_response:
+            self.log.warning(
+                'The IDP response contains sensitive information,' ' but log_idp_response is ON (%s).',
+                log_idp_response,
+            )
+            self.log.info('idp_reponse.content= %s', idp_reponse.content)
+            self.log.info('xpath= %s', xpath)
+        # Extract SAML Assertion from the returned HTML / XML
+        xml = etree.fromstring(idp_reponse.content)
+        saml_assertion = xml.xpath(xpath)
+        if isinstance(saml_assertion, list):
+            if len(saml_assertion) == 1:
+                saml_assertion = saml_assertion[0]
+        if not saml_assertion:
+            raise ValueError('Invalid SAML Assertion')
+        return saml_assertion
 
 
 class AwsBaseHook(BaseHook):
