@@ -15,27 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-import unittest
+
 from unittest import mock
 
 from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
-from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
-from tests.test_utils.mock_hooks import MockDBConnection
+from tests.providers.apache.hive import TestHiveEnvironment
+
+TEST_HDFS_CONN = 'webhdfs_default'
+TEST_HDFS_PATH = 'hdfs://user/hive/warehouse/airflow.db/static_babynames'
 
 
-@unittest.skipIf(
-    'AIRFLOW_RUNALL_TESTS' not in os.environ,
-    "Skipped because AIRFLOW_RUNALL_TESTS is not set")
 class TestWebHdfsSensor(TestHiveEnvironment):
 
-    @mock.patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook._find_valid_server')
-    def test_webhdfs_sensor(self, mock_find_valid_server):
-        mock_find_valid_server.return_value = MockDBConnection()
-        op = WebHdfsSensor(
-            task_id='webhdfs_sensor_check',
-            filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',
-            timeout=120,
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
+    @mock.patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook')
+    def test_poke(self, mock_hook):
+        sensor = WebHdfsSensor(
+            task_id='test_task',
+            webhdfs_conn_id=TEST_HDFS_CONN,
+            filepath=TEST_HDFS_PATH,
+        )
+        exists = sensor.poke(dict())
+
+        self.assertTrue(exists)
+
+        mock_hook.return_value.check_for_path.assert_called_once_with(hdfs_path=TEST_HDFS_PATH)
+        mock_hook.assert_called_once_with(TEST_HDFS_CONN)
