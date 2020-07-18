@@ -106,9 +106,7 @@ class AwsBaseHook(BaseHook):
             aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection(
                 connection_object
             )
-
-            if "aws_session_token" in extra_config:
-                aws_session_token = extra_config["aws_session_token"]
+            aws_session_token = extra_config.get("aws_session_token")
 
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
             if "config_kwargs" in extra_config:
@@ -166,13 +164,8 @@ class AwsBaseHook(BaseHook):
                 )
                 sts_client = sts_session.client("sts", config=self.config)
 
-                assume_role_kwargs = {}
-                if "assume_role_kwargs" in extra_config:
-                    assume_role_kwargs = extra_config["assume_role_kwargs"]
-
-                assume_role_method = None
-                if "assume_role_method" in extra_config:
-                    assume_role_method = extra_config['assume_role_method']
+                assume_role_kwargs = extra_config.get("assume_role_kwargs")
+                assume_role_method = extra_config.get('assume_role_method')
                 self.log.info("assume_role_method=%s", assume_role_method)
                 if not assume_role_method or assume_role_method == 'assume_role':
                     sts_response = self._assume_role(
