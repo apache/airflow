@@ -285,7 +285,6 @@ class AwsBaseHook(BaseHook):
                 'Either client_type or resource_type'
                 ' must be provided.')
 
-    # pylint: disable=too-many-statements, too-many-nested-blocks
     def _get_credentials(self, region_name):
 
         if not self.aws_conn_id:
