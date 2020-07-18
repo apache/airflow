@@ -20,10 +20,8 @@ from ssl import CERT_NONE
 from types import TracebackType
 from typing import List, Optional, Type
 
-from pymongo import (
-    BulkWriteResult, Collation, Collection, CommandCursor, Cursor, DeleteResult, InsertManyResult,
-    InsertOneResult, MongoClient, ReplaceOne, UpdateResult,
-)
+import pymongo
+from pymongo import MongoClient, ReplaceOne
 
 from airflow.hooks.base_hook import BaseHook
 
@@ -100,7 +98,9 @@ class MongoHook(BaseHook):
             client.close()
             self.client = None
 
-    def get_collection(self, mongo_collection: str, mongo_db: Optional[str] = None) -> Collection:
+    def get_collection(self,
+                       mongo_collection: str,
+                       mongo_db: Optional[str] = None) -> pymongo.collection.Collection:
         """
         Fetches a mongo collection object for querying.
 
@@ -115,7 +115,7 @@ class MongoHook(BaseHook):
                   mongo_collection: str,
                   aggregate_query: list,
                   mongo_db: Optional[str] = None,
-                  **kwargs) -> CommandCursor:
+                  **kwargs) -> pymongo.command_cursor.CommandCursor:
         """
         Runs an aggregation pipeline and returns the results
         https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.aggregate
@@ -130,7 +130,7 @@ class MongoHook(BaseHook):
              query: dict,
              find_one: bool = False,
              mongo_db: Optional[str] = None,
-             **kwargs) -> Cursor:
+             **kwargs) -> pymongo.cursor.Cursor:
         """
         Runs a mongo find query and returns the results
         https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.find
@@ -146,7 +146,7 @@ class MongoHook(BaseHook):
                    mongo_collection: str,
                    doc: dict,
                    mongo_db: Optional[str] = None,
-                   **kwargs) -> InsertOneResult:
+                   **kwargs) -> pymongo.results.InsertOneResult:
         """
         Inserts a single document into a mongo collection
         https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.insert_one
@@ -159,7 +159,7 @@ class MongoHook(BaseHook):
                     mongo_collection: str,
                     docs: dict,
                     mongo_db: Optional[str] = None,
-                    **kwargs) -> InsertManyResult:
+                    **kwargs) -> pymongo.results.InsertManyResult:
         """
         Inserts many docs into a mongo collection.
         https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.insert_many
@@ -173,7 +173,7 @@ class MongoHook(BaseHook):
                    filter_doc: dict,
                    update_doc: dict,
                    mongo_db: Optional[str] = None,
-                   **kwargs) -> UpdateResult:
+                   **kwargs) -> pymongo.results.UpdateResult:
         """
         Updates a single document in a mongo collection.
         https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.update_one
@@ -198,7 +198,7 @@ class MongoHook(BaseHook):
                     filter_doc: dict,
                     update_doc: dict,
                     mongo_db: Optional[str] = None,
-                    **kwargs) -> UpdateResult:
+                    **kwargs) -> pymongo.results.UpdateResult:
         """
         Updates one or more documents in a mongo collection.
         https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.update_many
@@ -223,7 +223,7 @@ class MongoHook(BaseHook):
                     doc: dict,
                     filter_doc: Optional[dict] = None,
                     mongo_db: Optional[str] = None,
-                    **kwargs) -> UpdateResult:
+                    **kwargs) -> pymongo.results.UpdateResult:
         """
         Replaces a single document in a mongo collection.
         https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.replace_one
@@ -256,8 +256,8 @@ class MongoHook(BaseHook):
                      filter_docs: Optional[List[dict]] = None,
                      mongo_db: Optional[str] = None,
                      upsert: bool = False,
-                     collation: Optional[Collation] = None,
-                     **kwargs) -> BulkWriteResult:
+                     collation: Optional[pymongo.collation.Collation] = None,
+                     **kwargs) -> pymongo.results.BulkWriteResult:
         """
         Replaces many documents in a mongo collection.
 
@@ -308,7 +308,7 @@ class MongoHook(BaseHook):
                    mongo_collection: str,
                    filter_doc: dict,
                    mongo_db: Optional[str] = None,
-                   **kwargs) -> DeleteResult:
+                   **kwargs) -> pymongo.results.DeleteResult:
         """
         Deletes a single document in a mongo collection.
         https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.delete_one
@@ -330,7 +330,7 @@ class MongoHook(BaseHook):
                     mongo_collection: str,
                     filter_doc: dict,
                     mongo_db: Optional[str] = None,
-                    **kwargs) -> DeleteResult:
+                    **kwargs) -> pymongo.results.DeleteResult:
         """
         Deletes one or more documents in a mongo collection.
         https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.delete_many
