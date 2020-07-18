@@ -123,23 +123,7 @@ class AwsBaseHook(BaseHook):
                 region_name = extra_config.get("region_name")
             self.log.info("region_name=%s", region_name)
 
-            role_arn = extra_config.get("role_arn")
-
-            aws_account_id = extra_config.get("aws_account_id")
-            aws_iam_role = extra_config.get("aws_iam_role")
-
-            if (
-                role_arn is None and
-                aws_account_id is not None and
-                aws_iam_role is not None
-            ):
-                self.log.info(
-                    "Constructing role_arn from aws_account_id and aws_iam_role"
-                )
-                role_arn = "arn:aws:iam::{}:role/{}".format(
-                    aws_account_id, aws_iam_role
-                )
-            self.log.info("role_arn is %s", role_arn)
+            role_arn = self._read_role_arn_from_extra_config(extra_config)
 
             if "session_kwargs" in extra_config:
                 self.log.info(
@@ -216,6 +200,24 @@ class AwsBaseHook(BaseHook):
             ),
             endpoint_url,
         )
+
+    def _read_role_arn_from_extra_config(self, extra_config: dict) -> Optional[str]:
+        aws_account_id = extra_config.get("aws_account_id")
+        aws_iam_role = extra_config.get("aws_iam_role")
+        role_arn = extra_config.get("role_arn")
+        if (
+            role_arn is None and
+            aws_account_id is not None and
+            aws_iam_role is not None
+        ):
+            self.log.info(
+                "Constructing role_arn from aws_account_id and aws_iam_role"
+            )
+            role_arn = "arn:aws:iam::{}:role/{}".format(
+                aws_account_id, aws_iam_role
+            )
+        self.log.info("role_arn is %s", role_arn)
+        return role_arn
 
     def _read_credentials_from_connection(self, connection_object) -> Tuple[Optional[str], Optional[str]]:
         aws_access_key_id = None
