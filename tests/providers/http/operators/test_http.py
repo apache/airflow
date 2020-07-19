@@ -79,3 +79,16 @@ class TestSimpleHttpOp(unittest.TestCase):
                 mock.call('invalid response')
             ]
             mock_info.assert_has_calls(calls, any_order=True)
+
+    @requests_mock.mock()
+    def test_filters_response(self, m):
+        m.get('http://www.example.com', json={'value': 5})
+        operator = SimpleHttpOperator(
+            task_id='test_HTTP_op',
+            method='GET',
+            endpoint='/',
+            http_conn_id='HTTP_EXAMPLE',
+            response_filter=lambda response: response.json()
+        )
+        result = operator.execute(None)
+        assert result == {'value': 5}

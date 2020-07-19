@@ -71,6 +71,15 @@ task_get_op = SimpleHttpOperator(
     dag=dag,
 )
 # [END howto_operator_http_task_get_op]
+# [START howto_operator_http_task_get_op_response_filter]
+task_get_op = SimpleHttpOperator(
+    task_id='get_op_response_filter',
+    method='GET',
+    endpoint='get',
+    response_filter=lambda response: response.json()['nested']['property'],
+    dag=dag,
+)
+# [END howto_operator_http_task_get_op_response_filter]
 # [START howto_operator_http_task_put_op]
 task_put_op = SimpleHttpOperator(
     task_id='put_op',

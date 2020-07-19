@@ -59,6 +59,21 @@ Here we are calling a ``GET`` request and pass params to it. The task will succe
     :start-after: [START howto_operator_http_task_get_op]
     :end-before: [END howto_operator_http_task_get_op]
 
+SimpleHttpOperator returns the response body as text by default. If you want to modify the response before passing
+it on the next task downstream use ``response_filter``. This is useful if:
+
+- the API you are consuming returns a large JSON payload and you're interested in a subset of the data
+- the API returns data in xml or csv and you want to convert it to JSON
+- you're interested in the headers of the response instead of the body
+
+Below is an example of retrieving data from a REST API and only returning a nested property instead of the full
+response body.
+
+.. exampleinclude:: /../airflow/providers/http/example_dags/example_http.py
+    :language: python
+    :start-after: [START howto_operator_http_task_get_op_response_filter]
+    :end-before: [END howto_operator_http_task_get_op_response_filter]
+
 In the third example we are performing a ``PUT`` operation to put / set data according to the data that is being
 provided to the request.
 
