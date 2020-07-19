@@ -35,6 +35,7 @@ from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequ
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
+from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 
@@ -211,6 +212,23 @@ class GoogleBaseHook(BaseHook):
     def _get_access_token(self) -> str:
         """Returns a valid access token from Google API Credentials"""
         return self._get_credentials().token
+
+    @functools.lru_cache(maxsize=None)
+    def _get_credentials_email(self) -> str:
+        """
+        Returns the email address associated with the currently logged in account
+
+        If a service account is used, it returns the service account.
+        If user authentication (e.g. gcloud auth) is used, it returns the e-mail account of that user.
+        """
+        credentials = self._get_credentials()
+        service_account_email = getattr(credentials, 'service_account_email', None)
+        if service_account_email:
+            return service_account_email
+
+        http_authorized = self._authorize()
+        oauth2_client = discovery.build('oauth2', "v1", http=http_authorized, cache_discovery=False)
+        return oauth2_client.tokeninfo().execute()['email']  # pylint: disable=no-member
 
     def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
         """

@@ -761,6 +761,11 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.hooks.compute`
      - :mod:`airflow.providers.google.cloud.operators.compute`
      -
+   * - `Compute Engine SSH <https://cloud.google.com/compute/>`__
+     - :doc:`How to use <howto/operator/google/cloud/compute_ssh>`
+     - :mod:`airflow.providers.google.cloud.hooks.compute_ssh`
+     -
+     -
 
    * - `Cloud Data Loss Prevention (DLP) <https://cloud.google.com/dlp/>`__
      - :doc:`How to use <howto/operator/google/cloud/data_loss_prevention>`
@@ -861,6 +866,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :doc:`How to use <howto/operator/google/cloud/natural_language>`
      - :mod:`airflow.providers.google.cloud.hooks.natural_language`
      - :mod:`airflow.providers.google.cloud.operators.natural_language`
+     -
+
+   * - `Cloud OS Login <https://cloud.google.com/compute/docs/oslogin/>`__
+     -
+     - :mod:`airflow.providers.google.cloud.hooks.os_login`
+     -
      -
 
    * - `Cloud Pub/Sub <https://cloud.google.com/pubsub/>`__

@@ -90,6 +90,7 @@ class SSHOperator(BaseOperator):
                         "ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook."
                     )
                     self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, timeout=self.timeout)
+                    self.ssh_hook.timeout = self.timeout
 
             if not self.ssh_hook:
                 raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
