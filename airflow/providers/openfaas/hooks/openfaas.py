@@ -43,7 +43,7 @@ class OpenFaasHook(BaseHook):
 
     def __init__(self,
                  function_name: Optional[str] = None,
-                 conn_id: str: = 'open_faas_default',
+                 conn_id: str = 'open_faas_default',
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.function_name = function_name
