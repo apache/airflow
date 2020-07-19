@@ -26,7 +26,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import create_session
-
+from airflow.secrets.local_filesystem import _create_connection,load_connections
 
 def _tabulate_connection(conns: List[Connection], tablefmt: str):
     tabulate_data = [
@@ -153,3 +153,31 @@ def connections_delete(args):
             msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
             msg = msg.format(conn_id=deleted_conn_id)
             print(msg)
+
+alternative_conn_file_specs = ['file_path']
+
+def connections_import(args):
+    """Import new connection"""
+    #check for the file path in arguments
+    missing_args = []
+    invalid_args = []
+    if args.file_path:
+        for arg in alternative_conn_file_specs:
+            if getattr(args, arg) is not None:
+                invalid_args.append(arg)
+    elif not args.file_path:
+        missing_args.append('file-path')
+    
+    if missing_args:
+        msg = ('The following args are required to import connections:' +
+               ' {missing!r}'.format(missing=missing_args))
+        raise SystemExit(msg)
+    if invalid_args:
+        msg = ('The following args are not compatible with the ' +
+               'add flag and --file-path flag: {invalid!r}')
+        msg = msg.format(invalid=invalid_args)
+        raise SystemExit(msg)
+
+    connections_dict = load_connections(args.file_path)
+    for connection_id in connections_dict:
+        _create_connection(connection_id, connections_dict[connection_id])
