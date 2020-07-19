@@ -45,8 +45,8 @@ class DatadogSensor(BaseSensorOperator):
             from_seconds_ago: int = 3600,
             up_to_seconds_from_now: int = 0,
             priority: Optional[str] = None,
-            sources: Optional[List[Any]] = None,
-            tags: Optional[List[Any]] = None,
+            sources: Optional[str] = None,
+            tags: Optional[List[str]] = None,
             response_check: Optional[Callable[[Dict[str, Any]], bool]] = None,
             *args,
             **kwargs) -> None:
