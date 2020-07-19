@@ -47,7 +47,7 @@ class DatadogSensor(BaseSensorOperator):
             priority: Optional[str] = None,
             sources: Optional[List[Any]] = None,
             tags: Optional[List[Any]] = None,
-            response_check: Optional[Callable[[], Any]] = None,
+            response_check: Optional[Callable[[Dict[str, Any]], bool]] = None,
             *args,
             **kwargs) -> None:
         super().__init__(*args, **kwargs)
