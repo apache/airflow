@@ -57,19 +57,19 @@ class _SessionFactory(LoggingMixin):
             session_kwargs = self.extra_config["session_kwargs"]
         session = self._create_basic_session(session_kwargs=session_kwargs)
         role_arn = self._read_role_arn_from_extra_config()
+        # If role_arn was specified then STS + assume_role
         if role_arn is None:
             return session
 
         return self._impersonate_to_role(role_arn=role_arn, session=session, session_kwargs=session_kwargs)
 
     def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
-        extra_config = self.conn.extra_dejson
         aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection()
-        aws_session_token = extra_config.get("aws_session_token")
+        aws_session_token = self.extra_config.get("aws_session_token")
         region_name = self.region_name
-        if self.region_name is None and 'region_name' in extra_config:
+        if self.region_name is None and 'region_name' in self.extra_config:
             self.log.info("Retrieving region_name from Connection.extra_config['region_name']")
-            region_name = extra_config.get("region_name")
+            region_name = self.extra_config.get("region_name")
         self.log.info(
             "Creating session with aws_access_key_id=%s region_name=%s", aws_access_key_id, region_name,
         )
@@ -85,7 +85,6 @@ class _SessionFactory(LoggingMixin):
     def _impersonate_to_role(
         self, role_arn: str, session: boto3.session.Session, session_kwargs: Dict[str, Any]
     ) -> boto3.session.Session:
-        # If role_arn was specified then STS + assume_role
         sts_client = session.client("sts", config=self.config)
         assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
         assume_role_method = self.extra_config.get('assume_role_method')
