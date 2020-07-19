@@ -66,7 +66,7 @@ class DatadogHook(BaseHook, LoggingMixin):
 
     def send_metric(self, metric_name: str,
                     datapoint: Union[float, int],
-                    tags: Optional[List[Any]] = None,
+                    tags: Optional[List[str]] = None,
                     type_: Optional[str] = None,
                     interval: Optional[int] = None) -> Dict[str, Any]:
         """
