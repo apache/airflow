@@ -32,6 +32,11 @@ class CassandraTableSensor(BaseSensorOperator):
     """
     Checks for the existence of a table in a Cassandra cluster.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CassandraTableSensor`
+
+
     For example, if you want to wait for a table called 't' to be created
     in a keyspace 'k', instantiate it as follows:
 

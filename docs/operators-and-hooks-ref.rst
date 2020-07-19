@@ -122,7 +122,7 @@ Foundation.
      - Sensor
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
-     -
+     - :doc:`How to use <howto/operator/apache/cassandra>`
      - :mod:`airflow.providers.apache.cassandra.hooks.cassandra`
      -
      - :mod:`airflow.providers.apache.cassandra.sensors.record`,
