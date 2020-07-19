@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.operators.python import PythonOperator
@@ -74,10 +74,12 @@ class HttpSensor(BaseSensorOperator):
                  endpoint: str,
                  http_conn_id: str = 'http_default',
                  method: str = 'GET',
-                 request_params: Optional[Dict] = None,
-                 headers: Optional[Dict] = None,
-                 response_check: Optional[Callable] = None,
-                 extra_options: Optional[Dict] = None, *args, **kwargs):
+                 request_params: Optional[Dict[str, Any]] = None,
+                 headers: Optional[Dict[str, Any]] = None,
+                 response_check: Optional[Callable[..., Any]] = None,
+                 extra_options: Optional[Dict[str, Any]] = None,
+                 *args: Any, **kwargs: Any
+                 ) -> None:
         super().__init__(*args, **kwargs)
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
@@ -90,7 +92,7 @@ class HttpSensor(BaseSensorOperator):
             method=method,
             http_conn_id=http_conn_id)
 
-    def poke(self, context: Dict):
+    def poke(self, context: Dict[Any, Any]) -> bool:
         self.log.info('Poking: %s', self.endpoint)
         try:
             response = self.hook.run(self.endpoint,

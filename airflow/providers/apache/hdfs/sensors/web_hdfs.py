@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict
 
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -28,15 +29,15 @@ class WebHdfsSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
-                 filepath,
-                 webhdfs_conn_id='webhdfs_default',
-                 *args,
-                 **kwargs):
+                 filepath: str,
+                 webhdfs_conn_id: str = 'webhdfs_default',
+                 *args: Any,
+                 **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.filepath = filepath
         self.webhdfs_conn_id = webhdfs_conn_id
 
-    def poke(self, context):
+    def poke(self, context: Dict[Any, Any]) -> bool:
         from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
         hook = WebHDFSHook(self.webhdfs_conn_id)
         self.log.info('Poking for file %s', self.filepath)

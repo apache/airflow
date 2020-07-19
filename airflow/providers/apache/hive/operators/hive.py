@@ -15,10 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
 import re
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
@@ -75,14 +74,16 @@ class HiveOperator(BaseOperator):
             hql: str,
             hive_cli_conn_id: str = 'hive_cli_default',
             schema: str = 'default',
-            hiveconfs: Optional[Dict] = None,
+            hiveconfs: Optional[Dict[Any, Any]] = None,
             hiveconf_jinja_translate: bool = False,
             script_begin_tag: Optional[str] = None,
             run_as_owner: bool = False,
             mapred_queue: Optional[str] = None,
             mapred_queue_priority: Optional[str] = None,
             mapred_job_name: Optional[str] = None,
-            *args, **kwargs) -> None:
+            *args: Tuple[Any, ...],
+            **kwargs: Any
+    ) -> None:
 
         super().__init__(*args, **kwargs)
         self.hql = hql
@@ -105,9 +106,9 @@ class HiveOperator(BaseOperator):
         # `None` initial value, later it will be populated by the execute method.
         # This also makes `on_kill` implementation consistent since it assumes `self.hook`
         # is defined.
-        self.hook = None
+        self.hook: Optional[HiveCliHook] = None
 
-    def get_hook(self):
+    def get_hook(self) -> HiveCliHook:
         """
         Get Hive cli hook
         """
@@ -118,14 +119,14 @@ class HiveOperator(BaseOperator):
             mapred_queue_priority=self.mapred_queue_priority,
             mapred_job_name=self.mapred_job_name)
 
-    def prepare_template(self):
+    def prepare_template(self) -> None:
         if self.hiveconf_jinja_translate:
             self.hql = re.sub(
                 r"(\$\{(hiveconf:)?([ a-zA-Z0-9_]*)\})", r"{{ \g<3> }}", self.hql)
         if self.script_begin_tag and self.script_begin_tag in self.hql:
             self.hql = "\n".join(self.hql.split(self.script_begin_tag)[1:])
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, Any]) -> None:
         self.log.info('Executing: %s', self.hql)
         self.hook = self.get_hook()
 
@@ -145,7 +146,7 @@ class HiveOperator(BaseOperator):
         self.log.info('Passing HiveConf: %s', self.hiveconfs)
         self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
 
-    def dry_run(self):
+    def dry_run(self) -> None:
         # Reset airflow environment variables to prevent
         # existing env vars from impacting behavior.
         self.clear_airflow_vars()
@@ -153,11 +154,11 @@ class HiveOperator(BaseOperator):
         self.hook = self.get_hook()
         self.hook.test_hql(hql=self.hql)
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         if self.hook:
             self.hook.kill()
 
-    def clear_airflow_vars(self):
+    def clear_airflow_vars(self) -> None:
         """
         Reset airflow environment variables to prevent existing ones from impacting behavior.
         """

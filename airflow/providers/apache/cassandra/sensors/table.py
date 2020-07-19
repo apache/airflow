@@ -21,7 +21,7 @@ This module contains sensor that check the existence
 of a table in a Cassandra cluster.
 """
 
-from typing import Dict
+from typing import Any, Dict, Tuple
 
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -54,12 +54,13 @@ class CassandraTableSensor(BaseSensorOperator):
     template_fields = ('table',)
 
     @apply_defaults
-    def __init__(self, table: str, cassandra_conn_id: str, *args, **kwargs) -> None:
+    def __init__(self, table: str, cassandra_conn_id: str, *args: Tuple[Any, ...],
+                 **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: Dict[Any, Any]) -> bool:
         self.log.info('Sensor check existence of table: %s', self.table)
         hook = CassandraHook(self.cassandra_conn_id)
         return hook.table_exists(self.table)

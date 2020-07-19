@@ -17,6 +17,7 @@
 # under the License.
 #
 import os
+from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
@@ -113,36 +114,36 @@ class SparkJDBCHook(SparkSubmitHook):
 
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
-                 spark_app_name='airflow-spark-jdbc',
-                 spark_conn_id='spark-default',
-                 spark_conf=None,
-                 spark_py_files=None,
-                 spark_files=None,
-                 spark_jars=None,
-                 num_executors=None,
-                 executor_cores=None,
-                 executor_memory=None,
-                 driver_memory=None,
-                 verbose=False,
-                 principal=None,
-                 keytab=None,
-                 cmd_type='spark_to_jdbc',
-                 jdbc_table=None,
-                 jdbc_conn_id='jdbc-default',
-                 jdbc_driver=None,
-                 metastore_table=None,
-                 jdbc_truncate=False,
-                 save_mode=None,
-                 save_format=None,
-                 batch_size=None,
-                 fetch_size=None,
-                 num_partitions=None,
-                 partition_column=None,
-                 lower_bound=None,
-                 upper_bound=None,
-                 create_table_column_types=None,
-                 *args,
-                 **kwargs
+                 spark_app_name: str = 'airflow-spark-jdbc',
+                 spark_conn_id: str = 'spark-default',
+                 spark_conf: Optional[Dict[str, Any]] = None,
+                 spark_py_files: Optional[str] = None,
+                 spark_files: Optional[str] = None,
+                 spark_jars: Optional[str] = None,
+                 num_executors: Optional[int] = None,
+                 executor_cores: Optional[int] = None,
+                 executor_memory: Optional[str] = None,
+                 driver_memory: Optional[str] = None,
+                 verbose: bool = False,
+                 principal: Optional[str] = None,
+                 keytab: Optional[str] = None,
+                 cmd_type: str = 'spark_to_jdbc',
+                 jdbc_table: Optional[str] = None,
+                 jdbc_conn_id: str = 'jdbc-default',
+                 jdbc_driver: Optional[str] = None,
+                 metastore_table: Optional[str] = None,
+                 jdbc_truncate: bool = False,
+                 save_mode: Optional[str] = None,
+                 save_format: Optional[str] = None,
+                 batch_size: Optional[int] = None,
+                 fetch_size: Optional[int] = None,
+                 num_partitions: Optional[int] = None,
+                 partition_column: Optional[str] = None,
+                 lower_bound: Optional[str] = None,
+                 upper_bound: Optional[str] = None,
+                 create_table_column_types: Optional[str] = None,
+                 *args: Any,
+                 **kwargs: Any
                  ):
         super().__init__(*args, **kwargs)
         self._name = spark_app_name
@@ -175,7 +176,7 @@ class SparkJDBCHook(SparkSubmitHook):
         self._create_table_column_types = create_table_column_types
         self._jdbc_connection = self._resolve_jdbc_connection()
 
-    def _resolve_jdbc_connection(self):
+    def _resolve_jdbc_connection(self) -> Dict[str, Any]:
         conn_data = {'url': '',
                      'schema': '',
                      'conn_prefix': '',
@@ -200,7 +201,7 @@ class SparkJDBCHook(SparkSubmitHook):
             )
         return conn_data
 
-    def _build_jdbc_application_arguments(self, jdbc_conn):
+    def _build_jdbc_application_arguments(self, jdbc_conn: Dict[str, Any]) -> Any:
         arguments = []
         arguments += ["-cmdType", self._cmd_type]
         if self._jdbc_connection['url']:
@@ -239,7 +240,7 @@ class SparkJDBCHook(SparkSubmitHook):
             arguments += ['-createTableColumnTypes', self._create_table_column_types]
         return arguments
 
-    def submit_jdbc_job(self):
+    def submit_jdbc_job(self) -> None:
         """
         Submit Spark JDBC job
         """
@@ -248,5 +249,5 @@ class SparkJDBCHook(SparkSubmitHook):
         self.submit(application=os.path.dirname(os.path.abspath(__file__)) +
                     "/spark_jdbc_script.py")
 
-    def get_conn(self):
+    def get_conn(self) -> Any:
         pass

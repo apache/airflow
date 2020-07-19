@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Any, Dict, Optional
+
 from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils.decorators import apply_defaults
@@ -119,36 +121,36 @@ class SparkJDBCOperator(SparkSubmitOperator):
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(self,
-                 spark_app_name='airflow-spark-jdbc',
-                 spark_conn_id='spark-default',
-                 spark_conf=None,
-                 spark_py_files=None,
-                 spark_files=None,
-                 spark_jars=None,
-                 num_executors=None,
-                 executor_cores=None,
-                 executor_memory=None,
-                 driver_memory=None,
-                 verbose=False,
-                 keytab=None,
-                 principal=None,
-                 cmd_type='spark_to_jdbc',
-                 jdbc_table=None,
-                 jdbc_conn_id='jdbc-default',
-                 jdbc_driver=None,
-                 metastore_table=None,
-                 jdbc_truncate=False,
-                 save_mode=None,
-                 save_format=None,
-                 batch_size=None,
-                 fetch_size=None,
-                 num_partitions=None,
-                 partition_column=None,
-                 lower_bound=None,
-                 upper_bound=None,
-                 create_table_column_types=None,
-                 *args,
-                 **kwargs):
+                 spark_app_name: str = 'airflow-spark-jdbc',
+                 spark_conn_id: str = 'spark-default',
+                 spark_conf: Optional[Dict[str, Any]] = None,
+                 spark_py_files: Optional[str] = None,
+                 spark_files: Optional[str] = None,
+                 spark_jars: Optional[str] = None,
+                 num_executors: Optional[int] = None,
+                 executor_cores: Optional[int] = None,
+                 executor_memory: Optional[str] = None,
+                 driver_memory: Optional[str] = None,
+                 verbose: bool = False,
+                 principal: Optional[str] = None,
+                 keytab: Optional[str] = None,
+                 cmd_type: str = 'spark_to_jdbc',
+                 jdbc_table: Optional[str] = None,
+                 jdbc_conn_id: str = 'jdbc-default',
+                 jdbc_driver: Optional[str] = None,
+                 metastore_table: Optional[str] = None,
+                 jdbc_truncate: bool = False,
+                 save_mode: Optional[str] = None,
+                 save_format: Optional[str] = None,
+                 batch_size: Optional[int] = None,
+                 fetch_size: Optional[int] = None,
+                 num_partitions: Optional[int] = None,
+                 partition_column: Optional[str] = None,
+                 lower_bound: Optional[str] = None,
+                 upper_bound: Optional[str] = None,
+                 create_table_column_types: Optional[str] = None,
+                 *args: Any,
+                 **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._spark_app_name = spark_app_name
         self._spark_conn_id = spark_conn_id
@@ -178,12 +180,23 @@ class SparkJDBCOperator(SparkSubmitOperator):
         self._lower_bound = lower_bound
         self._upper_bound = upper_bound
         self._create_table_column_types = create_table_column_types
+        self._hook: Optional[SparkJDBCHook] = None
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, Any]) -> None:
         """
         Call the SparkSubmitHook to run the provided spark job
         """
-        self._hook = SparkJDBCHook(
+        if self._hook is None:
+            self._hook = self._get_hook()
+        self._hook.submit_jdbc_job()
+
+    def on_kill(self) -> None:
+        if self._hook is None:
+            self._hook = self._get_hook()
+        self._hook.on_kill()
+
+    def _get_hook(self) -> SparkJDBCHook:
+        return SparkJDBCHook(
             spark_app_name=self._spark_app_name,
             spark_conn_id=self._spark_conn_id,
             spark_conf=self._spark_conf,
@@ -213,7 +226,3 @@ class SparkJDBCOperator(SparkSubmitOperator):
             upper_bound=self._upper_bound,
             create_table_column_types=self._create_table_column_types
         )
-        self._hook.submit_jdbc_job()
-
-    def on_kill(self):
-        self._hook.on_kill()

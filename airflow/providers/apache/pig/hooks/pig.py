@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import subprocess
 from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import Any, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -35,14 +35,15 @@ class PigCliHook(BaseHook):
 
     def __init__(
             self,
-            pig_cli_conn_id="pig_cli_default"):
+            pig_cli_conn_id: str = "pig_cli_default") -> None:
         super().__init__()
         conn = self.get_connection(pig_cli_conn_id)
         self.pig_properties = conn.extra_dejson.get('pig_properties', '')
         self.conn = conn
         self.sub_process = None
 
-    def run_cli(self, pig, pig_opts=None, verbose=True):
+    def run_cli(self, pig: str, pig_opts: Optional[str] = None,
+                verbose: bool = True) -> Any:
         """
         Run an pig script using the pig cli
 
@@ -58,7 +59,7 @@ class PigCliHook(BaseHook):
                 f.flush()
                 fname = f.name
                 pig_bin = 'pig'
-                cmd_extra = []
+                cmd_extra: List[str] = []
 
                 pig_cmd = [pig_bin]
 
@@ -73,7 +74,7 @@ class PigCliHook(BaseHook):
 
                 if verbose:
                     self.log.info("%s", " ".join(pig_cmd))
-                sub_process = subprocess.Popen(
+                sub_process: Any = subprocess.Popen(
                     pig_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
@@ -92,11 +93,11 @@ class PigCliHook(BaseHook):
 
                 return stdout
 
-    def kill(self):
+    def kill(self) -> None:
         """
         Kill Pig job
         """
         if self.sub_process:
             if self.sub_process.poll() is None:
-                print("Killing the Pig job")
+                self.log.info("Killing the Pig job")
                 self.sub_process.kill()

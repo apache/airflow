@@ -16,12 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for HDFS operations"""
+from typing import Any, Optional
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 try:
     from snakebite.client import AutoConfigClient, Client, HAClient, Namenode  # pylint: disable=syntax-error
+
     snakebite_loaded = True
 except ImportError:
     snakebite_loaded = False
@@ -43,8 +46,12 @@ class HDFSHook(BaseHook):
     :param autoconfig: use snakebite's automatically configured client
     :type autoconfig: bool
     """
-    def __init__(self, hdfs_conn_id='hdfs_default', proxy_user=None,
-                 autoconfig=False):
+
+    def __init__(self,
+                 hdfs_conn_id: str = 'hdfs_default',
+                 proxy_user: Optional[str] = None,
+                 autoconfig: bool = False
+                 ):
         super().__init__()
         if not snakebite_loaded:
             raise ImportError(
@@ -56,7 +63,7 @@ class HDFSHook(BaseHook):
         self.proxy_user = proxy_user
         self.autoconfig = autoconfig
 
-    def get_conn(self):
+    def get_conn(self) -> Any:
         """
         Returns a snakebite HDFSClient object.
         """

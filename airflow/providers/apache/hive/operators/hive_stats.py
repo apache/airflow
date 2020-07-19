@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import json
 import warnings
 from collections import OrderedDict
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -66,14 +65,16 @@ class HiveStatsCollectionOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  table: str,
-                 partition: str,
-                 extra_exprs: Optional[Dict] = None,
-                 excluded_columns: Optional[List] = None,
-                 assignment_func: Optional[Callable[[str, str], Optional[Dict]]] = None,
+                 partition: Any,
+                 extra_exprs: Optional[Dict[str, Any]] = None,
+                 excluded_columns: Optional[List[str]] = None,
+                 assignment_func: Optional[Callable[[str, str], Optional[Dict[Any, Any]]]] = None,
                  metastore_conn_id: str = 'metastore_default',
                  presto_conn_id: str = 'presto_default',
                  mysql_conn_id: str = 'airflow_db',
-                 *args, **kwargs) -> None:
+                 *args: Tuple[Any, ...],
+                 **kwargs: Any
+                 ) -> None:
         if 'col_blacklist' in kwargs:
             warnings.warn(
                 'col_blacklist kwarg passed to {c} (task_id: {t}) is deprecated, please rename it to '
@@ -87,7 +88,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         self.table = table
         self.partition = partition
         self.extra_exprs = extra_exprs or {}
-        self.excluded_columns = excluded_columns or []  # type: List
+        self.excluded_columns = excluded_columns or []  # type: List[str]
         self.metastore_conn_id = metastore_conn_id
         self.presto_conn_id = presto_conn_id
         self.mysql_conn_id = mysql_conn_id
@@ -95,7 +96,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         self.ds = '{{ ds }}'
         self.dttm = '{{ execution_date.isoformat() }}'
 
-    def get_default_exprs(self, col, col_type):
+    def get_default_exprs(self, col: str, col_type: str) -> Dict[Any, Any]:
         """
         Get default expressions
         """
@@ -116,12 +117,12 @@ class HiveStatsCollectionOperator(BaseOperator):
 
         return exp
 
-    def execute(self, context=None):
+    def execute(self, context: Optional[Dict[str, Any]] = None) -> None:
         metastore = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
         table = metastore.get_table(table_name=self.table)
         field_types = {col.name: col.type for col in table.sd.cols}
 
-        exprs = {
+        exprs: Any = {
             ('', 'count'): 'COUNT(*)'
         }
         for col, col_type in list(field_types.items()):
@@ -138,8 +139,8 @@ class HiveStatsCollectionOperator(BaseOperator):
             v + " AS " + k[0] + '__' + k[1]
             for k, v in exprs.items()])
 
-        where_clause = ["{} = '{}'".format(k, v) for k, v in self.partition.items()]
-        where_clause = " AND\n        ".join(where_clause)
+        where_clause_ = ["{} = '{}'".format(k, v) for k, v in self.partition.items()]
+        where_clause = " AND\n        ".join(where_clause_)
         sql = "SELECT {exprs_str} FROM {table} WHERE {where_clause};".format(
             exprs_str=exprs_str, table=self.table, where_clause=where_clause)
 

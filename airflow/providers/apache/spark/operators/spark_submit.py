@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Any, Dict, List, Optional
+
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.settings import WEB_COLORS
@@ -101,34 +103,34 @@ class SparkSubmitOperator(BaseOperator):
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(self,
-                 application='',
-                 conf=None,
-                 conn_id='spark_default',
-                 files=None,
-                 py_files=None,
-                 archives=None,
-                 driver_class_path=None,
-                 jars=None,
-                 java_class=None,
-                 packages=None,
-                 exclude_packages=None,
-                 repositories=None,
-                 total_executor_cores=None,
-                 executor_cores=None,
-                 executor_memory=None,
-                 driver_memory=None,
-                 keytab=None,
-                 principal=None,
-                 proxy_user=None,
-                 name='airflow-spark',
-                 num_executors=None,
-                 status_poll_interval=1,
-                 application_args=None,
-                 env_vars=None,
-                 verbose=False,
-                 spark_binary=None,
-                 *args,
-                 **kwargs):
+                 application: str = '',
+                 conf: Optional[Dict[str, Any]] = None,
+                 conn_id: str = 'spark_default',
+                 files: Optional[str] = None,
+                 py_files: Optional[str] = None,
+                 archives: Optional[str] = None,
+                 driver_class_path: Optional[str] = None,
+                 jars: Optional[str] = None,
+                 java_class: Optional[str] = None,
+                 packages: Optional[str] = None,
+                 exclude_packages: Optional[str] = None,
+                 repositories: Optional[str] = None,
+                 total_executor_cores: Optional[int] = None,
+                 executor_cores: Optional[int] = None,
+                 executor_memory: Optional[str] = None,
+                 driver_memory: Optional[str] = None,
+                 keytab: Optional[str] = None,
+                 principal: Optional[str] = None,
+                 proxy_user: Optional[str] = None,
+                 name: str = 'arrow-spark',
+                 num_executors: Optional[int] = None,
+                 status_poll_interval: int = 1,
+                 application_args: Optional[List[Any]] = None,
+                 env_vars: Optional[Dict[str, Any]] = None,
+                 verbose: bool = False,
+                 spark_binary: Optional[str] = None,
+                 *args: Any,
+                 **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._application = application
         self._conf = conf
@@ -155,14 +157,24 @@ class SparkSubmitOperator(BaseOperator):
         self._env_vars = env_vars
         self._verbose = verbose
         self._spark_binary = spark_binary
-        self._hook = None
+        self._hook: Optional[SparkSubmitHook] = None
         self._conn_id = conn_id
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, Any]) -> None:
         """
         Call the SparkSubmitHook to run the provided spark job
         """
-        self._hook = SparkSubmitHook(
+        if self._hook is None:
+            self._hook = self._get_hook()
+        self._hook.submit(self._application)
+
+    def on_kill(self) -> None:
+        if self._hook is None:
+            self._hook = self._get_hook()
+        self._hook.on_kill()
+
+    def _get_hook(self) -> SparkSubmitHook:
+        return SparkSubmitHook(
             conf=self._conf,
             conn_id=self._conn_id,
             files=self._files,
@@ -189,7 +201,3 @@ class SparkSubmitOperator(BaseOperator):
             verbose=self._verbose,
             spark_binary=self._spark_binary
         )
-        self._hook.submit(self._application)
-
-    def on_kill(self):
-        self._hook.on_kill()

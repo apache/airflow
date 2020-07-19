@@ -62,10 +62,11 @@ class DiscordWebhookHook(HttpHook):
                  avatar_url: Optional[str] = None,
                  tts: bool = False,
                  proxy: Optional[str] = None,
-                 *args,
-                 **kwargs) -> None:
+                 *args: Any,
+                 **kwargs: Any
+                 ) -> None:
         super().__init__(*args, **kwargs)
-        self.http_conn_id = http_conn_id
+        self.http_conn_id: Any = http_conn_id
         self.webhook_endpoint = self._get_webhook_endpoint(http_conn_id, webhook_endpoint)
         self.message = message
         self.username = username
