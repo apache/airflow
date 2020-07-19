@@ -1,24 +1,26 @@
  .. Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
  ..   http://www.apache.org/licenses/LICENSE-2.0
 
  .. Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+
 
 Apache Cassandra Connection
-=======================
+===========================
 
-The Apache Cassandra connection type enables connection to Apache Cassandra.
+The Apache Cassandra connection type enables connection to `Apache Cassandra <https://cassandra.apache.org/>`__.
 
 Default Connection IDs
 ----------------------
@@ -28,22 +30,22 @@ Cassandra hook and Cassandra operators use ``cassandra_default`` by default.
 Configuring the Connection
 --------------------------
 Host (required)
-    The host to connect to. Hosts can be provided in comma-separated string values.
+    The host to connect to. It is possible to specify multiple hosts as a comma-separated list.
 
 Schema (required)
-    Specify the schema (keyspace) name to be used in the database.
+    The schema (keyspace) name to be used in the database.
 
 Login (required)
-    Specify the user name to connect.
+    The user name to connect.
 
 Password (required)
-    Specify the password to connect.
+    The password to connect.
 
 Port (required)
-    Specify the port to connect.
+    The port to connect.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in cassandra
+    The extra parameters (as json dictionary) that can be used in cassandra
     connection. The following parameters out of the standard python parameters
     are supported:
 
@@ -59,9 +61,9 @@ Examples for the **Extra** field
 
 1. Specifying ``ssl_options``
 
-If SSL is enabled in Cassandra, pass in a dict in the extra field as kwargs for ``ssl.wrap_socket()``. For example::
+If SSL is enabled in Cassandra, pass in a dict in the extra field as kwargs for ``ssl.wrap_socket()``. For example:
 
-.. code-block:: json
+.. code-block:: JSON
 
     {
       "ssl_options" : {
@@ -69,34 +71,37 @@ If SSL is enabled in Cassandra, pass in a dict in the extra field as kwargs for 
       }
     }
 
-
 2. Specifying ``load_balancing_policy`` and ``load_balancing_policy_args``
 
-Default load balancing policy is ``RoundRobinPolicy``. To specify a different LB policy::
+Default load balancing policy is ``RoundRobinPolicy``. Following are a few samples to specify a different LB policy:
 
-* DCAwareRoundRobinPolicy
+DCAwareRoundRobinPolicy:
 
-.. code-block:: json
+.. code-block:: JSON
+
     {
       "load_balancing_policy": "DCAwareRoundRobinPolicy",
       "load_balancing_policy_args": {
         "local_dc": "LOCAL_DC_NAME",
-        "used_hosts_per_remote_dc": "SOME_INT_VALUE",
+        "used_hosts_per_remote_dc": "SOME_INT_VALUE"
       }
     }
 
-* WhiteListRoundRobinPolicy
+WhiteListRoundRobinPolicy:
 
-.. code-block:: json
+.. code-block:: JSON
+
     {
       "load_balancing_policy": "WhiteListRoundRobinPolicy",
       "load_balancing_policy_args": {
         "hosts": ["HOST1", "HOST2", "HOST3"]
       }
     }
-* TokenAwarePolicy
 
-.. code-block:: json
+TokenAwarePolicy:
+
+.. code-block:: JSON
+
     {
       "load_balancing_policy": "TokenAwarePolicy",
       "load_balancing_policy_args": {
