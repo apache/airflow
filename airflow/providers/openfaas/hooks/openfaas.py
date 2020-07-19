@@ -17,6 +17,7 @@
 # under the License.
 
 import requests
+from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -29,7 +30,7 @@ class OpenFaasHook(BaseHook):
     Interact with OpenFaaS to query, deploy, invoke and update function
 
     :param function_name: Name of the function, Defaults to None
-    :type query: str
+    :type function_name: str
     :param conn_id: openfaas connection to use, Defaults to open_faas_default
         for example host : http://openfaas.faas.com, Conn Type : Http
     :type conn_id: str
@@ -41,9 +42,9 @@ class OpenFaasHook(BaseHook):
     UPDATE_FUNCTION = "/system/functions"
 
     def __init__(self,
-                 function_name=None,
-                 conn_id='open_faas_default',
-                 *args, **kwargs):
+                 function_name: Optional[str] = None,
+                 conn_id: str: = 'open_faas_default',
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.function_name = function_name
         self.conn_id = conn_id
@@ -52,7 +53,7 @@ class OpenFaasHook(BaseHook):
         conn = self.get_connection(self.conn_id)
         return conn
 
-    def deploy_function(self, overwrite_function_if_exist, body):
+    def deploy_function(self, overwrite_function_if_exist: bool, body: str) -> None:
         """
         Deploy OpenFaaS function
         """
@@ -70,7 +71,7 @@ class OpenFaasHook(BaseHook):
             else:
                 self.log.info("Function deployed %s", self.function_name)
 
-    def invoke_async_function(self, body):
+    def invoke_async_function(self, body: str) -> None:
         """
         Invoking function
         """
@@ -83,7 +84,7 @@ class OpenFaasHook(BaseHook):
             self.log.error("Response status %d", response.status_code)
             raise AirflowException('failed to invoke function')
 
-    def update_function(self, body):
+    def update_function(self, body: str) -> None:
         """
         Update OpenFaaS function
         """
@@ -97,7 +98,7 @@ class OpenFaasHook(BaseHook):
         else:
             self.log.info("Function was updated")
 
-    def does_function_exist(self):
+    def does_function_exist(self) -> bool:
         """
         Whether OpenFaaS function exists or not
         """
