@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
-
 import requests
 
 from airflow.exceptions import AirflowException
@@ -43,7 +41,7 @@ class OpenFaasHook(BaseHook):
     UPDATE_FUNCTION = "/system/functions"
 
     def __init__(self,
-                 function_name = None,
+                 function_name=None,
                  conn_id: str = 'open_faas_default',
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
