@@ -17,6 +17,6 @@
  under the License.
  -->
 
-This directory should be removed as soon as we release Airflow 1.10.10
+This directory should be removed as soon as we release Airflow 1.10.12
 and sufficient time passes for everyone to switch to new way of retrieving
 constraints.
