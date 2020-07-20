@@ -52,7 +52,7 @@ class OpenFaasHook(BaseHook):
         conn = self.get_connection(self.conn_id)
         return conn
 
-    def deploy_function(self, overwrite_function_if_exist: bool, body: str) -> None:
+    def deploy_function(self, overwrite_function_if_exist: bool, body: Dict[str, Any]) -> None:
         """
         Deploy OpenFaaS function
         """
@@ -70,7 +70,7 @@ class OpenFaasHook(BaseHook):
             else:
                 self.log.info("Function deployed %s", self.function_name)
 
-    def invoke_async_function(self, body: str) -> None:
+    def invoke_async_function(self, body: Dict[str, Any]) -> None:
         """
         Invoking function
         """
@@ -83,7 +83,7 @@ class OpenFaasHook(BaseHook):
             self.log.error("Response status %d", response.status_code)
             raise AirflowException('failed to invoke function')
 
-    def update_function(self, body: str) -> None:
+    def update_function(self, body: Dict[str, Any]) -> None:
         """
         Update OpenFaaS function
         """
