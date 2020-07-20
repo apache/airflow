@@ -26,6 +26,11 @@ an alternative secrets backend to retrieve Airflow connections or Airflow variab
 such as :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`,
 :ref:`Hashicorp Vault Secrets<hashicorp_vault_secrets>` or you can :ref:`roll your own <roll_your_own_secrets_backend>`.
 
+.. note::
+
+    The Airflow UI only shows connections and variables stored in the Metadata DB and not via any other method.
+    If you use an alternative secrets backend, check inside your backend to view the values of your variables and connections.
+
 Search path
 ^^^^^^^^^^^
 When looking up a connection/variable, by default Airflow will search environment variables first and metastore
