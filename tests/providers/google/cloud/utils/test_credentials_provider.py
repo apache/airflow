@@ -28,8 +28,8 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import (
-    _DEFAULT_SCOPES, AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, _get_scopes, build_gcp_conn,
-    get_credentials_and_project_id, provide_gcp_conn_and_credentials, provide_gcp_connection,
+    _DEFAULT_SCOPES, AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, _get_scopes, _get_target_principal_and_delegates,
+    build_gcp_conn, get_credentials_and_project_id, provide_gcp_conn_and_credentials, provide_gcp_connection,
     provide_gcp_credentials,
 )
 
@@ -171,6 +171,69 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         mock_auth_default.assert_called_once_with(scopes=scopes)
         self.assertEqual(mock_auth_default.return_value, result)
 
+    @mock.patch('airflow.providers.google.cloud.utils.credentials_provider.'
+                'impersonated_credentials.Credentials')
+    @mock.patch('google.auth.default')
+    def test_get_credentials_and_project_id_with_default_auth_and_target_principal(
+        self, mock_auth_default, mock_impersonated_credentials
+    ):
+        mock_credentials = mock.MagicMock()
+        mock_auth_default.return_value = (mock_credentials, self.test_project_id)
+
+        result = get_credentials_and_project_id(target_principal="ACCOUNT_1")
+        mock_auth_default.assert_called_once_with(scopes=None)
+        mock_impersonated_credentials.assert_called_once_with(
+            source_credentials=mock_credentials,
+            target_principal="ACCOUNT_1",
+            delegates=None,
+            target_scopes=None,
+        )
+        self.assertEqual((mock_impersonated_credentials.return_value, self.test_project_id), result)
+
+    @mock.patch('airflow.providers.google.cloud.utils.credentials_provider.'
+                'impersonated_credentials.Credentials')
+    @mock.patch('google.auth.default')
+    def test_get_credentials_and_project_id_with_default_auth_and_scopes_and_target_principal(
+        self, mock_auth_default, mock_impersonated_credentials
+    ):
+        mock_credentials = mock.MagicMock()
+        mock_auth_default.return_value = (mock_credentials, self.test_project_id)
+
+        result = get_credentials_and_project_id(
+            scopes=['scope1', 'scope2'],
+            target_principal="ACCOUNT_1",
+        )
+        mock_auth_default.assert_called_once_with(scopes=['scope1', 'scope2'])
+        mock_impersonated_credentials.assert_called_once_with(
+            source_credentials=mock_credentials,
+            target_principal="ACCOUNT_1",
+            delegates=None,
+            target_scopes=['scope1', 'scope2'],
+        )
+        self.assertEqual((mock_impersonated_credentials.return_value, self.test_project_id), result)
+
+    @mock.patch('airflow.providers.google.cloud.utils.credentials_provider.'
+                'impersonated_credentials.Credentials')
+    @mock.patch('google.auth.default')
+    def test_get_credentials_and_project_id_with_default_auth_and_target_principal_and_delegates(
+        self, mock_auth_default, mock_impersonated_credentials
+    ):
+        mock_credentials = mock.MagicMock()
+        mock_auth_default.return_value = (mock_credentials, self.test_project_id)
+
+        result = get_credentials_and_project_id(
+            target_principal="ACCOUNT_3",
+            delegates=["ACCOUNT_1", "ACCOUNT_2"],
+        )
+        mock_auth_default.assert_called_once_with(scopes=None)
+        mock_impersonated_credentials.assert_called_once_with(
+            source_credentials=mock_credentials,
+            target_principal="ACCOUNT_3",
+            delegates=["ACCOUNT_1", "ACCOUNT_2"],
+            target_scopes=None,
+        )
+        self.assertEqual((mock_impersonated_credentials.return_value, self.test_project_id), result)
+
     @mock.patch(
         'google.oauth2.service_account.Credentials.from_service_account_file',
     )
@@ -256,3 +319,24 @@ class TestGetScopes(unittest.TestCase):
     ])
     def test_get_scopes_with_input(self, _, scopes_str, scopes):
         self.assertEqual(_get_scopes(scopes_str), scopes)
+
+
+class TestGetTargetPrincipalAndDelegates(unittest.TestCase):
+
+    def test_get_target_principal_and_delegates_no_argument(self):
+        self.assertEqual(_get_target_principal_and_delegates(), (None, None))
+
+    @parameterized.expand([
+        ('string', "ACCOUNT_1", ("ACCOUNT_1", None)),
+        ('empty_list', [], (None, None)),
+        ('single_element_list', ["ACCOUNT_1"], ("ACCOUNT_1", [])),
+        ('multiple_elements_list',
+         ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"], ("ACCOUNT_3", ["ACCOUNT_1", "ACCOUNT_2"])),
+    ])
+    def test_get_target_principal_and_delegates_with_input(
+        self, _, impersonation_chain, target_principal_and_delegates
+    ):
+        self.assertEqual(
+            _get_target_principal_and_delegates(impersonation_chain),
+            target_principal_and_delegates
+        )

@@ -21,7 +21,7 @@ This module contains GCP Stackdriver operators.
 """
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence, Union
 
 from google.api_core.exceptions import InvalidArgument
 from google.api_core.gapic_v1.method import DEFAULT
@@ -38,8 +38,17 @@ class StackdriverHook(GoogleBaseHook):
     Stackdriver Hook for connecting with GCP Stackdriver
     """
 
-    def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
-        super().__init__(gcp_conn_id, delegate_to)
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self._policy_client = None
         self._channel_client = None
 

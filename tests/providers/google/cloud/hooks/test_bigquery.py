@@ -84,7 +84,11 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
                           "You should pass the gcp_conn_id parameter."
         with self.assertWarns(DeprecationWarning) as warn:
             BigQueryHook(bigquery_conn_id=bigquery_conn_id)
-            mock_base_hook_init.assert_called_once_with(delegate_to=None, gcp_conn_id='bigquery conn id')
+            mock_base_hook_init.assert_called_once_with(
+                delegate_to=None,
+                gcp_conn_id='bigquery conn id',
+                impersonation_chain=None,
+            )
         self.assertEqual(warning_message, str(warn.warning))
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")

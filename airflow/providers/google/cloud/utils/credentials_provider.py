@@ -23,12 +23,13 @@ import json
 import logging
 import tempfile
 from contextlib import ExitStack, contextmanager
-from typing import Collection, Dict, Optional, Sequence, Tuple
+from typing import Collection, Dict, Optional, Sequence, Tuple, Union
 from urllib.parse import urlencode
 
 import google.auth
 import google.auth.credentials
 import google.oauth2.service_account
+from google.auth import impersonated_credentials
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 from airflow.exceptions import AirflowException
@@ -191,12 +192,22 @@ class _CredentialProvider(LoggingMixin):
     :type keyfile_dict: Dict[str, str]
     :param scopes:  OAuth scopes for the connection
     :type scopes: Collection[str]
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
     :param disable_logging: If true, disable all log messages, which allows you to use this
         class to configure Logger.
+    :param target_principal: The service account to directly impersonate using short-term
+        credentials, if any. For this to work, the target_principal account must grant
+        the originating account the Service Account Token Creator IAM role.
+    :type target_principal: str
+    :param delegates: optional chained list of accounts required to get the access_token of
+        target_principal. If set, the sequence of identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account and target_principal
+        granting the role to the last account from the list.
+    :type delegates: Sequence[str]
     """
     def __init__(
         self,
@@ -205,7 +216,9 @@ class _CredentialProvider(LoggingMixin):
         # See: https://github.com/PyCQA/pylint/issues/2377
         scopes: Optional[Collection[str]] = None,  # pylint: disable=unsubscriptable-object
         delegate_to: Optional[str] = None,
-        disable_logging: bool = False
+        disable_logging: bool = False,
+        target_principal: Optional[str] = None,
+        delegates: Optional[Sequence[str]] = None,
     ):
         super().__init__()
         if key_path and keyfile_dict:
@@ -218,6 +231,8 @@ class _CredentialProvider(LoggingMixin):
         self.scopes = scopes
         self.delegate_to = delegate_to
         self.disable_logging = disable_logging
+        self.target_principal = target_principal
+        self.delegates = delegates
 
     def get_credentials_and_project(self):
         """
@@ -242,6 +257,14 @@ class _CredentialProvider(LoggingMixin):
                     "authentication method does not support account impersonate. "
                     "Please use service-account for authorization."
                 )
+
+        if self.target_principal:
+            credentials = impersonated_credentials.Credentials(
+                source_credentials=credentials,
+                target_principal=self.target_principal,
+                delegates=self.delegates,
+                target_scopes=self.scopes
+            )
 
         return credentials, project_id
 
@@ -311,3 +334,27 @@ def _get_scopes(scopes: Optional[str] = None) -> Sequence[str]:
     """
     return [s.strip() for s in scopes.split(',')] \
         if scopes else _DEFAULT_SCOPES
+
+
+def _get_target_principal_and_delegates(
+    impersonation_chain: Optional[Union[str, Sequence[str]]] = None
+) -> Tuple[Optional[str], Optional[Sequence[str]]]:
+    """
+    Analyze contents of impersonation_chain and return target_principal (the service account
+    to directly impersonate using short-term credentials, if any) and optional list of delegates
+    required to get the access_token of target_principal.
+
+    :param impersonation_chain: the service account to impersonate or a chained list leading to this
+        account
+    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
+
+    :return: Returns the tuple of target_principal and delegates
+    :rtype: Tuple[Optional[str], Optional[Sequence[str]]]
+    """
+    if not impersonation_chain:
+        return None, None
+
+    if isinstance(impersonation_chain, str):
+        return impersonation_chain, None
+
+    return impersonation_chain[-1], impersonation_chain[:-1]
