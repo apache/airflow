@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Any, Dict
+
 import requests
 
 from airflow.exceptions import AirflowException
