@@ -129,7 +129,7 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
             if self.allow_delete:
                 self.previous_objects = current_objects
                 self.last_activity_time = datetime.now()
-                self.log.warning(
+                self.log.info(
                     """
                     Objects were deleted during the last
                     poke interval. Updating the file counter and
