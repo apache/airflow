@@ -1475,11 +1475,12 @@ arguments, please change `store_serialized_dags` to `read_dags_from_db`.
 Similarly, if you were using `DagBag().store_serialized_dags` property, change it to
 `DagBag().read_dags_from_db`.
 
-### TimeSensor will consider default_timezone setting.
+### TimeSensor is now timezone aware
 
 Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
 
-Now it will compare `target_time` with the current time in the timezone set by `default_timezone` under the `core` section of the config.
+Now it will compare `target_time` with the current time in the timezone of the DAG,
+defaulting to the `default_timezone` in the global config.
 
 
 ## Airflow 1.10.11
