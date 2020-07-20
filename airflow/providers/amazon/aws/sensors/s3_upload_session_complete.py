@@ -20,6 +20,8 @@ import os
 from datetime import datetime
 from typing import Optional, Set, Union
 
+from cached_property import cached_property
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator, poke_mode_only
@@ -96,12 +98,13 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.last_activity_time: Optional[datetime] = None
-        self.hook = None
 
-    def _get_aws_hook(self):
-        if not self.hook:
-            self.hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        return self.hook
+    @cached_property
+    def hook(self):
+        """
+        Returns S3Hook.
+        """
+        return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
     def is_bucket_updated(self, current_objects: Set[str]) -> bool:
         """
@@ -127,12 +130,13 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
         if self.previous_objects - current_objects:
             # During the last poke interval objects were deleted.
             if self.allow_delete:
+                deleted_objects = self.previous_objects - current_objects
                 self.previous_objects = current_objects
                 self.last_activity_time = datetime.now()
                 self.log.info(
-                    "Objects were deleted during the last poke interval. Updating the file counter and resetting "
-                    "last_activity_time:\n    %s",
-                    self.previous_objects - current_objects
+                    "Objects were deleted during the last poke interval. Updating the file counter and "
+                    "resetting last_activity_time:\n    %s",
+                    deleted_objects
                 )
                 return False
 
@@ -165,4 +169,4 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
         return False
 
     def poke(self, context):
-        return self.is_bucket_updated(set(self._get_aws_hook().list_keys(self.bucket, prefix=self.prefix)))
+        return self.is_bucket_updated(set(self.hook.list_keys(self.bucket, prefix=self.prefix)))
