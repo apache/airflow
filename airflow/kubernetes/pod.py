@@ -24,7 +24,6 @@ import kubernetes.client.models as k8s
 
 from airflow.kubernetes.k8s_model import K8SModel
 
-
 class Resources(K8SModel):
     __slots__ = ('request_memory', 'request_cpu', 'limit_memory', 'limit_cpu', 'limit_gpu')
 
@@ -44,15 +43,17 @@ class Resources(K8SModel):
     :param limit_ephemeral_storage: Limit for ephemeral storage
     :type limit_ephemeral_storage: float | str
     """
+
     def __init__(
-            self,
-            request_memory=None,
-            request_cpu=None,
-            request_ephemeral_storage=None,
-            limit_memory=None,
-            limit_cpu=None,
-            limit_gpu=None,
-            limit_ephemeral_storage=None):
+        self,
+        request_memory=None,
+        request_cpu=None,
+        request_ephemeral_storage=None,
+        limit_memory=None,
+        limit_cpu=None,
+        limit_gpu=None,
+        limit_ephemeral_storage=None
+    ):
         self.request_memory = request_memory
         self.request_cpu = request_cpu
         self.request_ephemeral_storage = request_ephemeral_storage
@@ -104,9 +105,10 @@ class Port(K8SModel):
     __slots__ = ('name', 'container_port')
 
     def __init__(
-            self,
-            name=None,
-            container_port=None):
+        self,
+        name=None,
+        container_port=None
+    ):
         """Creates port"""
         self.name = name
         self.container_port = container_port
@@ -120,3 +122,4 @@ class Port(K8SModel):
         cp_pod.spec.containers[0].ports = cp_pod.spec.containers[0].ports or []
         cp_pod.spec.containers[0].ports.append(port)
         return cp_pod
+

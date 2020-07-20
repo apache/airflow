@@ -30,6 +30,7 @@ from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+import kubernetes.client.models as k8s  # noqa
 from .kube_client import get_kube_client
 
 
@@ -62,8 +63,21 @@ class PodLauncher(LoggingMixin):
         self.extract_xcom = extract_xcom
 
     def run_pod_async(self, pod, **kwargs):
-        """Runs POD asynchronously"""
-        pod_mutation_hook(pod)
+        """Runs POD asynchronously
+
+        :param pod:
+        :type pod: k8s.V1Pod
+        """
+        try:
+            from airflow.kubernetes_deprecated.pod import Pod
+            from airflow.kubernetes.pod_generator import PodGenerator
+            dummy_pod = Pod(image=pod.spec.containers[0]['image'], envs={}, cmds=[])
+            pod_mutation_hook(dummy_pod)
+            dummy_pod = dummy_pod.to_v1_kubernetes_pod()
+            PodGenerator.reconcile_pods(pod, dummy_pod)
+        except AttributeError:
+            pod_mutation_hook(pod)
+
 
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
