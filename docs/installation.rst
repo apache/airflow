@@ -30,33 +30,40 @@ our dependencies as open as possible (in ``setup.py``) so users can install diff
 if needed. This means that from time to time plain ``pip install apache-airflow`` will not work or will
 produce unusable Airflow installation.
 
-In order to have repeatable installation, however, starting from **Airflow 1.10.10** we also keep a set of
-"known-to-be-working" requirement files in the ``requirements`` folder. Those "known-to-be-working"
-requirements are per major/minor python version (3.6/3.7). You can use them as constraint
+In order to have repeatable installation, however, starting from **Airflow 1.10.10** and updated in
+**Airflow 1.10.12** we also keep a set of "known-to-be-working" constraint files in the
+``constraints-master`` and ``constraints-1-10`` orphan branches.
+Those "known-to-be-working" constraints are per major/minor python version. You can use them as constraint
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
 and python versions in the URL.
+
+
+  **Prerequisites**
+
+  On Debian based Linux OS:
+
+  .. code-block:: bash
+
+      sudo apt-get update
+      sudo apt-get install build-essential
+
 
 1. Installing just airflow
 
 .. code-block:: bash
 
     pip install \
-     apache-airflow==1.10.10 \
-     --constraint \
-            https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+     apache-airflow==1.10.12 \
+     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 
-
-You need certain system level requirements in order to install Airflow. Those are requirements that are known
-to be needed for Linux system (Tested on Ubuntu Buster LTS) :
 
 2. Installing with extras (for example postgres, gcp)
 
 .. code-block:: bash
 
     pip install \
-     apache-airflow[postgres,gcp]==1.10.10 \
-     --constraint \
-            https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+     apache-airflow[postgres,gcp]==1.10.12 \
+     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 
 
 You need certain system level requirements in order to install Airflow. Those are requirements that are known
