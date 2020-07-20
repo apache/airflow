@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Serialzed DAG table in database."""
+"""Serialized DAG table in database."""
 
 import logging
 from datetime import timedelta
@@ -25,6 +25,7 @@ from typing import Any, Optional
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, String, and_
+from sqlalchemy.orm import Session  # noqa: F401
 from sqlalchemy.sql import exists
 
 from airflow.models.base import ID_LEN, Base
@@ -86,12 +87,13 @@ class SerializedDagModel(Base):
                   min_update_interval=None,   # type: Optional[int]
                   session=None):
         """Serializes a DAG and writes it into database.
+        If the record already exists, it checks if the Serialized DAG changed or not. If it is
+        changed, it updates the record, ignores otherwise.
 
         :param dag: a DAG to be written into database
         :param min_update_interval: minimal interval in seconds to update serialized DAG
         :param session: ORM Session
         """
-        log.debug("Writing DAG: %s to the DB", dag)
         # Checks if (Current Time - Time when the DAG was written to DB) < min_update_interval
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
@@ -102,8 +104,15 @@ class SerializedDagModel(Base):
             ).scalar():
                 return
 
-        log.debug("Writing DAG: %s to the DB", dag.dag_id)
-        session.merge(cls(dag))
+        log.debug("Checking if DAG (%s) changed", dag.dag_id)
+        serialized_dag_from_db = session.query(cls).get(dag.dag_id)    # type: SerializedDagModel
+        new_serialized_dag = cls(dag)
+        if serialized_dag_from_db and (serialized_dag_from_db.data == new_serialized_dag.data):
+            log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
+            return
+
+        log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
+        session.merge(new_serialized_dag)
         log.debug("DAG: %s written to the DB", dag.dag_id)
 
     @classmethod
@@ -112,6 +121,7 @@ class SerializedDagModel(Base):
         """Reads all DAGs in serialized_dag table.
 
         :param session: ORM Session
+        :type session: Session
         :returns: a dict of DAGs read from database
         """
         serialized_dags = session.query(cls)
@@ -148,6 +158,7 @@ class SerializedDagModel(Base):
         :param dag_id: dag_id to be deleted
         :type dag_id: str
         :param session: ORM Session
+        :type session: Session
         """
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
@@ -159,6 +170,7 @@ class SerializedDagModel(Base):
         :param alive_dag_filelocs: file paths of alive DAGs
         :type alive_dag_filelocs: list
         :param session: ORM Session
+        :type session: Session
         """
         alive_fileloc_hashes = [
             DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
@@ -179,6 +191,7 @@ class SerializedDagModel(Base):
         :param dag_id: the DAG to check
         :type dag_id: str
         :param session: ORM Session
+        :type session: Session
         :rtype: bool
         """
         return session.query(exists().where(cls.dag_id == dag_id)).scalar()
@@ -193,6 +206,7 @@ class SerializedDagModel(Base):
 
         :param dag_id: the DAG to fetch
         :param session: ORM Session
+        :type session: Session
         """
         from airflow.models.dag import DagModel
         row = session.query(cls).filter(cls.dag_id == dag_id).one_or_none()
