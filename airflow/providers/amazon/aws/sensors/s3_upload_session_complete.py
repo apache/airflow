@@ -130,12 +130,9 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
                 self.previous_objects = current_objects
                 self.last_activity_time = datetime.now()
                 self.log.info(
-                    """
-                    Objects were deleted during the last
-                    poke interval. Updating the file counter and
-                    resetting last_activity_time.
-                    %s
-                    """, self.previous_objects - current_objects
+                    "Objects were deleted during the last poke interval. Updating the file counter and resetting "
+                    "last_activity_time:\n    %s",
+                    self.previous_objects - current_objects
                 )
                 return False
 
