@@ -106,7 +106,7 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
         """
         return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
-    def is_bucket_updated(self, current_objects: Set[str]) -> bool:
+    def is_upload_session_complete(self, current_objects: Set[str]) -> bool:
         """
         Checks whether new objects have been uploaded and the inactivity_period
         has passed and updates the state of the sensor accordingly.
@@ -169,4 +169,4 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
         return False
 
     def poke(self, context):
-        return self.is_bucket_updated(set(self.hook.list_keys(self.bucket, prefix=self.prefix)))
+        return self.is_upload_session_complete(set(self.hook.list_keys(self.bucket, prefix=self.prefix)))

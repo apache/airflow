@@ -63,9 +63,9 @@ class TestS3UploadSessionCompleteSensor(TestCase):
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_files_deleted_between_pokes_throw_error(self):
-        self.sensor.is_bucket_updated({'a', 'b'})
+        self.sensor.is_upload_session_complete({'a', 'b'})
         with self.assertRaises(AirflowException):
-            self.sensor.is_bucket_updated({'a'})
+            self.sensor.is_upload_session_complete({'a'})
 
     @freeze_time(DEFAULT_DATE)
     def test_files_deleted_between_pokes_allow_delete(self):
@@ -79,42 +79,42 @@ class TestS3UploadSessionCompleteSensor(TestCase):
             allow_delete=True,
             dag=self.dag
         )
-        self.sensor.is_bucket_updated({'a', 'b'})
+        self.sensor.is_upload_session_complete({'a', 'b'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated({'a'})
+        self.sensor.is_upload_session_complete({'a'})
         self.assertEqual(len(self.sensor.previous_objects), 1)
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated({'a', 'c'})
+        self.sensor.is_upload_session_complete({'a', 'c'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_incoming_data(self):
-        self.sensor.is_bucket_updated({'a'})
+        self.sensor.is_upload_session_complete({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated({'a', 'b'})
+        self.sensor.is_upload_session_complete({'a', 'b'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated({'a', 'b', 'c'})
+        self.sensor.is_upload_session_complete({'a', 'b', 'c'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_no_new_data(self):
-        self.sensor.is_bucket_updated({'a'})
+        self.sensor.is_upload_session_complete({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated({'a'})
+        self.sensor.is_upload_session_complete({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_no_new_data_success_criteria(self):
-        self.sensor.is_bucket_updated({'a'})
+        self.sensor.is_upload_session_complete({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated({'a'})
+        self.sensor.is_upload_session_complete({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertTrue(self.sensor.is_bucket_updated({'a'}))
+        self.assertTrue(self.sensor.is_upload_session_complete({'a'}))
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_not_enough_objects(self):
-        self.sensor.is_bucket_updated(set())
+        self.sensor.is_upload_session_complete(set())
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_bucket_updated(set())
+        self.sensor.is_upload_session_complete(set())
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertFalse(self.sensor.is_bucket_updated(set()))
+        self.assertFalse(self.sensor.is_upload_session_complete(set()))
