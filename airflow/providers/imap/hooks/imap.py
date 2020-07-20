@@ -24,7 +24,7 @@ import email
 import imaplib
 import os
 import re
-from typing import Tuple, List, Any, Iterable
+from typing import Any, Iterable, List, Tuple
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -42,7 +42,7 @@ class ImapHook(BaseHook):
     :type imap_conn_id: str
     """
 
-    def __init__(self, imap_conn_id: str = 'imap_default'):
+    def __init__(self, imap_conn_id: str = 'imap_default') -> None:
         super().__init__()
         self.imap_conn_id = imap_conn_id
         self.mail_client = None
@@ -226,7 +226,7 @@ class ImapHook(BaseHook):
         mail_body_str = mail_body.decode('utf-8')
         return mail_body_str
 
-    def _check_mail_body(self, response_mail_body: str, name: str, check_regex: bool, latest_only: bool) -> List[Tuple]:
+    def _check_mail_body(self, response_mail_body: str, name: str, check_regex: bool, latest_only: bool) -> List[Tuple[Any, Any]]:
         mail = Mail(response_mail_body)
         if mail.has_attachments():
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
@@ -268,7 +268,7 @@ class Mail(LoggingMixin):
     :type mail_body: str
     """
 
-    def __init__(self, mail_body: str):
+    def __init__(self, mail_body: str) -> None:
         super().__init__()
         self.mail = email.message_from_string(mail_body)
 
@@ -281,7 +281,7 @@ class Mail(LoggingMixin):
         """
         return self.mail.get_content_maintype() == 'multipart'
 
-    def get_attachments_by_name(self, name: str, check_regex: bool, find_first: bool = False) -> List[Tuple]:
+    def get_attachments_by_name(self, name: str, check_regex: bool, find_first: bool = False) -> List[Tuple[Any, Any]]:
         """
         Gets all attachments by name for the mail.
 
@@ -324,7 +324,7 @@ class MailPart:
     :type part: any
     """
 
-    def __init__(self, part: Any):
+    def __init__(self, part: Any) -> None:
         self.part = part
 
     def is_attachment(self) -> bool:
@@ -336,7 +336,7 @@ class MailPart:
         """
         return self.part.get_content_maintype() != 'multipart' and self.part.get('Content-Disposition')
 
-    def has_matching_name(self, name: str) -> Tuple:
+    def has_matching_name(self, name: str):
         """
         Checks if the given name matches the part's name.
 
