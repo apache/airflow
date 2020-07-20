@@ -92,25 +92,23 @@ parameter to Breeze:
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.7 --extras=gcp --production-image --install-airflow-version=1.10.9
+  ./breeze build-image --python 3.7 --extras=gcp --production-image --install-airflow-version=1.10.12
 
 This will build the image using command similar to:
 
 .. code-block:: bash
 
-    pip install apache-airflow[sendgrid]==1.10.9 \
-       --constraint https://raw.githubusercontent.com/apache/airflow/v1-10-test/requirements/requirements-python3.7.txt
-
-The requirement files only appeared in version 1.10.10 of airflow so if you install
-an earlier version -  both constraint and requirements should point to 1.10.10 version.
+    pip install apache-airflow[sendgrid]==1.10.12 \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
 
 You can also build production images from specific Git version via providing ``--install-airflow-reference``
-parameter to Breeze:
+parameter to Breeze (this time constraints are taken from the ``constraints-master`` branch which is the
+HEAD of development for constraints):
 
 .. code-block:: bash
 
-    pip install https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow \
-       --constraint https://raw.githubusercontent.com/apache/airflow/<tag>/requirements/requirements-python3.7.txt
+    pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow" \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 Using cache during builds
 =========================
@@ -381,23 +379,19 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_VERSION``                      | ``2.0.0.dev0``                           | version of Airflow                       |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_ORG``                          | ``apache``                               | Github organisation from which Airflow   |
-|                                          |                                          | is installed (when installed from repo)  |
-+------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_REPO``                         | ``apache/airflow``                       | the repository from which PIP            |
 |                                          |                                          | dependencies are pre-installed           |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_BRANCH``                       | ``master``                               | the branch from which PIP dependencies   |
-|                                          |                                          | are pre-installed                        |
+|                                          |                                          | are pre-installed initially              |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_GIT_REFERENCE``                | ``master``                               | reference (branch or tag) from Github    |
-|                                          |                                          | repository from which Airflow is         |
-|                                          |                                          | installed (when installed from repo)     |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``REQUIREMENTS_GIT_REFERENCE``           | ``master``                               | reference (branch or tag) from Github    |
-|                                          |                                          | repository from which requirements are   |
-|                                          |                                          | downloaded for constraints (when         |
-|                                          |                                          | installed from repo).                    |
+| ``AIRFLOW_CONSTRAINTS_REFERENCE``        | ``constraints-master``                   | reference (branch or tag) from Github    |
+|                                          |                                          | repository from which constraints are    |
+|                                          |                                          | used. By default it is set to            |
+|                                          |                                          | ``constraints-master`` but can be        |
+|                                          |                                          | ``constraints-1-10`` for 1.10.* versions |
+|                                          |                                          | or it could point to specific version    |
+|                                          |                                          | for example ``constraints-1.10.12``      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed                                |
@@ -462,10 +456,14 @@ production image. There are three types of build:
 |                                   | set Airflow version for example   |
 |                                   | "==1.10.10"                       |
 +-----------------------------------+-----------------------------------+
-| ``CONSTRAINT_REQUIREMENTS``       | Should point to requirements file |
-|                                   | in case of installation from      |
-|                                   | the package or from GitHub URL.   |
-|                                   | See examples below                |
+| ``AIRFLOW_CONSTRAINTS_REFERENCE`` | reference (branch or tag) from    |
+|                                   | Github where constraints file     |
+|                                   | is taken from. By default it is   |
+|                                   | ``constraints-master`` but can be |
+|                                   | ``constraints-1-10`` for 1.10.*   |
+|                                   | constraint or if you want to      |
+|                                   | point to specific varsion         |
+|                                   | ``constraints-1.10.12             |
 +-----------------------------------+-----------------------------------+
 | ``AIRFLOW_WWW``                   | In case of Airflow 2.0 it should  |
 |                                   | be "www", in case of Airflow 1.10 |
@@ -495,24 +493,22 @@ of 2.0 currently):
 
   docker build .
 
-This builds the production image in version 3.7 with default extras from 1.10.9 tag and
-requirements taken from v1-10-test branch in Github.
-Note that versions 1.10.9 and below have no requirements so requirements should be taken from head of
-the 1.10.10 tag.
+This builds the production image in version 3.7 with default extras from 1.10.12 tag and
+constraints taken from constraints-1-10-12 branch in Github.
 
 .. code-block:: bash
 
   docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALL_SOURCES="https://github.com/apache/airflow/archive/1.10.10.tar.gz#egg=apache-airflow" \
-    --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt" \
+    --build-arg AIRFLOW_INSTALL_SOURCES="https://github.com/apache/airflow/archive/1.10.12.tar.gz#egg=apache-airflow" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty"
 
-This builds the production image in version 3.7 with default extras from 1.10.10 Pypi package and
-requirements taken from 1.10.10 tag in Github and pre-installed pip dependencies from the top
+This builds the production image in version 3.7 with default extras from 1.10.12 Pypi package and
+constraints taken from 1.10.12 tag in Github and pre-installed pip dependencies from the top
 of v1-10-test branch.
 
 .. code-block:: bash
@@ -521,15 +517,14 @@ of v1-10-test branch.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.10" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.12" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
-    --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.12" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty"
 
 This builds the production image in version 3.7 with additional airflow extras from 1.10.10 Pypi package and
-additional python dependencies and pre-installed pip dependencies from the top
-of v1-10-test branch.
+additional python dependencies and pre-installed pip dependencies from 1.10.10 tagged constraints.
 
 .. code-block:: bash
 
@@ -539,7 +534,7 @@ of v1-10-test branch.
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
     --build-arg AIRFLOW_INSTALL_VERSION="==1.10.10" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
-    --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs"
@@ -554,8 +549,8 @@ additional apt dev and runtime dependencies.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
     --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.10" \
-    --build-arg CONSTRAINT_REQUIREMENTS="https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.12" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc"

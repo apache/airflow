@@ -161,9 +161,9 @@ function initialize_common_environment {
         done
     fi
 
-    # By default we are not upgrading to latest requirements when building Docker CI image
+    # By default we are not upgrading to latest version of constraints when building Docker CI image
     # This will only be done in cron jobs
-    export UPGRADE_TO_LATEST_REQUIREMENTS=${UPGRADE_TO_LATEST_REQUIREMENTS:="false"}
+    export UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS:="false"}
 
     # In case of MacOS we need to use gstat - gnu version of the stats
     export STAT_BIN=stat
@@ -178,21 +178,11 @@ function initialize_common_environment {
     # default version of python used to tag the "master" and "latest" images in DockerHub
     export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.6
 
-    # In case we are not in CI - we assume we run locally. There are subtle changes if you run
-    # CI scripts locally - for example requirements are eagerly updated if you do local run
-    # in generate requirements
+    # In case we are not in CI - we assume we run locally.
     if [[ ${CI:="false"} == "true" ]]; then
         export LOCAL_RUN="false"
     else
         export LOCAL_RUN="true"
-    fi
-
-    # eager upgrade while generating requirements should only happen in locally run
-    # pre-commits or in cron job
-    if [[ ${LOCAL_RUN} == "true" ]]; then
-        export UPGRADE_WHILE_GENERATING_REQUIREMENTS="true"
-    else
-        export UPGRADE_WHILE_GENERATING_REQUIREMENTS=${UPGRADE_WHILE_GENERATING_REQUIREMENTS:="false"}
     fi
 
     # Default extras used for building CI image

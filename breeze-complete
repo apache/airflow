@@ -131,7 +131,7 @@ build-docs
 build-image
 cleanup-image
 exec
-generate-requirements
+generate-constraints
 push-image
 initialize-local-virtualenv
 setup-autocomplete

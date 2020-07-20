@@ -186,7 +186,8 @@ function initialize_virtualenv() {
         echo
         pushd "${AIRFLOW_SOURCES}"
         set +e
-        pip install -e ".[devel]" --constraint "requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        pip install -e ".[devel]" \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
         RES=$?
         set -e
         popd
@@ -863,13 +864,12 @@ function parse_arguments() {
           fi
           COMMAND_TO_RUN="run_docker_compose"
           ;;
-        generate-requirements)
+        generate-constraints)
           LAST_SUBCOMMAND="${1}"
-          COMMAND_TO_RUN="perform_generate_requirements"
-          # if you want to  generate requirement - you want to build the image too :)
+          COMMAND_TO_RUN="perform_generate_constraints"
           export FORCE_ANSWER_TO_QUESTIONS="yes"
-          # and assume you want to build it no matter if it is needed
           export FORCE_BUILD_IMAGES="true"
+          export UPGRADE_TO_LATEST_CONSTRAINTS="true"
           shift ;;
         prepare-backport-packages)
           LAST_SUBCOMMAND="${1}"
@@ -1060,7 +1060,7 @@ function prepare_usage() {
     export USAGE_CLEANUP_IMAGE="Cleans up the container image created"
     export USAGE_DOCKER_COMPOSE="Executes specified docker-compose command"
     export USAGE_FLAGS="Shows all breeze's flags"
-    export USAGE_GENERATE_REQUIREMENTS="Generates pinned requirements for pip dependencies"
+    export USAGE_GENERATE_CONSTRAINTS="Generates pinned constraint files"
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
     export USAGE_PREPARE_BACKPORT_README="Prepares backport packages readme files"
     export USAGE_PREPARE_BACKPORT_PACKAGES="Prepares backport packages"
@@ -1213,27 +1213,29 @@ $(flag_verbosity)
 "
     # shellcheck disable=SC2090
     export DETAILED_USAGE_PREPARE_BACKPORT_README
-    DETAILED_USAGE_GENERATE_REQUIREMENTS="
-${CMDNAME} generate-requirements [FLAGS]
+    DETAILED_USAGE_GENERATE_CONSTRAINTS="
+${CMDNAME} generate-constraints [FLAGS]
 
-      Generates pinned requirements from setup.py. Those requirements are generated in requirements
-      directory - separately for different python version. Those requirements are used to run
-      CI builds as well as run repeatable production image builds. You can use those requirements
-      to predictably install released Airflow versions. You should run it always after you update
-      setup.py.
+      Generates pinned constraint files from setup.py. Those files are generated in files folder
+      - separate files for different python version. Those constraint files when pushed to orphan
+      constraint-master and constraint-1-10 branches are used to generate repeatable
+      CI builds as well as run repeatable production image builds. You can use those constraints
+      to predictably install released Airflow versions. This is mainly used to test the constraint
+      generation - constraints are pushed to the orphan branches by a successful scheduled
+      CRON job in CI automatically.
 
 Flags:
 $(flag_airflow_variants)
 $(flag_verbosity)
 "
     # shellcheck disable=SC2090
-    export DETAILED_USAGE_GENERATE_REQUIREMENTS
+    export DETAILED_USAGE_GENERATE_CONSTRAINTS
     DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV="
 ${CMDNAME} initialize-local-virtualenv [FLAGS]
 
       Initializes locally created virtualenv installing all dependencies of Airflow
-      taking into account the frozen requirements from requirements folder.
-      This local virtualenv can be used to aid autocompletion and IDE support as
+      taking into account the constraints for the version specified.
+      This local virtualenv can be used to aid auto-completion and IDE support as
       well as run unit tests directly from the IDE. You need to have virtualenv
       activated before running this command.
 
@@ -2046,7 +2048,7 @@ function run_build_command {
                 rebuild_ci_image_if_needed
             fi
             ;;
-        build_docs|perform_static_checks|perform_generate_requirements|perform_prepare_backport_readme|perform_prepare_backport_packages)
+        build_docs|perform_static_checks|perform_generate_constraints|perform_prepare_backport_readme|perform_prepare_backport_packages)
             prepare_ci_build
             rebuild_ci_image_if_needed
             ;;
@@ -2162,8 +2164,8 @@ function run_breeze_command {
           cleanup_image)
             remove_images
             ;;
-        perform_generate_requirements)
-            run_generate_requirements
+        perform_generate_constraints)
+            run_generate_constraints
             ;;
         perform_prepare_backport_packages)
             run_prepare_backport_packages "${@}"

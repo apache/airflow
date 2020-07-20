@@ -29,26 +29,27 @@ function add_build_args_for_remote_install() {
     )
     if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]([0-9]*) ]]; then
         # All types of references/versions match this regexp for 1.10 series
-        # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} is the () group matches last
+        # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} matches last
         # minor digit of version and it's length is 0 for v1_10_test, 1 for 1.10.9 and 2 for 1.10.10+
-        if [[ ${#BASH_REMATCH[1]} == "1" ]]; then
-            # This is only for 1.10.0 - 1.10.9
+        AIRFLOW_MINOR_VERSION_NUMBER=${BASH_REMATCH[1]}
+        if [[ ${#AIRFLOW_MINOR_VERSION_NUMBER} == "0" ]]; then
+            # For v1_10_* branches use constraints-1-10 branch
             EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-1-10"
             )
         else
             EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                # For 1.10.10+ and v1-10-test it's ok to use AIRFLOW_VERSION as reference
-                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+                # For specified minor version of 1.10 use specific reference constraints
+                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}"
             )
         fi
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v1-10-test"
     else
-        # For all other (master, 2.0+) we just match ${AIRFLOW_VERSION}
+        # For all other (master, 2.0+) we just get the default constraint branch
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-            "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+            "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
         )
-        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="master"
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING=${DEFAULT_BRANCH}
     fi
 }
 
@@ -479,7 +480,7 @@ function rebuild_ci_image_if_needed_and_confirmed() {
 }
 
 # Determines the strategy to be used for caching based on the type of CI job run.
-# In case of CRON jobs we run builds without cache and upgrade to latest requirements
+# In case of CRON jobs we run builds without cache and upgrade contstraint files to latest
 function determine_cache_strategy() {
     if [[ "${CI_EVENT_TYPE:=}" == "schedule" ]]; then
         echo
@@ -487,18 +488,14 @@ function determine_cache_strategy() {
         echo
         export DOCKER_CACHE="disabled"
         echo
-        echo "Requirements are upgraded to latest for scheduled CI build"
-        echo
-        export UPGRADE_TO_LATEST_REQUIREMENTS="true"
     else
         echo
         echo "Pull cache used for regular CI builds"
         echo
         export DOCKER_CACHE="pulled"
         echo
-        echo "Requirements are not upgraded to latest ones for regular CI builds"
+        echo "Constraints are not upgraded to latest ones for regular CI builds"
         echo
-        export UPGRADE_TO_LATEST_REQUIREMENTS="false"
     fi
 }
 
@@ -572,7 +569,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         --build-arg ADDITIONAL_DEV_DEPS="${ADDITIONAL_DEV_DEPS}" \
         --build-arg ADDITIONAL_RUNTIME_DEPS="${ADDITIONAL_RUNTIME_DEPS}" \
-        --build-arg UPGRADE_TO_LATEST_REQUIREMENTS="${UPGRADE_TO_LATEST_REQUIREMENTS}" \
+        --build-arg UPGRADE_TO_LATEST_CONSTRAINTS="${UPGRADE_TO_LATEST_CONSTRAINTS}" \
         "${DOCKER_CACHE_CI_DIRECTIVE[@]}" \
         -t "${AIRFLOW_CI_IMAGE}" \
         --target "main" \

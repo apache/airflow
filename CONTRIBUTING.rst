@@ -332,7 +332,7 @@ Airflow dependencies
 Airflow is not a standard python project. Most of the python projects fall into one of two types -
 application or library. As described in
 [StackOverflow Question](https://stackoverflow.com/questions/28509481/should-i-pin-my-python-dependencies-versions)
-decision whether to pin (freeze) requirements for a python project depdends on the type. For
+decision whether to pin (freeze) dependency versions for a python project depends on the type. For
 applications, dependencies should be pinned, but for libraries, they should be open.
 
 For application, pinning the dependencies makes it more stable to install in the future - because new
@@ -342,76 +342,61 @@ be open to allow several different libraries with the same requirements to be in
 The problem is that Apache Airflow is a bit of both - application to install and library to be used when
 you are developing your own operators and DAGs.
 
-This - seemingly unsolvable - puzzle is solved by having pinned requirement files. Those are available
-as of airflow 1.10.10.
+This - seemingly unsolvable - puzzle is solved by having pinned constraints files. Those are available
+as of airflow 1.10.10 and further improved with 1.10.12 (moved to separate orphan branches)
 
-Pinned requirement files
-------------------------
+Pinned constraint files
+-----------------------
 
 By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
-still allowing the apache-airflow package to install. This means that 'apache-airflow' package might fail to
+still allowing the apache-airflow package to install. This means that ``apache-airflow`` package might fail to
 install in case a direct or transitive dependency is released that breaks the installation. In such case
 when installing ``apache-airflow``, you might need to provide additional constraints (for
 example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
 
-However we now have ``requirements-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` file generated
-automatically and committed in the requirements folder based on the set of all latest working and tested
-requirement versions. Those ``requirement-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` files can be used as
-constraints file when installing Apache Airflow - either from the sources
+However we now have ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files generated
+automatically and committed to orphan ``constraints-master`` and ``constraint-1-10`` branches based on
+the set of all latest working and tested dependency versions. Those
+``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files can be used as
+constraints file when installing Apache Airflow - either from the sources:
 
 .. code-block:: bash
 
-  pip install -e . --constraint requirements/requirements-python3.6.txt
+  pip install -e . \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
-or from the pypi package
+or from the pypi package:
 
 .. code-block:: bash
 
-  pip install apache-airflow --constraint requirements/requirements-python3.6.txt
+  pip install apache-airflow \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
 This works also with extras - for example:
 
 .. code-block:: bash
 
-  pip install .[ssh] --constraint requirements/requirements-python3.6.txt
+  pip install .[ssh] \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
-It is also possible to use constraints directly from github using tag/version name:
-
-.. code-block:: bash
-
-  pip install apache-airflow[ssh]==1.10.10 \
-      --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.6.txt
-
-There are different set of fixed requirements for different python major/minor versions and you should
-use the right requirements file for the right python version.
-
-The ``requirements-python<PYTHON_MAJOR_MINOR_VERSION>.txt`` file MUST be regenerated every time after
-the ``setup.py`` is updated. This is checked automatically in the CI build. There are separate
-jobs for each python version that checks if the requirements should be updated.
-
-If they are not updated, you should regenerate the requirements locally using Breeze as described below.
-
-Generating requirement files
-----------------------------
-
-This should be done every time after you modify setup.py file. You can generate requirement files
-using `Breeze <BREEZE.rst>`_ . Simply use those commands:
+As of apache-airflow 1.10.12 it is also possible to use constraints directly from github using specific
+tag/hash name. We tag commits working for particular release with constraints-<version> tag. So for example
+fixed valid constraints 1.10.12 can be used by using ``constraints-1.10.12`` tag:
 
 .. code-block:: bash
 
-  breeze generate-requirements --python 3.7
+  pip install apache-airflow[ssh]==1.10.12 \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
 
-.. code-block:: bash
+There are different set of fixed constraint files for different python major/minor versions and you should
+use the right file for the right python version.
 
-  breeze generate-requirements --python 3.6
-
-Note that when you generate requirements this way, you might update to latest version of requirements
-that were released since the last time so during tests you might get errors unrelated to your change.
-In this case the easiest way to fix it is to limit the culprit dependency to the previous version
-with ``<NNNN.NN>`` constraint added in setup.py.
+The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` will be automatically regenerated by CI cron job
+every time after the ``setup.py`` is updated and pushed if the tests are successful. There are separate
+jobs for each python version.
 
 Backport providers packages
 ---------------------------

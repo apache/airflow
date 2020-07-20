@@ -26,7 +26,6 @@ CHANGED_FILES_PATTERNS=(
     "^scripts"
     "^chart"
     "^setup.py"
-    "^requirements"
     "^tests"
     "^kubernetes_tests"
 )

@@ -33,7 +33,7 @@ env:
   SKIP_CI_IMAGE_CHECK: "true"
   DB_RESET: "true"
   VERBOSE: "true"
-  UPGRADE_TO_LATEST_REQUIREMENTS: "false"
+  UPGRADE_TO_LATEST_CONSTRAINTS: ${{ github.event_name == 'push' || github.event_name == 'scheduled' }}
   PYTHON_MAJOR_MINOR_VERSION: 3.6
   USE_GITHUB_REGISTRY: "true"
   CACHE_IMAGE_PREFIX: ${{ github.repository }}
@@ -68,7 +68,6 @@ jobs:
       - cancel-previous-workflow-run
     env:
       MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
-      CI_JOB_TYPE: "Static checks"
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -86,18 +85,13 @@ jobs:
       - name: "Build CI image"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Static checks"
-        run: |
-          python -m pip install pre-commit \
-              --constraint requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt
-          ./scripts/ci/static_checks/ci_run_static_checks.sh
+        run: ./scripts/ci/static_checks/ci_run_static_checks.sh
   docs:
     timeout-minutes: 60
     name: "Build docs"
     runs-on: ubuntu-latest
     needs:
       - cancel-previous-workflow-run
-    env:
-      CI_JOB_TYPE: "Documentation"
     steps:
       - uses: actions/checkout@master
       - name: "Build CI image ${{ matrix.python-version }}"
@@ -113,7 +107,6 @@ jobs:
       - cancel-previous-workflow-run
     env:
       INSTALL_AIRFLOW_VERSION: "1.10.10"
-      CI_JOB_TYPE: "Prepare & test packages"
       PYTHON_MAJOR_MINOR_VERSION: 3.6
     steps:
       - uses: actions/checkout@master
@@ -162,7 +155,6 @@ jobs:
       BACKEND: postgres
       TEST_TYPE: ${{ matrix.test-type }}
       RUN_TESTS: "true"
-      CI_JOB_TYPE: "Tests"
       SKIP_CI_IMAGE_CHECK: "true"
       RUNTIME: "kubernetes"
       ENABLE_KIND_CLUSTER: "true"
@@ -193,8 +185,7 @@ jobs:
           cache-name: cache-kubernetes-tests-virtualenv-v2
         with:
           path: .build/.kubernetes_venv
-          key: "${{ env.cache-name }}-${{ github.job }}-\
-${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') }}"
+          key: "${{ env.cache-name }}-${{ github.job }}-v1"
       - name: "Tests"
         run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
       - uses: actions/upload-artifact@v2
@@ -221,7 +212,6 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: "true"
-      CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.count == 'true' || github.event_name != 'pull_request'
     steps:
@@ -252,7 +242,6 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       RUN_TESTS: "true"
-      CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
@@ -282,7 +271,6 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       TEST_TYPE: ${{ matrix.test-type }}
       RUN_TESTS: "true"
-      CI_JOB_TYPE: "Tests"
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
@@ -313,7 +301,6 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: "true"
-      CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
@@ -334,37 +321,10 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     runs-on: ubuntu-latest
     needs:
       - cancel-previous-workflow-run
-    env:
-      CI_JOB_TYPE: "Tests"
     steps:
       - uses: actions/checkout@master
       - name: "Helm Tests"
         run: ./scripts/ci/kubernetes/ci_run_helm_testing.sh
-
-  requirements:
-    timeout-minutes: 80
-    name: "Requirements"
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.6, 3.7, 3.8]
-      fail-fast: false
-    needs:
-      - cancel-previous-workflow-run
-    env:
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      CHECK_REQUIREMENTS_ONLY: true
-      UPGRADE_WHILE_GENERATING_REQUIREMENTS: ${{ github.event_name == 'schedule' }}
-      CI_JOB_TYPE: "Requirements"
-    steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
-      - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Generate requirements"
-        run: ./scripts/ci/requirements/ci_generate_requirements.sh
 
   build-prod-image:
     timeout-minutes: 60
@@ -377,7 +337,6 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - cancel-previous-workflow-run
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      CI_JOB_TYPE: "Prod image"
     steps:
       - uses: actions/checkout@master
       - name: "Build PROD image ${{ matrix.python-version }}"
@@ -391,17 +350,17 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - tests-sqlite
       - tests-postgres
       - tests-mysql
-      - requirements
       - prepare-backport-packages
       - build-prod-image
       - docs
-    if: github.ref == 'refs/heads/master' && github.event_name != 'schedule'
+    if: |
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test') &&
+      github.event_name != 'schedule'
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      CI_JOB_TYPE: "Prod image"
     steps:
       - uses: actions/checkout@master
       - name: "Free space"
@@ -419,13 +378,10 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - tests-sqlite
       - tests-postgres
       - tests-mysql
-      - requirements
       - prepare-backport-packages
-      - build-prod-image
       - docs
     if: |
-      (github.ref == 'refs/heads/master' ||
-      github.ref == 'refs/heads/v1-10-test' ) &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
       github.event_name != 'schedule'
     strategy:
       matrix:
@@ -433,7 +389,6 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
     env:
       PULL_PYTHON_BASE_IMAGES_FROM_CACHE: "false"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      CI_JOB_TYPE: "Prod image"
     steps:
       - uses: actions/checkout@master
       - name: "Free space"
@@ -443,6 +398,94 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - name: "Push CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_push_ci_image.sh
 
+  constraints:
+    timeout-minutes: 80
+    name: "Constraints"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+      fail-fast: false
+    needs:
+      - cancel-previous-workflow-run
+      - tests-sqlite
+      - tests-mysql
+      - tests-postgres
+      - tests-kubernetes
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+    if: |
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test')
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Generate constraints"
+        run: ./scripts/ci/constraints/ci_generate_constraints.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload constraint artifacts
+        with:
+          name: 'constraints-${{matrix.python-version}}'
+          path: 'files/constraints-${{matrix.python-version}}/constraints-${{matrix.python-version}}.txt'
+
+  constraints-push:
+    timeout-minutes: 10
+    name: "Constraints push"
+    runs-on: ubuntu-latest
+    needs:
+      - constraints
+    if: |
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test')
+    steps:
+      - name: "Set constraints branch name"
+        id: constraints-branch
+        run: |
+          if [[ ${GITHUB_REF} == 'refs/heads/master' ]]; then
+              echo "::set-output name=branch::constraints-master"
+          elif [[ ${GITHUB_REF} == 'refs/heads/v1-10-test' ]]; then
+              echo "::set-output name=branch::constraints-1-10"
+          else
+              echo
+              echo "Unexpected ref ${GITHUB_REF}. Exiting!"
+              echo
+              exit 1
+          fi
+      - uses: actions/checkout@v2
+        with:
+          path: "repo"
+          ref: ${{ steps.constraints-branch.outputs.branch }}
+      - uses: actions/download-artifact@v2
+        with:
+          path: 'artifacts'
+        name: "Get all artifacts (constraints)"
+      - name: "Commit changed constraint files"
+        run: |
+          cp -v ./artifacts/constraints-*/constraints*.txt repo/
+          cd repo
+          git config --local user.email "dev@airflow.apache.org"
+          git config --local user.name "Automated Github Actions commit"
+          git diff --exit-code || git commit --all --message "Updating constraints. GH run id:${GITHUB_RUN_ID}
+
+          This update in constraints is automatically committed by CI pushing
+          reference '${GITHUB_REF}' to ${GITHUB_REPOSITORY} with commit sha
+          ${GITHUB_SHA}.
+
+          All tests passed in this build so we determined we can push the updated constraints.
+
+          See https://github.com/apache/airflow/blob/master/README.md#installing-from-pypi for details.
+          "
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.constraints-branch.outputs.branch }}
+          directory: "repo"
+
   tag-repo-nightly:
     timeout-minutes: 60
     name: "Tag repo nightly"
@@ -451,7 +494,7 @@ ${{ hashFiles('requirements/requirements-python${{matrix.python-version}}.txt') 
       - tests-sqlite
       - tests-postgres
       - tests-mysql
-      - requirements
+      - constraints
       - prepare-backport-packages
       - build-prod-image
       - docs

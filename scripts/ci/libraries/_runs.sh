@@ -34,8 +34,8 @@ function run_docs() {
             | tee -a "${OUTPUT_LOG}"
 }
 
-# Docker command to generate constraint requirement files.
-function run_generate_requirements() {
+# Docker command to generate constraint files.
+function run_generate_constraints() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         --env PYTHONDONTWRITEBYTECODE \
@@ -46,12 +46,10 @@ function run_generate_requirements() {
         --env HOST_OS="$(uname -s)" \
         --env HOST_HOME="${HOME}" \
         --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-        --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
         --env PYTHON_MAJOR_MINOR_VERSION \
-        --env CHECK_REQUIREMENTS_ONLY \
         --rm \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_generate_requirements.sh" \
+        "--" "/opt/airflow/scripts/ci/in_container/run_generate_constraints.sh" \
         | tee -a "${OUTPUT_LOG}"
 }
 
@@ -67,9 +65,7 @@ function run_prepare_backport_packages() {
         --env HOST_OS="$(uname -s)" \
         --env HOST_HOME="${HOME}" \
         --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-        --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
         --env PYTHON_MAJOR_MINOR_VERSION \
-        --env CHECK_REQUIREMENTS_ONLY \
         --env VERSION_SUFFIX_FOR_PYPI \
         --env VERSION_SUFFIX_FOR_SVN \
         -t \
@@ -92,9 +88,7 @@ function run_prepare_backport_readme() {
         --env HOST_OS="$(uname -s)" \
         --env HOST_HOME="${HOME}" \
         --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-        --env UPGRADE_WHILE_GENERATING_REQUIREMENTS \
         --env PYTHON_MAJOR_MINOR_VERSION \
-        --env CHECK_REQUIREMENTS_ONLY \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         --rm \
