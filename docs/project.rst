@@ -67,6 +67,8 @@ Committers
 - @turbaszek (Tomasz Urbaszek)
 - @zhongjiajie (Jiajie Zhong)
 - @houqp (Qingping Hou)
+- @ryw (Ry Walker)
+- @leahecole (Leah Cole)
 
 For the full list of contributors, take a look at `Airflow's Github
 Contributor page:
