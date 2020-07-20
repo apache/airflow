@@ -17,7 +17,7 @@
 # under the License.
 
 from datetime import datetime
-from unittest import TestCase
+from unittest import TestCase, mock
 
 from freezegun import freeze_time
 
@@ -118,3 +118,11 @@ class TestS3UploadSessionCompleteSensor(TestCase):
         self.sensor.is_upload_session_complete(set())
         self.assertEqual(self.sensor.inactivity_seconds, 10)
         self.assertFalse(self.sensor.is_upload_session_complete(set()))
+
+    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_upload_session_complete.S3Hook')
+    def test_poke_succeeds_on_upload_complete(self, mock_hook):
+        mock_hook.return_value.list_keys.return_value = {'a'}
+        self.assertFalse(self.sensor.poke(dict()))
+        self.assertFalse(self.sensor.poke(dict()))
+        self.assertTrue(self.sensor.poke(dict()))
