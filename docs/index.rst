@@ -95,8 +95,8 @@ Content
     kubernetes
     lineage
     dag-serialization
-    Using the REST API <stable-rest-api/index.rst>
-    REST API Migration Guide <stable-rest-api/migration.rst>
+    Using the REST API <stable-rest-api/index>
+    REST API Migration Guide <stable-rest-api/migration>
     changelog
     best-practices
     faq

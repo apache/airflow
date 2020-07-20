@@ -52,6 +52,14 @@ class TestBase(unittest.TestCase):
         settings.configure_orm()
         self.session = Session
 
+    def assert_deprecated(self, resp):
+        self.assertEqual('true', resp.headers['Deprecation'])
+        self.assertRegex(
+            resp.headers['Link'],
+            r'\<.+/stable-rest-api/migration.html\>; '
+            'rel="deprecation"; type="text/html"',
+        )
+
 
 @parameterized_class([
     {"dag_serialization": "False"},
@@ -89,6 +97,7 @@ class TestApiExperimental(TestBase):
         resp = json.loads(resp_raw.data.decode('utf-8'))
 
         self.assertEqual(version, resp['version'])
+        self.assert_deprecated(resp_raw)
 
     def test_task_info(self):
         with conf_vars(
@@ -99,6 +108,8 @@ class TestApiExperimental(TestBase):
             response = self.client.get(
                 url_template.format('example_bash_operator', 'runme_0')
             )
+            self.assert_deprecated(response)
+
             self.assertIn('"email"', response.data.decode('utf-8'))
             self.assertNotIn('error', response.data.decode('utf-8'))
             self.assertEqual(200, response.status_code)
@@ -124,6 +135,7 @@ class TestApiExperimental(TestBase):
             response = self.client.get(
                 url_template.format('example_bash_operator')
             )
+            self.assert_deprecated(response)
             self.assertIn('BashOperator(', response.data.decode('utf-8'))
             self.assertEqual(200, response.status_code)
 
@@ -143,6 +155,7 @@ class TestApiExperimental(TestBase):
             response = self.client.get(
                 pause_url_template.format('example_bash_operator', 'true')
             )
+            self.assert_deprecated(response)
             self.assertIn('ok', response.data.decode('utf-8'))
             self.assertEqual(200, response.status_code)
 
@@ -173,6 +186,7 @@ class TestApiExperimental(TestBase):
                 data=json.dumps({'run_id': run_id}),
                 content_type="application/json"
             )
+            self.assert_deprecated(response)
 
             self.assertEqual(200, response.status_code)
             response_execution_date = parse_datetime(
@@ -211,6 +225,7 @@ class TestApiExperimental(TestBase):
                 data=json.dumps({'execution_date': datetime_string}),
                 content_type="application/json"
             )
+            self.assert_deprecated(response)
             self.assertEqual(200, response.status_code)
             self.assertEqual(datetime_string, json.loads(response.data.decode('utf-8'))['execution_date'])
 
@@ -277,6 +292,7 @@ class TestApiExperimental(TestBase):
             response = self.client.get(
                 url_template.format(dag_id, datetime_string, task_id)
             )
+            self.assert_deprecated(response)
             self.assertEqual(200, response.status_code)
             self.assertIn('state', response.data.decode('utf-8'))
             self.assertNotIn('error', response.data.decode('utf-8'))
@@ -331,6 +347,7 @@ class TestApiExperimental(TestBase):
             response = self.client.get(
                 url_template.format(dag_id, datetime_string)
             )
+            self.assert_deprecated(response)
             self.assertEqual(200, response.status_code)
             self.assertIn('state', response.data.decode('utf-8'))
             self.assertNotIn('error', response.data.decode('utf-8'))
@@ -401,6 +418,7 @@ class TestLineageApiExperimental(TestBase):
             response = self.client.get(
                 url_template.format(dag_id, datetime_string)
             )
+            self.assert_deprecated(response)
             self.assertEqual(200, response.status_code)
             self.assertIn('task_ids', response.data.decode('utf-8'))
             self.assertNotIn('error', response.data.decode('utf-8'))
@@ -461,6 +479,7 @@ class TestPoolApiExperimental(TestBase):
         response = self.client.get(
             '/api/experimental/pools/{}'.format(self.pool.pool),
         )
+        self.assert_deprecated(response)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(json.loads(response.data.decode('utf-8')),
                          self.pool.to_json())
@@ -473,6 +492,7 @@ class TestPoolApiExperimental(TestBase):
 
     def test_get_pools(self):
         response = self.client.get('/api/experimental/pools')
+        self.assert_deprecated(response)
         self.assertEqual(response.status_code, 200)
         pools = json.loads(response.data.decode('utf-8'))
         self.assertEqual(len(pools), self.TOTAL_POOL_COUNT)
@@ -489,6 +509,7 @@ class TestPoolApiExperimental(TestBase):
             }),
             content_type='application/json',
         )
+        self.assert_deprecated(response)
         self.assertEqual(response.status_code, 200)
         pool = json.loads(response.data.decode('utf-8'))
         self.assertEqual(pool['pool'], 'foo')
@@ -518,6 +539,7 @@ class TestPoolApiExperimental(TestBase):
         response = self.client.delete(
             '/api/experimental/pools/{}'.format(self.pool.pool),
         )
+        self.assert_deprecated(response)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(json.loads(response.data.decode('utf-8')),
                          self.pool.to_json())
