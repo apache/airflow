@@ -557,6 +557,16 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
         self.hook.metastore.__enter__().get_table.assert_called_with(
             dbname='default', tbl_name='does-not-exist')
 
+    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.table_exists')
+    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_metastore_client')
+    def test_drop_partition(self, get_metastore_client_mock, table_exist_mock):
+        metastore_mock = get_metastore_client_mock.return_value
+        table_exist_mock.return_value = True
+        ret = self.hook.drop_partitions(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS])
+        table_exist_mock.assert_called_once_with(self.table, self.database)
+        assert metastore_mock.drop_partition(
+            self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]), ret
+
 
 class TestHiveServer2Hook(unittest.TestCase):
 
