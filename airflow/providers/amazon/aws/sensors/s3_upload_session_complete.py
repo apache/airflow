@@ -31,7 +31,7 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
     """
     Checks for changes in the number of objects at prefix in AWS S3
     bucket and returns True if the inactivity period has passed with no
-    increase in the number of objects. Note, this sensor will no behave correctly
+    increase in the number of objects. Note, this sensor will not behave correctly
     in reschedule mode, as the state of the listed objects in the S3 bucket will
     be lost between rescheduled invocations.
 
