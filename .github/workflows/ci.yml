@@ -68,7 +68,6 @@ jobs:
       - cancel-previous-workflow-run
     env:
       MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
-      CI_JOB_TYPE: "Static checks"
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -93,8 +92,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - cancel-previous-workflow-run
-    env:
-      CI_JOB_TYPE: "Documentation"
     steps:
       - uses: actions/checkout@master
       - name: "Build CI image ${{ matrix.python-version }}"
@@ -110,7 +107,6 @@ jobs:
       - cancel-previous-workflow-run
     env:
       INSTALL_AIRFLOW_VERSION: "1.10.10"
-      CI_JOB_TYPE: "Prepare & test packages"
       PYTHON_MAJOR_MINOR_VERSION: 3.6
     steps:
       - uses: actions/checkout@master
@@ -159,7 +155,6 @@ jobs:
       BACKEND: postgres
       TEST_TYPE: ${{ matrix.test-type }}
       RUN_TESTS: "true"
-      CI_JOB_TYPE: "Tests"
       SKIP_CI_IMAGE_CHECK: "true"
       RUNTIME: "kubernetes"
       ENABLE_KIND_CLUSTER: "true"
@@ -217,7 +212,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: "true"
-      CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.count == 'true' || github.event_name != 'pull_request'
     steps:
@@ -248,7 +242,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       RUN_TESTS: "true"
-      CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
@@ -278,7 +271,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       TEST_TYPE: ${{ matrix.test-type }}
       RUN_TESTS: "true"
-      CI_JOB_TYPE: "Tests"
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
@@ -309,7 +301,6 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: "true"
-      CI_JOB_TYPE: "Tests"
       TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
@@ -330,8 +321,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - cancel-previous-workflow-run
-    env:
-      CI_JOB_TYPE: "Tests"
     steps:
       - uses: actions/checkout@master
       - name: "Helm Tests"
@@ -348,7 +337,6 @@ jobs:
       - cancel-previous-workflow-run
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      CI_JOB_TYPE: "Prod image"
     steps:
       - uses: actions/checkout@master
       - name: "Build PROD image ${{ matrix.python-version }}"
@@ -373,7 +361,6 @@ jobs:
         python-version: [3.6, 3.7, 3.8]
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      CI_JOB_TYPE: "Prod image"
     steps:
       - uses: actions/checkout@master
       - name: "Free space"
@@ -402,7 +389,6 @@ jobs:
     env:
       PULL_PYTHON_BASE_IMAGES_FROM_CACHE: "false"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      CI_JOB_TYPE: "Prod image"
     steps:
       - uses: actions/checkout@master
       - name: "Free space"
@@ -428,7 +414,6 @@ jobs:
       - tests-kubernetes
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      CI_JOB_TYPE: "Requirements"
     if: |
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test')
@@ -453,8 +438,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - constraints
-    env:
-      CI_JOB_TYPE: "Requirements"
     if: |
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test')
