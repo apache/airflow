@@ -1481,6 +1481,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not job:
             raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
         job = job.from_api_repr(job_data, client)
+        # Start the job and wait for it to complete and get the result.
+        job.result()
         return job
 
     def run_with_configuration(self, configuration: Dict) -> str:
@@ -1501,8 +1503,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             DeprecationWarning
         )
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -1746,8 +1746,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             configuration['load']['allowJaggedRows'] = allow_jagged_rows
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -1843,8 +1841,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ] = encryption_configuration
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -2167,8 +2163,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ] = encryption_configuration
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 
