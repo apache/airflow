@@ -324,9 +324,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         """
         Creates a new pod and monitors for duration of task
 
-        @param labels: labels used to track pod
-        @param launcher: pod launcher that will manage launching and monitoring pods
-        @return:
+        :param labels: labels used to track pod
+        :param launcher: pod launcher that will manage launching and monitoring pods
+        :return:
         """
         if not (self.full_pod_spec or self.pod_template_file):
             # Add Airflow Version to the label
@@ -396,9 +396,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     def monitor_launched_pod(self, launcher, pod) -> Tuple[State, Optional[str]]:
         """
-        Montitors a pod to completion that was created by a previous KubernetesPodOperator
+        Monitors a pod to completion that was created by a previous KubernetesPodOperator
 
-        @param launcher: pod launcher that will manage launching and monitoring pods
+        :param launcher: pod launcher that will manage launching and monitoring pods
         :param pod: podspec used to find pod using k8s API
         :return:
         """
