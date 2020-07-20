@@ -19,7 +19,7 @@ import logging
 from functools import wraps
 from typing import Callable, TypeVar, cast
 
-from flask import Blueprint, current_app, g, jsonify, request, url_for
+from flask import Blueprint, Response, current_app, g, jsonify, request, url_for
 
 from airflow import models
 from airflow.api.common.experimental import delete_dag as delete, pool as pool_api, trigger_dag as trigger
@@ -31,6 +31,7 @@ from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException
 from airflow.utils import timezone
+from airflow.utils.docs import get_docs_url
 from airflow.utils.strings import to_boolean
 from airflow.version import version
 
@@ -49,6 +50,25 @@ def requires_authentication(function: T):
 
 
 api_experimental = Blueprint('api_experimental', __name__)
+
+
+def add_deprecation_headers(response: Response):
+    """
+    Add `Deprecation HTTP Header Field
+    <https://tools.ietf.org/id/draft-dalal-deprecation-header-03.html>`__.
+    """
+    response.headers['Deprecation'] = 'true'
+    doc_url = get_docs_url("stable-rest-api/migration.html")
+    deprecation_link = f'<{doc_url}>; rel="deprecation"; type="text/html"'
+    if 'link' in response.headers:
+        response.headers['Link'] += f', {deprecation_link}'
+    else:
+        response.headers['Link'] = f'{deprecation_link}'
+
+    return response
+
+
+api_experimental.after_request(add_deprecation_headers)
 
 
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])

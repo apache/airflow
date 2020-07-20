@@ -21,9 +21,10 @@ Experimental REST API Reference
 Airflow exposes an REST API. It is available through the webserver. Endpoints are
 available at ``/api/experimental/``.
 
-.. warning::
+.. deprecated:: 2.0
 
-  The API structure is not stable. We expect the endpoint definitions to change.
+  This REST API is deprecated. Please consider using :doc:`the stable REST API <stable-rest-api/redoc>`.
+  For more information on migration, see: :doc:`stable-rest-api/migration`.
 
 Endpoints
 ---------

@@ -15,19 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import unittest
+from unittest import mock
+
+from parameterized import parameterized
+
 from airflow.utils.docs import get_docs_url
 
 
-def init_appbuilder_links(app):
-    """Add links to Docs menu in navbar"""
-    appbuilder = app.appbuilder
-
-    appbuilder.add_link(
-        "Website", href='https://airflow.apache.org', category="Docs", category_icon="fa-globe"
-    )
-    appbuilder.add_link("Documentation", href=get_docs_url(), category="Docs", category_icon="fa-cube")
-    appbuilder.add_link("GitHub", href='https://github.com/apache/airflow', category="Docs")
-    appbuilder.add_link(
-        "REST API Reference (Swagger UI)", href='/api/v1./api/v1_swagger_ui_index', category="Docs"
-    )
-    appbuilder.add_link("REST API Reference (Redoc)", href="RedocView.redoc", category='Docs')
+class TestGetDocsUrl(unittest.TestCase):
+    @parameterized.expand([
+        ('2.0.0.dev0', None, 'https://airflow.readthedocs.io/en/latest/'),
+        ('2.0.0.dev0', 'migration.html', 'https://airflow.readthedocs.io/en/latest/migration.html'),
+        ('1.10.0', None, 'https://airflow.apache.org/docs/1.10.0/'),
+        ('1.10.0', 'migration.html', 'https://airflow.apache.org/docs/1.10.0/migration.html'),
+    ])
+    def test_should_return_link(self, version, page, expected_urk):
+        with mock.patch('airflow.version.version', version):
+            self.assertEqual(expected_urk, get_docs_url(page))
