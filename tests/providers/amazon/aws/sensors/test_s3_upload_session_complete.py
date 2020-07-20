@@ -44,7 +44,7 @@ class TestS3UploadSessionCompleteSensor(TestCase):
             bucket_name='test-bucket',
             prefix='test-prefix/path',
             inactivity_period=12,
-            poke_interval=10,
+            poke_interval=0.1,
             min_objects=1,
             allow_delete=False,
             dag=self.dag
@@ -56,7 +56,7 @@ class TestS3UploadSessionCompleteSensor(TestCase):
                 task_id='sensor_2',
                 bucket_name='test-bucket',
                 prefix='test-prefix/path',
-                poke_interval=10,
+                poke_interval=0.1,
                 mode='reschedule',
                 dag=self.dag
             )
@@ -74,7 +74,7 @@ class TestS3UploadSessionCompleteSensor(TestCase):
             bucket_name='test-bucket',
             prefix='test-prefix/path',
             inactivity_period=12,
-            poke_interval=10,
+            poke_interval=0.1,
             min_objects=1,
             allow_delete=True,
             dag=self.dag
