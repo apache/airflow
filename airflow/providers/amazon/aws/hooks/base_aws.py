@@ -69,7 +69,7 @@ class _SessionFactory(LoggingMixin):
         region_name = self.region_name
         if self.region_name is None and 'region_name' in self.extra_config:
             self.log.info("Retrieving region_name from Connection.extra_config['region_name']")
-            region_name = self.extra_config.get("region_name")
+            region_name = self.extra_config["region_name"]
         self.log.info(
             "Creating session with aws_access_key_id=%s region_name=%s", aws_access_key_id, region_name,
         )
