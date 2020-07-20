@@ -26,7 +26,7 @@ This module contains Base AWS Hook.
 
 import configparser
 import logging
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import boto3
 from botocore.config import Config
@@ -34,6 +34,207 @@ from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.models.connection import Connection
+from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+class _SessionFactory(LoggingMixin):
+    def __init__(self, conn: Connection, region_name: str, config: Config):
+        super().__init__()
+        self.conn = conn
+        self.region_name = region_name
+        self.config = config
+        self.extra_config = self.conn.extra_dejson
+
+    def create_session(self) -> boto3.session.Session:
+        """Create AWS session."""
+        session_kwargs = {}
+        if "session_kwargs" in self.extra_config:
+            self.log.info(
+                "Retrieving session_kwargs from Connection.extra_config['session_kwargs']: %s",
+                self.extra_config["session_kwargs"],
+            )
+            session_kwargs = self.extra_config["session_kwargs"]
+        session = self._create_basic_session(session_kwargs=session_kwargs)
+        role_arn = self._read_role_arn_from_extra_config()
+        # If role_arn was specified then STS + assume_role
+        if role_arn is None:
+            return session
+
+        return self._impersonate_to_role(role_arn=role_arn, session=session, session_kwargs=session_kwargs)
+
+    def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
+        aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection()
+        aws_session_token = self.extra_config.get("aws_session_token")
+        region_name = self.region_name
+        if self.region_name is None and 'region_name' in self.extra_config:
+            self.log.info("Retrieving region_name from Connection.extra_config['region_name']")
+            region_name = self.extra_config["region_name"]
+        self.log.info(
+            "Creating session with aws_access_key_id=%s region_name=%s", aws_access_key_id, region_name,
+        )
+
+        return boto3.session.Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=region_name,
+            aws_session_token=aws_session_token,
+            **session_kwargs,
+        )
+
+    def _impersonate_to_role(
+        self, role_arn: str, session: boto3.session.Session, session_kwargs: Dict[str, Any]
+    ) -> boto3.session.Session:
+        sts_client = session.client("sts", config=self.config)
+        assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
+        assume_role_method = self.extra_config.get('assume_role_method')
+        self.log.info("assume_role_method=%s", assume_role_method)
+        if not assume_role_method or assume_role_method == 'assume_role':
+            sts_response = self._assume_role(
+                sts_client=sts_client, role_arn=role_arn, assume_role_kwargs=assume_role_kwargs
+            )
+        elif assume_role_method == 'assume_role_with_saml':
+            sts_response = self._assume_role_with_saml(
+                sts_client=sts_client, role_arn=role_arn, assume_role_kwargs=assume_role_kwargs
+            )
+        else:
+            raise NotImplementedError(
+                f'assume_role_method={assume_role_method} in Connection {self.conn.conn_id} Extra.'
+                'Currently "assume_role" or "assume_role_with_saml" are supported.'
+                '(Exclude this setting will default to "assume_role").'
+            )
+        # Use credentials retrieved from STS
+        credentials = sts_response["Credentials"]
+        aws_access_key_id = credentials["AccessKeyId"]
+        aws_secret_access_key = credentials["SecretAccessKey"]
+        aws_session_token = credentials["SessionToken"]
+        self.log.info(
+            "Creating session with aws_access_key_id=%s region_name=%s",
+            aws_access_key_id,
+            session.region_name,
+        )
+
+        return boto3.session.Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=session.region_name,
+            aws_session_token=aws_session_token,
+            **session_kwargs,
+        )
+
+    def _read_role_arn_from_extra_config(self) -> Optional[str]:
+        aws_account_id = self.extra_config.get("aws_account_id")
+        aws_iam_role = self.extra_config.get("aws_iam_role")
+        role_arn = self.extra_config.get("role_arn")
+        if role_arn is None and aws_account_id is not None and aws_iam_role is not None:
+            self.log.info("Constructing role_arn from aws_account_id and aws_iam_role")
+            role_arn = f"arn:aws:iam::{aws_account_id}:role/{aws_iam_role}"
+        self.log.info("role_arn is %s", role_arn)
+        return role_arn
+
+    def _read_credentials_from_connection(self) -> Tuple[Optional[str], Optional[str]]:
+        aws_access_key_id = None
+        aws_secret_access_key = None
+        if self.conn.login:
+            aws_access_key_id = self.conn.login
+            aws_secret_access_key = self.conn.password
+            self.log.info("Credentials retrieved from login")
+        elif "aws_access_key_id" in self.extra_config and "aws_secret_access_key" in self.extra_config:
+            aws_access_key_id = self.extra_config["aws_access_key_id"]
+            aws_secret_access_key = self.extra_config["aws_secret_access_key"]
+            self.log.info("Credentials retrieved from extra_config")
+        elif "s3_config_file" in self.extra_config:
+            aws_access_key_id, aws_secret_access_key = _parse_s3_config(
+                self.extra_config["s3_config_file"],
+                self.extra_config.get("s3_config_format"),
+                self.extra_config.get("profile"),
+            )
+            self.log.info("Credentials retrieved from extra_config['s3_config_file']")
+        else:
+            self.log.info("No credentials retrieved from Connection")
+        return aws_access_key_id, aws_secret_access_key
+
+    def _assume_role(
+        self, sts_client: boto3.client, role_arn: str, assume_role_kwargs: Dict[str, Any]
+    ) -> Dict:
+        if "external_id" in self.extra_config:  # Backwards compatibility
+            assume_role_kwargs["ExternalId"] = self.extra_config.get("external_id")
+        role_session_name = f"Airflow_{self.conn.conn_id}"
+        self.log.info(
+            "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)", role_arn, role_session_name,
+        )
+        return sts_client.assume_role(
+            RoleArn=role_arn, RoleSessionName=role_session_name, **assume_role_kwargs
+        )
+
+    def _assume_role_with_saml(
+        self, sts_client: boto3.client, role_arn: str, assume_role_kwargs: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        saml_config = self.extra_config['assume_role_with_saml']
+        principal_arn = saml_config['principal_arn']
+
+        idp_auth_method = saml_config['idp_auth_method']
+        if idp_auth_method == 'http_spegno_auth':
+            saml_assertion = self._fetch_saml_assertion_using_http_spegno_auth(saml_config)
+        else:
+            raise NotImplementedError(
+                f'idp_auth_method={idp_auth_method} in Connection {self.conn.conn_id} Extra.'
+                'Currently only "http_spegno_auth" is supported, and must be specified.'
+            )
+
+        self.log.info("Doing sts_client.assume_role_with_saml to role_arn=%s", role_arn)
+        return sts_client.assume_role_with_saml(
+            RoleArn=role_arn, PrincipalArn=principal_arn, SAMLAssertion=saml_assertion, **assume_role_kwargs
+        )
+
+    def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: Dict[str, Any]):
+        import requests
+        # requests_gssapi will need paramiko > 2.6 since you'll need
+        # 'gssapi' not 'python-gssapi' from PyPi.
+        # https://github.com/paramiko/paramiko/pull/1311
+        import requests_gssapi
+        from lxml import etree
+
+        idp_url = saml_config["idp_url"]
+        self.log.info("idp_url= %s", idp_url)
+        idp_request_kwargs = saml_config["idp_request_kwargs"]
+        auth = requests_gssapi.HTTPSPNEGOAuth()
+        if 'mutual_authentication' in saml_config:
+            mutual_auth = saml_config['mutual_authentication']
+            if mutual_auth == 'REQUIRED':
+                auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.REQUIRED)
+            elif mutual_auth == 'OPTIONAL':
+                auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.OPTIONAL)
+            elif mutual_auth == 'DISABLED':
+                auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.DISABLED)
+            else:
+                raise NotImplementedError(
+                    f'mutual_authentication={mutual_auth} in Connection {self.conn.conn_id} Extra.'
+                    'Currently "REQUIRED", "OPTIONAL" and "DISABLED" are supported.'
+                    '(Exclude this setting will default to HTTPSPNEGOAuth() ).'
+                )
+        # Query the IDP
+        idp_reponse = requests.get(idp_url, auth=auth, **idp_request_kwargs)
+        idp_reponse.raise_for_status()
+        # Assist with debugging. Note: contains sensitive info!
+        xpath = saml_config['saml_response_xpath']
+        log_idp_response = 'log_idp_response' in saml_config and saml_config['log_idp_response']
+        if log_idp_response:
+            self.log.warning(
+                'The IDP response contains sensitive information,' ' but log_idp_response is ON (%s).',
+                log_idp_response,
+            )
+            self.log.info('idp_reponse.content= %s', idp_reponse.content)
+            self.log.info('xpath= %s', xpath)
+        # Extract SAML Assertion from the returned HTML / XML
+        xml = etree.fromstring(idp_reponse.content)
+        saml_assertion = xml.xpath(xpath)
+        if isinstance(saml_assertion, list):
+            if len(saml_assertion) == 1:
+                saml_assertion = saml_assertion[0]
+        if not saml_assertion:
+            raise ValueError('Invalid SAML Assertion')
+        return saml_assertion
 
 
 class AwsBaseHook(BaseHook):
@@ -83,265 +284,45 @@ class AwsBaseHook(BaseHook):
                 'Either client_type or resource_type'
                 ' must be provided.')
 
-    # pylint: disable=too-many-statements
     def _get_credentials(self, region_name):
-        aws_access_key_id = None
-        aws_secret_access_key = None
-        aws_session_token = None
-        endpoint_url = None
-        session_kwargs = {}
 
-        if self.aws_conn_id:  # pylint: disable=too-many-nested-blocks
-            self.log.info("Airflow Connection: aws_conn_id=%s",
-                          self.aws_conn_id)
-            try:
-                # Fetch the Airflow connection object
-                connection_object = self.get_connection(self.aws_conn_id)
-                extra_config = connection_object.extra_dejson
-                creds_from = None
-                if connection_object.login:
-                    creds_from = "login"
-                    aws_access_key_id = connection_object.login
-                    aws_secret_access_key = connection_object.password
+        if not self.aws_conn_id:
+            session = boto3.session.Session(region_name=region_name)
+            return session, None
 
-                elif (
-                    "aws_access_key_id" in extra_config and
-                    "aws_secret_access_key" in extra_config
-                ):
-                    creds_from = "extra_config"
-                    aws_access_key_id = extra_config["aws_access_key_id"]
-                    aws_secret_access_key = extra_config["aws_secret_access_key"]
+        self.log.info("Airflow Connection: aws_conn_id=%s", self.aws_conn_id)
 
-                elif "s3_config_file" in extra_config:
-                    creds_from = "extra_config['s3_config_file']"
-                    aws_access_key_id, aws_secret_access_key = _parse_s3_config(
-                        extra_config["s3_config_file"],
-                        extra_config.get("s3_config_format"),
-                        extra_config.get("profile"),
-                    )
+        try:
+            # Fetch the Airflow connection object
+            connection_object = self.get_connection(self.aws_conn_id)
+            extra_config = connection_object.extra_dejson
+            endpoint_url = extra_config.get("host")
 
-                if "aws_session_token" in extra_config:
-                    aws_session_token = extra_config["aws_session_token"]
+            # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
+            if "config_kwargs" in extra_config:
+                self.log.info(
+                    "Retrieving config_kwargs from Connection.extra_config['config_kwargs']: %s",
+                    extra_config["config_kwargs"]
+                )
+                self.config = Config(**extra_config["config_kwargs"])
 
-                if creds_from:
-                    self.log.info(
-                        "Credentials retrieved from %s.%s", self.aws_conn_id, creds_from
-                    )
-                else:
-                    self.log.info(
-                        "No credentials retrieved from Connection %s", self.aws_conn_id)
+            session = _SessionFactory(
+                conn=connection_object, region_name=region_name, config=self.config
+            ).create_session()
 
-                # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
-                if "config_kwargs" in extra_config:
-                    self.log.info(
-                        "Retrieving config_kwargs from Connection.extra_config['config_kwargs']: %s",
-                        extra_config["config_kwargs"]
-                    )
-                    self.config = Config(**extra_config["config_kwargs"])
+            return session, endpoint_url
 
-                if region_name is None and 'region_name' in extra_config:
-                    self.log.info(
-                        "Retrieving region_name from Connection.extra_config['region_name']"
-                    )
-                    region_name = extra_config.get("region_name")
-                self.log.info("region_name=%s", region_name)
-
-                role_arn = extra_config.get("role_arn")
-
-                aws_account_id = extra_config.get("aws_account_id")
-                aws_iam_role = extra_config.get("aws_iam_role")
-
-                if (
-                    role_arn is None and
-                    aws_account_id is not None and
-                    aws_iam_role is not None
-                ):
-                    self.log.info(
-                        "Constructing role_arn from aws_account_id and aws_iam_role"
-                    )
-                    role_arn = "arn:aws:iam::{}:role/{}".format(
-                        aws_account_id, aws_iam_role
-                    )
-                self.log.info("role_arn is %s", role_arn)
-
-                if "session_kwargs" in extra_config:
-                    self.log.info(
-                        "Retrieving session_kwargs from Connection.extra_config['session_kwargs']: %s",
-                        extra_config["session_kwargs"]
-                    )
-                    session_kwargs = extra_config["session_kwargs"]
-
-                # If role_arn was specified then STS + assume_role
-                if role_arn is not None:
-                    # Create STS session and client
-                    self.log.info(
-                        "Creating sts_session with aws_access_key_id=%s",
-                        aws_access_key_id,
-                    )
-                    sts_session = boto3.session.Session(
-                        aws_access_key_id=aws_access_key_id,
-                        aws_secret_access_key=aws_secret_access_key,
-                        region_name=region_name,
-                        aws_session_token=aws_session_token,
-                        **session_kwargs
-                    )
-                    sts_client = sts_session.client("sts", config=self.config)
-
-                    assume_role_kwargs = {}
-                    if "assume_role_kwargs" in extra_config:
-                        assume_role_kwargs = extra_config["assume_role_kwargs"]
-
-                    assume_role_method = None
-                    if "assume_role_method" in extra_config:
-                        assume_role_method = extra_config['assume_role_method']
-                    self.log.info("assume_role_method=%s", assume_role_method)
-                    method = None
-                    if not assume_role_method or assume_role_method == 'assume_role':
-                        method = self._assume_role
-                    elif assume_role_method == 'assume_role_with_saml':
-                        method = self._assume_role_with_saml
-                    else:
-                        raise NotImplementedError(
-                            f'assume_role_method={assume_role_method} in Connection {self.aws_conn_id} Extra.'
-                            'Currently "assume_role" or "assume_role_with_saml" are supported.'
-                            '(Exclude this setting will default to "assume_role").')
-
-                    sts_response = method(
-                        sts_client,
-                        extra_config,
-                        role_arn,
-                        assume_role_kwargs
-                    )
-
-                    # Use credentials retrieved from STS
-                    credentials = sts_response["Credentials"]
-                    aws_access_key_id = credentials["AccessKeyId"]
-                    aws_secret_access_key = credentials["SecretAccessKey"]
-                    aws_session_token = credentials["SessionToken"]
-
-                endpoint_url = extra_config.get("host")
-
-            except AirflowException:
-                self.log.warning(
-                    "Unable to use Airflow Connection for credentials.")
-                self.log.info("Fallback on boto3 credential strategy")
-                # http://boto3.readthedocs.io/en/latest/guide/configuration.html
+        except AirflowException:
+            self.log.warning("Unable to use Airflow Connection for credentials.")
+            self.log.info("Fallback on boto3 credential strategy")
+            # http://boto3.readthedocs.io/en/latest/guide/configuration.html
 
         self.log.info(
-            "Creating session with aws_access_key_id=%s region_name=%s",
-            aws_access_key_id,
+            "Creating session using boto3 credential strategy region_name=%s",
             region_name,
         )
-        return (
-            boto3.session.Session(
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                aws_session_token=aws_session_token,
-                region_name=region_name,
-                **session_kwargs
-            ),
-            endpoint_url,
-        )
-
-    def _assume_role(
-            self,
-            sts_client: boto3.client,
-            extra_config: dict,
-            role_arn: str,
-            assume_role_kwargs: dict):
-        if "external_id" in extra_config:  # Backwards compatibility
-            assume_role_kwargs["ExternalId"] = extra_config.get(
-                "external_id"
-            )
-        role_session_name = f"Airflow_{self.aws_conn_id}"
-        self.log.info(
-            "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
-            role_arn,
-            role_session_name,
-        )
-        return sts_client.assume_role(
-            RoleArn=role_arn,
-            RoleSessionName=role_session_name,
-            **assume_role_kwargs
-        )
-
-    def _assume_role_with_saml(
-            self,
-            sts_client: boto3.client,
-            extra_config: dict,
-            role_arn: str,
-            assume_role_kwargs: dict):
-
-        saml_config = extra_config['assume_role_with_saml']
-        principal_arn = saml_config['principal_arn']
-
-        idp_url = saml_config["idp_url"]
-        self.log.info("idp_url= %s", idp_url)
-
-        idp_request_kwargs = saml_config["idp_request_kwargs"]
-
-        idp_auth_method = saml_config['idp_auth_method']
-        if idp_auth_method == 'http_spegno_auth':
-            # requests_gssapi will need paramiko > 2.6 since you'll need
-            # 'gssapi' not 'python-gssapi' from PyPi.
-            # https://github.com/paramiko/paramiko/pull/1311
-            import requests_gssapi
-            auth = requests_gssapi.HTTPSPNEGOAuth()
-            if 'mutual_authentication' in saml_config:
-                mutual_auth = saml_config['mutual_authentication']
-                if mutual_auth == 'REQUIRED':
-                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.REQUIRED)
-                elif mutual_auth == 'OPTIONAL':
-                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.OPTIONAL)
-                elif mutual_auth == 'DISABLED':
-                    auth = requests_gssapi.HTTPSPNEGOAuth(requests_gssapi.DISABLED)
-                else:
-                    raise NotImplementedError(
-                        f'mutual_authentication={mutual_auth} in Connection {self.aws_conn_id} Extra.'
-                        'Currently "REQUIRED", "OPTIONAL" and "DISABLED" are supported.'
-                        '(Exclude this setting will default to HTTPSPNEGOAuth() ).')
-
-            # Query the IDP
-            import requests
-            idp_reponse = requests.get(
-                idp_url, auth=auth, **idp_request_kwargs)
-            idp_reponse.raise_for_status()
-
-            # Assist with debugging. Note: contains sensitive info!
-            xpath = saml_config['saml_response_xpath']
-            log_idp_response = 'log_idp_response' in saml_config and saml_config[
-                'log_idp_response']
-            if log_idp_response:
-                self.log.warning(
-                    'The IDP response contains sensitive information,'
-                    ' but log_idp_response is ON (%s).', log_idp_response)
-                self.log.info('idp_reponse.content= %s', idp_reponse.content)
-                self.log.info('xpath= %s', xpath)
-
-            # Extract SAML Assertion from the returned HTML / XML
-            from lxml import etree
-            xml = etree.fromstring(idp_reponse.content)
-            saml_assertion = xml.xpath(xpath)
-            if isinstance(saml_assertion, list):
-                if len(saml_assertion) == 1:
-                    saml_assertion = saml_assertion[0]
-            if not saml_assertion:
-                raise ValueError('Invalid SAML Assertion')
-        else:
-            raise NotImplementedError(
-                f'idp_auth_method={idp_auth_method} in Connection {self.aws_conn_id} Extra.'
-                'Currently only "http_spegno_auth" is supported, and must be specified.')
-
-        self.log.info(
-            "Doing sts_client.assume_role_with_saml to role_arn=%s",
-            role_arn
-        )
-        return sts_client.assume_role_with_saml(
-            RoleArn=role_arn,
-            PrincipalArn=principal_arn,
-            SAMLAssertion=saml_assertion,
-            **assume_role_kwargs
-        )
+        session = boto3.session.Session(region_name=region_name)
+        return session, None
 
     def get_client_type(self, client_type, region_name=None, config=None):
         """Get the underlying boto3 client using boto3 session"""
