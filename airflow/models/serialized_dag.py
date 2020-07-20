@@ -19,7 +19,7 @@
 """Serialized DAG table in database."""
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
@@ -231,3 +231,17 @@ class SerializedDagModel(Base):
                     min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
                     session=session
                 )
+
+    @classmethod
+    @provide_session
+    def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> datetime:
+        """
+        Get the date when the Serialized DAG associated to DAG was last updated
+        in serialized_dag table
+
+        :param dag_id: DAG ID
+        :type dag_id: str
+        :param session: ORM Session
+        :type session: Session
+        """
+        return session.query(cls.last_updated).filter(cls.dag_id == dag_id).scalar()

@@ -107,6 +107,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.import_errors: Dict[str, str] = {}
         self.has_logged = False
         self.read_dags_from_db = read_dags_from_db
+        # Only used by read_dags_from_db=True
+        self.dags_last_fetched: Dict[str, datetime] = {}
 
         self.collect_dags(
             dag_folder=dag_folder,
@@ -142,20 +144,26 @@ class DagBag(BaseDagBag, LoggingMixin):
         # Avoid circular import
         from airflow.models.dag import DagModel
 
-        # Only read DAGs from DB if this dagbag is read_dags_from_db.
         if self.read_dags_from_db:
             # Import here so that serialized dag is only imported when serialization is enabled
             from airflow.models.serialized_dag import SerializedDagModel
             if dag_id not in self.dags:
                 # Load from DB if not (yet) in the bag
-                row = SerializedDagModel.get(dag_id)
-                if not row:
-                    return None
+                self._add_dag_from_db(dag_id=dag_id)
+                return self.dags.get(dag_id)
 
-                dag = row.dag
-                for subdag in dag.subdags:
-                    self.dags[subdag.dag_id] = subdag
-                self.dags[dag.dag_id] = dag
+            # If DAG is in the DagBag, check the following
+            # 1. if time has come to check if DAG is updated (controlled by min_serialized_dag_fetch_secs)
+            # 2. check the last_updated column in SerializedDag table to see if Serialized DAG is updated
+            # 3. if (2) is yes, fetch the Serialized DAG.
+            min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
+            if (
+                dag_id in self.dags_last_fetched and
+                timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
+            ):
+                sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(dag_id=dag_id)
+                if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
+                    self._add_dag_from_db(dag_id=dag_id)
 
             return self.dags.get(dag_id)
 
@@ -186,6 +194,19 @@ class DagBag(BaseDagBag, LoggingMixin):
             elif dag_id in self.dags:
                 del self.dags[dag_id]
         return self.dags.get(dag_id)
+
+    def _add_dag_from_db(self, dag_id: str):
+        """Add DAG to DagBag from DB"""
+        from airflow.models.serialized_dag import SerializedDagModel
+        row = SerializedDagModel.get(dag_id)
+        if not row:
+            raise ValueError(f"DAG '{dag_id}' not found in serialized_dag table")
+
+        dag = row.dag
+        for subdag in dag.subdags:
+            self.dags[subdag.dag_id] = subdag
+        self.dags[dag.dag_id] = dag
+        self.dags_last_fetched[dag.dag_id] = timezone.utcnow()
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """
