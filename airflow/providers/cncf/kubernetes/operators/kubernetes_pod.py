@@ -379,7 +379,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         )
 
         self.pod = pod
-        self.log.info("Starting pod:\n%s", yaml.safe_dump(pod.to_dict()))
+        self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod.to_dict()))
         try:
             launcher.start_pod(
                 pod,
