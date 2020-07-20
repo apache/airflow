@@ -328,7 +328,7 @@ Managing CI environment:
     * Stop running interactive environment with ``breeze stop`` command
     * Restart running interactive environment with ``breeze restart`` command
     * Run test specified with ``breeze tests`` command
-    * Generate requirements with ``breeze generate-requirements`` command
+    * Generate constraints with ``breeze generate-constraints`` command
     * Execute arbitrary command in the test environment with ``breeze shell`` command
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
     * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
@@ -693,40 +693,34 @@ easily identify the location the problems with documentation originated from.
       </a>
     </div>
 
-Generating requirements
------------------------
+Generating constraints
+----------------------
 
-Whenever you modify and commit setup.py, you need to re-generate requirement files. Those requirement
-files ara stored separately for each python version in the ``requirements`` folder. Those are
-constraints rather than requirements as described in detail in the
-`CONTRIBUTING.rst <CONTRIBUTING.rst#pinned-requirement-files>`_ contributing documentation.
+Whenever setup.py gets modified, the CI master job will re-generate constraint files. Those constraint
+files ara stored in separated orphan branches: ``constraints-master`` and ``constraint-1-10``.
+They are stored separately for each python version. Those are
+constraint files as described in detail in the
+`CONTRIBUTING.rst <CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
 
-In case you modify setup.py you need to update the requirements - for every python version supported.
-
-.. code-block:: bash
-
-  ./breeze generate-requirements --python 3.6
-
-.. code-block:: bash
-
-  ./breeze generate-requirements --python 3.7
+In case someone modifies setup.py, the ``CRON`` scheduled CI build automatically upgrades and
+pushes changed to the constraint files, however you can also perform test run of this locally using
+``generate-constraints`` command of Breeze.
 
 .. code-block:: bash
 
-  ./breeze generate-requirements --python 3.8
+  ./breeze generate-constraints --python 3.6
 
+.. code-block:: bash
 
-This bumps requirements to latest versions and stores hash of setup.py so that we are automatically
-upgrading the requirements as we add new ones.
+  ./breeze generate-constraints --python 3.7
 
-.. raw:: html
+.. code-block:: bash
 
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1823">
-        <img src="images/breeze/overlayed_breeze_generate_requirements.png" width="640"
-             alt="Airflow Breeze - Generate requirements">
-      </a>
-    </div>
+  ./breeze generate-constraints --python 3.8
+
+This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
+and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
+of changes vs the previous constraint files is printed.
 
 Using local virtualenv environment in Your Host IDE
 ---------------------------------------------------
@@ -752,7 +746,7 @@ To use your host IDE with Breeze:
 
 .. code-block:: bash
 
-  ./breeze generate-requirements --python 3.8
+  ./breeze initialize-local-virtualenv --python 3.8
 
 4. Select the virtualenv you created as the project's default virtualenv in your IDE.
 
@@ -1050,7 +1044,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
     build-image                              Builds CI or Production docker image
     cleanup-image                            Cleans up the container image created
     exec                                     Execs into running breeze container in new terminal
-    generate-requirements                    Generates pinned requirements for pip dependencies
+    generate-constraints                     Generates pinned constraint files
     push-image                               Pushes images to registry
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
@@ -1303,16 +1297,18 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ####################################################################################################
 
 
-  Detailed usage for command: generate-requirements
+  Detailed usage for command: generate-constraints
 
 
-  breeze generate-requirements [FLAGS]
+  breeze generate-constraints [FLAGS]
 
-        Generates pinned requirements from setup.py. Those requirements are generated in requirements
-        directory - separately for different python version. Those requirements are used to run
-        CI builds as well as run repeatable production image builds. You can use those requirements
-        to predictably install released Airflow versions. You should run it always after you update
-        setup.py.
+        Generates pinned constraint files from setup.py. Those files are generated in files folder
+        - separate files for different python version. Those constraint files when pushed to orphan
+        constraint-master and constraint-1-10 branches are used to generate repeatable
+        CI builds as well as run repeatable production image builds. You can use those constraints
+        to predictably install released Airflow versions. This is mainly used to test the constraint
+        generation - constraints are pushed to the orphan branches by a successful scheduled
+        CRON job in CI automatically.
 
   Flags:
 
@@ -1391,8 +1387,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze initialize-local-virtualenv [FLAGS]
 
         Initializes locally created virtualenv installing all dependencies of Airflow
-        taking into account the frozen requirements from requirements folder.
-        This local virtualenv can be used to aid autocompletion and IDE support as
+        taking into account the constraints for the version specified.
+        This local virtualenv can be used to aid auto-completion and IDE support as
         well as run unit tests directly from the IDE. You need to have virtualenv
         activated before running this command.
 
