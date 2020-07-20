@@ -363,7 +363,7 @@ constraints file when installing Apache Airflow - either from the sources:
 .. code-block:: bash
 
   pip install -e . \
-    --constraint --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
 or from the pypi package:
@@ -371,7 +371,7 @@ or from the pypi package:
 .. code-block:: bash
 
   pip install apache-airflow \
-    --constraint --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
 This works also with extras - for example:
@@ -379,7 +379,7 @@ This works also with extras - for example:
 .. code-block:: bash
 
   pip install .[ssh] \
-        --constraint --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 
 As of apache-airflow 1.10.12 it is also possible to use constraints directly from github using specific

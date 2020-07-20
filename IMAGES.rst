@@ -99,7 +99,7 @@ This will build the image using command similar to:
 .. code-block:: bash
 
     pip install apache-airflow[sendgrid]==1.10.12 \
-  --constraint --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
 
 You can also build production images from specific Git version via providing ``--install-airflow-reference``
 parameter to Breeze (this time constraints are taken from the ``constraints-master`` branch which is the
@@ -108,7 +108,7 @@ HEAD of development for constraints):
 .. code-block:: bash
 
     pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow" \
-  --constraint --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 Using cache during builds
 =========================
