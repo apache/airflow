@@ -160,61 +160,61 @@
             <td class="text-center" style="display:flex;flex-direction:row;justify-content:space-around;">
               {% if dag %}
                 <!-- Trigger Dag -->
-                <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}">
-                  <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
+                <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}" aria-label="Trigger DAG">
+                  <span class="glyphicon glyphicon-play" aria-hidden="true" data-original-title="Trigger DAG"></span>
                 </a>
 
                 <!-- Tree -->
-                <a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}">
+                <a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}" aria-label="Tree View">
                   <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true" data-original-title="Tree View"></span>
                 </a>
 
                 <!-- Graph -->
-                <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id) }}">
+                <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id) }}" aria-label="Graph View">
                   <span class="glyphicon glyphicon-certificate" aria-hidden="true" data-original-title="Graph View"></span>
                 </a>
 
                 <!-- Duration -->
-                <a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id) }}">
+                <a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id) }}" aria-label="Task Duration">
                   <span class="glyphicon glyphicon-stats" aria-hidden="true" data-original-title="Tasks Duration"></span>
                 </a>
 
                 <!-- Retries -->
-                <a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id) }}">
+                <a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id) }}" aria-label="Task Tries">
                   <span class="glyphicon glyphicon-duplicate" aria-hidden="true" data-original-title="Task Tries"></span>
                 </a>
 
                 <!-- Landing Times -->
-                <a href="{{ url_for("Airflow.landing_times", dag_id=dag.dag_id) }}">
+                <a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id) }}" aria-label="Landing Times">
                   <span class="glyphicon glyphicon-plane" aria-hidden="true" data-original-title="Landing Times"></span>
                 </a>
 
                 <!-- Gantt -->
-                <a href="{{ url_for("Airflow.gantt", dag_id=dag.dag_id) }}">
-                  <span class="glyphicon glyphicon-align-left" aria-hidden="true" data-original-title="Gantt View"></span>
+                <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id) }}" aria-label="Gantt">
+                  <span class="glyphicon glyphicon-align-left" aria-hidden="true" data-original-title="Gantt"></span>
                 </a>
 
                 <!-- Code -->
-                <a href="{{ url_for("Airflow.code", dag_id=dag.dag_id) }}">
-                  <span class="glyphicon glyphicon-file" aria-hidden="true" data-original-title="Code View"></span>
+                <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id) }}" aria-label="Code">
+                  <span class="glyphicon glyphicon-file" aria-hidden="true" data-original-title="Code"></span>
                 </a>
 
                 <!-- Logs -->
-                <a href="{{ url_for('LogModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}&_od_LogModelView=desc&_oc_LogModelView=dttm">
+                <a href="{{ url_for('LogModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}&_od_LogModelView=desc&_oc_LogModelView=dttm" aria-label="Logs">
                   <span class="glyphicon glyphicon-align-justify" aria-hidden="true" data-original-title="Logs"></span>
                 </a>
               {% endif %}
 
               <!-- Refresh -->
-              <a href="{{ url_for("Airflow.refresh", dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false">
+              <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false" aria-label="Refresh DAG">
                 <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
               </a>
 
               <!-- Delete -->
               <!-- Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag -->
               <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
-                onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')">
-                <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
+                onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')" class="text-danger" aria-label="Delete DAG">
+                <span class="glyphicon glyphicon-trash" aria-hidden="true" data-original-title="Delete&nbsp;Dag"></span>
               </a>
             </td>
           </tr>
