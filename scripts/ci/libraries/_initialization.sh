@@ -209,7 +209,7 @@ function initialize_common_environment {
     export VERSION_SUFFIX_FOR_SVN=""
 
     # Default Kubernetes version
-    export DEFAULT_KUBERNETES_VERSION="v1.18.2"
+    export DEFAULT_KUBERNETES_VERSION="v1.18.6"
 
     # Default KinD version
     export DEFAULT_KIND_VERSION="v0.8.0"
