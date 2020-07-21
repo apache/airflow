@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+import logging
 import os
 import shutil
 import textwrap
@@ -740,7 +741,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         )
         monitor_mock.return_value = (State.SUCCESS, None)
         context = create_context(k)
-        with self.assertLogs(k.log) as cm:
+        with self.assertLogs(k.log, level=logging.DEBUG) as cm:
             k.execute(context)
             expected_line = textwrap.dedent("""\
             DEBUG:airflow.task.operators:Starting pod:
