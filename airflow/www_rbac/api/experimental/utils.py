@@ -188,3 +188,15 @@ def get_curve(entity_id):
     st = ClsCurveStorage(**get_curve_args())
     st.metadata = {'entity_id': entity_id}
     return st.query_curve()
+
+
+def trigger_push_template_dag(template_name, template_data):
+    push_result_dag_id = 'publish_result_dag'
+    conf = {
+        'data': {
+            'template_name': template_name,
+            'template_data': template_data
+        },
+        'data_type': 'curve_template'
+    }
+    trigger.trigger_dag(push_result_dag_id, conf=conf, replace_microseconds=False)

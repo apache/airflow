@@ -1,0 +1,102 @@
+import pprint
+
+from redis import Redis
+from airflow.contrib.hooks.redis_hook import RedisHook
+from typing import Dict
+from .entity import ClsEntity
+from airflow.utils.logger import generate_logger
+import os
+import threading
+import signal
+import json
+from redis.client import Pipeline
+import time
+from airflow.www_rbac.api.experimental.utils import trigger_push_template_dag
+
+RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
+
+_logger = generate_logger(__name__)
+IS_DEBUG = RUNTIME_ENV != 'prod'
+
+
+def gen_template_key(template_name):
+    return "templates.{}".format(template_name)
+
+
+def parse_template_name(template_key):
+    return template_key.split(".")[1]
+
+
+class ClsRedisConnection(ClsEntity):
+    _channels = {}
+
+    def __init__(self):
+        super(ClsEntity, self).__init__()
+        self.msg_type = 'pmessage'  # for pmessage 模式匹配
+        self.redis_conn_id = 'redis_default'
+        self._redis: Redis = RedisHook(redis_conn_id='redis_default').get_conn()
+        self._pubsub = self._redis.pubsub()
+        self.end = False
+        self.poke_interval = 5
+
+    def set_channel_handler(self, channel, handlerFn):
+        self._channels[channel] = handlerFn
+
+    @property
+    def redis(self):
+        if not self._redis:
+            raise Exception('请先初始化redis连接')
+        return self._redis
+
+    @property
+    def channels(self):
+        return self._channels
+
+    @property
+    def pubsub(self):
+        return self._pubsub
+
+    @property
+    def pipeline(self) -> Pipeline:
+        return self.redis.pipeline(transaction=True)
+
+    def doSubscribe(self):
+        if not self.pubsub:
+            return
+        self.pubsub.psubscribe(**self.channels)
+
+    def doUnsubscribe(self):
+        if not self.pubsub:
+            return
+        self.pubsub.punsubscribe(**self.channels)
+
+    def signal_handler(self, sig, frame):
+        _logger.info('redis connection ended by signal {}, frame: {}'.format(sig, frame))
+        self.end = True
+
+    def set_signal_handler(self):
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGCHLD, self.signal_handler)
+        signal.signal(signal.SIGHUP, self.signal_handler)
+
+    def store_templates(self, templates: Dict):
+        # 将模板存储到redis中
+        _logger.debug("Recv Template Data: {}".format(pprint.pformat(templates, indent=4)))
+        with self.pipeline as p:
+            for key, val in templates.items():
+                channel = gen_template_key(key)
+                p.set(channel, value=json.dumps(val))
+                trigger_push_template_dag(channel, val)
+
+    def run(self):
+        self.set_signal_handler()
+        while not self.end:
+            if not self.pubsub:
+                time.sleep(self.poke_interval)
+                continue
+            msg = self.pubsub.get_message(timeout=self.poke_interval)
+            # if msg and msg.get('type', '') == self.msg_type and self.handler:
+            #     data = msg.get('data')
+            #     self.handler(context=self._context, message=data, channel=msg.get('channel'))  # 回调
+            #     self.store_template(message=data, channel=msg.get('channel'))
