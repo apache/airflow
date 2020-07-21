@@ -58,6 +58,7 @@ def serialize(value):
        ``{TYPE: 'foo', VAR: 'bar'}``
     """
     serialization_function_by_type = {
+        type(None): _return_primitive,
         int: _return_primitive,
         bool: _return_primitive,
         float: _return_primitive,
@@ -111,6 +112,7 @@ def deserialize(value):
     """
 
     deserialization_function_by_type = {
+        type(None): _return_primitive,
         int: _return_primitive,
         bool: _return_primitive,
         float: _return_primitive,

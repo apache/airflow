@@ -26,6 +26,9 @@ from airflow.serialization.json import deserialize, serialize
 
 class TestSerialize(unittest.TestCase):
 
+    def test_none(self):
+        assert serialize(None) is None
+
     def test_integer(self):
         assert serialize(1) == 1
         assert serialize(300) == 300
@@ -116,6 +119,9 @@ class TestSerialize(unittest.TestCase):
 
 
 class TestDeserialize(unittest.TestCase):
+
+    def test_none(self):
+        assert deserialize(None) is None
 
     def test_integer(self):
         assert deserialize(1) == 1
