@@ -2088,6 +2088,8 @@ function run_build_command {
               echo "Stops KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "restart" ]] ; then
               echo "Restarts KinD cluster"
+            elif [[ ${KIND_CLUSTER_OPERATION} == "recreate" ]] ; then
+              echo "Recreates KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "status" ]] ; then
               echo "Checks status of KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "deploy" ]] ; then
