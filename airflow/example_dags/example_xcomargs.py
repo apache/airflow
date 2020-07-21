@@ -17,10 +17,13 @@
 # under the License.
 
 """Example DAG demonstrating the usage of the XComArgs."""
+import logging
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, get_current_context, task
 from airflow.utils.dates import days_ago
+
+log = logging.getLogger(__name__)
 
 args = {
     'owner': 'airflow',
@@ -28,9 +31,16 @@ args = {
 }
 
 
-def dummy(*args, **kwargs):
+def generate_value():
     """Dummy function"""
-    return "pass"
+    return "Bring me a shrubbery!"
+
+
+@task
+def print_value(value):
+    """Dummy function"""
+    ctx = get_current_context()
+    log.info("The knights of Ni say: %s (at %s)", value, ctx['ts'])
 
 
 with DAG(
@@ -40,12 +50,8 @@ with DAG(
     tags=['example']
 ) as dag:
     task1 = PythonOperator(
-        task_id='task1',
-        python_callable=dummy,
+        task_id='generate_value',
+        python_callable=generate_value,
     )
 
-    task2 = PythonOperator(
-        task_id='task2',
-        python_callable=dummy,
-        op_kwargs={"dummy": task1.output},
-    )
+    print_value(task1.output)
