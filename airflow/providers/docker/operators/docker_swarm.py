@@ -93,6 +93,8 @@ class DockerSwarmOperator(DockerOperator):
         Supported only if the Docker engine is using json-file or journald logging drivers.
         The `tty` parameter should be set to use this with Python applications.
     :type enable_logging: bool
+    :param do_xcom_push: if True, an XCom is pushed containing the Operator's result
+    :type do_xcom_push: bool
     """
 
     @apply_defaults
@@ -147,10 +149,19 @@ class DockerSwarmOperator(DockerOperator):
                 self.log.info('Service status before exiting: %s', self._service_status())
                 break
 
+        line = ''
+
+        ret = None
+        if self.do_xcom_push:
+            ret = self.cli.logs(container=self.container['Id']) \
+                if self.xcom_all else line.encode('utf-8')
+
         if self.auto_remove:
             self.cli.remove_service(self.service['ID'])
         if self._service_status() == 'failed':
             raise AirflowException('Service failed: ' + repr(self.service))
+
+        return ret
 
     def _service_status(self):
         return self.cli.tasks(
