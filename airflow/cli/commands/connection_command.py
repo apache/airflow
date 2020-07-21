@@ -27,6 +27,7 @@ from airflow.models import Connection
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import create_session
 from airflow.secrets.local_filesystem import load_connections
+from airflow.exceptions import AirflowException
 
 def _tabulate_connection(conns: List[Connection], tablefmt: str):
     tabulate_data = [
@@ -168,7 +169,11 @@ def connections_import(args):
                ' {missing!r}'.format(missing=missing_args))
         raise SystemExit(msg)
 
-    new_conns_map = load_connections(args.file_path)
+    try:
+        new_conns_map = load_connections(args.file_path)
+    except AirflowException as e:
+        raise SystemExit(e)
+
     for _,new_conn_list in new_conns_map.items():
         for new_conn in new_conn_list:
             with create_session() as session:

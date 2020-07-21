@@ -628,7 +628,7 @@ ARG_INCLUDE_SECRETS = Arg(
     default=False)
 ARG_CONN_FILE_PATH = Arg(
     ('--file-path',),
-    help='Import connections form a file. Acceptable file formats json, yaml, env.',
+    help='Import connections from a file. Acceptable file formats .json or .env',
     type=str)
 
 # users
