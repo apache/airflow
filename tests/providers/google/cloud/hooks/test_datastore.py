@@ -28,7 +28,12 @@ from airflow.providers.google.cloud.hooks.datastore import DatastoreHook
 GCP_PROJECT_ID = "test"
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
+def mock_init(
+    self,
+    gcp_conn_id,
+    delegate_to=None,
+    impersonation_chain=None,
+):  # pylint: disable=unused-argument
     pass
 
 

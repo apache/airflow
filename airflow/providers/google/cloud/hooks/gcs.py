@@ -28,7 +28,7 @@ from contextlib import contextmanager
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Callable, Optional, Set, Tuple, TypeVar, Union, cast
+from typing import Callable, Optional, Sequence, Set, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -114,9 +114,10 @@ class GCSHook(GoogleBaseHook):
 
     def __init__(
         self,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            google_cloud_storage_conn_id: Optional[str] = None
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_cloud_storage_conn_id: Optional[str] = None
     ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
@@ -125,7 +126,11 @@ class GCSHook(GoogleBaseHook):
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
             gcp_conn_id = google_cloud_storage_conn_id
-        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
 
     def get_conn(self):
         """

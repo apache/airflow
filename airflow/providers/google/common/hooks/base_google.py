@@ -26,7 +26,7 @@ import os
 import tempfile
 from contextlib import contextmanager
 from subprocess import check_output
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypeVar, cast
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypeVar, Union, cast
 
 import google.auth
 import google.auth.credentials
@@ -44,7 +44,7 @@ from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
-    _get_scopes, get_credentials_and_project_id,
+    _get_scopes, _get_target_principal_and_delegates, get_credentials_and_project_id,
 )
 from airflow.utils.process_utils import patch_environ
 
@@ -148,16 +148,31 @@ class GoogleBaseHook(BaseHook):
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
         super().__init__()
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
         self._cached_credentials: Optional[google.auth.credentials.Credentials] = None
         self._cached_project_id: Optional[str] = None
@@ -178,11 +193,15 @@ class GoogleBaseHook(BaseHook):
         except json.decoder.JSONDecodeError:
             raise AirflowException('Invalid key JSON.')
 
+        target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
+
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
             keyfile_dict=keyfile_dict_json,
             scopes=self.scopes,
-            delegate_to=self.delegate_to
+            delegate_to=self.delegate_to,
+            target_principal=target_principal,
+            delegates=delegates,
         )
 
         overridden_project_id = self._get_field('project')
