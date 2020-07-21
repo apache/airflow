@@ -743,7 +743,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         with self.assertLogs(k.log) as cm:
             k.execute(context)
             expected_line = textwrap.dedent("""\
-            INFO:airflow.task.operators:Starting pod:
+            DEBUG:airflow.task.operators:Starting pod:
             api_version: v1
             kind: Pod
             metadata:
