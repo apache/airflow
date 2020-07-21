@@ -163,7 +163,7 @@ class TestCliTasks(unittest.TestCase):
             AirflowException,
             "Option --raw and --local are mutually exclusive."
         ):
-            task_command.task_run(self.parser.parse_args([  # type: ignore
+            task_command.task_run(self.parser.parse_args([
                 'tasks', 'run', 'example_bash_operator', 'runme_0', DEFAULT_DATE.isoformat(), '--raw',
                 '--local'
             ]))

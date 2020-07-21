@@ -314,7 +314,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         self.log.info("Inserting Campaign Manager report.")
         response = hook.insert_report(
             profile_id=self.profile_id, report=self.report
-        )  # type: ignore
+        )
         report_id = response.get("id")
         self.xcom_push(context, key="report_id", value=report_id)
         self.log.info("Report successfully inserted. Report id: %s", report_id)

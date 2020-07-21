@@ -1771,9 +1771,9 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                                for tik in tis])
             return or_(*filter_for_tis)
         if all(isinstance(t, TaskInstance) for t in tis):
-            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,  # type: ignore
-                                    TI.task_id == ti.task_id,  # type: ignore
-                                    TI.execution_date == ti.execution_date)  # type: ignore
+            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
+                                    TI.task_id == ti.task_id,
+                                    TI.execution_date == ti.execution_date)
                                for ti in tis])
             return or_(*filter_for_tis)
 

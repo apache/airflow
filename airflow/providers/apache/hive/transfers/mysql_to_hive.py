@@ -150,7 +150,7 @@ class MySqlToHiveOperator(BaseOperator):
                                     quotechar=self.quotechar,
                                     escapechar=self.escapechar,
                                     encoding="utf-8")
-            field_dict = OrderedDict()  # type:ignore
+            field_dict = OrderedDict()
             for field in cursor.description:
                 field_dict[field[0]] = self.type_map(field[1])
             csv_writer.writerows(cursor)

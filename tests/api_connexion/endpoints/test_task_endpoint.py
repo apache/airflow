@@ -94,9 +94,9 @@ class TestGetTask(TestTaskEndpoint):
     @conf_vars({("core", "store_serialized_dags"): "True"})
     def test_should_response_200_serialized(self):
         # Create empty app with empty dagbag to check if DAG is read from db
-        app_serialized = app.create_app(testing=True)  # type:ignore
+        app_serialized = app.create_app(testing=True)
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
-        app_serialized.dag_bag = dag_bag  # type:ignore
+        app_serialized.dag_bag = dag_bag
         client = app_serialized.test_client()
 
         SerializedDagModel.write_dag(self.dag)
