@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict, Optional, Tuple
 
+from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -45,12 +47,13 @@ class HivePartitionSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
-                 table, partition="ds='{{ ds }}'",
-                 metastore_conn_id='metastore_default',
-                 schema='default',
-                 poke_interval=60 * 3,
-                 *args,
-                 **kwargs):
+                 table: str,
+                 partition: Optional[str] = "ds='{{ ds }}'",
+                 metastore_conn_id: str = 'metastore_default',
+                 schema: str = 'default',
+                 poke_interval: int = 60 * 3,
+                 *args: Tuple[Any, ...],
+                 **kwargs: Any):
         super().__init__(
             poke_interval=poke_interval, *args, **kwargs)
         if not partition:
@@ -60,14 +63,13 @@ class HivePartitionSensor(BaseSensorOperator):
         self.partition = partition
         self.schema = schema
 
-    def poke(self, context):
+    def poke(self, context: Dict[str, Any]) -> bool:
         if '.' in self.table:
             self.schema, self.table = self.table.split('.')
         self.log.info(
             'Poking for table %s.%s, partition %s', self.schema, self.table, self.partition
         )
         if not hasattr(self, 'hook'):
-            from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
             hook = HiveMetastoreHook(
                 metastore_conn_id=self.metastore_conn_id)
         return hook.check_for_partition(

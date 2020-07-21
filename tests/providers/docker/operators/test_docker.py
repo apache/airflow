@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import logging
 import unittest
 
@@ -24,9 +23,10 @@ import mock
 from airflow.exceptions import AirflowException
 
 try:
-    from airflow.providers.docker.operators.docker import DockerOperator
-    from airflow.providers.docker.hooks.docker import DockerHook
     from docker import APIClient
+
+    from airflow.providers.docker.hooks.docker import DockerHook
+    from airflow.providers.docker.operators.docker import DockerOperator
 except ImportError:
     pass
 
@@ -82,7 +82,8 @@ class TestDockerOperator(unittest.TestCase):
                                                                mem_limit=None,
                                                                auto_remove=False,
                                                                dns=None,
-                                                               dns_search=None)
+                                                               dns_search=None,
+                                                               cap_add=None)
         tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
         client_mock.images.assert_called_once_with(name='ubuntu:latest')
         client_mock.attach.assert_called_once_with(container='some_id', stdout=True,

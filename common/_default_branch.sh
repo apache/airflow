@@ -17,3 +17,4 @@
 # under the License.
 
 export DEFAULT_BRANCH="master"
+export DEFAULT_CONSTRAINTS_BRANCH="constraints-master"

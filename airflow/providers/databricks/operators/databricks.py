@@ -469,7 +469,6 @@ class DatabricksRunNowOperator(BaseOperator):
             databricks_retry_delay=1,
             do_xcom_push=False,
             **kwargs):
-
         """
         Creates a new ``DatabricksRunNowOperator``.
         """

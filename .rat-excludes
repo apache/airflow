@@ -77,9 +77,6 @@ apache-airflow-.*\+bin.tar.gz.*
 PULL_REQUEST_TEMPLATE.md
 PROVIDERS_CHANGES*.md
 
-# vendored modules
-_vendor/*
-
 # Temporary list of files to make compatible with Pylint
 pylint_todo.txt
 
@@ -91,3 +88,7 @@ pylint_todo.txt
 
 # the example notebook is ASF 2 licensed but RAT cannot read this
 input_notebook.ipynb
+
+# .git might be a file in case of worktree
+.git
+tmp

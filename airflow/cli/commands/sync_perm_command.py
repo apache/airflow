@@ -18,13 +18,13 @@
 """Sync permission command"""
 from airflow.models import DagBag
 from airflow.utils import cli as cli_utils
-from airflow.www.app import cached_appbuilder
+from airflow.www.app import cached_app
 
 
 @cli_utils.action_logging
 def sync_perm(args):
     """Updates permissions for existing roles and DAGs"""
-    appbuilder = cached_appbuilder()
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     print('Updating permission, view-menu for all existing roles')
     appbuilder.sm.sync_roles()
     print('Updating permission on all DAG views')

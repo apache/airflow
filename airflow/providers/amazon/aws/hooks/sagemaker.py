@@ -250,10 +250,12 @@ class SageMakerHook(AwsBaseHook):
     def log_stream(self, log_group, stream_name, start_time=0, skip=0):
         """
         This method is deprecated.
-        Please use :py:meth:`airflow.contrib.hooks.AwsLogsHook.get_log_events` instead.
+        Please use
+        :py:meth:`airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events` instead.
         """
         warnings.warn("Method `log_stream` has been deprecated. "
-                      "Please use `airflow.contrib.hooks.AwsLogsHook.get_log_events` instead.",
+                      "Please use "
+                      "`airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events` instead.",
                       category=DeprecationWarning,
                       stacklevel=2)
 
@@ -744,7 +746,7 @@ class SageMakerHook(AwsBaseHook):
 
     def list_training_jobs(
         self, name_contains: Optional[str] = None, max_results: Optional[int] = None, **kwargs
-    ) -> List[Dict]:
+    ) -> List[Dict]:   # noqa: D402
         """
         This method wraps boto3's list_training_jobs(). The training job name and max results are configurable
         via arguments. Other arguments are not, and should be provided via kwargs. Note boto3 expects these in
@@ -763,7 +765,7 @@ class SageMakerHook(AwsBaseHook):
         :return: results of the list_training_jobs request
         """
 
-        config = dict()
+        config = {}
 
         if name_contains:
             if "NameContains" in kwargs:
@@ -806,7 +808,7 @@ class SageMakerHook(AwsBaseHook):
         next_token = None
 
         while True:
-            kwargs = dict()
+            kwargs = {}
             if next_token is not None:
                 kwargs["NextToken"] = next_token
 

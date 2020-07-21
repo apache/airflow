@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,38 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Get the ISO standard day number of the week from a given day string
+This module is deprecated. Please use `airflow.utils.weekday`.
 """
-import enum
+import warnings
 
+# pylint: disable=unused-import
+from airflow.utils.weekday import WeekDay  # noqa
 
-@enum.unique
-class WeekDay(enum.IntEnum):
-    """
-    Python Enum containing Days of the Week
-    """
-    MONDAY = 1
-    TUESDAY = 2
-    WEDNESDAY = 3
-    THURSDAY = 4
-    FRIDAY = 5
-    SATURDAY = 6
-    SUNDAY = 7
-
-    @classmethod
-    def get_weekday_number(cls, week_day_str):
-        """
-        Return the ISO Week Day Number for a Week Day
-
-        :param week_day_str: Full Name of the Week Day. Example: "Sunday"
-        :type week_day_str: str
-        :return: ISO Week Day Number corresponding to the provided Weekday
-        """
-        sanitized_week_day_str = week_day_str.upper()
-
-        if sanitized_week_day_str not in cls.__members__:
-            raise AttributeError(
-                'Invalid Week Day passed: "{}"'.format(week_day_str)
-            )
-
-        return cls[sanitized_week_day_str]
+warnings.warn(
+    "This module is deprecated. Please use `airflow.utils.weekday`.",
+    DeprecationWarning, stacklevel=2
+)

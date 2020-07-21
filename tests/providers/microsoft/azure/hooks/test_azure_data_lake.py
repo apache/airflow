@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-
 import json
 import unittest
 
@@ -43,8 +41,9 @@ class TestAzureDataLakeHook(unittest.TestCase):
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.lib', autospec=True)
     def test_conn(self, mock_lib):
-        from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
         from azure.datalake.store import core
+
+        from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         self.assertIsNone(hook._conn)
         self.assertEqual(hook.conn_id, 'adl_test_key')

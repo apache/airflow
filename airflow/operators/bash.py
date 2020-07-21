@@ -30,7 +30,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class BashOperator(BaseOperator):
-    """
+    r"""
     Execute a Bash script, command or set of commands.
 
     .. seealso::
@@ -61,6 +61,37 @@ class BashOperator(BaseOperator):
     .. code-block:: python
 
         bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
+
+    .. warning::
+
+        Care should be taken with "user" input or when using Jinja templates in the
+        ``bash_command``, as this bash operator does not perform any escaping or
+        sanitization of the command.
+
+        This applies mostly to using "dag_run" conf, as that can be submitted via
+        users in the Web UI. Most of the default template variables are not at
+        risk.
+
+    For example, do **not** do this:
+
+    .. code-block:: python
+
+        bash_task = BashOperator(
+            task_id="bash_task",
+            bash_command='echo "Here is the message: \'{{ dag_run.conf["message"] if dag_run else "" }}\'"',
+        )
+
+    Instead, you should pass this via the ``env`` kwarg and use double-quotes
+    inside the bash_command, as below:
+
+    .. code-block:: python
+
+        bash_task = BashOperator(
+            task_id="bash_task",
+            bash_command='echo "here is the message: \'$message\'"',
+            env={'message': '{{ dag_run.conf["message"] if dag_run else "" }}'},
+        )
+
     """
     template_fields = ('bash_command', 'env')
     template_ext = ('.sh', '.bash',)

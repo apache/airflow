@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from collections import Iterable
 from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
@@ -48,7 +47,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
     :type api_version: str
     """
 
-    template_fields = ("body", "gcp_conn_id", "api_version")  # type: Iterable[str]
+    template_fields = ("body", "gcp_conn_id", "api_version")
 
     @apply_defaults
     def __init__(

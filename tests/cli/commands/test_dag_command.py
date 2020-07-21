@@ -20,11 +20,10 @@ import io
 import os
 import tempfile
 import unittest
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 
 import mock
 import pytest
-import pytz
 
 from airflow import settings
 from airflow.cli import cli_parser
@@ -36,6 +35,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 
@@ -60,7 +60,13 @@ class TestCliDags(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
+        cls.dagbag.sync_to_db()
         cls.parser = cli_parser.get_parser()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        clear_db_runs()
+        clear_db_dags()
 
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
     def test_backfill(self, mock_run):
@@ -249,10 +255,10 @@ class TestCliDags(unittest.TestCase):
             dr = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
             dr.delete(synchronize_session=False)
 
+        # Test None output
         args = self.parser.parse_args(['dags',
                                        'next_execution',
                                        dag_ids[0]])
-
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_next_execution(args)
             out = temp_stdout.getvalue()
@@ -262,36 +268,44 @@ class TestCliDags(unittest.TestCase):
 
         # The details below is determined by the schedule_interval of example DAGs
         now = DEFAULT_DATE
-        next_execution_time_for_dag1 = pytz.utc.localize(
-            datetime.combine(
-                now.date() + timedelta(days=1),
-                time(0)
-            )
-        )
-        next_execution_time_for_dag2 = now + timedelta(hours=4)
-        expected_output = [str(next_execution_time_for_dag1),
-                           str(next_execution_time_for_dag2),
+        expected_output = [str(now + timedelta(days=1)),
+                           str(now + timedelta(hours=4)),
                            "None",
                            "None"]
+        expected_output_2 = [str(now + timedelta(days=1)) + os.linesep + str(now + timedelta(days=2)),
+                             str(now + timedelta(hours=4)) + os.linesep + str(now + timedelta(hours=8)),
+                             "None",
+                             "None"]
 
         for i, dag_id in enumerate(dag_ids):
-            args = self.parser.parse_args(['dags',
-                                           'next_execution',
-                                           dag_id])
-
             dag = self.dagbag.dags[dag_id]
             # Create a DagRun for each DAG, to prepare for next step
             dag.create_dagrun(
-                run_id=DagRunType.MANUAL.value,
+                run_type=DagRunType.MANUAL,
                 execution_date=now,
                 start_date=now,
                 state=State.FAILED
             )
 
+            # Test num-executions = 1 (default)
+            args = self.parser.parse_args(['dags',
+                                           'next_execution',
+                                           dag_id])
             with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
                 dag_command.dag_next_execution(args)
                 out = temp_stdout.getvalue()
             self.assertIn(expected_output[i], out)
+
+            # Test num-executions = 2
+            args = self.parser.parse_args(['dags',
+                                           'next_execution',
+                                           dag_id,
+                                           '--num-executions',
+                                           '2'])
+            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+                dag_command.dag_next_execution(args)
+                out = temp_stdout.getvalue()
+            self.assertIn(expected_output_2[i], out)
 
         # Clean up before leaving
         with create_session() as session:
@@ -419,7 +433,8 @@ class TestCliDags(unittest.TestCase):
                 subdir=cli_args.subdir, dag_id='example_bash_operator'
             ),
             mock.call().clear(
-                start_date=cli_args.execution_date, end_date=cli_args.execution_date, reset_dag_runs=True
+                start_date=cli_args.execution_date, end_date=cli_args.execution_date,
+                dag_run_state=State.NONE,
             ),
             mock.call().run(
                 executor=mock_executor.return_value,
@@ -447,7 +462,9 @@ class TestCliDags(unittest.TestCase):
                 subdir=cli_args.subdir, dag_id='example_bash_operator'
             ),
             mock.call().clear(
-                start_date=cli_args.execution_date, end_date=cli_args.execution_date, reset_dag_runs=True
+                start_date=cli_args.execution_date,
+                end_date=cli_args.execution_date,
+                dag_run_state=State.NONE,
             ),
             mock.call().run(
                 executor=mock_executor.return_value,

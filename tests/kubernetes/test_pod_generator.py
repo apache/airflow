@@ -14,13 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
-import unittest.mock as mock
 import uuid
+from unittest import mock
 
-import kubernetes.client.models as k8s
-from kubernetes.client import ApiClient
+from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.k8s_model import append_to_pod

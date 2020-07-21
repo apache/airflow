@@ -76,6 +76,36 @@ class SerializedDagModelTest(unittest.TestCase):
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
 
+    def test_serialized_dag_is_updated_only_if_dag_is_changed(self):
+        """Test Serialized DAG is updated if DAG is changed"""
+
+        example_dags = make_example_dags(example_dags_module)
+        example_bash_op_dag = example_dags.get("example_bash_operator")
+        SDM.write_dag(dag=example_bash_op_dag)
+
+        with create_session() as session:
+            last_updated = session.query(
+                SDM.last_updated).filter(SDM.dag_id == example_bash_op_dag.dag_id).one_or_none()
+
+            # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
+            # column is not updated
+            SDM.write_dag(dag=example_bash_op_dag)
+            last_updated_1 = session.query(
+                SDM.last_updated).filter(SDM.dag_id == example_bash_op_dag.dag_id).one_or_none()
+
+            self.assertEqual(last_updated, last_updated_1)
+
+            # Update DAG
+            example_bash_op_dag.tags += ["new_tag"]
+            self.assertCountEqual(example_bash_op_dag.tags, ["example", "new_tag"])
+
+            SDM.write_dag(dag=example_bash_op_dag)
+            new_s_dag = session.query(SDM.last_updated, SDM.data).filter(
+                SDM.dag_id == example_bash_op_dag.dag_id).one_or_none()
+
+            self.assertNotEqual(last_updated, new_s_dag.last_updated)
+            self.assertEqual(new_s_dag.data["dag"]["tags"], ["example", "new_tag"])
+
     def test_read_dags(self):
         """DAGs can be read from database."""
         example_dags = self._write_example_dags()
@@ -120,5 +150,5 @@ class SerializedDagModelTest(unittest.TestCase):
         dags = [
             DAG("dag_1"), DAG("dag_2"), DAG("dag_3"),
         ]
-        with assert_queries_count(7):
+        with assert_queries_count(10):
             SDM.bulk_sync_to_db(dags)

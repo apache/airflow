@@ -20,7 +20,7 @@ This module contains sensor that check the existence
 of a record in a Cassandra cluster.
 """
 
-from typing import Dict
+from typing import Any, Dict, Tuple
 
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -30,6 +30,10 @@ from airflow.utils.decorators import apply_defaults
 class CassandraRecordSensor(BaseSensorOperator):
     """
     Checks for the existence of a record in a Cassandra cluster.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CassandraRecordSensor`
 
     For example, if you want to wait for a record that has values 'v1' and 'v2' for each
     primary keys 'p1' and 'p2' to be populated in keyspace 'k' and table 't',
@@ -52,7 +56,8 @@ class CassandraRecordSensor(BaseSensorOperator):
     template_fields = ('table', 'keys')
 
     @apply_defaults
-    def __init__(self, table: str, keys: Dict[str, str], cassandra_conn_id: str, *args, **kwargs) -> None:
+    def __init__(self, table: str, keys: Dict[str, str], cassandra_conn_id: str,
+                 *args: Tuple[Any, ...], **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table

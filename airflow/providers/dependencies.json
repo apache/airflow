@@ -4,6 +4,7 @@
     "google",
     "imap",
     "mongo",
+    "mysql",
     "postgres",
     "ssh"
   ],
@@ -64,5 +65,8 @@
   ],
   "slack": [
     "http"
+  ],
+  "snowflake": [
+    "slack"
   ]
 }

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Callable, Dict, Optional, Union
 
 import requests
 import tenacity
@@ -40,20 +41,20 @@ class HttpHook(BaseHook):
 
     def __init__(
         self,
-        method='POST',
-        http_conn_id='http_default',
-        auth_type=HTTPBasicAuth,
+        method: str = 'POST',
+        http_conn_id: str = 'http_default',
+        auth_type: Any = HTTPBasicAuth,
     ) -> None:
         super().__init__()
         self.http_conn_id = http_conn_id
         self.method = method.upper()
-        self.base_url = None
-        self._retry_obj = None
-        self.auth_type = auth_type
+        self.base_url: str = ""
+        self._retry_obj: Callable[..., Any]
+        self.auth_type: Any = auth_type
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
-    def get_conn(self, headers=None):
+    def get_conn(self, headers: Optional[Dict[Any, Any]] = None) -> requests.Session:
         """
         Returns http session for use with requests
 
@@ -61,6 +62,7 @@ class HttpHook(BaseHook):
         :type headers: dict
         """
         session = requests.Session()
+
         if self.http_conn_id:
             conn = self.get_connection(self.http_conn_id)
 
@@ -86,7 +88,12 @@ class HttpHook(BaseHook):
 
         return session
 
-    def run(self, endpoint, data=None, headers=None, extra_options=None, **request_kwargs):
+    def run(self,
+            endpoint: str,
+            data: Optional[Union[Dict[str, Any], str]] = None,
+            headers: Optional[Dict[str, Any]] = None,
+            extra_options: Optional[Dict[str, Any]] = None,
+            **request_kwargs: Any) -> Any:
         r"""
         Performs the request
 
@@ -113,7 +120,6 @@ class HttpHook(BaseHook):
         else:
             url = (self.base_url or '') + (endpoint or '')
 
-        req = None
         if self.method == 'GET':
             # GET uses params
             req = requests.Request(self.method,
@@ -139,7 +145,7 @@ class HttpHook(BaseHook):
         self.log.info("Sending '%s' to url: %s", self.method, url)
         return self.run_and_check(session, prepped_request, extra_options)
 
-    def check_response(self, response):
+    def check_response(self, response: requests.Response) -> None:
         """
         Checks the status code and raise an AirflowException exception on non 2XX or 3XX
         status codes
@@ -154,7 +160,11 @@ class HttpHook(BaseHook):
             self.log.error(response.text)
             raise AirflowException(str(response.status_code) + ":" + response.reason)
 
-    def run_and_check(self, session, prepped_request, extra_options):
+    def run_and_check(self,
+                      session: requests.Session,
+                      prepped_request: requests.PreparedRequest,
+                      extra_options: Dict[Any, Any]
+                      ) -> Any:
         """
         Grabs extra options like timeout and actually runs the request,
         checking for the result
@@ -188,7 +198,8 @@ class HttpHook(BaseHook):
             self.log.warning('%s Tenacity will retry to execute the operation', ex)
             raise ex
 
-    def run_with_advanced_retry(self, _retry_args, *args, **kwargs):
+    def run_with_advanced_retry(self, _retry_args: Dict[Any, Any],
+                                *args: Any, **kwargs: Any) -> Any:
         """
         Runs Hook.run() with a Tenacity decorator attached to it. This is useful for
         connectors which might be disturbed by intermittent issues and should not

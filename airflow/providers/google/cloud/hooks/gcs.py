@@ -28,7 +28,7 @@ from contextlib import contextmanager
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Optional, Set, Tuple, TypeVar, Union
+from typing import Callable, Optional, Set, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -39,13 +39,14 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
 def _fallback_object_url_to_object_name_and_bucket_name(
     object_url_keyword_arg_name='object_url',
     bucket_name_keyword_arg_name='bucket_name',
     object_name_keyword_arg_name='object_name',
-):
+) -> Callable[[T], T]:
     """
     Decorator factory that convert object URL parameter to object name and bucket name parameter.
 
@@ -57,7 +58,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
     :type object_name_keyword_arg_name: str
     :return: Decorator
     """
-    def _wrapper(func):
+    def _wrapper(func: T):
 
         @functools.wraps(func)
         def _inner_wrapper(self: "GCSHook", * args, **kwargs) -> RT:
@@ -99,7 +100,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
                 )
 
             return func(self, *args, **kwargs)
-        return _inner_wrapper
+        return cast(T, _inner_wrapper)
     return _wrapper
 
 
@@ -273,7 +274,7 @@ class GCSHook(GoogleBaseHook):
         self,
         bucket_name: Optional[str] = None,
         object_name: Optional[str] = None,
-        object_url: Optional[str] = None
+        object_url: Optional[str] = None    # pylint: disable=unused-argument
     ):
         """
         Downloads the file to a temporary directory and returns a file handle
@@ -475,8 +476,9 @@ class GCSHook(GoogleBaseHook):
         """
         blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
-            from airflow.utils import timezone
             from datetime import timedelta
+
+            from airflow.utils import timezone
             current_time = timezone.utcnow()
             given_time = current_time - timedelta(seconds=seconds)
             self.log.info("Verify object date: %s is older than %s", blob_update_time, given_time)

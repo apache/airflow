@@ -33,7 +33,7 @@ class timeout(LoggingMixin):  # pylint: disable=invalid-name
         self.seconds = seconds
         self.error_message = error_message + ', PID: ' + str(os.getpid())
 
-    def handle_timeout(self, signum, frame):
+    def handle_timeout(self, signum, frame):    # pylint: disable=unused-argument
         """
         Logs information and raises AirflowTaskTimeout.
         """

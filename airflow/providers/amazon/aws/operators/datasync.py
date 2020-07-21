@@ -137,16 +137,16 @@ class AWSDataSyncOperator(BaseOperator):
         self.allow_random_task_choice = allow_random_task_choice
         self.allow_random_location_choice = allow_random_location_choice
 
-        self.create_task_kwargs = create_task_kwargs if create_task_kwargs else dict()
-        self.create_source_location_kwargs = dict()
+        self.create_task_kwargs = create_task_kwargs if create_task_kwargs else {}
+        self.create_source_location_kwargs = {}
         if create_source_location_kwargs:
             self.create_source_location_kwargs = create_source_location_kwargs
-        self.create_destination_location_kwargs = dict()
+        self.create_destination_location_kwargs = {}
         if create_destination_location_kwargs:
             self.create_destination_location_kwargs = create_destination_location_kwargs
 
-        self.update_task_kwargs = update_task_kwargs if update_task_kwargs else dict()
-        self.task_execution_kwargs = task_execution_kwargs if task_execution_kwargs else dict()
+        self.update_task_kwargs = update_task_kwargs if update_task_kwargs else {}
+        self.task_execution_kwargs = task_execution_kwargs if task_execution_kwargs else {}
         self.delete_task_after_execution = delete_task_after_execution
 
         # Validations

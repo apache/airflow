@@ -31,6 +31,8 @@ def mock_base_gcp_hook_default_project_id(self, gcp_conn_id='google_cloud_defaul
     self.delegate_to = delegate_to
     self._client = None
     self._conn = None
+    self._cached_credentials = None
+    self._cached_project_id = None
 
 
 def mock_base_gcp_hook_no_default_project_id(self, gcp_conn_id='google_cloud_default', delegate_to=None):
@@ -39,6 +41,8 @@ def mock_base_gcp_hook_no_default_project_id(self, gcp_conn_id='google_cloud_def
     self.delegate_to = delegate_to
     self._client = None
     self._conn = None
+    self._cached_credentials = None
+    self._cached_project_id = None
 
 
 GCP_CONNECTION_WITH_PROJECT_ID = Connection(

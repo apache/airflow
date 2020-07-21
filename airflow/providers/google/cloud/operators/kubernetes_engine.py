@@ -54,6 +54,10 @@ class GKEDeleteClusterOperator(BaseOperator):
         For more detail about deleting clusters have a look at the reference:
         https://google-cloud-python.readthedocs.io/en/latest/container/gapic/v1/api.html#google.cloud.container_v1.ClusterManagerClient.delete_cluster
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKEDeleteClusterOperator`
+
     :param project_id: The Google Developers Console [project ID or project number]
     :type project_id: str
     :param name: The name of the resource to delete, in this case cluster name
@@ -128,6 +132,10 @@ class GKECreateClusterOperator(BaseOperator):
         For more detail on about creating clusters have a look at the reference:
         :class:`google.cloud.container_v1.types.Cluster`
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKECreateClusterOperator`
+
     :param project_id: The Google Developers Console [project ID or project number]
     :type project_id: str
     :param location: The name of the Google Compute Engine zone in which the cluster
@@ -194,8 +202,12 @@ class GKEStartPodOperator(KubernetesPodOperator):
     ``namespace``, and ``image``
 
     .. seealso::
-        For more detail about application authentication have a look at the reference:
-        https://cloud.google.com/docs/authentication/production#providing_credentials_to_your_application
+        For more detail about Kubernetes Engine authentication have a look at the reference:
+        https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#internal_ip
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKEStartPodOperator`
 
     :param location: The name of the Google Kubernetes Engine zone in which the
         cluster resides, e.g. 'us-central1-a'
@@ -203,6 +215,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
     :param cluster_name: The name of the Google Kubernetes Engine cluster the pod
         should be spawned in
     :type cluster_name: str
+    :param use_internal_ip: Use the internal IP address as the endpoint.
     :param project_id: The Google Developers Console project id
     :type project_id: str
     :param gcp_conn_id: The google cloud connection id to use. This allows for
@@ -216,6 +229,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
     def __init__(self,
                  location: str,
                  cluster_name: str,
+                 use_internal_ip: bool = False,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  *args,
@@ -225,6 +239,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self.location = location
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
+        self.use_internal_ip = use_internal_ip
 
         if self.gcp_conn_id is None:
             raise AirflowException(
@@ -253,11 +268,18 @@ class GKEStartPodOperator(KubernetesPodOperator):
             # required by KubernetesPodOperator.
             # The gcloud command looks at the env variable `KUBECONFIG` for where to save
             # the kubernetes config file.
-            execute_in_subprocess(
-                ["gcloud", "container", "clusters", "get-credentials",
-                 self.cluster_name,
-                 "--zone", self.location,
-                 "--project", self.project_id])
+            cmd = [
+                "gcloud",
+                "container",
+                "clusters",
+                "get-credentials",
+                self.cluster_name,
+                "--zone", self.location,
+                "--project", self.project_id
+            ]
+            if self.use_internal_ip:
+                cmd.append('--internal-ip')
+            execute_in_subprocess(cmd)
 
             # Tell `KubernetesPodOperator` where the config file is located
             self.config_file = os.environ[KUBE_CONFIG_ENV_VAR]

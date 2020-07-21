@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import contextlib
 import cProfile
 import datetime
@@ -85,9 +84,10 @@ def profiled(print_callers=False):
 if __name__ == "__main__":
 
     def case():
+        import logging
+
         import airflow
         from airflow.jobs.scheduler_job import DagFileProcessor
-        import logging
 
         log = logging.getLogger(__name__)
         processor = DagFileProcessor(dag_ids=[], log=log)

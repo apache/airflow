@@ -18,6 +18,7 @@
 #
 
 import copy
+import shlex
 import unittest
 from typing import Any, Dict
 
@@ -1026,14 +1027,83 @@ class TestDataflowJob(unittest.TestCase):
         mock_batch.execute.assert_called_once()
 
 
+APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG = f""""\
+Dataflow SDK version: 2.14.0
+Jun 15, 2020 2:57:28 PM org.apache.beam.runners.dataflow.DataflowRunner run
+INFO: To access the Dataflow monitoring console, please navigate to https://console.cloud.google.com/dataflow\
+/jobsDetail/locations/europe-west3/jobs/{TEST_JOB_ID}?project=XXX
+Submitted job: {TEST_JOB_ID}
+Jun 15, 2020 2:57:28 PM org.apache.beam.runners.dataflow.DataflowRunner run
+INFO: To cancel the job using the 'gcloud' tool, run:
+> gcloud dataflow jobs --project=XXX cancel --region=europe-west3 {TEST_JOB_ID}
+"""
+
+APACHE_BEAM_V_2_22_0_JAVA_SDK_LOG = f""""\
+INFO: Dataflow SDK version: 2.22.0
+Jun 15, 2020 3:09:03 PM org.apache.beam.runners.dataflow.DataflowRunner run
+INFO: To access the Dataflow monitoring console, please navigate to https://console.cloud.google.com/dataflow\
+/jobs/europe-west3/{TEST_JOB_ID}?project=XXXX
+Jun 15, 2020 3:09:03 PM org.apache.beam.runners.dataflow.DataflowRunner run
+INFO: Submitted job: {TEST_JOB_ID}
+Jun 15, 2020 3:09:03 PM org.apache.beam.runners.dataflow.DataflowRunner run
+INFO: To cancel the job using the 'gcloud' tool, run:
+> gcloud dataflow jobs --project=XXX cancel --region=europe-west3 {TEST_JOB_ID}
+"""
+
+APACHE_BEAM_V_2_14_0_PYTHON_SDK_LOG = f""""\
+INFO:root:Completed GCS upload to gs://test-dataflow-example/staging/start-python-job-local-5bcf3d71.\
+1592286375.000962/apache_beam-2.14.0-cp37-cp37m-manylinux1_x86_64.whl in 0 seconds.
+INFO:root:Create job: <Job
+ createTime: '2020-06-16T05:46:20.911857Z'
+ currentStateTime: '1970-01-01T00:00:00Z'
+ id: '{TEST_JOB_ID}'
+ location: 'us-central1'
+ name: 'start-python-job-local-5bcf3d71'
+ projectId: 'XXX'
+ stageStates: []
+ startTime: '2020-06-16T05:46:20.911857Z'
+ steps: []
+ tempFiles: []
+ type: TypeValueValuesEnum(JOB_TYPE_BATCH, 1)>
+INFO:root:Created job with id: [{TEST_JOB_ID}]
+INFO:root:To access the Dataflow monitoring console, please navigate to https://console.cloud.google.com/\
+dataflow/jobsDetail/locations/us-central1/jobs/{TEST_JOB_ID}?project=XXX
+"""
+
+APACHE_BEAM_V_2_22_0_PYTHON_SDK_LOG = f""""\
+INFO:apache_beam.runners.dataflow.internal.apiclient:Completed GCS upload to gs://test-dataflow-example/\
+staging/start-python-job-local-5bcf3d71.1592286719.303624/apache_beam-2.22.0-cp37-cp37m-manylinux1_x86_64.whl\
+ in 1 seconds.
+INFO:apache_beam.runners.dataflow.internal.apiclient:Create job: <Job
+ createTime: '2020-06-16T05:52:04.095216Z'
+ currentStateTime: '1970-01-01T00:00:00Z'
+ id: '{TEST_JOB_ID}'
+ location: 'us-central1'
+ name: 'start-python-job-local-5bcf3d71'
+ projectId: 'XXX'
+ stageStates: []
+ startTime: '2020-06-16T05:52:04.095216Z'
+ steps: []
+ tempFiles: []
+ type: TypeValueValuesEnum(JOB_TYPE_BATCH, 1)>
+INFO:apache_beam.runners.dataflow.internal.apiclient:Created job with id: [{TEST_JOB_ID}]
+INFO:apache_beam.runners.dataflow.internal.apiclient:Submitted job: {TEST_JOB_ID}
+INFO:apache_beam.runners.dataflow.internal.apiclient:To access the Dataflow monitoring console, please \
+navigate to https://console.cloud.google.com/dataflow/jobs/us-central1/{TEST_JOB_ID}?project=XXX
+"""
+
+
 class TestDataflow(unittest.TestCase):
 
-    def test_data_flow_valid_job_id(self):
-        cmd = [
-            'echo', 'additional unit test lines.\n' +
-            'https://console.cloud.google.com/dataflow/jobsDetail/locations/us-central1/'
-            'jobs/{}?project=XXX'.format(TEST_JOB_ID)
-        ]
+    @parameterized.expand([
+        (APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG, ),
+        (APACHE_BEAM_V_2_22_0_JAVA_SDK_LOG, ),
+        (APACHE_BEAM_V_2_14_0_PYTHON_SDK_LOG, ),
+        (APACHE_BEAM_V_2_22_0_PYTHON_SDK_LOG, ),
+    ], name_func=lambda func, num, p: f"{func.__name__}_{num}")
+    def test_data_flow_valid_job_id(self, log):
+        echos = ";".join([f"echo {shlex.quote(line)}" for line in log.split("\n")])
+        cmd = ["bash", "-c", echos]
         self.assertEqual(_DataflowRunner(cmd).wait_for_done(), TEST_JOB_ID)
 
     def test_data_flow_missing_job_id(self):

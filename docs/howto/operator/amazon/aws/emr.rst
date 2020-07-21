@@ -66,7 +66,7 @@ JobFlow configuration
 
 To create a job flow at EMR, you need to specify the configuration for the EMR cluster:
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_automatic_steps.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_automatic_steps.py
     :language: python
     :start-after: [START howto_operator_emr_automatic_steps_config]
     :end-before: [END howto_operator_emr_automatic_steps_config]
@@ -80,7 +80,7 @@ Defining tasks
 
 In the following code we are creating a new job flow, add a step, monitor the step, and then terminate the cluster.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_automatic_steps.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_automatic_steps.py
     :language: python
     :start-after: [START howto_operator_emr_automatic_steps_tasks]
     :end-before: [END howto_operator_emr_automatic_steps_tasks]
@@ -106,7 +106,7 @@ Defining tasks
 
 Here is the task definitions for our DAG.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.py
     :language: python
     :start-after: [START howto_operator_emr_manual_steps_tasks]
     :end-before: [END howto_operator_emr_manual_steps_tasks]

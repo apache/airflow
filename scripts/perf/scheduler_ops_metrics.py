@@ -185,10 +185,10 @@ def set_dags_paused_state(is_paused):
 
 
 def main():
-    '''
+    """
     Run the scheduler metrics jobs after loading the test configuration and
     clearing old instances of dags and tasks
-    '''
+    """
     max_runtime_secs = MAX_RUNTIME_SECS
     if len(sys.argv) > 1:
         try:

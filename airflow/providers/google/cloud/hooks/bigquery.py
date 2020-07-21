@@ -22,7 +22,6 @@ implementation for BigQuery.
 """
 import logging
 import time
-import uuid
 import warnings
 from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
@@ -1398,12 +1397,41 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 time.sleep(5)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def get_job(
+        self,
+        job_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+    ) -> Union[CopyJob, QueryJob, LoadJob, ExtractJob]:
+        """
+        Retrives a BigQuery job. For more information see:
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
+            numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
+            characters. If not provided then uuid will be generated.
+        :type job_id: str
+        :param project_id: Google Cloud Project where the job is running
+        :type project_id: str
+        :param location: location the job is running
+        :type location: str
+        """
+        client = self.get_client(project_id=project_id, location=location)
+        job = client.get_job(
+            job_id=job_id,
+            project=project_id,
+            location=location
+        )
+        return job
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def insert_job(
         self,
         configuration: Dict,
+        job_id: Optional[str] = None,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
-    ) -> str:
+    ) -> Union[CopyJob, QueryJob, LoadJob, ExtractJob]:
         """
         Executes a BigQuery job. Waits for the job to complete and returns job id.
         See here:
@@ -1414,17 +1442,24 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             BigQuery's configuration field in the job object. See
             https://cloud.google.com/bigquery/docs/reference/v2/jobs for
             details.
+        :type configuration: Dict[str, Any]
+        :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
+            numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
+            characters. If not provided then uuid will be generated.
+        :type job_id: str
         :param project_id: Google Cloud Project where the job is running
         :type project_id: str
         :param location: location the job is running
         :type location: str
         """
         location = location or self.location
+        job_id = job_id or f"airflow_{int(time.time())}"
+
         client = self.get_client(project_id=project_id, location=location)
         job_data = {
             "configuration": configuration,
             "jobReference": {
-                "jobId": str(uuid.uuid4()),
+                "jobId": job_id,
                 "projectId": project_id,
                 "location": location
             }
@@ -1448,7 +1483,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job = job.from_api_repr(job_data, client)
         # Start the job and wait for it to complete and get the result.
         job.result()
-        return job.job_id
+        return job
 
     def run_with_configuration(self, configuration: Dict) -> str:
         """
@@ -1467,8 +1502,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "This method is deprecated. Please use `BigQueryHook.insert_job`",
             DeprecationWarning
         )
-        self.running_job_id = self.insert_job(configuration=configuration, project_id=self.project_id)
-        return self.running_job_id
+        job = self.insert_job(configuration=configuration, project_id=self.project_id)
+        self.running_job_id = job.job_id
+        return job.job_id
 
     def run_load(self,  # pylint: disable=too-many-locals,too-many-arguments,invalid-name
                  destination_project_dataset_table: str,
@@ -1709,8 +1745,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if allow_jagged_rows:
             configuration['load']['allowJaggedRows'] = allow_jagged_rows
 
-        self.running_job_id = self.insert_job(configuration=configuration, project_id=self.project_id)
-        return self.running_job_id
+        job = self.insert_job(configuration=configuration, project_id=self.project_id)
+        self.running_job_id = job.job_id
+        return job.job_id
 
     def run_copy(self,  # pylint: disable=invalid-name
                  source_project_dataset_tables: Union[List, str],
@@ -1803,8 +1840,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "destinationEncryptionConfiguration"
             ] = encryption_configuration
 
-        self.running_job_id = self.insert_job(configuration=configuration, project_id=self.project_id)
-        return self.running_job_id
+        job = self.insert_job(configuration=configuration, project_id=self.project_id)
+        self.running_job_id = job.job_id
+        return job.job_id
 
     def run_extract(
             self,
@@ -1878,8 +1916,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             configuration['extract']['fieldDelimiter'] = field_delimiter
             configuration['extract']['printHeader'] = print_header
 
-        self.running_job_id = self.insert_job(configuration=configuration, project_id=self.project_id)
-        return self.running_job_id
+        job = self.insert_job(configuration=configuration, project_id=self.project_id)
+        self.running_job_id = job.job_id
+        return job.job_id
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2123,8 +2162,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "destinationEncryptionConfiguration"
             ] = encryption_configuration
 
-        self.running_job_id = self.insert_job(configuration=configuration, project_id=self.project_id)
-        return self.running_job_id
+        job = self.insert_job(configuration=configuration, project_id=self.project_id)
+        self.running_job_id = job.job_id
+        return job.job_id
 
 
 class BigQueryPandasConnector(GbqConnector):
@@ -2774,8 +2814,7 @@ def _cleanse_time_partitioning(
 
 
 def _validate_value(key: Any, value: Any, expected_type: Type) -> None:
-    """ function to check expected type and raise
-    error if type is not correct """
+    """ Function to check expected type and raise error if type is not correct. """
     if not isinstance(value, expected_type):
         raise TypeError("{} argument must have a type {} not {}".format(
             key, expected_type, type(value)))

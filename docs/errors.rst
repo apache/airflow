@@ -39,6 +39,9 @@ Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` under ``
 .. note::
     If this value is not provided, the SDK will try to read it from the ``SENTRY_DSN`` environment variable.
 
+You can supply `additional configuration options <https://docs.sentry.io/error-reporting/configuration/?platform=python>`__ based on the Python platform via [sentry] section.
+Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``, ``ignore_errors``, ``before_breadcrumb``, ``before_send``, ``transport``.
+
 Tags
 -----
 

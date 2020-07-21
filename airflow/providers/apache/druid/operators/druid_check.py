@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.operators.check_operator import CheckOperator
@@ -57,21 +58,22 @@ class DruidCheckOperator(CheckOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            sql: str,
-            druid_broker_conn_id: str = 'druid_broker_default',
-            *args, **kwargs) -> None:
+        self,
+        sql: str,
+        druid_broker_conn_id: str = 'druid_broker_default',
+        *args: Any, **kwargs: Any
+    ) -> None:
         super().__init__(sql=sql, *args, **kwargs)
         self.druid_broker_conn_id = druid_broker_conn_id
         self.sql = sql
 
-    def get_db_hook(self):
+    def get_db_hook(self) -> DruidDbApiHook:
         """
         Return the druid db api hook.
         """
         return DruidDbApiHook(druid_broker_conn_id=self.druid_broker_conn_id)
 
-    def get_first(self, sql):
+    def get_first(self, sql: str) -> Any:
         """
         Executes the druid sql to druid broker and returns the first resulting row.
 
@@ -82,7 +84,7 @@ class DruidCheckOperator(CheckOperator):
             cur.execute(sql)
             return cur.fetchone()
 
-    def execute(self, context=None):
+    def execute(self, context: Optional[Dict[Any, Any]] = None) -> None:
         self.log.info('Executing SQL check: %s', self.sql)
         record = self.get_first(self.sql)
         self.log.info("Record: %s", str(record))

@@ -56,10 +56,12 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         :rtype: google.cloud.texttospeech_v1.TextToSpeechClient
         """
         if not self._client:
+            # pylint: disable=unexpected-keyword-arg
             self._client = TextToSpeechClient(
                 credentials=self._get_credentials(),
                 client_info=self.client_info
             )
+            # pylint: enable=unexpected-keyword-arg
 
         return self._client
 
@@ -96,6 +98,8 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         """
         client = self.get_conn()
         self.log.info("Synthesizing input: %s", input_data)
+        # pylint: disable=unexpected-keyword-arg
         return client.synthesize_speech(
             input_=input_data, voice=voice, audio_config=audio_config, retry=retry, timeout=timeout
         )
+        # pylint: enable=unexpected-keyword-arg

@@ -43,10 +43,11 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
+- [Building customized production images](#building-customized-production-images)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
 - [User Interface](#user-interface)
-- [Using hooks and Operators from "master" in Airflow 1.10](#using-hooks-and-operators-from-master-in-airflow-110)
+- [Backport packages](#backport-packages)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -61,22 +62,23 @@ Apache Airflow is tested with:
 
 ### Master version (2.0.0dev)
 
-* Python versions: 3.6, 3.7
+* Python versions: 3.6, 3.7, 3.8
 * Postgres DB: 9.6, 10
 * MySQL DB: 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
+* Kubernetes - 1.16.2, 1.17.0
 
-### Stable version (1.10.9)
+### Stable version (1.10.11)
 
-* Python versions: 2.7, 3.5, 3.6, 3.7
+* Python versions: 2.7, 3.5, 3.6, 3.7, 3.8
 * Postgres DB: 9.6, 10
 * MySQL DB: 5.6, 5.7
 * Sqlite - latest stable (it is used mainly for development purpose)
+* Kubernetes - 1.16.2, 1.17.0
 
 ### Additional notes on Python version requirements
 
 * Stable version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3 when using Python 3
-* Both versions are currently incompatible with Python 3.8 due to [a known compatibility issue](https://github.com/Tinche/cattrs/issues/77) with a dependent library
 
 ## Getting started
 
@@ -97,24 +99,45 @@ our dependencies as open as possible (in `setup.py`) so users can install differ
 if needed. This means that from time to time plain `pip install apache-airflow` will not work or will
 produce unusable Airflow installation.
 
-In order to have repeatable installation, however, starting from **Airflow 1.10.10** we also keep a set of
-"known-to-be-working" requirement files in the `requirements` folder. Those "known-to-be-working"
-requirements are per major/minor python version (3.6/3.7). You can use them as constraint files
-when installing Airflow from PyPI. Note that you have to specify correct Airflow version and python versions
-in the URL.
+In order to have repeatable installation, however, introduced in **Airflow 1.10.10** and updated in
+**Airflow 1.10.12** we also keep a set of "known-to-be-working" constraint files in the
+orphan `constraints-master` and `constraints-1-10` branches. We keep those "known-to-be-working"
+constraints files separately per major/minor python version.
+You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
+correct Airflow tag/version/branch and python versions in the URL.
 
 1. Installing just airflow:
 
 ```bash
-pip install apache-airflow==1.10.10 \
- --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+pip install apache-airflow==1.10.12 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 ```
 
-2. Installing with extras (for example postgres,gcp)
+2. Installing with extras (for example postgres,google)
 ```bash
-pip install apache-airflow[postgres,gcp]==1.10.10 \
- --constraint https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python3.7.txt
+pip install apache-airflow[postgres,google]==1.10.11 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 ```
+
+## Building customized production images
+
+In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images
+of Apache Airflow. The community provides two types of support for the production images:
+
+* We provide pre-build relesed version of production image in PyPI build from released
+  sources of Apache Airflow - shortly after release. Those images are available in the DockerHub.
+  You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the
+  version number (for example 1.10.11). Additionally `docker pull apache/airflow` will pull latest
+  stable version of the image with default python version (currently 3.6)
+
+* In `master` branch of Airflow and in `v1-10-stable` branch we provide Dockerfiles and accompanying
+  files that allow to build your own customized version of the Airflow Production image. The instructions
+  on how to build your own image with additional dependencies (if needed) are provided in the
+  [IMAGES.rst](IMAGES.rst#production-images) if you want to build it using `docker build` command or in
+  [BREEZE.rst](BREEZE.rst#building-production-images) to use Breeze tool which easier interface,
+  auto-complete, and accompanying screencast video. Note, that while it is possible to use master
+  branch to build images for released Airflow versions, it might at times get broken so you should
+  rather rely on building your own images from the v1-10-stable branch.
 
 ## Beyond the Horizon
 
@@ -165,31 +188,87 @@ unit of work and continuity.
   ![](/docs/img/code.png)
 
 
-## Using hooks and Operators from "master" in Airflow 1.10
+## Backport packages
 
-Currently, stable versions of Apache Airflow are released in 1.10.* series. We are working on the
-future, major version of Airflow from the 2.0.* series. It is going to be released in 2020. However, the exact time of release depends on many factors and is yet unknown.
-We have already a lot of changes in the hooks/operators/sensors for many external systems
-and they are not used because they are part of the master/2.0 release.
+### Context: Airflow 2.0 operators, hooks, and secrets
 
-In the Airflow 2.0 - following AIP-21 "change in import paths" all the non-core operators/hooks/sensors
-of Apache Airflow have been moved to the "airflow.providers" package. This opened a possibility to
-use the operators from Airflow 2.0 in Airflow 1.10 - with the constraint that those
-packages can only be used in python3.6+ environment.
+Currently, stable Apache Airflow versions are from the 1.10.* series.
+We are working on the future, major version of Airflow from the 2.0.* series.
+It is going to be released in 2020. However, the exact time of release depends on many factors and is
+not yet confirmed.
 
-Therefore we decided to prepare and release backport packages that can be installed
-for older Airflow versions. Those backport packages are released more frequently. Users do not
-have to upgrade their Airflow version to use those packages. There are a number of changes
-between Airflow 2.0 and 1.10.* - documented in [UPDATING.md](UPDATING.md). With backported
-providers package users can migrate their DAGs to the new providers package incrementally
+We have already a lot of changes in the operators, transfers, hooks, sensors, secrets for many external
+systems, but they are not used nor tested widely because they are part of the master/2.0 release.
+
+In the Airflow 2.0 - following AIP-21 "change in import paths" all the non-core interfaces to external
+systems of Apache Airflow have been moved to the "airflow.providers" package.
+
+Thanks to that and automated backport effort we took, the operators from Airflow 2.0
+can be used in Airflow 1.10 as separately installable packages, with the constraint that
+those packages can only be used in python3.6+ environment.
+
+### Installing Airflow 2.0 operators in Airflow 1.10
+
+We released backport packages that can be installed for older Airflow versions.
+Those backport packages are going to be released more frequently that main Airflow 1.10.& releases.
+
+You will not have to upgrade your Airflow version to use those packages. You can find those packages in the
+[PyPI](https://pypi.org/search/?q=apache-airflow-backport-providers&o=) and install them separately for each
+provider.
+
+Those packages are available now and can be used in the latest Airflow 1.10* version. Most of those
+packages are also installable and usable in most Airflow 1.10.* releases but there is no extensive testing
+done beyond the latest released version, so you might expect more problems in earlier Airflow versions.
+
+### An easier migration path to 2.0
+
+With backported providers package users can migrate their DAGs to the new providers package incrementally
 and once they convert to the new operators/sensors/hooks they can seamlessly migrate their
-environments to Airflow 2.0.
+environments to Airflow 2.0. The nice thing about providers backport packages is that you can use
+both old and new classes at the same time - even in the same DAG. So your migration can be gradual and smooth.
+Note that in Airflow 2.0 old classes raise deprecation warning and redirect to the new classes wherever
+it is possible. In some rare cases the new operators will not be fully backwards compatible - you will find
+information about those cases in [UPDATING.md](UPDATING.md) where we explained all such cases. Switching
+early to the Airflow 2.0 operators while still running Airflow 1.10 will make your migration much easier.
 
 More information about the status and releases of the back-ported packages are available
 at [Backported providers package page](https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series)
 
-Dependencies between packages are stored in ``airflow/providers/dependencies.json``. See
-[CONTRIBUTING.rst](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#backport-providers-packages)
+
+### Installing backport packages
+
+Note that the backport packages might require extra dependencies. Pip installs the required dependencies
+automatically when it installs the backport package, but there are sometimes cross-dependencies between the
+backport packages. For example `google` package has cross-dependency with `amazon` package to allow
+transfers between those two cloud providers. You might need to install those packages in case you use
+cross-dependent packages. The easiest way to install them is to use "extras" when installing the package,
+for example the below will install both `google` and `amazon` backport packages:
+
+```bash
+pip install apache-airflow-backport-providers-google[amazon]
+```
+
+This is all documented in the PyPI description of the packages
+as well as in the README.md file available for each provider package. For example for google package
+you can find the readme in [README.md](airflow/providers/google/README.md). You will also find there
+the summary of both - new classes and moved classes as well as requirement information.
+
+### Troubleshooting installing backport packages
+
+Backport providers only work when they are installed in the same namespace as the 'apache-airflow' 1.10
+package. This is majority of cases when you simply run `pip install` - it installs all packages
+in the same folder (usually in `/usr/local/lib/pythonX.Y/site-packages`). But when you install
+the `apache-airflow` and `apache-airflow-backport-package-*` using different methods (for example using
+`pip install -e .` or `pip install --user` they might be installed in different namespaces.
+If that's the case, the provider packages will not be importable (the error in such case is
+`ModuleNotFoundError: No module named 'airflow.providers'`).
+
+If you experience the problem, you can easily fix it by creating symbolic link
+in your installed "airflow" folder to the  "providers" folder where you installed your backport packages.
+If you installed it with `-e`, this link should be created in your airflow
+sources,  if you installed it with the `--user` flag it should be from the
+`~/.local/lib/pythonX.Y/site-packages/airflow/` folder,
+
 
 ## Contributing
 
@@ -305,12 +384,14 @@ Currently **officially** using Airflow:
 1. [DataCamp](https://datacamp.com/) [[@dgrtwo](https://github.com/dgrtwo)]
 1. [DataFox](https://www.datafox.com/) [[@sudowork](https://github.com/sudowork)]
 1. [Dentsu Inc.](http://www.dentsu.com/) [[@bryan831](https://github.com/bryan831) & [@loozhengyuan](https://github.com/loozhengyuan)]
+1. [Deseret Digital Media](http://deseretdigital.com/) [[@formigone](https://github.com/formigone)
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
 1. [DigitalOcean](https://digitalocean.com/) [[@ajbosco](https://github.com/ajbosco)]
 1. [Digitas Pixelpark](https://www.digitaspixelpark.com/) [[@feluelle](https://github.com/feluelle)]
 1. [DoorDash](https://www.doordash.com/)
 1. [Dotmodus](http://dotmodus.com) [[@dannylee12](https://github.com/dannylee12)]
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
+1. [Dynata](https://www.dynata.com) [[@neil3handari](https://github.com/neil3handari)]
 1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@diraol](https://github.com/diraol)]
 1. [EllisDon](http://www.ellisdon.com/) [[@d2kalra](https://github.com/d2kalra) & [@zbasama](https://github.com/zbasama)]
 1. [Endesa](https://www.endesa.com) [[@drexpp](https://github.com/drexpp)]
@@ -348,6 +429,7 @@ Currently **officially** using Airflow:
 1. [Groupalia](http://es.groupalia.com) [[@jesusfcr](https://github.com/jesusfcr)]
 1. [Groupon](https://groupon.com) [[@stevencasey](https://github.com/stevencasey)]
 1. [Growbots](https://www.growbots.com/)[[@exploy](https://github.com/exploy)]
+1. [GrowthSimple](https://growthsimple.ai/)
 1. [GSN Games](https://www.gsngames.com)
 1. [Gusto](https://gusto.com) [[@frankhsu](https://github.com/frankhsu)]
 1. [Handshake](https://joinhandshake.com/) [[@mhickman](https://github.com/mhickman)]
@@ -410,6 +492,7 @@ Currently **officially** using Airflow:
 1. [Mercadoni](https://www.mercadoni.com.co) [[@demorenoc](https://github.com/demorenoc)]
 1. [Mercari](http://www.mercari.com/) [[@yu-iskw](https://github.com/yu-iskw)]
 1. [MFG Labs](https://github.com/MfgLabs)
+1. [Ministry of Economy of Brazil](https://www.gov.br/economia/) [[@nitaibezerra](https://github.com/nitaibezerra), [@vitorbellini](https://github.com/vitorbellini)]
 1. [MiNODES](https://www.minodes.com) [[@dice89](https://github.com/dice89), [@diazcelsa](https://github.com/diazcelsa)]
 1. [Modernizing Medicine](https://www.modmed.com/)[[@kehv1n](https://github.com/kehv1n), [@dalupus](https://github.com/dalupus)]
 1. [Movember](https://movember.com)
@@ -427,6 +510,7 @@ Currently **officially** using Airflow:
 1. [OneFineStay](https://www.onefinestay.com) [[@slangwald](https://github.com/slangwald)]
 1. [Open Knowledge International](https://okfn.org) [@vitorbaptista](https://github.com/vitorbaptista)
 1. [Optum](https://www.optum.com/) - [UnitedHealthGroup](https://www.unitedhealthgroup.com/) [[@fhoda](https://github.com/fhoda), [@ianstanton](https://github.com/ianstanton), [@nilaybhatt](https://github.com/NilayBhatt),[@hiteshrd](https://github.com/hiteshrd)]
+1. [OrangeBank](https://www.orangebank.fr/) [[@HamzaBoukraa](https://github.com/HamzaBoukraa)]
 1. [Outcome Health](https://www.outcomehealth.com/) [[@mikethoun](https://github.com/mikethoun), [@rolandotribo](https://github.com/rolandotribo)]
 1. [Overstock](https://www.github.com/overstock) [[@mhousley](https://github.com/mhousley) & [@mct0006](https://github.com/mct0006)]
 1. [OVH](https://www.ovh.com) [[@ncrocfer](https://github.com/ncrocfer) & [@anthonyolea](https://github.com/anthonyolea)]
@@ -442,7 +526,7 @@ Currently **officially** using Airflow:
 1. [Plaid](https://www.plaid.com/) [[@plaid](https://github.com/plaid), [@AustinBGibbons](https://github.com/AustinBGibbons) & [@jeeyoungk](https://github.com/jeeyoungk)]
 1. [Playbuzz](https://www.playbuzz.com/) [[@clintonboys](https://github.com/clintonboys) & [@dbn](https://github.com/dbn)]
 1. [PMC](https://pmc.com/) [[@andrewm4894](https://github.com/andrewm4894)]
-1. [Polidea](https://www.polidea.com/) [[@potiuk](https://github.com/potiuk), [@mschickensoup](https://github.com/mschickensoup), [@mik-laj](https://github.com/mik-laj), [@turbaszek](https://github.com/turbaszek), [@michalslowikowski00](https://github.com/michalslowikowski00), [@olchas](https://github.com/olchas)]
+1. [Polidea](https://www.polidea.com/) [[@potiuk](https://github.com/potiuk), [@mschickensoup](https://github.com/mschickensoup), [@mik-laj](https://github.com/mik-laj), [@turbaszek](https://github.com/turbaszek), [@michalslowikowski00](https://github.com/michalslowikowski00), [@olchas](https://github.com/olchas)], [@debek](https://github.com/debek)
 1. [Poshmark](https://www.poshmark.com)
 1. [Postmates](http://www.postmates.com) [[@syeoryn](https://github.com/syeoryn)]
 1. [Premise](http://www.premise.com) [[@jmccallum-premise](https://github.com/jmccallum-premise)]
@@ -466,6 +550,7 @@ Currently **officially** using Airflow:
 1. [Reverb](https://reverb.com)[[@reverbdotcom](https://github.com/reverbdotcom)]
 1. [Revolut](https://www.revolut.com/) [[@sztanko](https://github.com/sztanko) & [@nautilus28](https://github.com/nautilus28)]
 1. [Robinhood](https://robinhood.com) [[@vineet-rh](https://github.com/vineet-rh)]
+1. [RushOwl](https://www.rushowl.sg) [[@songyanho](https://github.com/songyanho)]
 1. [Scaleway](https://scaleway.com) [[@kdeldycke](https://github.com/kdeldycke)]
 1. [Seasoned](https://www.seasoned.co/) [[@joshuacano](https://github.com/joshuacano)] & [[@mmyers](https://github.com/mmyers5)] & [[@tjward](https://github.com/tjward)]
 1. [Secret Escapes](https://www.secretescapes.com) [[@secretescapes](https://github.com/secretescapes)]
@@ -499,12 +584,13 @@ Currently **officially** using Airflow:
 1. [Telia Company](https://www.teliacompany.com/en)
 1. [Ternary Data](https://ternarydata.com/) [[@mhousley](https://github.com/mhousley), [@JoeReis](https://github.com/JoeReis)]
 1. [Tesla](https://www.tesla.com/) [[@thoralf-gutierrez](https://github.com/thoralf-gutierrez)]
+1. [The Climate Corporation](https://climate.com/)[[@jmelching](https://github.com/jmelching)]
 1. [The Home Depot](https://www.homedepot.com/)[[@apekshithr](https://github.com/apekshithr)]
 1. [THE ICONIC](https://www.theiconic.com.au/) [[@revathijay](https://github.com/revathijay)] [[@ilikedata](https://github.com/ilikedata)]
 1. [Thinking Machines](https://thinkingmachin.es) [[@marksteve](https://github.com/marksteve)]
 1. [Thinknear](https://www.thinknear.com/) [[@d3cay1](https://github.com/d3cay1), [@ccson](https://github.com/ccson), & [@ababian](https://github.com/ababian)]
 1. [ThoughtWorks](https://www.thoughtworks.com/) [[@sann3](https://github.com/sann3)]
-1. [Thumbtack](https://www.thumbtack.com/) [[@natekupp](https://github.com/natekupp)]
+1. [Thumbtack](https://www.thumbtack.com/) [[@kamalacharya](https://github.com/kamalacharya), [@dwjoss](https://github.com/dwjoss)]
 1. [Tictail](https://tictail.com/)
 1. [Tile](https://tile.com/) [[@ranjanmanish](https://github.com/ranjanmanish)]
 1. [Tinder](https://tinder.com/) [[@kbendick](https://github.com/kbendick)]
@@ -512,6 +598,7 @@ Currently **officially** using Airflow:
 1. [TokenAnalyst](https://github.com/tokenanalyst) [[@simonohanlon101](https://github.com/simonohanlon101), [@ankitchiplunkar](https://github.com/ankitchiplunkar), [@sidshekhar](https://github.com/sidshekhar), [@sp6pe](https://github.com/sp6pe)]
 1. [Tokopedia](https://www.tokopedia.com/) [[@topedmaria](https://github.com/topedmaria)]
 1. [Trocafone](https://www.trocafone.com/) [[@idontdomath](https://github.com/idontdomath) & [@gseva](https://github.com/gseva) & [@ordonezf](https://github.com/ordonezf) & [@PalmaLeandro](https://github.com/PalmaLeandro)]
+1. [TruFactor](https://trufactor.io/) [[@gholmes](https://github.com/gholmes) & [@angadsingh](https://github.com/angadsingh/)]
 1. [Twine Labs](https://www.twinelabs.com/) [[@ivorpeles](https://github.com/ivorpeles)]
 1. [Twitter](https://www.twitter.com/) [[@aoen](https://github.com/aoen)]
 1. [Ubisoft](https://www.ubisoft.com/) [[@Walkoss](https://github.com/Walkoss)]

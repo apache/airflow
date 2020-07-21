@@ -32,7 +32,7 @@ The ``ImapAttachmentToS3Operator`` can transfer an email attachment via IMAP
 protocol from a mail server to S3 Bucket.
 
 An example dag ``example_imap_attachment_to_s3.py`` is provided which showcase the
-:class:`~airflow.providers.amazon.aws.operators.imap_attachment_to_s3.ImapAttachmentToS3Operator`
+:class:`~airflow.providers.amazon.aws.transfers.imap_attachment_to_s3.ImapAttachmentToS3Operator`
 in action.
 
 example_imap_attachment_to_s3.py
@@ -48,7 +48,7 @@ Environment variables
 
 These examples rely on the following variables, which can be passed via OS environment variables.
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_imap_attachment_to_s3.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_imap_attachment_to_s3.py
     :language: python
     :start-after: [START howto_operator_imap_attachment_to_s3_env_variables]
     :end-before: [END howto_operator_imap_attachment_to_s3_env_variables]
@@ -56,7 +56,7 @@ These examples rely on the following variables, which can be passed via OS envir
 Transfer Mail Attachments via IMAP to S3
 """"""""""""""""""""""""""""""""""""""""
 
-.. exampleinclude:: ../../../../../airflow/providers/amazon/aws/example_dags/example_imap_attachment_to_s3.py
+.. exampleinclude:: /../airflow/providers/amazon/aws/example_dags/example_imap_attachment_to_s3.py
     :language: python
     :start-after: [START howto_operator_imap_attachment_to_s3_task_1]
     :end-before: [END howto_operator_imap_attachment_to_s3_task_1]

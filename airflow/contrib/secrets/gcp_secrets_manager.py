@@ -16,15 +16,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.google.cloud.secrets.secrets_manager`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.secrets.secret_manager`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.google.cloud.secrets.secrets_manager import CloudSecretsManagerBackend  # noqa
+from airflow.providers.google.cloud.secrets.secret_manager import CloudSecretManagerBackend
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.google.cloud.secrets.secrets_manager`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.secrets.secret_manager`.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+
+class CloudSecretsManagerBackend(CloudSecretManagerBackend):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

@@ -15,29 +15,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.apache.hive.operators.mssql_to_hive`."""
+"""This module is deprecated.
+
+Please use `airflow.providers.apache.hive.transfers.mssql_to_hive`.
+"""
 
 import warnings
 
-from airflow.providers.apache.hive.operators.mssql_to_hive import MsSqlToHiveTransferOperator
+from airflow.providers.apache.hive.transfers.mssql_to_hive import MsSqlToHiveOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.apache.hive.operators.mssql_to_hive`.",
+    "This module is deprecated. Please use `airflow.providers.apache.hive.transfers.mssql_to_hive`.",
     DeprecationWarning, stacklevel=2
 )
 
 
-class MsSqlToHiveTransfer(MsSqlToHiveTransferOperator):
-    """
-    This class is deprecated.
+class MsSqlToHiveTransfer(MsSqlToHiveOperator):
+    """This class is deprecated.
+
     Please use:
-    `airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlToHiveTransferOperator`."""
+    `airflow.providers.apache.hive.transfers.mssql_to_hive.MsSqlToHiveOperator`.
+    """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
-            `airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlToHiveTransferOperator`.""",
-            DeprecationWarning, stacklevel=2
+            `airflow.providers.apache.hive.transfers.mssql_to_hive.MsSqlToHiveOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

@@ -48,11 +48,11 @@ def _create_dagruns(dag, execution_dates, state, run_type):
 
     for date in dates_to_create:
         dag_run = dag.create_dagrun(
-            run_id=f"{run_type}__{date.isoformat()}",
             execution_date=date,
             start_date=timezone.utcnow(),
             external_trigger=False,
             state=state,
+            run_type=run_type,
         )
         dag_runs.append(dag_run)
 
@@ -169,8 +169,8 @@ def get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates):
 
 def get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates):
     """Go through subdag operators and create dag runs. We will only work
-       within the scope of the subdag. We wont propagate to the parent dag,
-      but we will propagate from parent to subdag.
+    within the scope of the subdag. We wont propagate to the parent dag,
+    but we will propagate from parent to subdag.
     """
     dags = [dag]
     sub_dag_ids = []
@@ -188,7 +188,7 @@ def get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates):
                 dag_runs = _create_dagruns(current_task.subdag,
                                            execution_dates=confirmed_dates,
                                            state=State.RUNNING,
-                                           run_type=DagRunType.BACKFILL_JOB.value)
+                                           run_type=DagRunType.BACKFILL_JOB)
 
                 verify_dagruns(dag_runs, commit, state, session, current_task)
 

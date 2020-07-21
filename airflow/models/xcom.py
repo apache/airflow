@@ -19,9 +19,10 @@
 import json
 import logging
 import pickle
+from json import JSONDecodeError
 from typing import Any, Iterable, Optional, Union
 
-from pendulum import pendulum
+import pendulum
 from sqlalchemy import Column, LargeBinary, String, and_
 from sqlalchemy.orm import Query, Session, reconstructor
 
@@ -49,8 +50,7 @@ class BaseXCom(Base, LoggingMixin):
 
     key = Column(String(512, **COLLATION_ARGS), primary_key=True)
     value = Column(LargeBinary)
-    timestamp = Column(
-        UtcDateTime, default=timezone.utcnow, nullable=False)
+    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     execution_date = Column(UtcDateTime, primary_key=True)
 
     # source information
@@ -63,6 +63,10 @@ class BaseXCom(Base, LoggingMixin):
     """
     @reconstructor
     def init_on_load(self):
+        """
+        Called by the ORM after the instance has been loaded from the DB or otherwise reconstituted
+        i.e automatically deserialize Xcom value when loading from DB.
+        """
         try:
             self.value = XCom.deserialize_value(self)
         except (UnicodeEncodeError, ValueError):
@@ -119,8 +123,49 @@ class BaseXCom(Base, LoggingMixin):
 
     @classmethod
     @provide_session
+    def get_one(cls,
+                execution_date: pendulum.DateTime,
+                key: Optional[str] = None,
+                task_id: Optional[Union[str, Iterable[str]]] = None,
+                dag_id: Optional[Union[str, Iterable[str]]] = None,
+                include_prior_dates: bool = False,
+                session: Session = None) -> Optional[Any]:
+        """
+        Retrieve an XCom value, optionally meeting certain criteria. Returns None
+        of there are no results.
+
+        :param execution_date: Execution date for the task
+        :type execution_date: pendulum.datetime
+        :param key: A key for the XCom. If provided, only XComs with matching
+            keys will be returned. To remove the filter, pass key=None.
+        :type key: str
+        :param task_id: Only XComs from task with matching id will be
+            pulled. Can pass None to remove the filter.
+        :type task_id: str
+        :param dag_id: If provided, only pulls XCom from this DAG.
+            If None (default), the DAG of the calling task is used.
+        :type dag_id: str
+        :param include_prior_dates: If False, only XCom from the current
+            execution_date are returned. If True, XCom from previous dates
+            are returned as well.
+        :type include_prior_dates: bool
+        :param session: database session
+        :type session: sqlalchemy.orm.session.Session
+        """
+        result = cls.get_many(execution_date=execution_date,
+                              key=key,
+                              task_ids=task_id,
+                              dag_ids=dag_id,
+                              include_prior_dates=include_prior_dates,
+                              session=session).first()
+        if result:
+            return result.value
+        return None
+
+    @classmethod
+    @provide_session
     def get_many(cls,
-                 execution_date: pendulum.datetime,
+                 execution_date: pendulum.DateTime,
                  key: Optional[str] = None,
                  task_ids: Optional[Union[str, Iterable[str]]] = None,
                  dag_ids: Optional[Union[str, Iterable[str]]] = None,
@@ -187,6 +232,7 @@ class BaseXCom(Base, LoggingMixin):
     @classmethod
     @provide_session
     def delete(cls, xcoms, session=None):
+        """Delete Xcom"""
         if isinstance(xcoms, XCom):
             xcoms = [xcoms]
         for xcom in xcoms:
@@ -199,6 +245,7 @@ class BaseXCom(Base, LoggingMixin):
 
     @staticmethod
     def serialize_value(value: Any):
+        """Serialize Xcom value to str or pickled object"""
         # TODO: "pickling" has been deprecated and JSON is preferred.
         # "pickling" will be removed in Airflow 2.0.
         if conf.getboolean('core', 'enable_xcom_pickling'):
@@ -214,6 +261,7 @@ class BaseXCom(Base, LoggingMixin):
 
     @staticmethod
     def deserialize_value(result) -> Any:
+        """Deserialize Xcom value from str or pickle object"""
         # TODO: "pickling" has been deprecated and JSON is preferred.
         # "pickling" will be removed in Airflow 2.0.
         enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
@@ -222,7 +270,7 @@ class BaseXCom(Base, LoggingMixin):
 
         try:
             return json.loads(result.value.decode('UTF-8'))
-        except ValueError:
+        except JSONDecodeError:
             log.error("Could not deserialize the XCOM value from JSON. "
                       "If you are using pickles instead of JSON "
                       "for XCOM, then you need to enable pickle "

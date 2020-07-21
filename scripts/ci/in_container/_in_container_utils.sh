@@ -89,13 +89,30 @@ function in_container_cleanup_pycache() {
 
 #
 # Fixes ownership of files generated in container - if they are owned by root, they will be owned by
-# The host user.
+# The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
+# changed to the Host user via osxfs filesystem
 #
 function in_container_fix_ownership() {
-    set +o pipefail
-    sudo find "${AIRFLOW_SOURCES}" -user root -print0 \
-    | sudo xargs --null chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
-    set -o pipefail
+    if [[ ${HOST_OS:=} == "Linux" ]]; then
+        DIRECTORIES_TO_FIX=(
+            "/tmp"
+            "/files"
+            "/root/.aws"
+            "/root/.azure"
+            "/root/.config/gcloud"
+            "/root/.docker"
+            "${AIRFLOW_SOURCES}"
+        )
+        if [[ ${VERBOSE} == "true" ]]; then
+            echo "Fixing ownership of mounted files"
+        fi
+        sudo find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null \
+            | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference ||
+                true >/dev/null 2>&1
+        if [[ ${VERBOSE} == "true" ]]; then
+            echo "Fixed ownership of mounted files"
+        fi
+    fi
 }
 
 function in_container_go_to_airflow_sources() {
@@ -126,7 +143,6 @@ function in_container_refresh_pylint_todo() {
     find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/www_rbac/node_modules" -prune -o \
-        -path "./airflow/_vendor" -prune -o \
         -path "./airflow/migrations/versions" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
@@ -135,15 +151,15 @@ function in_container_refresh_pylint_todo() {
         -name "*.py" \
         -not -name 'webserver_config.py' | \
         grep  ".*.py$" | \
-        xargs pylint | tee "${MY_DIR}/../pylint_todo_main.txt"
+        xargs pylint | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt"
 
-    grep -v "\*\*" < "${MY_DIR}/../pylint_todo_main.txt" | \
+    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" | \
        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-       awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq > "${MY_DIR}/../pylint_todo_new.txt"
+       awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq > "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
 
     if [[ ${VERBOSE} == "true" ]]; then
         echo
-        echo "So far found $(wc -l <"${MY_DIR}/../pylint_todo_new.txt") files"
+        echo "So far found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt") files"
         echo
 
         echo
@@ -151,18 +167,18 @@ function in_container_refresh_pylint_todo() {
         echo
     fi
     find "./tests" -name "*.py" -print0 | \
-        xargs -0 pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" | tee "${MY_DIR}/../pylint_todo_tests.txt"
+        xargs -0 pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
 
-    grep -v "\*\*" < "${MY_DIR}/../pylint_todo_tests.txt" | \
+    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt" | \
         grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >> "${MY_DIR}/../pylint_todo_new.txt"
+        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >> "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
 
-    rm -fv "${MY_DIR}/../pylint_todo_main.txt" "${MY_DIR}/../pylint_todo_tests.txt"
-    mv -v "${MY_DIR}/../pylint_todo_new.txt" "${MY_DIR}/../pylint_todo.txt"
+    rm -fv "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
+    mv -v "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt"
 
     if [[ ${VERBOSE} == "true" ]]; then
         echo
-        echo "Found $(wc -l <"${MY_DIR}/../pylint_todo.txt") files"
+        echo "Found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt") files"
         echo
     fi
 }
@@ -196,7 +212,7 @@ function setup_kerberos() {
     PASS="airflow"
     KRB5_KTNAME=/etc/airflow.keytab
 
-    sudo cp "${MY_DIR}/krb5/krb5.conf" /etc/krb5.conf
+    sudo cp "${AIRFLOW_SOURCES}/scripts/ci/in_container/krb5/krb5.conf" /etc/krb5.conf
 
     echo -e "${PASS}\n${PASS}" | \
         sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \
@@ -221,34 +237,6 @@ function setup_kerberos() {
     fi
 }
 
-
-function dump_container_logs() {
-    echo "###########################################################################################"
-    echo "                   Dumping logs from all the containers"
-    echo "###########################################################################################"
-    echo "  Docker processes:"
-    echo "###########################################################################################"
-    docker ps --no-trunc
-    echo "###########################################################################################"
-    for CONTAINER in $(docker ps -qa)
-    do
-        CONTAINER_NAME=$(docker inspect --format "{{.Name}}" "${CONTAINER}")
-        echo "-------------------------------------------------------------------------------------------"
-        echo " Docker inspect: ${CONTAINER_NAME}"
-        echo "-------------------------------------------------------------------------------------------"
-        echo
-        docker inspect "${CONTAINER}"
-        echo
-        echo "-------------------------------------------------------------------------------------------"
-        echo " Docker logs: ${CONTAINER_NAME}"
-        echo "-------------------------------------------------------------------------------------------"
-        echo
-        docker logs "${CONTAINER}"
-        echo
-        echo "###########################################################################################"
-    done
-}
-
 function dump_airflow_logs() {
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
@@ -259,21 +247,6 @@ function dump_airflow_logs() {
     echo "###########################################################################################"
 }
 
-
-function send_docker_logs_to_file_io() {
-    echo "##############################################################################"
-    echo
-    echo "   DUMPING LOG FILES FROM CONTAINERS AND SENDING THEM TO file.io"
-    echo
-    echo "##############################################################################"
-    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_docker_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}.log.gz
-    dump_container_logs 2>&1 | gzip >"${DUMP_FILE}"
-    echo
-    echo "   Logs saved to ${DUMP_FILE}"
-    echo
-    echo "##############################################################################"
-    curl -F "file=@${DUMP_FILE}" https://file.io
-}
 
 function send_airflow_logs_to_file_io() {
     echo "##############################################################################"
@@ -288,34 +261,6 @@ function send_airflow_logs_to_file_io() {
     echo
     echo "##############################################################################"
     curl -F "file=@${DUMP_FILE}" https://file.io
-}
-
-
-function dump_kind_logs() {
-    echo "###########################################################################################"
-    echo "                   Dumping logs from KIND"
-    echo "###########################################################################################"
-
-    FILE_NAME="${1}"
-    kind --name "${CLUSTER_NAME}" export logs "${FILE_NAME}"
-}
-
-
-function send_kubernetes_logs_to_file_io() {
-    echo "##############################################################################"
-    echo
-    echo "   DUMPING LOG FILES FROM KIND AND SENDING THEM TO file.io"
-    echo
-    echo "##############################################################################"
-    DUMP_DIR_NAME=$(date "+%Y-%m-%d")_kind_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}
-    DUMP_DIR=/tmp/${DUMP_DIR_NAME}
-    dump_kind_logs "${DUMP_DIR}"
-    tar -cvzf "${DUMP_DIR}.tar.gz" -C /tmp "${DUMP_DIR_NAME}"
-    echo
-    echo "   Logs saved to ${DUMP_DIR}.tar.gz"
-    echo
-    echo "##############################################################################"
-    curl -F "file=@${DUMP_DIR}.tar.gz" https://file.io
 }
 
 function install_released_airflow_version() {

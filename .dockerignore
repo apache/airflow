@@ -33,6 +33,7 @@
 !dev
 !docs
 !licenses
+!metastore_browser
 !scripts
 !tests
 
@@ -43,14 +44,11 @@
 !pylintrc
 !pytest.ini
 !CHANGELOG.txt
-!Dockerfile.ci
-!Dockerfile
 !LICENSE
 !MANIFEST.in
 !NOTICE
 !.github
-!requirements
-!entrypoint.sh
+!empty
 
 # Avoid triggering context change on README change (new companies using Airflow)
 # So please do not uncomment this line ;)

@@ -159,13 +159,13 @@ class BuildProcessor:
         return source_dict
 
 
-class CloudBuildCreateOperator(BaseOperator):
+class CloudBuildCreateBuildOperator(BaseOperator):
     """
     Starts a build with the specified configuration.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudBuildCreateOperator`
+        :ref:`howto/operator:CloudBuildCreateBuildOperator`
 
     :param body: The build config with instructions to perform with CloudBuild.
         Can be a dictionary or path to a file type like YAML or JSON.

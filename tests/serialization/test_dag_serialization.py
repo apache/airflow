@@ -21,7 +21,7 @@
 import multiprocessing
 import os
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from glob import glob
 from unittest import mock
 
@@ -376,14 +376,17 @@ class TestStringifiedDAGs(unittest.TestCase):
             assert serialized_task.subdag is None
 
     @parameterized.expand([
-        (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
-        (datetime(2019, 8, 1), datetime(2019, 8, 2), datetime(2019, 8, 2)),
-        (datetime(2019, 8, 1), datetime(2019, 7, 30), datetime(2019, 8, 1)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), None, datetime(2019, 8, 1, tzinfo=timezone.utc)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), datetime(2019, 8, 2, tzinfo=timezone.utc),
+         datetime(2019, 8, 2, tzinfo=timezone.utc)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), datetime(2019, 7, 30, tzinfo=timezone.utc),
+         datetime(2019, 8, 1, tzinfo=timezone.utc)),
     ])
     def test_deserialization_start_date(self,
                                         dag_start_date,
                                         task_start_date,
                                         expected_task_start_date):
+
         dag = DAG(dag_id='simple_dag', start_date=dag_start_date)
         BaseOperator(task_id='simple_task', dag=dag, start_date=task_start_date)
 
@@ -400,9 +403,11 @@ class TestStringifiedDAGs(unittest.TestCase):
         self.assertEqual(simple_task.start_date, expected_task_start_date)
 
     @parameterized.expand([
-        (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
-        (datetime(2019, 8, 1), datetime(2019, 8, 2), datetime(2019, 8, 1)),
-        (datetime(2019, 8, 1), datetime(2019, 7, 30), datetime(2019, 7, 30)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), None, datetime(2019, 8, 1, tzinfo=timezone.utc)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), datetime(2019, 8, 2, tzinfo=timezone.utc),
+         datetime(2019, 8, 1, tzinfo=timezone.utc)),
+        (datetime(2019, 8, 1, tzinfo=timezone.utc), datetime(2019, 7, 30, tzinfo=timezone.utc),
+         datetime(2019, 7, 30, tzinfo=timezone.utc)),
     ])
     def test_deserialization_end_date(self,
                                       dag_end_date,
@@ -721,7 +726,8 @@ class TestStringifiedDAGs(unittest.TestCase):
         """
         base_operator = BaseOperator(task_id="10")
         fields = base_operator.__dict__
-        self.assertEqual({'_dag': None,
+        self.assertEqual({'_BaseOperator__instantiated': True,
+                          '_dag': None,
                           '_downstream_task_ids': set(),
                           '_inlets': [],
                           '_log': base_operator.log,
