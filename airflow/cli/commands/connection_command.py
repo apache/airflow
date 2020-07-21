@@ -26,7 +26,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import create_session
-
+from airflow.secrets.local_filesystem import load_connections
 
 def _tabulate_connection(conns: List[Connection], tablefmt: str):
     tabulate_data = [
@@ -153,3 +153,40 @@ def connections_delete(args):
             msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
             msg = msg.format(conn_id=deleted_conn_id)
             print(msg)
+
+
+@cli_utils.action_logging
+def connections_import(args):
+    """Import new connections"""
+    #check for the file path in arguments
+    missing_args = []
+    if not args.file_path:
+        missing_args.append('file-path')
+    
+    if missing_args:
+        msg = ('The following args are required to import connections:' +
+               ' {missing!r}'.format(missing=missing_args))
+        raise SystemExit(msg)
+
+    new_conns_map = load_connections(args.file_path)
+    for _,new_conn_list in new_conns_map.items():
+        for new_conn in new_conn_list:
+            with create_session() as session:
+                if not (session.query(Connection)
+                        .filter(Connection.conn_id == new_conn.conn_id).first()):
+                    session.add(new_conn)
+                    msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
+                    msg = msg.format(conn_id=new_conn.conn_id,
+                                    uri=new_conn.get_uri() or
+                                    urlunparse((new_conn.conn_type,
+                                                '{login}:{password}@{host}:{port}'
+                                                    .format(login=new_conn.conn_login or '',
+                                                            password='******' if new_conn.conn_password else '',
+                                                            host=new_conn.conn_host or '',
+                                                            port=new_conn.conn_port or ''),
+                                                new_conn.conn_schema or '', '', '', '')))
+                    print(msg)
+                else:
+                    msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
+                    msg = msg.format(conn_id=new_conn.conn_id)
+                    print(msg)
