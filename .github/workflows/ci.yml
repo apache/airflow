@@ -145,7 +145,7 @@ jobs:
         kube-mode:
           - image
         kubernetes-version:
-          - "v1.18.2"
+          - "v1.18.6"
         kind-version:
           - "v0.8.0"
         helm-version:
