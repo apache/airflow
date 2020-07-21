@@ -29,11 +29,11 @@ if [[ ${#@} == "0" ]]; then
     find "./tests" "./kubernetes_tests" -name "*.py" | \
     grep -vFf scripts/ci/pylint_todo.txt | \
     # running pylint using built-in parallel functionality might speed it up
-    xargs pylint -j 0 --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized
+    xargs pylint -j 0 --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized | sort -u
     RES=$?
 else
     # running pylint using built-in parallel functionality might speed it up
-    pylint -j 0 --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized "$@"
+    pylint -j 0 --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized "$@" | sort -u
     RES=$?
 fi
 
