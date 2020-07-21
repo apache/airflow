@@ -9,6 +9,9 @@ In case of existing issue, reference it using one of the following:
 
 closes: #ISSUE
 related: #ISSUE
+
+How to write a good git commit message:
+http://chris.beams.io/posts/git-commit/
 -->
 
 ---

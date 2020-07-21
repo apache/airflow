@@ -34,13 +34,6 @@ mergeable:
       - do: label
         must_exclude:
           regex: 'dont-merge'
-      # All todo check boxes must be checked.
-      - do: description
-        must_exclude:
-          regex: \[ \]
-          message: There are incomplete TODO task(s) unchecked.
-        no_empty:
-          enabled: true
       # If package.json is updated, so should yarn.lock
       - do: dependent
         changed:
