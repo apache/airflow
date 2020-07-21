@@ -24,7 +24,7 @@ import email
 import imaplib
 import os
 import re
-from typing import Any, Iterable, List, Tuple
+from typing import Any, Iterable, List, Tuple, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -66,8 +66,8 @@ class ImapHook(BaseHook):
 
         if not self.mail_client:
             conn = self.get_connection(self.imap_conn_id)
-            self.mail_client = imaplib.IMAP4_SSL(conn.host)
-            self.mail_client.login(conn.login, conn.password)
+            self.mail_client = imaplib.IMAP4_SSL(conn.host)  # type:ignore
+            self.mail_client.login(conn.login, conn.password)  # type:ignore
 
         return self
 
@@ -199,7 +199,7 @@ class ImapHook(BaseHook):
                                             mail_folder: str, mail_filter: str) -> List:
         all_matching_attachments = []
 
-        self.mail_client.select(mail_folder)
+        self.mail_client.select(mail_folder)  # type: ignore
 
         for mail_id in self._list_mail_ids_desc(mail_filter):
             response_mail_body = self._fetch_mail_body(mail_id)
@@ -211,17 +211,17 @@ class ImapHook(BaseHook):
                 if latest_only:
                     break
 
-        self.mail_client.close()
+        self.mail_client.close()  # type: ignore
 
         return all_matching_attachments
 
     def _list_mail_ids_desc(self, mail_filter: str) -> Iterable[str]:
-        _, data = self.mail_client.search(None, mail_filter)
+        _, data = self.mail_client.search(None, mail_filter)  # type: ignore
         mail_ids = data[0].split()
         return reversed(mail_ids)
 
     def _fetch_mail_body(self, mail_id: str) -> str:
-        _, data = self.mail_client.fetch(mail_id, '(RFC822)')
+        _, data = self.mail_client.fetch(mail_id, '(RFC822)')  # type: ignore
         mail_body = data[0][1]  # The mail body is always in this specific location
         mail_body_str = mail_body.decode('utf-8')
         return mail_body_str
@@ -336,7 +336,7 @@ class MailPart:
         """
         return self.part.get_content_maintype() != 'multipart' and self.part.get('Content-Disposition')
 
-    def has_matching_name(self, name: str):
+    def has_matching_name(self, name: str) -> Optional[Tuple[Any, Any]]:
         """
         Checks if the given name matches the part's name.
 
@@ -345,7 +345,7 @@ class MailPart:
         :returns: True if it matches the name (including regular expression).
         :rtype: tuple
         """
-        return re.match(name, self.part.get_filename())
+        return re.match(name, self.part.get_filename())  # type: ignore
 
     def has_equal_name(self, name: str) -> bool:
         """
