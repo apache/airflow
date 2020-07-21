@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
-from typing import List, Optional, Tuple, Union, cast
+from typing import Any, List, Optional, Tuple, Union, cast
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
@@ -28,6 +28,7 @@ from sqlalchemy.orm.session import Session
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -65,14 +66,23 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint('dag_id', 'run_id'),
     )
 
-    def __init__(self, dag_id=None, run_id=None, execution_date=None, start_date=None, external_trigger=None,
-                 conf=None, state=None, run_type=None):
+    def __init__(
+        self,
+        dag_id: Optional[str] = None,
+        run_id: Optional[str] = None,
+        execution_date: Optional[datetime] = None,
+        start_date: Optional[datetime] = None,
+        external_trigger: Optional[bool] = None,
+        conf: Optional[Any] = None,
+        state: Optional[str] = None,
+        run_type: Optional[str] = None
+    ):
         self.dag_id = dag_id
         self.run_id = run_id
         self.execution_date = execution_date
         self.start_date = start_date
         self.external_trigger = external_trigger
-        self.conf = conf
+        self.conf = conf or {}
         self.state = state
         self.run_type = run_type
         super().__init__()
@@ -130,8 +140,9 @@ class DagRun(Base, LoggingMixin):
         no_backfills: Optional[bool] = False,
         run_type: Optional[DagRunType] = None,
         session: Session = None,
-        execution_start_date=None, execution_end_date=None
-    ):
+        execution_start_date: Optional[datetime] = None,
+        execution_end_date: Optional[datetime] = None
+    ) -> List["DagRun"]:
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -280,7 +291,7 @@ class DagRun(Base, LoggingMixin):
         ).first()
 
     @provide_session
-    def update_state(self, session=None):
+    def update_state(self, session=None) -> List[TI]:
         """
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
@@ -290,7 +301,7 @@ class DagRun(Base, LoggingMixin):
         """
 
         dag = self.get_dag()
-        ready_tis = []
+        ready_tis: List[TI] = []
         tis = [ti for ti in self.get_task_instances(session=session,
                                                     state=State.task_states + (State.SHUTDOWN,))]
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
@@ -432,6 +443,7 @@ class DagRun(Base, LoggingMixin):
         # check for removed or restored tasks
         task_ids = []
         for ti in tis:
+            task_instance_mutation_hook(ti)
             task_ids.append(ti.task_id)
             task = None
             try:
@@ -452,6 +464,7 @@ class DagRun(Base, LoggingMixin):
                               "removed from DAG '{}'".format(ti, dag))
                 Stats.incr("task_restored_to_dag.{}".format(dag.dag_id), 1, 1)
                 ti.state = State.NONE
+            session.merge(ti)
 
         # check for missing tasks
         for task in dag.task_dict.values():
@@ -463,6 +476,7 @@ class DagRun(Base, LoggingMixin):
                     "task_instance_created-{}".format(task.__class__.__name__),
                     1, 1)
                 ti = TI(task, self.execution_date)
+                task_instance_mutation_hook(ti)
                 session.add(ti)
 
         session.commit()
@@ -491,7 +505,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def get_latest_runs(cls, session):
+    def get_latest_runs(cls, session=None):
         """Returns the latest DagRun for each DAG. """
         subquery = (
             session

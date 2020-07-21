@@ -16,29 +16,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from es.elastic.api import connect
+from typing import Optional
+
+from es.elastic.api import Connection as ESConnection, connect
 
 from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.models.connection import Connection as AirflowConnection
 
 
 class ElasticsearchHook(DbApiHook):
-    """
-        Interact with Elasticsearch through the elasticsearch-dbapi
-    """
+    """Interact with Elasticsearch through the elasticsearch-dbapi."""
 
     conn_name_attr = 'elasticsearch_conn_id'
     default_conn_name = 'elasticsearch_default'
 
     def __init__(self,
                  schema: str = "http",
-                 connection=None,
+                 connection: Optional[AirflowConnection] = None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = schema
         self.connection = connection
 
-    def get_conn(self):
+    def get_conn(self) -> ESConnection:
         """
         Returns a elasticsearch connection object
         """
@@ -63,7 +64,7 @@ class ElasticsearchHook(DbApiHook):
 
         return conn
 
-    def get_uri(self):
+    def get_uri(self) -> str:
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
 

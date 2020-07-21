@@ -39,7 +39,7 @@ from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.timeout import timeout
@@ -102,12 +102,12 @@ class ExceptionWithTraceback:
 
 
 # Task instance that is sent over Celery queues
-# TaskInstanceKeyType, SimpleTaskInstance, Command, queue_name, CallableTask
-TaskInstanceInCelery = Tuple[TaskInstanceKeyType, SimpleTaskInstance, CommandType, Optional[str], Task]
+# TaskInstanceKey, SimpleTaskInstance, Command, queue_name, CallableTask
+TaskInstanceInCelery = Tuple[TaskInstanceKey, SimpleTaskInstance, CommandType, Optional[str], Task]
 
 
 def send_task_to_executor(task_tuple: TaskInstanceInCelery) \
-        -> Tuple[TaskInstanceKeyType, CommandType, Union[AsyncResult, ExceptionWithTraceback]]:
+        -> Tuple[TaskInstanceKey, CommandType, Union[AsyncResult, ExceptionWithTraceback]]:
     """Sends task to executor."""
     key, _, command, queue, task_to_run = task_tuple
     try:
@@ -175,35 +175,37 @@ class CeleryExecutor(BaseExecutor):
             task_tuples_to_send.append((key, simple_ti, command, queue, execute_command))
 
         if task_tuples_to_send:
-            first_task = next(t[4] for t in task_tuples_to_send)
+            self._process_tasks(task_tuples_to_send)
 
-            # Celery state queries will stuck if we do not use one same backend
-            # for all tasks.
-            cached_celery_backend = first_task.backend
+    def _process_tasks(self, task_tuples_to_send: List[TaskInstanceInCelery]) -> None:
+        first_task = next(t[4] for t in task_tuples_to_send)
 
-            key_and_async_results = self._send_tasks_to_celery(task_tuples_to_send)
-            self.log.debug('Sent all tasks.')
+        # Celery state queries will stuck if we do not use one same backend
+        # for all tasks.
+        cached_celery_backend = first_task.backend
 
-            for key, command, result in key_and_async_results:
-                if isinstance(result, ExceptionWithTraceback):
-                    self.log.error(  # pylint: disable=logging-not-lazy
-                        CELERY_SEND_ERR_MSG_HEADER + ":%s\n%s\n", result.exception, result.traceback
-                    )
-                elif result is not None:
-                    # Only pops when enqueued successfully, otherwise keep it
-                    # and expect scheduler loop to deal with it.
-                    self.queued_tasks.pop(key)
-                    result.backend = cached_celery_backend
-                    self.running.add(key)
-                    self.tasks[key] = result
-                    self.last_state[key] = celery_states.PENDING
+        key_and_async_results = self._send_tasks_to_celery(task_tuples_to_send)
+        self.log.debug('Sent all tasks.')
+
+        for key, _, result in key_and_async_results:
+            if isinstance(result, ExceptionWithTraceback):
+                self.log.error(  # pylint: disable=logging-not-lazy
+                    CELERY_SEND_ERR_MSG_HEADER + ":%s\n%s\n", result.exception, result.traceback
+                )
+            elif result is not None:
+                # Only pops when enqueued successfully, otherwise keep it
+                # and expect scheduler loop to deal with it.
+                self.queued_tasks.pop(key)
+                result.backend = cached_celery_backend
+                self.running.add(key)
+                self.tasks[key] = result
+                self.last_state[key] = celery_states.PENDING
 
     def _send_tasks_to_celery(self, task_tuples_to_send):
-        if len(task_tuples_to_send) == 1:
-            # One tuple, so send it in the main thread.
-            return [
-                send_task_to_executor(task_tuples_to_send[0])
-            ]
+        if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
+            # One tuple, or max one process -> send it in the main thread.
+            return list(map(send_task_to_executor, task_tuples_to_send))
+
         # Use chunks instead of a work queue to reduce context switching
         # since tasks are roughly uniform in size
         chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
@@ -233,7 +235,7 @@ class CeleryExecutor(BaseExecutor):
             if state:
                 self.update_task_state(key, state, info)
 
-    def update_task_state(self, key: TaskInstanceKeyType, state: str, info: Any) -> None:
+    def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
         """Updates state of a single task."""
         # noinspection PyBroadException
         try:
@@ -258,12 +260,12 @@ class CeleryExecutor(BaseExecutor):
 
     def end(self, synchronous: bool = False) -> None:
         if synchronous:
-            while any([task.state not in celery_states.READY_STATES for task in self.tasks.values()]):
+            while any(task.state not in celery_states.READY_STATES for task in self.tasks.values()):
                 time.sleep(5)
         self.sync()
 
     def execute_async(self,
-                      key: TaskInstanceKeyType,
+                      key: TaskInstanceKey,
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None):

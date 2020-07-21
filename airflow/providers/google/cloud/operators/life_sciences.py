@@ -29,6 +29,10 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
     """
     Runs a Life Sciences Pipeline
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:LifeSciencesRunPipelineOperator`
+
     :param body: The request body
     :type body: dict
     :param location: The location of the project

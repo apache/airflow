@@ -29,6 +29,7 @@ class TestAzureContainerRegistryHook(unittest.TestCase):
         db.merge_conn(
             Connection(
                 conn_id='azure_container_registry',
+                conn_type='azure_container_registry',
                 login='myuser',
                 password='password',
                 host='test.cr',

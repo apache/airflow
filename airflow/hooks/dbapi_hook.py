@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from contextlib import closing
 from datetime import datetime
 from typing import Any, Optional
@@ -117,7 +116,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
         """
-        import pandas.io.sql as psql
+        from pandas.io import sql as psql
 
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters)
@@ -182,12 +181,14 @@ class DbApiHook(BaseHook):
 
             with closing(conn.cursor()) as cur:
                 for sql_statement in sql:
-                    if parameters is not None:
-                        self.log.info("%s with parameters %s", sql_statement, parameters)
+
+                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+                    if parameters:
                         cur.execute(sql_statement, parameters)
                     else:
-                        self.log.info(sql_statement)
                         cur.execute(sql_statement)
+                    if hasattr(cur, 'rowcount'):
+                        self.log.info("Rows affected: %s", cur.rowcount)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.

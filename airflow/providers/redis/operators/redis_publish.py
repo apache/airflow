@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Dict
+
 from airflow.models import BaseOperator
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.utils.decorators import apply_defaults
@@ -38,17 +40,17 @@ class RedisPublishOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            channel,
-            message,
-            redis_conn_id='redis_default',
-            *args, **kwargs):
+            channel: str,
+            message: str,
+            redis_conn_id: str = 'redis_default',
+            *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.redis_conn_id = redis_conn_id
         self.channel = channel
         self.message = message
 
-    def execute(self, context):
+    def execute(self, context: Dict) -> None:
         """
         Publish the message to Redis channel
 

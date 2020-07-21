@@ -26,7 +26,7 @@ import subprocess
 from typing import Any, Optional
 
 from airflow.executors.base_executor import BaseExecutor, CommandType
-from airflow.models.taskinstance import TaskInstanceKeyType
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.state import State
 
 
@@ -45,7 +45,7 @@ class SequentialExecutor(BaseExecutor):
         self.commands_to_run = []
 
     def execute_async(self,
-                      key: TaskInstanceKeyType,
+                      key: TaskInstanceKey,
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Dict
+
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -28,11 +30,11 @@ class RedisKeySensor(BaseSensorOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, key, redis_conn_id, *args, **kwargs):
+    def __init__(self, key: str, redis_conn_id: str, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.redis_conn_id = redis_conn_id
         self.key = key
 
-    def poke(self, context):
+    def poke(self, context: Dict) -> bool:
         self.log.info('Sensor checks for existence of key: %s', self.key)
         return RedisHook(self.redis_conn_id).get_conn().exists(self.key)

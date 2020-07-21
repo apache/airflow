@@ -17,16 +17,20 @@
 # under the License.
 #
 import argparse
+from typing import Any, List, Optional
 
 from pyspark.sql import SparkSession
 
+SPARK_WRITE_TO_JDBC: str = "spark_to_jdbc"
+SPARK_READ_FROM_JDBC: str = "jdbc_to_spark"
 
-def set_common_options(spark_source,
-                       url='localhost:5432',
-                       jdbc_table='default.default',
-                       user='root',
-                       password='root',
-                       driver='driver'):
+
+def set_common_options(spark_source: Any,
+                       url: str = 'localhost:5432',
+                       jdbc_table: str = 'default.default',
+                       user: str = 'root',
+                       password: str = 'root',
+                       driver: str = 'driver') -> Any:
     """
     Get Spark source from JDBC connection
 
@@ -49,9 +53,18 @@ def set_common_options(spark_source,
 
 
 # pylint: disable=too-many-arguments
-def spark_write_to_jdbc(spark_session, url, user, password, metastore_table, jdbc_table, driver,
-                        truncate, save_mode, batch_size, num_partitions,
-                        create_table_column_types):
+def spark_write_to_jdbc(spark_session: SparkSession,
+                        url: str,
+                        user: str,
+                        password: str,
+                        metastore_table: str,
+                        jdbc_table: str,
+                        driver: Any,
+                        truncate: bool,
+                        save_mode: str,
+                        batch_size: int,
+                        num_partitions: int,
+                        create_table_column_types: str) -> None:
     """
     Transfer data from Spark to JDBC source
     """
@@ -77,9 +90,21 @@ def spark_write_to_jdbc(spark_session, url, user, password, metastore_table, jdb
 
 
 # pylint: disable=too-many-arguments
-def spark_read_from_jdbc(spark_session, url, user, password, metastore_table, jdbc_table, driver,
-                         save_mode, save_format, fetch_size, num_partitions,
-                         partition_column, lower_bound, upper_bound):
+def spark_read_from_jdbc(spark_session: SparkSession,
+                         url: str,
+                         user: str,
+                         password: str,
+                         metastore_table: str,
+                         jdbc_table: str,
+                         driver: Any,
+                         save_mode: str,
+                         save_format: str,
+                         fetch_size: int,
+                         num_partitions: int,
+                         partition_column: str,
+                         lower_bound: str,
+                         upper_bound: str
+                         ) -> None:
     """
     Transfer data from JDBC source to Spark
     """
@@ -104,8 +129,7 @@ def spark_read_from_jdbc(spark_session, url, user, password, metastore_table, jd
         .saveAsTable(metastore_table, format=save_format, mode=save_mode)
 
 
-if __name__ == "__main__":  # pragma: no cover
-    # parse the parameters
+def _parse_arguments(args: Optional[List[str]] = None) -> Any:
     parser = argparse.ArgumentParser(description='Spark-JDBC')
     parser.add_argument('-cmdType', dest='cmd_type', action='store')
     parser.add_argument('-url', dest='url', action='store')
@@ -126,15 +150,21 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument('-upperBound', dest='upper_bound', action='store')
     parser.add_argument('-createTableColumnTypes',
                         dest='create_table_column_types', action='store')
-    arguments = parser.parse_args()
+    return parser.parse_args(args=args)
 
-    # Disable dynamic allocation by default to allow num_executors to take effect.
-    spark = SparkSession.builder \
+
+def _create_spark_session(arguments: Any) -> SparkSession:
+    return SparkSession.builder \
         .appName(arguments.name) \
         .enableHiveSupport() \
         .getOrCreate()
 
-    if arguments.cmd_type == "spark_to_jdbc":
+
+def _run_spark(arguments: Any) -> None:
+    # Disable dynamic allocation by default to allow num_executors to take effect.
+    spark = _create_spark_session(arguments)
+
+    if arguments.cmd_type == SPARK_WRITE_TO_JDBC:
         spark_write_to_jdbc(spark,
                             arguments.url,
                             arguments.user,
@@ -147,7 +177,7 @@ if __name__ == "__main__":  # pragma: no cover
                             arguments.batch_size,
                             arguments.num_partitions,
                             arguments.create_table_column_types)
-    elif arguments.cmd_type == "jdbc_to_spark":
+    elif arguments.cmd_type == SPARK_READ_FROM_JDBC:
         spark_read_from_jdbc(spark,
                              arguments.url,
                              arguments.user,
@@ -162,3 +192,7 @@ if __name__ == "__main__":  # pragma: no cover
                              arguments.partition_column,
                              arguments.lower_bound,
                              arguments.upper_bound)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    _run_spark(arguments=_parse_arguments())

@@ -39,6 +39,7 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag
 from airflow.utils.session import create_session, provide_session
+from airflow.utils.state import State
 
 
 def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt: str = "fancy_grid") -> str:
@@ -123,6 +124,7 @@ def dag_backfill(args, dag=None):
                 end_date=args.end_date,
                 confirm_prompt=not args.yes,
                 include_subdags=True,
+                dag_run_state=State.NONE,
             )
 
         dag.run(
@@ -381,7 +383,7 @@ def dag_list_dag_runs(args, dag=None):
 def dag_test(args, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.clear(start_date=args.execution_date, end_date=args.execution_date, reset_dag_runs=True)
+    dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=State.NONE)
     try:
         dag.run(executor=DebugExecutor(), start_date=args.execution_date, end_date=args.execution_date)
     except BackfillUnfinished as e:

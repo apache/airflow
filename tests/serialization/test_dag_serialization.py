@@ -726,7 +726,8 @@ class TestStringifiedDAGs(unittest.TestCase):
         """
         base_operator = BaseOperator(task_id="10")
         fields = base_operator.__dict__
-        self.assertEqual({'_dag': None,
+        self.assertEqual({'_BaseOperator__instantiated': True,
+                          '_dag': None,
                           '_downstream_task_ids': set(),
                           '_inlets': [],
                           '_log': base_operator.log,

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict, List, Tuple
 
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -42,12 +43,12 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
-                 partition_names,
-                 metastore_conn_id='metastore_default',
-                 poke_interval=60 * 3,
-                 hook=None,
-                 *args,
-                 **kwargs):
+                 partition_names: List[str],
+                 metastore_conn_id: str = 'metastore_default',
+                 poke_interval: int = 60 * 3,
+                 hook: Any = None,
+                 *args: Tuple[Any, ...],
+                 **kwargs: Any):
         super().__init__(
             poke_interval=poke_interval, *args, **kwargs)
 
@@ -64,7 +65,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
             )
 
     @staticmethod
-    def parse_partition_name(partition):
+    def parse_partition_name(partition: str) -> Tuple[Any, ...]:
         """Get schema, table, and partition info."""
         first_split = partition.split('.', 1)
         if len(first_split) == 1:
@@ -80,7 +81,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
             table, partition = second_split
         return schema, table, partition
 
-    def poke_partition(self, partition):
+    def poke_partition(self, partition: str) -> Any:
         """Check for a named partition."""
         if not self.hook:
             from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
@@ -93,7 +94,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         return self.hook.check_for_named_partition(
             schema, table, partition)
 
-    def poke(self, context):
+    def poke(self, context: Dict[str, Any]) -> bool:
 
         number_of_partitions = len(self.partition_names)
         poke_index_start = self.next_index_to_poke

@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.settings import STATE_COLORS
+
 
 class State:
     """
@@ -75,6 +77,7 @@ class State:
         SCHEDULED: 'tan',
         NONE: 'lightblue',
     }
+    state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod
     def color(cls, state):

@@ -208,7 +208,7 @@ class ClusterGenerator:
         self.custom_image = custom_image
         self.custom_image_project_id = custom_image_project_id
         self.image_version = image_version
-        self.properties = properties or dict()
+        self.properties = properties or {}
         self.optional_components = optional_components
         self.master_machine_type = master_machine_type
         self.master_disk_type = master_disk_type
@@ -427,6 +427,10 @@ class DataprocCreateClusterOperator(BaseOperator):
 
     for a detailed explanation on the different parameters. Most of the configuration
     parameters detailed in the link are available as a parameter to this operator.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataprocCreateClusterOperator`
 
     :param project_id: The ID of the google cloud project in which
         to create the cluster. (templated)

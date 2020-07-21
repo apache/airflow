@@ -28,8 +28,8 @@ from dateutil import relativedelta
 from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -91,7 +91,8 @@ class BaseSerialization:
     def from_dict(cls, serialized_obj: Dict[Encoding, Any]) -> \
             Union['BaseSerialization', dict, list, set, tuple]:
         """Deserializes a python dict stored with type decorators and
-        reconstructs all DAGs and operators it contains."""
+        reconstructs all DAGs and operators it contains.
+        """
         return cls._deserialize(serialized_obj)
 
     @classmethod
@@ -299,7 +300,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     _decorated_fields = {'executor_config'}
 
     _CONSTRUCTOR_PARAMS = {
-        k: v.default for k, v in signature(BaseOperator).parameters.items()
+        k: v.default for k, v in signature(BaseOperator.__init__).parameters.items()
         if v.default is not v.empty
     }
 
@@ -537,7 +538,7 @@ class SerializedDAG(DAG, BaseSerialization):
             'access_control': '_access_control',
         }
         return {
-            param_to_attr.get(k, k): v.default for k, v in signature(DAG).parameters.items()
+            param_to_attr.get(k, k): v.default for k, v in signature(DAG.__init__).parameters.items()
             if v.default is not v.empty
         }
 

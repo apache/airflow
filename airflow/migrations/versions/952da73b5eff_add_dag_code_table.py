@@ -37,6 +37,7 @@ depends_on = None
 
 
 def upgrade():
+    """Create DagCode Table."""
     from sqlalchemy.ext.declarative import declarative_base
 
     Base = declarative_base()

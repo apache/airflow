@@ -18,15 +18,12 @@
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-# any argument received is overriding the default nose execution arguments:
-PYTEST_ARGS=( "$@" )
-
 echo
-echo "Starting the tests with those pytest arguments: ${PYTEST_ARGS[*]}"
+echo "Starting the tests with those pytest arguments:" "${@}"
 echo
 set +e
 
-pytest "${PYTEST_ARGS[@]}"
+pytest "${@}"
 
 RES=$?
 
@@ -36,7 +33,7 @@ if [[ "${RES}" == "0" && ${CI:="false"} == "true" ]]; then
     bash <(curl -s https://codecov.io/bash)
 fi
 
-if [[ ${CI} == "true" ]]; then
+if [[ ${CI:=} == "true" ]]; then
     send_airflow_logs_to_file_io
 fi
 

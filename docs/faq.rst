@@ -141,7 +141,7 @@ variable in the global namespace. This is easily done in python using the
 ``globals()`` function for the standard library, which behaves like a
 simple dictionary.
 
-.. code:: python
+.. code-block:: python
 
     def create_dag(dag_id):
         """

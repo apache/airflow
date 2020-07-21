@@ -15,12 +15,41 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8140
+from flask import current_app
+
+from airflow import DAG
+from airflow.api_connexion.exceptions import NotFound
+from airflow.exceptions import TaskNotFound
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun as DR
+from airflow.utils.session import provide_session
 
 
-def get_extra_links():
+@provide_session
+def get_extra_links(dag_id: str, dag_run_id: str, task_id: str, session):
     """
     Get extra links for task instance
     """
-    raise NotImplementedError("Not implemented yet.")
+    dagbag: DagBag = current_app.dag_bag
+    dag: DAG = dagbag.get_dag(dag_id)
+    if not dag:
+        raise NotFound("DAG not found", detail=f'DAG with ID = "{dag_id}" not found')
+
+    try:
+        task = dag.get_task(task_id)
+    except TaskNotFound:
+        raise NotFound("Task not found", detail=f'Task with ID = "{task_id}" not found')
+
+    execution_date = (
+        session.query(DR.execution_date).filter(DR.dag_id == dag_id).filter(DR.run_id == dag_run_id).scalar()
+    )
+    if not execution_date:
+        raise NotFound("DAG Run not found", detail=f'DAG Run with ID = "{dag_run_id}" not found')
+
+    all_extra_link_pairs = (
+        (link_name, task.get_extra_links(execution_date, link_name)) for link_name in task.extra_links
+    )
+    all_extra_links = {
+        link_name: link_url if link_url else None for link_name, link_url in all_extra_link_pairs
+    }
+    return all_extra_links

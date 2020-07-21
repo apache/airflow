@@ -34,6 +34,7 @@ configuring an Airflow environment.
     set-config
     initialize-database
     operator/index
+    customize-state-colors-ui
     custom-operator
     connection/index
     write-logs

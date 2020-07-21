@@ -17,6 +17,7 @@
 # under the License.
 #
 import subprocess
+from typing import Any, List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -57,20 +58,20 @@ class SparkSqlHook(BaseHook):
 
     # pylint: disable=too-many-arguments
     def __init__(self,
-                 sql,
-                 conf=None,
-                 conn_id='spark_sql_default',
-                 total_executor_cores=None,
-                 executor_cores=None,
-                 executor_memory=None,
-                 keytab=None,
-                 principal=None,
-                 master='yarn',
-                 name='default-name',
-                 num_executors=None,
-                 verbose=True,
-                 yarn_queue='default'
-                 ):
+                 sql: str,
+                 conf: Optional[str] = None,
+                 conn_id: str = 'spark_sql_default',
+                 total_executor_cores: Optional[int] = None,
+                 executor_cores: Optional[int] = None,
+                 executor_memory: Optional[str] = None,
+                 keytab: Optional[str] = None,
+                 principal: Optional[str] = None,
+                 master: str = 'yarn',
+                 name: str = 'default-name',
+                 num_executors: Optional[int] = None,
+                 verbose: bool = True,
+                 yarn_queue: str = 'default'
+                 ) -> None:
         super().__init__()
         self._sql = sql
         self._conf = conf
@@ -85,12 +86,12 @@ class SparkSqlHook(BaseHook):
         self._num_executors = num_executors
         self._verbose = verbose
         self._yarn_queue = yarn_queue
-        self._sp = None
+        self._sp: Any = None
 
-    def get_conn(self):
+    def get_conn(self) -> Any:
         pass
 
-    def _prepare_command(self, cmd):
+    def _prepare_command(self, cmd: Union[str, List[str]]) -> List[str]:
         """
         Construct the spark-sql command to execute. Verbose output is enabled
         as default.
@@ -141,7 +142,7 @@ class SparkSqlHook(BaseHook):
 
         return connection_cmd
 
-    def run_query(self, cmd="", **kwargs):
+    def run_query(self, cmd: str = "", **kwargs: Any) -> None:
         """
         Remote Popen (actually execute the Spark-sql query)
 
@@ -156,7 +157,7 @@ class SparkSqlHook(BaseHook):
                                     stderr=subprocess.STDOUT,
                                     **kwargs)
 
-        for line in iter(self._sp.stdout):
+        for line in iter(self._sp.stdout):  # type: ignore
             self.log.info(line)
 
         returncode = self._sp.wait()
@@ -168,7 +169,7 @@ class SparkSqlHook(BaseHook):
                 )
             )
 
-    def kill(self):
+    def kill(self) -> None:
         """
         Kill Spark job
         """

@@ -38,7 +38,8 @@ paths:
   /connections:
     get:
       summary: Get all connection entries
-      operationId: airflow.api_connexion.endpoints.connection_endpoint.get_connections
+      x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+      operationId: get_connections
       tags: [Connection]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -59,7 +60,8 @@ paths:
 
     post:
       summary: Create connection entry
-      operationId: airflow.api_connexion.endpoints.connection_endpoint.post_connection
+      x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+      operationId: post_connection
       tags: [Connection]
       requestBody:
         required: true
@@ -87,7 +89,8 @@ paths:
 
     get:
       summary: Get a connection entry
-      operationId: airflow.api_connexion.endpoints.connection_endpoint.get_connection
+      x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+      operationId: get_connection
       tags: [Connection]
       responses:
         '200':
@@ -105,7 +108,8 @@ paths:
 
     patch:
       summary: Update a connection entry
-      operationId: airflow.api_connexion.endpoints.connection_endpoint.patch_connection
+      x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+      operationId: patch_connection
       tags: [Connection]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -134,7 +138,8 @@ paths:
 
     delete:
       summary: Delete a connection entry
-      operationId: airflow.api_connexion.endpoints.connection_endpoint.delete_connection
+      x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
+      operationId: delete_connection
       tags: [Connection]
       responses:
         '204':
@@ -149,7 +154,8 @@ paths:
   /dags:
     get:
       summary: Get all DAGs
-      operationId: airflow.api_connexion.endpoints.dag_endpoint.get_dags
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+      operationId: get_dags
       tags: [DAG]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -176,7 +182,8 @@ paths:
         Presents only information available in database (DAGModel).
 
         If you need detailed information, consider using GET /dags/{dag_id}/detail.
-      operationId: airflow.api_connexion.endpoints.dag_endpoint.get_dag
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+      operationId: get_dag
       tags: [DAG]
       responses:
         '200':
@@ -194,7 +201,8 @@ paths:
 
     patch:
       summary: Update a DAG
-      operationId: airflow.api_connexion.endpoints.dag_endpoint.patch_dag
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+      operationId: patch_dag
       tags: [DAG]
       requestBody:
         required: true
@@ -222,7 +230,8 @@ paths:
 
     post:
       summary: Clears a set of task instances associated with the DAG for a specified date range.
-      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.post_clear_task_instances
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: post_clear_task_instances
       tags: [DAG]
       requestBody:
         description: Parameters of action
@@ -254,7 +263,8 @@ paths:
       summary: Get all DAG Runs
       description: >
         This endpoint allows specifying `~` as the dag_id to retrieve DAG Runs for all DAGs.
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.get_dag_runs
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: get_dag_runs
       tags: [DAGRun]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -277,13 +287,42 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
+    post:
+      summary: Trigger a DAG Run
+      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.post_dag_run
+      tags: [DAGRun]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRun'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          $ref: '#/components/responses/AlreadyExists'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /dags/~/dagRuns/list:
     post:
-      summary: Get all DAG Runs from aall DAGs.
+      summary: Get all DAG Runs from all DAGs
       description: >
         This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
-        would run in to maximum HTTP request URL lengthlimits
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.get_dag_runs_batch
+        would run in to maximum HTTP request URL length limit.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: get_dag_runs_batch
       tags: [DAGRun]
       requestBody:
         required: true
@@ -314,7 +353,8 @@ paths:
 
     get:
       summary: Get a DAG Run
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.get_dag_run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: get_dag_run
       tags: [DAGRun]
       responses:
         '200':
@@ -323,61 +363,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DAGRun'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    post:
-      summary: Trigger a DAG Run
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.post_dag_run
-      tags: [DAGRun]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DAGRun'
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGRun'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '409':
-          $ref: '#/components/responses/AlreadyExists'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-
-    patch:
-      summary: Update a DAG Run
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.patch_dag_run
-      tags: [DAGRun]
-      parameters:
-        - $ref: '#/components/parameters/UpdateMask'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DAGRun'
-
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGRun'
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -387,7 +372,8 @@ paths:
 
     delete:
       summary: Delete a DAG Run
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.delete_dag_run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: delete_dag_run
       tags: [DAGRun]
       responses:
         '204':
@@ -402,7 +388,8 @@ paths:
   /eventLogs:
     get:
       summary: Get all log entries from event log
-      operationId: airflow.api_connexion.endpoints.event_log_endpoint.get_event_logs
+      x-openapi-router-controller: airflow.api_connexion.endpoints.event_log_endpoint
+      operationId: get_event_logs
       tags: [EventLog]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -427,7 +414,8 @@ paths:
 
     get:
       summary: Get a log entry
-      operationId: airflow.api_connexion.endpoints.event_log_endpoint.get_event_log
+      x-openapi-router-controller: airflow.api_connexion.endpoints.event_log_endpoint
+      operationId: get_event_log
       tags: [EventLog]
       responses:
         '200':
@@ -446,7 +434,8 @@ paths:
   /importErrors:
     get:
       summary: Get all import errors
-      operationId: airflow.api_connexion.endpoints.import_errror_endpoint.get_import_errors
+      x-openapi-router-controller: airflow.api_connexion.endpoints.import_error_endpoint
+      operationId: get_import_errors
       tags: [ImportError]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -471,7 +460,8 @@ paths:
 
     get:
       summary: Get an import error
-      operationId: airflow.api_connexion.endpoints.import_errror_endpoint.get_import_error
+      x-openapi-router-controller: airflow.api_connexion.endpoints.import_error_endpoint
+      operationId: get_import_error
       tags: [ImportError]
       responses:
         '200':
@@ -487,24 +477,11 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-    delete:
-      summary: Delete an import error
-      operationId: airflow.api_connexion.endpoints.import_errror_endpoint.delete_import_error
-      tags: [ImportError]
-      responses:
-        '204':
-          description: No content.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-
   /pools:
     get:
       summary: Get all pools
-      operationId: airflow.api_connexion.endpoints.pool_endpoint.get_pools
+      x-openapi-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+      operationId: get_pools
       tags: [Pool]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -525,7 +502,8 @@ paths:
 
     post:
       summary: Create a pool
-      operationId: airflow.api_connexion.endpoints.pool_endpoint.post_pool
+      x-openapi-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+      operationId: post_pool
       tags: [Pool]
       requestBody:
         required: true
@@ -553,7 +531,8 @@ paths:
 
     get:
       summary: Get a pool
-      operationId: airflow.api_connexion.endpoints.pool_endpoint.get_pool
+      x-openapi-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+      operationId: get_pool
       tags: [Pool]
       responses:
         '200':
@@ -571,7 +550,8 @@ paths:
 
     patch:
       summary: Update a pool
-      operationId: airflow.api_connexion.endpoints.pool_endpoint.patch_pool
+      x-openapi-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+      operationId: patch_pool
       tags: [Pool]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -597,10 +577,13 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/AlreadyExists'
 
     delete:
       summary: Delete a pool
-      operationId: airflow.api_connexion.endpoints.pool_endpoint.delete_pool
+      x-openapi-router-controller: airflow.api_connexion.endpoints.pool_endpoint
+      operationId: delete_pool
       tags: [Pool]
       responses:
         '204':
@@ -611,6 +594,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
     parameters:
@@ -628,11 +613,12 @@ paths:
       - $ref: '#/components/parameters/FilterPool'
       - $ref: '#/components/parameters/FilterQueue'
     get:
-      summary: Get a list of task instance of DAG.
+      summary: Get a list of task instance of DAG
       description: >
         This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve DAG Runs for all DAGs
         and DAG Runs.
-      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.get_task_instances
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instances
       tags: [TaskInstance]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -659,7 +645,8 @@ paths:
 
     get:
       summary: Get a task instance
-      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.get_task_instance
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instance
       tags: [TaskInstance]
       responses:
         '200':
@@ -680,8 +667,9 @@ paths:
       summary: Get list of task instances from all DAGs and DAG Runs.
       description: >
         This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
-        would run in to maximum HTTP request URL lengthlimits
-      operationId: airflow.api_connexion.endpoints.task_instance_endpoint.get_task_instances_batch
+        would run in to maximum HTTP request URL length limits.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instances_batch
       tags: [TaskInstance]
       requestBody:
         required: true
@@ -710,7 +698,8 @@ paths:
     get:
       summary: Get all variables
       description: The collection does not contain data. To get data, you must get a single entity.
-      operationId: airflow.api_connexion.endpoints.variable_endpoint.get_variables
+      x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+      operationId: get_variables
       tags: [Variable]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -731,7 +720,8 @@ paths:
 
     post:
       summary: Create a variable
-      operationId: airflow.api_connexion.endpoints.variable_endpoint.post_variables
+      x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+      operationId: post_variables
       tags: [Variable]
       requestBody:
         required: true
@@ -759,7 +749,8 @@ paths:
 
     get:
       summary: Get a variable by key
-      operationId: airflow.api_connexion.endpoints.variable_endpoint.get_variable
+      x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+      operationId: get_variable
       tags: [Variable]
       responses:
         '200':
@@ -777,7 +768,8 @@ paths:
 
     patch:
       summary: Update a variable by key
-      operationId: airflow.api_connexion.endpoints.variable_endpoint.patch_variable
+      x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+      operationId: patch_variable
       tags: [Variable]
       parameters:
         - $ref: '#/components/parameters/UpdateMask'
@@ -806,7 +798,8 @@ paths:
 
     delete:
       summary: Delete variable
-      operationId: airflow.api_connexion.endpoints.variable_endpoint.delete_variable
+      x-openapi-router-controller: airflow.api_connexion.endpoints.variable_endpoint
+      operationId: delete_variable
       tags: [Variable]
       responses:
         '204':
@@ -829,7 +822,8 @@ paths:
       description:
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCOM entries for
         for all DAGs, DAG Runs and task instances.
-      operationId: airflow.api_connexion.endpoints.xcom_endpoint.get_xcom_entries
+      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+      operationId: get_xcom_entries
       tags: [XCom]
       parameters:
         - $ref: '#/components/parameters/PageLimit'
@@ -848,30 +842,6 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-    post:
-      summary: Create an XCom entry
-      operationId: airflow.api_connexion.endpoints.xcom_endpoint.post_xcom_entries
-      tags: [XCom]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/XCom'
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/XCom'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -881,7 +851,8 @@ paths:
 
     get:
       summary: Get an XCom entry
-      operationId: airflow.api_connexion.endpoints.xcom_endpoint.get_xcom_entry
+      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
+      operationId: get_xcom_entry
       tags: [XCom]
       responses:
         '200':
@@ -896,49 +867,6 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
-
-    patch:
-      summary: Update an XCom entry
-      operationId: airflow.api_connexion.endpoints.xcom_endpoint.patch_xcom_entry
-      tags: [XCom]
-      parameters:
-        - $ref: '#/components/parameters/UpdateMask'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/XCom'
-
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/XCom'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    delete:
-      summary: Delete an XCom entry
-      operationId: airflow.api_connexion.endpoints.xcom_endpoint.delete_xcom_entry
-      tags: [XCom]
-      responses:
-        '204':
-          description: No content.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
 
   # Non-database resources
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links:
@@ -949,7 +877,8 @@ paths:
 
     get:
       summary: Get extra links for task instance
-      operationId: airflow.api_connexion.endpoints.extra_link_endpoint.get_extra_links
+      x-openapi-router-controller: airflow.api_connexion.endpoints.extra_link_endpoint
+      operationId: get_extra_links
       tags: [TaskInstance]
       responses:
         '200':
@@ -977,7 +906,8 @@ paths:
     get:
       summary: Get logs for a task instance
       description: Get logs for a specific task instance and its try number
-      operationId: airflow.api_connexion.endpoints.log_endpoint.get_log
+      x-openapi-router-controller: airflow.api_connexion.endpoints.log_endpoint
+      operationId: get_log
       tags: [TaskInstance]
       responses:
         '200':
@@ -1008,8 +938,9 @@ paths:
       - $ref: '#/components/parameters/DAGID'
 
     get:
-      summary: Get a simplified representation of DAG.
-      operationId: airflow.api_connexion.endpoints.dag_endpoint.get_dag_details
+      summary: Get a simplified representation of DAG
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+      operationId: get_dag_details
       description: >
         The response contains many DAG attributes, so the response can be large.
         If possible, consider using GET /dags/{dag_id}.
@@ -1034,7 +965,8 @@ paths:
 
     get:
       summary: Get tasks for DAG
-      operationId: airflow.api_connexion.endpoints.task_endpoint.get_tasks
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_endpoint
+      operationId: get_tasks
       tags: [DAG]
       responses:
         '200':
@@ -1056,8 +988,9 @@ paths:
       - $ref: '#/components/parameters/TaskID'
 
     get:
-      summary: Get simplified representation of a task.
-      operationId: airflow.api_connexion.endpoints.task_endpoint.get_task
+      summary: Get simplified representation of a task
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_endpoint
+      operationId: get_task
       tags: [DAG]
       responses:
         '200':
@@ -1079,7 +1012,8 @@ paths:
 
     get:
       summary: Get source code using file token
-      operationId: airflow.api_connexion.endpoints.dag_source_endpoint.get_dag_source
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_source_endpoint
+      operationId: get_dag_source
       tags: [DAG]
       responses:
         '200':
@@ -1091,21 +1025,25 @@ paths:
                 properties:
                   content:
                     type: string
+            plain/text:
+              schema:
+                type: string
+
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
 
   /config:
     get:
       summary: Get current configuration
-      operationId: airflow.api_connexion.endpoints.config_endpoint.get_config
+      x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
+      operationId: get_config
       tags: [Config]
-      parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
           description: Return current configuration.
@@ -1123,16 +1061,31 @@ paths:
 
   /health:
     get:
-      summary: Checks if the API works
-      operationId: airflow.api_connexion.endpoints.health_endpoint.get_health
+      summary: Returns the status of Airflow's metadatabase and scheduler
+      x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
+      operationId: get_health
       tags: [Monitoring]
       responses:
         '200':
-          description: It should always return "OK"
+          description: Returns info about metadatabase and last heart beat.
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/HealthInfo'
+
+  /version:
+    get:
+      summary: Get version information
+      x-openapi-router-controller: airflow.api_connexion.endpoints.version_endpoint
+      operationId: get_version
+      tags: [Monitoring]
+      responses:
+        '200':
+          description: Return current configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionInfo'
 
 
 components:
@@ -1148,12 +1101,16 @@ components:
           type: string
         host:
           type: string
+          nullable: true
         login:
           type: string
+          nullable: true
         schema:
           type: string
+          nullable: true
         port:
           type: integer
+          nullable: true
 
     ConnectionCollection:
       type: object
@@ -1174,6 +1131,7 @@ components:
               writeOnly: true
             extra:
               type: string
+              nullable: true
 
     DAG:
       type: object
@@ -1184,8 +1142,10 @@ components:
         root_dag_id:
           type: string
           readOnly: true
+          nullable: true
         is_paused:
           type: boolean
+          nullable: true
         is_subdag:
           type: boolean
           readOnly: true
@@ -1207,11 +1167,13 @@ components:
         description:
           type: string
           readOnly: true
+          nullable: true
         schedule_interval:
           $ref: '#/components/schemas/ScheduleInterval'
           readOnly: true
         tags:
           type: array
+          nullable: true
           items:
             $ref: '#/components/schemas/Tag'
           readOnly: true
@@ -1240,6 +1202,7 @@ components:
             If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
 
             This together with DAG_ID are a unique key.
+          nullable: true
         dag_id:
           type: string
           readOnly: true
@@ -1259,17 +1222,19 @@ components:
           format: date-time
           description: >
             The start time. The time when DAG Run was actually created..
-          readOnly: True
+          readOnly: true
         end_date:
           type: string
           format: date-time
-          readOnly: True
+          readOnly: true
+          nullable: true
         state:
           $ref: '#/components/schemas/DagState'
+          readOnly: True
         external_trigger:
           type: boolean
           default: true
-          readOnly: True
+          readOnly: true
         conf:
           type: object
           description: >
@@ -1315,6 +1280,7 @@ components:
         extra:
           type: string
           readOnly: true
+          nullable: true
 
     EventLogCollection:
       type: object
@@ -1323,6 +1289,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/EventLog'
+
+    HealthInfo:
+      type: object
+      properties:
+        metadatabase:
+          $ref: '#/components/schemas/MetadatabaseStatus'
+        scheduler:
+          $ref: '#/components/schemas/SchedulerStatus'
 
     ImportError:
       type: object
@@ -1348,6 +1322,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ImportError'
+
+    MetadatabaseStatus:
+      type: object
+      description: Returns the status of the metadatabase
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
 
     Pool:
       type: object
@@ -1376,6 +1357,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Pool'
+
+    SchedulerStatus:
+      type: object
+      description: Returns the status and the latest scheduler heartbeat
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_scheduler_heartbeat:
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
 
     SLAMiss:
       type: object
@@ -1586,6 +1579,7 @@ components:
               format: 'date-time'
               readOnly: true
             dag_run_timeout:
+              nullable: true
               $ref: '#/components/schemas/TimeDelta'
             doc_md:
               type: string
@@ -1633,6 +1627,7 @@ components:
           type: string
           format: 'date-time'
           readOnly: true
+          nullable: true
         trigger_rule:
           $ref: '#/components/schemas/TriggerRule'
         extra_links:
@@ -1663,8 +1658,10 @@ components:
           readOnly: true
         execution_timeout:
           $ref: '#/components/schemas/TimeDelta'
+          nullable: true
         retry_delay:
           $ref: '#/components/schemas/TimeDelta'
+          nullable: true
         retry_exponential_backoff:
           type: boolean
           readOnly: true
@@ -1727,6 +1724,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ConfigSection'
+
+    VersionInfo:
+      type: object
+      description: Version information.
+      properties:
+        version:
+          type: string
+          description: The version of Airflow
+        git_version:
+          type: string
+          description: The git version (including git commit hash)
+          nullable: true
 
     # From
     ClearTaskInstance:
@@ -1939,17 +1948,35 @@ components:
       type: object
       required:
         - __type
+        - days
+        - seconds
+        - microseconds
       properties:
         __type: {type: string}
         days: {type: integer}
         seconds: {type: integer}
-        microsecond: {type: integer}
+        microseconds: {type: integer}
 
     RelativeDelta:
       # TODO: Why we need these fields?
       type: object
       required:
         - __type
+        - years
+        - months
+        - days
+        - leapdays
+        - hours
+        - minutes
+        - seconds
+        - microseconds
+        - year
+        - month
+        - day
+        - hour
+        - minute
+        - second
+        - microsecond
       properties:
         __type: {type: string}
         years: {type: integer}
@@ -1972,6 +1999,7 @@ components:
       type: object
       required:
         - __type
+        - value
       properties:
         __type: {type: string}
         value: {type: string}
@@ -2014,11 +2042,11 @@ components:
             the problem type.
         title:
           type: string
-          description: A short, human-readable summary of the problem  type.
+          description: A short, human-readable summary of the problem type.
         status:
           type: number
           description: The HTTP status code generated by the API server for this occurrence of the problem.
-        details:
+        detail:
           type: string
           description: A human-readable explanation specific to this occurrence of the problem.
         instance:
@@ -2036,12 +2064,13 @@ components:
       properties:
         total_entries:
           type: integer
+          description: Total count for all collection items.
 
     # Enums
     TaskState:
       type: string
       enum:
-        - succcess
+        - success
         - running
         - failed
         - upstream_failed
@@ -2079,6 +2108,12 @@ components:
         - upstream
         - absolute
 
+    HealthStatus:
+      type: string
+      enum:
+        - healthy
+        - unhealthy
+
   # Reusable path, query, header and cookie parameters
   parameters:
     # Pagination parameters
@@ -2097,7 +2132,6 @@ components:
       required: false
       schema:
         type: integer
-        minimum: 1
         default: 100
       description: The numbers of items to return.
 
@@ -2106,7 +2140,7 @@ components:
       in: path
       name: connection_id
       schema:
-        type: integer
+        type: string
       required: true
       description: The Connection ID.
 
@@ -2373,6 +2407,13 @@ components:
     # 404
     'NotFound':
       description: A specified resource is not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 406
+    'NotAcceptable':
+      description: A specified Accept header is not allowed.
       content:
         application/json:
           schema:

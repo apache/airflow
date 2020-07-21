@@ -27,6 +27,10 @@ class SimpleHttpOperator(BaseOperator):
     """
     Calls an endpoint on an HTTP system to execute an action
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SimpleHttpOperator`
+
     :param http_conn_id: The connection to run the operator against
     :type http_conn_id: str
     :param endpoint: The relative part of the full url. (templated)
@@ -60,11 +64,11 @@ class SimpleHttpOperator(BaseOperator):
                  method: str = 'POST',
                  data: Any = None,
                  headers: Optional[Dict[str, str]] = None,
-                 response_check: Optional[Callable] = None,
+                 response_check: Optional[Callable[..., Any]] = None,
                  extra_options: Optional[Dict[str, Any]] = None,
                  http_conn_id: str = 'http_default',
                  log_response: bool = False,
-                 *args, **kwargs) -> None:
+                 *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.http_conn_id = http_conn_id
         self.method = method
@@ -77,7 +81,7 @@ class SimpleHttpOperator(BaseOperator):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, Any]) -> Any:
         http = HttpHook(self.method, http_conn_id=self.http_conn_id)
 
         self.log.info("Calling HTTP method")

@@ -94,13 +94,24 @@ function in_container_cleanup_pycache() {
 #
 function in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "Linux" ]]; then
-        set +o pipefail
-        echo "Fixing ownership of mounted files"
-        sudo find "${AIRFLOW_SOURCES}" -print0 -user root \
-        | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference >/dev/null 2>&1
-        sudo find "/root/.aws" "/root/.azure" "/root/.config" "/root/.docker" -print0 -user root \
-        | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
-        set -o pipefail
+        DIRECTORIES_TO_FIX=(
+            "/tmp"
+            "/files"
+            "/root/.aws"
+            "/root/.azure"
+            "/root/.config/gcloud"
+            "/root/.docker"
+            "${AIRFLOW_SOURCES}"
+        )
+        if [[ ${VERBOSE} == "true" ]]; then
+            echo "Fixing ownership of mounted files"
+        fi
+        sudo find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null \
+            | sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference ||
+                true >/dev/null 2>&1
+        if [[ ${VERBOSE} == "true" ]]; then
+            echo "Fixed ownership of mounted files"
+        fi
     fi
 }
 
@@ -140,15 +151,15 @@ function in_container_refresh_pylint_todo() {
         -name "*.py" \
         -not -name 'webserver_config.py' | \
         grep  ".*.py$" | \
-        xargs pylint | tee "${MY_DIR}/../pylint_todo_main.txt"
+        xargs pylint | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt"
 
-    grep -v "\*\*" < "${MY_DIR}/../pylint_todo_main.txt" | \
+    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" | \
        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-       awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq > "${MY_DIR}/../pylint_todo_new.txt"
+       awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq > "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
 
     if [[ ${VERBOSE} == "true" ]]; then
         echo
-        echo "So far found $(wc -l <"${MY_DIR}/../pylint_todo_new.txt") files"
+        echo "So far found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt") files"
         echo
 
         echo
@@ -156,18 +167,18 @@ function in_container_refresh_pylint_todo() {
         echo
     fi
     find "./tests" -name "*.py" -print0 | \
-        xargs -0 pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" | tee "${MY_DIR}/../pylint_todo_tests.txt"
+        xargs -0 pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
 
-    grep -v "\*\*" < "${MY_DIR}/../pylint_todo_tests.txt" | \
+    grep -v "\*\*" < "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt" | \
         grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >> "${MY_DIR}/../pylint_todo_new.txt"
+        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >> "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
 
-    rm -fv "${MY_DIR}/../pylint_todo_main.txt" "${MY_DIR}/../pylint_todo_tests.txt"
-    mv -v "${MY_DIR}/../pylint_todo_new.txt" "${MY_DIR}/../pylint_todo.txt"
+    rm -fv "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
+    mv -v "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt"
 
     if [[ ${VERBOSE} == "true" ]]; then
         echo
-        echo "Found $(wc -l <"${MY_DIR}/../pylint_todo.txt") files"
+        echo "Found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt") files"
         echo
     fi
 }
@@ -201,7 +212,7 @@ function setup_kerberos() {
     PASS="airflow"
     KRB5_KTNAME=/etc/airflow.keytab
 
-    sudo cp "${MY_DIR}/krb5/krb5.conf" /etc/krb5.conf
+    sudo cp "${AIRFLOW_SOURCES}/scripts/ci/in_container/krb5/krb5.conf" /etc/krb5.conf
 
     echo -e "${PASS}\n${PASS}" | \
         sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \

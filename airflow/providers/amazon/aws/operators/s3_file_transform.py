@@ -167,7 +167,7 @@ class S3FileTransformOperator(BaseOperator):
             self.log.info("Uploading transformed file to S3")
             f_dest.flush()
             dest_s3.load_file(
-                filename=f_dest.name,
+                filename=f_dest.name if self.transform_script else f_source.name,
                 key=self.dest_s3_key,
                 replace=self.replace
             )

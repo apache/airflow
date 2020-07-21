@@ -138,9 +138,15 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     def test_get_credentials_and_project_id_with_default_auth(self, mock_auth_default):
-        result = get_credentials_and_project_id()
+        with self.assertLogs() as cm:
+            result = get_credentials_and_project_id()
         mock_auth_default.assert_called_once_with(scopes=None)
         self.assertEqual(("CREDENTIALS", "PROJECT_ID"), result)
+        self.assertEqual([
+            'INFO:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
+            'connection using `google.auth.default()` since no key file is defined for '
+            'hook.'
+        ], cm.output)
 
     @mock.patch('google.auth.default')
     def test_get_credentials_and_project_id_with_default_auth_and_delegate(self, mock_auth_default):
@@ -170,9 +176,14 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
     )
     def test_get_credentials_and_project_id_with_service_account_file(self, mock_from_service_account_file):
         mock_from_service_account_file.return_value.project_id = self.test_project_id
-        result = get_credentials_and_project_id(key_path=self.test_key_file)
+        with self.assertLogs(level="DEBUG") as cm:
+            result = get_credentials_and_project_id(key_path=self.test_key_file)
         mock_from_service_account_file.assert_called_once_with(self.test_key_file, scopes=None)
         self.assertEqual((mock_from_service_account_file.return_value, self.test_project_id), result)
+        self.assertEqual([
+            'DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
+            'connection using JSON key file KEY_PATH.json'
+        ], cm.output)
 
     @parameterized.expand([
         ("p12", "path/to/file.p12"),
@@ -190,9 +201,14 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         service_account = {
             'private_key': "PRIVATE_KEY"
         }
-        result = get_credentials_and_project_id(keyfile_dict=service_account)
+        with self.assertLogs(level="DEBUG") as cm:
+            result = get_credentials_and_project_id(keyfile_dict=service_account)
         mock_from_service_account_info.assert_called_once_with(service_account, scopes=None)
         self.assertEqual((mock_from_service_account_info.return_value, self.test_project_id), result)
+        self.assertEqual([
+            'DEBUG:airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider:Getting '
+            'connection using JSON Dict'
+        ], cm.output)
 
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(
         self,
@@ -201,6 +217,32 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             'The `keyfile_dict` and `key_path` fields are mutually exclusive.'
         )):
             get_credentials_and_project_id(key_path='KEY.json', keyfile_dict={'private_key': 'PRIVATE_KEY'})
+
+    @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
+    @mock.patch(
+        'google.oauth2.service_account.Credentials.from_service_account_info',
+    )
+    @mock.patch(
+        'google.oauth2.service_account.Credentials.from_service_account_file',
+    )
+    def test_disable_logging(self, mock_default, mock_info, mock_file):
+        # assert not logs
+        with self.assertRaises(AssertionError), self.assertLogs(level="DEBUG"):
+            get_credentials_and_project_id(disable_logging=True)
+
+        # assert not logs
+        with self.assertRaises(AssertionError), self.assertLogs(level="DEBUG"):
+            get_credentials_and_project_id(
+                keyfile_dict={'private_key': 'PRIVATE_KEY'},
+                disable_logging=True,
+            )
+
+        # assert not logs
+        with self.assertRaises(AssertionError), self.assertLogs(level="DEBUG"):
+            get_credentials_and_project_id(
+                key_path='KEY.json',
+                disable_logging=True,
+            )
 
 
 class TestGetScopes(unittest.TestCase):

@@ -19,16 +19,9 @@ version: "2.2"
 services:
   airflow:
     image: ${AIRFLOW_IMAGE}
-    init: true
-    entrypoint: ["/bin/bash", "-c"]
     environment:
       - USER=root
       - ADDITIONAL_PATH=~/.local/bin
-      - HADOOP_DISTRO=cdh
-      - HADOOP_HOME=/opt/hadoop-cdh
-      - HADOOP_OPTS=-D/opt/krb5.conf
-      - HIVE_HOME=/opt/hive
-      - MINICLUSTER_HOME=/opt/minicluster
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
       - BACKEND
       - CI

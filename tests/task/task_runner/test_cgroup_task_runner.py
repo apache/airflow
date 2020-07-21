@@ -18,7 +18,7 @@
 import unittest
 from unittest import mock
 
-from airflow.contrib.task_runner.cgroup_task_runner import CgroupTaskRunner
+from airflow.task.task_runner.cgroup_task_runner import CgroupTaskRunner
 
 
 class TestCgroupTaskRunner(unittest.TestCase):

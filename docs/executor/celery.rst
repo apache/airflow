@@ -70,7 +70,7 @@ to start a Flower web server:
 
 .. code-block:: bash
 
-    airflow celery stop
+    airflow celery flower
 
 Please note that you must have the ``flower`` python library already installed on your system. The recommend way is to install the airflow celery bundle.
 

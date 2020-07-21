@@ -29,9 +29,6 @@ ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
 ENV PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
 
-ARG UPGRADE_TO_LATEST_REQUIREMENTS="false"
-ENV UPGRADE_TO_LATEST_REQUIREMENTS=${UPGRADE_TO_LATEST_REQUIREMENTS}
-
 # Print versions
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
@@ -216,31 +213,22 @@ ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_
 
 RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 
-ARG AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="true"
-ENV AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD=${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}
+ARG AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master"
+ARG AIRFLOW_CONSTRAINTS_URL="https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_CONSTRAINTS_REFERENCE}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+ENV AIRFLOW_CONSTRAINTS_URL=${AIRFLOW_CONSTRAINTS_URL}
 
 # By changing the CI build epoch we can force reinstalling Arflow from the current master
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="1"
+ARG AIRFLOW_CI_BUILD_EPOCH="2"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 
-# In case of CI-optimised builds we want to pre-install master version of airflow dependencies so that
+# In case of CI builds we want to pre-install master version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
 # This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
-# And is automatically reinstalled from the scratch every month
-
-ARG AIRFLOW_PY_VERSION_REQ_FILE="https://raw.githubusercontent.com/${AIRFLOW_REPO}/${AIRFLOW_BRANCH}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
-ENV AIRFLOW_PY_VERSION_REQ_FILE_STATUS="$(curl -s --head -w %{http_code} ${AIRFLOW_PY_VERSION_REQ_FILE} -o /dev/null)"
-RUN echo $AIRFLOW_PY_VERSION_REQ_FILE_STATUS;
-
-RUN \
-    if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" && "${AIRFLOW_PY_VERSION_REQ_FILE_STATUS}" == "200" ]]; then \
-        echo "Using optimized build." \
-        && pip install \
-        "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-            --constraint ${AIRFLOW_PY_VERSION_REQ_FILE} \
-        && pip uninstall --yes apache-airflow; \
-    fi
+# And is automatically reinstalled from the scratch every time patch release of python gets released
+RUN pip install \
+    "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
+        --constraint "${AIRFLOW_CONSTRAINTS_URL}" && pip uninstall --yes apache-airflow;
 
 # Link dumb-init for backwards compatibility (so that older images also work)
 RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
@@ -264,20 +252,21 @@ COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
-COPY requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt \
-        ${AIRFLOW_SOURCES}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt
+ARG UPGRADE_TO_LATEST_CONSTRAINTS="false"
+ENV UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS}
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
-# Usually we will install versions constrained to the current requirements file
+# Usually we will install versions constrained to the current constraints file
 # But in cron job we will install latest versions matching setup.py to see if there is no breaking change
+# and push the constraints if everything is successful
 RUN \
-    if [[ "${UPGRADE_TO_LATEST_REQUIREMENTS}" == "true" ]]; then \
+    if [[ "${UPGRADE_TO_LATEST_CONSTRAINTS}" == "true" ]]; then \
         pip install -e ".[${AIRFLOW_EXTRAS}]" --upgrade --upgrade-strategy eager; \
     else \
         pip install -e ".[${AIRFLOW_EXTRAS}]" \
-            --constraint  ${AIRFLOW_SOURCES}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt ; \
+            --constraint "${AIRFLOW_CONSTRAINTS_URL}" ; \
     fi
 
 # Copy all the www/ files we need to compile assets. Done as two separate COPY
@@ -288,10 +277,12 @@ COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
 # Package JS/css for production
 RUN yarn --cwd airflow/www run prod
 
-COPY entrypoint.sh /entrypoint.sh
+COPY scripts/ci/in_container/entrypoint_ci.sh /entrypoint
+RUN chmod a+x /entrypoint
 
 # Copy selected subdirectories only
 COPY .github/ ${AIRFLOW_SOURCES}/.github/
+COPY metastore_browser/ ${AIRFLOW_SOURCES}/metastore_browser/
 COPY dags/ ${AIRFLOW_SOURCES}/dags/
 COPY common/ ${AIRFLOW_SOURCES}/common/
 COPY licenses/ ${AIRFLOW_SOURCES}/licenses/
@@ -303,9 +294,6 @@ COPY .coveragerc .rat-excludes .flake8 pylintrc LICENSE MANIFEST.in NOTICE CHANG
      .github pytest.ini \
      setup.cfg setup.py \
      ${AIRFLOW_SOURCES}/
-
-# Needed for building images via docker-in-docker inside the docker
-COPY Dockerfile.ci ${AIRFLOW_SOURCES}/Dockerfile.ci
 
 # Install autocomplete for airflow
 RUN register-python-argcomplete airflow >> ~/.bashrc
@@ -322,14 +310,13 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         pip install ${ADDITIONAL_PYTHON_DEPS}; \
     fi
 
-RUN scripts/ci/prepare_tool_scripts.sh
-
 WORKDIR ${AIRFLOW_SOURCES}
 
 ENV PATH="${HOME}:${PATH}"
 
+# Needed to stop Gunicorn from crashing when /tmp is now mounted from host
+ENV GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm/"
+
 EXPOSE 8080
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint.sh"]
-
-CMD ["--help"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]

@@ -258,3 +258,16 @@ class TestPostgresHook(unittest.TestCase):
                 (2, "world",)]
         fields = ("id", "value")
         self.db_hook.insert_rows(table, rows, fields, replace=True)
+
+    @pytest.mark.backend("postgres")
+    def test_rowcount(self):
+        hook = PostgresHook()
+        input_data = ["foo", "bar", "baz"]
+
+        with hook.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("CREATE TABLE {} (c VARCHAR)".format(self.table))
+                values = ",".join("('{}')".format(data) for data in input_data)
+                cur.execute("INSERT INTO {} VALUES {}".format(self.table, values))
+                conn.commit()
+                self.assertEqual(cur.rowcount, len(input_data))

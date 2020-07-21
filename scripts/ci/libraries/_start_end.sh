@@ -54,6 +54,10 @@ function script_end {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
+        # Cat output log in case we exit with error
+        if [[ -f "${OUTPUT_LOG}" ]]; then
+            cat "${OUTPUT_LOG}"
+        fi
         print_info "###########################################################################################"
         print_info "                   EXITING WITH STATUS CODE ${EXIT_CODE}"
         print_info "###########################################################################################"

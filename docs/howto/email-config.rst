@@ -22,7 +22,7 @@ You can configure the email that is being sent in your ``airflow.cfg``
 by setting a ``subject_template`` and/or a ``html_content_template``
 in the ``email`` section.
 
-.. code::
+.. code-block::
 
   [email]
 
@@ -35,7 +35,7 @@ To access the task's information you use `Jinja Templating <http://jinja.pocoo.o
 
 For example a ``html_content_template`` file could look like this:
 
-.. code::
+.. code-block::
 
   Try {{try_number}} out of {{max_tries + 1}}<br>
   Exception:<br>{{exception_html}}<br>
@@ -46,3 +46,32 @@ For example a ``html_content_template`` file could look like this:
 
 .. note::
     For more information on setting the configuration, see :doc:`set-config`
+
+.. _email-configuration-sendgrid:
+
+Send email using SendGrid
+-------------------------
+
+Airflow can be configured to send e-mail using `SendGrid <https://sendgrid.com/>`__.
+
+Follow the steps below to enable it:
+
+1. Include ``sendgrid`` subpackage as part of your Airflow installation, e.g.,
+
+  .. code-block:: ini
+
+     pip install 'apache-airflow[sendgrid]'
+
+2. Update ``email_backend`` property in ``[email]`` section in ``airflow.cfg``, i.e.
+
+   .. code-block:: ini
+
+      [email]
+      email_backend = airflow.providers.sendgrid.utils.emailer.send_email
+
+3. Configure SendGrid specific environment variables at all Airflow instances:
+
+   .. code-block:: bash
+
+      export SENDGRID_MAIL_FROM={your-mail-from}
+      export SENDGRID_API_KEY={your-sendgrid-api-key}

@@ -112,8 +112,8 @@ function pull_prod_images_if_needed() {
         fi
         # "Build" segment of production image
         pull_image_possibly_from_cache "${AIRFLOW_PROD_BUILD_IMAGE}" "${CACHED_AIRFLOW_PROD_BUILD_IMAGE}"
-        # Main segment of production image
-        pull_image_possibly_from_cache "${AIRFLOW_PROD_IMAGE}" "${CACHED_AIRFLOW_PROD_IMAGE}"
+        # we never pull the main segment of production image - we always build it locally = this is
+        # usually very fast this way and it is much nicer for rebuilds and development
     fi
 }
 
@@ -162,7 +162,6 @@ function push_prod_images() {
     if [[ -n ${DEFAULT_IMAGE:=""} && ${CACHED_AIRFLOW_PROD_IMAGE} == "" ]]; then
         verbose_docker push "${DEFAULT_IMAGE}"
     fi
-
     # we do not need to push PYTHON base image here - they are already pushed in the CI push
 }
 
