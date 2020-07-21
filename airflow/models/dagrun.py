@@ -25,6 +25,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 from sqlalchemy.orm.session import Session
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
@@ -332,8 +333,28 @@ class DagRun(Base, LoggingMixin):
         leaf_task_ids = {t.task_id for t in dag.leaves}
         leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
 
+        removed_tasks_lead_to_dagrun_running = conf.getboolean(
+            'scheduler', 'REMOVED_TASKS_LEAD_TO_DAGRUN_RUNNING', fallback=False)
+        if removed_tasks_lead_to_dagrun_running:
+            removed_tasks = self.get_task_instances(
+                state=State.REMOVED,
+                session=session
+            )
+            num_tis_in_dagrun = len(tis)
+            num_tis_in_dag_definition = len(dag.tasks)
+
+        # if some taskInstances were in REMOVED state, then dagrun is still in progress
+        if removed_tasks_lead_to_dagrun_running and (
+            num_tis_in_dagrun != num_tis_in_dag_definition or (
+                removed_tasks and len(removed_tasks) > 0)):
+            self.log.warning(
+                "{} tasks found in dagrun but {} tasks found in dag definition. " .format(
+                    str(num_tis_in_dagrun),
+                    str(num_tis_in_dag_definition)))
+            self.set_state(State.RUNNING)
+
         # if all roots finished and at least one failed, the run failed
-        if not unfinished_tasks and any(
+        elif not unfinished_tasks and any(
             leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
         ):
             self.log.error('Marking run %s failed', self)
