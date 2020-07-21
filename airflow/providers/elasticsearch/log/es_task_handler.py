@@ -18,6 +18,8 @@
 
 import logging
 import sys
+from datetime import datetime
+from typing import Optional, Tuple
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -55,12 +57,19 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     MAX_LINE_PER_PAGE = 1000
     LOG_NAME = 'Elasticsearch'
 
-    def __init__(self, base_log_folder, filename_template,  # pylint: disable=too-many-arguments
-                 log_id_template, end_of_log_mark,
-                 write_stdout, json_format, json_fields,
-                 host='localhost:9200',
-                 frontend='localhost:5601',
-                 es_kwargs=conf.getsection("elasticsearch_configs")):
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        base_log_folder: str,
+        filename_template: str,
+        log_id_template: str,
+        end_of_log_mark: str,
+        write_stdout: bool,
+        json_format: bool,
+        json_fields: str,
+        host: str = "localhost:9200",
+        frontend: str = "localhost:5601",
+        es_kwargs: Optional[dict] = conf.getsection("elasticsearch_configs"),
+    ):
         """
         :param base_log_folder: base folder to store logs locally
         :param log_id_template: log id template
@@ -85,7 +94,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.handler = None
         self.context_set = False
 
-    def _render_log_id(self, ti, try_number):
+    def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         if self.log_id_jinja_template:
             jinja_context = ti.get_template_context()
             jinja_context['try_number'] = try_number
@@ -101,7 +110,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                                            try_number=try_number)
 
     @staticmethod
-    def _clean_execution_date(execution_date):
+    def _clean_execution_date(execution_date: datetime) -> str:
         """
         Clean up an execution date so that it is safe to query in elasticsearch
         by removing reserved characters.
@@ -111,7 +120,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         """
         return execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
-    def _read(self, ti, try_number, metadata=None):
+    def _read(
+        self, ti: TaskInstance, try_number: int, metadata: Optional[dict] = None
+    ) -> Tuple[str, dict]:
         """
         Endpoint for streaming log.
 
@@ -163,7 +174,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         return message, metadata
 
-    def es_read(self, log_id, offset, metadata):
+    def es_read(self, log_id: str, offset: str, metadata: dict) -> list:
         """
         Returns the logs matching log_id in Elasticsearch and next offset.
         Returns '' if no log is found or there was an error.
@@ -203,7 +214,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         return logs
 
-    def set_context(self, ti):
+    def set_context(self, ti: TaskInstance) -> None:
         """
         Provide task_instance context to airflow task handler.
 
@@ -227,14 +238,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                 # already been initialized
                 return
 
-            self.handler = logging.StreamHandler(stream=sys.__stdout__)
-            self.handler.setLevel(self.level)
-            self.handler.setFormatter(self.formatter)
+            self.handler = logging.StreamHandler(stream=sys.__stdout__)  # type: ignore
+            self.handler.setLevel(self.level)  # type: ignore
+            self.handler.setFormatter(self.formatter)  # type: ignore
         else:
             super().set_context(ti)
         self.context_set = True
 
-    def close(self):
+    def close(self) -> None:
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
@@ -269,7 +280,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.closed = True
 
     @property
-    def log_name(self):
+    def log_name(self) -> str:
         """ The log name"""
         return self.LOG_NAME
 
