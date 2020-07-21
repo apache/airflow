@@ -114,7 +114,8 @@ class TestS3TaskHandler(unittest.TestCase):
     def test_log_exists_no_hook(self):
         with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as mock_hook:
             mock_hook.side_effect = Exception('Failed to connect')
-            self.assertFalse(self.s3_task_handler.s3_log_exists(self.remote_log_location))
+            with self.assertRaises(Exception):
+                self.s3_task_handler.s3_log_exists(self.remote_log_location)
 
     def test_set_context_raw(self):
         self.ti.raw = True

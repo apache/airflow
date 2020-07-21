@@ -110,7 +110,16 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         log_relative_path = self._render_filename(ti, try_number)
         remote_loc = os.path.join(self.remote_base, log_relative_path)
 
-        if self.s3_log_exists(remote_loc):
+        log_exists = False
+        log = ""
+
+        try:
+            log_exists = self.s3_log_exists(remote_loc)
+        except Exception as error:  # pylint: disable=broad-except
+            self.log.exception(error)
+            log = '*** Failed to verify remote log exists {}.\n{}\n'.format(remote_loc, str(error))
+
+        if log_exists:
             # If S3 remote file exists, we do not fetch logs from task instance
             # local machine even if there are errors reading remote logs, as
             # returned remote_log will contain error messages.
@@ -119,7 +128,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 remote_loc, remote_log)
             return log, {'end_of_log': True}
         else:
-            return super()._read(ti, try_number)
+            log += '*** Falling back to local log\n'
+            local_log, metadata = super()._read(ti, try_number)
+            return log + local_log, metadata
 
     def s3_log_exists(self, remote_log_location):
         """
@@ -128,11 +139,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         :param remote_log_location: log's location in remote storage
         :return: True if location exists else False
         """
-        try:
-            return self.hook.get_key(remote_log_location) is not None
-        except Exception:  # pylint: disable=broad-except
-            pass
-        return False
+        return self.hook.check_for_key(remote_log_location)
 
     def s3_read(self, remote_log_location, return_error=False):
         """
@@ -167,9 +174,12 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             the new log is appended to any existing logs.
         :type append: bool
         """
-        if append and self.s3_log_exists(remote_log_location):
-            old_log = self.s3_read(remote_log_location)
-            log = '\n'.join([old_log, log]) if old_log else log
+        try:
+            if append and self.s3_log_exists(remote_log_location):
+                old_log = self.s3_read(remote_log_location)
+                log = '\n'.join([old_log, log]) if old_log else log
+        except Exception as error:  # pylint: disable=broad-except
+            self.log.exception('Could not verify previous log to append: %s', str(error))
 
         try:
             self.hook.load_string(
