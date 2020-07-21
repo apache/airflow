@@ -15,15 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import copy
-import datetime
 import logging
 import sys
-import unittest
 import unittest.mock
 from collections import namedtuple
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
 from typing import List
 
@@ -32,17 +29,20 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
-from airflow.models.taskinstance import clear_task_instances
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskinstance import clear_task_instances, set_current_context
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import (
-    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator,
+    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator, get_current_context,
     task as task_decorator,
 )
 from airflow.utils import timezone
+from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -1199,9 +1199,92 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_nonimported_as_arg(self):
         def f(_):
             return None
-        self._run_as_operator(f, op_args=[datetime.datetime.utcnow()])
+        self._run_as_operator(f, op_args=[datetime.utcnow()])
 
     def test_context(self):
         def f(templates_dict):
             return templates_dict['ds']
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
+
+
+DEFAULT_ARGS = {
+    "owner": "test",
+    "depends_on_past": True,
+    "start_date": days_ago(1),
+    "end_date": datetime.today(),
+    "schedule_interval": "@once",
+    "retries": 1,
+    "retry_delay": timedelta(minutes=1),
+}
+
+
+class TestCurrentContext:
+    def test_current_context_no_context_raise(self):
+        with pytest.raises(AirflowException):
+            get_current_context()
+
+    def test_current_context_roundtrip(self):
+        example_context = {"Hello": "World"}
+
+        with set_current_context(example_context):
+            assert get_current_context() == example_context
+
+    def test_context_removed_after_exit(self):
+        example_context = {"Hello": "World"}
+
+        with set_current_context(example_context):
+            pass
+        with pytest.raises(AirflowException, ):
+            get_current_context()
+
+    def test_nested_context(self):
+        """
+        Nested execution context should be supported in case the user uses multiple context managers.
+        Each time the execute method of an operator is called, we set a new 'current' context.
+        This test verifies that no matter how many contexts are entered - order is preserved
+        """
+        max_stack_depth = 15
+        ctx_list = []
+        for i in range(max_stack_depth):
+            # Create all contexts in ascending order
+            new_context = {"ContextId": i}
+            # Like 15 nested with statements
+            ctx_obj = set_current_context(new_context)
+            ctx_obj.__enter__()  # pylint: disable=E1101
+            ctx_list.append(ctx_obj)
+        for i in reversed(range(max_stack_depth)):
+            # Iterate over contexts in reverse order - stack is LIFO
+            ctx = get_current_context()
+            assert ctx["ContextId"] == i
+            # End of with statement
+            ctx_list[i].__exit__(None, None, None)
+
+
+class MyContextAssertOperator(BaseOperator):
+    def execute(self, context):
+        assert context == get_current_context()
+
+
+def get_all_the_context(**context):
+    current_context = get_current_context()
+    assert context == current_context
+
+
+@pytest.fixture()
+def clear_db():
+    clear_db_runs()
+    yield
+    clear_db_runs()
+
+
+@pytest.mark.usefixtures("clear_db")
+class TestCurrentContextRuntime:
+    def test_context_in_task(self):
+        with DAG(dag_id="assert_context_dag", default_args=DEFAULT_ARGS):
+            op = MyContextAssertOperator(task_id="assert_context")
+            op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
+
+    def test_get_context_in_old_style_context_task(self):
+        with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS):
+            op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")
+            op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)

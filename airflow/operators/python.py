@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import functools
 import inspect
 import os
@@ -35,6 +34,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG, DagContext
 from airflow.models.skipmixin import SkipMixin
+from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.process_utils import execute_in_subprocess
@@ -557,3 +557,28 @@ class PythonVirtualenvOperator(PythonOperator):
                     python_callable_lines=dedent(inspect.getsource(self.python_callable)),
                     python_callable_name=self.python_callable.__name__,
                     pickling_library=pickling_library)
+
+
+def get_current_context() -> Dict[str, Any]:
+    """
+    Obtain the execution context for the currently executing operator without
+    altering user method's signature.
+    This is the simplest method of retrieving the execution context dictionary.
+    ** Old style:
+        def my_task(**context):
+            ti = context["ti"]
+    ** New style:
+        from airflow.task.context import get_current_context
+        def my_task():
+            context = get_current_context()
+            ti = context["ti"]
+
+    Current context will only have value if this method was called after an operator
+    was starting to execute.
+    """
+    if not _CURRENT_CONTEXT:
+        raise AirflowException(
+            "Current context was requested but no context was found! "
+            "Are you running within an airflow task?"
+        )
+    return _CURRENT_CONTEXT[-1]

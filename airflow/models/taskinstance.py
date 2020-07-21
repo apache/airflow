@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import contextlib
 import getpass
 import hashlib
 import logging
@@ -65,6 +66,28 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
 TR = TaskReschedule
+
+_CURRENT_CONTEXT = []
+log = logging.getLogger(__name__)
+
+
+@contextlib.contextmanager
+def set_current_context(context: Dict[str, Any]):
+    """
+    Sets the current execution context to the provided context object.
+    This method should be called once per Task execution, before calling operator.execute.
+    """
+    _CURRENT_CONTEXT.append(context)
+    try:
+        yield context
+    finally:
+        expected_state = _CURRENT_CONTEXT.pop()
+        if expected_state != context:
+            log.warning(
+                "Current context is not equal to the state at context stack. Expected=%s, got=%s",
+                context,
+                expected_state,
+            )
 
 
 def clear_task_instances(tis,
@@ -1161,7 +1184,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         self._run_execute_callback(context, task)
 
         # Execute the task
-        result = self._execute_task(context, task_copy)
+        with set_current_context(context):
+            result = self._execute_task(context, task_copy)
 
         # Run post_execute callback
         task_copy.post_execute(context=context, result=result)
