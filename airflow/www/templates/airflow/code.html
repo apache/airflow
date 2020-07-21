@@ -17,11 +17,9 @@
  under the License.
 #}
 
-{% extends "airflow/master.html" %}
+{% extends base_template %}
 
-{% block title %}
-    {{ title }}
-{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - Code - Airflow{% endblock %}
 
 {% block content %}
     {{ super() }}
@@ -40,6 +38,6 @@
     {% endif %}
 
     {% if code_html %}
-        {{ code_html|safe }}
+        {{ code_html }}
     {% endif %}
 {% endblock %}

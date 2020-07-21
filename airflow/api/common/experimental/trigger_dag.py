@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,6 +24,7 @@ from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 
 def _trigger_dag(
@@ -47,10 +47,10 @@ def _trigger_dag(
     :param replace_microseconds: whether microseconds should be zeroed
     :return: list of triggered dags
     """
+    dag = dag_bag.get_dag(dag_id)  # prefetch dag if it is stored serialized
+
     if dag_id not in dag_bag.dags:
         raise DagNotFound("Dag id {} not found".format(dag_id))
-
-    dag = dag_bag.get_dag(dag_id)
 
     execution_date = execution_date if execution_date else timezone.utcnow()
 
@@ -68,38 +68,30 @@ def _trigger_dag(
                     execution_date.isoformat(),
                     min_dag_start_date.isoformat()))
 
-    if not run_id:
-        run_id = "manual__{0}".format(execution_date.isoformat())
+    run_id = run_id or DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
+    dag_run = dag_run.find(dag_id=dag_id, run_id=run_id)
 
-    dag_run_id = dag_run.find(dag_id=dag_id, run_id=run_id)
-    if dag_run_id:
-        raise DagRunAlreadyExists("Run id {} already exists for dag id {}".format(
-            run_id,
-            dag_id
-        ))
+    if dag_run:
+        raise DagRunAlreadyExists(
+            f"Run id {dag_run.run_id} already exists for dag id {dag_id}"
+        )
 
     run_conf = None
     if conf:
-        if isinstance(conf, dict):
-            run_conf = conf
-        else:
-            run_conf = json.loads(conf)
+        run_conf = conf if isinstance(conf, dict) else json.loads(conf)
 
     triggers = []
-    dags_to_trigger = []
-    dags_to_trigger.append(dag)
-    while dags_to_trigger:
-        dag = dags_to_trigger.pop()
-        trigger = dag.create_dagrun(
+    dags_to_trigger = [dag] + dag.subdags
+    for _dag in dags_to_trigger:
+        trigger = _dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
             state=State.RUNNING,
             conf=run_conf,
             external_trigger=True,
         )
+
         triggers.append(trigger)
-        if dag.subdags:
-            dags_to_trigger.extend(dag.subdags)
     return triggers
 
 
@@ -122,7 +114,14 @@ def trigger_dag(
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
         raise DagNotFound("Dag id {} not found in DagModel".format(dag_id))
-    dagbag = DagBag(dag_folder=dag_model.fileloc)
+
+    def read_store_serialized_dags():
+        from airflow.configuration import conf
+        return conf.getboolean('core', 'store_serialized_dags')
+    dagbag = DagBag(
+        dag_folder=dag_model.fileloc,
+        read_dags_from_db=read_store_serialized_dags()
+    )
     dag_run = DagRun()
     triggers = _trigger_dag(
         dag_id=dag_id,

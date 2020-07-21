@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,10 +26,7 @@ from airflow.utils.decorators import apply_defaults
 
 class AWSAthenaOperator(BaseOperator):
     """
-    An operator that submit presto query to athena.
-
-    If ``do_xcom_push`` is True, the QueryExecutionID assigned to the
-    query will be pushed to an XCom when it successfuly completes.
+    An operator that submits a presto query to athena.
 
     :param query: Presto to be run on athena. (templated)
     :type query: str
@@ -51,10 +47,21 @@ class AWSAthenaOperator(BaseOperator):
     template_ext = ('.sql', )
 
     @apply_defaults
-    def __init__(self, query, database, output_location, aws_conn_id='aws_default', client_request_token=None,
-                 workgroup='default',
-                 query_execution_context=None, result_configuration=None, sleep_time=30, max_tries=None,
-                 *args, **kwargs):
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        query,
+        database,
+        output_location,
+        aws_conn_id="aws_default",
+        client_request_token=None,
+        workgroup="primary",
+        query_execution_context=None,
+        result_configuration=None,
+        sleep_time=30,
+        max_tries=None,
+        *args,
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.query = query
         self.database = database
@@ -70,7 +77,8 @@ class AWSAthenaOperator(BaseOperator):
         self.hook = None
 
     def get_hook(self):
-        return AWSAthenaHook(self.aws_conn_id, self.sleep_time)
+        """Create and return an AWSAthenaHook."""
+        return AWSAthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
 
     def execute(self, context):
         """
@@ -111,8 +119,8 @@ class AWSAthenaOperator(BaseOperator):
             http_status_code = None
             try:
                 http_status_code = response['ResponseMetadata']['HTTPStatusCode']
-            except Exception as ex:
-                self.log.error('Exception while cancelling query', ex)
+            except Exception as ex:  # pylint: disable=broad-except
+                self.log.error('Exception while cancelling query: %s', ex)
             finally:
                 if http_status_code is None or http_status_code != 200:
                     self.log.error('Unable to request query cancel on athena. Exiting')

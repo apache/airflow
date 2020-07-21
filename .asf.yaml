@@ -27,6 +27,11 @@ github:
     - python
     - scheduler
     - workflow
+  features:
+    # Enable issues management
+    issues: true
+    # Enable projects for project management boards
+    projects: true
 
   enabled_merge_buttons:
     squash: true

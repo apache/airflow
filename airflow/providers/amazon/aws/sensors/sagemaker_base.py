@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -37,6 +37,13 @@ class SageMakerBaseSensor(BaseSensorOperator):
             *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
+        self.hook = None
+
+    def get_hook(self):
+        """Get SageMakerHook"""
+        if not self.hook:
+            self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
+        return self.hook
 
     def poke(self, context):
         response = self.get_sagemaker_response()
@@ -59,16 +66,21 @@ class SageMakerBaseSensor(BaseSensorOperator):
         return True
 
     def non_terminal_states(self):
+        """Placeholder for returning states with should not terminate."""
         raise NotImplementedError('Please implement non_terminal_states() in subclass')
 
     def failed_states(self):
+        """Placeholder for returning states with are considered failed."""
         raise NotImplementedError('Please implement failed_states() in subclass')
 
     def get_sagemaker_response(self):
+        """Placeholder for checking status of a SageMaker task."""
         raise NotImplementedError('Please implement get_sagemaker_response() in subclass')
 
-    def get_failed_reason_from_response(self, response):
+    def get_failed_reason_from_response(self, response):  # pylint: disable=unused-argument
+        """Placeholder for extracting the reason for failure from an AWS response."""
         return 'Unknown'
 
     def state_from_response(self, response):
+        """Placeholder for extracting the state from an AWS response."""
         raise NotImplementedError('Please implement state_from_response() in subclass')

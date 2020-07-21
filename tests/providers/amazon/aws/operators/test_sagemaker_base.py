@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -69,7 +67,3 @@ class TestSageMakerBaseOperator(unittest.TestCase):
         ]
         self.sagemaker.parse_config_integers()
         self.assertEqual(self.sagemaker.config, parsed_config)
-
-
-if __name__ == '__main__':
-    unittest.main()

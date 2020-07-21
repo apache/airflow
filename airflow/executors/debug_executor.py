@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,16 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains DebugExecutor that is a single
-process executor meaning it does not use multiprocessing.
+DebugExecutor
+
+.. seealso::
+    For more information on how the DebugExecutor works, take a look at the guide:
+    :ref:`executor:DebugExecutor`
 """
 
 import threading
 from typing import Any, Dict, List, Optional
 
-from airflow import conf
+from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils.state import State
 
 
@@ -44,10 +46,10 @@ class DebugExecutor(BaseExecutor):
         super().__init__()
         self.tasks_to_run: List[TaskInstance] = []
         # Place where we keep information for task instance raw run
-        self.tasks_params: Dict[TaskInstanceKeyType, Dict[str, Any]] = {}
+        self.tasks_params: Dict[TaskInstanceKey, Dict[str, Any]] = {}
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
-    def execute_async(self, *args, **kwargs) -> None:
+    def execute_async(self, *args, **kwargs) -> None:   # pylint: disable=signature-differs
         """
         The method is replaced by custom trigger_task implementation.
         """
@@ -145,7 +147,7 @@ class DebugExecutor(BaseExecutor):
     def terminate(self) -> None:
         self._terminated.set()
 
-    def change_state(self, key: TaskInstanceKeyType, state: str) -> None:
+    def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
         self.log.debug("Popping %s from executor task queue.", key)
         self.running.remove(key)
-        self.event_buffer[key] = state
+        self.event_buffer[key] = state, info

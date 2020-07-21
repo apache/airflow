@@ -64,8 +64,11 @@ Committers
 - @milton0825 (Chao-Han Tsai)
 - @feluelle (Felix Uellendall)
 - @sekikn (Kengo Seki)
-- @nuclearpinguin (Tomasz Urbaszek)
-
+- @turbaszek (Tomasz Urbaszek)
+- @zhongjiajie (Jiajie Zhong)
+- @houqp (Qingping Hou)
+- @ryw (Ry Walker)
+- @leahecole (Leah Cole)
 
 For the full list of contributors, take a look at `Airflow's Github
 Contributor page:
@@ -75,14 +78,14 @@ Contributor page:
 Resources & links
 -----------------
 
-* `Airflow's official documentation <http://airflow.apache.org/>`_
+* `Airflow's official documentation <http://airflow.apache.org/docs/>`_
 * Mailing lists:
 
   * Developer's mailing list: dev-subscribe@airflow.apache.org
   * All commits mailing list: commits-subscribe@airflow.apache.org
   * Airflow users mailing list: users-subscribe@airflow.apache.org
 
-* `Issues on Apache's Jira <https://issues.apache.org/jira/browse/AIRFLOW>`_
+* `Issues on GitHub <https://github.com/apache/airflow/issues>`_
 * `Slack (chat) Channel <https://apache-airflow-slack.herokuapp.com/>`_
 * `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`_
 

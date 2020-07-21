@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,8 +20,8 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from airflow import DAG
 from airflow.models import Connection
+from airflow.models.dag import DAG
 from airflow.providers.jira.sensors.jira import JiraTicketSensor
 from airflow.utils import db, timezone
 
@@ -81,7 +80,3 @@ class TestJiraSensor(unittest.TestCase):
     @staticmethod
     def field_checker_func(context, issue):  # pylint: disable=unused-argument
         return "test-label-1" in issue['fields']['labels']
-
-
-if __name__ == '__main__':
-    unittest.main()

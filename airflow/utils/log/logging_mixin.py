@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import abc
 import logging
 import re
 import sys
@@ -49,7 +49,7 @@ class LoggingMixin:
             # FIXME: LoggingMixin should have a default _log field.
             return self._log  # type: ignore
         except AttributeError:
-            self._log = logging.root.getChild(
+            self._log = logging.getLogger(
                 self.__class__.__module__ + '.' + self.__class__.__name__
             )
             return self._log
@@ -59,12 +59,27 @@ class LoggingMixin:
             set_context(self.log, context)
 
 
+class ExternalLoggingMixin:
+    """
+    Define a log handler based on an external service (e.g. ELK, StackDriver).
+    """
+    @abc.abstractproperty
+    def log_name(self) -> str:
+        """Return log name"""
+
+    @abc.abstractmethod
+    def get_external_log_url(self, task_instance, try_number) -> str:
+        """
+        Return the URL for log visualization in the external service.
+        """
+
+
 # TODO: Formally inherit from io.IOBase
 class StreamLogWriter:
     """
     Allows to redirect stdout and stderr to logger
     """
-    encoding = False
+    encoding: None = None
 
     def __init__(self, logger, level):
         """
@@ -73,10 +88,10 @@ class StreamLogWriter:
         """
         self.logger = logger
         self.level = level
-        self._buffer = str()
+        self._buffer = ''
 
     @property
-    def closed(self):
+    def closed(self):   # noqa: D402
         """
         Returns False to indicate that the stream is not closed (as it will be
         open for the duration of Airflow's lifecycle).
@@ -102,7 +117,7 @@ class StreamLogWriter:
         else:
             self._buffer += message
             self._propagate_log(self._buffer.rstrip())
-            self._buffer = str()
+            self._buffer = ''
 
     def flush(self):
         """
@@ -110,7 +125,7 @@ class StreamLogWriter:
         """
         if len(self._buffer) > 0:
             self._propagate_log(self._buffer)
-            self._buffer = str()
+            self._buffer = ''
 
     def isatty(self):
         """
@@ -126,6 +141,7 @@ class RedirectStdHandler(StreamHandler):
     whatever sys.stderr/stderr is currently set to rather than the value of
     sys.stderr/stdout at handler construction time.
     """
+    # pylint: disable=super-init-not-called
     def __init__(self, stream):
         if not isinstance(stream, str):
             raise Exception("Cannot use file like objects. Use 'stdout' or 'stderr'"

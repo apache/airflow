@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -65,7 +64,3 @@ class TestAirflowJsonEncoder(unittest.TestCase):
                                json.dumps,
                                Exception,
                                cls=utils_json.AirflowJsonEncoder)
-
-
-if __name__ == '__main__':
-    unittest.main()

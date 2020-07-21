@@ -21,14 +21,14 @@ Google Cloud SQL Connection
 ===========================
 
 The ``gcpcloudsql://`` connection is used by
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator` to perform query
+:class:`airflow.providers.google.cloud.operators.cloud_sql.CloudSQLExecuteQueryOperator` to perform query
 on a Google Cloud SQL database. Google Cloud SQL database can be either
 Postgres or MySQL, so this is a "meta" connection type. It introduces common schema
 for both MySQL and Postgres, including what kind of connectivity should be used.
 Google Cloud SQL supports connecting via public IP or via Cloud SQL Proxy.
 In the latter case the
-:class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook` uses
-:class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlProxyRunner` to automatically prepare
+:class:`~airflow.providers.google.cloud.operators.hooks.cloud_sql.CloudSQLHook` uses
+:class:`~airflow.providers.google.cloud.operators.hooks.CloudSqlProxyRunner` to automatically prepare
 and use temporary Postgres or MySQL connection that will use the proxy to connect
 (either via TCP or UNIX socket.
 
@@ -52,7 +52,7 @@ Extra (optional)
     connection.
 
     Details of all the parameters supported in extra field can be found in
-    :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook`
+    :class:`~airflow.providers.google.cloud.operators.hooks.cloud_sql.CloudSQLHook`.
 
     Example "extras" field:
 
@@ -67,7 +67,7 @@ Extra (optional)
           "sql_proxy_use_tcp": false
        }
 
-    When specifying the connection as URI (in ``AIRFLOW_CONN_*`` variable), you should specify
+    When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable), you should specify
     it following the standard syntax of DB connection, where extras are passed as
     parameters of the URI. Note that all components of the URI should be URL-encoded.
 

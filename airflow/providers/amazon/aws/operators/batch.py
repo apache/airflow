@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -31,11 +30,11 @@ from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClient
+from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
 from airflow.utils.decorators import apply_defaults
 
 
-class AwsBatchOperator(BaseOperator, AwsBatchClient):
+class AwsBatchOperator(BaseOperator):
     """
     Execute a job on AWS Batch
 
@@ -117,14 +116,6 @@ class AwsBatchOperator(BaseOperator, AwsBatchClient):
     ):  # pylint: disable=too-many-arguments
 
         BaseOperator.__init__(self, **kwargs)
-        AwsBatchClient.__init__(
-            self,
-            max_retries=max_retries,
-            status_retries=status_retries,
-            aws_conn_id=aws_conn_id,
-            region_name=region_name,
-        )
-
         self.job_id = job_id
         self.job_name = job_name
         self.job_definition = job_definition
@@ -133,6 +124,12 @@ class AwsBatchOperator(BaseOperator, AwsBatchClient):
         self.array_properties = array_properties or {}
         self.parameters = parameters
         self.waiters = waiters
+        self.hook = AwsBatchClientHook(
+            max_retries=max_retries,
+            status_retries=status_retries,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+        )
 
     def execute(self, context: Dict):
         """
@@ -144,7 +141,7 @@ class AwsBatchOperator(BaseOperator, AwsBatchClient):
         self.monitor_job(context)
 
     def on_kill(self):
-        response = self.client.terminate_job(
+        response = self.hook.client.terminate_job(
             jobId=self.job_id, reason="Task killed by the user"
         )
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
@@ -163,7 +160,7 @@ class AwsBatchOperator(BaseOperator, AwsBatchClient):
         self.log.info("AWS Batch job - container overrides: %s", self.overrides)
 
         try:
-            response = self.client.submit_job(
+            response = self.hook.client.submit_job(
                 jobName=self.job_name,
                 jobQueue=self.job_queue,
                 jobDefinition=self.job_definition,
@@ -176,7 +173,7 @@ class AwsBatchOperator(BaseOperator, AwsBatchClient):
             self.log.info("AWS Batch job (%s) started: %s", self.job_id, response)
 
         except Exception as e:
-            self.log.info("AWS Batch job (%s) failed submission", self.job_id)
+            self.log.error("AWS Batch job (%s) failed submission", self.job_id)
             raise AirflowException(e)
 
     def monitor_job(self, context: Dict):  # pylint: disable=unused-argument
@@ -189,11 +186,11 @@ class AwsBatchOperator(BaseOperator, AwsBatchClient):
             if self.waiters:
                 self.waiters.wait_for_job(self.job_id)
             else:
-                self.wait_for_job(self.job_id)
+                self.hook.wait_for_job(self.job_id)
 
-            self.check_job_success(self.job_id)
+            self.hook.check_job_success(self.job_id)
             self.log.info("AWS Batch job (%s) succeeded", self.job_id)
 
         except Exception as e:
-            self.log.info("AWS Batch job (%s) failed monitoring", self.job_id)
+            self.log.error("AWS Batch job (%s) failed monitoring", self.job_id)
             raise AirflowException(e)

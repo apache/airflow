@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,9 +20,12 @@ import os
 import re
 import subprocess
 import time
+from typing import Any, Dict, Iterator, List, Optional, Union
 
+from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 try:
@@ -32,6 +34,7 @@ except ImportError:
     pass
 
 
+# pylint: disable=too-many-instance-attributes
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
@@ -100,33 +103,37 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                          Some distros may use spark2-submit.
     :type spark_binary: str
     """
+
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(self,
-                 conf=None,
-                 conn_id='spark_default',
-                 files=None,
-                 py_files=None,
-                 archives=None,
-                 driver_class_path=None,
-                 jars=None,
-                 java_class=None,
-                 packages=None,
-                 exclude_packages=None,
-                 repositories=None,
-                 total_executor_cores=None,
-                 executor_cores=None,
-                 executor_memory=None,
-                 driver_memory=None,
-                 keytab=None,
-                 principal=None,
-                 proxy_user=None,
-                 name='default-name',
-                 num_executors=None,
-                 status_poll_interval=1,
-                 application_args=None,
-                 env_vars=None,
-                 verbose=False,
-                 spark_binary=None):
-        self._conf = conf
+                 conf: Optional[Dict[str, Any]] = None,
+                 conn_id: str = 'spark_default',
+                 files: Optional[str] = None,
+                 py_files: Optional[str] = None,
+                 archives: Optional[str] = None,
+                 driver_class_path: Optional[str] = None,
+                 jars: Optional[str] = None,
+                 java_class: Optional[str] = None,
+                 packages: Optional[str] = None,
+                 exclude_packages: Optional[str] = None,
+                 repositories: Optional[str] = None,
+                 total_executor_cores: Optional[int] = None,
+                 executor_cores: Optional[int] = None,
+                 executor_memory: Optional[str] = None,
+                 driver_memory: Optional[str] = None,
+                 keytab: Optional[str] = None,
+                 principal: Optional[str] = None,
+                 proxy_user: Optional[str] = None,
+                 name: str = 'default-name',
+                 num_executors: Optional[int] = None,
+                 status_poll_interval: int = 1,
+                 application_args: Optional[List[Any]] = None,
+                 env_vars: Optional[Dict[str, Any]] = None,
+                 verbose: bool = False,
+                 spark_binary: Optional[str] = None
+                 ) -> None:
+        super().__init__()
+        self._conf = conf or {}
         self._conn_id = conn_id
         self._files = files
         self._py_files = py_files
@@ -150,9 +157,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._application_args = application_args
         self._env_vars = env_vars
         self._verbose = verbose
-        self._submit_sp = None
-        self._yarn_application_id = None
-        self._kubernetes_driver_pod = None
+        self._submit_sp: Optional[Any] = None
+        self._yarn_application_id: Optional[str] = None
+        self._kubernetes_driver_pod: Optional[str] = None
         self._spark_binary = spark_binary
 
         self._connection = self._resolve_connection()
@@ -164,11 +171,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self._connection['master']))
 
         self._should_track_driver_status = self._resolve_should_track_driver_status()
-        self._driver_id = None
-        self._driver_status = None
-        self._spark_exit_code = None
+        self._driver_id: Optional[str] = None
+        self._driver_status: Optional[str] = None
+        self._spark_exit_code: Optional[int] = None
+        self._env: Optional[Dict[str, Any]] = None
 
-    def _resolve_should_track_driver_status(self):
+    def _resolve_should_track_driver_status(self) -> bool:
         """
         Determines whether or not this hook should poll the spark driver status through
         subsequent spark-submit status requests after the initial spark-submit request
@@ -177,7 +185,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         return ('spark://' in self._connection['master'] and
                 self._connection['deploy_mode'] == 'cluster')
 
-    def _resolve_connection(self):
+    def _resolve_connection(self) -> Dict[str, Any]:
         # Build from connection master or default to yarn if not available
         conn_data = {'master': 'yarn',
                      'queue': None,
@@ -209,12 +217,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 self._conn_id, conn_data['master']
             )
 
+        if 'spark.kubernetes.namespace' in self._conf:
+            conn_data['namespace'] = self._conf['spark.kubernetes.namespace']
+
         return conn_data
 
-    def get_conn(self):
+    def get_conn(self) -> Any:
         pass
 
-    def _get_spark_binary_path(self):
+    def _get_spark_binary_path(self) -> List[str]:
         # If the spark_home is passed then build the spark-submit executable path using
         # the spark_home; otherwise assume that spark-submit is present in the path to
         # the executing user
@@ -226,16 +237,31 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         return connection_cmd
 
-    def _mask_cmd(self, connection_cmd):
+    def _mask_cmd(self, connection_cmd: Union[str, List[str]]) -> str:
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
         connection_cmd_masked = re.sub(
-            r"(\S*?(?:secret|password)\S*?\s*=\s*')[^']*(?=')",
-            r'\1******', ' '.join(connection_cmd), flags=re.I)
+            r"("
+            r"\S*?"                 # Match all non-whitespace characters before...
+            r"(?:secret|password)"  # ...literally a "secret" or "password"
+                                    # word (not capturing them).
+            r"\S*?"                 # All non-whitespace characters before either...
+            r"(?:=|\s+)"            # ...an equal sign or whitespace characters
+                                    # (not capturing them).
+            r"(['\"]?)"             # An optional single or double quote.
+            r")"                    # This is the end of the first capturing group.
+            r"(?:(?!\2\s).)*"       # All characters between optional quotes
+                                    # (matched above); if the value is quoted,
+                                    # it may contain whitespace.
+            r"(\2)",                # Optional matching quote.
+            r'\1******\3',
+            ' '.join(connection_cmd),
+            flags=re.I,
+        )
 
         return connection_cmd_masked
 
-    def _build_spark_submit_command(self, application):
+    def _build_spark_submit_command(self, application: str) -> List[str]:
         """
         Construct the spark-submit command to execute.
 
@@ -248,9 +274,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # The url of the spark master
         connection_cmd += ["--master", self._connection['master']]
 
-        if self._conf:
-            for key in self._conf:
-                connection_cmd += ["--conf", "{}={}".format(key, str(self._conf[key]))]
+        for key in self._conf:
+            connection_cmd += ["--conf", "{}={}".format(key, str(self._conf[key]))]
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"
@@ -324,7 +349,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         return connection_cmd
 
-    def _build_track_driver_status_command(self):
+    def _build_track_driver_status_command(self) -> List[str]:
         """
         Construct the command to poll the driver status.
 
@@ -370,7 +395,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         return connection_cmd
 
-    def submit(self, application="", **kwargs):
+    def submit(self, application: str = "", **kwargs: Any) -> None:
         """
         Remote Popen to execute the spark-submit job
 
@@ -380,7 +405,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """
         spark_submit_cmd = self._build_spark_submit_command(application)
 
-        if hasattr(self, '_env'):
+        if self._env:
             env = os.environ.copy()
             env.update(self._env)
             kwargs["env"] = env
@@ -392,7 +417,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                            universal_newlines=True,
                                            **kwargs)
 
-        self._process_spark_submit_log(iter(self._submit_sp.stdout))
+        self._process_spark_submit_log(iter(self._submit_sp.stdout))  # type: ignore
         returncode = self._submit_sp.wait()
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
@@ -404,7 +429,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
             )
 
-        self.log.debug("Should track driver: {}".format(self._should_track_driver_status))
+        self.log.debug("Should track driver: %s", self._should_track_driver_status)
 
         # We want the Airflow job to wait until the Spark driver is finished
         if self._should_track_driver_status:
@@ -426,7 +451,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     .format(self._driver_id, self._driver_status)
                 )
 
-    def _process_spark_submit_log(self, itr):
+    def _process_spark_submit_log(self, itr: Iterator[Any]) -> None:
         """
         Processes the log files and extracts useful information out of it.
 
@@ -471,12 +496,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 match_driver_id = re.search(r'(driver-[0-9\-]+)', line)
                 if match_driver_id:
                     self._driver_id = match_driver_id.groups()[0]
-                    self.log.info("identified spark driver id: {}"
-                                  .format(self._driver_id))
+                    self.log.info("identified spark driver id: %s", self._driver_id)
 
             self.log.info(line)
 
-    def _process_spark_status_log(self, itr):
+    def _process_spark_status_log(self, itr: Iterator[Any]) -> None:
         """
         parses the logs of the spark driver status query process
 
@@ -493,12 +517,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     .replace(',', '').replace('\"', '').strip()
                 driver_found = True
 
-            self.log.debug("spark driver status log: {}".format(line))
+            self.log.debug("spark driver status log: %s", line)
 
         if not driver_found:
             self._driver_status = "UNKNOWN"
 
-    def _start_driver_status_tracking(self):
+    def _start_driver_status_tracking(self) -> None:
         """
         Polls the driver based on self._driver_id to get the status.
         Finish successfully when the status is FINISHED.
@@ -541,15 +565,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # Sleep for n seconds as we do not want to spam the cluster
             time.sleep(self._status_poll_interval)
 
-            self.log.debug("polling status of spark driver with id {}"
-                           .format(self._driver_id))
+            self.log.debug("polling status of spark driver with id %s", self._driver_id)
 
             poll_drive_status_cmd = self._build_track_driver_status_command()
-            status_process = subprocess.Popen(poll_drive_status_cmd,
-                                              stdout=subprocess.PIPE,
-                                              stderr=subprocess.STDOUT,
-                                              bufsize=-1,
-                                              universal_newlines=True)
+            status_process: Any = subprocess.Popen(poll_drive_status_cmd,
+                                                   stdout=subprocess.PIPE,
+                                                   stderr=subprocess.STDOUT,
+                                                   bufsize=-1,
+                                                   universal_newlines=True
+                                                   )
 
             self._process_spark_status_log(iter(status_process.stdout))
             returncode = status_process.wait()
@@ -563,7 +587,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         .format(max_missed_job_status_reports, returncode)
                     )
 
-    def _build_spark_driver_kill_command(self):
+    def _build_spark_driver_kill_command(self) -> List[str]:
         """
         Construct the spark-submit command to kill a driver.
         :return: full command to kill a driver
@@ -583,44 +607,54 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         connection_cmd += ["--master", self._connection['master']]
 
         # The actual kill command
-        connection_cmd += ["--kill", self._driver_id]
+        if self._driver_id:
+            connection_cmd += ["--kill", self._driver_id]
 
         self.log.debug("Spark-Kill cmd: %s", connection_cmd)
 
         return connection_cmd
 
-    def on_kill(self):
+    def on_kill(self) -> None:
+        """
+        Kill Spark submit command
+        """
 
         self.log.debug("Kill Command is being called")
 
         if self._should_track_driver_status:
             if self._driver_id:
-                self.log.info('Killing driver {} on cluster'
-                              .format(self._driver_id))
+                self.log.info('Killing driver %s on cluster', self._driver_id)
 
                 kill_cmd = self._build_spark_driver_kill_command()
                 driver_kill = subprocess.Popen(kill_cmd,
                                                stdout=subprocess.PIPE,
                                                stderr=subprocess.PIPE)
 
-                self.log.info("Spark driver {} killed with return code: {}"
-                              .format(self._driver_id, driver_kill.wait()))
+                self.log.info("Spark driver %s killed with return code: %s",
+                              self._driver_id, driver_kill.wait())
 
         if self._submit_sp and self._submit_sp.poll() is None:
             self.log.info('Sending kill signal to %s', self._connection['spark_binary'])
             self._submit_sp.kill()
 
             if self._yarn_application_id:
-                self.log.info('Killing application {} on YARN'
-                              .format(self._yarn_application_id))
-
                 kill_cmd = "yarn application -kill {}" \
                     .format(self._yarn_application_id).split()
+                env = None
+                if self._keytab is not None and self._principal is not None:
+                    # we are ignoring renewal failures from renew_from_kt
+                    # here as the failure could just be due to a non-renewable ticket,
+                    # we still attempt to kill the yarn application
+                    renew_from_kt(self._principal, self._keytab, exit_on_fail=False)
+                    env = os.environ.copy()
+                    env["KRB5CCNAME"] = airflow_conf.get('kerberos', 'ccache')
+
                 yarn_kill = subprocess.Popen(kill_cmd,
+                                             env=env,
                                              stdout=subprocess.PIPE,
                                              stderr=subprocess.PIPE)
 
-                self.log.info("YARN killed with return code: %s", yarn_kill.wait())
+                self.log.info("YARN app killed with return code: %s", yarn_kill.wait())
 
             if self._kubernetes_driver_pod:
                 self.log.info('Killing pod %s on Kubernetes', self._kubernetes_driver_pod)
@@ -638,5 +672,5 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self.log.info("Spark on K8s killed with response: %s", api_response)
 
                 except kube_client.ApiException as e:
-                    self.log.info("Exception when attempting to kill Spark on K8s:")
+                    self.log.error("Exception when attempting to kill Spark on K8s:")
                     self.log.exception(e)

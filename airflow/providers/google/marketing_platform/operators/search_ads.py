@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,12 +18,13 @@
 """
 This module contains Google Search Ads operators.
 """
+import json
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Optional
 
-from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
 from airflow.utils.decorators import apply_defaults
 
@@ -70,6 +70,12 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+
+    def prepare_template(self) -> None:
+        # If .json is passed then we have to read the file
+        if isinstance(self.report, str) and self.report.endswith('.json'):
+            with open(self.report, 'r') as file:
+                self.report = json.load(file)
 
     def execute(self, context: Dict):
         hook = GoogleSearchAdsHook(

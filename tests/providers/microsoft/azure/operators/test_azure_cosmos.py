@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -50,7 +49,7 @@ class TestAzureCosmosDbHook(unittest.TestCase):
             )
         )
 
-    @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
     def test_insert_document(self, cosmos_mock):
         test_id = str(uuid.uuid4())
         cosmos_mock.return_value.CreateItem.return_value = {'id': test_id}
@@ -68,7 +67,3 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         op.execute(None)
         cosmos_mock.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
         cosmos_mock.assert_has_calls(expected_calls)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,11 +21,14 @@ from airflow.utils.session import provide_session
 
 
 class DagUnpausedDep(BaseTIDep):
+    """
+    Determines whether a task's DAG is not paused.
+    """
     NAME = "Dag Not Paused"
     IGNOREABLE = True
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        if ti.task.dag.is_paused:
+        if ti.task.dag.get_is_paused(session):
             yield self._failing_status(
                 reason="Task's DAG '{0}' is paused.".format(ti.dag_id))

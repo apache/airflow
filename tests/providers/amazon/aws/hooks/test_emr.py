@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -89,7 +88,3 @@ class TestEmrHook(unittest.TestCase):
         no_match = hook.get_cluster_id_by_name('foo', ['RUNNING', 'WAITING', 'BOOTSTRAPPING'])
 
         self.assertIsNone(no_match)
-
-
-if __name__ == '__main__':
-    unittest.main()

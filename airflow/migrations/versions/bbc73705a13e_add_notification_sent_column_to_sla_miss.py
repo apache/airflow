@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -34,9 +33,9 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     op.add_column('sla_miss', sa.Column('notification_sent', sa.Boolean, default=False))
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_column('sla_miss', 'notification_sent')

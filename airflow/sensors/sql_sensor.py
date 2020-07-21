@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -41,7 +40,7 @@ class SqlSensor(BaseSensorOperator):
         that contains a non-zero / empty string value.
     :type sql: str
     :param parameters: The parameters to render the SQL query with (optional).
-    :type parameters: mapping or iterable
+    :type parameters: dict or iterable
     :param success: Success criteria for the sensor is a Callable that takes first_cell
         as the only argument, and returns a boolean (optional).
     :type: success: Optional<Callable[[Any], bool]>
@@ -72,7 +71,7 @@ class SqlSensor(BaseSensorOperator):
 
         allowed_conn_type = {'google_cloud_platform', 'jdbc', 'mssql',
                              'mysql', 'odbc', 'oracle', 'postgres',
-                             'presto', 'sqlite', 'vertica'}
+                             'presto', 'snowflake', 'sqlite', 'vertica'}
         if conn.conn_type not in allowed_conn_type:
             raise AirflowException("The connection type is not supported by SqlSensor. " +
                                    "Supported connection types: {}".format(list(allowed_conn_type)))

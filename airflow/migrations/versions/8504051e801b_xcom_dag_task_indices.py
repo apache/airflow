@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -35,9 +34,11 @@ depends_on = None
 
 
 def upgrade():
+    """Create Index."""
     op.create_index('idx_xcom_dag_task_date', 'xcom',
                     ['dag_id', 'task_id', 'execution_date'], unique=False)
 
 
 def downgrade():
+    """Drop Index."""
     op.drop_index('idx_xcom_dag_task_date', table_name='xcom')

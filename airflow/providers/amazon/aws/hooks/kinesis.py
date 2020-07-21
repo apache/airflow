@@ -19,41 +19,33 @@
 """
 This module contains AWS Firehose hook
 """
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsFirehoseHook(AwsHook):
+class AwsFirehoseHook(AwsBaseHook):
     """
     Interact with AWS Kinesis Firehose.
 
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+
     :param delivery_stream: Name of the delivery stream
     :type delivery_stream: str
-    :param region_name: AWS region name (example: us-east-1)
-    :type region_name: str
     """
 
-    def __init__(self, delivery_stream, region_name=None, *args, **kwargs):
+    def __init__(self, delivery_stream, *args, **kwargs):
         self.delivery_stream = delivery_stream
-        self.region_name = region_name
-        self.conn = None
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        """
-        Returns AwsHook connection object.
-        """
-
-        self.conn = self.get_client_type('firehose', self.region_name)
-        return self.conn
+        super().__init__(client_type='firehose', *args, **kwargs)
 
     def put_records(self, records):
         """
         Write batch records to Kinesis Firehose
         """
 
-        firehose_conn = self.get_conn()
-
-        response = firehose_conn.put_record_batch(
+        response = self.get_conn().put_record_batch(
             DeliveryStreamName=self.delivery_stream,
             Records=records
         )

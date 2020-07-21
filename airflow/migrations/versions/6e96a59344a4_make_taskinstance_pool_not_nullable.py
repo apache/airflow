@@ -30,6 +30,7 @@ from alembic import op
 from sqlalchemy import Column, Float, Integer, PickleType, String
 from sqlalchemy.ext.declarative import declarative_base
 
+from airflow.models.base import COLLATION_ARGS
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -43,7 +44,7 @@ Base = declarative_base()
 ID_LEN = 250
 
 
-class TaskInstance(Base):
+class TaskInstance(Base):  # type: ignore
     """
     Task instances store the state of a task instance. This table is the
     authority and single source of truth around what tasks have run and the
@@ -59,8 +60,8 @@ class TaskInstance(Base):
 
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)

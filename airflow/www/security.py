@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,7 +17,7 @@
 # under the License.
 #
 
-from flask import g
+from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from sqlalchemy import and_, or_
@@ -27,7 +26,7 @@ from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.www.app import appbuilder
+from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = {
     'Admin',
@@ -39,6 +38,7 @@ EXISTING_ROLES = {
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
+    """Custom security manager, which introduces an permission model adapted to Airflow"""
     ###########################################################################
     #                               VIEW MENUS
     ###########################################################################
@@ -108,6 +108,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'can_xcom',
         'can_gantt',
         'can_landing_times',
+        'can_last_dagruns',
         'can_duration',
         'can_blocked',
         'can_rendered',
@@ -123,6 +124,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'can_add',
         'can_edit',
         'can_delete',
+        'can_failed',
         'can_paused',
         'can_refresh',
         'can_success',
@@ -179,6 +181,21 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         },
     ]
 
+    def __init__(self, appbuilder):
+        super().__init__(appbuilder)
+
+        # Go and fix up the SQLAInterface used from the stock one to our subclass.
+        # This is needed to support the "hack" where we had to edit
+        # FieldConverter.conversion_table in place in airflow.www.utils
+        for attr in dir(self):
+            if not attr.endswith('view'):
+                continue
+            view = getattr(self, attr, None)
+            if not view or not getattr(view, 'datamodel', None):
+                continue
+            view.datamodel = CustomSQLAInterface(view.datamodel.obj)
+        self.perms = None
+
     def init_role(self, role_name, role_vms, role_perms):
         """
         Initialize the role with the permissions and related view-menus.
@@ -225,7 +242,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             raise AirflowException("Role named '{}' does not exist".format(
                 role_name))
 
-    def get_user_roles(self, user=None):
+    @staticmethod
+    def get_user_roles(user=None):
         """
         Get all the roles associated with the user.
 
@@ -235,8 +253,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if user is None:
             user = g.user
         if user.is_anonymous:
-            public_role = appbuilder.config.get('AUTH_ROLE_PUBLIC')
-            return [appbuilder.security_manager.find_role(public_role)] \
+            public_role = current_app.appbuilder.config.get('AUTH_ROLE_PUBLIC')
+            return [current_app.appbuilder.security_manager.find_role(public_role)] \
                 if public_role else []
         return user.roles
 
@@ -305,7 +323,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if not isinstance(role_name_or_list, list):
             role_name_or_list = [role_name_or_list]
         return any(
-            [r.name in role_name_or_list for r in self.get_user_roles()])
+            r.name in role_name_or_list for r in self.get_user_roles())
 
     def _has_perm(self, permission_name, view_menu_name):
         """
@@ -369,11 +387,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         permission = self.find_permission(permission_name)
         view_menu = self.find_view_menu(view_menu_name)
-        pv = None
+        permission_view = None
         if permission and view_menu:
-            pv = self.get_session.query(self.permissionview_model).filter_by(
+            permission_view = self.get_session.query(self.permissionview_model).filter_by(
                 permission=permission, view_menu=view_menu).first()
-        if not pv and permission_name and view_menu_name:
+        if not permission_view and permission_name and view_menu_name:
             self.add_permission_view_menu(permission_name, view_menu_name)
 
     @provide_session
@@ -381,7 +399,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         Workflow:
         1. Fetch all the existing (permissions, view-menu) from Airflow DB.
-        2. Fetch all the existing dag models that are either active or paused. Exclude the subdags.
+        2. Fetch all the existing dag models that are either active or paused.
         3. Create both read and write permission view-menus relation for every dags from step 2
         4. Find out all the dag specific roles(excluded pubic, admin, viewer, op, user)
         5. Get all the permission-vm owned by the user role.
@@ -394,18 +412,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         def merge_pv(perm, view_menu):
             """Create permission view menu only if it doesn't exist"""
-            if view_menu and perm and (view_menu, perm) not in all_pvs:
+            if view_menu and perm and (view_menu, perm) not in all_permission_views:
                 self._merge_perm(perm, view_menu)
 
-        all_pvs = set()
-        for pv in self.get_session.query(self.permissionview_model).all():
-            if pv.permission and pv.view_menu:
-                all_pvs.add((pv.permission.name, pv.view_menu.name))
+        all_permission_views = set()
+        for permission_view in self.get_session.query(self.permissionview_model).all():
+            if permission_view.permission and permission_view.view_menu:
+                all_permission_views.add((permission_view.permission.name, permission_view.view_menu.name))
 
         # Get all the active / paused dags and insert them into a set
         all_dags_models = session.query(models.DagModel)\
-            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))\
-            .filter(~models.DagModel.is_subdag).all()
+            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused)).all()
 
         # create can_dag_edit and can_dag_read permissions for every dag(vm)
         for dag in all_dags_models:
@@ -426,15 +443,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         perm_view = self.permissionview_model
         view_menu = self.viewmenu_model
 
-        all_perm_view_by_user = session.query(ab_perm_view_role)\
-            .join(perm_view, perm_view.id == ab_perm_view_role
-                  .columns.permission_view_id)\
-            .filter(ab_perm_view_role.columns.role_id == user_role.id)\
-            .join(view_menu)\
+        all_perm_view_by_user = (
+            session.query(ab_perm_view_role)
+            .join(
+                perm_view,
+                perm_view.id == ab_perm_view_role.columns.permission_view_id  # pylint: disable=no-member
+            )
+            .filter(ab_perm_view_role.columns.role_id == user_role.id)  # pylint: disable=no-member
+            .join(view_menu)
             .filter(perm_view.view_menu_id != dag_vm.id)
+        )
         all_perm_views = {role.permission_view_id for role in all_perm_view_by_user}
 
         for role in dag_role:
+            # pylint: disable=no-member
             # Get all the perm-view of the role
             existing_perm_view_by_user = self.get_session.query(ab_perm_view_role)\
                 .filter(ab_perm_view_role.columns.role_id == role.id)
@@ -447,7 +469,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                                           'role_id': role.id})
 
         if update_perm_views:
-            self.get_session.execute(ab_perm_view_role.insert(), update_perm_views)
+            self.get_session.execute(
+                ab_perm_view_role.insert(),  # pylint: disable=no-value-for-parameter
+                update_perm_views
+            )
         self.get_session.commit()
 
     def update_admin_perm_view(self):

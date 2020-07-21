@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,6 +28,7 @@ log = logging.getLogger(__name__)
 
 
 def configure_logging():
+    """Configure & Validate Airflow Logging"""
     logging_class_path = ''
     try:
         logging_class_path = conf.get('logging', 'logging_config_class')
@@ -40,7 +40,8 @@ def configure_logging():
             logging_config = import_string(logging_class_path)
 
             # Make sure that the variable is in scope
-            assert (isinstance(logging_config, dict))
+            if not isinstance(logging_config, dict):
+                raise ValueError("Logging Config should be of dict type")
 
             log.info(
                 'Successfully imported user-defined logging config from %s',
@@ -62,7 +63,7 @@ def configure_logging():
         # Try to init logging
         dictConfig(logging_config)
     except ValueError as e:
-        log.warning('Unable to load the config, contains a configuration error.')
+        log.error('Unable to load the config, contains a configuration error.')
         # When there is an error in the config, escalate the exception
         # otherwise Airflow would silently fall back on the default config
         raise e
@@ -72,7 +73,8 @@ def configure_logging():
     return logging_class_path
 
 
-def validate_logging_config(logging_config):
+def validate_logging_config(logging_config):    # pylint: disable=unused-argument
+    """Validate the provided Logging Config"""
     # Now lets validate the other logging-related settings
     task_log_reader = conf.get('logging', 'task_log_reader')
 

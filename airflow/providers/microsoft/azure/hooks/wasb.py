@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -44,6 +43,7 @@ class WasbHook(BaseHook):
     """
 
     def __init__(self, wasb_conn_id='wasb_default'):
+        super().__init__()
         self.conn_id = wasb_conn_id
         self.connection = self.get_conn()
 
@@ -191,7 +191,7 @@ class WasbHook(BaseHook):
             raise AirflowException('Blob(s) not found: {}'.format(blob_name))
 
         for blob_uri in blobs_to_delete:
-            self.log.info("Deleting blob: " + blob_uri)
+            self.log.info("Deleting blob: %s", blob_uri)
             self.connection.delete_blob(container_name,
                                         blob_uri,
                                         delete_snapshots='include',

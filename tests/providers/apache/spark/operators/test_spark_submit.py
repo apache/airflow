@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,8 +20,8 @@
 import unittest
 from datetime import timedelta
 
-from airflow import DAG
 from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils import timezone
 
@@ -168,7 +167,3 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertListEqual(expected_application_args,
                              getattr(operator, '_application_args'))
         self.assertEqual(expected_name, getattr(operator, '_name'))
-
-
-if __name__ == '__main__':
-    unittest.main()

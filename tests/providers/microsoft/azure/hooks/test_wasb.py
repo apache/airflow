@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,7 +24,7 @@ from collections import namedtuple
 
 import mock
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.utils import db
@@ -189,7 +188,3 @@ class TestWasbHook(unittest.TestCase):
                 is_prefix=True, ignore_if_missing=False
             )
         self.assertIsInstance(context.exception, AirflowException)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -36,7 +35,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.alter_column('duration',
@@ -45,5 +44,5 @@ def upgrade():
                               existing_nullable=True)
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     pass

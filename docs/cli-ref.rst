@@ -32,6 +32,6 @@ development and testing.
     :depth: 2
 
 .. argparse::
-   :module: airflow.bin.cli
+   :module: airflow.cli.cli_parser
    :func: get_parser
    :prog: airflow

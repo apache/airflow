@@ -45,7 +45,7 @@ class TestDebugExecutor:
         task_instance_mock.job_id = job_id
 
         executor = DebugExecutor()
-        executor.running = set([ti_key])
+        executor.running = {ti_key}
         succeeded = executor._run_task(task_instance_mock)
 
         assert succeeded
@@ -86,7 +86,7 @@ class TestDebugExecutor:
 
         executor = DebugExecutor()
         executor.tasks_to_run = [ti]
-        executor.running = set([ti.key])
+        executor.running = {ti.key}
         executor.end()
 
         ti.set_state.assert_called_once_with(State.UPSTREAM_FAILED)

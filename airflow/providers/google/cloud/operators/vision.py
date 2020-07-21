@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-  # pylint: disable=too-many-lines
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -42,7 +41,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetCreateOperator`
+        :ref:`howto/operator:CloudVisionCreateProductSetOperator`
 
     :param product_set: (Required) The ProductSet to create. If a dict is provided, it must be of the same
         form as the protobuf message `ProductSet`.
@@ -124,7 +123,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetGetOperator`
+        :ref:`howto/operator:CloudVisionGetProductSetOperator`
 
     :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
         are: us-east1, us-west1, europe-west1, asia-east1
@@ -201,7 +200,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetUpdateOperator`
+        :ref:`howto/operator:CloudVisionUpdateProductSetOperator`
 
     :param product_set: (Required) The ProductSet resource which replaces the one on the
         server. If a dict is provided, it must be of the same form as the protobuf
@@ -283,7 +282,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductSetDeleteOperator`
+        :ref:`howto/operator:CloudVisionDeleteProductSetOperator`
 
     :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
         are: us-east1, us-west1, europe-west1, asia-east1
@@ -355,7 +354,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductCreateOperator`
+        :ref:`howto/operator:CloudVisionCreateProductOperator`
 
     :param location: (Required) The region where the Product should be created. Valid regions
         (as of 2019-02-05) are: us-east1, us-west1, europe-west1, asia-east1
@@ -440,7 +439,7 @@ class CloudVisionGetProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductGetOperator`
+        :ref:`howto/operator:CloudVisionGetProductOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -528,7 +527,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductUpdateOperator`
+        :ref:`howto/operator:CloudVisionUpdateProductOperator`
 
     :param product: (Required) The Product resource which replaces the one on the server. product.name is
         immutable. If a dict is provided, it must be of the same form as the protobuf message `Product`.
@@ -615,7 +614,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionProductDeleteOperator`
+        :ref:`howto/operator:CloudVisionDeleteProductOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -681,7 +680,7 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionAnnotateImageOperator`
+        :ref:`howto/operator:CloudVisionImageAnnotateOperator`
 
     :param request: (Required) Annotation request for image or a batch.
         If a dict is provided, it must be of the same form as the protobuf
@@ -739,7 +738,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionReferenceImageCreateOperator`
+        :ref:`howto/operator:CloudVisionCreateReferenceImageOperator`
 
     :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
         us-east1, us-west1, europe-west1, asia-east1
@@ -827,6 +826,86 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
                 self.product_id,
             )
             return self.reference_image_id
+
+
+class CloudVisionDeleteReferenceImageOperator(BaseOperator):
+    """
+    Deletes a ReferenceImage ID resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionDeleteReferenceImageOperator`
+
+    :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
+        us-east1, us-west1, europe-west1, asia-east1
+    :type location: str
+    :param reference_image_id: (Optional) A user-supplied resource id for the ReferenceImage to be added.
+        If set, the server will attempt to use this value as the resource id. If it is already in use, an
+        error is returned with code ALREADY_EXISTS. Must be at most 128 characters long. It cannot contain
+        the character `/`.
+    :type reference_image_id: str
+    :param product_id: (Optional) The resource id of this Product.
+    :type product_id: str
+    :param project_id: (Optional) The project in which the Product is located. If set to None or
+        missing, the default project_id from the GCP connection is used.
+    :type project_id: str
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: (Optional) The amount of time, in seconds, to wait for the request to
+        complete. Note that if retry is specified, the timeout applies to each individual
+        attempt.
+    :type timeout: float
+    :param metadata: (Optional) Additional metadata that is provided to the method.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+    # [START vision_reference_image_create_template_fields]
+    template_fields = (
+        "location",
+        "product_id",
+        "reference_image_id",
+        "project_id",
+        "gcp_conn_id",
+    )
+    # [END vision_reference_image_create_template_fields]
+
+    @apply_defaults
+    def __init__(
+        self,
+        location: str,
+        product_id: str,
+        reference_image_id: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.location = location
+        self.product_id = product_id
+        self.reference_image_id = reference_image_id
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        hook.delete_reference_image(
+            location=self.location,
+            product_id=self.product_id,
+            reference_image_id=self.reference_image_id,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
 
 
 class CloudVisionAddProductToProductSetOperator(BaseOperator):
@@ -1052,7 +1131,7 @@ class CloudVisionTextDetectOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudVisionDetectDocumentTextOperator`
+        :ref:`howto/operator:CloudVisionTextDetectOperator`
 
     :param image: (Required) The image to analyze. See more:
         https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image

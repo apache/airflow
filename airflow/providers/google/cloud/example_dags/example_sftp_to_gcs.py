@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,7 +22,7 @@ Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 import os
 
 from airflow import models
-from airflow.providers.google.cloud.operators.sftp_to_gcs import SFTPToGCSOperator
+from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}

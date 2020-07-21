@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -50,7 +49,3 @@ class TestEmrTerminateJobFlowOperator(unittest.TestCase):
             )
 
             operator.execute(None)
-
-
-if __name__ == '__main__':
-    unittest.main()

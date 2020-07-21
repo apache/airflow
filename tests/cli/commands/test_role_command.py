@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,9 +21,8 @@ import unittest
 from contextlib import redirect_stdout
 
 from airflow import models
-from airflow.bin import cli
+from airflow.cli import cli_parser
 from airflow.cli.commands import role_command
-from airflow.settings import Session
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
 TEST_USER2_EMAIL = 'test-user2@example.com'
@@ -34,11 +32,12 @@ class TestCliRoles(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
+        cls.parser = cli_parser.get_parser()
 
     def setUp(self):
         from airflow.www import app as application
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
+        self.app = application.create_app(testing=True)
+        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
         self.clear_roles_and_roles()
 
     def tearDown(self):

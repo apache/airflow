@@ -18,7 +18,8 @@
 #}
 
 {% extends "airflow/dag.html" %}
-{% block title %}Airflow - DAGs{% endblock %}
+
+{% block page_title %}{{ dag.dag_id }} - Code - Airflow{% endblock %}
 
 {% block content %}
     {{ super() }}
@@ -26,7 +27,7 @@
     <div class="active">
       <a onclick="toggleWrap()">Toggle wrap</a>
     </div>
-    {{ html_code|safe }}
+    {{ html_code }}
 {% endblock %}
 
 {% block tail %}

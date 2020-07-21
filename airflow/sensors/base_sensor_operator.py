@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,14 +17,17 @@
 # under the License.
 
 import hashlib
+import os
 from datetime import timedelta
 from time import sleep
-from typing import Dict, Iterable
+from typing import Any, Dict, Iterable
 
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSensorTimeout, AirflowSkipException,
 )
-from airflow.models import BaseOperator, SkipMixin, TaskReschedule
+from airflow.models import BaseOperator
+from airflow.models.skipmixin import SkipMixin
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
@@ -104,9 +106,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         """
         raise AirflowException('Override me.')
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: Dict) -> Any:
         started_at = timezone.utcnow()
         try_number = 1
+        log_dag_id = self.dag.dag_id if self.has_dag() else ""
         if self.reschedule:
             # If reschedule, use first start date of current try
             task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
@@ -120,9 +123,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 # This gives the ability to set up non-blocking AND soft-fail sensors.
                 if self.soft_fail and not context['ti'].is_eligible_to_retry():
                     self._do_skip_downstream_tasks(context)
-                    raise AirflowSkipException('Snap. Time is OUT.')
+                    raise AirflowSkipException(
+                        f"Snap. Time is OUT. DAG id: {log_dag_id}")
                 else:
-                    raise AirflowSensorTimeout('Snap. Time is OUT.')
+                    raise AirflowSensorTimeout(
+                        f"Snap. Time is OUT. DAG id: {log_dag_id}")
             if self.reschedule:
                 reschedule_date = timezone.utcnow() + timedelta(
                     seconds=self._get_next_poke_interval(started_at, try_number))
@@ -146,12 +151,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
             current_time = timezone.utcnow()
 
-            hash = int(hashlib.sha1("{}#{}#{}#{}".format(self.dag_id,
-                                                         self.task_id,
-                                                         started_at,
-                                                         try_number)
-                                    .encode('utf-8')).hexdigest(), 16)
-            modded_hash = min_backoff + hash % min_backoff
+            run_hash = int(hashlib.sha1("{}#{}#{}#{}".format(
+                self.dag_id, self.task_id, started_at, try_number
+            ).encode("utf-8")).hexdigest(), 16)
+            modded_hash = min_backoff + run_hash % min_backoff
 
             delay_backoff_in_seconds = min(
                 modded_hash,
@@ -159,15 +162,17 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             )
             new_interval = min(self.timeout - int((current_time - started_at).total_seconds()),
                                delay_backoff_in_seconds)
-            self.log.info("new {} interval is {}".format(self.mode, new_interval))
+            self.log.info("new %s interval is %s", self.mode, new_interval)
             return new_interval
         else:
             return self.poke_interval
 
     @property
     def reschedule(self):
+        """Define mode rescheduled sensors."""
         return self.mode == 'reschedule'
 
+    # pylint: disable=no-member
     @property
     def deps(self):
         """
@@ -177,3 +182,40 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         if self.reschedule:
             return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}
         return BaseOperator.deps.fget(self)
+
+
+def poke_mode_only(cls):
+    """
+    Class Decorator for child classes of BaseSensorOperator to indicate
+    that instances of this class are only safe to use poke mode.
+
+    Will decorate all methods in the class to assert they did not change
+    the mode from 'poke'.
+
+    :param cls: BaseSensor class to enforce methods only use 'poke' mode.
+    :type cls: type
+    """
+    def decorate(cls_type):
+        def mode_getter(_):
+            return 'poke'
+
+        def mode_setter(_, value):
+            if value != 'poke':
+                raise ValueError("cannot set mode to 'poke'.")
+
+        if not issubclass(cls_type, BaseSensorOperator):
+            raise ValueError(f"poke_mode_only decorator should only be "
+                             f"applied to subclasses of BaseSensorOperator,"
+                             f" got:{cls_type}.")
+
+        cls_type.mode = property(mode_getter, mode_setter)
+
+        return cls_type
+
+    return decorate(cls)
+
+
+if 'BUILDING_AIRFLOW_DOCS' in os.environ:
+    # flake8: noqa: F811
+    # Monkey patch hook to get good function headers while building docs
+    apply_defaults = lambda x: x

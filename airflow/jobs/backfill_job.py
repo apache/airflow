@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,26 +20,28 @@
 import time
 from collections import OrderedDict
 from datetime import datetime
-from typing import Set
+from typing import Optional, Set
 
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
 
 from airflow import models
 from airflow.exceptions import (
-    AirflowException, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
+    AirflowException, BackfillUnfinished, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
 )
-from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, DagPickle, DagRun
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
-from airflow.ti_deps.dep_context import BACKFILL_QUEUED_DEPS, DepContext
+from airflow.models import DAG, DagPickle
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 
 class BackfillJob(BaseJob):
@@ -49,8 +50,6 @@ class BackfillJob(BaseJob):
     triggers a set of task instance runs, in the right order and lasts for
     as long as it takes for the set of task instance to be completed.
     """
-    ID_PREFIX = 'backfill_'
-    ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
     STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
 
     __mapper_args__ = {
@@ -68,17 +67,17 @@ class BackfillJob(BaseJob):
         it easier to pass it around.
 
         :param to_run: Tasks to run in the backfill
-        :type to_run: dict[tuple[TaskInstanceKeyType], airflow.models.TaskInstance]
+        :type to_run: dict[tuple[TaskInstanceKey], airflow.models.TaskInstance]
         :param running: Maps running task instance key to task instance object
-        :type running: dict[tuple[TaskInstanceKeyType], airflow.models.TaskInstance]
+        :type running: dict[tuple[TaskInstanceKey], airflow.models.TaskInstance]
         :param skipped: Tasks that have been skipped
-        :type skipped: set[tuple[TaskInstanceKeyType]]
+        :type skipped: set[tuple[TaskInstanceKey]]
         :param succeeded: Tasks that have succeeded so far
-        :type succeeded: set[tuple[TaskInstanceKeyType]]
+        :type succeeded: set[tuple[TaskInstanceKey]]
         :param failed: Tasks that have failed
-        :type failed: set[tuple[TaskInstanceKeyType]]
+        :type failed: set[tuple[TaskInstanceKey]]
         :param not_ready: Tasks not ready for execution
-        :type not_ready: set[tuple[TaskInstanceKeyType]]
+        :type not_ready: set[tuple[TaskInstanceKey]]
         :param deadlocked: Deadlocked tasks
         :type deadlocked: set[airflow.models.TaskInstance]
         :param active_runs: Active dag runs at a certain point in time
@@ -91,7 +90,7 @@ class BackfillJob(BaseJob):
         :type total_runs: int
         """
         # TODO(edgarRd): AIRFLOW-1444: Add consistency check on counts
-        def __init__(self,
+        def __init__(self,  # pylint: disable=too-many-arguments
                      to_run=None,
                      running=None,
                      skipped=None,
@@ -105,7 +104,7 @@ class BackfillJob(BaseJob):
                      total_runs=0,
                      ):
             self.to_run = to_run or OrderedDict()
-            self.running = running or dict()
+            self.running = running or {}
             self.skipped = skipped or set()
             self.succeeded = succeeded or set()
             self.failed = failed or set()
@@ -116,7 +115,7 @@ class BackfillJob(BaseJob):
             self.finished_runs = finished_runs
             self.total_runs = total_runs
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
             self,
             dag,
             start_date=None,
@@ -178,7 +177,8 @@ class BackfillJob(BaseJob):
         self.run_backwards = run_backwards
         super().__init__(*args, **kwargs)
 
-    def _update_counters(self, ti_status):
+    @provide_session
+    def _update_counters(self, ti_status, session=None):
         """
         Updates the counters per state of the tasks that were running. Can re-add
         to tasks to run in case required.
@@ -186,25 +186,34 @@ class BackfillJob(BaseJob):
         :param ti_status: the internal status of the backfill job tasks
         :type ti_status: BackfillJob._DagRunTaskStatus
         """
-        for key, ti in list(ti_status.running.items()):
-            ti.refresh_from_db()
+        tis_to_be_scheduled = []
+        refreshed_tis = []
+        TI = TaskInstance
+
+        filter_for_tis = TI.filter_for_tis(list(ti_status.running.values()))
+        if filter_for_tis is not None:
+            refreshed_tis = session.query(TI).filter(filter_for_tis).all()
+
+        for ti in refreshed_tis:
+            # Here we remake the key by subtracting 1 to match in memory information
+            key = ti.key.reduced
             if ti.state == State.SUCCESS:
                 ti_status.succeeded.add(key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
                 ti_status.running.pop(key)
                 continue
-            elif ti.state == State.SKIPPED:
+            if ti.state == State.SKIPPED:
                 ti_status.skipped.add(key)
                 self.log.debug("Task instance %s skipped. Don't rerun.", ti)
                 ti_status.running.pop(key)
                 continue
-            elif ti.state == State.FAILED:
+            if ti.state == State.FAILED:
                 self.log.error("Task instance %s failed", ti)
                 ti_status.failed.add(key)
                 ti_status.running.pop(key)
                 continue
             # special case: if the task needs to run again put it back
-            elif ti.state == State.UP_FOR_RETRY:
+            if ti.state == State.UP_FOR_RETRY:
                 self.log.warning("Task instance %s is up for retry", ti)
                 ti_status.running.pop(key)
                 ti_status.to_run[key] = ti
@@ -224,9 +233,16 @@ class BackfillJob(BaseJob):
                     "reaching concurrency limits. Re-adding task to queue.",
                     ti
                 )
-                ti.set_state(State.SCHEDULED)
+                tis_to_be_scheduled.append(ti)
                 ti_status.running.pop(key)
                 ti_status.to_run[key] = ti
+
+        # Batch schedule of task instances
+        if tis_to_be_scheduled:
+            filter_for_tis = TI.filter_for_tis(tis_to_be_scheduled)
+            session.query(TI).filter(filter_for_tis).update(
+                values={TI.state: State.SCHEDULED}, synchronize_session=False
+            )
 
     def _manage_executor_state(self, running):
         """
@@ -237,7 +253,9 @@ class BackfillJob(BaseJob):
         """
         executor = self.executor
 
-        for key, state in list(executor.get_event_buffer().items()):
+        # TODO: query all instead of refresh from db
+        for key, value in list(executor.get_event_buffer().items()):
+            state, info = value
             if key not in running:
                 self.log.warning(
                     "%s state %s not in running=%s",
@@ -250,11 +268,11 @@ class BackfillJob(BaseJob):
 
             self.log.debug("Executor state: %s task %s", state, ti)
 
-            if state == State.FAILED or state == State.SUCCESS:
+            if state in (State.FAILED, State.SUCCESS):
                 if ti.state == State.RUNNING or ti.state == State.QUEUED:
                     msg = ("Executor reports task instance {} finished ({}) "
                            "although the task says its {}. Was the task "
-                           "killed externally?".format(ti, state, ti.state))
+                           "killed externally? Info: {}".format(ti, state, ti.state, info))
                     self.log.error(msg)
                     ti.handle_failure(msg)
 
@@ -270,24 +288,21 @@ class BackfillJob(BaseJob):
         :param session: the database session object
         :return: a DagRun in state RUNNING or None
         """
-        run_id = BackfillJob.ID_FORMAT_PREFIX.format(run_date.isoformat())
-
         # consider max_active_runs but ignore when running subdags
-        respect_dag_max_active_limit = (True
-                                        if (dag.schedule_interval and
-                                            not dag.is_subdag)
-                                        else False)
+        respect_dag_max_active_limit = bool(dag.schedule_interval and not dag.is_subdag)
 
         current_active_dag_count = dag.get_num_active_runs(external_trigger=False)
 
         # check if we are scheduling on top of a already existing dag_run
         # we could find a "scheduled" run instead of a "backfill"
-        run = DagRun.find(dag_id=dag.dag_id,
-                          execution_date=run_date,
-                          session=session)
-
-        if run is not None and len(run) > 0:
-            run = run[0]
+        runs = DagRun.find(
+            dag_id=dag.dag_id,
+            execution_date=run_date,
+            session=session
+        )
+        run: Optional[DagRun]
+        if runs:
+            run = runs[0]
             if run.state == State.RUNNING:
                 respect_dag_max_active_limit = False
         else:
@@ -300,13 +315,13 @@ class BackfillJob(BaseJob):
             return None
 
         run = run or dag.create_dagrun(
-            run_id=run_id,
             execution_date=run_date,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             external_trigger=False,
             session=session,
             conf=self.conf,
+            run_type=DagRunType.BACKFILL_JOB,
         )
 
         # set required transient field
@@ -314,7 +329,8 @@ class BackfillJob(BaseJob):
 
         # explicitly mark as backfill and running
         run.state = State.RUNNING
-        run.run_id = run_id
+        run.run_id = run.generate_run_id(DagRunType.BACKFILL_JOB, run_date)
+        run.run_type = DagRunType.BACKFILL_JOB.value
         run.verify_integrity(session=session)
         return run
 
@@ -370,7 +386,7 @@ class BackfillJob(BaseJob):
         )
 
     @provide_session
-    def _process_backfill_task_instances(self,
+    def _process_backfill_task_instances(self,  # pylint: disable=too-many-statements
                                          ti_status,
                                          executor,
                                          pickle_id,
@@ -406,8 +422,8 @@ class BackfillJob(BaseJob):
             # determined deadlocked while they are actually
             # waiting for their upstream to finish
             @provide_session
-            def _per_task_process(task, key, ti, session=None):
-                ti.refresh_from_db()
+            def _per_task_process(task, key, ti, session=None):  # pylint: disable=too-many-return-statements
+                ti.refresh_from_db(lock_for_update=True, session=session)
 
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
                 ti.task = task
@@ -446,9 +462,7 @@ class BackfillJob(BaseJob):
                 if self.rerun_failed_tasks:
                     # Rerun failed tasks or upstreamed failed tasks
                     if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
-                        self.log.error("Task instance {ti} "
-                                       "with state {state}".format(ti=ti,
-                                                                   state=ti.state))
+                        self.log.error("Task instance %s with state %s", ti, ti.state)
                         if key in ti_status.running:
                             ti_status.running.pop(key)
                         # Reset the failed task in backfill to scheduled state
@@ -456,9 +470,7 @@ class BackfillJob(BaseJob):
                 else:
                     # Default behaviour which works for subdag.
                     if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
-                        self.log.error("Task instance {ti} "
-                                       "with {state} state".format(ti=ti,
-                                                                   state=ti.state))
+                        self.log.error("Task instance %s with state %s", ti, ti.state)
                         ti_status.failed.add(key)
                         ti_status.to_run.pop(key)
                         if key in ti_status.running:
@@ -471,7 +483,6 @@ class BackfillJob(BaseJob):
                     ignore_task_deps=self.ignore_task_deps,
                     flag_upstream_failed=True)
 
-                ti.refresh_from_db(lock_for_update=True, session=session)
                 # Is the task runnable? -- then run it
                 # the dependency checker can change states of tis
                 if ti.are_dependencies_met(
@@ -492,7 +503,9 @@ class BackfillJob(BaseJob):
                         session.merge(ti)
 
                         cfg_path = None
-                        if executor.__class__ in (LocalExecutor, SequentialExecutor):
+                        if self.executor_class in (
+                            ExecutorLoader.LOCAL_EXECUTOR, ExecutorLoader.SEQUENTIAL_EXECUTOR
+                        ):
                             cfg_path = tmp_configuration_copy()
 
                         executor.queue_task_instance(
@@ -540,7 +553,7 @@ class BackfillJob(BaseJob):
                 self.log.debug('Adding %s to not_ready', ti)
                 ti_status.not_ready.add(key)
 
-            try:
+            try:  # pylint: disable=too-many-nested-blocks
                 for task in self.dag.topological_sort(include_subdag_tasks=True):
                     for key, ti in list(ti_status.to_run.items()):
                         if task.task_id != ti.task_id:
@@ -626,10 +639,12 @@ class BackfillJob(BaseJob):
 
     @provide_session
     def _collect_errors(self, ti_status, session=None):
-        def tabulate_ti_keys_set(set_ti_keys: Set[TaskInstanceKeyType]) -> str:
+        def tabulate_ti_keys_set(set_ti_keys: Set[TaskInstanceKey]) -> str:
             # Sorting by execution date first
             sorted_ti_keys = sorted(
-                set_ti_keys, key=lambda ti_key: (ti_key[2], ti_key[0], ti_key[1], ti_key[3]))
+                set_ti_keys, key=lambda ti_key:
+                (ti_key.execution_date, ti_key.dag_id, ti_key.task_id, ti_key.try_number)
+            )
             return tabulate(sorted_ti_keys, headers=["DAG ID", "Task ID", "Execution date", "Try number"])
 
         def tabulate_tis_set(set_tis: Set[TaskInstance]) -> str:
@@ -762,7 +777,10 @@ class BackfillJob(BaseJob):
 
         # picklin'
         pickle_id = None
-        if not self.donot_pickle and self.executor.__class__ not in (LocalExecutor, SequentialExecutor):
+
+        if not self.donot_pickle and self.executor_class not in (
+            ExecutorLoader.LOCAL_EXECUTOR, ExecutorLoader.SEQUENTIAL_EXECUTOR, ExecutorLoader.DASK_EXECUTOR,
+        ):
             pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()
@@ -773,11 +791,11 @@ class BackfillJob(BaseJob):
 
         ti_status.total_runs = len(run_dates)  # total dag runs in backfill
 
-        try:
+        try:  # pylint: disable=too-many-nested-blocks
             remaining_dates = ti_status.total_runs
             while remaining_dates > 0:
-                dates_to_process = [run_date for run_date in run_dates
-                                    if run_date not in ti_status.executed_dag_run_dates]
+                dates_to_process = [run_date for run_date in run_dates if run_date not in
+                                    ti_status.executed_dag_run_dates]
 
                 self._execute_for_run_dates(run_dates=dates_to_process,
                                             ti_status=ti_status,
@@ -791,7 +809,7 @@ class BackfillJob(BaseJob):
                 )
                 err = self._collect_errors(ti_status=ti_status, session=session)
                 if err:
-                    raise AirflowException(err)
+                    raise BackfillUnfinished(err, ti_status)
 
                 if remaining_dates > 0:
                     self.log.info(

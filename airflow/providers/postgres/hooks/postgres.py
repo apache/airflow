@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -57,6 +56,7 @@ class PostgresHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
         self.connection = kwargs.pop("connection", None)
+        self.conn = None
 
     def _get_cursor(self, raw_cursor):
         _cursor = raw_cursor.lower()
@@ -96,7 +96,7 @@ class PostgresHook(DbApiHook):
         self.conn = psycopg2.connect(**conn_args)
         return self.conn
 
-    def copy_expert(self, sql, filename, open=open):
+    def copy_expert(self, sql, filename):
         """
         Executes SQL using psycopg2 copy_expert method.
         Necessary to execute COPY command without access to a superuser.
@@ -130,6 +130,7 @@ class PostgresHook(DbApiHook):
         """
         self.copy_expert("COPY {table} TO STDOUT".format(table=table), tmp_file)
 
+    # pylint: disable=signature-differs
     @staticmethod
     def _serialize_cell(cell, conn):
         """
@@ -154,11 +155,11 @@ class PostgresHook(DbApiHook):
         or Redshift. Port is required. If none is provided, default is used for
         each service
         """
-        from airflow.contrib.hooks.aws_hook import AwsHook
+        from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
         redshift = conn.extra_dejson.get('redshift', False)
         aws_conn_id = conn.extra_dejson.get('aws_conn_id', 'aws_default')
-        aws_hook = AwsHook(aws_conn_id)
+        aws_hook = AwsBaseHook(aws_conn_id, client_type='rds')
         login = conn.login
         if conn.port is None:
             port = 5439 if redshift else 5432
@@ -177,6 +178,59 @@ class PostgresHook(DbApiHook):
             token = cluster_creds['DbPassword']
             login = cluster_creds['DbUser']
         else:
-            client = aws_hook.get_client_type('rds')
-            token = client.generate_db_auth_token(conn.host, port, conn.login)
+            token = aws_hook.conn.generate_db_auth_token(conn.host, port, conn.login)
         return login, token, port
+
+    @staticmethod
+    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+        """
+        Static helper method that generate the INSERT SQL statement.
+        The REPLACE variant is specific to MySQL syntax.
+
+        :param table: Name of the target table
+        :type table: str
+        :param values: The row to insert into the table
+        :type values: tuple of cell values
+        :param target_fields: The names of the columns to fill in the table
+        :type target_fields: iterable of strings
+        :param replace: Whether to replace instead of insert
+        :type replace: bool
+        :param replace_index: the column or list of column names to act as
+            index for the ON CONFLICT clause
+        :type replace_index: str or list
+        :return: The generated INSERT or REPLACE SQL statement
+        :rtype: str
+        """
+        placeholders = ["%s", ] * len(values)
+        replace_index = kwargs.get("replace_index", None)
+
+        if target_fields:
+            target_fields_fragment = ", ".join(target_fields)
+            target_fields_fragment = "({})".format(target_fields_fragment)
+        else:
+            target_fields_fragment = ''
+
+        sql = "INSERT INTO {0} {1} VALUES ({2})".format(
+            table,
+            target_fields_fragment,
+            ",".join(placeholders))
+
+        if replace:
+            if target_fields is None:
+                raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires column names")
+            if replace_index is None:
+                raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires an unique index")
+            if isinstance(replace_index, str):
+                replace_index = [replace_index]
+            replace_index_set = set(replace_index)
+
+            replace_target = [
+                "{0} = excluded.{0}".format(col)
+                for col in target_fields
+                if col not in replace_index_set
+            ]
+            sql += " ON CONFLICT ({0}) DO UPDATE SET {1}".format(
+                ", ".join(replace_index),
+                ", ".join(replace_target),
+            )
+        return sql

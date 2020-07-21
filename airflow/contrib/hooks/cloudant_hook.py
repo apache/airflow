@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,49 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Cloudant"""
-from cloudant import cloudant
+"""This module is deprecated. Please use `airflow.providers.cloudant.hooks.cloudant`."""
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.cloudant.hooks.cloudant import CloudantHook  # noqa
 
-class CloudantHook(BaseHook):
-    """
-    Interact with Cloudant. This class is a thin wrapper around the cloudant python library.
-
-    .. seealso:: the latest documentation `here <https://python-cloudant.readthedocs.io/en/latest/>`_.
-
-    :param cloudant_conn_id: The connection id to authenticate and get a session object from cloudant.
-    :type cloudant_conn_id: str
-    """
-
-    def __init__(self, cloudant_conn_id='cloudant_default'):
-        self.cloudant_conn_id = cloudant_conn_id
-
-    def get_conn(self):
-        """
-        Opens a connection to the cloudant service and closes it automatically if used as context manager.
-
-        .. note::
-            In the connection form:
-            - 'host' equals the 'Account' (optional)
-            - 'login' equals the 'Username (or API Key)' (required)
-            - 'password' equals the 'Password' (required)
-
-        :return: an authorized cloudant session context manager object.
-        :rtype: cloudant
-        """
-        conn = self.get_connection(self.cloudant_conn_id)
-
-        self._validate_connection(conn)
-
-        cloudant_session = cloudant(user=conn.login, passwd=conn.password, account=conn.host)
-
-        return cloudant_session
-
-    def _validate_connection(self, conn):
-        for conn_param in ['login', 'password']:
-            if not getattr(conn, conn_param):
-                raise AirflowException('missing connection parameter {conn_param}'.format(
-                    conn_param=conn_param))
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.cloudant.hooks.cloudant`.",
+    DeprecationWarning, stacklevel=2
+)

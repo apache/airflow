@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,29 +16,29 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.gcs`.
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.gcs`.
 """
 
 import warnings
 
-from airflow.gcp.operators.gcs import GCSToLocalOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.gcs`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.gcs`.",
     DeprecationWarning, stacklevel=2
 )
 
 
-class GoogleCloudStorageDownloadOperator(GCSToLocalOperator):
+class GoogleCloudStorageDownloadOperator(GCSToLocalFilesystemOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.gcs.GCSToLocalOperator`.
+    Please use `airflow.providers.google.cloud.operators.gcs.GCSToLocalFilesystemOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.gcs.GCSToLocalOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use `airflow.providers.google.cloud.operators.gcs.GCSToLocalFilesystemOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

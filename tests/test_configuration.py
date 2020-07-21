@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import io
 import os
+import re
+import tempfile
 import unittest
 import warnings
 from collections import OrderedDict
@@ -38,10 +40,6 @@ from tests.test_utils.reset_warning_registry import reset_warning_registry
     'AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD': 'echo -n "NOT OK"'
 })
 class TestConf(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        conf.set('core', 'percent', 'with%%inside')
 
     def test_airflow_home_default(self):
         with unittest.mock.patch.dict('os.environ'):
@@ -71,6 +69,7 @@ class TestConf(unittest.TestCase):
                 get_airflow_config('/home//airflow'),
                 '/path/to/airflow/airflow.cfg')
 
+    @conf_vars({("core", "percent"): "with%%inside"})
     def test_case_sensitivity(self):
         # section and key are case insensitive for get method
         # note: this is not the case for as_dict method
@@ -98,6 +97,7 @@ class TestConf(unittest.TestCase):
         'os.environ',
         AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY='nested'
     )
+    @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
 
@@ -118,6 +118,8 @@ class TestConf(unittest.TestCase):
         self.assertEqual(
             cfg_dict['core']['load_examples'][1], 'airflow.cfg')
         self.assertEqual(
+            cfg_dict['core']['load_default_connections'][1], 'airflow.cfg')
+        self.assertEqual(
             cfg_dict['testsection']['testkey'], ('< hidden >', 'env var'))
 
     def test_conf_as_dict_sensitive(self):
@@ -131,6 +133,7 @@ class TestConf(unittest.TestCase):
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('testvalue', 'env var'))
 
+    @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict_raw(self):
         # test display_sensitive
         cfg_dict = conf.as_dict(raw=True, display_sensitive=True)
@@ -166,7 +169,7 @@ key6 = value6
         test_conf = AirflowConfigParser(
             default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
-        test_conf.as_command_stdout = test_conf.as_command_stdout | {
+        test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ('test', 'key2'),
             ('test', 'key4'),
         }
@@ -200,6 +203,46 @@ key6 = value6
         self.assertNotIn('key4', cfg_dict['test'])
         self.assertEqual('printf key4_result', cfg_dict['test']['key4_cmd'])
 
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @conf_vars({
+        ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+        ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+    })
+    def test_config_from_secret_backend(self, mock_hvac):
+        """Get Config Value from a Secret Backend"""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            'request_id': '2d48a2ad-6bcb-e5b6-429d-da35fdf31f56',
+            'lease_id': '',
+            'renewable': False,
+            'lease_duration': 0,
+            'data': {'data': {'value': 'sqlite:////Users/airflow/airflow/airflow.db'},
+                     'metadata': {'created_time': '2020-03-28T02:10:54.301784Z',
+                                  'deletion_time': '',
+                                  'destroyed': False,
+                                  'version': 1}},
+            'wrap_info': None,
+            'warnings': None,
+            'auth': None
+        }
+
+        test_config = '''[test]
+sql_alchemy_conn_secret = sql_alchemy_conn
+'''
+        test_config_default = '''[test]
+sql_alchemy_conn = airflow
+'''
+
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
+        test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
+            ('test', 'sql_alchemy_conn'),
+        }
+
+        self.assertEqual(
+            'sqlite:////Users/airflow/airflow/airflow.db', test_conf.get('test', 'sql_alchemy_conn'))
+
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""
         test_config = """
@@ -220,7 +263,13 @@ key7 = 0
 key8 = true #123
 """
         test_conf = AirflowConfigParser(default_config=test_config)
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            AirflowConfigException,
+            re.escape(
+                'Failed to convert value to bool. Please check "key1" key in "type_validation" section. '
+                'Current value: "non_bool_value".'
+            )
+        ):
             test_conf.getboolean('type_validation', 'key1')
         self.assertTrue(isinstance(test_conf.getboolean('true', 'key3'), bool))
         self.assertEqual(True, test_conf.getboolean('true', 'key2'))
@@ -241,7 +290,13 @@ key1 = str
 key2 = 1
 """
         test_conf = AirflowConfigParser(default_config=test_config)
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            AirflowConfigException,
+            re.escape(
+                'Failed to convert value to int. Please check "key1" key in "invalid" section. '
+                'Current value: "str".'
+            )
+        ):
             test_conf.getint('invalid', 'key1')
         self.assertTrue(isinstance(test_conf.getint('valid', 'key2'), int))
         self.assertEqual(1, test_conf.getint('valid', 'key2'))
@@ -256,7 +311,13 @@ key1 = str
 key2 = 1.23
 """
         test_conf = AirflowConfigParser(default_config=test_config)
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            AirflowConfigException,
+            re.escape(
+                'Failed to convert value to float. Please check "key1" key in "invalid" section. '
+                'Current value: "str".'
+            )
+        ):
             test_conf.getfloat('invalid', 'key1')
         self.assertTrue(isinstance(test_conf.getfloat('valid', 'key2'), float))
         self.assertEqual(1.23, test_conf.getfloat('valid', 'key2'))
@@ -321,6 +382,21 @@ key3 = value3
             test_conf.getsection('testsection')
         )
 
+    def test_get_section_should_respect_cmd_env_variable(self):
+        with tempfile.NamedTemporaryFile(delete=False) as cmd_file:
+            cmd_file.write("#!/usr/bin/env bash\n".encode())
+            cmd_file.write("echo -n difficult_unpredictable_cat_password\n".encode())
+            cmd_file.flush()
+            os.chmod(cmd_file.name, 0o0555)
+            cmd_file.close()
+
+            with mock.patch.dict(
+                "os.environ", {"AIRFLOW__KUBERNETES__GIT_PASSWORD_CMD": cmd_file.name}
+            ):
+                content = conf.getsection("kubernetes")
+            os.unlink(cmd_file.name)
+        self.assertEqual(content["git_password"], "difficult_unpredictable_cat_password")
+
     def test_kubernetes_environment_variables_section(self):
         test_config = '''
 [kubernetes_environment_variables]
@@ -364,10 +440,8 @@ AIRFLOW_HOME = /root/airflow
             with mock.patch.dict('os.environ', AIRFLOW__CELERY__CELERYD_CONCURRENCY="99"):
                 self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
 
-        with self.assertWarns(DeprecationWarning):
-            conf.set('celery', 'celeryd_concurrency', '99')
+        with self.assertWarns(DeprecationWarning), conf_vars({('celery', 'celeryd_concurrency'): '99'}):
             self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
-            conf.remove_option('celery', 'celeryd_concurrency')
 
     @conf_vars({
         ('logging', 'logging_level'): None,
@@ -388,10 +462,8 @@ AIRFLOW_HOME = /root/airflow
             with mock.patch.dict('os.environ', AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
                 self.assertEqual(conf.get('logging', 'logging_level'), "VALUE")
 
-        with self.assertWarns(DeprecationWarning):
-            conf.set('core', 'logging_level', 'VALUE')
+        with self.assertWarns(DeprecationWarning), conf_vars({('core', 'logging_level'): 'VALUE'}):
             self.assertEqual(conf.get('logging', 'logging_level'), "VALUE")
-            conf.remove_option('core', 'logging_level')
 
     @conf_vars({
         ("celery", "result_backend"): None,
@@ -402,18 +474,17 @@ AIRFLOW_HOME = /root/airflow
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
         conf.deprecated_options[('celery', "result_backend")] = ('celery', 'celery_result_backend')
-        conf.as_command_stdout.add(('celery', 'celery_result_backend'))
+        conf.sensitive_config_values.add(('celery', 'celery_result_backend'))
 
         conf.remove_option('celery', 'result_backend')
-        conf.set('celery', 'celery_result_backend_cmd', '/bin/echo 99')
-
-        with self.assertWarns(DeprecationWarning):
-            tmp = None
-            if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
-                tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
-            self.assertEqual(conf.getint('celery', 'result_backend'), 99)
-            if tmp:
-                os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
+        with conf_vars({('celery', 'celery_result_backend_cmd'): '/bin/echo 99'}):
+            with self.assertWarns(DeprecationWarning):
+                tmp = None
+                if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
+                    tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
+                self.assertEqual(conf.getint('celery', 'result_backend'), 99)
+                if tmp:
+                    os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
 
     def test_deprecated_values(self):
         def make_config():
@@ -422,7 +493,8 @@ AIRFLOW_HOME = /root/airflow
             # lookup even if we remove this explicit fallback
             test_conf.deprecated_values = {
                 'core': {
-                    'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
+                    'task_runner': (re.compile(r'\ABashTaskRunner\Z'), r'StandardTaskRunner', '2.0'),
+                    'hostname_callable': (re.compile(r':'), r'.', '2.0'),
                 },
             }
             test_conf.read_dict({
@@ -430,6 +502,7 @@ AIRFLOW_HOME = /root/airflow
                     'executor': 'SequentialExecutor',
                     'task_runner': 'BashTaskRunner',
                     'sql_alchemy_conn': 'sqlite://',
+                    'hostname_callable': 'socket:getfqdn',
                 },
             })
             return test_conf
@@ -437,27 +510,39 @@ AIRFLOW_HOME = /root/airflow
         with self.assertWarns(FutureWarning):
             test_conf = make_config()
             self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+            self.assertEqual(test_conf.get('core', 'hostname_callable'), 'socket.getfqdn')
 
         with self.assertWarns(FutureWarning):
             with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='BashTaskRunner'):
                 test_conf = make_config()
 
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+
+        with self.assertWarns(FutureWarning):
+            with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__HOSTNAME_CALLABLE='socket:getfqdn'):
+                test_conf = make_config()
+
+                self.assertEqual(test_conf.get('core', 'hostname_callable'), 'socket.getfqdn')
+
         with reset_warning_registry():
             with warnings.catch_warnings(record=True) as warning:
-                with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
+                with unittest.mock.patch.dict('os.environ',
+                                              AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner',
+                                              AIRFLOW__CORE__HOSTNAME_CALLABLE='CarrierPigeon'):
                     test_conf = make_config()
 
                     self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
+                    self.assertEqual(test_conf.get('core', 'hostname_callable'), 'CarrierPigeon')
 
                     self.assertListEqual([], warning)
 
     def test_deprecated_funcs(self):
         for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
                      'remove_option', 'as_dict', 'set']:
-            with mock.patch('airflow.configuration.{}'.format(func)):
+            with mock.patch('airflow.configuration.conf.{}'.format(func)) as mock_method:
                 with self.assertWarns(DeprecationWarning):
                     getattr(configuration, func)()
+                mock_method.assert_called_once()
 
     def test_command_from_env(self):
         test_cmdenv_config = '''[testcmdenv]
@@ -466,13 +551,13 @@ notacommand = OK
 '''
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.read_string(test_cmdenv_config)
-        test_cmdenv_conf.as_command_stdout.add(('testcmdenv', 'itsacommand'))
+        test_cmdenv_conf.sensitive_config_values.add(('testcmdenv', 'itsacommand'))
         with unittest.mock.patch.dict('os.environ'):
             # AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD maps to ('testcmdenv', 'itsacommand') in
-            # as_command_stdout and therefore should return 'OK' from the environment variable's
+            # sensitive_config_values and therefore should return 'OK' from the environment variable's
             # echo command, and must not return 'NOT OK' from the configuration
             self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'itsacommand'), 'OK')
-            # AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD maps to no entry in as_command_stdout and therefore
+            # AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD maps to no entry in sensitive_config_values and therefore
             # the option should return 'OK' from the configuration, and must not return 'NOT OK' from
             # the environement variable's echo command
             self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'notacommand'), 'OK')
@@ -535,6 +620,13 @@ notacommand = OK
 
         self.assertEqual(value, fernet_key)
 
+    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
+    def test_write_should_respect_env_variable(self):
+        with io.StringIO() as string_file:
+            conf.write(string_file)
+            content = string_file.getvalue()
+        self.assertIn("dags_folder = /tmp/test_folder", content)
+
     def test_run_command(self):
         write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
 
@@ -547,3 +639,22 @@ notacommand = OK
 
     def test_confirm_unittest_mod(self):
         self.assertTrue(conf.get('core', 'unit_test_mode'))
+
+    @conf_vars({("core", "store_serialized_dags"): "True"})
+    def test_store_dag_code_default_config(self):
+        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
+        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
+        self.assertFalse(conf.has_option("core", "store_dag_code"))
+        self.assertTrue(store_serialized_dags)
+        self.assertTrue(store_dag_code)
+
+    @conf_vars({
+        ("core", "store_serialized_dags"): "True",
+        ("core", "store_dag_code"): "False"
+    })
+    def test_store_dag_code_config_when_set(self):
+        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
+        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
+        self.assertTrue(conf.has_option("core", "store_dag_code"))
+        self.assertTrue(store_serialized_dags)
+        self.assertFalse(store_dag_code)

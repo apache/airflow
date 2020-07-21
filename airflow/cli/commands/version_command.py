@@ -16,9 +16,8 @@
 # under the License.
 """Version command"""
 import airflow
-from airflow import settings
 
 
 def version(args):
     """Displays Airflow version at the command line"""
-    print(settings.HEADER + "  v" + airflow.__version__)
+    print(airflow.__version__)

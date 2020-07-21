@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,4 +23,5 @@ routes = Blueprint('routes', __name__)
 
 @routes.route('/')
 def index():
+    """Main Airflow page"""
     return redirect(url_for('Airflow.index'))

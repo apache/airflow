@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -66,7 +65,7 @@ class TestPinotAdminHook(unittest.TestCase):
         params = {
             "generator_config_file": "a",
             "data_dir": "b",
-            "format": "c",
+            "segment_format": "c",
             "out_dir": "d",
             "overwrite": True,
             "table_name": "e",
@@ -90,7 +89,7 @@ class TestPinotAdminHook(unittest.TestCase):
             'CreateSegment',
             '-generatorConfigFile', params["generator_config_file"],
             '-dataDir', params["data_dir"],
-            '-format', params["format"],
+            '-format', params["segment_format"],
             '-outDir', params["out_dir"],
             '-overwrite', params["overwrite"],
             '-tableName', params["table_name"],

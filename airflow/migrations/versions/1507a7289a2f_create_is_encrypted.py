@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -42,7 +41,7 @@ connectionhelper = sa.Table(
 )
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     # first check if the user already has this done. This should only be
     # true for users who are upgrading from a previous version of Airflow
     # that predates Alembic integration
@@ -66,5 +65,5 @@ def upgrade():
     )
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_column('connection', 'is_encrypted')

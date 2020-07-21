@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,28 +21,22 @@ This module contains a hook (AwsLogsHook) with some very basic
 functionality for interacting with AWS CloudWatch.
 """
 
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsLogsHook(AwsHook):
+class AwsLogsHook(AwsBaseHook):
     """
     Interact with AWS CloudWatch Logs
 
-    :param region_name: AWS Region Name (example: us-west-2)
-    :type region_name: str
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, region_name=None, *args, **kwargs):
-        self.region_name = region_name
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        """
-        Establish an AWS connection for retrieving logs.
-
-        :rtype: CloudWatchLogs.Client
-        """
-        return self.get_client_type('logs', region_name=self.region_name)
+    def __init__(self, *args, **kwargs):
+        super().__init__(client_type='logs', *args, **kwargs)
 
     def get_log_events(self, log_group, log_stream_name, start_time=0, skip=0, start_from_head=True):
         """

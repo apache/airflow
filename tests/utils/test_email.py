@@ -97,10 +97,8 @@ class TestEmail(unittest.TestCase):
         self.assertFalse(mock_send_email.called)
 
 
+@conf_vars({('smtp', 'SMTP_SSL'): 'False'})
 class TestEmailSmtp(unittest.TestCase):
-    def setUp(self):
-        conf.set('smtp', 'SMTP_SSL', 'False')
-
     @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_smtp(self, mock_send_mime):
         attachment = tempfile.NamedTemporaryFile()

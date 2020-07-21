@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -28,11 +27,11 @@ from google.cloud.language_v1.types import (
     AnnotateTextRequest, AnnotateTextResponse, ClassifyTextResponse, Document,
 )
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 # noinspection PyAbstractClass
-class CloudNaturalLanguageHook(CloudBaseHook):
+class CloudNaturalLanguageHook(GoogleBaseHook):
     """
     Hook for Google Cloud Natural Language Service.
 
@@ -62,8 +61,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             )
         return self._conn
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def analyze_entities(
         self,
         document: Union[Dict, Document],
@@ -78,7 +76,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or class google.cloud.language_v1.types.Document
+        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
         :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
@@ -97,8 +95,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def analyze_entity_sentiment(
         self,
         document: Union[Dict, Document],
@@ -113,7 +110,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or class google.cloud.language_v1.types.Document
+        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
         :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
@@ -132,8 +129,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def analyze_sentiment(
         self,
         document: Union[Dict, Document],
@@ -147,7 +143,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or class google.cloud.language_v1.types.Document
+        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
         :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
@@ -166,8 +162,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def analyze_syntax(
         self,
         document: Union[Dict, Document],
@@ -182,7 +177,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or class google.cloud.language_v1.types.Document#
+        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
         :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
@@ -201,8 +196,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def annotate_text(
         self,
         document: Union[Dict, Document],
@@ -245,8 +239,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
             metadata=metadata,
         )
 
-    @CloudBaseHook.catch_http_exception
-    @CloudBaseHook.quota_retry()
+    @GoogleBaseHook.quota_retry()
     def classify_text(
         self,
         document: Union[Dict, Document],
@@ -259,7 +252,7 @@ class CloudNaturalLanguageHook(CloudBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or class google.cloud.language_v1.types.Document
+        :type document: dict or google.cloud.language_v1.types.Document
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
             retried.
         :type retry: google.api_core.retry.Retry

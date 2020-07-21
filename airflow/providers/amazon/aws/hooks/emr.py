@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,31 +16,38 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class EmrHook(AwsHook):
+class EmrHook(AwsBaseHook):
     """
     Interact with AWS EMR. emr_conn_id is only necessary for using the
     create_job_flow method.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, emr_conn_id=None, region_name=None, *args, **kwargs):
+    def __init__(self, emr_conn_id=None, *args, **kwargs):
         self.emr_conn_id = emr_conn_id
-        self.region_name = region_name
-        self.conn = None
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        if not self.conn:
-            self.conn = self.get_client_type('emr', self.region_name)
-        return self.conn
+        super().__init__(client_type='emr', *args, **kwargs)
 
     def get_cluster_id_by_name(self, emr_cluster_name, cluster_states):
-        conn = self.get_conn()
+        """
+        Fetch id of EMR cluster with given name and (optional) states. Will return only if single id is found.
 
-        response = conn.list_clusters(
+        :param emr_cluster_name: Name of a cluster to find
+        :type emr_cluster_name: str
+        :param cluster_states: State(s) of cluster to find
+        :type cluster_states: list
+        :return: id of the EMR cluster
+        """
+
+        response = self.get_conn().list_clusters(
             ClusterStates=cluster_states
         )
 
@@ -54,7 +60,7 @@ class EmrHook(AwsHook):
             self.log.info('Found cluster name = %s id = %s', emr_cluster_name, cluster_id)
             return cluster_id
         elif len(matching_clusters) > 1:
-            raise AirflowException('More than one cluster found for name %s', emr_cluster_name)
+            raise AirflowException(f'More than one cluster found for name {emr_cluster_name}')
         else:
             self.log.info('No cluster found for name %s', emr_cluster_name)
             return None

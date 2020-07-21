@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,7 +22,7 @@ from unittest.mock import MagicMock, patch
 
 from dateutil.tz import tzlocal
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor
 
 DESCRIBE_CLUSTER_STARTING_RETURN = {
@@ -311,7 +310,3 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             # make sure it was called with the job_flow_id
             calls = [unittest.mock.call(ClusterId='j-8989898989')]
             self.mock_emr_client.describe_cluster.assert_has_calls(calls)
-
-
-if __name__ == '__main__':
-    unittest.main()

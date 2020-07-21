@@ -32,22 +32,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Kerberos security provider"""
-
+import logging
 import socket
 import subprocess
 import sys
 import time
 from typing import Optional
 
-from airflow import LoggingMixin
 from airflow.configuration import conf
 
 NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
-def renew_from_kt(principal: str, keytab: str):
+def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
     """
     Renew kerberos token from keytab
 
@@ -83,9 +82,14 @@ def renew_from_kt(principal: str, keytab: str):
     if subp.returncode != 0:
         log.error(
             "Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s",
-            subp.returncode, "\n".join(subp.stdout.readlines()), "\n".join(subp.stderr.readlines())
+            subp.returncode,
+            "\n".join(subp.stdout.readlines() if subp.stdout else []),
+            "\n".join(subp.stderr.readlines() if subp.stderr else [])
         )
-        sys.exit(subp.returncode)
+        if exit_on_fail:
+            sys.exit(subp.returncode)
+        else:
+            return subp.returncode
 
     global NEED_KRB181_WORKAROUND  # pylint: disable=global-statement
     if NEED_KRB181_WORKAROUND is None:
@@ -94,7 +98,12 @@ def renew_from_kt(principal: str, keytab: str):
         # (From: HUE-640). Kerberos clock have seconds level granularity. Make sure we
         # renew the ticket after the initial valid time.
         time.sleep(1.5)
-        perform_krb181_workaround(principal)
+        ret = perform_krb181_workaround(principal)
+        if exit_on_fail and ret != 0:
+            sys.exit(ret)
+        else:
+            return ret
+    return 0
 
 
 def perform_krb181_workaround(principal: str):
@@ -126,7 +135,7 @@ def perform_krb181_workaround(principal: str):
             "configuration, and the ticket renewal policy (maxrenewlife) for the '%s' and `krbtgt' "
             "principals.", princ, ccache, princ
         )
-        sys.exit(ret)
+    return ret
 
 
 def detect_conf_var() -> bool:

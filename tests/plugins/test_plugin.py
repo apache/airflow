@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -85,13 +84,6 @@ bp = Blueprint(
     static_url_path='/static/test_plugin')
 
 
-class StatsClass:
-    @staticmethod
-    # Create a handler to validate statsd stat name
-    def stat_name_dummy_handler(stat_name: str) -> str:
-        return stat_name
-
-
 # Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
@@ -103,7 +95,6 @@ class AirflowTestPlugin(AirflowPlugin):
     flask_blueprints = [bp]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
-    stat_name_handler = StatsClass.stat_name_dummy_handler
     global_operator_extra_links = [
         AirflowLink(),
         GithubLink(),

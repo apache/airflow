@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -44,7 +43,3 @@ class TestS3ListOperator(unittest.TestCase):
         mock_hook.return_value.list_keys.assert_called_once_with(
             bucket_name=BUCKET, prefix=PREFIX, delimiter=DELIMITER)
         self.assertEqual(sorted(files), sorted(MOCK_FILES))
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,7 +23,7 @@ import mock
 from google.cloud.language_v1.proto.language_service_pb2 import Document
 
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
+from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 API_RESPONSE = {}  # type: Dict[Any, Any]
 DOCUMENT = Document(
@@ -36,7 +35,7 @@ ENCODING_TYPE = "UTF32"
 class TestCloudNaturalLanguageHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.contrib.hooks." "gcp_api_base_hook.CloudBaseHook.__init__",
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudNaturalLanguageHook(gcp_conn_id="test")

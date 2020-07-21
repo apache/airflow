@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,6 +24,7 @@ from airflow.exceptions import AirflowSensorTimeout
 from airflow.sensors.python import PythonSensor
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
 from tests.operators.test_python import Call, TestPythonBase, build_recording_function
 
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -82,7 +82,7 @@ class TestPythonSensor(TestPythonBase):
             dag=self.dag)
 
         self.dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING
@@ -120,7 +120,7 @@ class TestPythonSensor(TestPythonBase):
             dag=self.dag)
 
         self.dag.create_dagrun(
-            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             state=State.RUNNING

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -32,9 +31,13 @@ class AzureContainerVolumeHook(BaseHook):
     """
 
     def __init__(self, wasb_conn_id='wasb_default'):
+        super().__init__()
         self.conn_id = wasb_conn_id
 
     def get_storagekey(self):
+        """
+        Get Azure File Volume storage key
+        """
         conn = self.get_connection(self.conn_id)
         service_options = conn.extra_dejson
 
@@ -47,6 +50,9 @@ class AzureContainerVolumeHook(BaseHook):
 
     def get_file_volume(self, mount_name, share_name,
                         storage_account_name, read_only=False):
+        """
+        Get Azure File Volume
+        """
         return Volume(name=mount_name,
                       azure_file=AzureFileVolume(share_name=share_name,
                                                  storage_account_name=storage_account_name,

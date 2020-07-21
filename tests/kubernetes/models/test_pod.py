@@ -15,11 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-import unittest.mock as mock
 import uuid
+from unittest import mock
 
-import kubernetes.client.models as k8s
-from kubernetes.client import ApiClient
+from kubernetes.client import ApiClient, models as k8s
 
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod import Port
@@ -61,7 +60,6 @@ class TestPod(unittest.TestCase):
                     'env': [],
                     'envFrom': [],
                     'image': 'airflow-worker:latest',
-                    'imagePullPolicy': 'IfNotPresent',
                     'name': 'base',
                     'ports': [{
                         'name': 'https',
@@ -74,7 +72,6 @@ class TestPod(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
-                'restartPolicy': 'Never',
                 'volumes': []
             }
         }, result)

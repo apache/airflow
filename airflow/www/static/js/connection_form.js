@@ -55,11 +55,23 @@ $(document).ready(function () {
         'host': 'https://<env>.qubole.com/api'
       }
     },
+    kubernetes: {
+      hidden_fields: ['host', 'schema', 'login', 'password', 'port', 'extra'],
+      relabeling: {},
+    },
     ssh: {
       hidden_fields: ['schema'],
       relabeling: {
         'login': 'Username',
       }
+    },
+    yandexcloud: {
+      hidden_fields: ['host', 'schema', 'login', 'password', 'port', 'extra'],
+      relabeling: {},
+    },
+    spark: {
+      hidden_fields: ['schema', 'login', 'password'],
+      relabeling: {},
     },
   };
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -122,7 +121,3 @@ class TestSageMakerTransformOperator(unittest.TestCase):
                                        'ResponseMetadata':
                                        {'HTTPStatusCode': 404}}
         self.assertRaises(AirflowException, self.sagemaker.execute, None)
-
-
-if __name__ == '__main__':
-    unittest.main()

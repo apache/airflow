@@ -14,13 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import FrozenSet, NamedTuple, Optional
+import warnings
+from typing import NamedTuple
+from unittest import mock
 
 import attr
 
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -103,8 +105,7 @@ class CustomOpLink(BaseOperatorLink):
 
 class CustomOperator(BaseOperator):
 
-    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
-    __serialized_fields: Optional[FrozenSet[str]] = None
+    template_fields = ['bash_command']
 
     @property
     def operator_extra_links(self):
@@ -127,13 +128,6 @@ class CustomOperator(BaseOperator):
     def execute(self, context):
         self.log.info("Hello World!")
         context['task_instance'].xcom_push(key='search_query', value="dummy_value")
-
-    @classmethod
-    def get_serialized_fields(cls):
-        """Stringified CustomOperator contain exactly these fields."""
-        if not cls.__serialized_fields:
-            cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"bash_command"})
-        return cls.__serialized_fields
 
 
 class GoogleLink(BaseOperatorLink):
@@ -166,3 +160,19 @@ class GithubLink(BaseOperatorLink):
 
     def get_link(self, operator, dttm):
         return 'https://github.com/apache/airflow'
+
+
+class MockHiveOperator(HiveOperator):
+    def __init__(self, *args, **kwargs):
+        self.run = mock.MagicMock()
+        super().__init__(*args, **kwargs)
+
+
+class DeprecatedOperator(BaseOperator):
+    @apply_defaults
+    def __init__(self, *args, **kwargs):
+        warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=4)
+        super().__init__(*args, **kwargs)
+
+    def execute(self, context):
+        pass

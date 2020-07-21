@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -43,22 +42,24 @@ class AzureDataLakeHook(BaseHook):
     """
 
     def __init__(self, azure_data_lake_conn_id='azure_data_lake_default'):
+        super().__init__()
         self.conn_id = azure_data_lake_conn_id
-        self.connection = self.get_conn()
+        self._conn = None
+        self.account_name = None
 
     def get_conn(self):
         """Return a AzureDLFileSystem object."""
-        conn = self.get_connection(self.conn_id)
-        service_options = conn.extra_dejson
-        self.account_name = service_options.get('account_name')
+        if not self._conn:
+            conn = self.get_connection(self.conn_id)
+            service_options = conn.extra_dejson
+            self.account_name = service_options.get('account_name')
 
-        adlCreds = lib.auth(tenant_id=service_options.get('tenant'),
-                            client_secret=conn.password,
-                            client_id=conn.login)
-        adlsFileSystemClient = core.AzureDLFileSystem(adlCreds,
-                                                      store_name=self.account_name)
-        adlsFileSystemClient.connect()
-        return adlsFileSystemClient
+            adl_creds = lib.auth(tenant_id=service_options.get('tenant'),
+                                 client_secret=conn.password,
+                                 client_id=conn.login)
+            self._conn = core.AzureDLFileSystem(adl_creds, store_name=self.account_name)
+            self._conn.connect()
+        return self._conn
 
     def check_for_file(self, file_path):
         """
@@ -70,7 +71,7 @@ class AzureDataLakeHook(BaseHook):
         :rtype: bool
         """
         try:
-            files = self.connection.glob(file_path, details=False, invalidate_cache=True)
+            files = self.get_conn().glob(file_path, details=False, invalidate_cache=True)
             return len(files) == 1
         except FileNotFoundError:
             return False
@@ -103,7 +104,7 @@ class AzureDataLakeHook(BaseHook):
             block for each API call. This block cannot be bigger than a chunk.
         :type blocksize: int
         """
-        multithread.ADLUploader(self.connection,
+        multithread.ADLUploader(self.get_conn(),
                                 lpath=local_path,
                                 rpath=remote_path,
                                 nthreads=nthreads,
@@ -140,7 +141,7 @@ class AzureDataLakeHook(BaseHook):
             block for each API call. This block cannot be bigger than a chunk.
         :type blocksize: int
         """
-        multithread.ADLDownloader(self.connection,
+        multithread.ADLDownloader(self.get_conn(),
                                   lpath=local_path,
                                   rpath=remote_path,
                                   nthreads=nthreads,
@@ -156,6 +157,6 @@ class AzureDataLakeHook(BaseHook):
         :type path: str
         """
         if "*" in path:
-            return self.connection.glob(path)
+            return self.get_conn().glob(path)
         else:
-            return self.connection.walk(path)
+            return self.get_conn().walk(path)

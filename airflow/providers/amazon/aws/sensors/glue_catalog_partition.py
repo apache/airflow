@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -66,6 +66,7 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
+        self.hook = None
 
     def poke(self, context):
         """
@@ -84,10 +85,8 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         """
         Gets the AwsGlueCatalogHook
         """
-        if not hasattr(self, 'hook'):
-            from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
+        if not self.hook:
             self.hook = AwsGlueCatalogHook(
                 aws_conn_id=self.aws_conn_id,
                 region_name=self.region_name)
-
         return self.hook

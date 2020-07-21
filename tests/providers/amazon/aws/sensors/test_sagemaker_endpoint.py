@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -93,12 +92,6 @@ class TestSageMakerEndpointSensor(unittest.TestCase):
 
         # make sure the hook was initialized with the specific params
         calls = [
-            mock.call(aws_conn_id='aws_test'),
-            mock.call(aws_conn_id='aws_test'),
             mock.call(aws_conn_id='aws_test')
         ]
         hook_init.assert_has_calls(calls)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,12 +23,14 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class PrestoException(Exception):
-    pass
+    """
+    Presto exception
+    """
 
 
 class PrestoHook(DbApiHook):
     """
-    Interact with Presto through PyHive!
+    Interact with Presto through prestodb.
 
     >>> ph = PrestoHook()
     >>> sql = "SELECT count(1) AS num FROM airflow.static_babynames"
@@ -42,7 +43,7 @@ class PrestoHook(DbApiHook):
 
     def get_conn(self):
         """Returns a connection object"""
-        db = self.get_connection(self.presto_conn_id)
+        db = self.get_connection(self.presto_conn_id)  # pylint: disable=no-member
         auth = prestodb.auth.BasicAuthentication(db.login, db.password) if db.password else None
 
         return prestodb.dbapi.connect(
@@ -59,27 +60,13 @@ class PrestoHook(DbApiHook):
 
     def get_isolation_level(self):
         """Returns an isolation level"""
-        db = self.get_connection(self.presto_conn_id)
+        db = self.get_connection(self.presto_conn_id)  # pylint: disable=no-member
         isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 
     @staticmethod
     def _strip_sql(sql):
         return sql.strip().rstrip(';')
-
-    @staticmethod
-    def _get_pretty_exception_message(e):
-        """
-        Parses some DatabaseError to provide a better error message
-        """
-        if (hasattr(e, 'message') and
-            'errorName' in e.message and
-                'message' in e.message):
-            return ('{name}: {message}'.format(
-                    name=e.message['errorName'],
-                    message=e.message['message']))
-        else:
-            return str(e)
 
     def get_records(self, hql, parameters=None):
         """
@@ -89,7 +76,7 @@ class PrestoHook(DbApiHook):
             return super().get_records(
                 self._strip_sql(hql), parameters)
         except DatabaseError as e:
-            raise PrestoException(self._get_pretty_exception_message(e))
+            raise PrestoException(e)
 
     def get_first(self, hql, parameters=None):
         """
@@ -100,7 +87,7 @@ class PrestoHook(DbApiHook):
             return super().get_first(
                 self._strip_sql(hql), parameters)
         except DatabaseError as e:
-            raise PrestoException(self._get_pretty_exception_message(e))
+            raise PrestoException(e)
 
     def get_pandas_df(self, hql, parameters=None):
         """
@@ -112,7 +99,7 @@ class PrestoHook(DbApiHook):
             cursor.execute(self._strip_sql(hql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
-            raise PrestoException(self._get_pretty_exception_message(e))
+            raise PrestoException(e)
         column_descriptions = cursor.description
         if data:
             df = pandas.DataFrame(data)

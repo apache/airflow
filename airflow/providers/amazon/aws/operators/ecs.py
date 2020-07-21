@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,43 +18,59 @@
 import re
 import sys
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 
-from typing_extensions import runtime_checkable
-
-from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.typing_compat import Protocol
+from airflow.typing_compat import Protocol, runtime_checkable
 from airflow.utils.decorators import apply_defaults
 
 
 @runtime_checkable
 class ECSProtocol(Protocol):
+    """
+    A structured Protocol for ``boto3.client('ecs')``. This is used for type hints on
+    :py:meth:`.ECSOperator.client`.
+
+    .. seealso::
+
+        - https://mypy.readthedocs.io/en/latest/protocols.html
+        - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
+    """
+
     def run_task(self, **kwargs):
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501  # pylint: disable=line-too-long
         ...
 
     def get_waiter(self, x: str):
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501  # pylint: disable=line-too-long
         ...
 
-    def describe_tasks(self, cluster, tasks):
+    def describe_tasks(self, cluster: str, tasks) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks"""  # noqa: E501  # pylint: disable=line-too-long
         ...
 
-    def stop_task(self, cluster, task, reason: str):
+    def stop_task(self, cluster, task, reason: str) -> Dict:
+        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501  # pylint: disable=line-too-long
         ...
 
 
-class ECSOperator(BaseOperator):
+class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
-    Execute a task on AWS EC2 Container Service
+    Execute a task on AWS ECS (Elastic Container Service)
 
-    :param task_definition: the task definition name on EC2 Container Service
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ECSOperator`
+
+    :param task_definition: the task definition name on Elastic Container Service
     :type task_definition: str
-    :param cluster: the cluster name on EC2 Container Service
+    :param cluster: the cluster name on Elastic Container Service
     :type cluster: str
     :param overrides: the same parameter that boto3 will receive (templated):
-        http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
     :type overrides: dict
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
@@ -98,11 +113,11 @@ class ECSOperator(BaseOperator):
     template_fields = ('overrides',)
 
     @apply_defaults
-    def __init__(self, task_definition, cluster, overrides,
+    def __init__(self, task_definition, cluster, overrides,  # pylint: disable=too-many-arguments
                  aws_conn_id=None, region_name=None, launch_type='EC2',
                  group=None, placement_constraints=None, platform_version='LATEST',
                  network_configuration=None, tags=None, awslogs_group=None,
-                 awslogs_region=None, awslogs_stream_prefix=None, **kwargs):
+                 awslogs_region=None, awslogs_stream_prefix=None, propagate_tags=None, **kwargs):
         super().__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
@@ -120,11 +135,12 @@ class ECSOperator(BaseOperator):
         self.awslogs_group = awslogs_group
         self.awslogs_stream_prefix = awslogs_stream_prefix
         self.awslogs_region = awslogs_region
+        self.propagate_tags = propagate_tags
 
         if self.awslogs_region is None:
             self.awslogs_region = region_name
 
-        self.hook = self.get_hook()
+        self.hook = None
 
     def execute(self, context):
         self.log.info(
@@ -133,21 +149,19 @@ class ECSOperator(BaseOperator):
         )
         self.log.info('ECSOperator overrides: %s', self.overrides)
 
-        self.client = self.hook.get_client_type(
-            'ecs',
-            region_name=self.region_name
-        )
+        self.client = self.get_hook().get_conn()
 
         run_opts = {
             'cluster': self.cluster,
             'taskDefinition': self.task_definition,
             'overrides': self.overrides,
             'startedBy': self.owner,
-            'launchType': self.launch_type,
         }
 
-        if self.launch_type == 'FARGATE':
-            run_opts['platformVersion'] = self.platform_version
+        if self.launch_type:
+            run_opts['launchType'] = self.launch_type
+            if self.launch_type == 'FARGATE':
+                run_opts['platformVersion'] = self.platform_version
         if self.group is not None:
             run_opts['group'] = self.group
         if self.placement_constraints is not None:
@@ -156,6 +170,8 @@ class ECSOperator(BaseOperator):
             run_opts['networkConfiguration'] = self.network_configuration
         if self.tags is not None:
             run_opts['tags'] = [{'key': k, 'value': v} for (k, v) in self.tags.items()]
+        if self.propagate_tags is not None:
+            run_opts['propagateTags'] = self.propagate_tags
 
         response = self.client.run_task(**run_opts)
 
@@ -191,8 +207,8 @@ class ECSOperator(BaseOperator):
             task_id = self.arn.split("/")[-1]
             stream_name = "{}/{}".format(self.awslogs_stream_prefix, task_id)
             for event in self.get_logs_hook().get_log_events(self.awslogs_group, stream_name):
-                dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
-                self.log.info("[{}] {}".format(dt.isoformat(), event['message']))
+                event_dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
+                self.log.info("[%s] %s", event_dt.isoformat(), event['message'])
 
         if len(response.get('failures', [])) > 0:
             raise AirflowException(response)
@@ -201,7 +217,7 @@ class ECSOperator(BaseOperator):
             # This is a `stoppedReason` that indicates a task has not
             # successfully finished, but there is no other indication of failure
             # in the response.
-            # See, https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html # noqa E501
+            # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html
             if re.match(r'Host EC2 \(instance .+?\) (stopped|terminated)\.',
                         task.get('stoppedReason', '')):
                 raise AirflowException(
@@ -221,11 +237,17 @@ class ECSOperator(BaseOperator):
                         format(container.get('reason', '').lower()))
 
     def get_hook(self):
-        return AwsHook(
-            aws_conn_id=self.aws_conn_id
-        )
+        """Create and return an AwsHook."""
+        if not self.hook:
+            self.hook = AwsBaseHook(
+                aws_conn_id=self.aws_conn_id,
+                client_type='ecs',
+                region_name=self.region_name
+            )
+        return self.hook
 
     def get_logs_hook(self):
+        """Create and return an AwsLogsHook."""
         return AwsLogsHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.awslogs_region

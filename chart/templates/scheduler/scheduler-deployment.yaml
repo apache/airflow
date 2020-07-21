@@ -1,0 +1,211 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+################################
+## Airflow Scheduler Deployment/StatefulSet
+#################################
+
+# Are we using a local/sequenial executor?
+{{- $local := or (eq .Values.executor "LocalExecutor") (eq .Values.executor "SequentialExecutor") }}
+# Are we using the kubernetes executor?
+{{- $kube := eq .Values.executor "KubernetesExecutor" }}
+# Is persistence enabled on the _workers_?
+# This is important because in $local mode, the scheduler assumes the role of the worker
+{{- $persistence := .Values.workers.persistence.enabled }}
+# If we're using a StatefulSet
+{{- $stateful := and $local $persistence }}
+# If we're using elasticsearch logging
+{{- $elasticsearch := .Values.elasticsearch.enabled }}
+
+kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
+apiVersion: apps/v1
+metadata:
+  name: {{ .Release.Name }}-scheduler
+  labels:
+    tier: airflow
+    component: scheduler
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+{{- if $stateful }}
+  serviceName: {{ .Release.Name }}-scheduler
+{{- end }}
+  replicas: 1
+  selector:
+    matchLabels:
+      tier: airflow
+      component: scheduler
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: scheduler
+        release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+      annotations:
+        checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
+        checksum/result-backend-secret: {{ include (print $.Template.BasePath "/secrets/result-backend-connection-secret.yaml") . | sha256sum }}
+        checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
+        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.scheduler.safeToEvict }}
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+        {{- end }}
+        {{- if .Values.airflowPodAnnotations }}
+        {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+        {{- end }}
+    spec:
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: {{ .Release.Name }}-scheduler-serviceaccount
+      securityContext:
+        runAsUser: {{ .Values.uid }}
+        fsGroup: {{ .Values.gid }}
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
+      initContainers:
+        - name: run-airflow-migrations
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          # Support running against 1.10.x and 2.0.0dev/master
+          args: ["bash", "-c", "airflow upgradedb || airflow db upgrade"]
+          env:
+          {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- include "standard_airflow_environment" . | indent 10 }}
+      containers:
+        # Always run the main scheduler container.
+        - name: scheduler
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          args: ["scheduler"]
+          env:
+          {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- include "standard_airflow_environment" . | indent 10 }}
+          # If the scheduler stops heartbeating for 5 minutes (10*30s) kill the
+          # scheduler and let Kubernetes restart it
+          livenessProbe:
+            failureThreshold: 10
+            periodSeconds: 30
+            exec:
+              command:
+              - python
+              - -Wignore
+              - -c
+              - |
+                import os
+                os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
+                os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
+
+                from airflow.jobs.scheduler_job import SchedulerJob
+                from airflow.utils.net import get_hostname
+                import sys
+
+                job = SchedulerJob.most_recent_job()
+                sys.exit(0 if job.is_alive() and job.hostname == get_hostname() else 1)
+          resources:
+{{ toYaml .Values.scheduler.resources | indent 12 }}
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+            - name: config
+              mountPath: {{ template "airflow_config_path" . }}
+              subPath: airflow.cfg
+              readOnly: true
+{{- if .Values.scheduler.airflowLocalSettings }}
+            - name: config
+              mountPath: {{ template "airflow_local_setting_path" . }}
+              subPath: airflow_local_settings.py
+              readOnly: true
+{{- end }}
+{{- if .Values.dags.gitSync.enabled }}
+            - name: dags
+              mountPath: {{ template "airflow_dags_mount_path" . }}
+        {{- include "git_sync_container" . | indent 8 }}
+{{- end }}
+        # Always start the garbage collector sidecar.
+        - name: scheduler-gc
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          args: ["bash", "/clean-logs"]
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+{{- if and $local (not $elasticsearch) }}
+        # Start the sidecar log server if we're in local mode and
+        # we don't have elasticsearch enabled.
+        - name: scheduler-logs
+          image: {{ template "airflow_image" . }}
+          args: ["airflow", "serve_logs"]
+          ports:
+            - name: worker-logs
+              containerPort: {{ .Values.ports.workerLogs }}
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+            - name: config
+              mountPath: {{ template "airflow_config_path" . }}
+              subPath: airflow.cfg
+              readOnly: true
+          env:
+          {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- include "standard_airflow_environment" . | indent 10 }}
+{{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ template "airflow_config" . }}
+        {{- if .Values.dags.persistence.enabled }}
+        - name: dags
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_dags_volume_claim" . }}
+        {{- else if .Values.dags.gitSync.enabled }}
+        - name: dags
+          emptyDir: {}
+        {{- end }}
+        {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
+        {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+        {{- end }}
+{{- if not $stateful }}
+        - name: logs
+          emptyDir: {}
+{{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: logs
+      spec:
+      {{- if .Values.workers.persistence.storageClassName }}
+        storageClassName: {{ .Values.workers.persistence.storageClassName }}
+      {{- end }}
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.workers.persistence.size }}
+{{- end }}

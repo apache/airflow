@@ -19,8 +19,10 @@
 
 import os
 from typing import Any, Dict, Union
+from urllib.parse import urlparse
 
-from airflow import AirflowException, conf
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.utils.file import mkdirs
 
 # TODO: Logging format and level should be configured
@@ -98,6 +100,11 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'handler': ['console'],
             'level': FAB_LOG_LEVEL,
             'propagate': True,
+        },
+        'connexion': {
+            'handler': ['console'],
+            'level': LOG_LEVEL,
+            'propagate': True,
         }
     },
     'root': {
@@ -154,6 +161,7 @@ if REMOTE_LOGGING:
 
     # Storage bucket URL for remote logging
     # S3 buckets should start with "s3://"
+    # Cloudwatch log groups should start with "cloudwatch://"
     # GCS buckets should start with "gs://"
     # WASB buckets should start with "wasb"
     # just to help Airflow select correct handler
@@ -162,7 +170,7 @@ if REMOTE_LOGGING:
     if REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
         S3_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {
-                'class': 'airflow.utils.log.s3_task_handler.S3TaskHandler',
+                'class': 'airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler',
                 'formatter': 'airflow',
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 's3_log_folder': REMOTE_BASE_LOG_FOLDER,
@@ -171,6 +179,18 @@ if REMOTE_LOGGING:
         }
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(S3_REMOTE_HANDLERS)
+    elif REMOTE_BASE_LOG_FOLDER.startswith('cloudwatch://'):
+        CLOUDWATCH_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+            'task': {
+                'class': 'airflow.utils.log.cloudwatch_task_handler.CloudwatchTaskHandler',
+                'formatter': 'airflow',
+                'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
+                'log_group_arn': urlparse(REMOTE_BASE_LOG_FOLDER).netloc,
+                'filename_template': FILENAME_TEMPLATE,
+            },
+        }
+
+        DEFAULT_LOGGING_CONFIG['handlers'].update(CLOUDWATCH_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
         GCS_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {
@@ -197,22 +217,38 @@ if REMOTE_LOGGING:
         }
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(WASB_REMOTE_HANDLERS)
+    elif REMOTE_BASE_LOG_FOLDER.startswith('stackdriver://'):
+        key_path = conf.get('logging', 'STACKDRIVER_KEY_PATH', fallback=None)
+        # stackdriver:///airflow-tasks => airflow-tasks
+        log_name = urlparse(REMOTE_BASE_LOG_FOLDER).path[1:]
+        STACKDRIVER_REMOTE_HANDLERS = {
+            'task': {
+                'class': 'airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler',
+                'formatter': 'airflow',
+                'name': log_name,
+                'gcp_key_path': key_path
+            }
+        }
+
+        DEFAULT_LOGGING_CONFIG['handlers'].update(STACKDRIVER_REMOTE_HANDLERS)
     elif ELASTICSEARCH_HOST:
         ELASTICSEARCH_LOG_ID_TEMPLATE: str = conf.get('elasticsearch', 'LOG_ID_TEMPLATE')
         ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get('elasticsearch', 'END_OF_LOG_MARK')
+        ELASTICSEARCH_FRONTEND: str = conf.get('elasticsearch', 'frontend')
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean('elasticsearch', 'WRITE_STDOUT')
         ELASTICSEARCH_JSON_FORMAT: bool = conf.getboolean('elasticsearch', 'JSON_FORMAT')
         ELASTICSEARCH_JSON_FIELDS: str = conf.get('elasticsearch', 'JSON_FIELDS')
 
         ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
             'task': {
-                'class': 'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler',
+                'class': 'airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler',
                 'formatter': 'airflow',
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 'log_id_template': ELASTICSEARCH_LOG_ID_TEMPLATE,
                 'filename_template': FILENAME_TEMPLATE,
                 'end_of_log_mark': ELASTICSEARCH_END_OF_LOG_MARK,
                 'host': ELASTICSEARCH_HOST,
+                'frontend': ELASTICSEARCH_FRONTEND,
                 'write_stdout': ELASTICSEARCH_WRITE_STDOUT,
                 'json_format': ELASTICSEARCH_JSON_FORMAT,
                 'json_fields': ELASTICSEARCH_JSON_FIELDS

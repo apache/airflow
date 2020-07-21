@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -31,13 +30,15 @@ from sqlalchemy import func
 from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
+from airflow.models.base import COLLATION_ARGS
+
 revision = 'e3a246e0dc1'
 down_revision = None
 branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()
@@ -116,8 +117,8 @@ def upgrade():
             'log',
             sa.Column('id', sa.Integer(), nullable=False),
             sa.Column('dttm', sa.DateTime(), nullable=True),
-            sa.Column('dag_id', sa.String(length=250), nullable=True),
-            sa.Column('task_id', sa.String(length=250), nullable=True),
+            sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=True),
+            sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=True),
             sa.Column('event', sa.String(length=30), nullable=True),
             sa.Column('execution_date', sa.DateTime(), nullable=True),
             sa.Column('owner', sa.String(length=500), nullable=True),
@@ -126,8 +127,8 @@ def upgrade():
     if 'sla_miss' not in tables:
         op.create_table(
             'sla_miss',
-            sa.Column('task_id', sa.String(length=250), nullable=False),
-            sa.Column('dag_id', sa.String(length=250), nullable=False),
+            sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+            sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
             sa.Column('execution_date', sa.DateTime(), nullable=False),
             sa.Column('email_sent', sa.Boolean(), nullable=True),
             sa.Column('timestamp', sa.DateTime(), nullable=True),
@@ -147,8 +148,8 @@ def upgrade():
     if 'task_instance' not in tables:
         op.create_table(
             'task_instance',
-            sa.Column('task_id', sa.String(length=250), nullable=False),
-            sa.Column('dag_id', sa.String(length=250), nullable=False),
+            sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+            sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
             sa.Column('execution_date', sa.DateTime(), nullable=False),
             sa.Column('start_date', sa.DateTime(), nullable=True),
             sa.Column('end_date', sa.DateTime(), nullable=True),
@@ -225,7 +226,7 @@ def upgrade():
         op.create_table(
             'xcom',
             sa.Column('id', sa.Integer(), nullable=False),
-            sa.Column('key', sa.String(length=512), nullable=True),
+            sa.Column('key', sa.String(length=512, **COLLATION_ARGS), nullable=True),
             sa.Column('value', sa.PickleType(), nullable=True),
             sa.Column(
                 'timestamp',
@@ -233,13 +234,13 @@ def upgrade():
                 default=func.now(),
                 nullable=False),
             sa.Column('execution_date', sa.DateTime(), nullable=False),
-            sa.Column('task_id', sa.String(length=250), nullable=False),
-            sa.Column('dag_id', sa.String(length=250), nullable=False),
+            sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+            sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
             sa.PrimaryKeyConstraint('id')
         )
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_table('chart')
     op.drop_table('variable')
     op.drop_table('user')

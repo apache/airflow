@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,26 +16,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Serialzed DAG table in database."""
+"""Serialized DAG table in database."""
 
-import hashlib
-from datetime import timedelta
+import logging
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, Index, Integer, String, and_
+from sqlalchemy import BigInteger, Column, Index, String, and_
+from sqlalchemy.orm import Session
 from sqlalchemy.sql import exists
 
-from airflow import DAG
 from airflow.models.base import ID_LEN, Base
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagcode import DagCode
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.settings import json
+from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 class SerializedDagModel(Base):
@@ -62,7 +62,7 @@ class SerializedDagModel(Base):
     dag_id = Column(String(ID_LEN), primary_key=True)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    fileloc_hash = Column(Integer, nullable=False)
+    fileloc_hash = Column(BigInteger, nullable=False)
     data = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     last_updated = Column(UtcDateTime, nullable=False)
 
@@ -73,27 +73,19 @@ class SerializedDagModel(Base):
     def __init__(self, dag: DAG):
         self.dag_id = dag.dag_id
         self.fileloc = dag.full_filepath
-        self.fileloc_hash = self.dag_fileloc_hash(self.fileloc)
+        self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()
 
-    @staticmethod
-    def dag_fileloc_hash(full_filepath: str) -> int:
-        """"Hashing file location for indexing.
-
-        :param full_filepath: full filepath of DAG file
-        :return: hashed full_filepath
-        """
-        # hashing is needed because the length of fileloc is 2000 as an Airflow convention,
-        # which is over the limit of indexing. If we can reduce the length of fileloc, then
-        # hashing is not needed.
-        return int.from_bytes(
-            hashlib.sha1(full_filepath.encode('utf-8')).digest()[-2:], byteorder='big', signed=False)
+    def __repr__(self):
+        return f"<SerializedDag: {self.dag_id}>"
 
     @classmethod
     @provide_session
-    def write_dag(cls, dag: DAG, min_update_interval: Optional[int] = None, session=None):
+    def write_dag(cls, dag: DAG, min_update_interval: Optional[int] = None, session: Session = None):
         """Serializes a DAG and writes it into database.
+        If the record already exists, it checks if the Serialized DAG changed or not. If it is
+        changed, it updates the record, ignores otherwise.
 
         :param dag: a DAG to be written into database
         :param min_update_interval: minimal interval in seconds to update serialized DAG
@@ -108,13 +100,21 @@ class SerializedDagModel(Base):
                      (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated))
             ).scalar():
                 return
-        log.debug("Writing DAG: %s to the DB", dag.dag_id)
-        session.merge(cls(dag))
+
+        log.debug("Checking if DAG (%s) changed", dag.dag_id)
+        serialized_dag_from_db: SerializedDagModel = session.query(cls).get(dag.dag_id)
+        new_serialized_dag = cls(dag)
+        if serialized_dag_from_db and (serialized_dag_from_db.data == new_serialized_dag.data):
+            log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
+            return
+
+        log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
+        session.merge(new_serialized_dag)
         log.debug("DAG: %s written to the DB", dag.dag_id)
 
     @classmethod
     @provide_session
-    def read_all_dags(cls, session=None) -> Dict[str, 'SerializedDAG']:
+    def read_all_dags(cls, session: Session = None) -> Dict[str, 'SerializedDAG']:
         """Reads all DAGs in serialized_dag table.
 
         :param session: ORM Session
@@ -148,36 +148,40 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def remove_dag(cls, dag_id: str, session=None):
+    def remove_dag(cls, dag_id: str, session: Session = None):
         """Deletes a DAG with given dag_id.
 
         :param dag_id: dag_id to be deleted
         :param session: ORM Session
         """
+        # pylint: disable=no-member
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
     @classmethod
     @provide_session
-    def remove_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
-        """Deletes DAGs not included in alive_dag_filelocs.
-
-        :param alive_dag_filelocs: file paths of alive DAGs
-        :param session: ORM Session
+    def remove_stale_dags(cls, expiration_date, session: Session = None):
         """
-        alive_fileloc_hashes = [
-            cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
+        Deletes Serialized DAGs that were last touched by the scheduler before
+        the expiration date. These DAGs were likely deleted.
 
-        log.debug("Deleting Serialized DAGs (for which DAG files are deleted) "
-                  "from %s table ", cls.__tablename__)
+        :param expiration_date: set inactive DAGs that were touched before this
+            time
+        :type expiration_date: datetime
+        :param session: ORM Session
+        :type session: Session
+        :return: None
+        """
+        log.debug("Deleting Serialized DAGs that haven't been touched by the "
+                  "scheduler since %s from %s table ", expiration_date, cls.__tablename__)
 
         session.execute(
-            cls.__table__.delete().where(
-                and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
-                     cls.fileloc.notin_(alive_dag_filelocs))))
+            # pylint: disable=no-member
+            cls.__table__.delete().where(cls.last_updated < expiration_date)
+        )
 
     @classmethod
     @provide_session
-    def has_dag(cls, dag_id: str, session=None) -> bool:
+    def has_dag(cls, dag_id: str, session: Session = None) -> bool:
         """Checks a DAG exist in serialized_dag table.
 
         :param dag_id: the DAG to check
@@ -187,7 +191,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get(cls, dag_id: str, session=None) -> Optional['SerializedDagModel']:
+    def get(cls, dag_id: str, session: Session = None) -> Optional['SerializedDagModel']:
         """
         Get the SerializedDAG for the given dag ID.
         It will cope with being passed the ID of a subdag by looking up the
@@ -196,7 +200,6 @@ class SerializedDagModel(Base):
         :param dag_id: the DAG to fetch
         :param session: ORM Session
         """
-        from airflow.models.dag import DagModel
         row = session.query(cls).filter(cls.dag_id == dag_id).one_or_none()
         if row:
             return row
@@ -207,3 +210,38 @@ class SerializedDagModel(Base):
             DagModel.root_dag_id).filter(DagModel.dag_id == dag_id).scalar()
 
         return session.query(cls).filter(cls.dag_id == root_dag_id).one_or_none()
+
+    @staticmethod
+    @provide_session
+    def bulk_sync_to_db(dags: List[DAG], session: Session = None):
+        """
+        Saves DAGs as Serialized DAG objects in the database. Each
+        DAG is saved in a separate database query.
+
+        :param dags: the DAG objects to save to the DB
+        :type dags: List[airflow.models.dag.DAG]
+        :param session: ORM Session
+        :type session: Session
+        :return: None
+        """
+        for dag in dags:
+            if not dag.is_subdag:
+                SerializedDagModel.write_dag(
+                    dag,
+                    min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                    session=session
+                )
+
+    @classmethod
+    @provide_session
+    def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> datetime:
+        """
+        Get the date when the Serialized DAG associated to DAG was last updated
+        in serialized_dag table
+
+        :param dag_id: DAG ID
+        :type dag_id: str
+        :param session: ORM Session
+        :type session: Session
+        """
+        return session.query(cls.last_updated).filter(cls.dag_id == dag_id).scalar()

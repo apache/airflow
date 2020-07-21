@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,7 +18,7 @@
 
 import time
 import unittest
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
@@ -33,6 +32,7 @@ from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 
 DEV_NULL = "/dev/null"
@@ -58,7 +58,7 @@ class TestMarkTasks(unittest.TestCase):
         clear_db_runs()
         drs = _create_dagruns(self.dag1, self.execution_dates,
                               state=State.RUNNING,
-                              run_id_template="scheduled__{}")
+                              run_type=DagRunType.SCHEDULED)
         for dr in drs:
             dr.dag = self.dag1
             dr.verify_integrity()
@@ -66,7 +66,7 @@ class TestMarkTasks(unittest.TestCase):
         drs = _create_dagruns(self.dag2,
                               [self.dag2.default_args['start_date']],
                               state=State.RUNNING,
-                              run_id_template="scheduled__{}")
+                              run_type=DagRunType.SCHEDULED)
 
         for dr in drs:
             dr.dag = self.dag2
@@ -75,7 +75,7 @@ class TestMarkTasks(unittest.TestCase):
         drs = _create_dagruns(self.dag3,
                               self.dag3_execution_dates,
                               state=State.SUCCESS,
-                              run_id_template="manual__{}")
+                              run_type=DagRunType.MANUAL)
         for dr in drs:
             dr.dag = self.dag3
             dr.verify_integrity()
@@ -104,6 +104,7 @@ class TestMarkTasks(unittest.TestCase):
         self.assertTrue(len(tis) > 0)
 
         for ti in tis:  # pylint: disable=too-many-nested-blocks
+            self.assertEqual(ti.operator, dag.get_task(ti.task_id).__class__.__name__)
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
                 self.assertEqual(ti.state, state)
                 if state in State.finished():
@@ -322,7 +323,7 @@ class TestMarkDAGRun(unittest.TestCase):
 
     def _create_test_dag_run(self, state, date):
         return self.dag1.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
+            run_type=DagRunType.MANUAL,
             state=state,
             execution_date=date
         )
@@ -509,19 +510,19 @@ class TestMarkDAGRun(unittest.TestCase):
     @provide_session
     def test_set_state_with_multiple_dagruns(self, session=None):
         self.dag2.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
+            run_type=DagRunType.MANUAL,
             state=State.FAILED,
             execution_date=self.execution_dates[0],
             session=session
         )
         self.dag2.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
+            run_type=DagRunType.MANUAL,
             state=State.FAILED,
             execution_date=self.execution_dates[1],
             session=session
         )
         self.dag2.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
+            run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=self.execution_dates[2],
             session=session
@@ -592,7 +593,3 @@ class TestMarkDAGRun(unittest.TestCase):
         with create_session() as session:
             session.query(models.DagRun).delete()
             session.query(models.TaskInstance).delete()
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,8 +18,8 @@
 
 """Example DAG demonstrating the DummyOperator and a custom DummySkipOperator which skips by default."""
 
+from airflow import DAG
 from airflow.exceptions import AirflowSkipException
-from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
 

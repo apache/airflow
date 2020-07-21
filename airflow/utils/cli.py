@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -33,15 +32,19 @@ import threading
 import traceback
 from argparse import Namespace
 from datetime import datetime
-from typing import Optional
+from typing import Callable, Optional, TypeVar, cast
 
-from airflow import AirflowException, settings
-from airflow.models import DagBag, DagModel, DagPickle, Log
+from airflow import settings
+from airflow.exceptions import AirflowException
+from airflow.models import DAG, DagBag, DagModel, DagPickle, Log
 from airflow.utils import cli_action_loggers
+from airflow.utils.platform import is_terminal_support_colors
 from airflow.utils.session import provide_session
 
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
-def action_logging(f):
+
+def action_logging(f: T) -> T:
     """
     Decorates function to execute function at the same time submitting action_logging
     but in CLI context. It will call action logger callbacks twice,
@@ -88,7 +91,7 @@ def action_logging(f):
             metrics['end_datetime'] = datetime.utcnow()
             cli_action_loggers.on_post_execution(**metrics)
 
-    return wrapper
+    return cast(T, wrapper)
 
 
 def _build_metrics(func_name, namespace):
@@ -150,7 +153,7 @@ def get_dag_by_file_location(dag_id: str):
     return dagbag.dags[dag_id]
 
 
-def get_dag(subdir: Optional[str], dag_id: str):
+def get_dag(subdir: Optional[str], dag_id: str) -> DAG:
     """Returns DAG of a given dag_id"""
     dagbag = DagBag(process_subdir(subdir))
     if dag_id not in dagbag.dags:
@@ -181,10 +184,6 @@ def get_dag_by_pickle(pickle_id, session=None):
         raise AirflowException("Who hid the pickle!? [missing pickle]")
     pickle_dag = dag_pickle.pickle
     return pickle_dag
-
-
-alternative_conn_specs = ['conn_type', 'conn_host',
-                          'conn_login', 'conn_password', 'conn_schema', 'conn_port']
 
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
@@ -238,3 +237,23 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
             if line:
                 code.append("  {}".format(line.strip()))
     print("\n".join(code))
+
+
+class ColorMode:
+    """
+    Coloring modes. If `auto` is then automatically detected.
+    """
+    ON = "on"
+    OFF = "off"
+    AUTO = "auto"
+
+
+def should_use_colors(args) -> bool:
+    """
+    Processes arguments and decides whether to enable color in output
+    """
+    if args.color == ColorMode.ON:
+        return True
+    if args.color == ColorMode.OFF:
+        return False
+    return is_terminal_support_colors()

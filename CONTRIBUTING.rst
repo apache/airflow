@@ -42,8 +42,7 @@ to follow it and apply to the programme and follow up with the community.
 Report Bugs
 -----------
 
-Report bugs through `Apache
-JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+Report bugs through `GitHub <https://github.com/apache/airflow/issues>`__.
 
 Please report relevant information and preferably code that exhibits the
 problem.
@@ -51,16 +50,16 @@ problem.
 Fix Bugs
 --------
 
-Look through the JIRA issues for bugs. Anything is open to whoever wants to
+Look through the GitHub issues for bugs. Anything is open to whoever wants to
 implement it.
 
 Implement Features
 ------------------
 
-Look through the `Apache
-JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__ for features.
+Look through the `GitHub issues labeled "kind:feature"
+<https://github.com/apache/airflow/labels/kind%3Afeature>`__ for features.
 
-Any unassigned "Improvement" issue is open to whoever wants to implement it.
+Any unassigned feature request issue is open to whoever wants to implement it.
 
 We've created the operators, hooks, macros and executors we needed, but we've
 made sure that this part of Airflow is extensible. New operators, hooks, macros
@@ -76,8 +75,7 @@ articles.
 Submit Feedback
 ---------------
 
-The best way to send feedback is to open an issue on `Apache
-JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+The best way to send feedback is to `open an issue on GitHub <https://github.com/apache/airflow/issues/new/choose>`__.
 
 If you are proposing a new feature:
 
@@ -90,7 +88,7 @@ Documentation
 =============
 
 The latest API documentation is usually available
-`here <https://airflow.apache.org/>`__.
+`here <https://airflow.apache.org/docs/>`__.
 
 To generate a local version:
 
@@ -108,13 +106,22 @@ To generate a local version:
 .. code-block:: bash
 
     cd docs
-    ./build.sh
+    ./build
     ./start_doc_server.sh
 
 .. note::
-    The docs build script ``build.sh`` requires bash 4.0 or greater.
-    If you are building on mac, you can install latest version of bash with homebrew.
+    The docs build script ``build`` requires Python 3.6 or greater.
 
+**Known issues:**
+
+If you are creating a new directory for new integration in the ``airflow.providers`` package,
+you should also update the ``docs/autoapi_templates/index.rst`` file.
+
+If you are creating a ``hooks``, ``sensors``, ``operators`` directory in
+the ``airflow.providers`` package, you should also update
+the ``docs/operators-and-hooks-ref.rst`` file.
+
+If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache license or copy another ``__init__.py`` file that contains the necessary license.
 
 Pull Request Guidelines
 =======================
@@ -125,27 +132,20 @@ these guidelines:
 -   Include tests, either as doctests, unit tests, or both, to your pull
     request.
 
-    The airflow repo uses `Travis CI <https://travis-ci.org/apache/airflow>`__ to
+    The airflow repo uses `Github Actions <https://help.github.com/en/actions>`__ to
     run the tests and `codecov <https://codecov.io/gh/apache/airflow>`__ to track
-    coverage. You can set up both for free on your fork (see
-    `Travis CI Testing Framework <TESTING.rst#travis-ci-testing-framework>`__ usage guidelines).
-    It will help you make sure you do not break the build with your PR and
-    that you help increase coverage.
+    coverage. You can set up both for free on your fork. It will help you make sure you do not
+    break the build with your PR and that you help increase coverage.
+
+-   Follow our project's `Coding style and best practices`_.
+
+    These are things that aren't currently enforced programmatically (either because they are too hard or just
+    not yet done.)
 
 -   `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__, squash
     commits, and resolve all conflicts.
 
 -   When merging PRs, wherever possible try to use **Squash and Merge** instead of **Rebase and Merge**.
-
--   Make sure every pull request has an associated
-    `JIRA <https://issues.apache.org/jira/browse/AIRFLOW/?selectedTab=com.atlassian.jira.jira-projects-plugin:summary-panel>`__
-    ticket. The JIRA link should also be added to the PR description.
-
--   Preface your commit's subject & PR title with **[AIRFLOW-XXX] COMMIT_MSG** where *XXX*
-    is the JIRA number. For example: [AIRFLOW-5574] Fix Google Analytics script loading.
-    We compose Airflow release notes from all commit titles in a release. By placing the JIRA number in the
-    commit title and hence in the release notes, we let Airflow users look into
-    JIRA and GitHub PRs for more details about a particular change.
 
 -   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header
     to all new files.
@@ -171,16 +171,16 @@ these guidelines:
 Airflow Git Branches
 ====================
 
-All new development in Airflow happens in ``master`` branch. All PRs should target that branch.
-We also have ``v1-10-test`` branch which is used to test ``1.10.x`` series of Airflow and where committers
-(and only committers) cherry-pick selected commits from the master branch.
-Cherry-picking is done with -x flag.
+All new development in Airflow happens in the ``master`` branch. All PRs should target that branch.
+We also have a ``v1-10-test`` branch that is used to test ``1.10.x`` series of Airflow and where committers
+cherry-pick selected commits from the master branch.
+Cherry-picking is done with the ``-x`` flag.
 
 The ``v1-10-test`` branch might be broken at times during testing. Expect force-pushes there so
 committers should coordinate between themselves on who is working on the ``v1-10-test`` branch -
-usually those will be people with the role of the release manager.
+usually these are developers with the release manager permissions.
 
-Once the branch is stable - the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
+Once the branch is stable, the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
 The ``v1-10-stable`` branch is used to release ``1.10.x`` releases.
 
 Development Environments
@@ -277,8 +277,9 @@ Benefits:
     where all these services are available and can be used by tests
     automatically.
 
--   Breeze environment is almost the same as used in `Travis CI <https://travis-ci.com/>`__ automated builds.
-    So, if the tests run in your Breeze environment, they will work in Travis CI as well.
+-   Breeze environment is almost the same as used in the CI automated builds.
+    So, if the tests run in your Breeze environment, they will work in the CI as well.
+    See `<CI.yml>`_ for details about Airflow CI.
 
 Limitations:
 
@@ -299,37 +300,298 @@ Limitations:
 They are optimized for repeatability of tests, maintainability and speed of building rather
 than production performance. The production images are not yet officially published.
 
+Extras
+------
+
+There are a number of extras that can be specified when installing Airflow. Those
+extras can be specified after the usual pip install - for example
+``pip install -e .[ssh]``. For development purpose there is a ``devel`` extra that
+installs all development dependencies. There is also ``devel_ci`` that installs
+all dependencies needed in the CI environment.
+
+This is the full list of those extras:
+
+  .. START EXTRAS HERE
+
+all_dbs, amazon, apache.atlas, apache_beam, apache.cassandra, apache.druid, apache.hdfs,
+apache.hive, apache.kylin, apache.pinot, apache.webhdfs, async, atlas, aws, azure, cassandra,
+celery, cgroups, cloudant, cncf.kubernetes, dask, databricks, datadog, devel, devel_hadoop, doc,
+docker, druid, elasticsearch, exasol, facebook, gcp, gcp_api, github_enterprise, google,
+google_auth, grpc, hashicorp, hdfs, hive, jdbc, jira, kerberos, kubernetes, ldap, microsoft.azure,
+microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, odbc, oracle, pagerduty, papermill, password,
+pinot, postgres, presto, qds, rabbitmq, redis, salesforce, samba, segment, sendgrid, sentry,
+singularity, slack, snowflake, spark, ssh, statsd, tableau, vertica, virtualenv, webhdfs, winrm,
+yandexcloud, all, devel_ci
+
+  .. END EXTRAS HERE
+
+
+Airflow dependencies
+--------------------
+
+Airflow is not a standard python project. Most of the python projects fall into one of two types -
+application or library. As described in
+[StackOverflow Question](https://stackoverflow.com/questions/28509481/should-i-pin-my-python-dependencies-versions)
+decision whether to pin (freeze) dependency versions for a python project depends on the type. For
+applications, dependencies should be pinned, but for libraries, they should be open.
+
+For application, pinning the dependencies makes it more stable to install in the future - because new
+(even transitive) dependencies might cause installation to fail. For libraries - the dependencies should
+be open to allow several different libraries with the same requirements to be installed at the same time.
+
+The problem is that Apache Airflow is a bit of both - application to install and library to be used when
+you are developing your own operators and DAGs.
+
+This - seemingly unsolvable - puzzle is solved by having pinned constraints files. Those are available
+as of airflow 1.10.10 and further improved with 1.10.12 (moved to separate orphan branches)
+
+Pinned constraint files
+-----------------------
+
+By default when you install ``apache-airflow`` package - the dependencies are as open as possible while
+still allowing the apache-airflow package to install. This means that ``apache-airflow`` package might fail to
+install in case a direct or transitive dependency is released that breaks the installation. In such case
+when installing ``apache-airflow``, you might need to provide additional constraints (for
+example ``pip install apache-airflow==1.10.2 Werkzeug<1.0.0``)
+
+However we now have ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files generated
+automatically and committed to orphan ``constraints-master`` and ``constraint-1-10`` branches based on
+the set of all latest working and tested dependency versions. Those
+``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` files can be used as
+constraints file when installing Apache Airflow - either from the sources:
+
+.. code-block:: bash
+
+  pip install -e . \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+
+or from the pypi package:
+
+.. code-block:: bash
+
+  pip install apache-airflow \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+
+This works also with extras - for example:
+
+.. code-block:: bash
+
+  pip install .[ssh] \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+
+
+As of apache-airflow 1.10.12 it is also possible to use constraints directly from github using specific
+tag/hash name. We tag commits working for particular release with constraints-<version> tag. So for example
+fixed valid constraints 1.10.12 can be used by using ``constraints-1.10.12`` tag:
+
+.. code-block:: bash
+
+  pip install apache-airflow[ssh]==1.10.12 \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.6.txt"
+
+There are different set of fixed constraint files for different python major/minor versions and you should
+use the right file for the right python version.
+
+The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` will be automatically regenerated by CI cron job
+every time after the ``setup.py`` is updated and pushed if the tests are successful. There are separate
+jobs for each python version.
+
+Backport providers packages
+---------------------------
+
+Since we are developing new operators in the master branch, we prepared backport packages ready to be
+installed for Airflow 1.10.* series. Those backport operators (the tested ones) are going to be released
+in PyPi and we are going to maintain the list at
+`Backported providers package page <https://cwiki.apache.org/confluence/display/AIRFLOW/Backported+providers+packages+for+Airflow+1.10.*+series>`_
+
+Some of the packages have cross-dependencies with other providers packages. This typically happens for
+transfer operators where operators use hooks from the other providers in case they are transferring
+data between the providers. The list of dependencies is maintained (automatically with pre-commits)
+in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
+The dependency list is automatically used during pypi packages generation.
+
+Cross-dependencies between provider packages are converted into extras - if you need functionality from
+the other provider package you can install it adding [extra] after the
+apache-airflow-backport-providers-PROVIDER for example ``pip install
+apache-airflow-backport-providers-google[amazon]`` in case you want to use GCP
+transfer operators from Amazon ECS.
+
+If you add a new dependency between different providers packages, it will be detected automatically during
+pre-commit phase and pre-commit will fail - and add entry in dependencies.json so that the package extra
+dependencies are properly added when package is installed.
+
+You can regenerate the whole list of provider dependencies by running this command (you need to have
+``pre-commits`` installed).
+
+.. code-block:: bash
+
+  pre-commit run build-providers-dependencies
+
+
+Here is the list of packages and their extras:
+
+
+  .. START PACKAGE DEPENDENCIES HERE
+
+========================== ===========================
+Package                    Extras
+========================== ===========================
+amazon                     apache.hive,google,imap,mongo,mysql,postgres,ssh
+apache.druid               apache.hive
+apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
+apache.livy                http
+dingding                   http
+discord                    http
+google                     amazon,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,postgres,presto,sftp
+hashicorp                  google
+microsoft.azure            oracle
+microsoft.mssql            odbc
+mysql                      amazon,presto,vertica
+opsgenie                   http
+postgres                   amazon
+sftp                       ssh
+slack                      http
+snowflake                  slack
+========================== ===========================
+
+  .. END PACKAGE DEPENDENCIES HERE
+
 Static code checks
 ==================
 
 We check our code quality via static code checks. See
 `STATIC_CODE_CHECKS.rst <STATIC_CODE_CHECKS.rst>`_ for details.
 
-Your code must pass all the static code checks in Travis CI in order to be eligible for Code Review.
+Your code must pass all the static code checks in the CI in order to be eligible for Code Review.
 The easiest way to make sure your code is good before pushing is to use pre-commit checks locally
 as described in the static code checks documentation.
+
+.. _coding_style:
+
+Coding style and best practices
+===============================
+
+Most of our coding style rules are enforced programmatically by flake8 and pylint (which are run automatically
+on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
+semantic than style
+
+Database Session Handling
+-------------------------
+
+**Explicit is better than implicit.** If a function accepts a ``session`` parameter it should not commit the
+transaction itself. Session management is up to the caller.
+
+To make this easier there is the ``create_session`` helper:
+
+.. code-block:: python
+
+    from airflow.utils.session import create_session
+
+    def my_call(*args, session):
+      ...
+      # You MUST not commit the session here.
+
+    with create_session() as session:
+        my_call(*args, session=session)
+
+If this function is designed to be called by "end-users" (i.e. DAG authors) then using the ``@provide_session`` wrapper is okay:
+
+.. code-block:: python
+
+    from airflow.utils.session import provide_session
+
+    ...
+
+    @provide_session
+    def my_method(arg, arg, session=None)
+      ...
+      # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
 
 Test Infrastructure
 ===================
 
 We support the following types of tests:
 
-* **Unit tests** are Python ``nose`` tests launched with ``run-tests``.
+* **Unit tests** are Python tests launched with ``pytest``.
   Unit tests are available both in the `Breeze environment <BREEZE.rst>`_
   and `local virtualenv <LOCAL_VIRTUALENV.rst>`_.
 
 * **Integration tests** are available in the Breeze development environment
-  that is also used for Airflow Travis CI tests. Integration test are special tests that require
-  additional services running, such as Postgres,Mysql, Kerberos, etc. These tests are not yet
-  clearly marked as integration tests but soon they will be clearly separated by the ``pytest`` annotations.
+  that is also used for Airflow's CI tests. Integration test are special tests that require
+  additional services running, such as Postgres, Mysql, Kerberos, etc.
 
 * **System tests** are automatic tests that use external systems like
   Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
 
 For details on running different types of Airflow tests, see `TESTING.rst <TESTING.rst>`_.
 
+
+Naming Conventions for provider packages
+========================================
+
+In Airflow 2.0 we standardized and enforced naming for provider packages, modules and classes.
+those rules (introduced as AIP-21) were not only introduced but enforced using automated checks
+that verify if the naming conventions are followed. Here is a brief summary of the rules, for
+detailed discussion you can go to [AIP-21 Changes in import paths](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
+
+The rules are as follows:
+
+* Provider packages are all placed in 'airflow.providers'
+
+* Providers are usually direct sub-packages of the 'airflow.providers' package but in some cases they can be
+  further split into sub-packages (for example 'apache' package has 'cassandra', 'druid' ... providers ) out
+  of which several different provider packages are produced (apache.cassandra, apache.druid). This is
+  case when the providers are connected under common umbrella but very loosely coupled on the code level.
+
+* In some cases the package can have sub-packages but they are all delivered as single provider
+  package (for example 'google' package contains 'ads', 'cloud' etc. sub-packages). This is in case
+  the providers are connected under common umbrella and they are also tightly coupled on the code level.
+
+* Typical structure of provider package:
+    * example_dags -> example DAGs are stored here (used for documentation and System Tests)
+    * hooks -> hooks are stored here
+    * operators -> operators are stored here
+    * sensors -> sensors are stored here
+    * secrets -> secret backends are stored here
+    * transfers -> transfer operators are stored here
+
+* Module names do not contain word "hooks" , "operators" etc. The right type comes from
+  the package. For example 'hooks.datastore' module contains DataStore hook and 'operators.datastore'
+  contains DataStore operators.
+
+* Class names contain 'Operator', 'Hook', 'Sensor' - for example DataStoreHook, DataStoreExportOperator
+
+* Operator name usually follows the convention: <Subject><Action><Entity>Operator
+  (BigQueryExecuteQueryOperator) is a good example
+
+* Transfer Operators are those that actively push data from one service/provider and send it to another
+  service (might be for the same or another provider). This usually involves two hooks. The convention
+  for those <Source>To<Destination>Operator. They are not named *TransferOperator nor *Transfer.
+
+* Operators that use external service to perform transfer (for example CloudDataTransferService operators
+  are not placed in "transfers" package and do not have to follow the naming convention for
+  transfer operators.
+
+* It is often debatable where to put transfer operators but we agreed to the following criteria:
+
+  * We use "maintainability" of the operators as the main criteria - so the transfer operator
+    should be kept at the provider which has highest "interest" in the transfer operator
+
+  * For Cloud Providers or Service providers that usually means that the transfer operators
+    should land at the "target" side of the transfer
+
+* Secret Backend name follows the convention: <SecretEngine>Backend.
+
+* Tests are grouped in parallel packages under "tests.providers" top level package.  Module name is usually
+  "test_<object_to_test>.py',
+
+* System tests (not yet fully automated but allowing to run e2e testing of particular provider) are
+  named with _system.py suffix.
+
 Metadata Database Updates
-==============================
+=========================
 
 When developing features, you may need to persist information to the metadata
 database. Airflow has `Alembic <https://github.com/sqlalchemy/alembic>`__ built-in
@@ -357,14 +619,14 @@ itself comes bundled with jQuery and bootstrap. While they may be phased out
 over time, these packages are currently not managed with yarn.
 
 Make sure you are using recent versions of node and yarn. No problems have been
-found with node\>=8.11.3 and yarn\>=1.19.1
+found with node\>=8.11.3 and yarn\>=1.19.1.
 
 Installing yarn and its packages
 --------------------------------
 
 Make sure yarn is available in your environment.
 
-To install it on macOS:
+To install yarn on macOS:
 
 1.  Run the following commands (taken from `this source <https://gist.github.com/DanHerbert/9520689>`__):
 
@@ -375,8 +637,8 @@ To install it on macOS:
     yarn config set prefix ~/.yarn
 
 
-2.  Add ``~/.yarn/bin`` to your ``PATH`` so that commands you install
-    globally are usable.
+2.  Add ``~/.yarn/bin`` to your ``PATH`` so that commands you are installing
+    could be used globally.
 
 3.  Set up your ``.bashrc`` file and then ``source ~/.bashrc`` to reflect the
     change.
@@ -385,7 +647,7 @@ To install it on macOS:
 
     export PATH="$HOME/.yarn/bin:$PATH"
 
-4.  Install third party libraries defined in ``package.json`` by running the
+4.  Install third-party libraries defined in ``package.json`` by running the
     following commands within the ``airflow/www/`` directory:
 
 
@@ -400,16 +662,16 @@ To install it on macOS:
 These commands install the libraries in a new ``node_modules/`` folder within
 ``www/``.
 
-Should you add or upgrade an node package, you should run:
+Should you add or upgrade a node package, run
 ``yarn add --dev <package>`` for packages needed in development or
-``yarn add <package>`` for packages used by the code
-and push the newly generated ``package.json`` and ``yarn.lock`` file so that we
-get a reproducible build. See the `Yarn docs
-<https://yarnpkg.com/en/docs/cli/add#adding-dependencies->`_ for more info
+``yarn add <package>`` for packages used by the code.
+Then push the newly generated ``package.json`` and ``yarn.lock`` file so that we
+could get a reproducible build. See the `Yarn docs
+<https://yarnpkg.com/en/docs/cli/add#adding-dependencies->`_ for more details.
 
 
-Generating Bundled Files with yarn
-----------------------------------
+Generate Bundled Files with yarn
+--------------------------------
 
 To parse and generate bundled files for Airflow, run either of the following
 commands:
@@ -423,8 +685,8 @@ commands:
     yarn run dev
 
 
-Javascript Style Guide
-~~~~~~~~~~~~~~~~~~~~~~
+Follow Javascript Style Guide
+-----------------------------
 
 We try to enforce a more consistent style and follow the JS community
 guidelines.
@@ -449,10 +711,13 @@ Contribution Workflow Example
 ==============================
 
 Typically, you start your first contribution by reviewing open tickets
-at `Apache JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+at `GitHub issues <https://github.com/apache/airflow/issues>`__.
+
+If you create pull-request, you don't have to create an issue first, but if you want, you can do it.
+Creating an issue will allow you to collect feedback or share plans with other people.
 
 For example, you want to have the following sample ticket assigned to you:
-`AIRFLOW-5934: Add extra CC: to the emails sent by Aiflow <https://issues.apache.org/jira/browse/AIRFLOW-5934>`_.
+`#7782: Add extra CC: to the emails sent by Aiflow <https://github.com/apache/airflow/issues/7782>`_.
 
 In general, your contribution includes the following stages:
 
@@ -466,8 +731,7 @@ In general, your contribution includes the following stages:
 2. Create a `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
    initialize the `Breeze environment <BREEZE.rst>`__, and
    install `pre-commit framework <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__.
-   If you want to add more changes in the future, set up your own `Travis CI
-   fork <https://github.com/PolideaInternal/airflow/blob/more-gsod-improvements/TESTING.rst#travis-ci-testing-framework>`__.
+   If you want to add more changes in the future, set up your fork and enable Github Actions.
 
 3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
    and set up a `Slack account <https://apache-airflow-slack.herokuapp.com>`__.
@@ -534,18 +798,18 @@ For effective collaboration, make sure to join the following Airflow groups:
   - Airflow users mailing list: `<users-subscribe@airflow.apache.org>`_
     (reasonably small traffic on this list)
 
-- `Issues on Apache’s JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__
+- `Issues on GitHub <https://github.com/apache/airflow/issues>`__
 
 - `Slack (chat) <https://apache-airflow-slack.herokuapp.com/>`__
 
 Step 4: Prepare PR
 ------------------
 
-1. Update the local sources to address the JIRA ticket.
+1. Update the local sources to address the issue.
 
-   For example, to address this example JIRA ticket, do the following:
+   For example, to address this example issue, do the following:
 
-   * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/concepts.html#email-configuration>`__.
+   * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
 
    * Find the class you should modify. For the example ticket,
      this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
@@ -648,7 +912,7 @@ Later on
    for example: ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto apache/master``
 
 6. If you have no conflicts - that's cool. You rebased. You can now run ``git push --force-with-lease`` to
-   push your changes to your repository. That should trigger the build in CI if you have a
+   push your changes to your repository. That should trigger the build in our CI if you have a
    Pull Request opened already.
 
 7. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
@@ -663,6 +927,115 @@ Later on
 8. After you solved conflicts simply run ``git rebase --continue`` and go either to point 6. or 7.
    above depending if you have more commits that cause conflicts in your PR (rebasing applies each
    commit from your PR one-by-one).
+
+How to communicate
+==================
+
+Apache Airflow is a Community within Apache Software Foundation. As the motto of
+the Apache Software Foundation states "Community over Code" - people in the
+community are far more important than their contribution.
+
+This means that communication plays a big role in it, and this chapter is all about it.
+
+In our communication, everyone is expected to follow the `ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`_.
+
+We have various channels of communication - starting from the official devlist, comments
+in the Pull Requests, Slack, wiki.
+
+All those channels can be used for different purposes.
+You can join the channels via links at the `Airflow Community page <https://airflow.apache.org/community/>`_
+
+* The `Apache Airflow devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`_ for:
+   * official communication
+   * general issues, asking community for opinion
+   * discussing proposals
+   * voting
+* The `Airflow CWiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home?src=breadcrumbs>`_ for:
+   * detailed discussions on big proposals (Airflow Improvement Proposals also name AIPs)
+   * helpful, shared resources (for example Apache Airflow logos
+   * information that can be re-used by others (for example instructions on preparing workshops)
+* Github `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
+   * discussing implementation details of PRs
+   * not for architectural discussions (use the devlist for that)
+* The deprecated `JIRA issues <https://issues.apache.org/jira/projects/AIRFLOW/issues/AIRFLOW-4470?filter=allopenissues>`_ for:
+   * checking out old but still valuable issues that are not on Github yet
+   * mentioning the JIRA issue number in the title of the related PR you would like to open on Github
+
+**IMPORTANT**
+We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable tickets inside of it. However, each new PR should be created on `Github issues <https://github.com/apache/airflow/issues>`_ as stated in `Contribution Workflow Example <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contribution-workflow-example>`_
+
+* The `Apache Airflow Slack <https://apache-airflow-slack.herokuapp.com/>`_ for:
+   * ad-hoc questions related to development (#development channel)
+   * asking for review (#development channel)
+   * asking for help with PRs (#how-to-pr channel)
+   * troubleshooting (#troubleshooting channel)
+   * group talks (including SIG - special interest groups) (#sig-* channels)
+   * notifications (#announcements channel)
+   * random queries (#random channel)
+   * regional announcements (#users-* channels)
+   * newbie questions (#newbie-questions channel)
+   * occasional discussions (wherever appropriate including group and 1-1 discussions)
+
+The devlist is the most important and official communication channel. Often at Apache project you can
+hear "if it is not in the devlist - it did not happen". If you discuss and agree with someone from the
+community on something important for the community (including if it is with committer or PMC member) the
+discussion must be captured and reshared on devlist in order to give other members of the community to
+participate in it.
+
+We are using certain prefixes for email subjects for different purposes. Start your email with one of those:
+  * ``[DISCUSS]`` - if you want to discuss something but you have no concrete proposal yet
+  * ``[PROPOSAL]`` - if usually after "[DISCUSS]" thread discussion you want to propose something and see
+    what other members of the community think about it.
+  * ``[AIP-NN]`` - if the mail is about one of the Airflow Improvement Proposals
+  * ``[VOTE]`` - if you would like to start voting on a proposal discussed before in a "[PROPOSAL]" thread
+
+Voting is governed by the rules described in `Voting <https://www.apache.org/foundation/voting.html>`_
+
+We are all devoting our time for community as individuals who except for being active in Apache Airflow have
+families, daily jobs, right for vacation. Sometimes we are in different time zones or simply are
+busy with day-to-day duties that our response time might be delayed. For us it's crucial
+to remember to respect each other in the project with no formal structure.
+There are no managers, departments, most of us is autonomous in our opinions, decisions.
+All of it makes Apache Airflow community a great space for open discussion and mutual respect
+for various opinions.
+
+Disagreements are expected, discussions might include strong opinions and contradicting statements.
+Sometimes you might get two committers asking you to do things differently. This all happened in the past
+and will continue to happen. As a community we have some mechanisms to facilitate discussion and come to
+a consensus, conclusions or we end up voting to make important decisions. It is important that these
+decisions are not treated as personal wins or looses. At the end it's the community that we all care about
+and what's good for community, should be accepted even if you have a different opinion. There is a nice
+motto that you should follow in case you disagree with community decision "Disagree but engage". Even
+if you do not agree with a community decision, you should follow it and embrace (but you are free to
+express your opinion that you don't agree with it).
+
+As a community - we have high requirements for code quality. This is mainly because we are a distributed
+and loosely organised team. We have both - contributors that commit one commit only, and people who add
+more commits. It happens that some people assume informal "stewardship" over parts of code for some time -
+but at any time we should make sure that the code can be taken over by others, without excessive communication.
+Setting high requirements for the code (fairly strict code review, static code checks, requirements of
+automated tests, pre-commit checks) is the best way to achieve that - by only accepting good quality
+code. Thanks to full test coverage we can make sure that we will be able to work with the code in the future.
+So do not be surprised if you are asked to add more tests or make the code cleaner -
+this is for the sake of maintainability.
+
+Here are a few rules that are important to keep in mind when you enter our community:
+
+ * Do not be afraid to ask questions
+ * The communication is asynchronous - do not expect immediate answers, ping others on slack
+   (#development channel) if blocked
+ * There is a #newbie-questions channel in slack as a safe place to ask questions
+ * You can ask one of the committers to be a mentor for you, committers can guide within the community
+ * You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
+ * It’s your responsibility as an author to take your PR from start-to-end including leading communication
+   in the PR
+ * It’s your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
+   it’s OK to be slightly annoying with your change - it is also a sign for committers that you care
+ * Be considerate to the high code quality/test coverage requirements for Apache Airflow
+ * If in doubt - ask the community for their opinion or propose to vote at the devlist
+ * Discussions should concern subject matters - judge or criticise the merit but never criticise people
+ * It’s OK to express your own emotions while communicating - it helps other people to understand you
+ * Be considerate for feelings of others. Tell about how you feel not what you think of others
 
 Resources & Links
 =================

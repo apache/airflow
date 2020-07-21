@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -99,7 +98,3 @@ class TestCompression(unittest.TestCase):
         txt_bz2 = compression.uncompress_file(fn_bz2, '.bz2', self.tmp_dir)
         self.assertTrue(filecmp.cmp(txt_bz2, fn_txt, shallow=False),
                         msg="Uncompressed file doest match original")
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,8 +19,8 @@
 
 import unittest
 
-from airflow import DAG
 from airflow.models import TaskInstance
+from airflow.models.dag import DAG
 from airflow.providers.apache.druid.operators.druid import DruidOperator
 from airflow.utils import timezone
 
@@ -75,7 +74,3 @@ class TestDruidOperator(unittest.TestCase):
             }
         '''
         self.assertEqual(expected, getattr(operator, 'json_index_file'))
-
-
-if __name__ == '__main__':
-    unittest.main()

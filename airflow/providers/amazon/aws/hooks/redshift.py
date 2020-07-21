@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,15 +19,22 @@
 Interact with AWS Redshift, using the boto3 library.
 """
 
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class RedshiftHook(AwsHook):
+class RedshiftHook(AwsBaseHook):
     """
     Interact with AWS Redshift, using the boto3 library
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
-    def get_conn(self):
-        return self.get_client_type('redshift')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(client_type='redshift', *args, **kwargs)
 
     # TODO: Wrap create_cluster_snapshot
     def cluster_status(self, cluster_identifier):
@@ -38,15 +44,14 @@ class RedshiftHook(AwsHook):
         :param cluster_identifier: unique identifier of a cluster
         :type cluster_identifier: str
         """
-        conn = self.get_conn()
         try:
-            response = conn.describe_clusters(
+            response = self.get_conn().describe_clusters(
                 ClusterIdentifier=cluster_identifier)['Clusters']
             return response[0]['ClusterStatus'] if response else None
-        except conn.exceptions.ClusterNotFoundFault:
+        except self.get_conn().exceptions.ClusterNotFoundFault:
             return 'cluster_not_found'
 
-    def delete_cluster(
+    def delete_cluster(  # pylint: disable=invalid-name
             self,
             cluster_identifier,
             skip_final_cluster_snapshot=True,
@@ -81,7 +86,7 @@ class RedshiftHook(AwsHook):
         if 'Snapshots' not in response:
             return None
         snapshots = response['Snapshots']
-        snapshots = filter(lambda x: x['Status'], snapshots)
+        snapshots = [snapshot for snapshot in snapshots if snapshot["Status"]]
         snapshots.sort(key=lambda x: x['SnapshotCreateTime'], reverse=True)
         return snapshots
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -80,7 +79,3 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
                                       target_status='cluster_not_found')
 
         self.assertTrue(op.poke(None))
-
-
-if __name__ == '__main__':
-    unittest.main()

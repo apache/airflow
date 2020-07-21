@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -96,7 +95,7 @@ class TestPostgresHookConn(unittest.TestCase):
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
-    @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
     def test_get_conn_rds_iam_postgres(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true}'
         mock_client.return_value.generate_db_auth_token.return_value = 'aws_token'
@@ -105,7 +104,7 @@ class TestPostgresHookConn(unittest.TestCase):
                                              dbname='schema', port=5432)
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
-    @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
     def test_get_conn_rds_iam_redshift(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true, "redshift":true}'
         self.connection.host = 'cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com'
@@ -154,7 +153,7 @@ class TestPostgresHook(unittest.TestCase):
 
             self.cur.fetchall.return_value = None
 
-            self.assertEqual(None, self.db_hook.copy_expert(statement, filename, open=open_mock))
+            self.assertEqual(None, self.db_hook.copy_expert(statement, filename))
 
             assert self.conn.close.call_count == 1
             assert self.cur.close.call_count == 1
@@ -200,3 +199,75 @@ class TestPostgresHook(unittest.TestCase):
                     results = [line.rstrip().decode("utf-8") for line in f.readlines()]
 
         self.assertEqual(sorted(input_data), sorted(results))
+
+    @pytest.mark.backend("postgres")
+    def test_insert_rows(self):
+        table = "table"
+        rows = [("hello",),
+                ("world",)]
+
+        self.db_hook.insert_rows(table, rows)
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+
+        commit_count = 2  # The first and last commit
+        self.assertEqual(commit_count, self.conn.commit.call_count)
+
+        sql = "INSERT INTO {}  VALUES (%s)".format(table)
+        for row in rows:
+            self.cur.execute.assert_any_call(sql, row)
+
+    @pytest.mark.backend("postgres")
+    def test_insert_rows_replace(self):
+        table = "table"
+        rows = [(1, "hello",),
+                (2, "world",)]
+        fields = ("id", "value")
+
+        self.db_hook.insert_rows(
+            table, rows, fields, replace=True, replace_index=fields[0])
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+
+        commit_count = 2  # The first and last commit
+        self.assertEqual(commit_count, self.conn.commit.call_count)
+
+        sql = "INSERT INTO {0} ({1}, {2}) VALUES (%s,%s) " \
+              "ON CONFLICT ({1}) DO UPDATE SET {2} = excluded.{2}".format(
+                  table, fields[0], fields[1])
+        for row in rows:
+            self.cur.execute.assert_any_call(sql, row)
+
+    @pytest.mark.xfail
+    @pytest.mark.backend("postgres")
+    def test_insert_rows_replace_missing_target_field_arg(self):
+        table = "table"
+        rows = [(1, "hello",),
+                (2, "world",)]
+        fields = ("id", "value")
+        self.db_hook.insert_rows(
+            table, rows, replace=True, replace_index=fields[0])
+
+    @pytest.mark.xfail
+    @pytest.mark.backend("postgres")
+    def test_insert_rows_replace_missing_replace_index_arg(self):
+        table = "table"
+        rows = [(1, "hello",),
+                (2, "world",)]
+        fields = ("id", "value")
+        self.db_hook.insert_rows(table, rows, fields, replace=True)
+
+    @pytest.mark.backend("postgres")
+    def test_rowcount(self):
+        hook = PostgresHook()
+        input_data = ["foo", "bar", "baz"]
+
+        with hook.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("CREATE TABLE {} (c VARCHAR)".format(self.table))
+                values = ",".join("('{}')".format(data) for data in input_data)
+                cur.execute("INSERT INTO {} VALUES {}".format(self.table, values))
+                conn.commit()
+                self.assertEqual(cur.rowcount, len(input_data))

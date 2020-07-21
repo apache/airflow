@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,6 +22,9 @@ from airflow.utils.session import provide_session
 
 
 class RunnableExecDateDep(BaseTIDep):
+    """
+    Determines whether a task's execution date is valid.
+    """
     NAME = "Execution Date"
     IGNOREABLE = True
 

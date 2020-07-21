@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -30,6 +29,7 @@ class TriggerRule:
     ONE_SUCCESS = 'one_success'
     ONE_FAILED = 'one_failed'
     NONE_FAILED = 'none_failed'
+    NONE_FAILED_OR_SKIPPED = 'none_failed_or_skipped'
     NONE_SKIPPED = 'none_skipped'
     DUMMY = 'dummy'
 

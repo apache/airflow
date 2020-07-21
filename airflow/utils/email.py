@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,7 +17,7 @@
 # under the License.
 
 import collections
-import importlib
+import logging
 import os
 import smtplib
 from email.mime.application import MIMEApplication
@@ -29,22 +28,21 @@ from typing import Iterable, List, Union
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
-def send_email(to, subject, html_content,
+def send_email(to: Union[List[str], Iterable[str]], subject: str, html_content: str,
                files=None, dryrun=False, cc=None, bcc=None,
                mime_subtype='mixed', mime_charset='utf-8', **kwargs):
     """
     Send email using backend specified in EMAIL_BACKEND.
     """
-    path, attr = conf.get('email', 'EMAIL_BACKEND').rsplit('.', 1)
-    module = importlib.import_module(path)
-    backend = getattr(module, attr)
-    to = get_email_address_list(to)
-    to = ", ".join(to)
+    backend = conf.getimport('email', 'EMAIL_BACKEND')
+    to_list = get_email_address_list(to)
+    to_comma_seperated = ", ".join(to_list)
 
-    return backend(to, subject, html_content, files=files,
+    return backend(to_comma_seperated, subject, html_content, files=files,
                    dryrun=dryrun, cc=cc, bcc=bcc,
                    mime_subtype=mime_subtype, mime_charset=mime_charset, **kwargs)
 
@@ -99,7 +97,6 @@ def send_mime_email(e_from, e_to, mime_msg, dryrun=False):
     """
     Send MIME email.
     """
-    log = LoggingMixin().log
 
     smtp_host = conf.get('smtp', 'SMTP_HOST')
     smtp_port = conf.getint('smtp', 'SMTP_PORT')

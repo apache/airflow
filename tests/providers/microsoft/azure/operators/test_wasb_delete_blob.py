@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,7 +22,7 @@ import unittest
 
 import mock
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
 
 
@@ -43,7 +42,7 @@ class TestWasbDeleteBlobOperator(unittest.TestCase):
 
     def test_init(self):
         operator = WasbDeleteBlobOperator(
-            task_id='wasb_operator',
+            task_id='wasb_operator_1',
             dag=self.dag,
             **self._config
         )
@@ -54,7 +53,7 @@ class TestWasbDeleteBlobOperator(unittest.TestCase):
         self.assertEqual(operator.ignore_if_missing, False)
 
         operator = WasbDeleteBlobOperator(
-            task_id='wasb_operator',
+            task_id='wasb_operator_2',
             dag=self.dag,
             is_prefix=True,
             ignore_if_missing=True,
@@ -78,7 +77,3 @@ class TestWasbDeleteBlobOperator(unittest.TestCase):
         mock_instance.delete_file.assert_called_once_with(
             'container', 'blob', True, True
         )
-
-
-if __name__ == '__main__':
-    unittest.main()

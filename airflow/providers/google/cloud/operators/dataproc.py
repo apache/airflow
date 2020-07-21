@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -40,9 +39,9 @@ from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version as airflow_version
@@ -209,7 +208,7 @@ class ClusterGenerator:
         self.custom_image = custom_image
         self.custom_image_project_id = custom_image_project_id
         self.image_version = image_version
-        self.properties = properties or dict()
+        self.properties = properties or {}
         self.optional_components = optional_components
         self.master_machine_type = master_machine_type
         self.master_disk_type = master_disk_type
@@ -245,7 +244,7 @@ class ClusterGenerator:
                 return self.init_action_timeout
             elif match.group(2) == "m":
                 val = float(match.group(1))
-                return "{}s".format(timedelta(minutes=val).seconds)
+                return "{}s".format(int(timedelta(minutes=val).total_seconds()))
 
         raise AirflowException(
             "DataprocClusterCreateOperator init_action_timeout"
@@ -296,7 +295,7 @@ class ClusterGenerator:
         if self.auto_delete_time:
             utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
             cluster_data['config']['lifecycle_config']['auto_delete_time'] = \
-                utc_auto_delete_time.format('%Y-%m-%dT%H:%M:%S.%fZ', formatter='classic')
+                utc_auto_delete_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         elif self.auto_delete_ttl:
             cluster_data['config']['lifecycle_config']['auto_delete_ttl'] = \
                 "{}s".format(self.auto_delete_ttl)
@@ -428,6 +427,10 @@ class DataprocCreateClusterOperator(BaseOperator):
 
     for a detailed explanation on the different parameters. Most of the configuration
     parameters detailed in the link are available as a parameter to this operator.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataprocCreateClusterOperator`
 
     :param project_id: The ID of the google cloud project in which
         to create the cluster. (templated)
@@ -622,13 +625,13 @@ class DataprocScaleClusterOperator(BaseOperator):
                 timeout = int(match.group(1))
             elif match.group(2) == "m":
                 val = float(match.group(1))
-                timeout = timedelta(minutes=val).seconds
+                timeout = int(timedelta(minutes=val).total_seconds())
             elif match.group(2) == "h":
                 val = float(match.group(1))
-                timeout = timedelta(hours=val).seconds
+                timeout = int(timedelta(hours=val).total_seconds())
             elif match.group(2) == "d":
                 val = float(match.group(1))
-                timeout = timedelta(days=val).seconds
+                timeout = int(timedelta(days=val).total_seconds())
 
         if not timeout:
             raise AirflowException(
@@ -1243,7 +1246,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     Start a PySpark Job on a Cloud DataProc cluster.
 
     :param main: [Required] The Hadoop Compatible Filesystem (HCFS) URI of the main
-            Python file to use as the driver. Must be a .py file.
+            Python file to use as the driver. Must be a .py file. (templated)
     :type main: str
     :param arguments: Arguments for the job. (templated)
     :type arguments: list
@@ -1257,7 +1260,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     :type pyfiles: list
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name',
+    template_fields = ['main', 'arguments', 'job_name', 'cluster_name',
                        'region', 'dataproc_jars', 'dataproc_properties']
     ui_color = '#0273d4'
     job_type = 'pyspark_job'
@@ -1295,7 +1298,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         main: str,
         arguments: Optional[List] = None,
         archives: Optional[List] = None,
-        pyfiles: Optional[Optional[Optional[List]]] = None,
+        pyfiles: Optional[List] = None,
         files: Optional[List] = None,
         *args,
         **kwargs

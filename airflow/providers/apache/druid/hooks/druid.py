@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,6 +17,7 @@
 # under the License.
 
 import time
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 import requests
 from pydruid.db import connect
@@ -44,12 +44,15 @@ class DruidHook(BaseHook):
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
     :type max_ingestion_time: int
     """
-    def __init__(
-            self,
-            druid_ingest_conn_id='druid_ingest_default',
-            timeout=1,
-            max_ingestion_time=None):
 
+    def __init__(
+        self,
+        druid_ingest_conn_id: str = 'druid_ingest_default',
+        timeout: int = 1,
+        max_ingestion_time: Optional[int] = None
+    ) -> None:
+
+        super().__init__()
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
@@ -58,7 +61,10 @@ class DruidHook(BaseHook):
         if self.timeout < 1:
             raise ValueError("Druid timeout should be equal or greater than 1")
 
-    def get_conn_url(self):
+    def get_conn_url(self) -> str:
+        """
+        Get Druid connection url
+        """
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
@@ -67,7 +73,7 @@ class DruidHook(BaseHook):
         return "{conn_type}://{host}:{port}/{endpoint}".format(
             conn_type=conn_type, host=host, port=port, endpoint=endpoint)
 
-    def get_auth(self):
+    def get_auth(self) -> Optional[requests.auth.HTTPBasicAuth]:
         """
         Return username and password from connections tab as requests.auth.HTTPBasicAuth object.
 
@@ -81,7 +87,10 @@ class DruidHook(BaseHook):
         else:
             return None
 
-    def submit_indexing_job(self, json_index_spec: str):
+    def submit_indexing_job(self, json_index_spec: Dict[str, Any]) -> None:
+        """
+        Submit Druid ingestion job
+        """
         url = self.get_conn_url()
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
@@ -107,7 +116,7 @@ class DruidHook(BaseHook):
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 requests.post("{0}/{1}/shutdown".format(url, druid_task_id), auth=self.get_auth())
                 raise AirflowException('Druid ingestion took more than '
-                                       '%s seconds', self.max_ingestion_time)
+                                       f'{self.max_ingestion_time} seconds')
 
             time.sleep(self.timeout)
 
@@ -122,7 +131,7 @@ class DruidHook(BaseHook):
                 raise AirflowException('Druid indexing job failed, '
                                        'check console for more info')
             else:
-                raise AirflowException('Could not get status of the job, got %s', status)
+                raise AirflowException(f'Could not get status of the job, got {status}')
 
         self.log.info('Successful index')
 
@@ -138,14 +147,11 @@ class DruidDbApiHook(DbApiHook):
     default_conn_name = 'druid_broker_default'
     supports_autocommit = False
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
+    def get_conn(self) -> connect:
         """
         Establish a connection to druid broker.
         """
-        conn = self.get_connection(self.druid_broker_conn_id)
+        conn = self.get_connection(self.conn_name_attr)
         druid_broker_conn = connect(
             host=conn.host,
             port=conn.port,
@@ -157,7 +163,7 @@ class DruidDbApiHook(DbApiHook):
         self.log.info('Get the connection to druid broker on %s using user %s', conn.host, conn.login)
         return druid_broker_conn
 
-    def get_uri(self):
+    def get_uri(self) -> str:
         """
         Get the connection uri for druid broker.
 
@@ -172,8 +178,11 @@ class DruidDbApiHook(DbApiHook):
         return '{conn_type}://{host}/{endpoint}'.format(
             conn_type=conn_type, host=host, endpoint=endpoint)
 
-    def set_autocommit(self, conn, autocommit):
+    def set_autocommit(self, conn: connect, autocommit: bool) -> NotImplemented:
         raise NotImplementedError()
 
-    def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
+    def insert_rows(self, table: str, rows: Iterable[Tuple[str]],
+                    target_fields: Optional[Iterable[str]] = None,
+                    commit_every: int = 1000, replace: bool = False,
+                    **kwargs: Any) -> NotImplemented:
         raise NotImplementedError()

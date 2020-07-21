@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,7 +22,6 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class SqliteHook(DbApiHook):
-
     """
     Interact with SQLite.
     """
@@ -36,6 +34,6 @@ class SqliteHook(DbApiHook):
         """
         Returns a sqlite connection object
         """
-        conn = self.get_connection(self.sqlite_conn_id)
+        conn = self.get_connection(self.sqlite_conn_id)  # pylint: disable=no-member
         conn = sqlite3.connect(conn.host)
         return conn

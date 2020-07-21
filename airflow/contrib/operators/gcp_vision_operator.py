@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -41,14 +40,14 @@ warnings.warn(
 class CloudVisionAnnotateImageOperator(CloudVisionImageAnnotateOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.vision.CloudVisionImageAnnotateOperator`.
+    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.vision.CloudVisionImageAnnotateOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use `airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -56,14 +55,14 @@ class CloudVisionAnnotateImageOperator(CloudVisionImageAnnotateOperator):
 class CloudVisionDetectDocumentTextOperator(CloudVisionTextDetectOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.vision.CloudVisionTextDetectOperator`.
+    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionTextDetectOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.vision.CloudVisionTextDetectOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use `airflow.providers.google.cloud.operators.vision.CloudVisionTextDetectOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -71,14 +70,14 @@ class CloudVisionDetectDocumentTextOperator(CloudVisionTextDetectOperator):
 class CloudVisionProductCreateOperator(CloudVisionCreateProductOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.vision.CloudVisionCreateProductOperator`.
+    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.vision.CloudVisionCreateProductOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use `airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -86,14 +85,14 @@ class CloudVisionProductCreateOperator(CloudVisionCreateProductOperator):
 class CloudVisionProductDeleteOperator(CloudVisionDeleteProductOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.vision.CloudVisionDeleteProductOperator`.
+    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.vision.CloudVisionDeleteProductOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use `airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -101,14 +100,14 @@ class CloudVisionProductDeleteOperator(CloudVisionDeleteProductOperator):
 class CloudVisionProductGetOperator(CloudVisionGetProductOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.vision.CloudVisionGetProductOperator`.
+    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionGetProductOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.vision.CloudVisionGetProductOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use `airflow.providers.google.cloud.operators.vision.CloudVisionGetProductOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -116,14 +115,15 @@ class CloudVisionProductGetOperator(CloudVisionGetProductOperator):
 class CloudVisionProductSetCreateOperator(CloudVisionCreateProductSetOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.vision.CloudVisionCreateProductSetOperator`.
+    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductSetOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.vision.CloudVisionCreateProductSetOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use
+            `airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductSetOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -131,14 +131,15 @@ class CloudVisionProductSetCreateOperator(CloudVisionCreateProductSetOperator):
 class CloudVisionProductSetDeleteOperator(CloudVisionDeleteProductSetOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.vision.CloudVisionDeleteProductSetOperator`.
+    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductSetOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.vision.CloudVisionDeleteProductSetOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use
+            `airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductSetOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -146,14 +147,15 @@ class CloudVisionProductSetDeleteOperator(CloudVisionDeleteProductSetOperator):
 class CloudVisionProductSetGetOperator(CloudVisionGetProductSetOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.vision.CloudVisionGetProductSetOperator`.
+    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionGetProductSetOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.vision.CloudVisionGetProductSetOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use
+            `airflow.providers.google.cloud.operators.vision.CloudVisionGetProductSetOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -161,14 +163,15 @@ class CloudVisionProductSetGetOperator(CloudVisionGetProductSetOperator):
 class CloudVisionProductSetUpdateOperator(CloudVisionUpdateProductSetOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.vision.CloudVisionUpdateProductSetOperator`.
+    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductSetOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.vision.CloudVisionUpdateProductSetOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use
+            `airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductSetOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -176,14 +179,15 @@ class CloudVisionProductSetUpdateOperator(CloudVisionUpdateProductSetOperator):
 class CloudVisionProductUpdateOperator(CloudVisionUpdateProductOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.vision.CloudVisionUpdateProductOperator`.
+    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.vision.CloudVisionUpdateProductOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use
+            `airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)
 
@@ -191,13 +195,14 @@ class CloudVisionProductUpdateOperator(CloudVisionUpdateProductOperator):
 class CloudVisionReferenceImageCreateOperator(CloudVisionCreateReferenceImageOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.vision.CloudVisionCreateReferenceImageOperator`.
+    Please use `airflow.providers.google.cloud.operators.vision.CloudVisionCreateReferenceImageOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.vision.CloudVisionCreateReferenceImageOperator`.""",
-            DeprecationWarning, stacklevel=2
+            Please use
+            `airflow.providers.google.cloud.operators.vision.CloudVisionCreateReferenceImageOperator`.""",
+            DeprecationWarning, stacklevel=3
         )
         super().__init__(*args, **kwargs)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,14 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.aws_hook import AwsHook
+from botocore.exceptions import ClientError
+
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerEndpointOperator(SageMakerBaseOperator):
-
     """
     Create a SageMaker endpoint.
 
@@ -91,6 +91,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         self.create_integer_fields()
 
     def create_integer_fields(self):
+        """Set fields which should be casted to integers."""
         if 'EndpointConfig' in self.config:
             self.integer_fields = [
                 ['EndpointConfig', 'ProductionVariants', 'InitialInstanceCount']
@@ -99,7 +100,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     def expand_role(self):
         if 'Model' not in self.config:
             return
-        hook = AwsHook(self.aws_conn_id)
+        hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
         config = self.config['Model']
         if 'ExecutionRoleArn' in config:
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
@@ -129,13 +130,24 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
             raise ValueError('Invalid value! Argument operation has to be one of "create" and "update"')
 
         self.log.info('%s SageMaker endpoint %s.', log_str, endpoint_info['EndpointName'])
+        try:
+            response = sagemaker_operation(
+                endpoint_info,
+                wait_for_completion=self.wait_for_completion,
+                check_interval=self.check_interval,
+                max_ingestion_time=self.max_ingestion_time
+            )
+        except ClientError:  # Botocore throws a ClientError if the endpoint is already created
+            self.operation = 'update'
+            sagemaker_operation = self.hook.update_endpoint
+            log_str = 'Updating'
+            response = sagemaker_operation(
+                endpoint_info,
+                wait_for_completion=self.wait_for_completion,
+                check_interval=self.check_interval,
+                max_ingestion_time=self.max_ingestion_time
+            )
 
-        response = sagemaker_operation(
-            endpoint_info,
-            wait_for_completion=self.wait_for_completion,
-            check_interval=self.check_interval,
-            max_ingestion_time=self.max_ingestion_time
-        )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(
                 'Sagemaker endpoint creation failed: %s' % response)

@@ -67,7 +67,3 @@ class TestAwsFirehoseHook(unittest.TestCase):
 
         self.assertEqual(response['FailedPutCount'], 0)
         self.assertEqual(response['ResponseMetadata']['HTTPStatusCode'], 200)
-
-
-if __name__ == '__main__':
-    unittest.main()

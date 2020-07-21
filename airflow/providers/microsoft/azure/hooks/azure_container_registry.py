@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -33,6 +32,7 @@ class AzureContainerRegistryHook(BaseHook):
     """
 
     def __init__(self, conn_id='azure_registry'):
+        super().__init__()
         self.conn_id = conn_id
         self.connection = self.get_conn()
 

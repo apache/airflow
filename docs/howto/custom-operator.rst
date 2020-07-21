@@ -36,7 +36,7 @@ There are two methods that you need to override in a derived class:
 
 Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``:
 
-.. code::  python
+.. code-block:: python
 
         from airflow.models.baseoperator import BaseOperator
         from airflow.utils.decorators import apply_defaults
@@ -59,13 +59,13 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
 .. note::
 
     For imports to work, you should place the file in a directory that
-    is present in the ``PYTHONPATH`` env. Airflow adds ``dags/``, ``plugins/``, and ``config/`` directories
-    in the Airflow home to ``PYTHONPATH`` by default. e.g., In our example,
+    is present in the :envvar:`PYTHONPATH` env. Airflow adds ``dags/``, ``plugins/``, and ``config/`` directories
+    in the Airflow home to :envvar:`PYTHONPATH` by default. e.g., In our example,
     the file is placed in the ``custom_operator`` directory.
 
 You can now use the derived custom operator as follows:
 
-.. code:: python
+.. code-block:: python
 
     from custom_operator.hello_operator import HelloOperator
 
@@ -94,7 +94,7 @@ See :doc:`connection/index` for how to create and manage connections.
 
 Let's extend our previous example to fetch name from MySQL:
 
-.. code:: python
+.. code-block:: python
 
     class HelloDBOperator(BaseOperator):
 
@@ -134,7 +134,7 @@ Airflow also allows the developer to control how the operator shows up in the DA
 Override ``ui_color`` to change the background color of the operator in UI.
 Override ``ui_fgcolor`` to change the color of the label.
 
-.. code::  python
+.. code-block:: python
 
         class HelloOperator(BaseOperator):
             ui_color = '#ff0000'
@@ -147,7 +147,7 @@ You can use :ref:`Jinja templates <jinja-templating>` to parameterize your opera
 Airflow considers the field names present in ``template_fields``  for templating while rendering
 the operator.
 
-.. code:: python
+.. code-block:: python
 
         class HelloOperator(BaseOperator):
 
@@ -162,18 +162,18 @@ the operator.
                 self.name = name
 
             def execute(self, context):
-                message = "Hello from {}".format(name)
+                message = "Hello from {}".format(self.name)
                 print(message)
                 return message
 
 You can use the template as follows:
 
-.. code:: python
+.. code-block:: python
 
         with dag:
-            hello_task = HelloOperator(task_id='task_id_1', dag=dag, name='{{ task_id }}')
+            hello_task = HelloOperator(task_id='task_id_1', dag=dag, name='{{ task_instance.task_id }}')
 
-In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ task_id }}`` with
+In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ task_instance.task_id }}`` with
 ``task_id_1``.
 
 
@@ -182,7 +182,7 @@ the extension of your file in ``template_ext``. If a ``template_field`` contains
 the extension mentioned in ``template_ext``, Jinja reads the content of the file and replace the templates
 with actual value. Note that Jinja substitutes the operator attributes and not the args.
 
-.. code:: python
+.. code-block:: python
 
         class HelloOperator(BaseOperator):
 
@@ -206,3 +206,27 @@ Define an operator extra link
 For your operator, you can :doc:`Define an extra link <define_extra_link>` that can
 redirect users to external systems. For example, you can add a link that redirects
 the user to the operator's manual.
+
+Sensors
+^^^^^^^^
+Airflow provides a primitive for a special kind of operator, whose purpose is to
+poll some state (e.g. presence of a file) on a regular interval until a
+success criteria is met.
+
+You can create any sensor your want by extending the :class:`airflow.sensors.base_sensor_operator.BaseSensorOperator`
+defining a ``poke`` method to poll your external state and evaluate the success criteria.
+
+Sensors have a powerful feature called ``'reschedule'`` mode which allows the sensor to
+task to be rescheduled, rather than blocking a worker slot between pokes.
+This is useful when you can tolerate a longer poll interval and expect to be
+polling for a long time.
+
+Reschedule mode comes with a caveat that your sensor cannot maintain internal state
+between rescheduled executions. In this case you should decorate your sensor with
+:meth:`airflow.sensors.base_sensor_operator.poke_mode_only`. This will let users know
+that your sensor is not suitable for use with reschedule mode.
+
+An example of a sensor that keeps internal state and cannot be used with reschedule mode
+is :class:`airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor`.
+It polls the number of objects at a prefix (this number is the internal state of the sensor)
+and succeeds when there a certain amount of time has passed without the number of objects changing.

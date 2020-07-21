@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -35,7 +34,3 @@ class TestAwsSQSHook(unittest.TestCase):
     def test_get_conn(self):
         hook = SQSHook(aws_conn_id='aws_default')
         self.assertIsNotNone(hook.get_conn())
-
-
-if __name__ == '__main__':
-    unittest.main()

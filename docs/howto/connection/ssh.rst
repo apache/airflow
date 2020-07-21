@@ -19,7 +19,9 @@
 
 SSH Connection
 ==============
-The SSH connection type provides connection to use :class:`~airflow.contrib.hooks.ssh_hook.SSHHook` to run commands on a remote server using :class:`~airflow.contrib.operators.ssh_operator.SSHOperator` or transfer file from/to the remote server using :class:`~airflow.contrib.operators.ssh_operator.SFTPOperator`.
+The SSH connection type provides connection to use :class:`~airflow.providers.ssh.hooks.ssh.SSHHook` to run
+commands on a remote server using :class:`~airflow.providers.ssh.operators.ssh.SSHOperator` or transfer
+file from/to the remote server using :class:`~airflow.providers.sftp.operators.sftp.SFTPOperator`.
 
 Configuring the Connection
 --------------------------
@@ -46,6 +48,7 @@ Extra (optional)
     * ``compress`` - ``true`` to ask the remote client/server to compress traffic; ``false`` to refuse compression. Default is ``true``.
     * ``no_host_key_check`` - Set to ``false`` to restrict connecting to hosts with no entries in ``~/.ssh/known_hosts`` (Hosts file). This provides maximum protection against trojan horse attacks, but can be troublesome when the ``/etc/ssh/ssh_known_hosts`` file is poorly maintained or connections to new hosts are frequently made. This option forces the user to manually add all new hosts. Default is ``true``, ssh will automatically add new host keys to the user known hosts files.
     * ``allow_host_key_change`` - Set to ``true`` if you want to allow connecting to hosts that has host key changed or when you get 'REMOTE HOST IDENTIFICATION HAS CHANGED' error.  This wont protect against Man-In-The-Middle attacks. Other possible solution is to remove the host entry from ``~/.ssh/known_hosts`` file. Default is ``false``.
+    * ``look_for_keys`` - Set to ``false`` if you want to disable searching for discoverable private key files in ``~/.ssh/``
 
     Example "extras" field:
 
@@ -56,10 +59,11 @@ Extra (optional)
           "timeout": "10",
           "compress": "false",
           "no_host_key_check": "false",
-          "allow_host_key_change": "false"
+          "allow_host_key_change": "false",
+          "look_for_keys": "false"
        }
 
-    When specifying the connection as URI (in ``AIRFLOW_CONN_*`` variable) you should specify it
+    When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
     following the standard syntax of connections, where extras are passed as parameters
     of the URI (note that all components of the URI should be URL-encoded).
 

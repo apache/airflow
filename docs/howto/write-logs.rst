@@ -39,13 +39,53 @@ can not be found or accessed, local logs will be displayed. Note that logs
 are only sent to remote storage once a task is complete (including failure); In other words, remote logs for
 running tasks are unavailable (but local logs are available).
 
+.. _write-logs-advanced:
+
+Advanced configuration
+''''''''''''''''''''''
+
+Not all configuration options are available from the ``airflow.cfg`` file. Some configuration options require
+that the logging config class be overwritten. This can be done by ``logging_config_class`` option
+in ``airflow.cfg`` file. This option should specify the import path indicating to a configuration compatible with
+:func:`logging.config.dictConfig`. If your file is a standard import location, then you should set a :envvar:`PYTHONPATH` environment.
+
+Follow the steps below to enable custom logging config class:
+
+#. Start by setting environment variable to known directory e.g. ``~/airflow/``
+
+    .. code-block:: bash
+
+        export PYTHON_PATH=~/airflow/
+
+#. Create a directory to store the config file e.g. ``~/airflow/config``
+#. Create file called ``~/airflow/config/log_config.py`` with following content:
+
+    .. code-block:: python
+
+      form copy import deepcopy
+      from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+
+      LOGGING_CONFIG = deepcopy(DEFAULT_LOGGING_CONFIG)
+
+#.  At the end of the file, add code to modify the default dictionary configuration.
+#. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
+
+    .. code-block:: ini
+
+        [logging]
+        remote_logging = True
+        logging_config_class = log_config.LOGGING_CONFIG
+
+#. Restart the application.
+
+
 Before you begin
 ''''''''''''''''
 
 Remote logging uses an existing Airflow connection to read or write logs. If you
 don't have a connection properly setup, this process will fail.
 
-.. _write-logs-amazon:
+.. _write-logs-amazon-s3:
 
 Writing Logs to Amazon S3
 -------------------------
@@ -70,6 +110,34 @@ To enable this feature, ``airflow.cfg`` must be configured as follows:
 
 In the above example, Airflow will try to use ``S3Hook('MyS3Conn')``.
 
+You can also use `LocalStack <https://localstack.cloud/>`_ to emulate Amazon S3 locally.
+To configure it, you must additionally set the endpoint url to point to your local stack.
+You can do this via the Connection Extra ``host`` field.
+For example, ``{"host": "http://localstack:4572"}``
+
+.. _write-logs-amazon-cloudwatch:
+
+Writing Logs to Amazon Cloudwatch
+---------------------------------
+
+
+Enabling remote logging
+'''''''''''''''''''''''
+
+To enable this feature, ``airflow.cfg`` must be configured as follows:
+
+.. code-block:: ini
+
+    [logging]
+    # Airflow can store logs remotely in AWS Cloudwatch. Users must supply a log group
+    # ARN (starting with 'cloudwatch://...') and an Airflow connection
+    # id that provides write and read access to the log location.
+    remote_logging = True
+    remote_base_log_folder = cloudwatch://arn:aws:logs:<region name>:<account id>:log-group:<group name>
+    remote_log_conn_id = MyCloudwatchConn
+
+In the above example, Airflow will try to use ``AwsLogsHook('MyCloudwatchConn')``.
+
 .. _write-logs-azure:
 
 Writing Logs to Azure Blob Storage
@@ -79,7 +147,7 @@ Airflow can be configured to read and write task logs in Azure Blob Storage.
 
 Follow the steps below to enable Azure Blob Storage logging:
 
-#. Airflow's logging system requires a custom ``.py`` file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file, ``$AIRFLOW_HOME/config`` is recommended.
+#. Airflow's logging system requires a custom ``.py`` file to be located in the :envvar:`PYTHONPATH`, so that it's importable from Airflow. Start by creating a directory to store the config file, ``$AIRFLOW_HOME/config`` is recommended.
 #. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
 #. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file created in ``Step 2``.
 #. Customize the following portions of the template:
@@ -128,7 +196,7 @@ example:
     remote_base_log_folder = gs://my-bucket/path/to/logs
     remote_log_conn_id = MyGCSConn
 
-#. Install the ``gcp`` package first, like so: ``pip install 'apache-airflow[gcp]'``.
+#. Install the ``google`` package first, like so: ``pip install 'apache-airflow[google]'``.
 #. Make sure a Google Cloud Platform connection hook has been defined in Airflow. The hook should have read and write access to the Google Cloud Storage bucket defined above in ``remote_base_log_folder``.
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
 #. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
@@ -138,7 +206,7 @@ example:
 
   *** Reading remote log from gs://<bucket where logs should be persisted>/example_bash_operator/run_this_last/2017-10-03T00:00:00/16.log.
   [2017-10-03 21:57:50,056] {cli.py:377} INFO - Running on host chrisr-00532
-  [2017-10-03 21:57:50,093] {base_task_runner.py:115} INFO - Running: ['bash', '-c', 'airflow tasks run example_bash_operator run_this_last 2017-10-03T00:00:00 --job_id 47 --raw -sd DAGS_FOLDER/example_dags/example_bash_operator.py']
+  [2017-10-03 21:57:50,093] {base_task_runner.py:115} INFO - Running: ['bash', '-c', 'airflow tasks run example_bash_operator run_this_last 2017-10-03T00:00:00 --job-id 47 --raw -S DAGS_FOLDER/example_dags/example_bash_operator.py']
   [2017-10-03 21:57:51,264] {base_task_runner.py:98} INFO - Subtask: [2017-10-03 21:57:51,263] {__init__.py:45} INFO - Using executor SequentialExecutor
   [2017-10-03 21:57:51,306] {base_task_runner.py:98} INFO - Subtask: [2017-10-03 21:57:51,306] {models.py:186} INFO - Filling up the DagBag from /airflow/dags/example_dags/example_bash_operator.py
 
@@ -166,6 +234,7 @@ First, to use the handler, ``airflow.cfg`` must be configured as follows:
     remote_logging = True
 
     [elasticsearch]
+    host = <host>:<port>
     log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
     end_of_log_mark = end_of_log
     write_stdout =
@@ -183,6 +252,7 @@ To output task logs to stdout in JSON format, the following config could be used
     remote_logging = True
 
     [elasticsearch]
+    host = <host>:<port>
     log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
     end_of_log_mark = end_of_log
     write_stdout = True
@@ -209,3 +279,74 @@ To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, a
     use_ssl=True
     verify_certs=True
     ca_certs=/path/to/CA_certs
+
+
+.. _write-logs-stackdriver:
+
+Writing Logs to Google Stackdriver
+----------------------------------
+
+Airflow can be configured to read and write task logs in `Google Stackdriver Logging <https://cloud.google.com/logging/>`__.
+
+To enable this feature, ``airflow.cfg`` must be configured as in this
+example:
+
+.. code-block:: ini
+
+    [logging]
+    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Users must supply an Airflow connection id that provides access to the storage
+    # location. If remote_logging is set to true, see UPDATING.md for additional
+    # configuration requirements.
+    remote_logging = True
+    remote_base_log_folder = stackdriver://logs-name
+
+All configuration options are in the ``[logging]`` section.
+
+The value of field ``remote_logging`` must always be set to ``True`` for this feature to work.
+Turning this option off will result in data not being sent to Stackdriver.
+The ``remote_base_log_folder`` option contains the URL that specifies the type of handler to be used.
+For integration with Stackdriver, this option should start with ``stackdriver:///``.
+The path section of the URL specifies the name of the log e.g. ``stackdriver://airflow-tasks`` writes
+logs under the name ``airflow-tasks``.
+
+You can set ``stackdriver_key_path`` option in the ``[logging]`` section to specify the path to `the service
+account key file <https://cloud.google.com/iam/docs/service-accounts>`__.
+If ommited, authorization based on `the Application Default Credentials
+<https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
+be used.
+
+By using the ``logging_config_class`` option you can get :ref:`advanced features <write-logs-advanced>` of
+this handler. Details are available in the handler's documentation -
+:class:`~airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler`.
+
+External Links
+==============
+
+When using remote logging, users can configure Airflow to show a link to an external UI within the Airflow Web UI. Clicking the link redirects a user to the external UI.
+
+Some external systems require specific configuration in Airflow for redirection to work but others do not.
+
+.. _log-link-elasticsearch:
+
+Elasticsearch External Link
+------------------------------------
+
+A user can configure Airflow to show a link to an Elasticsearch log viewing system (e.g. Kibana).
+
+To enable it, ``airflow.cfg`` must be configured as in the example below. Note the required ``{log_id}`` in the URL, when constructing the external link, Airflow replaces this parameter with the same ``log_id_template`` used for writing logs (see `Writing Logs to Elasticsearch`_).
+
+.. code-block:: ini
+
+    [elasticsearch]
+    # Qualified URL for an elasticsearch frontend (like Kibana) with a template argument for log_id
+    # Code will construct log_id using the log_id template from the argument above.
+    # NOTE: The code will prefix the https:// automatically, don't include that here.
+    frontend = <host_port>/{log_id}
+
+.. _log-link-stackdriver:
+
+Google Stackdriver External Link
+---------------------------------
+
+Airflow automatically shows a link to Google Stackdriver when configured to use it as the remote logging system.

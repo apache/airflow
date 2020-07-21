@@ -16,6 +16,7 @@
     under the License.
 
 
+.. _executor:CeleryExecutor:
 
 Celery Executor
 ===============
@@ -36,7 +37,7 @@ Here are a few imperative requirements for your workers:
   met in that context. For example, if you use the ``HiveOperator``,
   the hive CLI needs to be installed on that box, or if you use the
   ``MySqlOperator``, the required Python library needs to be available in
-  the ``PYTHONPATH`` somehow
+  the :envvar:`PYTHONPATH` somehow
 - The worker needs to have access to its ``DAGS_FOLDER``, and you need to
   synchronize the filesystems by your own means. A common setup would be to
   store your ``DAGS_FOLDER`` in a Git repository and sync it across machines using
@@ -53,11 +54,23 @@ subcommand
     airflow celery worker
 
 Your worker should start picking up tasks as soon as they get fired in
-its direction.
+its direction. To stop a worker running on a machine you can use:
 
-Note that you can also run "Celery Flower", a web UI built on top of Celery,
-to monitor your workers. You can use the shortcut command ``airflow celery flower``
-to start a Flower web server.
+.. code-block:: bash
+
+    airflow celery stop
+
+It will try to stop the worker gracefully by sending ``SIGTERM`` signal to main Celery
+process as recommended by
+`Celery documentation <https://docs.celeryproject.org/en/latest/userguide/workers>`__.
+
+Note that you can also run `Celery Flower <https://flower.readthedocs.io/en/latest/>`__,
+a web UI built on top of Celery, to monitor your workers. You can use the shortcut command
+to start a Flower web server:
+
+.. code-block:: bash
+
+    airflow celery flower
 
 Please note that you must have the ``flower`` python library already installed on your system. The recommend way is to install the airflow celery bundle.
 
@@ -70,6 +83,7 @@ Some caveats:
 
 - Make sure to use a database backed result backend
 - Make sure to set a visibility timeout in ``[celery_broker_transport_options]`` that exceeds the ETA of your longest running task
+- Make sure to set umask in ``[worker_umask]`` to set permissions for newly created files by workers.
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions
 

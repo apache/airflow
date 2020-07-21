@@ -15,17 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Dask executor."""
+"""
+DaskExecutor
+
+.. seealso::
+    For more information on how the DaskExecutor works, take a look at the guide:
+    :ref:`executor:DaskExecutor`
+"""
 import subprocess
 from typing import Any, Dict, Optional
 
 from distributed import Client, Future, as_completed
 from distributed.security import Security
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
-from airflow.models.taskinstance import TaskInstanceKeyType
+from airflow.models.taskinstance import TaskInstanceKey
 
 
 class DaskExecutor(BaseExecutor):
@@ -44,7 +50,7 @@ class DaskExecutor(BaseExecutor):
         self.tls_key = conf.get('dask', 'tls_key')
         self.tls_cert = conf.get('dask', 'tls_cert')
         self.client: Optional[Client] = None
-        self.futures: Optional[Dict[Future, TaskInstanceKeyType]] = None
+        self.futures: Optional[Dict[Future, TaskInstanceKey]] = None
 
     def start(self) -> None:
         if self.tls_ca or self.tls_key or self.tls_cert:
@@ -61,12 +67,13 @@ class DaskExecutor(BaseExecutor):
         self.futures = {}
 
     def execute_async(self,
-                      key: TaskInstanceKeyType,
+                      key: TaskInstanceKey,
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
-        if not self.futures:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+
+        if command[0:3] != ["airflow", "tasks", "run"]:
+            raise ValueError('The command must start with ["airflow", "tasks", "run"].')
 
         def airflow_run():
             return subprocess.check_call(command, close_fds=True)
@@ -75,7 +82,7 @@ class DaskExecutor(BaseExecutor):
             raise AirflowException(NOT_STARTED_MESSAGE)
 
         future = self.client.submit(airflow_run, pure=False)
-        self.futures[future] = key
+        self.futures[future] = key  # type: ignore
 
     def _process_future(self, future: Future) -> None:
         if not self.futures:

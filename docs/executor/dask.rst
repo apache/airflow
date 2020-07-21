@@ -16,6 +16,7 @@
     under the License.
 
 
+.. _executor:DaskExecutor:
 
 Dask Executor
 =============

@@ -17,9 +17,9 @@
  under the License.
 #}
 
-{% extends "airflow/master.html" %}
+{% extends base_template %}
 
-{% block title %}Airflow - DAG {{ dag.dag_id }}{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - Airflow{% endblock %}
 
 {% block head_css %}
   {{ super() }}
@@ -27,20 +27,21 @@
 {% endblock %}
 
 {% block content %}
-<div>
+  <div>
     <h3 class="pull-left">
       {% if dag.parent_dag is defined and dag.parent_dag %}
-        <span style='color:#AAA;'>SUBDAG: </span> <span> {{ dag.dag_id }}</span>
+        <span style="color:#aaa;">SUBDAG:</span> <span>{{ dag.dag_id }}</span>
       {% else %}
         <input id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
-        <span style='color:#AAA;'>DAG: </span> <span> {{ dag.dag_id }}</span> <small class="text-muted"> {{ dag.description }} </small>
+        <span style="color:#aaa;">DAG:</span> <span>{{ dag.dag_id }}</span>
+        <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
       {% endif %}
       {% if root %}
-        <span style='color:#AAA;'>ROOT: </span> <span> {{ root }}</span>
+        <span style="color:#aaa;">ROOT:</span> <span>{{ root }}</span>
       {% endif %}
     </h3>
     <h4 class="pull-right">
-      <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
+      <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}" style="user-select: none;-moz-user-select: auto;">
         schedule: {{ dag.schedule_interval }}
       </a>
     </h4>
@@ -50,78 +51,60 @@
     {% set base_date_arg = request.args.get('base_date') %}
     {% set num_runs_arg = request.args.get('num_runs') %}
     {% if execution_date is defined %}
-         {% set execution_date_arg = execution_date %}
+      {% set execution_date_arg = execution_date %}
     {% else %}
-        {% set execution_date_arg = request.args.get('execution_date') %}
+      {% set execution_date_arg = request.args.get('execution_date') %}
     {% endif %}
-    <ul class="nav nav-pills">
-      {% if dag.parent_dag is defined and dag.parent_dag %}
-          <li class="never_active"><a href="{{ url_for('Airflow.' + dag.get_default_view(), dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+    <div class="row">
+      <div class="col-md-10">
+        <ul class="nav nav-pills">
+          {% if dag.parent_dag is defined and dag.parent_dag %}
+            <li class="never_active"><a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}">
               <span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>
-              Back to {{ dag.parent_dag.dag_id }}</a>
-          </li>
-      {% endif %}
-      <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
-          <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
-        Graph View</a></li>
-      <li><a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
-          <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
-        Tree View
-      </a></li>
-      <li><a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
-          <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
-          Task Duration
-      </a></li>
-      <li><a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
-          <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>
-          Task Tries
-      </a></li>
-      <li>
-        <a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
-          <span class="glyphicon glyphicon-plane" aria-hidden="true"></span>
-          Landing Times
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
-          <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
-          <i class="icon-align-left"></i>
-          Gantt
-        </a>
-      </li>
-      <li>
-      <a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
-          <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
-          Details
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
-          <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
-          Code
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.tree', dag_id=dag.dag_id)) }}"
-          onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
-          <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
-          Trigger DAG
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh" onclick="postAsForm(this.href); return false">
-          <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
-          Refresh
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
-          onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')">
-          <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></span>
-          Delete
-        </a>
-      </li>
-    </ul>
+              Back to {{ dag.parent_dag.dag_id }}</a></li>
+          {% endif %}
+          <li><a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
+            <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
+            Tree View
+          </a></li>
+          <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+            <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+            Graph View</a></li>
+          <li><a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+            <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
+            Task Duration</a></li>
+          <li><a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+            <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>
+            Task Tries</a></li>
+          <li><a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+            <span class="glyphicon glyphicon-plane" aria-hidden="true"></span>
+            Landing Times</a></li>
+          <li><a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+            <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
+            Gantt</a></li>
+          <li><a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
+            <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+            Details</a></li>
+          <li><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
+            <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
+            Code</a></li>
+        </ul>
+      </div>
+      <div class="col-md-2">
+        <div class="btn-group pull-right">
+          <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id)) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-default">
+            <span class="glyphicon glyphicon-play" aria-hidden="true"></span>
+          </a>
+          <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh DAG" aria-label="Refresh DAG" onclick="postAsForm(this.href); return false" class="btn btn-default">
+            <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
+          </a>
+          <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" title="Delete&nbsp;DAG" class="btn btn-default"
+            onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')" aria-label="Delete DAG">
+            <span class="glyphicon glyphicon-trash text-danger" aria-hidden="true"></span>
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
   <hr>
   <!-- Modal -->
@@ -134,7 +117,7 @@
           <h4 class="modal-title" id="myModalLabel">
             <span id='task_id'></span>
             <button id="btn_filter" type="button" class="btn btn-default" title="Filter on this task and upstream ">
-              <span class="glyphicon glyphicon-filter" style="margin-left: 0px;" aria-hidden="true"></span>
+              <span class="glyphicon glyphicon-filter" style="margin-left:0;" aria-hidden="true"></span>
             </button>
               on
             <span id='execution_date'></span>
@@ -142,10 +125,10 @@
         </div>
         <div class="modal-body">
           <div id="div_btn_subdag">
-            <a id="btn_subdag" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.get_default_view()) }}">
-                Zoom into Sub DAG
-              </a>
-              <hr/>
+            <a id="btn_subdag" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.default_view) }}">
+              Zoom into Sub DAG
+            </a>
+            <hr/>
           </div>
           <a id="btn_task" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.task') }}">
             Task Instance Details
@@ -167,12 +150,14 @@
             <hr/>
             <hr/>
           </div>
-          <div id="dag_es_logs">
-            <label style="display:inline"> View Logs in Elasticsearch (by attempts): </label>
-            <ul class="nav nav-pills" role="tablist" id="es_try_index" style="display:inline">
-            </ul>
-            <hr/>
-            <hr/>
+          <div id="dag_redir_logs">
+            {% if external_log_name is defined %}
+              <label style="display:inline"> View Logs in {{ external_log_name }} (by attempts): </label>
+              <ul class="nav nav-pills" role="tablist" id="redir_log_try_index" style="display:inline">
+              </ul>
+              <hr/>
+              <hr/>
+            {% endif %}
           </div>
           <form method="POST">
             <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
@@ -287,8 +272,7 @@
             </span>
           </form>
           <hr/>
-            <span class="btn-group" id="extra_links">
-            </span>
+          <span class="btn-group" id="extra_links"></span>
         </div>
 
         <div class="modal-footer">
@@ -343,16 +327,16 @@
   {{ super() }}
   <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
   <script>
-function updateQueryStringParameter(uri, key, value) {
-  var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
-  var separator = uri.indexOf('?') !== -1 ? "&" : "?";
-  if (uri.match(re)) {
-    return uri.replace(re, '$1' + key + "=" + value + '$2');
-  }
-  else {
-    return uri + separator + key + "=" + value;
-  }
-}
+    function updateQueryStringParameter(uri, key, value) {
+      var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+      var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+      if (uri.match(re)) {
+        return uri.replace(re, '$1' + key + "=" + value + '$2');
+      }
+      else {
+        return uri + separator + key + "=" + value;
+      }
+    }
 
     // Pills highlighting
     $(document).ready(function () {
@@ -366,9 +350,9 @@ function updateQueryStringParameter(uri, key, value) {
     var task_id = '';
     var execution_date = '';
     var subdag_id = '';
-    var show_es_logs = false;
-    {% if show_external_logs is defined %}
-      show_es_logs = '{{ show_external_logs }}' == "True";
+    var show_external_log_redirect = false;
+    {% if show_external_log_redirect is defined %}
+      show_external_log_redirect = '{{ show_external_log_redirect }}' == "True";
     {% endif %}
 
     var buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce(function(obj, elm) {
@@ -416,7 +400,6 @@ function updateQueryStringParameter(uri, key, value) {
         task_id: task_id,
         execution_date: execution_date,
       });
-
     }
 
     function call_modal(t, d, extra_links, try_numbers, sd) {
@@ -427,8 +410,8 @@ function updateQueryStringParameter(uri, key, value) {
       });
       subdag_id = sd;
       execution_date = d;
-      $('#task_id').html(t);
-      $('#execution_date').html(d);
+      $('#task_id').text(t);
+      $('#execution_date').text(d);
       $('#myModal').modal({});
       $("#myModal").css("margin-top","0px");
       $('#extra_links').prev('hr').hide();
@@ -441,18 +424,18 @@ function updateQueryStringParameter(uri, key, value) {
       }
 
       $("#dag_dl_logs").hide();
-      $("#dag_es_logs").hide();
+      $("#dag_redir_logs").hide();
       if (try_numbers > 0) {
           $("#dag_dl_logs").show();
-          if (show_es_logs) {
-              $("#dag_es_logs").show();
+          if (show_external_log_redirect) {
+              $("#dag_redir_logs").show();
           }
       }
 
       updateModalUrls();
 
       $("#try_index > li").remove();
-      $("#es_try_index > li").remove();
+      $("#redir_log_try_index > li").remove();
       var startIndex = (try_numbers > 2 ? 0 : 1)
       for (var index = startIndex; index <  try_numbers; index++) {
         var url = "{{ url_for('Airflow.get_logs_with_metadata') }}" +
@@ -474,14 +457,14 @@ function updateQueryStringParameter(uri, key, value) {
           </li>`
         );
 
-        if (index == 0 || !show_es_logs) continue;
-        var es_url = "{{ url_for('Airflow.elasticsearch') }}" +
+        if (index == 0 || !show_external_log_redirect) continue;
+        var redir_log_url = "{{ url_for('Airflow.redirect_to_external_log') }}" +
           "?dag_id=" + encodeURIComponent(dag_id) +
           "&task_id=" + encodeURIComponent(task_id) +
           "&execution_date=" + encodeURIComponent(execution_date) +
           "&try_number=" + index;
-        $("#es_try_index").append(`<li role="presentation" style="display:inline">
-          <a href="${es_url}"> ${showLabel} </a>
+        $("#redir_log_try_index").append(`<li role="presentation" style="display:inline">
+          <a href="${redir_log_url}"> ${showLabel} </a>
           </li>`
         );
       }
@@ -521,13 +504,12 @@ function updateQueryStringParameter(uri, key, value) {
         $('#extra_links').append(markupArr).show();
         $('[data-toggle="tooltip"]').tooltip();
       }
-
     }
 
     function call_modal_dag(dag) {
       id = dag && dag.id;
       execution_date = dag && dag.execution_date;
-      $('#dag_id').html(dag_id);
+      $('#dag_id').text(dag_id);
       $('#dagModal').modal({});
       $("#dagModal").css("margin-top","0px");
     }
@@ -564,14 +546,23 @@ function updateQueryStringParameter(uri, key, value) {
 
     $("#pause_resume").change(function() {
       var dag_id = $(this).attr('dag_id');
-      if ($(this).prop('checked')) {
+      var $input = $(this);
+      var $buttons = $input.parent('.toggle').find('.btn');
+      $buttons.removeClass('btn-danger');
+      if ($input.prop('checked')) {
         is_paused = 'true'
       } else {
         is_paused = 'false'
       }
-      url = "{{ url_for('Airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
-      $.post(url);
+      var url = "{{ url_for('Airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
+      $.post(url).fail(function() {
+        if (is_paused === 'true') {
+          $input.data('bs.toggle').off(true);
+        } else {
+          $input.data('bs.toggle').on(true);
+        }
+        $buttons.addClass('btn-danger');
+      });
     });
-
   </script>
 {% endblock %}

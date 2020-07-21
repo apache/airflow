@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,10 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from contextlib import closing
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import create_engine
 
@@ -29,8 +27,19 @@ from airflow.typing_compat import Protocol
 
 
 class ConnectorProtocol(Protocol):
-    def connect(host, port, username, schema):
-        ...
+    """
+    A protocol where you can connect to a database.
+    """
+    def connect(self, host: str, port: int, username: str, schema: str) -> Any:
+        """
+        Connect to a database.
+
+        :param host: The database host to connect to.
+        :param port: The database port to connect to.
+        :param username: The database username used for the authentication.
+        :param schema: The database schema to connect to.
+        :return: the authorized connection object.
+        """
 
 
 class DbApiHook(BaseHook):
@@ -38,7 +47,7 @@ class DbApiHook(BaseHook):
     Abstract base class for sql hooks.
     """
     # Override to provide the connection name.
-    conn_name_attr = None  # type: Optional[str]
+    conn_name_attr = None  # type: str
     # Override to have a default connection id for a particular dbHook
     default_conn_name = 'default_conn_id'
     # Override if this db supports autocommit.
@@ -47,6 +56,7 @@ class DbApiHook(BaseHook):
     connector = None  # type: Optional[ConnectorProtocol]
 
     def __init__(self, *args, **kwargs):
+        super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
         elif len(args) == 1:
@@ -66,7 +76,12 @@ class DbApiHook(BaseHook):
             username=db.login,
             schema=db.schema)
 
-    def get_uri(self):
+    def get_uri(self) -> str:
+        """
+        Extract the URI from the connection.
+
+        :return: the extracted uri.
+        """
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         login = ''
         if conn.login:
@@ -81,6 +96,12 @@ class DbApiHook(BaseHook):
         return uri
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
+        """
+        Get an sqlalchemy_engine object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        :return: the created engine.
+        """
         if engine_kwargs is None:
             engine_kwargs = {}
         return create_engine(self.get_uri(), **engine_kwargs)
@@ -93,9 +114,9 @@ class DbApiHook(BaseHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
-        import pandas.io.sql as psql
+        from pandas.io import sql as psql
 
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters)
@@ -108,7 +129,7 @@ class DbApiHook(BaseHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
@@ -126,7 +147,7 @@ class DbApiHook(BaseHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
@@ -149,7 +170,7 @@ class DbApiHook(BaseHook):
             before executing the query.
         :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
         """
         if isinstance(sql, str):
             sql = [sql]
@@ -159,13 +180,15 @@ class DbApiHook(BaseHook):
                 self.set_autocommit(conn, autocommit)
 
             with closing(conn.cursor()) as cur:
-                for s in sql:
-                    if parameters is not None:
-                        self.log.info("{} with parameters {}".format(s, parameters))
-                        cur.execute(s, parameters)
+                for sql_statement in sql:
+
+                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+                    if parameters:
+                        cur.execute(sql_statement, parameters)
                     else:
-                        self.log.info(s)
-                        cur.execute(s)
+                        cur.execute(sql_statement)
+                    if hasattr(cur, 'rowcount'):
+                        self.log.info("Rows affected: %s", cur.rowcount)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.
@@ -204,8 +227,43 @@ class DbApiHook(BaseHook):
         """
         return self.get_conn().cursor()
 
+    @staticmethod
+    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+        """
+        Static helper method that generate the INSERT SQL statement.
+        The REPLACE variant is specific to MySQL syntax.
+
+        :param table: Name of the target table
+        :type table: str
+        :param values: The row to insert into the table
+        :type values: tuple of cell values
+        :param target_fields: The names of the columns to fill in the table
+        :type target_fields: iterable of strings
+        :param replace: Whether to replace instead of insert
+        :type replace: bool
+        :return: The generated INSERT or REPLACE SQL statement
+        :rtype: str
+        """
+        placeholders = ["%s", ] * len(values)
+
+        if target_fields:
+            target_fields = ", ".join(target_fields)
+            target_fields = "({})".format(target_fields)
+        else:
+            target_fields = ''
+
+        if not replace:
+            sql = "INSERT INTO "
+        else:
+            sql = "REPLACE INTO "
+        sql += "{0} {1} VALUES ({2})".format(
+            table,
+            target_fields,
+            ",".join(placeholders))
+        return sql
+
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000,
-                    replace=False):
+                    replace=False, **kwargs):
         """
         A generic way to insert a set of tuples into a table,
         a new transaction is created every commit_every rows
@@ -222,11 +280,6 @@ class DbApiHook(BaseHook):
         :param replace: Whether to replace instead of insert
         :type replace: bool
         """
-        if target_fields:
-            target_fields = ", ".join(target_fields)
-            target_fields = "({})".format(target_fields)
-        else:
-            target_fields = ''
         i = 0
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
@@ -240,27 +293,21 @@ class DbApiHook(BaseHook):
                     for cell in row:
                         lst.append(self._serialize_cell(cell, conn))
                     values = tuple(lst)
-                    placeholders = ["%s", ] * len(values)
-                    if not replace:
-                        sql = "INSERT INTO "
-                    else:
-                        sql = "REPLACE INTO "
-                    sql += "{0} {1} VALUES ({2})".format(
-                        table,
-                        target_fields,
-                        ",".join(placeholders))
+                    sql = self._generate_insert_sql(
+                        table, values, target_fields, replace, **kwargs
+                    )
                     cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
                         conn.commit()
                         self.log.info(
-                            "Loaded %s into %s rows so far", i, table
+                            "Loaded %s rows into %s so far", i, table
                         )
 
             conn.commit()
         self.log.info("Done loading. Loaded a total of %s rows", i)
 
     @staticmethod
-    def _serialize_cell(cell, conn=None):
+    def _serialize_cell(cell, conn=None):  # pylint: disable=unused-argument
         """
         Returns the SQL literal of the cell as a string.
 

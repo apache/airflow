@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,15 +23,6 @@ class FakeTI:
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
-
-    def pool_full(self):
-        # Allow users of this fake to set pool_filled in the constructor to make this
-        # return True
-        try:
-            return self.pool_filled  # pylint: disable=no-member
-        except AttributeError:
-            # If pool_filled was not set default to false
-            return False
 
     def get_dagrun(self, _):
         return self.dagrun  # pylint: disable=no-member

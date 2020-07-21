@@ -21,7 +21,8 @@ import signal
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
-from airflow import jobs, settings
+from airflow import settings
+from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
 
@@ -30,7 +31,7 @@ from airflow.utils.cli import process_subdir, setup_locations, setup_logging, si
 def scheduler(args):
     """Starts Airflow Scheduler"""
     print(settings.HEADER)
-    job = jobs.SchedulerJob(
+    job = SchedulerJob(
         dag_id=args.dag_id,
         subdir=process_subdir(args.subdir),
         num_runs=args.num_runs,

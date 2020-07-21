@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated.
-Please use `airflow.providers.microsoft.azure.hooks.azure_container_instance`."""
+
+Please use `airflow.providers.microsoft.azure.hooks.azure_container_instance`.
+"""
 
 import warnings
 

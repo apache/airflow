@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -30,10 +29,11 @@ class timeout(LoggingMixin):  # pylint: disable=invalid-name
     """
 
     def __init__(self, seconds=1, error_message='Timeout'):
+        super().__init__()
         self.seconds = seconds
         self.error_message = error_message + ', PID: ' + str(os.getpid())
 
-    def handle_timeout(self, signum, frame):
+    def handle_timeout(self, signum, frame):    # pylint: disable=unused-argument
         """
         Logs information and raises AirflowTaskTimeout.
         """

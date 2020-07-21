@@ -16,31 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-LocalExecutor runs tasks by spawning processes in a controlled fashion in different
-modes. Given that BaseExecutor has the option to receive a `parallelism` parameter to
-limit the number of process spawned, when this parameter is `0` the number of processes
-that LocalExecutor can spawn is unlimited.
+LocalExecutor
 
-The following strategies are implemented:
-1. Unlimited Parallelism (self.parallelism == 0): In this strategy, LocalExecutor will
-spawn a process every time `execute_async` is called, that is, every task submitted to the
-LocalExecutor will be executed in its own process. Once the task is executed and the
-result stored in the `result_queue`, the process terminates. There is no need for a
-`task_queue` in this approach, since as soon as a task is received a new process will be
-allocated to the task. Processes used in this strategy are of class LocalWorker.
-
-2. Limited Parallelism (self.parallelism > 0): In this strategy, the LocalExecutor spawns
-the number of processes equal to the value of `self.parallelism` at `start` time,
-using a `task_queue` to coordinate the ingestion of tasks and the work distribution among
-the workers, which will take a task as soon as they are ready. During the lifecycle of
-the LocalExecutor, the worker processes are running waiting for tasks, once the
-LocalExecutor receives the call to shutdown the executor a poison token is sent to the
-workers to terminate them. Processes used in this strategy are of class QueuedLocalWorker.
-
-Arguably, `SequentialExecutor` could be thought as a LocalExecutor with limited
-parallelism of just 1 worker, i.e. `self.parallelism = 1`.
-This option could lead to the unification of the executor implementations, running
-locally, into just one `LocalExecutor` with multiple modes.
+.. seealso::
+    For more information on how the LocalExecutor works, take a look at the guide:
+    :ref:`executor:LocalExecutor`
 """
 import subprocess
 from multiprocessing import Manager, Process
@@ -48,10 +28,10 @@ from multiprocessing.managers import SyncManager
 from queue import Empty, Queue  # pylint: disable=unused-import  # noqa: F401
 from typing import Any, List, Optional, Tuple, Union  # pylint: disable=unused-import # noqa: F401
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, PARALLELISM, BaseExecutor, CommandType
 from airflow.models.taskinstance import (  # pylint: disable=unused-import # noqa: F401
-    TaskInstanceKeyType, TaskInstanceStateType,
+    TaskInstanceKey, TaskInstanceStateType,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -59,7 +39,7 @@ from airflow.utils.state import State
 # This is a work to be executed by a worker.
 # It can Key and Command - but it can also be None, None which is actually a
 # "Poison Pill" - worker seeing Poison Pill should take the pill and ... die instantly.
-ExecutorWorkType = Tuple[Optional[TaskInstanceKeyType], Optional[CommandType]]
+ExecutorWorkType = Tuple[Optional[TaskInstanceKey], Optional[CommandType]]
 
 
 class LocalWorkerBase(Process, LoggingMixin):
@@ -74,7 +54,7 @@ class LocalWorkerBase(Process, LoggingMixin):
         self.daemon: bool = True
         self.result_queue: 'Queue[TaskInstanceStateType]' = result_queue
 
-    def execute_work(self, key: TaskInstanceKeyType, command: CommandType) -> None:
+    def execute_work(self, key: TaskInstanceKey, command: CommandType) -> None:
         """
         Executes command received and stores result state in queue.
 
@@ -103,10 +83,10 @@ class LocalWorker(LocalWorkerBase):
     """
     def __init__(self,
                  result_queue: 'Queue[TaskInstanceStateType]',
-                 key: TaskInstanceKeyType,
+                 key: TaskInstanceKey,
                  command: CommandType):
         super().__init__(result_queue)
-        self.key: TaskInstanceKeyType = key
+        self.key: TaskInstanceKey = key
         self.command: CommandType = command
 
     def run(self) -> None:
@@ -173,13 +153,13 @@ class LocalExecutor(BaseExecutor):
             self.executor.workers_used = 0
             self.executor.workers_active = 0
 
+        # pylint: disable=unused-argument # pragma: no cover
         # noinspection PyUnusedLocal
         def execute_async(self,
-                          key: TaskInstanceKeyType,
+                          key: TaskInstanceKey,
                           command: CommandType,
                           queue: Optional[str] = None,
-                          executor_config: Optional[Any] = None) -> None:  \
-                # pylint: disable=unused-argument # pragma: no cover
+                          executor_config: Optional[Any] = None) -> None:
             """
             Executes task asynchronously.
 
@@ -195,6 +175,7 @@ class LocalExecutor(BaseExecutor):
             self.executor.workers_active += 1
             local_worker.start()
 
+        # pylint: enable=unused-argument # pragma: no cover
         def sync(self) -> None:
             """
             Sync will get called periodically by the heartbeat method.
@@ -244,12 +225,13 @@ class LocalExecutor(BaseExecutor):
                 worker.start()
 
         # noinspection PyUnusedLocal
-        def execute_async(self,
-                          key: TaskInstanceKeyType,
-                          command: CommandType,
-                          queue: Optional[str] = None,
-                          executor_config: Optional[Any] = None) -> None: \
-                # pylint: disable=unused-argument # pragma: no cover
+        def execute_async(
+            self,
+            key: TaskInstanceKey,
+            command: CommandType,
+            queue: Optional[str] = None,  # pylint: disable=unused-argument
+            executor_config: Optional[Any] = None  # pylint: disable=unused-argument
+        ) -> None:
             """
             Executes task asynchronously.
 
@@ -257,7 +239,7 @@ class LocalExecutor(BaseExecutor):
             :param command: the command to execute
             :param queue: name of the queue
             :param executor_config: configuration for the executor
-           """
+            """
             if not self.queue:
                 raise AirflowException(NOT_STARTED_MESSAGE)
             self.queue.put((key, command))
@@ -297,13 +279,17 @@ class LocalExecutor(BaseExecutor):
 
         self.impl.start()
 
-    def execute_async(self, key: TaskInstanceKeyType,
+    def execute_async(self, key: TaskInstanceKey,
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
         """Execute asynchronously."""
         if not self.impl:
             raise AirflowException(NOT_STARTED_MESSAGE)
+
+        if command[0:3] != ["airflow", "tasks", "run"]:
+            raise ValueError('The command must start with ["airflow", "tasks", "run"].')
+
         self.impl.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
 
     def sync(self) -> None:

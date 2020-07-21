@@ -34,7 +34,7 @@ The scheduler uses the configured :doc:`Executor </executor/index>` to run tasks
 
 To start a scheduler, simply run the command:
 
-.. code:: bash
+.. code-block:: bash
 
     airflow scheduler
 

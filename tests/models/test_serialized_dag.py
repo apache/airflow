@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,11 +20,14 @@
 
 import unittest
 
-from airflow import example_dags as example_dags_module
+from airflow import DAG, example_dags as example_dags_module
 from airflow.models import DagBag
+from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.utils import timezone
 from airflow.utils.session import create_session
+from tests.test_utils.asserts import assert_queries_count
 
 
 # To move it to a shared module.
@@ -51,7 +53,8 @@ class SerializedDagModelTest(unittest.TestCase):
 
     def test_dag_fileloc_hash(self):
         """Verifies the correctness of hashing file path."""
-        self.assertTrue(SDM.dag_fileloc_hash('/airflow/dags/test_dag.py') == 60791)
+        self.assertEqual(DagCode.dag_fileloc_hash('/airflow/dags/test_dag.py'),
+                         33826252060516589)
 
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
@@ -73,6 +76,36 @@ class SerializedDagModelTest(unittest.TestCase):
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
 
+    def test_serialized_dag_is_updated_only_if_dag_is_changed(self):
+        """Test Serialized DAG is updated if DAG is changed"""
+
+        example_dags = make_example_dags(example_dags_module)
+        example_bash_op_dag = example_dags.get("example_bash_operator")
+        SDM.write_dag(dag=example_bash_op_dag)
+
+        with create_session() as session:
+            last_updated = session.query(
+                SDM.last_updated).filter(SDM.dag_id == example_bash_op_dag.dag_id).one_or_none()
+
+            # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
+            # column is not updated
+            SDM.write_dag(dag=example_bash_op_dag)
+            last_updated_1 = session.query(
+                SDM.last_updated).filter(SDM.dag_id == example_bash_op_dag.dag_id).one_or_none()
+
+            self.assertEqual(last_updated, last_updated_1)
+
+            # Update DAG
+            example_bash_op_dag.tags += ["new_tag"]
+            self.assertCountEqual(example_bash_op_dag.tags, ["example", "new_tag"])
+
+            SDM.write_dag(dag=example_bash_op_dag)
+            new_s_dag = session.query(SDM.last_updated, SDM.data).filter(
+                SDM.dag_id == example_bash_op_dag.dag_id).one_or_none()
+
+            self.assertNotEqual(last_updated, new_s_dag.last_updated)
+            self.assertEqual(new_s_dag.data["dag"]["tags"], ["example", "new_tag"])
+
     def test_read_dags(self):
         """DAGs can be read from database."""
         example_dags = self._write_example_dags()
@@ -84,7 +117,7 @@ class SerializedDagModelTest(unittest.TestCase):
             self.assertTrue(serialized_dag.dag_id == dag.dag_id)
             self.assertTrue(set(serialized_dag.task_dict) == set(dag.task_dict))
 
-    def test_remove_dags(self):
+    def test_remove_dags_by_id(self):
         """DAGs can be removed from database."""
         example_dags_list = list(self._write_example_dags().values())
         # Remove SubDags from the list as they are not stored in DB in a separate row
@@ -95,9 +128,27 @@ class SerializedDagModelTest(unittest.TestCase):
         SDM.remove_dag(dag_removed_by_id.dag_id)
         self.assertFalse(SDM.has_dag(dag_removed_by_id.dag_id))
 
-        # Tests removing by file path.
-        dag_removed_by_file = filtered_example_dags_list[1]
-        example_dag_files = [dag.full_filepath for dag in filtered_example_dags_list]
-        example_dag_files.remove(dag_removed_by_file.full_filepath)
-        SDM.remove_deleted_dags(example_dag_files)
-        self.assertFalse(SDM.has_dag(dag_removed_by_file.dag_id))
+    def test_remove_stale_dags(self):
+        example_dags_list = list(self._write_example_dags().values())
+        # Remove SubDags from the list as they are not stored in DB in a separate row
+        # and are directly added in Json blob of the main DAG
+        filtered_example_dags_list = [dag for dag in example_dags_list if not dag.is_subdag]
+        # Tests removing a stale DAG
+        stale_dag = SDM(filtered_example_dags_list[0])
+        fresh_dag = SDM(filtered_example_dags_list[1])
+        # Overwrite stale_dag's last_updated to be 10 minutes ago
+        stale_dag.last_updated = timezone.utcnow() - timezone.dt.timedelta(seconds=600)
+        with create_session() as session:
+            session.merge(stale_dag)
+            session.commit()
+        # Remove any stale DAGs older than 5 minutes
+        SDM.remove_stale_dags(timezone.utcnow() - timezone.dt.timedelta(seconds=300))
+        self.assertFalse(SDM.has_dag(stale_dag.dag_id))
+        self.assertTrue(SDM.has_dag(fresh_dag.dag_id))
+
+    def test_bulk_sync_to_db(self):
+        dags = [
+            DAG("dag_1"), DAG("dag_2"), DAG("dag_3"),
+        ]
+        with assert_queries_count(10):
+            SDM.bulk_sync_to_db(dags)

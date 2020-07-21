@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,7 +20,7 @@ import unittest
 
 import mock
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
 
@@ -58,7 +57,3 @@ class TestAthenaSensor(unittest.TestCase):
         with self.assertRaises(AirflowException) as context:
             self.sensor.poke(None)
         self.assertIn('Athena sensor failed', str(context.exception))
-
-
-if __name__ == '__main__':
-    unittest.main()
