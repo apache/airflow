@@ -18,7 +18,6 @@
 
 import datetime
 import unittest
-from unittest import mock
 
 import mock
 from parameterized import parameterized
@@ -33,8 +32,8 @@ from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
-from tests.test_utils.db import clear_db_pools, clear_db_runs
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_pools, clear_db_runs
 
 
 class TestDagRun(unittest.TestCase):
@@ -710,4 +709,3 @@ class TestDagRun(unittest.TestCase):
 
         dr.update_state()
         self.assertEqual(dr.state, State.SUCCESS)
-
