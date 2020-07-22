@@ -526,6 +526,7 @@ function prepare_command_files() {
     export COMPOSE_CI_FILE
     export COMPOSE_PROD_FILE
 
+    get_base_image_version
     # Base python image for the build
     export PYTHON_BASE_IMAGE=python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
