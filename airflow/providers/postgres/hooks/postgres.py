@@ -21,8 +21,8 @@ from contextlib import closing
 from typing import Union, Tuple, Any, Iterable
 
 import psycopg2
-from psycopg2.extensions import connection as PostgresConnection
-from psycopg2.extras import DictCursor, RealDictCursor, NamedTupleCursor
+import psycopg2.extensions
+import psycopg2.extras
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -60,17 +60,19 @@ class PostgresHook(DbApiHook):
         self.connection = kwargs.pop("connection", None)
         self.conn = None
 
-    def _get_cursor(self, raw_cursor: str) -> Union[DictCursor, RealDictCursor, NamedTupleCursor]:
+    def _get_cursor(self, raw_cursor: str) -> Union[psycopg2.extras.DictCursor,
+                                                    psycopg2.extras.RealDictCursor,
+                                                    psycopg2.extras.NamedTupleCursor]:
         _cursor = raw_cursor.lower()
         if _cursor == 'dictcursor':
-            return DictCursor
+            return psycopg2.extras.DictCursor
         if _cursor == 'realdictcursor':
-            return RealDictCursor
+            return psycopg2.extras.RealDictCursor
         if _cursor == 'namedtuplecursor':
-            return NamedTupleCursor
+            return psycopg2.extras.NamedTupleCursor
         raise ValueError('Invalid cursor passed {}'.format(_cursor))
 
-    def get_conn(self) -> PostgresConnection:
+    def get_conn(self) -> psycopg2.extensions.connection:
 
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
@@ -141,7 +143,7 @@ class PostgresHook(DbApiHook):
 
     # pylint: disable=signature-differs
     @staticmethod
-    def _serialize_cell(cell: object, conn: PostgresConnection) -> object:
+    def _serialize_cell(cell: object, conn: psycopg2.extensions.connection) -> object:
         """
         Postgresql will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
@@ -158,7 +160,7 @@ class PostgresHook(DbApiHook):
         """
         return cell
 
-    def get_iam_token(self, conn: PostgresConnection) -> Tuple[Any, Any, Union[int, Any]]:
+    def get_iam_token(self, conn: psycopg2.extensions.connection) -> Tuple[Any, Any, Union[int, Any]]:
         """
         Uses AWSHook to retrieve a temporary password to connect to Postgres
         or Redshift. Port is required. If none is provided, default is used for
