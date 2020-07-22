@@ -43,7 +43,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
-- [Building customized production images](#building-customized-production-images)
+- [Official Docker images](#official-docker-images)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
 - [User Interface](#user-interface)
@@ -119,7 +119,7 @@ pip install apache-airflow[postgres,google]==1.10.11 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 ```
 
-## Building customized production images
+## Official Docker images
 
 In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images
 of Apache Airflow. The community provides two types of support for the production images:
