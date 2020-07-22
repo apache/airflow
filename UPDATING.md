@@ -1222,8 +1222,8 @@ has been renamed to `request_filter`.
 
 The Airflow CLI has been organized so that related commands are grouped
 together as subcommands. The `airflow list_dags` command is now `airflow
-dags list`, `airflow pause` is `airflow dags pause`, etc. For a complete
-list of updated CLI commands, see https://airflow.apache.org/cli.html.
+dags list`, `airflow pause` is `airflow dags pause`, `airflow config` is `airflow config list`, etc.
+For a complete list of updated CLI commands, see https://airflow.apache.org/cli.html.
 
 ### Removal of Mesos Executor
 

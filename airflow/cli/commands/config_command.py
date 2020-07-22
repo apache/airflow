@@ -16,6 +16,7 @@
 # under the License.
 """Config sub-commands"""
 import io
+import sys
 
 import pygments
 from pygments.formatters.terminal import TerminalFormatter
@@ -35,3 +36,17 @@ def show_config(args):
                 code=code, formatter=TerminalFormatter(), lexer=IniLexer()
             )
         print(code)
+
+
+def get_value(args):
+    """Get one value from configuration"""
+    if not conf.has_section(args.section):
+        print(f'section [{args.section}] not found in config.', file=sys.stderr)
+        sys.exit(1)
+
+    if not conf.has_option(args.section, args.option):
+        print(f'option [{args.section}/{args.option}] not found in config.', file=sys.stderr)
+        sys.exit(1)
+
+    value = conf.get(args.section, args.option)
+    print(value)
