@@ -30,7 +30,6 @@ ROOT_FOLDER = os.path.realpath(
 MISSING_TEST_FILES = {
     'tests/providers/google/cloud/log/test_gcs_task_handler.py',
     'tests/providers/google/cloud/operators/test_datastore.py',
-    'tests/providers/google/cloud/transfers/test_sql_to_gcs.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
     'tests/providers/google/cloud/utils/test_field_validator.py',
     'tests/providers/google/cloud/utils/test_mlengine_prediction_summary.py',
