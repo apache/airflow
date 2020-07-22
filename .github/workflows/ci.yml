@@ -222,7 +222,7 @@ jobs:
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: "true"
       TEST_TYPE: ${{ matrix.test-type }}
-    if: needs.trigger-tests.outputs.count == 'true' || github.event_name != 'pull_request'
+    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
