@@ -226,7 +226,9 @@ class ImapHook(BaseHook):
         mail_body_str = mail_body.decode('utf-8')
         return mail_body_str
 
-    def _check_mail_body(self, response_mail_body: str, name: str, check_regex: bool, latest_only: bool) -> List[Tuple[Any, Any]]:
+    def _check_mail_body(self,
+                         response_mail_body: str,name: str,
+                         check_regex: bool, latest_only: bool) -> List[Tuple[Any, Any]]:
         mail = Mail(response_mail_body)
         if mail.has_attachments():
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
@@ -281,7 +283,10 @@ class Mail(LoggingMixin):
         """
         return self.mail.get_content_maintype() == 'multipart'
 
-    def get_attachments_by_name(self, name: str, check_regex: bool, find_first: bool = False) -> List[Tuple[Any, Any]]:
+    def get_attachments_by_name(self,
+                                name: str,
+                                check_regex: bool,
+                                find_first: bool = False) -> List[Tuple[Any, Any]]:
         """
         Gets all attachments by name for the mail.
 
