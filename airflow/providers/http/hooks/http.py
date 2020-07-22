@@ -89,7 +89,7 @@ class HttpHook(BaseHook):
         return session
 
     def run(self,
-            endpoint: str,
+            endpoint: Optional[str],
             data: Optional[Union[Dict[str, Any], str]] = None,
             headers: Optional[Dict[str, Any]] = None,
             extra_options: Optional[Dict[str, Any]] = None,
