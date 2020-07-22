@@ -430,8 +430,8 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: |
-      github.event_name == 'push' &&
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test')
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
+      github.event_name != 'pull'
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-python@v1
@@ -454,8 +454,8 @@ jobs:
     needs:
       - constraints
     if: |
-      github.event_name == 'push' &&
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test')
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
+      github.event_name != 'pull'
     steps:
       - name: "Set constraints branch name"
         id: constraints-branch
@@ -486,9 +486,9 @@ jobs:
           git config --local user.name "Automated Github Actions commit"
           git diff --exit-code || git commit --all --message "Updating constraints. GH run id:${GITHUB_RUN_ID}
 
-          This update in constraints is automatically committed by CI pushing
-          reference '${GITHUB_REF}' to ${GITHUB_REPOSITORY} with commit sha
-          ${GITHUB_SHA}.
+          This update in constraints is automatically committed by the CI 'constraints-push' step based on
+          HEAD of '${GITHUB_REF}' in '${GITHUB_REPOSITORY}'
+          with commit sha ${GITHUB_SHA}.
 
           All tests passed in this build so we determined we can push the updated constraints.
 
