@@ -51,7 +51,7 @@ def lazy_load_command(import_path: str) -> Callable:
         func = import_string(import_path)
         return func(*args, **kwargs)
 
-    command.__name__ = name  # type: ignore
+    command.__name__ = name
 
     return command
 

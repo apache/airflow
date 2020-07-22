@@ -446,7 +446,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         )):
             self.instance._get_credentials_and_project_id()
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         MODULE_NAME + '.get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID")
     )

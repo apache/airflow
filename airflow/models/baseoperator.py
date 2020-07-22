@@ -26,9 +26,7 @@ import sys
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
-from typing import (
-    Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union, cast,
-)
+from typing import Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union
 
 import attr
 import jinja2
@@ -1168,7 +1166,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
                 task_list = [task_or_task_list]  # type: ignore
 
             task_list = [
-                t.operator if isinstance(t, XComArg) else t  # type: ignore
+                t.operator if isinstance(t, XComArg) else t
                 for t in task_list
             ]
 
@@ -1381,8 +1379,8 @@ def chain(*tasks: Union[BaseOperator, List[BaseOperator]]):
             raise TypeError(
                 'Chain not supported between instances of {up_type} and {down_type}'.format(
                     up_type=type(up_task), down_type=type(down_task)))
-        up_task_list = cast(List[BaseOperator], up_task)
-        down_task_list = cast(List[BaseOperator], down_task)
+        up_task_list = up_task
+        down_task_list = down_task
         if len(up_task_list) != len(down_task_list):
             raise AirflowException(
                 f'Chain not supported different length Iterable '

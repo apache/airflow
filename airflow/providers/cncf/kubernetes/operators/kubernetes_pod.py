@@ -370,9 +370,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         # noinspection PyTypeChecker
         pod = append_to_pod(
             pod,
-            self.pod_runtime_info_envs +  # type: ignore
+            self.pod_runtime_info_envs +
             self.ports +  # type: ignore
-            self.resources +  # type: ignore
+            self.resources +
             self.secrets +  # type: ignore
             self.volumes +  # type: ignore
             self.volume_mounts  # type: ignore

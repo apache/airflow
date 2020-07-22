@@ -107,7 +107,7 @@ class CloudTranslateHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        return client.translate(  # type: ignore
+        return client.translate(
             values=values,
             target_language=target_language,
             format_=format_,

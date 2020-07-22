@@ -119,7 +119,7 @@ class MsSqlToHiveOperator(BaseOperator):
                 cursor.execute(self.sql)
                 with NamedTemporaryFile("w") as tmp_file:
                     csv_writer = csv.writer(tmp_file, delimiter=self.delimiter, encoding='utf-8')
-                    field_dict = OrderedDict()  # type:ignore
+                    field_dict = OrderedDict()
                     col_count = 0
                     for field in cursor.description:
                         col_count += 1

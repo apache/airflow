@@ -142,7 +142,7 @@ class CloudSQLHook(GoogleBaseHook):
             body=body
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
+        self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -170,7 +170,7 @@ class CloudSQLHook(GoogleBaseHook):
             body=body
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
+        self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -191,7 +191,7 @@ class CloudSQLHook(GoogleBaseHook):
             instance=instance,
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
+        self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -238,7 +238,7 @@ class CloudSQLHook(GoogleBaseHook):
             body=body
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
+        self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -275,7 +275,7 @@ class CloudSQLHook(GoogleBaseHook):
             body=body
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
+        self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -299,7 +299,7 @@ class CloudSQLHook(GoogleBaseHook):
             database=database
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
+        self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -326,7 +326,7 @@ class CloudSQLHook(GoogleBaseHook):
             body=body
         ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id,  # type:ignore
+        self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -353,7 +353,7 @@ class CloudSQLHook(GoogleBaseHook):
                 body=body
             ).execute(num_retries=self.num_retries)
             operation_name = response["name"]
-            self._wait_for_operation_to_complete(project_id=project_id,  # type: ignore
+            self._wait_for_operation_to_complete(project_id=project_id,
                                                  operation_name=operation_name)
         except HttpError as ex:
             raise AirflowException(
@@ -984,7 +984,7 @@ class CloudSQLDatabaseHook(BaseHook):
                 raise ValueError("The db_hook should be set")
             if not isinstance(self.db_hook, PostgresHook):
                 raise ValueError(f"The db_hook should be PostrgresHook and is {type(self.db_hook)}")
-            conn = getattr(self.db_hook, 'conn')  # type: ignore
+            conn = getattr(self.db_hook, 'conn')
             if conn and conn.notices:
                 for output in self.db_hook.conn.notices:
                     self.log.info(output)

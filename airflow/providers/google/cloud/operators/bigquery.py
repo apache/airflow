@@ -153,7 +153,7 @@ class BigQueryCheckOperator(CheckOperator):
         super().__init__(sql=sql, *args, **kwargs)
         if bigquery_conn_id:
             warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
-            gcp_conn_id = bigquery_conn_id  # type: ignore
+            gcp_conn_id = bigquery_conn_id
 
         self.gcp_conn_id = gcp_conn_id
         self.sql = sql
