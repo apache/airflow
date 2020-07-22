@@ -52,7 +52,7 @@ SPEC_PATH="${SPEC_PATH}" \
 OUTPUT_DIR="${OUTPUT_DIR}" \
     gen_client go \
     --package-name airflow \
-    --git-repo-id airflow/clients/go/airflow \
+    --git-repo-id airflow-client-go/airflow \
     --additional-properties "${go_config[*]}"
 
 # patch generated client to support problem HTTP API
