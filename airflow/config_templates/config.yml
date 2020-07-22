@@ -526,6 +526,14 @@
       type: string
       example: ~
       default: "task"
+    - name: extra_loggers
+      description: |
+        A comma\-separated list of third-party logger names that will be configured to print messages to
+        consoles\.
+      version_added: ~
+      type: string
+      example: "connexion,sqlalchemy"
+      default: ""
 - name: secrets
   description: ~
   options:
