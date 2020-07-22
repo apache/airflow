@@ -215,7 +215,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         table_reference = TableReference(DatasetReference(project_id, dataset_id), table_id)
         try:
-            self.get_client().get_table(table_reference)
+            self.get_client(project_id=project_id).get_table(table_reference)
             return True
         except NotFound:
             return False

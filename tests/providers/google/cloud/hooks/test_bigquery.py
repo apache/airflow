@@ -104,18 +104,19 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         with self.assertRaises(NotImplementedError):
             self.hook.insert_rows(table="table", rows=[1, 2])
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_bigquery_table_exists_true(self, mock_client):
         result = self.hook.table_exists(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID)
         mock_client.return_value.get_table.assert_called_once_with(TABLE_REFERENCE)
+        mock_client.assert_called_once_with(project_id=PROJECT_ID)
         assert result is True
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_bigquery_table_exists_false(self, mock_client):
         mock_client.return_value.get_table.side_effect = NotFound("Dataset not found")
-
         result = self.hook.table_exists(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID)
         mock_client.return_value.get_table.assert_called_once_with(TABLE_REFERENCE)
+        mock_client.assert_called_once_with(project_id=PROJECT_ID)
         assert result is False
 
     @mock.patch('airflow.providers.google.cloud.hooks.bigquery.read_gbq')
