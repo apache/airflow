@@ -82,8 +82,8 @@ class VerticaToHiveOperator(BaseOperator):
             delimiter=chr(1),
             vertica_conn_id='vertica_default',
             hive_cli_conn_id='hive_cli_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
         self.sql = sql
         self.hive_table = hive_table
         self.partition = partition

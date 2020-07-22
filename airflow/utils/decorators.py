@@ -21,7 +21,7 @@ import inspect
 import os
 from copy import copy
 from functools import wraps
-from typing import Any, Callable, TypeVar, cast, Dict
+from typing import Any, Callable, Dict, TypeVar, cast
 
 from airflow.exceptions import AirflowException
 

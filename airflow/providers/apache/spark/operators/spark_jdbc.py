@@ -149,9 +149,8 @@ class SparkJDBCOperator(SparkSubmitOperator):
                  lower_bound: Optional[str] = None,
                  upper_bound: Optional[str] = None,
                  create_table_column_types: Optional[str] = None,
-                 *args: Any,
                  **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._spark_app_name = spark_app_name
         self._spark_conn_id = spark_conn_id
         self._spark_conf = spark_conf

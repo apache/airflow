@@ -111,9 +111,8 @@ class KylinCubeOperator(BaseOperator):
                  interval: int = 60,
                  timeout: int = 60 * 60 * 24,
                  eager_error_status=tuple(["ERROR", "DISCARDED", "KILLED", "SUICIDAL", "STOPPED"]),
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.kylin_conn_id = kylin_conn_id
         self.project = project
         self.cube = cube

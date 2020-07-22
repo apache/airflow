@@ -61,9 +61,9 @@ class DruidCheckOperator(CheckOperator):
         self,
         sql: str,
         druid_broker_conn_id: str = 'druid_broker_default',
-        *args: Any, **kwargs: Any
+        **kwargs: Any
     ) -> None:
-        super().__init__(sql=sql, *args, **kwargs)
+        super().__init__(sql=sql, **kwargs)
         self.druid_broker_conn_id = druid_broker_conn_id
         self.sql = sql
 
