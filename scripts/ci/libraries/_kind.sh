@@ -45,7 +45,7 @@ function make_sure_kubernetes_tools_are_installed() {
     HELM_VERSION=${HELM_VERSION:=${DEFAULT_HELM_VERSION}}
     HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-amd64.tar.gz"
     HELM_PATH="${BUILD_CACHE_DIR}/bin/helm"
-    KUBECTL_VERSION=${KUBENETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}
+    KUBECTL_VERSION=${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}
     KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${SYSTEM}/amd64/kubectl"
     KUBECTL_PATH="${BUILD_CACHE_DIR}/bin/kubectl"
     mkdir -pv "${BUILD_CACHE_DIR}/bin"
@@ -125,7 +125,7 @@ function delete_cluster() {
 }
 
 function perform_kind_cluster_operation() {
-    ALLOWED_KIND_OPERATIONS="[ start restart stop deploy test shell ]"
+    ALLOWED_KIND_OPERATIONS="[ start restart stop deploy test shell recreate ]"
 
     set +u
     if [[ -z "${1}" ]]; then
@@ -215,7 +215,7 @@ function perform_kind_cluster_operation() {
             echo "Creating cluster"
             echo
             create_cluster
-        elif [[ ${OPERATION} == "stop" || ${OEPRATON} == "deploy" || \
+        elif [[ ${OPERATION} == "stop" || ${OPERATION} == "deploy" || \
                 ${OPERATION} == "test" || ${OPERATION} == "shell" ]]; then
             echo >&2
             echo >&2 "Cluster ${KIND_CLUSTER_NAME} does not exist. It should exist for ${OPERATION} operation"

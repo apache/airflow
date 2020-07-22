@@ -146,7 +146,7 @@ function setup_default_breeze_variables() {
 
     _BREEZE_DEFAULT_BACKEND="sqlite"
     _BREEZE_DEFAULT_KUBERNETES_MODE="image"
-    _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.18.2"
+    _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.18.6"
     _BREEZE_DEFAULT_KIND_VERSION="v0.8.0"
     _BREEZE_DEFAULT_HELM_VERSION="v3.2.4"
     _BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
@@ -2088,6 +2088,8 @@ function run_build_command {
               echo "Stops KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "restart" ]] ; then
               echo "Restarts KinD cluster"
+            elif [[ ${KIND_CLUSTER_OPERATION} == "recreate" ]] ; then
+              echo "Recreates KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "status" ]] ; then
               echo "Checks status of KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "deploy" ]] ; then

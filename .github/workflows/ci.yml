@@ -153,8 +153,7 @@ jobs:
         python-version: [3.6, 3.7]
         kube-mode:
           - image
-        kubernetes-version:
-          - "v1.18.2"
+        kubernetes-version: [v1.18.6, v1.17.5, v1.16.9]
         kind-version:
           - "v0.8.0"
         helm-version:
