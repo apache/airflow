@@ -2127,6 +2127,7 @@ function run_breeze_command {
                 "${BUILD_CACHE_DIR}/${LAST_DC_PROD_FILE}" run --service-ports --rm airflow "${@}"
             else
                 "${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE}" run --service-ports --rm airflow "${@}"
+                "${SCRIPTS_CI_DIR}/tools/ci_clear_tmp.sh"
             fi
             ;;
         run_exec)

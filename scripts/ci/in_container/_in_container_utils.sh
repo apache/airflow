@@ -115,6 +115,16 @@ function in_container_fix_ownership() {
     fi
 }
 
+function in_container_clear_tmp() {
+    if [[ ${VERBOSE} == "true" ]]; then
+        echo "Cleaning ${AIRFLOW_SOURCES}/tmp from the container"
+    fi
+    rm -rf /tmp/*
+    if [[ ${VERBOSE} == "true" ]]; then
+        echo "Cleaned ${AIRFLOW_SOURCES}/tmp from the container"
+    fi
+}
+
 function in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}"  &>/dev/null || exit 1
 }
