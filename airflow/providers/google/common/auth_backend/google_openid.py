@@ -18,12 +18,12 @@
 """Authentication backend that use Google credentials for authorization."""
 import logging
 from functools import wraps
-from typing import Callable, TypeVar, cast
+from typing import Callable, Optional, TypeVar, cast
 
 import google
 import google.auth.transport.requests
 import google.oauth2.id_token
-from flask import Response, _request_ctx_stack, current_app, request  # type: ignore
+from flask import Response, _request_ctx_stack, current_app, request as flask_request  # type: ignore
 from google.auth import exceptions
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
@@ -33,7 +33,7 @@ from airflow.providers.google.common.utils.id_token_credentials import get_defau
 
 log = logging.getLogger(__name__)
 
-_GOOGLE_ISSUERS = ["accounts.google.com", "https://accounts.google.com"]
+_GOOGLE_ISSUERS = ("accounts.google.com", "https://accounts.google.com")
 AUDIENCE = conf.get("api", "google_oauth2_audience")
 
 
@@ -53,8 +53,8 @@ def init_app(_):
     """Initializes authentication."""
 
 
-def _get_id_token_from_request(r):
-    authorization_header = r.headers.get("Authorization")
+def _get_id_token_from_request(request) -> Optional[str]:
+    authorization_header = request.headers.get("Authorization")
 
     if not authorization_header:
         return None
@@ -68,15 +68,15 @@ def _get_id_token_from_request(r):
     return id_token
 
 
-def _verify_id_token(id_token):
+def _verify_id_token(id_token: str) -> Optional[str]:
     try:
         request_adapter = google.auth.transport.requests.Request()
         id_info = google.oauth2.id_token.verify_token(id_token, request_adapter, AUDIENCE)
     except exceptions.GoogleAuthError:
         return None
 
-    # This check is part of 1.19.0 (2020-07-09), In order not to create strong version requirements
-    # to too new version, we check it in our code too.
+    # This check is part of google-auth v1.19.0 (2020-07-09), In order not to create strong version
+    # requirements to too new version, we check it in our code too.
     # One day, we may delete this code and set minimum version in requirements.
     if id_info.get("iss") not in _GOOGLE_ISSUERS:
         return None
@@ -87,9 +87,9 @@ def _verify_id_token(id_token):
     return id_info.get("email")
 
 
-def _lookup_user(user_id):
+def _lookup_user(user_email: str):
     security_manager = current_app.appbuilder.sm
-    user = security_manager.find_user(email=user_id)
+    user = security_manager.find_user(email=user_email)
 
     if not user:
         return None
@@ -113,7 +113,7 @@ def requires_authentication(function: T):
 
     @wraps(function)
     def decorated(*args, **kwargs):
-        access_token = _get_id_token_from_request(request)
+        access_token = _get_id_token_from_request(flask_request)
         if not access_token:
             log.debug("Missing ID Token")
             return Response("Forbidden", 403)
