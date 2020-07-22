@@ -60,7 +60,7 @@ jobs:
 
   static-checks:
     timeout-minutes: 60
-    name: "Checks"
+    name: "Static checks"
     runs-on: ubuntu-latest
     needs:
       - cancel-previous-workflow-run
@@ -84,6 +84,9 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Static checks"
         run: ./scripts/ci/static_checks/ci_run_static_checks.sh
+      - name: "Cancel workflow on static checks failure"
+        if: ${{ failure() }}
+        uses: andymckay/cancel-action@0.2
   docs:
     timeout-minutes: 60
     name: "Build docs"
@@ -99,6 +102,9 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
         run: ./scripts/ci/docs/ci_docs.sh
+      - name: "Cancel workflow on docs failure"
+        if: ${{ failure() }}
+        uses: andymckay/cancel-action@0.2
 
   trigger-tests:
     timeout-minutes: 5
@@ -305,6 +311,9 @@ jobs:
       - uses: actions/checkout@master
       - name: "Helm Tests"
         run: ./scripts/ci/kubernetes/ci_run_helm_testing.sh
+      - name: "Cancel workflow on helm-tests failure"
+        if: ${{ failure() }}
+        uses: andymckay/cancel-action@0.2
 
   build-prod-image:
     timeout-minutes: 60
@@ -319,6 +328,9 @@ jobs:
       - uses: actions/checkout@master
       - name: "Build PROD image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+      - name: "Cancel workflow on build prod image failure"
+        if: ${{ failure() }}
+        uses: andymckay/cancel-action@0.2
 
   push-prod-images-to-github-cache:
     timeout-minutes: 80
