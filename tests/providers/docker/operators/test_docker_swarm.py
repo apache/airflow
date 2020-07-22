@@ -180,6 +180,52 @@ class TestDockerSwarmOperator(unittest.TestCase):
             'some_id', follow=True, stdout=True, stderr=True, is_tty=True
         )
 
+    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
+    @mock.patch('airflow.providers.docker.operators.docker_swarm.types')
+    def test_execute_xcom_behavior(self, types_mock, client_class_mock):
+
+        mock_obj = mock.Mock()
+
+        client_mock = mock.Mock(spec=APIClient)
+        client_mock.images.return_value = []
+        client_mock.create_container.return_value = {'Id': 'some_id'}
+        client_mock.attach.return_value = ['container log']
+        client_mock.pull.return_value = [b'{"status":"pull log"}']
+        client_mock.wait.return_value = {"StatusCode": 0}
+        types_mock.TaskTemplate.return_value = mock_obj
+        types_mock.ContainerSpec.return_value = mock_obj
+        types_mock.RestartPolicy.return_value = mock_obj
+        types_mock.Resources.return_value = mock_obj
+
+        client_class_mock.return_value = client_mock
+
+        kwargs = {
+            'api_version': '1.19',
+            'command': 'env',
+            'environment': {'UNIT': 'TEST'},
+            'private_environment': {'PRIVATE': 'MESSAGE'},
+            'image': 'ubuntu:latest',
+            'network_mode': 'bridge',
+            'owner': 'unittest',
+            'task_id': 'unittest',
+            'volumes': ['/host/path:/container/path'],
+            'working_dir': '/container/path',
+            'shm_size': 1000,
+            'host_tmp_dir': '/host/airflow',
+            'container_name': 'test_container',
+            'tty': True,
+            'enable_logging': False
+        }
+
+        xcom_push_operator = DockerSwarmOperator(**kwargs, do_xcom_push=True)
+        no_xcom_push_operator = DockerSwarmOperator(**kwargs, do_xcom_push=False)
+
+        xcom_push_result = xcom_push_operator.execute(None)
+        no_xcom_push_result = no_xcom_push_operator.execute(None)
+
+        self.assertEqual(xcom_push_result, b'container log')
+        self.assertIs(no_xcom_push_result, None)
+
     def test_on_kill(self):
         client_mock = mock.Mock(spec=APIClient)
 
