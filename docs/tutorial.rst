@@ -343,7 +343,9 @@ which are used to populate the run schedule with task instances from this dag.
     # airflow webserver --debug &
 
     # start your backfill on a date range
-    airflow dags backfill tutorial -s 2015-06-01 -e 2015-06-07
+    airflow dags backfill tutorial \
+        --start-date 2015-06-01 \
+        --end-date 2015-06-07
 
 What's Next?
 -------------
