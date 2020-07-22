@@ -40,12 +40,14 @@ import sys
 from airflow import utils
 from airflow import settings
 from airflow.configuration import conf
-from airflow.models import DAG
 from flask_admin import BaseView
 from importlib import import_module
 from airflow.exceptions import AirflowException
 
 settings.initialize()
+# Delay the import of airflow.models to be after the settings initialization to make sure that
+# any reference to a settings' functions (e.g task_instance_mutation_hook) holds the expected implementation
+from airflow.models import DAG  # noqa: E402
 
 login = None  # type: Any
 log = logging.getLogger(__name__)
