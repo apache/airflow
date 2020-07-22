@@ -423,11 +423,18 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Check spark-submit return code. In Kubernetes mode, also check the value
         # of exit code in the log, as it may differ.
         if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
-            raise AirflowException(
-                "Cannot execute: {}. Error code is: {}.".format(
-                    self._mask_cmd(spark_submit_cmd), returncode
+            if self._is_kubernetes:
+                raise AirflowException(
+                    "Cannot execute: {}. Error code is: {}. Kubernetes spark exit code is: {}".format(
+                        self._mask_cmd(spark_submit_cmd), returncode, self._spark_exit_code
+                    )
                 )
-            )
+            else:
+                raise AirflowException(
+                    "Cannot execute: {}. Error code is: {}.".format(
+                        self._mask_cmd(spark_submit_cmd), returncode
+                    )
+                )
 
         self.log.debug("Should track driver: %s", self._should_track_driver_status)
 
@@ -485,7 +492,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                   self._kubernetes_driver_pod)
 
                 # Store the Spark Exit code
-                match_exit_code = re.search(r'\s*Exit code: (\d+)', line)
+                match_exit_code = re.search(r'\s*[eE]xit code: (\d+)', line)
                 if match_exit_code:
                     self._spark_exit_code = int(match_exit_code.groups()[0])
 
