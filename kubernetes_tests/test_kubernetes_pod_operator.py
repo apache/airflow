@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+import logging
 import os
 import shutil
+import textwrap
 import unittest
 from unittest import mock
 from unittest.mock import ANY
@@ -739,7 +741,20 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         )
         monitor_mock.return_value = (State.SUCCESS, None)
         context = create_context(k)
-        k.execute(context)
+        with self.assertLogs(k.log, level=logging.DEBUG) as cm:
+            k.execute(context)
+            expected_line = textwrap.dedent("""\
+            DEBUG:airflow.task.operators:Starting pod:
+            api_version: v1
+            kind: Pod
+            metadata:
+              annotations: null
+              cluster_name: null
+              creation_timestamp: null
+              deletion_grace_period_seconds: null\
+            """).strip()
+            self.assertTrue(any(line.startswith(expected_line) for line in cm.output))
+
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         self.assertEqual({
             'apiVersion': 'v1',

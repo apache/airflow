@@ -18,6 +18,7 @@
 import re
 from typing import Dict, List, Optional, Tuple
 
+import yaml
 from kubernetes.client import models as k8s
 
 from airflow.exceptions import AirflowException
@@ -378,7 +379,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         )
 
         self.pod = pod
-        self.log.info("Starting pod %s", pod)
+        self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod.to_dict()))
         try:
             launcher.start_pod(
                 pod,
