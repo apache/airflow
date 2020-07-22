@@ -41,11 +41,11 @@ def show_config(args):
 def get_value(args):
     """Get one value from configuration"""
     if not conf.has_section(args.section):
-        print(f'section [{args.section}] not found in config.', file=sys.stderr)
+        print(f'The section [{args.section}] not found in config.', file=sys.stderr)
         sys.exit(1)
 
     if not conf.has_option(args.section, args.option):
-        print(f'option [{args.section}/{args.option}] not found in config.', file=sys.stderr)
+        print(f'The option [{args.section}/{args.option}] not found in config.', file=sys.stderr)
         sys.exit(1)
 
     value = conf.get(args.section, args.option)
