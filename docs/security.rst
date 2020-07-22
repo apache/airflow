@@ -31,7 +31,12 @@ following CLI commands to create an account:
 .. code-block:: bash
 
     # create an admin user
-    airflow users create --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
+    airflow users create \
+        --username admin \
+        --firstname Peter \
+        --lastname Parker \
+        --role Admin \
+        --email spiderman@superhero.org
 
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
@@ -182,7 +187,7 @@ Using kerberos authentication
 The hive hook has been updated to take advantage of kerberos authentication. To allow your DAGs to
 use it, simply update the connection details with, for example:
 
-.. code-block:: bash
+.. code-block:: json
 
     { "use_beeline": true, "principal": "hive/_HOST@EXAMPLE.COM"}
 
@@ -192,13 +197,13 @@ the server.
 You can specify if you would like to use the dag owner as the user for the connection or the user specified in the login
 section of the connection. For the login user, specify the following as extra:
 
-.. code-block:: bash
+.. code-block:: json
 
     { "use_beeline": true, "principal": "hive/_HOST@EXAMPLE.COM", "proxy_user": "login"}
 
 For the DAG owner use:
 
-.. code-block:: bash
+.. code-block:: json
 
     { "use_beeline": true, "principal": "hive/_HOST@EXAMPLE.COM", "proxy_user": "owner"}
 

@@ -138,7 +138,10 @@ Run the below command
 
 .. code-block:: bash
 
-    airflow dags backfill -s START_DATE -e END_DATE dag_id
+    airflow dags backfill \
+        --start-date START_DATE \
+        --end-date END_DATE \
+        dag_id
 
 The `backfill command <cli-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
 
@@ -165,14 +168,17 @@ You can also clear the task through CLI using the command:
 
 .. code-block:: bash
 
-    airflow tasks clear dag_id -t task_regex -s START_DATE -d END_DATE
+    airflow tasks clear dag_id \
+        --task-regex task_regex \
+        --start-date START_DATE \
+        --end-date END_DATE
 
 For the specified ``dag_id`` and time interval, the command clears all instances of the tasks matching the regex.
 For more options, you can check the help of the `clear command <cli-ref.html#clear>`_ :
 
 .. code-block:: bash
 
-    airflow tasks clear -h
+    airflow tasks clear --help
 
 External Triggers
 '''''''''''''''''
@@ -181,7 +187,7 @@ Note that DAG Runs can also be created manually through the CLI. Just run the
 
 .. code-block:: bash
 
-    airflow dags trigger -e execution_date run_id
+    airflow dags trigger --exec-date execution_date run_id
 
 The DAG Runs created externally to the scheduler get associated with the trigger’s timestamp and are displayed
 in the UI alongside scheduled DAG runs. The execution date passed inside the DAG can be specified using the ``-e`` argument.

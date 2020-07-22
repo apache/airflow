@@ -36,10 +36,15 @@ The installation is quick and straightforward.
     airflow db init
 
     # if you build with master
-    airflow users create --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
+    airflow users create \
+        --username admin \
+        --firstname Peter \
+        --lastname Parker \
+        --role Admin \
+        --email spiderman@superhero.org
 
     # start the web server, default port is 8080
-    airflow webserver -p 8080
+    airflow webserver --port 8080
 
     # start the scheduler
     airflow scheduler
@@ -70,7 +75,9 @@ run the commands below.
     # run your first task instance
     airflow tasks run example_bash_operator runme_0 2015-01-01
     # run a backfill over 2 days
-    airflow dags backfill example_bash_operator -s 2015-01-01 -e 2015-01-02
+    airflow dags backfill example_bash_operator \
+        --start-date 2015-01-01 \
+        --end-date 2015-01-02
 
 What's Next?
 ''''''''''''
