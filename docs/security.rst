@@ -108,8 +108,8 @@ for authorization. To enable it, set the following option in the configuration:
     [api]
     auth_backend = airflow.providers.google.common.auth_backend.google_openid
 
-It is also highly recommended to configure an OAuth2 audience so that the generated used tokens can only
-be used by Airflow.
+It is also highly recommended to configure an OAuth2 audience so that the generated tokens are restricted to
+use by Airflow only.
 
 .. code-block:: ini
 
