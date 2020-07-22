@@ -22,7 +22,7 @@ default_language_version:
 minimum_pre_commit_version: "1.20.0"
 repos:
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.7
+    rev: v1.1.8
     hooks:
       - id: forbid-tabs
         exclude: ^docs/Makefile$
@@ -156,7 +156,7 @@ repos:
       - id: rst-backticks
       - id: python-no-log-warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.23.0
+    rev: v1.24.2
     hooks:
       - id: yamllint
         name: Check yaml files with yamllint
