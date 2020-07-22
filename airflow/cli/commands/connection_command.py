@@ -29,6 +29,7 @@ from airflow.utils.session import create_session
 from airflow.secrets.local_filesystem import load_connections
 from airflow.exceptions import AirflowException
 
+
 def _tabulate_connection(conns: List[Connection], tablefmt: str):
     tabulate_data = [
         {
@@ -159,11 +160,11 @@ def connections_delete(args):
 @cli_utils.action_logging
 def connections_import(args):
     """Import new connections"""
-    #check for the file path in arguments
+    # check for the file path in arguments
     missing_args = []
     if not args.file_path:
         missing_args.append('file-path')
-    
+
     if missing_args:
         msg = ('The following args are required to import connections:' +
                ' {missing!r}'.format(missing=missing_args))
@@ -174,7 +175,7 @@ def connections_import(args):
     except AirflowException as e:
         raise SystemExit(e)
 
-    for _,new_conn_list in new_conns_map.items():
+    for _, new_conn_list in new_conns_map.items():
         for new_conn in new_conn_list:
             with create_session() as session:
                 if not (session.query(Connection)
@@ -182,14 +183,14 @@ def connections_import(args):
                     session.add(new_conn)
                     msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
                     msg = msg.format(conn_id=new_conn.conn_id,
-                                    uri=new_conn.get_uri() or
-                                    urlunparse((new_conn.conn_type,
+                                     uri=new_conn.get_uri() or
+                                     urlunparse((new_conn.conn_type,
                                                 '{login}:{password}@{host}:{port}'
-                                                    .format(login=new_conn.conn_login or '',
-                                                            password='******' if new_conn.conn_password else '',
-                                                            host=new_conn.conn_host or '',
-                                                            port=new_conn.conn_port or ''),
-                                                new_conn.conn_schema or '', '', '', '')))
+                                                 .format(login=new_conn.conn_login or '',
+                                                         password='******' if new_conn.conn_password else '',
+                                                         host=new_conn.conn_host or '',
+                                                         port=new_conn.conn_port or ''),
+                                                 new_conn.conn_schema or '', '', '', '')))
                     print(msg)
                 else:
                     msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
