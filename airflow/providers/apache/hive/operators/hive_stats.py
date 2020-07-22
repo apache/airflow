@@ -18,7 +18,7 @@
 import json
 import warnings
 from collections import OrderedDict
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -72,7 +72,6 @@ class HiveStatsCollectionOperator(BaseOperator):
                  metastore_conn_id: str = 'metastore_default',
                  presto_conn_id: str = 'presto_default',
                  mysql_conn_id: str = 'airflow_db',
-                 *args: Tuple[Any, ...],
                  **kwargs: Any
                  ) -> None:
         if 'col_blacklist' in kwargs:
@@ -84,7 +83,7 @@ class HiveStatsCollectionOperator(BaseOperator):
                 stacklevel=2
             )
             excluded_columns = kwargs.pop('col_blacklist')
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.table = table
         self.partition = partition
         self.extra_exprs = extra_exprs or {}

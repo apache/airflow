@@ -78,9 +78,8 @@ class SparkSqlOperator(BaseOperator):
                  num_executors: Optional[int] = None,
                  verbose: bool = True,
                  yarn_queue: str = 'default',
-                 *args: Any,
                  **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._sql = sql
         self._conf = conf
         self._conn_id = conn_id

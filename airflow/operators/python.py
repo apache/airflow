@@ -81,10 +81,9 @@ class PythonOperator(BaseOperator):
         op_kwargs: Optional[Dict] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
         self.python_callable = python_callable
@@ -404,12 +403,11 @@ class PythonVirtualenvOperator(PythonOperator):
         python_version: Optional[str] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
-        op_args: Optional[Iterable] = None,
+        op_args: Optional[List] = None,
         op_kwargs: Optional[Dict] = None,
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
-        templates_exts: Optional[Iterable[str]] = None,
-        *args,
+        templates_exts: Optional[List[str]] = None,
         **kwargs
     ):
         super().__init__(
@@ -418,7 +416,6 @@ class PythonVirtualenvOperator(PythonOperator):
             op_kwargs=op_kwargs,
             templates_dict=templates_dict,
             templates_exts=templates_exts,
-            *args,
             **kwargs)
         self.requirements = requirements or []
         self.string_args = string_args or []

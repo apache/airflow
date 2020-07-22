@@ -100,10 +100,9 @@ class HiveToDruidOperator(BaseOperator):
         segment_granularity: str = "DAY",
         hive_tblproperties: Optional[Dict[Any, Any]] = None,
         job_properties: Optional[Dict[Any, Any]] = None,
-        *args: Any,
         **kwargs: Any
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.sql = sql
         self.druid_datasource = druid_datasource
         self.ts_dim = ts_dim

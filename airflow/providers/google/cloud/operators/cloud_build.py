@@ -19,7 +19,7 @@
 import json
 import re
 from copy import deepcopy
-from typing import Any, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Optional, Union
 from urllib.parse import unquote, urlparse
 
 import yaml
@@ -180,7 +180,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     :type api_version: str
     """
 
-    template_fields = ("body", "gcp_conn_id", "api_version")  # type: Iterable[str]
+    template_fields = ("body", "gcp_conn_id", "api_version")
     template_ext = ['.yml', '.yaml', '.json']
 
     @apply_defaults

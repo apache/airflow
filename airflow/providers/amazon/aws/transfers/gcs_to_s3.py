@@ -19,6 +19,7 @@
 This module contains Google Cloud Storage to S3 operator.
 """
 import warnings
+from typing import Iterable
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -73,7 +74,7 @@ class GCSToS3Operator(GCSListObjectsOperator):
         in the destination bucket.
     :type replace: bool
     """
-    template_fields = ('bucket', 'prefix', 'delimiter', 'dest_s3_key')
+    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter', 'dest_s3_key')
     ui_color = '#f0eee4'
 
     @apply_defaults

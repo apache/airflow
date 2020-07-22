@@ -65,7 +65,7 @@ class S3ListOperator(BaseOperator):
                 aws_conn_id='aws_customers_conn'
             )
     """
-    template_fields = ('bucket', 'prefix', 'delimiter')  # type: Iterable[str]
+    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter')
     ui_color = '#ffd700'
 
     @apply_defaults

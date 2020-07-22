@@ -22,7 +22,7 @@ This module contains a sqoop 1 operator
 """
 import os
 import signal
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -128,10 +128,9 @@ class SqoopOperator(BaseOperator):
                  create_hcatalog_table: bool = False,
                  extra_import_options: Optional[Dict[str, Any]] = None,
                  extra_export_options: Optional[Dict[str, Any]] = None,
-                 *args: Tuple[str, Any],
                  **kwargs: Any
                  ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.conn_id = conn_id
         self.cmd_type = cmd_type
         self.table = table

@@ -49,8 +49,8 @@ class SlackAPIOperator(BaseOperator):
                  token: Optional[str] = None,
                  method: Optional[str] = None,
                  api_params: Optional[Dict] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
 
         self.token = token  # type: Optional[str]
         self.slack_conn_id = slack_conn_id  # type: Optional[str]
@@ -130,7 +130,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
                                  'airflow/master/airflow/www/static/pin_100.png',
                  attachments: Optional[List] = None,
                  blocks: Optional[List] = None,
-                 *args, **kwargs):
+                 **kwargs):
         self.method = 'chat.postMessage'
         self.channel = channel
         self.username = username
@@ -138,8 +138,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
         self.icon_url = icon_url
         self.attachments = attachments or []
         self.blocks = blocks or []
-        super().__init__(method=self.method,
-                         *args, **kwargs)
+        super().__init__(method=self.method, **kwargs)
 
     def construct_api_call_params(self):
         self.api_params = {
@@ -193,14 +192,14 @@ class SlackAPIFileOperator(SlackAPIOperator):
                  filename: str = 'default_name.csv',
                  filetype: str = 'csv',
                  content: str = 'default,content,csv,file',
-                 *args, **kwargs):
+                 **kwargs):
         self.method = 'files.upload'
         self.channel = channel
         self.initial_comment = initial_comment
         self.filename = filename
         self.filetype = filetype
         self.content = content
-        super(SlackAPIFileOperator, self).__init__(method=self.method, *args, **kwargs)
+        super(SlackAPIFileOperator, self).__init__(method=self.method, **kwargs)
 
     def construct_api_call_params(self):
         self.api_params = {

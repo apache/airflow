@@ -67,7 +67,7 @@ class SingularityOperator(BaseOperator):
     def __init__(  # pylint: disable=too-many-arguments
             self,
             image: str,
-            command: Union[int, List[str]],
+            command: Union[str, List[str]],
             start_command: Optional[Union[str, List[str]]] = None,
             environment: Optional[Dict[str, Any]] = None,
             pull_folder: Optional[str] = None,

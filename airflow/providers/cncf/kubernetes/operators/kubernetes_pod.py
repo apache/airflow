@@ -16,7 +16,7 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import yaml
 from kubernetes.client import models as k8s
@@ -146,7 +146,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
     """
-    template_fields = ('cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
+    template_fields: Iterable[str] = ('cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
@@ -188,11 +188,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  do_xcom_push: bool = False,
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
-                 *args,
                  **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-        super().__init__(*args, resources=None, **kwargs)
+        super().__init__(resources=None, **kwargs)
 
         self.pod = None
         self.do_xcom_push = do_xcom_push

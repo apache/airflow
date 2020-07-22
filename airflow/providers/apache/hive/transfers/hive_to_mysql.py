@@ -76,8 +76,8 @@ class HiveToMySqlOperator(BaseOperator):
                  mysql_postoperator: Optional[str] = None,
                  bulk_load: bool = False,
                  hive_conf: Optional[Dict] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.sql = sql
         self.mysql_table = mysql_table
         self.mysql_conn_id = mysql_conn_id
