@@ -614,6 +614,22 @@
       type: integer
       example: ~
       default: "100"
+    - name: google_oauth2_audience
+      description: The intended audience for JWT token credentials used for authorization.
+        This value must match on the client and server sides.
+        If empty, audience will not be tested.
+      type: string
+      example: project-id-random-value.apps.googleusercontent.com
+      default: ""
+    - name: google_key_path
+      description: |
+        Path to GCP Credential JSON file. If ommited, authorization based on `the Application Default
+        Credentials
+        <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
+        be used.
+      type: string
+      example: /files/service-account-json
+      default: ""
 - name: lineage
   description: ~
   options:
