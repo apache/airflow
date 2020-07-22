@@ -21,10 +21,6 @@ function initialize_common_environment {
     # default python Major/Minor version
     PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
 
-    # python image version to use
-    # shellcheck disable=SC2034
-    PYTHON_BASE_IMAGE_VERSION=${PYTHON_MAJOR_MINOR_VERSION}
-
     # extra flags passed to docker run for CI image
     # shellcheck disable=SC2034
     EXTRA_DOCKER_FLAGS=()
