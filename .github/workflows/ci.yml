@@ -45,7 +45,7 @@ jobs:
     name: "Cancel previous workflow run"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: Get ci workflow id
         run: "scripts/ci/cancel/get_workflow_id.sh"
         env:
@@ -67,7 +67,7 @@ jobs:
     env:
       MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
         with:
           python-version: '3.x'
@@ -94,7 +94,7 @@ jobs:
     needs:
       - cancel-previous-workflow-run
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
         with:
           python-version: '3.6'
@@ -115,7 +115,7 @@ jobs:
     outputs:
       run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Check if tests should be run"
         run: "./scripts/ci/tools/ci_check_if_tests_should_be_run.sh"
         id: trigger-tests
@@ -151,7 +151,7 @@ jobs:
       HELM_VERSION: "${{ matrix.helm-version }}"
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
         with:
           python-version: '3.6'
@@ -201,7 +201,7 @@ jobs:
       TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
         with:
           python-version: '3.6'
@@ -231,7 +231,7 @@ jobs:
       TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
         with:
           python-version: '3.x'
@@ -259,7 +259,7 @@ jobs:
       RUN_TESTS: "true"
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
         with:
           python-version: '3.x'
@@ -290,7 +290,7 @@ jobs:
       TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
         with:
           python-version: '3.x'
@@ -308,7 +308,7 @@ jobs:
     needs:
       - cancel-previous-workflow-run
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Helm Tests"
         run: ./scripts/ci/kubernetes/ci_run_helm_testing.sh
       - name: "Cancel workflow on helm-tests failure"
@@ -325,7 +325,7 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Build PROD image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
       - name: "Cancel workflow on build prod image failure"
@@ -351,7 +351,7 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build PROD images ${{ matrix.python-version }}"
@@ -378,7 +378,7 @@ jobs:
       PULL_PYTHON_BASE_IMAGES_FROM_CACHE: "false"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image"
@@ -406,7 +406,7 @@ jobs:
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test')
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - uses: actions/setup-python@v1
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
