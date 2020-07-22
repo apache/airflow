@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, Mapping, Optional, Union
+from typing import Iterable, Mapping, Optional, Union, Any, Dict
 
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -62,9 +62,9 @@ class PostgresOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
-        self.hook = None
+        self.hook: Optional[PostgresHook] = None
 
-    def execute(self, context):
+    def execute(self, context: Dict[Any, Any]) -> None:
         self.log.info('Executing: %s', self.sql)
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
         self.hook.run(self.sql, self.autocommit, parameters=self.parameters)

@@ -18,10 +18,11 @@
 
 import os
 from contextlib import closing
+from typing import Union, Tuple, Any, Iterable
 
 import psycopg2
-import psycopg2.extensions
-import psycopg2.extras
+from psycopg2.extensions import connection as PostgresConnection
+from psycopg2.extras import DictCursor, RealDictCursor, NamedTupleCursor
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -59,17 +60,17 @@ class PostgresHook(DbApiHook):
         self.connection = kwargs.pop("connection", None)
         self.conn = None
 
-    def _get_cursor(self, raw_cursor):
+    def _get_cursor(self, raw_cursor: str) -> Union[DictCursor, RealDictCursor, NamedTupleCursor]:
         _cursor = raw_cursor.lower()
         if _cursor == 'dictcursor':
-            return psycopg2.extras.DictCursor
+            return DictCursor
         if _cursor == 'realdictcursor':
-            return psycopg2.extras.RealDictCursor
+            return RealDictCursor
         if _cursor == 'namedtuplecursor':
-            return psycopg2.extras.NamedTupleCursor
+            return NamedTupleCursor
         raise ValueError('Invalid cursor passed {}'.format(_cursor))
 
-    def get_conn(self):
+    def get_conn(self) -> PostgresConnection:
 
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
@@ -104,7 +105,7 @@ class PostgresHook(DbApiHook):
         self.conn = psycopg2.connect(**conn_args)
         return self.conn
 
-    def copy_expert(self, sql, filename):
+    def copy_expert(self, sql: str, filename: str) -> None:
         """
         Executes SQL using psycopg2 copy_expert method.
         Necessary to execute COPY command without access to a superuser.
@@ -126,13 +127,13 @@ class PostgresHook(DbApiHook):
                     file.truncate(file.tell())
                     conn.commit()
 
-    def bulk_load(self, table, tmp_file):
+    def bulk_load(self, table: str, tmp_file: str) -> None:
         """
         Loads a tab-delimited file into a database table
         """
         self.copy_expert("COPY {table} FROM STDIN".format(table=table), tmp_file)
 
-    def bulk_dump(self, table, tmp_file):
+    def bulk_dump(self, table: str, tmp_file: str) -> None:
         """
         Dumps a database table into a tab-delimited file
         """
@@ -140,7 +141,7 @@ class PostgresHook(DbApiHook):
 
     # pylint: disable=signature-differs
     @staticmethod
-    def _serialize_cell(cell, conn):
+    def _serialize_cell(cell: object, conn: PostgresConnection) -> object:
         """
         Postgresql will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
@@ -157,7 +158,7 @@ class PostgresHook(DbApiHook):
         """
         return cell
 
-    def get_iam_token(self, conn):
+    def get_iam_token(self, conn: PostgresConnection) -> Tuple[Any, Any, Union[int, Any]]:
         """
         Uses AWSHook to retrieve a temporary password to connect to Postgres
         or Redshift. Port is required. If none is provided, default is used for
@@ -191,7 +192,11 @@ class PostgresHook(DbApiHook):
         return login, token, port
 
     @staticmethod
-    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+    def _generate_insert_sql(table: str,
+                             values: Tuple[Any],
+                             target_fields: Iterable[str],
+                             replace: bool,
+                             **kwargs) -> str:
         """
         Static helper method that generate the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
