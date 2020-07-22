@@ -38,7 +38,7 @@ class GoogleApiToS3Transfer(GoogleApiToS3Operator):
     `airflow.providers.amazon.aws.transfers.google_api_to_s3.GoogleApiToS3Operator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
@@ -46,4 +46,4 @@ class GoogleApiToS3Transfer(GoogleApiToS3Operator):
             "google_api_to_s3_transfer.GoogleApiToS3Operator`.",
             DeprecationWarning, stacklevel=3
         )
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
