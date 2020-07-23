@@ -73,7 +73,12 @@ const config = {
         test: /\.css$/,
         include: STATIC_DIR,
         use: [
-          MiniCssExtractPlugin.loader,
+	  {
+             loader: MiniCssExtractPlugin.loader,
+             options: {
+	       esModule: true,
+	     },
+	  },
           'css-loader',
         ],
       },
