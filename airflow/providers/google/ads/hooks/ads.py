@@ -37,15 +37,17 @@ class GoogleAdsHook(BaseHook):
     Hook for the Google Ads API.
 
     This hook requires two connections:
+
         - gcp_conn_id - provides service account details (like any other GCP connection)
         - google_ads_conn_id - which contains information from Google Ads config.yaml file
-        in the ``extras``. Example of the ``extras``:
+          in the ``extras``. Example of the ``extras``:
 
         .. code-block:: json
+
             {
                 "google_ads_client": {
                     "developer_token": "{{ INSERT_TOKEN }}",
-                    "path_to_private_key_file": None,
+                    "path_to_private_key_file": null,
                     "delegated_account": "{{ INSERT_DELEGATED_ACCOUNT }}"
                 }
             }
