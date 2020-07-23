@@ -1,6 +1,9 @@
 import pika
 from .entity import ClsEntity
 import threading
+from airflow.utils.logger import generate_logger
+
+_logger = generate_logger(__name__)
 
 
 class ClsResultMQ(ClsEntity):
@@ -14,7 +17,7 @@ class ClsResultMQ(ClsEntity):
                     ClsResultMQ._instance = object.__new__(cls)
         return ClsResultMQ._instance
 
-    def __init__(self, host=None, port=None, routing_key=None, exchange=None):
+    def __init__(self, host=None, port=None, routing_key=None, exchange=None, username='guest', password='guest'):
         super(ClsResultMQ, self).__init__()
         if not self.is_config_changed(host, port, routing_key, exchange):
             return
@@ -23,8 +26,11 @@ class ClsResultMQ(ClsEntity):
         self._port = port
         self._routing_key = routing_key
         self._exchange = exchange
+        self._username = username
+        self._password = password
 
-    def is_config_changed(self, host=None, port=None, routing_key=None, exchange=None):
+    def is_config_changed(self, host=None, port=None, routing_key=None, exchange=None, username='guest',
+                          password='guest'):
         try:
             if self._host != host:
                 return True
@@ -34,6 +40,10 @@ class ClsResultMQ(ClsEntity):
                 return True
             if self._exchange != exchange:
                 return True
+            if self._username != username:
+                return True
+            if self._password != password:
+                return True
             return False
         except Exception as e:
             return True
@@ -41,8 +51,11 @@ class ClsResultMQ(ClsEntity):
     def _connect(self):
         if self._connection:
             return
+        credentials = pika.PlainCredentials(self._username, self._password)
+        _logger.info('{}:{}, {},{}'.format(self._host, self._port, self._username, self._password))
         self._connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=self._host))
+            pika.ConnectionParameters(host=self._host, port=self._port, credentials=credentials)
+        )
 
     def get_channel(self, queue, **kwargs):
         self._connect()

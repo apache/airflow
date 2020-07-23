@@ -141,12 +141,14 @@ def get_curve_args():
     }
 
 
-def form_analysis_result(result, entity_id, execution_date, task_id, dag_id):
+def form_analysis_result_trigger(result, entity_id, execution_date, task_id, dag_id, verify_error, curve_mode):
     return {
         'result': result,
         'entity_id': entity_id,
         'execution_date': execution_date,
         'task_id': task_id,
+        'verify_error': verify_error,
+        'curve_mode': curve_mode,
         'dag_id': dag_id,
     }
 
@@ -156,8 +158,16 @@ def get_curve_entity_ids(bolt_number=None, craft_type=None):
     return list(map(lambda ti: ti.entity_id, tasks))
 
 
-def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task_id, dag_id):
-    analysis_result = form_analysis_result(result, entity_id, execution_date, task_id, dag_id)
+def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task_id, dag_id, verify_error, curve_mode):
+    analysis_result = form_analysis_result_trigger(
+        result,
+        entity_id,
+        execution_date,
+        task_id,
+        dag_id,
+        verify_error,
+        curve_mode
+    )
     push_result_dag_id = 'publish_result_dag'
     conf = {
         'data': analysis_result,
