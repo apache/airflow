@@ -88,7 +88,7 @@ class WasbHook(BaseHook):
                                              num_results=1, **kwargs)
         return len(list(matches)) > 0
 
-    def get_blobs_list(self, container_name, prefix, **kwargs):
+    def get_blobs_list(self, container_name: str, prefix: str, **kwargs):
         """
         Return a list of blobs from path defined in prefix param 
 
