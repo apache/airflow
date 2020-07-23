@@ -19,7 +19,7 @@
 const webpack = require('webpack');
 const path = require('path');
 const ManifestPlugin = require('webpack-manifest-plugin');
-const CleanWebpackPlugin = require('clean-webpack-plugin');
+const cwplg = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const MomentLocalesPlugin = require('moment-locales-webpack-plugin');
@@ -115,7 +115,9 @@ const config = {
   },
   plugins: [
     new ManifestPlugin(),
-    new CleanWebpackPlugin(['static/dist']),
+    new cwplg.CleanWebpackPlugin({ 
+      verbose: true,
+    }),
     new MiniCssExtractPlugin({ filename: '[name].[chunkhash].css' }),
 
     // MomentJS loads all the locale, making it a huge JS file.

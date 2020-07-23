@@ -32,7 +32,7 @@
     "babel-loader": "^7.1.4",
     "babel-plugin-css-modules-transform": "^1.6.1",
     "babel-polyfill": "^6.26.0",
-    "clean-webpack-plugin": "^0.1.19",
+    "clean-webpack-plugin": "^3.0.0",
     "copy-webpack-plugin": "^5.1.1",
     "css-loader": "^3.4.2",
     "eslint": "^4.19.1",
