@@ -32,7 +32,7 @@ from airflow.models.base import COLLATION_ARGS
 
 # revision identifiers, used by Alembic.
 revision = 'cb96106a9894'
-down_revision = 'a66efa278eea'
+down_revision = '8f966b9c467a'
 branch_labels = None
 depends_on = None
 

@@ -2298,7 +2298,7 @@ class TestTaskInstanceView(TestBase):
         super().setUp()
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dag.sync_to_db()
-        models.DagBag(include_examples=False).bag_dag(dag, parent_dag=dag, root_dag=dag)
+        models.DagBag(include_examples=False).bag_dag(dag, root_dag=dag)
         with create_session() as session:
             self.ti = TaskInstance(
                 task=DummyOperator(task_id='task_instance_1', task_tags=['test_tag_1'], dag=dag),
