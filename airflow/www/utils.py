@@ -24,6 +24,7 @@ import sqlalchemy as sqla
 from flask import Markup, Response, request, url_for
 from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
 from flask_appbuilder.forms import FieldConverter, GeneralModelConverter
+from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
 from pygments import highlight, lexers
