@@ -115,7 +115,7 @@ const config = {
   },
   plugins: [
     new ManifestPlugin(),
-    new cwplg.CleanWebpackPlugin({ 
+    new cwplg.CleanWebpackPlugin({
       verbose: true,
     }),
     new MiniCssExtractPlugin({ filename: '[name].[chunkhash].css' }),
