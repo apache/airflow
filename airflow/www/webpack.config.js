@@ -73,32 +73,39 @@ const config = {
         test: /\.css$/,
         include: STATIC_DIR,
         use: [
-	  {
+         {
              loader: MiniCssExtractPlugin.loader,
              options: {
-	       esModule: true,
-	     },
-	  },
+               esModule: true,
+             },
+          },
           'css-loader',
         ],
       },
       /* for css linking images */
       {
-        test: /\.png$/,
-        loader: 'url-loader?limit=100000',
-      },
-      {
-        test: /\.jpg$/,
-        loader: 'file-loader',
-      },
-      {
-        test: /\.gif$/,
-        loader: 'file-loader',
+        test: /\.(png|jpg|gif)$/i,
+        use: [
+          {
+            loader: 'url-loader',
+            options: {
+              limit: 100000,
+            },
+          },
+        ],
       },
       /* for font-awesome */
       {
         test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        loader: 'url-loader?limit=10000&mimetype=application/font-woff',
+        use: [
+          {
+            loader: 'url-loader',
+            options: {
+              limit: 100000,
+              mimetype: 'application/font-woff',
+            },
+          },
+        ],
       },
       {
         test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
