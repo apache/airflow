@@ -123,6 +123,34 @@ class DbApiHook(BaseHook):
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
+
+    def _get_sql(self, sql, parameters, first_only):
+        """
+        Executes the sql and returns a set of records.
+
+        :param sql: the sql statement to be executed (str) or a list of
+            sql statements to execute
+        :type sql: str or list
+        :param parameters: The parameters to render the SQL query with.
+        :type parameters: dict or iterable
+        :param first_only: Bool indicating whether to return full set or first record
+        :type first_only: bool
+        """
+        if isinstance(sql, str):
+            sql = [sql]
+        with closing(self.get_conn()) as conn:
+            with closing(conn.cursor()) as cur:
+                for sql_statement in sql:
+                    if parameters is not None:
+                        cur.execute(sql_statement, parameters)
+                    else:
+                        cur.execute(sql_statement)
+                if first_only:
+                    return cur.fetchone()
+                else:
+                    return cur.fetchall()
+
+
     def get_records(self, sql, parameters=None):
         """
         Executes the sql and returns a set of records.
@@ -133,13 +161,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchall()
+        self._get_sql(sql, parameters, first_only=False)
 
     def get_first(self, sql, parameters=None):
         """
@@ -151,13 +173,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchone()
+        self._get_sql(sql, parameters, first_only=True)
 
     def run(self, sql, autocommit=False, parameters=None):
         """

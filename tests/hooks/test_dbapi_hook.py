@@ -70,6 +70,42 @@ class TestDbApiHook(unittest.TestCase):
         assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement, parameters)
 
+    def test_get_records_list(self):
+        statement = ["SQL", "SQL"]
+        rows = [[("hello",),
+                ("world",)],
+                [("hello",),
+                 ("world2",)]
+                ]
+
+        self.cur.fetchall.return_value = rows
+
+        self.assertEqual(rows, self.db_hook.get_records(statement))
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        assert self.cur.execute.call_count == 2
+        for query in statement:
+            self.cur.execute.assert_called_with(query)
+
+    def test_get_records_parameters_list(self):
+        statement = ["SQL", "SQL"]
+        parameters = ["X", "Y", "Z"]
+        rows = [[("hello",),
+                ("world",)],
+                [("hello",),
+                 ("world2",)]
+                ]
+
+        self.cur.fetchall.return_value = rows
+
+        self.assertEqual(rows, self.db_hook.get_records(statement, parameters))
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        for query in statement:
+            self.cur.execute.assert_called_with(query, parameters)
+
     def test_get_records_exception(self):
         statement = "SQL"
         self.cur.fetchall.side_effect = RuntimeError('Great Problems')
