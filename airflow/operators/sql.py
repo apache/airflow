@@ -80,9 +80,9 @@ class SQLCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, sql: str, conn_id: Optional[str] = None, *args, **kwargs
+        self, *, sql: str, conn_id: Optional[str] = None, **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.conn_id = conn_id
         self.sql = sql
 
@@ -160,7 +160,7 @@ class SQLValueCheckOperator(BaseOperator):
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.sql = sql
         self.conn_id = conn_id
         self.pass_value = str(pass_value)
@@ -283,7 +283,7 @@ class SQLIntervalCheckOperator(BaseOperator):
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if ratio_formula not in self.ratio_formulas:
             msg_template = (
                 "Invalid diff_method: {diff_method}. "
@@ -425,7 +425,7 @@ class SQLThresholdCheckOperator(BaseOperator):
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.sql = sql
         self.conn_id = conn_id
         self.min_threshold = _convert_to_float_if_possible(min_threshold)
@@ -520,7 +520,7 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
         *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.conn_id = conn_id
         self.sql = sql
         self.parameters = parameters

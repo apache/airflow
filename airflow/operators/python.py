@@ -76,6 +76,7 @@ class PythonOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         python_callable: Callable,
         op_args: Optional[List] = None,
         op_kwargs: Optional[Dict] = None,
@@ -177,6 +178,7 @@ class _PythonFunctionalOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         python_callable: Callable,
         task_id: str,
         op_args: Tuple[Any],
@@ -398,6 +400,7 @@ class PythonVirtualenvOperator(PythonOperator):
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
+        *,
         python_callable: Callable,
         requirements: Optional[Iterable[str]] = None,
         python_version: Optional[str] = None,

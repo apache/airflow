@@ -31,10 +31,10 @@ class BranchSqlOperator(BranchSQLOperator):
     Please use `airflow.operators.sql.BranchSQLOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.BranchSQLOperator`.""",
             DeprecationWarning, stacklevel=3
         )
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
