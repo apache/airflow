@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, Mapping, Optional, Union, Any, Dict
+from typing import Any, Dict, Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook

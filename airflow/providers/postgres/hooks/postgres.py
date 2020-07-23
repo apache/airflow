@@ -18,7 +18,7 @@
 
 import os
 from contextlib import closing
-from typing import Union, Tuple, Any, Iterable
+from typing import Any, Iterable, Tuple, Union
 
 import psycopg2
 import psycopg2.extensions
