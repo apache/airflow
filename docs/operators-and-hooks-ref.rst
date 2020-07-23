@@ -98,6 +98,9 @@ Fundamentals
    * - :mod:`airflow.sensors.time_sensor`
      -
 
+   * - :mod:`airflow.sensors.date_time_sensor`
+     -
+
 
 .. _Apache:
 
