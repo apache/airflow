@@ -25,6 +25,13 @@ import psycopg2.extensions
 import psycopg2.extras
 
 from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.models.connection import Connection
+
+_CURSOR_TYPE = Union[
+    psycopg2.extras.DictCursor,
+    psycopg2.extras.RealDictCursor,
+    psycopg2.extras.NamedTupleCursor
+]
 
 
 class PostgresHook(DbApiHook):
@@ -60,9 +67,7 @@ class PostgresHook(DbApiHook):
         self.connection = kwargs.pop("connection", None)
         self.conn = None
 
-    def _get_cursor(self, raw_cursor: str) -> Union[psycopg2.extras.DictCursor,
-                                                    psycopg2.extras.RealDictCursor,
-                                                    psycopg2.extras.NamedTupleCursor]:
+    def _get_cursor(self, raw_cursor: str) -> _CURSOR_TYPE:
         _cursor = raw_cursor.lower()
         if _cursor == 'dictcursor':
             return psycopg2.extras.DictCursor
@@ -160,7 +165,7 @@ class PostgresHook(DbApiHook):
         """
         return cell
 
-    def get_iam_token(self, conn: psycopg2.extensions.connection) -> Tuple[Any, Any, Union[int, Any]]:
+    def get_iam_token(self, conn: Connection) -> Tuple[str, str, int]:
         """
         Uses AWSHook to retrieve a temporary password to connect to Postgres
         or Redshift. Port is required. If none is provided, default is used for
