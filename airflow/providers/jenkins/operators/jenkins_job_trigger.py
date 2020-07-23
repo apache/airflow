@@ -19,10 +19,11 @@
 import json
 import socket
 import time
+from typing import Any, Mapping, Optional, Type, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
-from jenkins import JenkinsException
+from jenkins import Jenkins, JenkinsException
 from requests import Request
 
 from airflow.exceptions import AirflowException
@@ -30,8 +31,10 @@ from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.utils.decorators import apply_defaults
 
+JReqType = Mapping[str, Union[str, Mapping[str, str]]]
 
-def jenkins_request_with_headers(jenkins_server, req):
+
+def jenkins_request_with_headers(jenkins_server: Type[Jenkins], req: Request) -> JReqType:
     """
     We need to get the headers in addition to the body answer
     to get the location from them
@@ -56,7 +59,7 @@ def jenkins_request_with_headers(jenkins_server, req):
         # Jenkins's funky authentication means its nigh impossible to distinguish errors.
         if e.code in [401, 403, 500]:
             raise JenkinsException(
-                'Error in request. Possibly authentication failed [%s]: %s' % (e.code, e.msg)
+                'Error in request. Possibly authentication failed [%s]: %s' % (e.code, e.msg)  # type: ignore
             )
         elif e.code == 404:
             raise jenkins.NotFoundException('Requested item could not be found')
@@ -94,11 +97,12 @@ class JenkinsJobTriggerOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 jenkins_connection_id,
-                 job_name,
-                 parameters="",
-                 sleep_time=10,
-                 max_try_before_job_appears=10,
+                 jenkins_connection_id: str,
+                 job_name: str,
+                 parameters: Optional[str] = "",
+                 sleep_time: int = 10,
+                 max_try_before_job_appears: int = 10,
+                 *args,
                  **kwargs):
         super().__init__(**kwargs)
         self.job_name = job_name
@@ -109,7 +113,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
 
-    def build_job(self, jenkins_server):
+    def build_job(self, jenkins_server: Jenkins) -> JReqType:
         """
         This function makes an API call to Jenkins to trigger a build for 'job_name'
         It returned a dict with 2 keys : body and headers.
@@ -135,7 +139,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
             url=jenkins_server.build_job_url(self.job_name, self.parameters, None))
         return jenkins_request_with_headers(jenkins_server, request)
 
-    def poll_job_in_queue(self, location, jenkins_server):
+    def poll_job_in_queue(self, location: str, jenkins_server: Jenkins) -> int:
         """
         This method poll the jenkins queue until the job is executed.
         When we trigger a job through an API call,
@@ -159,7 +163,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
             location_answer = jenkins_request_with_headers(
                 jenkins_server, Request(method='POST', url=location))
             if location_answer is not None:
-                json_response = json.loads(location_answer['body'])
+                json_response = json.loads(location_answer['body'])  # type: ignore
                 if 'executable' in json_response:
                     build_number = json_response['executable']['number']
                     self.log.info('Job executed on Jenkins side with the build number %s',
@@ -170,13 +174,13 @@ class JenkinsJobTriggerOperator(BaseOperator):
         raise AirflowException("The job hasn't been executed after polling "
                                f"the queue {self.max_try_before_job_appears} times")
 
-    def get_hook(self):
+    def get_hook(self) -> JenkinsHook:
         """
         Instantiate jenkins hook
         """
         return JenkinsHook(self.jenkins_connection_id)
 
-    def execute(self, context):
+    def execute(self, context: Mapping[Any, Any]) -> Optional[str]:
         if not self.jenkins_connection_id:
             self.log.error(
                 'Please specify the jenkins connection id to use.'
@@ -196,7 +200,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         jenkins_server = self.get_hook().get_jenkins_server()
         jenkins_response = self.build_job(jenkins_server)
         build_number = self.poll_job_in_queue(
-            jenkins_response['headers']['Location'], jenkins_server)
+            jenkins_response['headers']['Location'], jenkins_server)  # type: ignore
 
         time.sleep(self.sleep_time)
         keep_polling_job = True
@@ -234,3 +238,4 @@ class JenkinsJobTriggerOperator(BaseOperator):
             # If we can we return the url of the job
             # for later use (like retrieving an artifact)
             return build_info['url']
+        return None
