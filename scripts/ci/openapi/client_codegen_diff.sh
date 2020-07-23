@@ -23,9 +23,10 @@ SCRIPTS_CI_DIR=$(dirname "${BASH_SOURCE[0]}")
 get_environment_for_builds_on_ci
 
 set -e
-
-git remote add target "https://github.com/${CI_TARGET_REPO}"
-git fetch target "${CI_TARGET_BRANCH}:${CI_TARGET_BRANCH}" --depth=1
+if [ "${CI_TARGET_REPO}" != "${CI_SOURCE_BRANCH}" ]; then
+    git remote add target "https://github.com/${CI_TARGET_REPO}"
+    git fetch target "${CI_TARGET_BRANCH}:${CI_TARGET_BRANCH}" --depth=1
+fi
 
 echo "Diffing openapi spec against ${CI_TARGET_BRANCH}..."
 
