@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -58,7 +58,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.job_flow_overrides = job_flow_overrides
         self.region_name = region_name
 
-    def execute(self, context) -> str:
+    def execute(self, context: Dict[str, Any]) -> str:
         emr = EmrHook(aws_conn_id=self.aws_conn_id,
                       emr_conn_id=self.emr_conn_id,
                       region_name=self.region_name)
@@ -71,7 +71,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         if isinstance(self.job_flow_overrides, str):
             self.job_flow_overrides = ast.literal_eval(self.job_flow_overrides)
 
-        response = emr.create_job_flow(self.job_flow_overrides)
+        response = emr.create_job_flow(self.job_flow_overrides)     # type: ignore
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException('JobFlow creation failed: %s' % response)
