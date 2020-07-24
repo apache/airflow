@@ -36,15 +36,15 @@ class EmrTerminateJobFlowOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, *,
-            job_flow_id,
-            aws_conn_id='aws_default',
-            **kwargs):
-        super().__init__(**kwargs)
+            self,
+            job_flow_id: str,
+            aws_conn_id: str = 'aws_default',
+            *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
         self.log.info('Terminating JobFlow %s', self.job_flow_id)

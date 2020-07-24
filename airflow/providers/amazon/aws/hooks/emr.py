@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Optional, List, Dict, Any
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -36,7 +38,7 @@ class EmrHook(AwsBaseHook):
         self.emr_conn_id = emr_conn_id
         super().__init__(client_type='emr', *args, **kwargs)
 
-    def get_cluster_id_by_name(self, emr_cluster_name, cluster_states):
+    def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: Optional[List[str]]) -> Optional[str]:
         """
         Fetch id of EMR cluster with given name and (optional) states. Will return only if single id is found.
 
@@ -65,7 +67,7 @@ class EmrHook(AwsBaseHook):
             self.log.info('No cluster found for name %s', emr_cluster_name)
             return None
 
-    def create_job_flow(self, job_flow_overrides):
+    def create_job_flow(self, job_flow_overrides) -> Dict[str, Any]:
         """
         Creates a job flow using the config from the EMR connection.
         Keys of the json extra hash may have the arguments of the boto3

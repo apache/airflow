@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+from typing import Optional, List, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -50,13 +51,13 @@ class EmrAddStepsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, *,
-            job_flow_id=None,
-            job_flow_name=None,
-            cluster_states=None,
-            aws_conn_id='aws_default',
-            steps=None,
-            **kwargs):
+            self,
+            job_flow_id: Optional[str] = None,
+            job_flow_name: Optional[str] = None,
+            cluster_states: Optional[List[str]] = None,
+            aws_conn_id: str = 'aws_default',
+            steps: Optional[Union[List[dict], str]] = None,
+            *args, **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         if not (job_flow_id is None) ^ (job_flow_name is None):
@@ -69,13 +70,14 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
 
-    def execute(self, context):
+    def execute(self, context) -> List[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
         emr = emr_hook.get_conn()
 
-        job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(self.job_flow_name,
-                                                                          self.cluster_states)
+        job_flow_id = self.job_flow_id or \
+            emr_hook.get_cluster_id_by_name(str(self.job_flow_name), self.cluster_states)
+
         if not job_flow_id:
             raise AirflowException(f'No cluster found for name: {self.job_flow_name}')
 
