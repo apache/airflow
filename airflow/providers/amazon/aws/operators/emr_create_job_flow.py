@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+from typing import Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -44,10 +45,10 @@ class EmrCreateJobFlowOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            aws_conn_id='aws_default',
-            emr_conn_id='emr_default',
-            job_flow_overrides=None,
-            region_name=None,
+            aws_conn_id: str = 'aws_default',
+            emr_conn_id: str = 'emr_default',
+            job_flow_overrides: Optional[Union[str, dict]] = None,
+            region_name: Optional[str] = None,
             *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
@@ -57,7 +58,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.job_flow_overrides = job_flow_overrides
         self.region_name = region_name
 
-    def execute(self, context):
+    def execute(self, context) -> str:
         emr = EmrHook(aws_conn_id=self.aws_conn_id,
                       emr_conn_id=self.emr_conn_id,
                       region_name=self.region_name)

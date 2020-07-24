@@ -51,7 +51,7 @@ class EmrModifyClusterOperator(BaseOperator):
         self.cluster_id = cluster_id
         self.step_concurrency_level = step_concurrency_level
 
-    def execute(self, context):
+    def execute(self, context) -> int:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
         emr = emr_hook.get_conn()
