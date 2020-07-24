@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
-from typing import Optional, List, Union
+from typing import List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -77,7 +77,7 @@ class EmrAddStepsOperator(BaseOperator):
 
         job_flow_id = self.job_flow_id or \
             emr_hook.get_cluster_id_by_name(str(self.job_flow_name), self.cluster_states)
-        
+
         if not job_flow_id:
             raise AirflowException(f'No cluster found for name: {self.job_flow_name}')
 

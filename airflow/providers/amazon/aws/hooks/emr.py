@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -38,7 +38,11 @@ class EmrHook(AwsBaseHook):
         self.emr_conn_id = emr_conn_id
         super().__init__(client_type='emr', *args, **kwargs)
 
-    def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: Optional[List[str]]) -> Optional[str]:
+    def get_cluster_id_by_name(
+        self,
+        emr_cluster_name: str,
+        cluster_states: Optional[List[str]]
+    ) -> Optional[str]:
         """
         Fetch id of EMR cluster with given name and (optional) states. Will return only if single id is found.
 
