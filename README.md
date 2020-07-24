@@ -54,14 +54,15 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## 环境搭建
+1. 安装 python3.7 (linux 下推荐使用 [pyenv](https://github.com/pyenv/pyenv))
 1. `git clone https://github.com/masami10/airflow.git`
 1. `cd airflow`
 1. 创建python3.7虚拟环境
-1. 安装依赖：`pip install -r ./requirements/requirements-python3.7.txt`
+1. 安装依赖：`pip install -r ./requirements.txt`
 1. 初始化数据库：`python ./airflow/bin/airflow init db`
 
 ## admin用户创建
-airflow create_user -r Admin -u admin -f admin -l admin -p admin -e admin
+`airflow create_user -r Admin -u admin -f admin -l admin -p admin -e admin`
 
 ## 运行
 
