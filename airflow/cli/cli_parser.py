@@ -1323,13 +1323,13 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
 
             self._indent()
             subactions = action._get_subactions()  # pylint: disable=protected-access
-            action_subcommnads, group_subcommnands = partition(
+            action_subcommands, group_subcommands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
             )
             parts.append("\n")
             parts.append('%*s%s:\n' % (self._current_indent, '', "Groups"))
             self._indent()
-            for subaction in group_subcommnands:
+            for subaction in group_subcommands:
                 parts.append(self._format_action(subaction))
             self._dedent()
 
@@ -1337,7 +1337,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
             parts.append('%*s%s:\n' % (self._current_indent, '', "Commands"))
             self._indent()
 
-            for subaction in action_subcommnads:
+            for subaction in action_subcommands:
                 parts.append(self._format_action(subaction))
             self._dedent()
             self._dedent()
