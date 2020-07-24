@@ -2553,7 +2553,7 @@ class VariableModelView(AirflowModelView):
                 val = var.val
             var_dict[var.key] = val
 
-        response = make_response(json.dumps(var_dict, sort_keys=True, indent=4))
+        response = make_response(json.dumps(var_dict, sort_keys=True, indent=4, ensure_ascii=False))
         response.headers["Content-Disposition"] = "attachment; filename=variables.json"
         response.headers["Content-Type"] = "application/json; charset=utf-8"
         return response

@@ -170,7 +170,7 @@ class Variable(Base, LoggingMixin):
     ):
 
         if serialize_json:
-            stored_value = json.dumps(value, indent=2, separators=(',', ': '))
+            stored_value = json.dumps(value, indent=2, separators=(',', ': '), ensure_ascii=False)
         else:
             stored_value = str(value)
         Variable.delete(key, session=session)
