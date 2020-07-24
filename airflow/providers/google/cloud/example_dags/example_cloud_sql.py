@@ -174,8 +174,8 @@ default_args = {
 
 with models.DAG(
     'example_gcp_sql',
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     # ############################################## #

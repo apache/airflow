@@ -33,8 +33,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.utils.dates import days_ago
 
-default_args = {"start_date": days_ago(1)}
-
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BQ_LOCATION = "europe-north1"
 
@@ -52,8 +50,8 @@ DATA_SAMPLE_GCS_OBJECT_NAME = DATA_SAMPLE_GCS_URL_PARTS.path[1:]
 
 with models.DAG(
     "example_bigquery_operations",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
     # [START howto_operator_bigquery_create_table]
@@ -176,8 +174,8 @@ with models.DAG(
 
 with models.DAG(
     "example_bigquery_operations_location",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=["example"],
 ):
     create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(

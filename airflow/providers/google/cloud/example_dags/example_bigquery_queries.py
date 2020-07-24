@@ -54,15 +54,13 @@ SCHEMA = [
     {"name": "ds", "type": "DATE", "mode": "NULLABLE"},
 ]
 
-default_args = {"start_date": days_ago(1)}
-
 for location in [None, LOCATION]:
     dag_id = "example_bigquery_queries_location" if location else "example_bigquery_queries"
 
     with models.DAG(
         dag_id,
-        default_args=default_args,
         schedule_interval=None,  # Override to match your needs
+        start_date=days_ago(1),
         tags=["example"],
         user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_1}
     ) as dag_with_locations:

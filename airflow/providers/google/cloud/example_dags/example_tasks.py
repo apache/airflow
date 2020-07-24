@@ -35,7 +35,6 @@ from airflow.providers.google.cloud.operators.tasks import (
 )
 from airflow.utils.dates import days_ago
 
-default_args = {"start_date": days_ago(1)}
 timestamp = timestamp_pb2.Timestamp()
 timestamp.FromDatetime(datetime.now() + timedelta(hours=12))  # pylint: disable=no-member
 
@@ -55,8 +54,8 @@ TASK = {
 
 with models.DAG(
     "example_gcp_tasks",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
 

@@ -69,12 +69,10 @@ TRANSFER_CONFIG = ParseDict(
 
 # [END howto_bigquery_dts_create_args]
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_gcp_bigquery_dts",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     # [START howto_bigquery_create_data_transfer]

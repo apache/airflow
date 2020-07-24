@@ -77,13 +77,12 @@ UPDATE_TASK_KWARGS = json.loads(
     getenv("UPDATE_TASK_KWARGS", default_update_task_kwargs)
 )
 
-default_args = {"start_date": days_ago(1)}
 # [END howto_operator_datasync_2_args]
 
 with models.DAG(
     "example_datasync_2",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
 

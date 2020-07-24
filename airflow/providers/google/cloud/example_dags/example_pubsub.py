@@ -35,8 +35,6 @@ TOPIC_FOR_SENSOR_DAG = "PubSubSensorTestTopic"
 TOPIC_FOR_OPERATOR_DAG = "PubSubOperatorTestTopic"
 MESSAGE = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"}}
 
-default_args = {"start_date": days_ago(1)}
-
 # [START howto_operator_gcp_pubsub_pull_messages_result_cmd]
 echo_cmd = """
 {% for m in task_instance.xcom_pull('pull_messages') %}
@@ -47,8 +45,8 @@ echo_cmd = """
 
 with models.DAG(
     "example_gcp_pubsub_sensor",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1)
 ) as example_sensor_dag:
     # [START howto_operator_gcp_pubsub_create_topic]
     create_topic = PubSubCreateTopicOperator(
@@ -108,8 +106,8 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_pubsub_operator",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1)
 ) as example_operator_dag:
     # [START howto_operator_gcp_pubsub_create_topic]
     create_topic = PubSubCreateTopicOperator(

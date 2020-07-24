@@ -80,12 +80,10 @@ DOWNLOAD_LINE_ITEMS_REQUEST: Dict = {
     "fileSpec": "EWF"}
 # [END howto_display_video_env_variables]
 
-default_args = {"start_date": dates.days_ago(1)}
-
 with models.DAG(
     "example_display_video",
-    default_args=default_args,
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval=None,  # Override to match your needs,
+    start_date=dates.days_ago(1)
 ) as dag:
     # [START howto_google_display_video_createquery_report_operator]
     create_report = GoogleDisplayVideo360CreateReportOperator(

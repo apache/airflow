@@ -78,7 +78,7 @@ body = {
 
 # [START howto_operator_gcf_default_args]
 default_args = {
-    'start_date': dates.days_ago(1)
+    'owner': 'airflow'
 }
 # [END howto_operator_gcf_default_args]
 
@@ -101,8 +101,8 @@ else:
 
 with models.DAG(
     'example_gcp_function',
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag:
     # [START howto_operator_gcf_deploy]

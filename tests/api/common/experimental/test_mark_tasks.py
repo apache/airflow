@@ -50,7 +50,7 @@ class TestMarkTasks(unittest.TestCase):
         cls.dag3 = dagbag.dags['example_trigger_target_dag']
         cls.dag3.sync_to_db()
         cls.execution_dates = [days_ago(2), days_ago(1)]
-        start_date3 = cls.dag3.default_args["start_date"]
+        start_date3 = cls.dag3.start_date
         cls.dag3_execution_dates = [start_date3, start_date3 + timedelta(days=1),
                                     start_date3 + timedelta(days=2)]
 

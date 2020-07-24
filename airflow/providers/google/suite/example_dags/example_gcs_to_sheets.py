@@ -27,11 +27,9 @@ BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-test-bucket3")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "example-spreadsheetID")
 NEW_SPREADSHEET_ID = os.environ.get("NEW_SPREADSHEET_ID", "1234567890qwerty")
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_gcs_to_sheets",
-    default_args=default_args,
+    start_date=days_ago(1),
     schedule_interval=None,  # Override to match your needs
     tags=["example"],
 ) as dag:

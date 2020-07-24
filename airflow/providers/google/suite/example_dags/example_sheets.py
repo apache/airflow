@@ -34,12 +34,10 @@ SPREADSHEET = {
     "sheets": [{"properties": {"title": "Sheet1"}}],
 }
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_sheets_gcs",
-    default_args=default_args,
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval=None,  # Override to match your needs,
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
     # [START upload_sheet_to_gcs]
