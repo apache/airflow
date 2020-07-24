@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -70,7 +70,7 @@ class EmrAddStepsOperator(BaseOperator):
         self.cluster_states = cluster_states
         self.steps = steps
 
-    def execute(self, context) -> List[str]:
+    def execute(self, context: Dict[str, Any]) -> List[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
         emr = emr_hook.get_conn()
