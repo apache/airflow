@@ -69,6 +69,8 @@ class PodLauncher(LoggingMixin):
         :type pod: k8s.V1Pod
         """
         try:
+            # attempts to run pod_mutation_hook using old pod, if this
+            # fails we attempt to run with k8s official pod
             from airflow.kubernetes_deprecated.pod import Pod
             from airflow.kubernetes.pod_generator import PodGenerator
             dummy_pod = Pod(image=pod.spec.containers[0]['image'], envs={}, cmds=[])
@@ -77,7 +79,6 @@ class PodLauncher(LoggingMixin):
             PodGenerator.reconcile_pods(pod, dummy_pod)
         except AttributeError:
             pod_mutation_hook(pod)
-
 
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
