@@ -75,7 +75,7 @@ class GunicornMonitor(LoggingMixin):
     :param worker_refresh_batch_size: Number of workers to refresh at a time. When set to 0, worker
         refresh is disabled. When nonzero, airflow periodically refreshes webserver workers by
         bringing up new ones and killing old ones.
-    :param reload_on_plugin_change: If set to True, Airflow will track files in plugins_follder directory.
+    :param reload_on_plugin_change: If set to True, Airflow will track files in plugins_folder directory.
         When it detects changes, then reload the gunicorn.
     """
     def __init__(
