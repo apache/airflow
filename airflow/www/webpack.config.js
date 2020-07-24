@@ -58,12 +58,10 @@ const config = {
     ],
   },
   module: {
-    rules: [
-      {
+    rules: [{
         test: /datatables\.net.*/,
         loader: 'imports-loader?define=>false',
-      },
-      {
+      }, {
         test: /\.jsx?$/,
         exclude: /node_modules/,
         loader: 'babel-loader',
@@ -72,12 +70,11 @@ const config = {
       {
         test: /\.css$/,
         include: STATIC_DIR,
-        use: [
-         {
-             loader: MiniCssExtractPlugin.loader,
-             options: {
-               esModule: true,
-             },
+        use: [{
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              esModule: true,
+            },
           },
           'css-loader',
         ],
@@ -85,29 +82,24 @@ const config = {
       /* for css linking images */
       {
         test: /\.(png|jpg|gif)$/i,
-        use: [
-          {
-            loader: 'url-loader',
-            options: {
-              limit: 100000,
-            },
+        use: [{
+          loader: 'url-loader',
+          options: {
+            limit: 100000,
           },
-        ],
+        }, ],
       },
       /* for font-awesome */
       {
         test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        use: [
-          {
-            loader: 'url-loader',
-            options: {
-              limit: 100000,
-              mimetype: 'application/font-woff',
-            },
+        use: [{
+          loader: 'url-loader',
+          options: {
+            limit: 100000,
+            mimetype: 'application/font-woff',
           },
-        ],
-      },
-      {
+        }, ],
+      }, {
         test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         loader: 'file-loader',
       },
@@ -118,7 +110,9 @@ const config = {
     new cwplg.CleanWebpackPlugin({
       verbose: true,
     }),
-    new MiniCssExtractPlugin({ filename: '[name].[chunkhash].css' }),
+    new MiniCssExtractPlugin({
+      filename: '[name].[chunkhash].css'
+    }),
 
     // MomentJS loads all the locale, making it a huge JS file.
     // This will ignore the locales from momentJS
@@ -133,22 +127,43 @@ const config = {
     // this seems like an efficient solution for now. Will update that once
     // we'll have the dependencies imported within the custom JS
     new CopyWebpackPlugin({
-      patterns: [
-        { from: 'node_modules/nvd3/build/*.min.*', flatten: true },
+      patterns: [{
+          from: 'node_modules/nvd3/build/*.min.*',
+          flatten: true
+        },
         // Update this when upgrade d3 package, as the path in new D3 is different
-        { from: 'node_modules/d3/d3.min.*', flatten: true },
-        { from: 'node_modules/dagre-d3/dist/*.min.*', flatten: true },
-        { from: 'node_modules/d3-tip/dist/index.js', to: 'd3-tip.js', flatten: true },
-        { from: 'node_modules/bootstrap-3-typeahead/*min.*', flatten: true },
         {
+          from: 'node_modules/d3/d3.min.*',
+          flatten: true
+        }, {
+          from: 'node_modules/dagre-d3/dist/*.min.*',
+          flatten: true
+        }, {
+          from: 'node_modules/d3-tip/dist/index.js',
+          to: 'd3-tip.js',
+          flatten: true
+        }, {
+          from: 'node_modules/bootstrap-3-typeahead/*min.*',
+          flatten: true
+        }, {
           from: 'node_modules/bootstrap-toggle/**/*bootstrap-toggle.min.*',
           flatten: true,
+        }, {
+          from: 'node_modules/datatables.net/**/**.min.*',
+          flatten: true
+        }, {
+          from: 'node_modules/datatables.net-bs/**/**.min.*',
+          flatten: true
+        }, {
+          from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css',
+          flatten: true
+        }, {
+          from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js',
+          flatten: true
+        }, {
+          from: 'node_modules/redoc/bundles/redoc.standalone.*',
+          flatten: true
         },
-        { from: 'node_modules/datatables.net/**/**.min.*', flatten: true },
-        { from: 'node_modules/datatables.net-bs/**/**.min.*', flatten: true },
-        { from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css', flatten: true },
-        { from: 'node_modules/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js', flatten: true },
-        { from: 'node_modules/redoc/bundles/redoc.standalone.*', flatten: true },
       ],
     }),
   ],
