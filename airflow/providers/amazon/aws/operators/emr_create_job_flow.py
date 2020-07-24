@@ -68,6 +68,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
             self.aws_conn_id, self.emr_conn_id
         )
 
+        job_flow_overrides = self.job_flow_overrides
         if isinstance(self.job_flow_overrides, str):
             job_flow_overrides = ast.literal_eval(self.job_flow_overrides)
         else:
