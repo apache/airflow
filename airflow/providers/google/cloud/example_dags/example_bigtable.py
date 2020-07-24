@@ -69,9 +69,6 @@ CBT_CLUSTER_STORAGE_TYPE = getenv('CBT_CLUSTER_STORAGE_TYPE', '2')
 CBT_TABLE_ID = getenv('CBT_TABLE_ID', 'some-table-id')
 CBT_POKE_INTERVAL = getenv('CBT_POKE_INTERVAL', '60')
 
-default_args = {
-    'start_date': days_ago(1)
-}
 
 with models.DAG(
     'example_gcp_bigtable_operators',

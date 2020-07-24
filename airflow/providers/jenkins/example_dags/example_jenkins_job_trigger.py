@@ -24,10 +24,8 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
 
-datetime_start_date = datetime(2017, 6, 1)
 default_args = {
     "owner": "airflow",
-    "start_date": datetime_start_date,
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
     "depends_on_past": False,
@@ -40,6 +38,7 @@ default_args = {
 with DAG(
     "test_jenkins",
     default_args=default_args,
+    start_date=datetime(2017, 6, 1),
     schedule_interval=None
 ) as dag:
     job_trigger = JenkinsJobTriggerOperator(

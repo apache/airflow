@@ -50,7 +50,6 @@ SUMMARY_TMP = os.environ.get("GCP_MLENGINE_DATAFLOW_TMP", "gs://test-airflow-mle
 SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://test-airflow-mlengine/staging/")
 
 default_args = {
-    "start_date": days_ago(1),
     "params": {
         "model_name": MODEL_NAME
     }
