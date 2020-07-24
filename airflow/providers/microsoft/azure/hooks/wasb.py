@@ -90,7 +90,7 @@ class WasbHook(BaseHook):
 
     def get_blobs_list(self, container_name: str, prefix: str, **kwargs):
         """
-        Return a list of blobs from path defined in prefix param 
+        Return a list of blobs from path defined in prefix param
 
         :param container_name: Name of the container.
         :type container_name: str
