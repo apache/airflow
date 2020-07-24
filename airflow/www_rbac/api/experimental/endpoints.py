@@ -71,7 +71,16 @@ def put_anaylysis_result():
 
         date = timezone.parse(execution_date)
         modify_task_instance(dag_id, task_id, execution_date=date, modifier=modifier)
-        trigger_push_result_to_mq('analysis_result', rresult, entity_id, execution_date, task_id, dag_id)
+        trigger_push_result_to_mq(
+            'analysis_result',
+            rresult,
+            entity_id,
+            execution_date,
+            task_id,
+            dag_id,
+            verify_error,
+            curve_mode
+        )
         resp = jsonify({'response': 'ok'})
         resp.status_code = 200
         return resp
