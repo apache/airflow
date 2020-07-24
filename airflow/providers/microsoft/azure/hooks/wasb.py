@@ -104,7 +104,6 @@ class WasbHook(BaseHook):
         :rtype: list(azure.storage.common.models.ListGenerator)
         """
         return self.connection.list_blobs(container_name, prefix, **kwargs)
-    
     def load_file(self, file_path, container_name, blob_name, **kwargs):
         """
         Upload a file to Azure Blob Storage.
