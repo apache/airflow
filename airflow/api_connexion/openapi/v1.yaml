@@ -1882,7 +1882,7 @@ components:
           description: >
             Returns objects greater or equal the specified date.
 
-            This can be combined with startd_ate_lte parameter to receive only the selected period.
+            This can be combined with start_date_lte parameter to receive only the selected period.
         start_date_lte:
           type: string
           format: date-time
@@ -2269,7 +2269,7 @@ components:
       description: >
         Returns objects greater or equal the specified date.
 
-        This can be combined with startd_ate_lte parameter to receive only the selected period.
+        This can be combined with start_date_lte parameter to receive only the selected period.
     FilterStartDateLTE:
       in: query
       name: start_date_lte
