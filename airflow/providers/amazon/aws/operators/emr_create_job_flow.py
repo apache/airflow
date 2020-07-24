@@ -69,9 +69,10 @@ class EmrCreateJobFlowOperator(BaseOperator):
         )
 
         if isinstance(self.job_flow_overrides, str):
-            self.job_flow_overrides = ast.literal_eval(self.job_flow_overrides)
-
-        response = emr.create_job_flow(self.job_flow_overrides)     # type: ignore
+            job_flow_overrides = ast.literal_eval(self.job_flow_overrides)
+        else:
+            job_flow_overrides = self.job_flow_overrides
+        response = emr.create_job_flow(job_flow_overrides)
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException('JobFlow creation failed: %s' % response)
