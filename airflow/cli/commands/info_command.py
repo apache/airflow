@@ -43,7 +43,7 @@ class Anonymizer(Protocol):
         """Remove pii from paths"""
 
     def process_username(self, value):
-        """Remove pii from ussername"""
+        """Remove pii from username"""
 
     def process_url(self, value):
         """Remove pii from URL"""
@@ -247,7 +247,7 @@ class SystemInfo:
 
 
 class PathsInfo:
-    """Path informaation"""
+    """Path information"""
 
     def __init__(self, anonymizer: Anonymizer):
         system_path = os.environ.get("PATH", "").split(os.pathsep)
