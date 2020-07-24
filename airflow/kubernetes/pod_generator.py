@@ -344,18 +344,26 @@ class PodGenerator(object):
         resources = namespaced.get('resources')
 
         if resources is None:
-            requests = {
-                'cpu': namespaced.get('request_cpu'),
-                'memory': namespaced.get('request_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage')
-            }
-            limits = {
-                'cpu': namespaced.get('limit_cpu'),
-                'memory': namespaced.get('limit_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage')
-            }
-            all_resources = list(requests.values()) + list(limits.values())
-            if all(r is None for r in all_resources):
+            def extract(cpu, memory, ephemeral_storage, limit_gpu=None):
+                resources_obj = {
+                    'cpu': namespaced.pop(cpu, None),
+                    'memory': namespaced.pop(memory, None),
+                    'ephemeral-storage': namespaced.pop(ephemeral_storage, None),
+                }
+                if limit_gpu is not None:
+                    resources_obj['nvidia.com/gpu'] = namespaced.pop(limit_gpu, None)
+
+                resources_obj = {k: v for k, v in resources_obj.items() if v is not None}
+
+                if all(r is None for r in resources_obj):
+                    resources_obj = None
+                return namespaced, resources_obj
+
+            namespaced, requests = extract('request_cpu', 'request_memory', 'request_ephemeral_storage')
+            namespaced, limits = extract('limit_cpu', 'limit_memory', 'limit_ephemeral_storage',
+                                         limit_gpu='limit_gpu')
+
+            if requests is None and limits is None:
                 resources = None
             else:
                 resources = k8s.V1ResourceRequirements(
@@ -371,6 +379,7 @@ class PodGenerator(object):
                 'iam.cloud.google.com/service-account': gcp_service_account_key
             })
 
+        namespaced['resources'] = resources
         return PodGenerator(**namespaced).gen_pod()
 
     @staticmethod
