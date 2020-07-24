@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
-from typing import Optional, List, Union
+from typing import List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
