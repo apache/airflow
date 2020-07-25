@@ -194,7 +194,7 @@ repos:
       - id: lint-openapi
         name: Lint OpenAPI using speccy
         language: docker_image
-        entry: wework/speccy lint
+        entry: wework/speccy lint -r default -r ./scripts/ci/speccy_rules/connexion.yml
         files: ^airflow/api_connexion/openapi/
       - id: lint-openapi
         name: Lint OpenAPI using openapi-spec-validator
