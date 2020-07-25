@@ -964,8 +964,8 @@ class TaskInstance(Base, LoggingMixin):
 
                 self.render_templates(context=context)
                 if STORE_SERIALIZED_DAGS:
-                    RTIF.write(RTIF(ti=self, render_templates=False), session=session)
-                    RTIF.delete_old_records(self.task_id, self.dag_id, session=session)
+                    RTIF.write(RTIF(ti=self, render_templates=False))
+                    RTIF.delete_old_records(self.task_id, self.dag_id)
 
                 task_copy.pre_execute(context=context)
 
