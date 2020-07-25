@@ -88,7 +88,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                                    "`{}` and failed states `{}`"
                                    .format(self.allowed_states, self.failed_states))
 
-        if not total_states <= set(State.task_states):
+        if total_states > set(State.task_states):
             if external_task_id:
                 raise ValueError(
                     f'Valid values for `allowed_states` and `failed_states` '
