@@ -19,8 +19,8 @@
 name: Cancel duplicate workflows
 on:
   schedule:
-    - cron: '/5 * * * *'
-
+    - cron: '*/5 * * * *'
+jobs:
   cancel-duplicate-workflows:
     if: github.repository == 'apache/airflow'
     timeout-minutes: 10
