@@ -47,7 +47,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
             self,
             aws_conn_id: str = 'aws_default',
             emr_conn_id: str = 'emr_default',
-            job_flow_overrides: Optional[Union[str, dict]] = None,
+            job_flow_overrides: Optional[Union[str, Dict[str, Any]]] = None,
             region_name: Optional[str] = None,
             *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -68,9 +68,9 @@ class EmrCreateJobFlowOperator(BaseOperator):
             self.aws_conn_id, self.emr_conn_id
         )
 
-        job_flow_overrides = self.job_flow_overrides
         if isinstance(self.job_flow_overrides, str):
-            job_flow_overrides = ast.literal_eval(self.job_flow_overrides)
+            job_flow_overrides: Dict[str, Any] = ast.literal_eval(self.job_flow_overrides)
+            self.job_flow_overrides = job_flow_overrides
         else:
             job_flow_overrides = self.job_flow_overrides
         response = emr.create_job_flow(job_flow_overrides)
