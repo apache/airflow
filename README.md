@@ -126,7 +126,7 @@ pip install apache-airflow[postgres,google]==1.10.11 \
 In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images
 of Apache Airflow. The community provides two types of support for the production images:
 
-* We provide pre-build relesed version of production image in PyPI build from released
+* We provide pre-build released version of production image in PyPI build from released
   sources of Apache Airflow - shortly after release. Those images are available in the DockerHub.
   You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the
   version number (for example 1.10.11). Additionally `docker pull apache/airflow` will pull latest
@@ -212,13 +212,13 @@ those packages can only be used in python3.6+ environment.
 ### Installing Airflow 2.0 operators in Airflow 1.10
 
 We released backport packages that can be installed for older Airflow versions.
-Those backport packages are going to be released more frequently that main Airflow 1.10.& releases.
+Those backport packages are going to be released more frequently that main Airflow 1.10.* releases.
 
 You will not have to upgrade your Airflow version to use those packages. You can find those packages in the
 [PyPI](https://pypi.org/search/?q=apache-airflow-backport-providers&o=) and install them separately for each
 provider.
 
-Those packages are available now and can be used in the latest Airflow 1.10* version. Most of those
+Those packages are available now and can be used in the latest Airflow 1.10.* version. Most of those
 packages are also installable and usable in most Airflow 1.10.* releases but there is no extensive testing
 done beyond the latest released version, so you might expect more problems in earlier Airflow versions.
 
