@@ -27,7 +27,6 @@ from airflow.utils.dates import days_ago
 args = {
     'owner': 'airflow',
     'retries': 3,
-    'start_date': days_ago(2)
 }
 
 
@@ -63,6 +62,7 @@ with DAG(
     default_args=args,
     schedule_interval='@once',
     dagrun_timeout=timedelta(minutes=60),
+    start_date=days_ago(2),
     tags=['example'],
 ) as dag:
 

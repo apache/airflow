@@ -30,7 +30,6 @@ from airflow.utils.dates import days_ago
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False
@@ -40,6 +39,7 @@ with DAG(
     dag_id='example_qubole_operator',
     default_args=default_args,
     schedule_interval=None,
+    start_date=days_ago(2),
     tags=['example'],
 ) as dag:
     dag.doc_md = textwrap.dedent(
@@ -236,6 +236,7 @@ with DAG(
     dag_id='example_qubole_sensor',
     default_args=default_args,
     schedule_interval=None,
+    start_date=days_ago(2),
     doc_md=__doc__,
     tags=['example'],
 ) as dag2:

@@ -52,10 +52,6 @@ GCP_SPANNER_DISPLAY_NAME = os.environ.get('GCP_SPANNER_DISPLAY_NAME', 'Test Inst
 # OPERATION_ID should be unique per operation
 OPERATION_ID = 'unique_operation_id'
 
-default_args = {
-    'start_date': days_ago(1)
-}
-
 with models.DAG(
     'example_gcp_spanner',
     schedule_interval=None,  # Override to match your needs

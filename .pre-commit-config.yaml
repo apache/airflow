@@ -326,7 +326,7 @@ repos:
       - id: restrict-start_date-in-default_args-in-example_dags
         language: pygrep
         name: "'start_date' should not be defined in default_args in example_dags"
-        entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')"
+        entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
         files: \.*example_dags.*.py$
         pass_filenames: true
       - id: check-integrations

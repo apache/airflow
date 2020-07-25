@@ -44,9 +44,6 @@ GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
 GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'testinstance')
 # [END howto_operator_gce_args_common]
 
-default_args = {
-    'start_date': days_ago(1),
-}
 
 GCE_SHORT_MACHINE_TYPE_NAME = os.environ.get('GCE_SHORT_MACHINE_TYPE_NAME', 'n1-standard-1')
 

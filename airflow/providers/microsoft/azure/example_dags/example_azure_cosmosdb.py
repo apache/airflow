@@ -34,7 +34,6 @@ from airflow.utils import dates
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': dates.days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False
@@ -43,6 +42,7 @@ default_args = {
 with DAG(
     dag_id='example_azure_cosmosdb_sensor',
     default_args=default_args,
+    start_date=dates.days_ago(2),
     doc_md=__doc__,
     tags=['example'],
 ) as dag:

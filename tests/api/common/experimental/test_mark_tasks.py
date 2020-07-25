@@ -64,7 +64,7 @@ class TestMarkTasks(unittest.TestCase):
             dr.verify_integrity()
 
         drs = _create_dagruns(self.dag2,
-                              [self.dag2.default_args['start_date']],
+                              [self.dag2.start_date],
                               state=State.RUNNING,
                               run_type=DagRunType.SCHEDULED)
 

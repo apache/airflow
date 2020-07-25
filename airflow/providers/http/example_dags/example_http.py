@@ -29,7 +29,6 @@ from airflow.utils.dates import days_ago
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,
@@ -37,7 +36,7 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-dag = DAG('example_http_operator', default_args=default_args, tags=['example'])
+dag = DAG('example_http_operator', default_args=default_args, tags=['example'], start_date=days_ago(2))
 
 dag.doc_md = __doc__
 
