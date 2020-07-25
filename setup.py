@@ -409,7 +409,7 @@ statsd = [
     'statsd>=3.3.0, <4.0',
 ]
 tableau = [
-    'tableauserverclient==0.9',
+    'tableauserverclient~=0.12',
 ]
 vertica = [
     'vertica-python>=0.5.1',
