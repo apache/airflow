@@ -1166,8 +1166,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
         self.render_templates(context=context)
         if STORE_SERIALIZED_DAGS:
-            RTIF.write(RTIF(ti=self, render_templates=False), session=session)
-            RTIF.delete_old_records(self.task_id, self.dag_id, session=session)
+            RTIF.write(RTIF(ti=self, render_templates=False))
+            RTIF.delete_old_records(self.task_id, self.dag_id)
 
         # Export context to make it available for operators to use.
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
