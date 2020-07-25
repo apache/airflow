@@ -48,4 +48,4 @@ mkdir -p ./clients/go_target_branch/airflow
 git reset --hard "${TARGET_REMOTE}/${CI_TARGET_BRANCH}"
 ./clients/gen/go.sh ./airflow/api_connexion/openapi/v1.yaml ./clients/go_target_branch/airflow
 
-diff ./clients/go_target_branch/airflow ./clients/go/airflow || true
+diff -u ./clients/go_target_branch/airflow ./clients/go/airflow || true
