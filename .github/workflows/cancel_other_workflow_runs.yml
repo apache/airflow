@@ -16,18 +16,21 @@
 # under the License.
 #
 ---
-name: Cancel duplicate workflows
+name: Cancel other workflow runs
 on:
   schedule:
     - cron: '*/5 * * * *'
 jobs:
-  cancel-duplicate-workflows:
+  cancel-other-workflow-runs:
     if: github.repository == 'apache/airflow'
     timeout-minutes: 10
-    name: "Cancel duplicate workflows"
+    name: "Cancel other workflow runs"
     runs-on: ubuntu-latest
     steps:
-      - uses: n1hility/cancel-previous-runs@v2
+      - uses: potiuk/cancel-workflow-runs@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           workflow: ci.yml
+          failFastJobNames: >
+            ["^Static checks$", "^Build docs$", "^Backport packages$",
+             "^Checks: Helm tests$", "^Build prod image .*", "^Test OpenAPI*"]
