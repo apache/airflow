@@ -45,7 +45,7 @@ class ImapHook(BaseHook):
     def __init__(self, imap_conn_id: str = 'imap_default') -> None:
         super().__init__()
         self.imap_conn_id = imap_conn_id
-        self.mail_client = None
+        self.mail_client: Optional[imaplib.IMAP4_SSL] = None
 
     def __enter__(self):
         return self.get_conn()
@@ -66,8 +66,8 @@ class ImapHook(BaseHook):
 
         if not self.mail_client:
             conn = self.get_connection(self.imap_conn_id)
-            self.mail_client = imaplib.IMAP4_SSL(conn.host)  # type:ignore
-            self.mail_client.login(conn.login, conn.password)  # type:ignore
+            self.mail_client = imaplib.IMAP4_SSL(conn.host)
+            self.mail_client.login(conn.login, conn.password)
 
         return self
 
@@ -229,8 +229,8 @@ class ImapHook(BaseHook):
         if not self.mail_client:
             raise Exception("The 'mail_client' should be initialized before!")
         _, data = self.mail_client.fetch(mail_id, '(RFC822)')
-        mail_body = data[0][1]  # The mail body is always in this specific location
-        mail_body_str = mail_body.decode('utf-8')
+        mail_body = data[0][1]  # type: ignore # The mail body is always in this specific location
+        mail_body_str = mail_body.decode('utf-8')  # type: ignore
         return mail_body_str
 
     def _check_mail_body(self, response_mail_body: str, name: str, check_regex: bool,
