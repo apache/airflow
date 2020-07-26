@@ -486,7 +486,7 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_transform`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_tuning`
 
-  * - `Amazon Simple Email Service (SES) <https://aws.amazon.com/ses/>`__
+   * - `Amazon Simple Email Service (SES) <https://aws.amazon.com/ses/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.ses`
      -
