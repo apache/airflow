@@ -20,6 +20,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, SupportsAbs, Un
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
 
@@ -619,3 +620,49 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
             )
 
         self.skip_all_except(context["ti"], follow_branch)
+
+
+class SQLExecuteQueryOperator(BaseOperator):
+    """
+    Executes SQL code in a specific database
+
+    :param sql: the SQL code to be executed. (templated)
+    :type sql: str or string pointing to a template file. File must have a '.sql' extensions.
+    :param conn_id: reference to a specific database
+    :type conn_id: str
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :type parameters: dict or iterable
+    """
+
+    template_fields = ('sql',)
+    template_ext = ('.sql',)
+    ui_color = '#cdaaed'
+
+    @apply_defaults
+    def __init__(
+        self,
+        *
+        sql: Union[str, List[str]],
+        conn_id: str,
+        parameters: Optional[Union[Mapping, Iterable]] = None,
+        **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+        self.conn_id = conn_id
+        self.sql = sql
+        self.parameters = parameters or []
+
+    def execute(self, context):
+        self.log.info('Executing: %s', self.sql)
+        hook = self._get_hook()
+        hook.run(self.sql, parameters=self.parameters)
+
+    def _get_hook(self) -> DbApiHook:
+        self.log.debug("Get connection for %s", self.conn_id)
+        conn = BaseHook.get_connection(self.conn_id)
+        hook = conn.get_hook()
+        if not isinstance(hook, DbApiHook):
+            raise AirflowException(
+                "This hook is not supported. The hook class must extends DbApiHook."
+            )
+        return hook

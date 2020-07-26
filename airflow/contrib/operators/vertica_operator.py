@@ -15,14 +15,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.vertica.operators.vertica`."""
+"""This module is deprecated. Please use `airflow.providers.sqlite.operators.sqlite`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.vertica.operators.vertica import VerticaOperator  # noqa
+from airflow.operators.sql import SQLExecuteQueryOperator
+from airflow.utils.decorators import apply_defaults
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.vertica.operators.vertica`.",
+    "This module is deprecated. Please use `airflow.operators.sql`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class VerticaOperator(SQLExecuteQueryOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.sql.SQLExecuteQueryOperator`.
+    """
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        vertica_conn_id='vertica_default',
+        **kwargs
+    ) -> None:
+        super().__init__(conn_id=vertica_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )

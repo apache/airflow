@@ -1196,7 +1196,7 @@ OPERATORS = [
         'airflow.operators.python_operator.PythonVirtualenvOperator',
     ),
     (
-        'airflow.providers.sqlite.operators.sqlite.SqliteOperator',
+        'airflow.operators.sql.SQLExecuteQueryOperator',
         'airflow.operators.sqlite_operator.SqliteOperator',
     ),
     (
@@ -1244,7 +1244,7 @@ OPERATORS = [
         'airflow.contrib.operators.slack_webhook_operator.SlackWebhookOperator',
     ),
     (
-        'airflow.providers.vertica.operators.vertica.VerticaOperator',
+        'airflow.operators.sql.SQLExecuteQueryOperator',
         'airflow.contrib.operators.vertica_operator.VerticaOperator',
     ),
     (

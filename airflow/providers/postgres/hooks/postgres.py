@@ -234,3 +234,8 @@ class PostgresHook(DbApiHook):
                 ", ".join(replace_target),
             )
         return sql
+
+    def run(self, sql, autocommit=False, parameters=None):
+        super().run(sql, autocommit, parameters)
+        for output in self.conn.notices:
+            self.log.info(output)

@@ -28,7 +28,7 @@ from airflow.operators.check_operator import (
     CheckOperator, IntervalCheckOperator, ThresholdCheckOperator, ValueCheckOperator,
 )
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.sql import BranchSQLOperator
+from airflow.operators.sql import BranchSQLOperator, SQLExecuteQueryOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -742,3 +742,68 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
                     self.assertEqual(ti.state, State.NONE)
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
+
+
+TEST_DAG_ID = 'unit_test_dag'
+
+
+@pytest.mark.backend("sqlite")
+class TestSQLExecuteQueryOperator(unittest.TestCase):
+    def setUp(self):
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag = dag
+
+    def tearDown(self):
+        tables_to_drop = ['test_airflow', 'test_airflow2']
+        from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+        with SqliteHook().get_conn() as conn:
+            cur = conn.cursor()
+            for table in tables_to_drop:
+                cur.execute(f"DROP TABLE IF EXISTS {table}")
+
+    def test_sql_operator_with_one_statement(self):
+        sql = """
+        CREATE TABLE IF NOT EXISTS test_airflow (
+            dummy VARCHAR(50)
+        );
+        """
+        op = SQLExecuteQueryOperator(
+            task_id='basic_sqlite',
+            sql=sql,
+            conn_id='sqlite_default',
+            dag=self.dag,
+        )
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_sql_operator_with_multiple_statements(self):
+        sql = [
+            "CREATE TABLE IF NOT EXISTS test_airflow (dummy VARCHAR(50))",
+            "INSERT INTO test_airflow VALUES ('X')",
+        ]
+        op = SQLExecuteQueryOperator(
+            task_id='sqlite_operator_with_multiple_statements',
+            sql=sql,
+            conn_id='sqlite_default',
+            dag=self.dag
+        )
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_sql_operator_with_invalid_sql(self):
+        sql = [
+            "CREATE TABLE IF NOT EXISTS test_airflow (dummy VARCHAR(50))",
+            "INSERT INTO test_airflow2 VALUES ('X')",
+        ]
+
+        from sqlite3 import OperationalError
+        try:
+            op = SQLExecuteQueryOperator(
+                task_id='sqlite_operator_with_multiple_statements',
+                sql=sql,
+                conn_id='sqlite_default',
+                dag=self.dag
+            )
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            pytest.fail("An exception should have been thrown")
+        except OperationalError as e:
+            assert 'no such table: test_airflow2' in str(e)

@@ -15,14 +15,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.jdbc.operators.jdbc`."""
+"""This module is deprecated. Please use `airflow.operators.sql`."""
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.providers.jdbc.operators.jdbc import JdbcOperator  # noqa
+from airflow.operators.sql import SQLExecuteQueryOperator
+from airflow.utils.decorators import apply_defaults
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.jdbc.operators.jdbc`.",
+    "This module is deprecated. Please use `airflow.operators.sql`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class JdbcOperator(SQLExecuteQueryOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.sql.SQLExecuteQueryOperator`.
+    """
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        jdbc_conn_id: str = 'jdbc_default',
+        **kwargs
+    ) -> None:
+        super().__init__(conn_id=jdbc_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )

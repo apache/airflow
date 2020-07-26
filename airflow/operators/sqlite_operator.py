@@ -20,9 +20,43 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.sqlite.operators.sqlite import SqliteOperator  # noqa
+from airflow.operators.sql import SQLExecuteQueryOperator
+from airflow.sensors.base_sensor_operator import apply_defaults
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.sqlite.operators.sqlite`.",
+    "This module is deprecated. Please use `airflow.operators.sql`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class SqliteOperator(SQLExecuteQueryOperator):
+    """
+    Executes sql code in a specific Sqlite database
+
+    .. warning::
+
+        This class is deprecated.
+        Please use :class:`airflow.operators.sql.SQLExecuteQueryOperator`.
+
+    :param sql: the sql code to be executed. (templated)
+    :type sql: str or string pointing to a template file. File must have
+        a '.sql' extensions.
+    :param sqlite_conn_id: reference to a specific sqlite database
+    :type sqlite_conn_id: str
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :type parameters: dict or iterable
+    """
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        sqlite_conn_id: str = 'sqlite_default',
+        **kwargs
+    ) -> None:
+        super().__init__(conn_id=sqlite_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.operators.sql.SQLExecuteQueryOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
