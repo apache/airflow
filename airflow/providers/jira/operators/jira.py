@@ -46,8 +46,8 @@ class JiraOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 jira_method: str,
                  jira_conn_id: str = 'jira_default',
-                 jira_method: Optional[str] = None,
                  jira_method_args: Optional[dict] = None,
                  result_processor: Optional[Callable] = None,
                  get_jira_resource_method: Optional[Callable] = None,
@@ -80,7 +80,7 @@ class JiraOperator(BaseOperator):
             # Current Jira-Python SDK (1.0.7) has issue with pickling the jira response.
             # ex: self.xcom_push(context, key='operator_response', value=jira_response)
             # This could potentially throw error if jira_result is not picklable
-            jira_result = getattr(resource, self.method_name)(**self.jira_method_args)  # type: ignore
+            jira_result = getattr(resource, self.method_name)(**self.jira_method_args)
             if self.result_processor:
                 return self.result_processor(context, jira_result)
 
