@@ -606,21 +606,21 @@ Some commands have been grouped to improve UX of CLI. New commands are available
 
 For Airflow short option, use exactly one single character, New commands are available according to the following table:
 
-| Old command                                        | New command                                       |
-| :------------------------------------------------- | :------------------------------------------------ |
-| ``airflow (dags|tasks|scheduler) [-sd, --subdir]`` | ``airflow (dags|tasks|scheduler) [-S, --subdir]`` |
-| ``airflow tasks test [-dr, --dry_run]``            | ``airflow tasks test [-n, --dry-run]``            |
-| ``airflow dags backfill [-dr, --dry_run]``         | ``airflow dags backfill [-n, --dry-run]``         |
-| ``airflow tasks clear [-dx, --dag_regex]``         | ``airflow tasks clear [-R, --dag-regex]``         |
-| ``airflow kerberos [-kt, --keytab]``               | ``airflow kerberos [-k, --keytab]``               |
-| ``airflow tasks run [-int, --interactive]``        | ``airflow tasks run [-N, --interactive]``         |
-| ``airflow webserver [-hn, --hostname]``            | ``airflow webserver [-H, --hostname]``            |
-| ``airflow celery worker [-cn, --celery_hostname]`` | ``airflow celery worker [-H, --celery-hostname]`` |
-| ``airflow celery flower [-hn, --hostname]``        | ``airflow celery flower [-H, --hostname]``        |
-| ``airflow celery flower [-fc, --flower_conf]``     | ``airflow celery flower [-c, --flower-conf]``     |
-| ``airflow celery flower [-ba, --basic_auth]``      | ``airflow celery flower [-A, --basic-auth]``      |
-| ``airflow celery flower [-tp, --task_params]``     | ``airflow celery flower [-t, --task-params]``     |
-| ``airflow celery flower [-pm, --post_mortem]``     | ``airflow celery flower [-m, --post-mortem]``     |
+| Old command                                          | New command                                         |
+| :----------------------------------------------------| :---------------------------------------------------|
+| ``airflow (dags\|tasks\|scheduler) [-sd, --subdir]`` | ``airflow (dags\|tasks\|scheduler) [-S, --subdir]`` |
+| ``airflow tasks test [-dr, --dry_run]``              | ``airflow tasks test [-n, --dry-run]``              |
+| ``airflow dags backfill [-dr, --dry_run]``           | ``airflow dags backfill [-n, --dry-run]``           |
+| ``airflow tasks clear [-dx, --dag_regex]``           | ``airflow tasks clear [-R, --dag-regex]``           |
+| ``airflow kerberos [-kt, --keytab]``                 | ``airflow kerberos [-k, --keytab]``                 |
+| ``airflow tasks run [-int, --interactive]``          | ``airflow tasks run [-N, --interactive]``           |
+| ``airflow webserver [-hn, --hostname]``              | ``airflow webserver [-H, --hostname]``              |
+| ``airflow celery worker [-cn, --celery_hostname]``   | ``airflow celery worker [-H, --celery-hostname]``   |
+| ``airflow celery flower [-hn, --hostname]``          | ``airflow celery flower [-H, --hostname]``          |
+| ``airflow celery flower [-fc, --flower_conf]``       | ``airflow celery flower [-c, --flower-conf]``       |
+| ``airflow celery flower [-ba, --basic_auth]``        | ``airflow celery flower [-A, --basic-auth]``        |
+| ``airflow celery flower [-tp, --task_params]``       | ``airflow celery flower [-t, --task-params]``       |
+| ``airflow celery flower [-pm, --post_mortem]``       | ``airflow celery flower [-m, --post-mortem]``       |
 
 For Airflow long option, use [kebab-case](https://en.wikipedia.org/wiki/Letter_case) instead of [snake_case](https://en.wikipedia.org/wiki/Snake_case)
 
