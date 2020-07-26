@@ -53,7 +53,6 @@ jobs:
         env:
           WORKFLOW: ci
           GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repositoru }}
       - name: Cancel workflow ${{ github.workflow }}
         uses: styfle/cancel-workflow-action@0.3.2
         with:
@@ -542,7 +541,6 @@ jobs:
         env:
           WORKFLOW: openapi
           GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repositoru }}
       - name: Cancel workflow ${{ github.workflow }}
         uses: styfle/cancel-workflow-action@0.3.2
         with:

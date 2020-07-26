@@ -28,13 +28,13 @@ from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': days_ago(2),
     'depends_on_past': True,
 }
 
 dag = DAG(
     dag_id='example_branch_dop_operator_v3',
     schedule_interval='*/1 * * * *',
+    start_date=days_ago(2),
     default_args=args,
     tags=['example']
 )

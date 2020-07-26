@@ -168,10 +168,6 @@ db_patch_body = {
 }
 # [END howto_operator_cloudsql_db_patch_body]
 
-default_args = {
-    'start_date': days_ago(1)
-}
-
 with models.DAG(
     'example_gcp_sql',
     schedule_interval=None,  # Override to match your needs

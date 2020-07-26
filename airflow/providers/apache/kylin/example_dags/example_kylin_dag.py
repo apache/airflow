@@ -27,13 +27,13 @@ from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': days_ago(1),
 }
 
 dag = DAG(
     dag_id='example_kylin_operator',
     default_args=args,
     schedule_interval=None,
+    start_date=days_ago(1),
     tags=['example']
 )
 

@@ -25,11 +25,6 @@ from airflow.utils.dates import days_ago
 
 log = logging.getLogger(__name__)
 
-args = {
-    'owner': 'airflow',
-    'start_date': days_ago(2),
-}
-
 
 def generate_value():
     """Dummy function"""
@@ -45,7 +40,8 @@ def print_value(value):
 
 with DAG(
     dag_id='example_xcom_args',
-    default_args=args,
+    default_args={'owner': 'airflow'},
+    start_date=days_ago(2),
     schedule_interval=None,
     tags=['example']
 ) as dag:

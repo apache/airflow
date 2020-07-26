@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,28 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""Example DAG demonstrating the usage of the PigOperator."""
-
-from airflow import DAG
-from airflow.providers.apache.pig.operators.pig import PigOperator
-from airflow.utils.dates import days_ago
-
-args = {
-    'owner': 'airflow',
-}
-
-dag = DAG(
-    dag_id='example_pig_operator',
-    default_args=args,
-    schedule_interval=None,
-    start_date=days_ago(2),
-    tags=['example']
-)
-
-run_this = PigOperator(
-    task_id="run_example_pig_script",
-    pig="ls /;",
-    pig_opts="-x local",
-    dag=dag,
-)
+#
+---
+name: Cancel duplicate workflows
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+jobs:
+  cancel-duplicate-workflows:
+    if: github.repository == 'apache/airflow'
+    timeout-minutes: 10
+    name: "Cancel duplicate workflows"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: n1hility/cancel-previous-runs@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: ci.yml

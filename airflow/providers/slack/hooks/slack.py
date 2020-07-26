@@ -68,7 +68,7 @@ class SlackHook(BaseHook):
     ) -> None:
         super().__init__()
         self.token = self.__get_token(token, slack_conn_id)
-        self.client = WebClient(token, **client_args)
+        self.client = WebClient(self.token, **client_args)
 
     def __get_token(self, token, slack_conn_id):
         if token is not None:

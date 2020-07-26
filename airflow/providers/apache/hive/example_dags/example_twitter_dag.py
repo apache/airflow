@@ -73,7 +73,6 @@ def transfertodb():
 default_args = {
     'owner': 'Ekhtiar',
     'depends_on_past': False,
-    'start_date': days_ago(5),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,
@@ -89,6 +88,7 @@ with DAG(
     dag_id='example_twitter_dag',
     default_args=default_args,
     schedule_interval="@daily",
+    start_date=days_ago(5),
     tags=['example'],
 ) as dag:
 
