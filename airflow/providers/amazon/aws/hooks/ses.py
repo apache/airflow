@@ -36,7 +36,7 @@ class SESHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(client_type='ses', *args, **kwargs)
+        super().__init__(*args, **{**kwargs, **{'client_type': 'ses'}})
 
     def send_email(self, mail_from: str,
                    to: Union[str, Iterable[str]],
