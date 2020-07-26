@@ -197,9 +197,12 @@ class ImapHook(BaseHook):
 
     def _retrieve_mails_attachments_by_name(self, name: str, check_regex: bool, latest_only: bool,
                                             mail_folder: str, mail_filter: str) -> List:
+        if not self.mail_client:
+            raise Exception("The 'mail_client' should be initialized before!")
+
         all_matching_attachments = []
 
-        self.mail_client.select(mail_folder)  # type: ignore
+        self.mail_client.select(mail_folder)
 
         for mail_id in self._list_mail_ids_desc(mail_filter):
             response_mail_body = self._fetch_mail_body(mail_id)
@@ -211,24 +214,27 @@ class ImapHook(BaseHook):
                 if latest_only:
                     break
 
-        self.mail_client.close()  # type: ignore
+        self.mail_client.close()
 
         return all_matching_attachments
 
     def _list_mail_ids_desc(self, mail_filter: str) -> Iterable[str]:
-        _, data = self.mail_client.search(None, mail_filter)  # type: ignore
+        if not self.mail_client:
+            raise Exception("The 'mail_client' should be initialized before!")
+        _, data = self.mail_client.search(None, mail_filter)
         mail_ids = data[0].split()
         return reversed(mail_ids)
 
     def _fetch_mail_body(self, mail_id: str) -> str:
-        _, data = self.mail_client.fetch(mail_id, '(RFC822)')  # type: ignore
+        if not self.mail_client:
+            raise Exception("The 'mail_client' should be initialized before!")
+        _, data = self.mail_client.fetch(mail_id, '(RFC822)')
         mail_body = data[0][1]  # The mail body is always in this specific location
         mail_body_str = mail_body.decode('utf-8')
         return mail_body_str
 
-    def _check_mail_body(self,
-                         response_mail_body: str,name: str,
-                         check_regex: bool, latest_only: bool) -> List[Tuple[Any, Any]]:
+    def _check_mail_body(self, response_mail_body: str, name: str, check_regex: bool,
+                         latest_only: bool) -> List[Tuple[Any, Any]]:
         mail = Mail(response_mail_body)
         if mail.has_attachments():
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
