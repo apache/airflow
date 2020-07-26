@@ -40,8 +40,8 @@ class JiraSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
+                 method_name: str,
                  jira_conn_id: str = 'jira_default',
-                 method_name: Optional[str] = None,
                  method_params: Optional[dict] = None,
                  result_processor: Optional[Callable] = None,
                  *args,
