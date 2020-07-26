@@ -206,8 +206,7 @@ class ImapHook(BaseHook):
 
         for mail_id in self._list_mail_ids_desc(mail_filter):
             response_mail_body = self._fetch_mail_body(mail_id)
-            matching_attachments = self._check_mail_body(response_mail_body, name, check_regex,
-                                                         latest_only)
+            matching_attachments = self._check_mail_body(response_mail_body, name, check_regex, latest_only)
 
             if matching_attachments:
                 all_matching_attachments.extend(matching_attachments)
