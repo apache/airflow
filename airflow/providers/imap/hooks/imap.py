@@ -24,7 +24,7 @@ import email
 import imaplib
 import os
 import re
-from typing import Any, Iterable, List, Tuple, Optional
+from typing import Any, Iterable, List, Optional, Tuple
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
