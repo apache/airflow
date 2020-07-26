@@ -1268,7 +1268,7 @@ OPERATORS = [
         'airflow.contrib.operators.winrm_operator.WinRMOperator',
     ),
     (
-        'airflow.providers.email.operators.email.EmailOperator',
+        'airflow.operators.email.EmailOperator',
         'airflow.operators.email_operator.EmailOperator',
     ),
     (

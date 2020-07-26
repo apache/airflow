@@ -21,7 +21,7 @@ import unittest
 from unittest import mock
 
 from airflow.models.dag import DAG
-from airflow.providers.email.operators.email import EmailOperator
+from airflow.operators.email import EmailOperator
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
