@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Run ephemeral Docker Swarm services"""
+from typing import Optional
 
 import requests
 from docker import types
@@ -98,24 +99,26 @@ class DockerSwarmOperator(DockerOperator):
     @apply_defaults
     def __init__(
             self,
-            image,
-            enable_logging=True,
-            **kwargs):
-        super().__init__(image=image, **kwargs)
+            image: str,
+            enable_logging: bool = True,
+            *args,
+            **kwargs) -> None:
+        super().__init__(image=image, *args, **kwargs)  # type: ignore
 
         self.enable_logging = enable_logging
         self.service = None
 
-    def execute(self, context):
+    def execute(self, context) -> None:
         self.cli = self._get_cli()
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
 
         return self._run_service()
 
-    def _run_service(self):
+    def _run_service(self) -> None:
         self.log.info('Starting docker service from image %s', self.image)
-
+        if not self.cli:
+            raise Exception("The 'cli' should be initialized before!")
         self.service = self.cli.create_service(
             types.TaskTemplate(
                 container_spec=types.ContainerSpec(
@@ -147,20 +150,28 @@ class DockerSwarmOperator(DockerOperator):
                 break
 
         if self.auto_remove:
+            if not self.service:
+                raise Exception("The 'service' should be initialized before!")
             self.cli.remove_service(self.service['ID'])
         if self._service_status() == 'failed':
             raise AirflowException('Service failed: ' + repr(self.service))
 
-    def _service_status(self):
+    def _service_status(self) -> Optional[str]:
+        if not self.cli:
+            raise Exception("The 'cli' should be initialized before!")
         return self.cli.tasks(
             filters={'service': self.service['ID']}
         )[0]['Status']['State']
 
-    def _has_service_terminated(self):
+    def _has_service_terminated(self) -> bool:
         status = self._service_status()
-        return (status in ['failed', 'complete'])
+        return status in ['failed', 'complete']
 
-    def _stream_logs_to_output(self):
+    def _stream_logs_to_output(self) -> None:
+        if not self.cli:
+            raise Exception("The 'cli' should be initialized before!")
+        if not self.service:
+            raise Exception("The 'service' should be initialized before!")
         logs = self.cli.service_logs(
             self.service['ID'], follow=True, stdout=True, stderr=True, is_tty=self.tty
         )
@@ -191,7 +202,7 @@ class DockerSwarmOperator(DockerOperator):
         if line:
             self.log.info(line)
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         if self.cli is not None:
             self.log.info('Removing docker service: %s', self.service['ID'])
             self.cli.remove_service(self.service['ID'])

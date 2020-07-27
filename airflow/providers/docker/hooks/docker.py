@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
 from docker import APIClient
 from docker.errors import APIError
@@ -34,10 +35,10 @@ class DockerHook(BaseHook, LoggingMixin):
     """
     def __init__(self,
                  docker_conn_id='docker_default',
-                 base_url=None,
-                 version=None,
-                 tls=None
-                 ):
+                 base_url: Optional[str] = None,
+                 version: Optional[str] = None,
+                 tls: Optional[str] = None
+                 ) -> None:
         super().__init__()
         if not base_url:
             raise AirflowException('No Docker base URL provided')
@@ -63,7 +64,7 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__email = extra_options.get('email')
         self.__reauth = extra_options.get('reauth') != 'no'
 
-    def get_conn(self):
+    def get_conn(self) -> APIClient:
         client = APIClient(
             base_url=self.__base_url,
             version=self.__version,
@@ -72,7 +73,7 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__login(client)
         return client
 
-    def __login(self, client):
+    def __login(self, client) -> None:
         self.log.debug('Logging into Docker registry')
         try:
             client.login(
