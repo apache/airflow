@@ -88,12 +88,13 @@ class ExternalTaskSensor(BaseSensorOperator):
                                    "`{}` and failed states `{}`"
                                    .format(self.allowed_states, self.failed_states))
 
-        if total_states > set(State.task_states):
-            if external_task_id:
+        if external_task_id:
+            if not total_states <= set(State.task_states):
                 raise ValueError(
                     f'Valid values for `allowed_states` and `failed_states` '
                     f'when `external_task_id` is not `None`: {State.task_states}'
                 )
+        elif not total_states <= set(State.dag_states):
             raise ValueError(
                 f'Valid values for `allowed_states` and `failed_states` '
                 f'when `external_task_id` is `None`: {State.dag_states}'
