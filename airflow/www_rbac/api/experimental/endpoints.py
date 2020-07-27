@@ -68,6 +68,8 @@ def put_anaylysis_result():
             ti.error_code = curve_mode
             if curve_mode is not 0:
                 ti.error_tag = json.dumps([curve_mode])
+            else:
+                ti.error_tag = json.dumps([])
             ti.verify_error = verify_error
 
         date = timezone.parse(execution_date)

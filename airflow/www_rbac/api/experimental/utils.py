@@ -166,6 +166,8 @@ def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task
         curve_mode = json.loads(curve_mode)
     if isinstance(curve_mode, int):
         curve_mode = [curve_mode]
+    if curve_mode is None:
+        curve_mode = []
     analysis_result = form_analysis_result_trigger(
         result,
         entity_id,
