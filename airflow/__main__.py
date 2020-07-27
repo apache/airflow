@@ -23,6 +23,7 @@ import os
 
 import argcomplete
 
+from airflow import settings
 from airflow.cli import cli_parser
 from airflow.configuration import conf
 
