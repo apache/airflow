@@ -109,7 +109,7 @@ class KubernetesHook(BaseHook):
     def get_pod_log_stream(
         self,
         pod_name: str,
-        container: Optional[str] = "base",
+        container: Optional[str] = "",
         namespace: Optional[str] = None,
     ) -> Tuple[watch.Watch, Generator[str, None, None]]:
         """
@@ -130,6 +130,7 @@ class KubernetesHook(BaseHook):
             watcher.stream(
                 api.read_namespaced_pod_log,
                 name=pod_name,
+                container=container,
                 namespace=namespace if namespace else self.get_namespace(),
             ),
         )

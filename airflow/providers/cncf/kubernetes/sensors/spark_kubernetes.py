@@ -82,12 +82,9 @@ class SparkKubernetesSensor(BaseSensorOperator):
             self.log.warning(
                 "Could not read logs for pod %s. It may have been disposed.\n"
                 "Make sure timeToLiveSeconds is set on your SparkApplication spec.\n"
-                "underlying exception: %s" % (driver_pod_name, e)
-            )
-        except Exception as e:
-            self.log.warning(
-                "Unexpected error while reading logs for pod %s. error: %s"
-                % (driver_pod_name, e)
+                "underlying exception: %s",
+                driver_pod_name,
+                e,
             )
 
     def poke(self, context: Dict):
