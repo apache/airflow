@@ -302,7 +302,7 @@
     }
     showDialog('二次确认', $content, {
       onConfirm() {
-        const finalErrorTags = $errorTagInput.val();
+        const finalErrorTags = $errorTagInput && $errorTagInput.val() || [];
         submitDoubleCheck(status, finalErrorTags);
       },
     });
