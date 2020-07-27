@@ -47,24 +47,15 @@ jobs:
     name: "Cancel previous workflow run"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Get ci workflow id
-        run: "scripts/ci/cancel/get_workflow_id.sh"
-        env:
-          WORKFLOW: ci
-          GITHUB_TOKEN: ${{ github.token }}
-      - name: Cancel workflow ${{ github.workflow }}
-        uses: styfle/cancel-workflow-action@0.3.2
+      - uses: potiuk/cancel-workflow-runs@v1
         with:
-          workflow_id: ${{ env.WORKFLOW_ID }}
-          access_token: ${{ github.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   static-checks:
     timeout-minutes: 60
     name: "Static checks"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     env:
       MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
     steps:
@@ -85,31 +76,23 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Static checks"
         run: ./scripts/ci/static_checks/ci_run_static_checks.sh
-      - name: "Cancel workflow on static checks failure"
-        if: ${{ failure() }}
-        uses: andymckay/cancel-action@0.2
   docs:
     timeout-minutes: 60
     name: "Build docs"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     steps:
       - uses: actions/checkout@v2
       - name: "Build CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
         run: ./scripts/ci/docs/ci_docs.sh
-      - name: "Cancel workflow on docs failure"
-        if: ${{ failure() }}
-        uses: andymckay/cancel-action@0.2
 
   prepare-backport-packages:
     timeout-minutes: 60
     name: "Backport packages"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     env:
       INSTALL_AIRFLOW_VERSION: "1.10.10"
       PYTHON_MAJOR_MINOR_VERSION: 3.6
@@ -124,16 +107,12 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Prepare & test backport packages"
         run: "./scripts/ci/backport_packages/ci_prepare_and_test_backport_packages.sh"
-      - name: "Cancel workflow on backport packages failure"
-        if: ${{ failure() }}
-        uses: andymckay/cancel-action@0.2
 
   trigger-tests:
     timeout-minutes: 5
     name: "Checks if tests should be run"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     outputs:
       run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
     steps:
@@ -326,34 +305,26 @@ jobs:
     timeout-minutes: 5
     name: "Checks: Helm tests"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     steps:
       - uses: actions/checkout@v2
       - name: "Helm Tests"
         run: ./scripts/ci/kubernetes/ci_run_helm_testing.sh
-      - name: "Cancel workflow on helm-tests failure"
-        if: ${{ failure() }}
-        uses: andymckay/cancel-action@0.2
 
   build-prod-image:
     timeout-minutes: 60
     name: "Build prod image Py${{ matrix.python-version }}"
     runs-on: ubuntu-latest
+    needs: [cancel-previous-workflow-run]
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
-    needs:
-      - cancel-previous-workflow-run
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v2
       - name: "Build PROD image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-      - name: "Cancel workflow on build prod image failure"
-        if: ${{ failure() }}
-        uses: andymckay/cancel-action@0.2
 
   push-prod-images-to-github-cache:
     timeout-minutes: 80
@@ -420,7 +391,6 @@ jobs:
         python-version: [3.6, 3.7, 3.8]
       fail-fast: false
     needs:
-      - cancel-previous-workflow-run
       - tests-sqlite
       - tests-mysql
       - tests-postgres
@@ -532,22 +502,8 @@ jobs:
   test-openapi-client-generation:
     name: "Test OpenAPI client generation"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     steps:
       - uses: actions/checkout@v2
-      - name: Get workflow id
-        run: "scripts/ci/cancel/get_workflow_id.sh"
-        env:
-          WORKFLOW: openapi
-          GITHUB_TOKEN: ${{ github.token }}
-      - name: Cancel workflow ${{ github.workflow }}
-        uses: styfle/cancel-workflow-action@0.3.2
-        with:
-          workflow_id: ${{ env.WORKFLOW_ID }}
-          access_token: ${{ github.token }}
       - name: "Generate client codegen diff"
         run: ./scripts/ci/openapi/client_codegen_diff.sh
-      - name: "Cancel workflow on openapi failure"
-        if: ${{ failure() }}
-        uses: andymckay/cancel-action@0.2
