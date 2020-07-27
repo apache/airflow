@@ -1473,8 +1473,10 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.processor_agent.send_callback_to_execute.assert_called_once_with(
             full_filepath='/test_path1/',
             task_instance=mock.ANY,
-            msg='Executor reports task instance finished (failed) '
-                'although the task says its queued. (Info: None) Was the task killed externally?'
+            msg='Executor reports task instance '
+                '<TaskInstance: test_process_executor_events.dummy_task 2016-01-01 00:00:00+00:00 [queued]> '
+                'finished (failed) although the task says its queued. (Info: None) '
+                'Was the task killed externally?'
         )
         scheduler.processor_agent.reset_mock()
 

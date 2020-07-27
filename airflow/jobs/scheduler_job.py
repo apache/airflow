@@ -1544,7 +1544,7 @@ class SchedulerJob(BaseJob):
         if not tis_with_right_state:
             return
 
-        # Check state of finishes tasks
+        # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         tis: List[TI] = session.query(TI).filter(filter_for_tis).all()
         for ti in tis:
@@ -1555,17 +1555,14 @@ class SchedulerJob(BaseJob):
             # TODO: should we fail RUNNING as well, as we do in Backfills?
             if ti.try_number == buffer_key.try_number and ti.state == State.QUEUED:
                 Stats.incr('scheduler.tasks.killed_externally')
-                self.log.error(
-                    "Executor reports task instance %s finished (%s) although the task says its %s. "
-                    "(Info: %s) Was the task killed externally?",
-                    ti, state, ti.state, info
-                )
+                msg = "Executor reports task instance %s finished (%s) although the " \
+                      "task says its %s. (Info: %s) Was the task killed externally?"
+                self.log.error(msg, ti, state, ti.state, info)
                 simple_dag = simple_dag_bag.get_dag(ti.dag_id)
                 self.processor_agent.send_callback_to_execute(
                     full_filepath=simple_dag.full_filepath,
                     task_instance=ti,
-                    msg=f"Executor reports task instance finished ({state}) although the "
-                        f"task says its {ti.state}. (Info: {info}) Was the task killed externally?"
+                    msg=msg % (ti, state, ti.state, info),
                 )
 
     def _execute(self) -> None:
