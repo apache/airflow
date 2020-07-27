@@ -69,7 +69,9 @@ class TestCliConfigGetValue(unittest.TestCase):
                 ['config', 'get-value', 'missing-section', 'dags_folder']
             ))
         self.assertEqual(1, cm.exception.code)
-        self.assertEqual("The section [missing-section] not found in config.", temp_stderr.getvalue().strip())
+        self.assertEqual(
+            "The section [missing-section] is not found in config.", temp_stderr.getvalue().strip()
+        )
 
     @mock.patch("airflow.cli.commands.config_command.conf")
     def test_should_raise_exception_when_option_is_missing(self, mock_conf):
@@ -82,5 +84,5 @@ class TestCliConfigGetValue(unittest.TestCase):
             ))
         self.assertEqual(1, cm.exception.code)
         self.assertEqual(
-            "The option [missing-section/dags_folder] not found in config.", temp_stderr.getvalue().strip()
+            "The option [missing-section/dags_folder] is not found in config.", temp_stderr.getvalue().strip()
         )
