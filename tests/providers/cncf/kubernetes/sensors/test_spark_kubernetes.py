@@ -19,7 +19,6 @@
 
 import json
 import unittest
-from functools import reduce
 from unittest.mock import patch
 
 from kubernetes.client.rest import ApiException
@@ -27,7 +26,9 @@ from kubernetes.client.rest import ApiException
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.sensors.spark_kubernetes import SparkKubernetesSensor
+from airflow.providers.cncf.kubernetes.sensors.spark_kubernetes import (
+    SparkKubernetesSensor,
+)
 from airflow.utils import db, timezone
 
 TEST_COMPLETED_APPLICATION = {
@@ -487,8 +488,8 @@ TEST_PENDING_RERUN_APPLICATION = {
     },
 }
 
-TEST_POD_LOGS = [b"LOG LINE 1", b"LOG LINE 2"]
-TEST_POD_LOG_RESULT = reduce(lambda a, b: a.decode() + b.decode(), TEST_POD_LOGS)
+TEST_POD_LOGS = [b"LOG LINE 1\n", b"LOG LINE 2"]
+TEST_POD_LOG_RESULT = "LOG LINE 1\nLOG LINE 2"
 
 
 @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.get_conn")
