@@ -162,7 +162,7 @@ def connections_import(args):
     """Import new connections"""
     # check for the file path in arguments
     missing_args = []
-    if not args.file_path:
+    if not args.file:
         missing_args.append('file-path')
 
     if missing_args:
@@ -171,9 +171,10 @@ def connections_import(args):
         raise SystemExit(msg)
 
     try:
-        new_conns_map = load_connections(args.file_path)
+        new_conns_map = load_connections(args.file)
     except AirflowException as e:
-        raise SystemExit(e)
+        return print(e)
+        
 
     for _, new_conn_list in new_conns_map.items():
         for new_conn in new_conn_list:
