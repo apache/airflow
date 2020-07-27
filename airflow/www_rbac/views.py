@@ -1038,25 +1038,8 @@ class Airflow(AirflowBaseView):
                     include_parentdag=recursive,
                     only_failed=only_failed)
 
-            flash("{0} task instances have been {1}".format(count, 'cleared' if not cancel else 'cancelled'))
-            return redirect(origin)
-
-        if cancel:
-            tis = dag.cancel(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=recursive)
-        else:
-            tis = dag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=recursive,
-                include_parentdag=recursive,
-                only_failed=only_failed,
-            )
-
-            flash("{0} task instances have been cleared".format(count))
-            return redirect(origin)
+                flash("{0} task instances have been {1}".format(count, 'cleared' if not cancel else 'cancelled'))
+                return redirect(origin)
 
         try:
             if cancel:
