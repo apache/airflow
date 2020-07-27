@@ -17,6 +17,7 @@
 # under the License.
 #
 
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from airflow.models import BaseOperator
@@ -36,6 +37,10 @@ class AWSAthenaOperator(BaseOperator):
     :type output_location: str
     :param aws_conn_id: aws connection to use
     :type aws_conn_id: str
+    :param query_context: Context in which query need to be run
+    :type query_context: dict
+    :param result_configuration: Dict with path to store results in and config related to encryption
+    :type result_configuration: dict
     :param sleep_time: Time to wait between two consecutive call to check query status on athena
     :type sleep_time: int
     :param max_tries: Number of times to poll for query state before function exits
@@ -49,19 +54,19 @@ class AWSAthenaOperator(BaseOperator):
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        query,
-        database,
-        output_location,
-        aws_conn_id="aws_default",
-        client_request_token=None,
-        workgroup="primary",
-        query_execution_context=None,
-        result_configuration=None,
-        sleep_time=30,
-        max_tries=None,
-        *args,
-        **kwargs
-    ):
+        query: str,
+        database: str,
+        output_location: str,
+        aws_conn_id: str = "aws_default",
+        client_request_token: Optional[str] = None,
+        workgroup: str = "primary",
+        query_execution_context: Optional[Dict[str, str]] = None,
+        result_configuration: Optional[Dict[str, Any]] = None,
+        sleep_time: int = 30,
+        max_tries: Optional[int] = None,
+        *args: Any,
+        **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.query = query
         self.database = database
@@ -73,19 +78,17 @@ class AWSAthenaOperator(BaseOperator):
         self.result_configuration = result_configuration or {}
         self.sleep_time = sleep_time
         self.max_tries = max_tries
-        self.query_execution_id = None
-        self.hook = None
+        self.query_execution_id = None  # type: Optional[str]
+        self.hook = self.get_hook()
 
-    def get_hook(self):
+    def get_hook(self) -> AWSAthenaHook:
         """Create and return an AWSAthenaHook."""
         return AWSAthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
 
-    def execute(self, context):
+    def execute(self, context: Dict[Any, Any]) -> Optional[str]:
         """
         Run Presto Query on Athena
         """
-        self.hook = self.get_hook()
-
         self.query_execution_context['Database'] = self.database
         self.result_configuration['OutputLocation'] = self.output_location
         self.query_execution_id = self.hook.run_query(self.query, self.query_execution_context,
@@ -106,7 +109,7 @@ class AWSAthenaOperator(BaseOperator):
 
         return self.query_execution_id
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         """
         Cancel the submitted athena query
         """
