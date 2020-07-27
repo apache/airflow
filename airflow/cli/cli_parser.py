@@ -730,6 +730,17 @@ ARG_FILE_IO = Arg(
     action='store_true'
 )
 
+# config
+ARG_SECTION = Arg(
+    ("section",),
+    help="The section name",
+)
+ARG_OPTION = Arg(
+    ("option",),
+    help="The option name",
+)
+
+
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE, ARG_CONN_HOST, ARG_CONN_LOGIN, ARG_CONN_PASSWORD, ARG_CONN_SCHEMA, ARG_CONN_PORT
 ]
@@ -1184,6 +1195,21 @@ CELERY_COMMANDS = (
     )
 )
 
+CONFIG_COMMANDS = (
+    ActionCommand(
+        name='get-value',
+        help='Print the value of the configuration',
+        func=lazy_load_command('airflow.cli.commands.config_command.get_value'),
+        args=(ARG_SECTION, ARG_OPTION, ),
+    ),
+    ActionCommand(
+        name='list',
+        help='List options for the configuration.',
+        func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
+        args=(ARG_COLOR, ),
+    ),
+)
+
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
@@ -1273,11 +1299,10 @@ airflow_commands: List[CLICommand] = [
         ),
         args=(),
     ),
-    ActionCommand(
-        name='config',
-        help='Show current application configuration',
-        func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
-        args=(ARG_COLOR, ),
+    GroupCommand(
+        name="config",
+        help='View the configuration options.',
+        subcommands=CONFIG_COMMANDS
     ),
     ActionCommand(
         name='info',
