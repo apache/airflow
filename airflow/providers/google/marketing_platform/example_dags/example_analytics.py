@@ -37,12 +37,10 @@ WEB_PROPERTY_AD_WORDS_LINK_ID = os.environ.get(
 )
 DATA_ID = "kjdDu3_tQa6n8Q1kXFtSmg"
 
-default_args = {"start_date": dates.days_ago(1)}
-
 with models.DAG(
     "example_google_analytics",
-    default_args=default_args,
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval=None,  # Override to match your needs,
+    start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_marketing_platform_list_accounts_operator]
     list_account = GoogleAnalyticsListAccountsOperator(task_id="list_account")

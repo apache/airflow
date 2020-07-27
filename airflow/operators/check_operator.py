@@ -36,13 +36,13 @@ class CheckOperator(SQLCheckOperator):
     Please use `airflow.operators.sql.SQLCheckOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLCheckOperator`.""",
             DeprecationWarning, stacklevel=3
         )
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
 
 class IntervalCheckOperator(SQLIntervalCheckOperator):
@@ -51,13 +51,13 @@ class IntervalCheckOperator(SQLIntervalCheckOperator):
     Please use `airflow.operators.sql.SQLIntervalCheckOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLIntervalCheckOperator`.""",
             DeprecationWarning, stacklevel=3
         )
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
 
 class ThresholdCheckOperator(SQLThresholdCheckOperator):
@@ -66,13 +66,13 @@ class ThresholdCheckOperator(SQLThresholdCheckOperator):
     Please use `airflow.operators.sql.SQLThresholdCheckOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLThresholdCheckOperator`.""",
             DeprecationWarning, stacklevel=3
         )
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
 
 class ValueCheckOperator(SQLValueCheckOperator):
@@ -81,10 +81,10 @@ class ValueCheckOperator(SQLValueCheckOperator):
     Please use `airflow.operators.sql.SQLValueCheckOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLValueCheckOperator`.""",
             DeprecationWarning, stacklevel=3
         )
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)

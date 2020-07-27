@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, List, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
@@ -47,7 +46,7 @@ class AzureDataLakeStorageListOperator(BaseOperator):
                 azure_data_lake_conn_id='azure_data_lake_default'
             )
     """
-    template_fields = ('path',)  # type: Iterable[str]
+    template_fields: Sequence[str] = ('path',)
     ui_color = '#901dd2'
 
     @apply_defaults

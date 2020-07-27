@@ -41,7 +41,6 @@ GCS_JAR_BUCKET_NAME = GCS_JAR_PARTS.netloc
 GCS_JAR_OBJECT_NAME = GCS_JAR_PARTS.path[1:]
 
 default_args = {
-    "start_date": days_ago(1),
     'dataflow_default_options': {
         'tempLocation': GCS_TMP,
         'stagingLocation': GCS_STAGING,
@@ -50,8 +49,8 @@ default_args = {
 
 with models.DAG(
     "example_gcp_dataflow_native_java",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag_native_java:
 
@@ -93,6 +92,7 @@ with models.DAG(
 with models.DAG(
     "example_gcp_dataflow_native_python",
     default_args=default_args,
+    start_date=days_ago(1),
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag_native_python:
@@ -133,6 +133,7 @@ with models.DAG(
 with models.DAG(
     "example_gcp_dataflow_template",
     default_args=default_args,
+    start_date=days_ago(1),
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag_template:

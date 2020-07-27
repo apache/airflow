@@ -31,8 +31,14 @@ def get_current_api_client() -> Client:
     Return current API Client based on current Airflow configuration
     """
     api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
+    auth_backend = api.load_auth()
+    session = None
+    session_factory = getattr(auth_backend, 'create_client_session', None)
+    if session_factory:
+        session = session_factory()
     api_client = api_module.Client(
         api_base_url=conf.get('cli', 'endpoint_url'),
-        auth=api.load_auth().CLIENT_AUTH
+        auth=getattr(auth_backend, 'CLIENT_AUTH', None),
+        session=session
     )
     return api_client

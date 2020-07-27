@@ -43,7 +43,7 @@ from airflow.utils.state import State
 
 
 def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt: str = "fancy_grid") -> str:
-    tabulat_data = (
+    tabulate_data = (
         {
             'ID': dag_run.id,
             'Run ID': dag_run.run_id,
@@ -55,13 +55,13 @@ def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt: str = "fancy_grid") -> 
         } for dag_run in dag_runs
     )
     return tabulate(
-        tabular_data=tabulat_data,
+        tabular_data=tabulate_data,
         tablefmt=tablefmt
     )
 
 
 def _tabulate_dags(dags: List[DAG], tablefmt: str = "fancy_grid") -> str:
-    tabulat_data = (
+    tabulate_data = (
         {
             'DAG ID': dag.dag_id,
             'Filepath': dag.filepath,
@@ -69,7 +69,7 @@ def _tabulate_dags(dags: List[DAG], tablefmt: str = "fancy_grid") -> str:
         } for dag in sorted(dags, key=lambda d: d.dag_id)
     )
     return tabulate(
-        tabular_data=tabulat_data,
+        tabular_data=tabulate_data,
         tablefmt=tablefmt,
         headers='keys'
     )
@@ -261,10 +261,10 @@ def dag_state(args):
         dag = get_dag_by_file_location(args.dag_id)
     dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
     out = dr[0].state if dr else None
-    confout = ''
+    conf_out = ''
     if out and dr[0].conf:
-        confout = ', ' + json.dumps(dr[0].conf)
-    print(str(out) + confout)
+        conf_out = ', ' + json.dumps(dr[0].conf)
+    print(str(out) + conf_out)
 
 
 @cli_utils.action_logging

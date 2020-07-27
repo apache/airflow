@@ -222,8 +222,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         users to specify a service account.
     :type gcp_conn_id: str
     """
-    template_fields = ('project_id', 'location',
-                       'cluster_name') + KubernetesPodOperator.template_fields
+    template_fields = {'project_id', 'location', 'cluster_name'} | set(KubernetesPodOperator.template_fields)
 
     @apply_defaults
     def __init__(self,
@@ -232,9 +231,8 @@ class GKEStartPodOperator(KubernetesPodOperator):
                  use_internal_ip: bool = False,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name

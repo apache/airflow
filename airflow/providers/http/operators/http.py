@@ -65,7 +65,7 @@ class SimpleHttpOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 endpoint: str,
+                 endpoint: Optional[str] = None,
                  method: str = 'POST',
                  data: Any = None,
                  headers: Optional[Dict[str, str]] = None,

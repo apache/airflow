@@ -183,7 +183,7 @@ class GCSListObjectsOperator(BaseOperator):
                 gcp_conn_id=google_cloud_conn_id
             )
     """
-    template_fields = ('bucket', 'prefix', 'delimiter')  # type: Iterable[str]
+    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter')
 
     ui_color = '#f0eee4'
 

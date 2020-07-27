@@ -24,6 +24,8 @@
 [![Documentation Status](https://readthedocs.org/projects/airflow/badge/?version=latest)](https://airflow.readthedocs.io/en/latest/?badge=latest)
 [![License](http://img.shields.io/:license-Apache%202-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
+[![Docker Stars](https://img.shields.io/docker/stars/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://apache-airflow-slack.herokuapp.com/)
@@ -124,7 +126,7 @@ pip install apache-airflow[postgres,google]==1.10.11 \
 In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images
 of Apache Airflow. The community provides two types of support for the production images:
 
-* We provide pre-build relesed version of production image in PyPI build from released
+* We provide pre-build released version of production image in PyPI build from released
   sources of Apache Airflow - shortly after release. Those images are available in the DockerHub.
   You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the
   version number (for example 1.10.11). Additionally `docker pull apache/airflow` will pull latest
@@ -210,13 +212,13 @@ those packages can only be used in python3.6+ environment.
 ### Installing Airflow 2.0 operators in Airflow 1.10
 
 We released backport packages that can be installed for older Airflow versions.
-Those backport packages are going to be released more frequently that main Airflow 1.10.& releases.
+Those backport packages are going to be released more frequently that main Airflow 1.10.* releases.
 
 You will not have to upgrade your Airflow version to use those packages. You can find those packages in the
 [PyPI](https://pypi.org/search/?q=apache-airflow-backport-providers&o=) and install them separately for each
 provider.
 
-Those packages are available now and can be used in the latest Airflow 1.10* version. Most of those
+Those packages are available now and can be used in the latest Airflow 1.10.* version. Most of those
 packages are also installable and usable in most Airflow 1.10.* releases but there is no extensive testing
 done beyond the latest released version, so you might expect more problems in earlier Airflow versions.
 
@@ -393,6 +395,7 @@ Currently **officially** using Airflow:
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
 1. [Dynata](https://www.dynata.com) [[@neil3handari](https://github.com/neil3handari)]
 1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@diraol](https://github.com/diraol)]
+1. [EBANX](https://www.ebanx.com/) [[@estevammr](https://github.com/estevammr) & [@nathangngencissk](https://github.com/nathangngencissk) & [@raafaadg](https://github.com/raafaadg) & [@whrocha](https://github.com/whrocha)]
 1. [EllisDon](http://www.ellisdon.com/) [[@d2kalra](https://github.com/d2kalra) & [@zbasama](https://github.com/zbasama)]
 1. [Endesa](https://www.endesa.com) [[@drexpp](https://github.com/drexpp)]
 1. [Enigma](https://www.enigma.com) [[@hydrosquall](https://github.com/hydrosquall)]
@@ -504,6 +507,7 @@ Currently **officially** using Airflow:
 1. [Newzoo](https://www.newzoo.com) [[@newzoo-nexus](https://github.com/newzoo-nexus)]
 1. [NEXT Trucking](https://www.nexttrucking.com/) [[@earthmancash2](https://github.com/earthmancash2), [@kppullin](https://github.com/kppullin)]
 1. [Nextdoor](https://nextdoor.com) [[@SivaPandeti](https://github.com/SivaPandeti), [@zshapiro](https://github.com/zshapiro) & [@jthomas123](https://github.com/jthomas123)]
+1. [Nielsen](https://www.nielsen.com) [[@roitvt](https://github.com/roitvt) & [@itaiy](https://github.com/itaiy)]
 1. [Nine](https://nine.com.au) [[@TheZepto](https://github.com/TheZepto)]
 1. [OdysseyPrime](https://www.goprime.io/) [[@davideberdin](https://github.com/davideberdin)]
 1. [OfferUp](https://offerupnow.com)

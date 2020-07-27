@@ -38,11 +38,11 @@ class HiveToMySqlTransfer(HiveToMySqlOperator):
     `airflow.providers.apache.hive.transfers.hive_to_mysql.HiveToMySqlOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use
             `airflow.providers.apache.hive.transfers.hive_to_mysql.HiveToMySqlOperator`.""",
             DeprecationWarning, stacklevel=3
         )
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)

@@ -51,8 +51,8 @@ class SqlSensor(BaseSensorOperator):
     :type: fail_on_empty: bool
     """
 
-    template_fields = ('sql',)  # type: Iterable[str]
-    template_ext = ('.hql', '.sql',)  # type: Iterable[str]
+    template_fields: Iterable[str] = ('sql',)
+    template_ext: Iterable[str] = ('.hql', '.sql',)
     ui_color = '#7c7287'
 
     @apply_defaults

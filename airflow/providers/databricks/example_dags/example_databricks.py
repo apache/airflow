@@ -39,13 +39,13 @@ default_args = {
     'owner': 'airflow',
     'email': ['airflow@example.com'],
     'depends_on_past': False,
-    'start_date': days_ago(2)
 }
 
 with DAG(
     dag_id='example_databricks_operator',
     default_args=default_args,
     schedule_interval='@daily',
+    start_date=days_ago(2),
     tags=['example'],
 ) as dag:
     new_cluster = {

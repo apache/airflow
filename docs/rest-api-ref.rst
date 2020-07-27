@@ -42,20 +42,20 @@ Endpoints
   .. code-block:: bash
 
     curl -X POST \
-      'http://localhost:8080/api/experimental/dags/<DAG_ID>/dag_runs' \
-      -H 'Cache-Control: no-cache' \
-      -H 'Content-Type: application/json' \
-      -d '{"conf":"{\"key\":\"value\"}"}'
+        'http://localhost:8080/api/experimental/dags/<DAG_ID>/dag_runs' \
+        --header 'Cache-Control: no-cache' \
+        --header 'Content-Type: application/json' \
+        --data '{"conf":"{\"key\":\"value\"}"}'
 
   **Trigger DAG with milliseconds precision, example:**
 
   .. code-block:: bash
 
     curl -X POST  \
-      'http://localhost:8080/api/experimental/dags/<DAG_ID>/dag_runs' \
-      -H 'Content-Type: application/json' \
-      -H 'Cache-Control: no-cache' \
-      --data '{"replace_microseconds":"false"}'
+        'http://localhost:8080/api/experimental/dags/<DAG_ID>/dag_runs' \
+        --header 'Content-Type: application/json' \
+        --header 'Cache-Control: no-cache' \
+        --data '{"replace_microseconds":"false"}'
 
 .. http:get:: /api/experimental/dags/<DAG_ID>/dag_runs
 

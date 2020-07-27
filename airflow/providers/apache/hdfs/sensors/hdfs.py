@@ -43,9 +43,8 @@ class HdfsSensor(BaseSensorOperator):
                  ignore_copying: bool = True,
                  file_size: Optional[int] = None,
                  hook: Type[HDFSHook] = HDFSHook,
-                 *args: Any,
                  **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if ignored_ext is None:
             ignored_ext = ['_COPYING_']
         self.filepath = filepath

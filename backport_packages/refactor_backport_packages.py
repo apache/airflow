@@ -54,9 +54,16 @@ def copy_provider_sources() -> None:
                     ignored_names.append(file_name)
         return ignored_names
 
+    def ignore_google_auth_backend(src: str, names: List[str]) -> List[str]:
+        del names
+        if src.endswith("google" + os.path.sep + "common"):
+            return ["auth_backend"]
+        return []
+
     def ignore_some_files(src: str, names: List[str]) -> List[str]:
         ignored_list = []
         ignored_list.extend(ignore_kubernetes_files(src=src, names=names))
+        ignored_list.extend(ignore_google_auth_backend(src=src, names=names))
         return ignored_list
 
     rm_build_dir()

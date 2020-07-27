@@ -18,11 +18,11 @@
 """
 This module contains Google Cloud Bigtable operators.
 """
-from enum import IntEnum
 from typing import Dict, Iterable, List, Optional
 
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import GarbageCollectionRule
+from google.cloud.bigtable_admin_v2 import enums
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -90,10 +90,8 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     :type gcp_conn_id: str
     """
 
-    REQUIRED_ATTRIBUTES = ('instance_id', 'main_cluster_id',
-                           'main_cluster_zone')  # type: Iterable[str]
-    template_fields = ['project_id', 'instance_id', 'main_cluster_id',
-                       'main_cluster_zone']  # type: Iterable[str]
+    REQUIRED_ATTRIBUTES: Iterable[str] = ('instance_id', 'main_cluster_id', 'main_cluster_zone')
+    template_fields: Iterable[str] = ['project_id', 'instance_id', 'main_cluster_id', 'main_cluster_zone']
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments
@@ -104,10 +102,10 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
                  replica_cluster_id: Optional[str] = None,
                  replica_cluster_zone: Optional[str] = None,
                  instance_display_name: Optional[str] = None,
-                 instance_type: Optional[IntEnum] = None,
-                 instance_labels: Optional[int] = None,
+                 instance_type: Optional[enums.Instance.Type] = None,
+                 instance_labels: Optional[Dict] = None,
                  cluster_nodes: Optional[int] = None,
-                 cluster_storage_type: Optional[IntEnum] = None,
+                 cluster_storage_type: Optional[enums.StorageType] = None,
                  timeout: Optional[float] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  *args, **kwargs) -> None:
@@ -401,7 +399,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
     def __init__(self,
                  instance_id: str,
                  cluster_id: str,
-                 nodes: str,
+                 nodes: int,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  *args, **kwargs) -> None:

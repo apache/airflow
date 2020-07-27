@@ -87,10 +87,6 @@ SQL = [
     'DROP TABLE TABLE_TEST2',
 ]
 
-default_args = {
-    'start_date': days_ago(1)
-}
-
 
 # [START howto_operator_cloudsql_query_connections]
 
@@ -272,8 +268,8 @@ tasks = []
 
 with models.DAG(
     dag_id='example_gcp_sql_query',
-    default_args=default_args,
     schedule_interval=None,
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     prev_task = None

@@ -26,7 +26,9 @@ import sys
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
-from typing import Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union
+from typing import (
+    Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Sequence, Set, Tuple, Type, Union,
+)
 
 import attr
 import jinja2
@@ -264,9 +266,9 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
     :type do_xcom_push: bool
     """
     # For derived classes to define which fields will get jinjaified
-    template_fields: Iterable[str] = []
+    template_fields: Iterable[str] = ()
     # Defines which files extensions to look for in the templated fields
-    template_ext: Iterable[str] = []
+    template_ext: Iterable[str] = ()
     # Defines the color in the UI
     ui_color = '#fff'  # type: str
     ui_fgcolor = '#000'  # type: str
@@ -357,24 +359,23 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         do_xcom_push: bool = True,
         inlets: Optional[Any] = None,
         outlets: Optional[Any] = None,
-        *args,
         **kwargs
     ):
         from airflow.models.dag import DagContext
         super().__init__()
-        if args or kwargs:
+        if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
                 raise AirflowException(
                     "Invalid arguments were passed to {c} (task_id: {t}). Invalid "
-                    "arguments were:\n*args: {a}\n**kwargs: {k}".format(
-                        c=self.__class__.__name__, a=args, k=kwargs, t=task_id),
+                    "arguments were:\n**kwargs: {k}".format(
+                        c=self.__class__.__name__, k=kwargs, t=task_id),
                 )
             warnings.warn(
                 'Invalid arguments were passed to {c} (task_id: {t}). '
                 'Support for passing such arguments will be dropped in '
                 'future. Invalid arguments were:'
-                '\n*args: {a}\n**kwargs: {k}'.format(
-                    c=self.__class__.__name__, a=args, k=kwargs, t=task_id),
+                '\n**kwargs: {k}'.format(
+                    c=self.__class__.__name__, k=kwargs, t=task_id),
                 category=PendingDeprecationWarning,
                 stacklevel=3
             )
@@ -1149,7 +1150,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
             item_set.add(item)
 
     def _set_relatives(self,
-                       task_or_task_list: Union['BaseOperator', List['BaseOperator']],
+                       task_or_task_list: Union['BaseOperator', Sequence['BaseOperator']],
                        upstream: bool = False) -> None:
         """Sets relatives for the task or task list."""
         from airflow.models.xcom_arg import XComArg
@@ -1208,14 +1209,14 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
                 self.add_only_new(self._downstream_task_ids, task.task_id)
                 task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id)
 
-    def set_downstream(self, task_or_task_list: Union['BaseOperator', List['BaseOperator']]) -> None:
+    def set_downstream(self, task_or_task_list: Union['BaseOperator', Sequence['BaseOperator']]) -> None:
         """
         Set a task or a task list to be directly downstream from the current
         task.
         """
         self._set_relatives(task_or_task_list, upstream=False)
 
-    def set_upstream(self, task_or_task_list: Union['BaseOperator', List['BaseOperator']]) -> None:
+    def set_upstream(self, task_or_task_list: Union['BaseOperator', Sequence['BaseOperator']]) -> None:
         """
         Set a task or a task list to be directly upstream from the current
         task.
@@ -1338,7 +1339,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         return cls.__serialized_fields
 
 
-def chain(*tasks: Union[BaseOperator, List[BaseOperator]]):
+def chain(*tasks: Union[BaseOperator, Sequence[BaseOperator]]):
     r"""
     Given a number of tasks, builds a dependency chain.
     Support mix airflow.models.BaseOperator and List[airflow.models.BaseOperator].
@@ -1375,7 +1376,7 @@ def chain(*tasks: Union[BaseOperator, List[BaseOperator]]):
         if isinstance(down_task, BaseOperator):
             down_task.set_upstream(up_task)
             continue
-        if not isinstance(up_task, List) or not isinstance(down_task, List):
+        if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
             raise TypeError(
                 'Chain not supported between instances of {up_type} and {down_type}'.format(
                     up_type=type(up_task), down_type=type(down_task)))
@@ -1389,8 +1390,8 @@ def chain(*tasks: Union[BaseOperator, List[BaseOperator]]):
             up_t.set_downstream(down_t)
 
 
-def cross_downstream(from_tasks: List[BaseOperator],
-                     to_tasks: Union[BaseOperator, List[BaseOperator]]):
+def cross_downstream(from_tasks: Sequence[BaseOperator],
+                     to_tasks: Union[BaseOperator, Sequence[BaseOperator]]):
     r"""
     Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
 

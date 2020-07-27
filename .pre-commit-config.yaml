@@ -194,7 +194,7 @@ repos:
       - id: lint-openapi
         name: Lint OpenAPI using speccy
         language: docker_image
-        entry: wework/speccy lint
+        entry: wework/speccy lint -r default -r ./scripts/ci/speccy_rules/connexion.yml
         files: ^airflow/api_connexion/openapi/
       - id: lint-openapi
         name: Lint OpenAPI using openapi-spec-validator
@@ -322,6 +322,12 @@ repos:
         name: Make sure days_ago is imported from airflow.utils.dates
         entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
+        pass_filenames: true
+      - id: restrict-start_date-in-default_args-in-example_dags
+        language: pygrep
+        name: "'start_date' should not be defined in default_args in example_dags"
+        entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
+        files: \.*example_dags.*.py$
         pass_filenames: true
       - id: check-integrations
         name: Check if integration list is aligned

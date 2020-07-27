@@ -32,12 +32,11 @@ GOOGLE_SHEET_RANGE = getenv("GOOGLE_SHEET_RANGE")
 S3_DESTINATION_KEY = getenv("S3_DESTINATION_KEY", "s3://bucket/key.json")
 # [END howto_operator_google_api_to_s3_transfer_basic_env_variables]
 
-default_args = {"start_date": days_ago(1)}
 
 with DAG(
     dag_id="example_google_api_to_s3_transfer_basic",
-    default_args=default_args,
     schedule_interval=None,
+    start_date=days_ago(1),
     tags=['example']
 ) as dag:
     # [START howto_operator_google_api_to_s3_transfer_basic_task_1]

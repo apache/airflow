@@ -409,7 +409,7 @@ statsd = [
     'statsd>=3.3.0, <4.0',
 ]
 tableau = [
-    'tableauserverclient==0.9',
+    'tableauserverclient~=0.12',
 ]
 vertica = [
     'vertica-python>=0.5.1',
@@ -702,7 +702,7 @@ INSTALL_REQUIREMENTS = [
     'dill>=0.2.2, <0.4',
     'flask>=1.1.0, <2.0',
     'flask-appbuilder>2.3.4,~=3.0',
-    'flask-caching>=1.3.3, <1.4.0',
+    'flask-caching>=1.3.3, <2.0.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
     'flask-wtf>=0.14.2, <0.15',
@@ -710,7 +710,7 @@ INSTALL_REQUIREMENTS = [
     'graphviz>=0.12',
     'gunicorn>=19.5.0, <20.0',
     'iso8601>=0.1.12',
-    'jinja2>=2.10.1, <2.11.0',
+    'jinja2>=2.10.1, <2.12.0',
     'json-merge-patch==0.2',
     'jsonschema~=3.0',
     'lazy_object_proxy~=1.3',
@@ -732,7 +732,7 @@ INSTALL_REQUIREMENTS = [
     'sqlalchemy~=1.3',
     'sqlalchemy_jsonfield~=0.9',
     'tabulate>=0.7.5, <0.9',
-    'tenacity==4.12.0',
+    'tenacity>=4.12.0, <5.2',
     'thrift>=0.9.2',
     'typing;python_version<"3.6"',
     'typing-extensions>=3.7.4;python_version<"3.8"',

@@ -17,7 +17,7 @@
 # under the License.
 import os
 import re
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
@@ -81,11 +81,9 @@ class HiveOperator(BaseOperator):
             mapred_queue: Optional[str] = None,
             mapred_queue_priority: Optional[str] = None,
             mapred_job_name: Optional[str] = None,
-            *args: Tuple[Any, ...],
             **kwargs: Any
     ) -> None:
-
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.hql = hql
         self.hive_cli_conn_id = hive_cli_conn_id
         self.schema = schema

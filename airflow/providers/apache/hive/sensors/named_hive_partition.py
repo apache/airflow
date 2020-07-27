@@ -47,10 +47,9 @@ class NamedHivePartitionSensor(BaseSensorOperator):
                  metastore_conn_id: str = 'metastore_default',
                  poke_interval: int = 60 * 3,
                  hook: Any = None,
-                 *args: Tuple[Any, ...],
                  **kwargs: Any):
         super().__init__(
-            poke_interval=poke_interval, *args, **kwargs)
+            poke_interval=poke_interval, **kwargs)
 
         self.next_index_to_poke = 0
         if isinstance(partition_names, str):

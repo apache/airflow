@@ -39,7 +39,6 @@ from airflow.utils.dates import days_ago
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,
@@ -67,6 +66,7 @@ dag = DAG(
     default_args=default_args,
     description='A simple tutorial DAG',
     schedule_interval=timedelta(days=1),
+    start_date=days_ago(2),
     tags=['example'],
 )
 # [END instantiate_dag]

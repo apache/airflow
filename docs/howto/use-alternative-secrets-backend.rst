@@ -251,7 +251,9 @@ Example:
 
 .. code-block:: bash
 
-    aws secretsmanager put-secret-value --secret-id airflow/connections/smtp_default --secret-string "smtps://user:host@relay.example.com:465"
+    aws secretsmanager put-secret-value \
+        --secret-id airflow/connections/smtp_default \
+        --secret-string "smtps://user:host@relay.example.com:465"
 
 Verify that you can get the secret:
 

@@ -790,7 +790,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
         reference_image_id: Optional[str] = None,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
-        timeout: Optional[str] = None,
+        timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
         *args,

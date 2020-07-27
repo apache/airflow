@@ -74,18 +74,15 @@ class SQLCheckOperator(BaseOperator):
     :type sql: str
     """
 
-    template_fields = ("sql",)  # type: Iterable[str]
-    template_ext = (
-        ".hql",
-        ".sql",
-    )  # type: Iterable[str]
+    template_fields: Iterable[str] = ("sql",)
+    template_ext: Iterable[str] = (".hql", ".sql",)
     ui_color = "#fff7e6"
 
     @apply_defaults
     def __init__(
-        self, sql: str, conn_id: Optional[str] = None, *args, **kwargs
+        self, *, sql: str, conn_id: Optional[str] = None, **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.conn_id = conn_id
         self.sql = sql
 
@@ -163,7 +160,7 @@ class SQLValueCheckOperator(BaseOperator):
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.sql = sql
         self.conn_id = conn_id
         self.pass_value = str(pass_value)
@@ -264,11 +261,8 @@ class SQLIntervalCheckOperator(BaseOperator):
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
-    template_fields = ("sql1", "sql2")  # type: Iterable[str]
-    template_ext = (
-        ".hql",
-        ".sql",
-    )  # type: Iterable[str]
+    template_fields: Iterable[str] = ("sql1", "sql2")
+    template_ext: Iterable[str] = (".hql", ".sql",)
     ui_color = "#fff7e6"
 
     ratio_formulas = {
@@ -289,7 +283,7 @@ class SQLIntervalCheckOperator(BaseOperator):
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if ratio_formula not in self.ratio_formulas:
             msg_template = (
                 "Invalid diff_method: {diff_method}. "
@@ -415,7 +409,7 @@ class SQLThresholdCheckOperator(BaseOperator):
     :type max_threshold: numeric or str
     """
 
-    template_fields = ("sql", "min_threshold", "max_threshold")  # type: Iterable[str]
+    template_fields = ("sql", "min_threshold", "max_threshold")
     template_ext = (
         ".hql",
         ".sql",
@@ -431,7 +425,7 @@ class SQLThresholdCheckOperator(BaseOperator):
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.sql = sql
         self.conn_id = conn_id
         self.min_threshold = _convert_to_float_if_possible(min_threshold)
@@ -526,7 +520,7 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
         *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.conn_id = conn_id
         self.sql = sql
         self.parameters = parameters

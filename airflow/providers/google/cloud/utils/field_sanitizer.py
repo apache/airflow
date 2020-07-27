@@ -68,8 +68,8 @@ specification of the path you should delete - separated with '.'
 >>>     }
 >>> }
 >>> sanitizer=GcpBodyFieldSanitizer(FIELDS_TO_SANITIZE)
->>> SANITIZED_BODY = sanitizer.sanitize(body)
->>> json.dumps(SANITIZED_BODY, indent=2)
+>>> sanitizer.sanitize(body)
+>>> json.dumps(body, indent=2)
 {
     "name":  "instance",
     "properties": {

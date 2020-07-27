@@ -37,13 +37,13 @@ S3_BUCKET_NAME_FOR_JOB_LOGS = ''
 
 default_args = {
     'owner': 'airflow',
-    'start_date': days_ago(1)
 }
 
 with DAG(
     'example_yandexcloud_dataproc_operator',
     default_args=default_args,
     schedule_interval=None,
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     create_cluster = DataprocCreateClusterOperator(

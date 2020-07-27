@@ -129,9 +129,8 @@ class SparkSubmitOperator(BaseOperator):
                  env_vars: Optional[Dict[str, Any]] = None,
                  verbose: bool = False,
                  spark_binary: Optional[str] = None,
-                 *args: Any,
                  **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._application = application
         self._conf = conf
         self._files = files

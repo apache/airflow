@@ -165,14 +165,16 @@ class QuboleOperator(BaseOperator):
         handler in task definition.
     """
 
-    template_fields = ('query', 'script_location', 'sub_command', 'script', 'files',
-                       'archives', 'program', 'cmdline', 'sql', 'where_clause', 'tags',
-                       'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
-                       'dbtap_id', 'hive_table', 'db_table', 'split_column', 'note_id',
-                       'db_update_keys', 'export_dir', 'partition_spec', 'qubole_conn_id',
-                       'arguments', 'user_program_arguments', 'cluster_label')  # type: Iterable[str]
+    template_fields: Iterable[str] = (
+        'query', 'script_location', 'sub_command', 'script', 'files',
+        'archives', 'program', 'cmdline', 'sql', 'where_clause', 'tags',
+        'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
+        'dbtap_id', 'hive_table', 'db_table', 'split_column', 'note_id',
+        'db_update_keys', 'export_dir', 'partition_spec', 'qubole_conn_id',
+        'arguments', 'user_program_arguments', 'cluster_label'
+    )
 
-    template_ext = ('.txt',)  # type: Iterable[str]
+    template_ext: Iterable[str] = ('.txt',)
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
     qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']
