@@ -41,7 +41,7 @@ class EmrHook(AwsBaseHook):
     def get_cluster_id_by_name(
         self,
         emr_cluster_name: str,
-        cluster_states: Optional[List[str]]
+        cluster_states: List[str]
     ) -> Optional[str]:
         """
         Fetch id of EMR cluster with given name and (optional) states. Will return only if single id is found.
