@@ -26,6 +26,7 @@ from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
 
 from airflow import AirflowException
+from airflow.kubernetes.pod_launcher_helper import *
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -73,7 +74,19 @@ class PodLauncher(LoggingMixin):
             # fails we attempt to run with k8s official pod
             from airflow.kubernetes_deprecated.pod import Pod
             from airflow.kubernetes.pod_generator import PodGenerator
-            dummy_pod = Pod(image=pod.spec.containers[0]['image'], envs={}, cmds=[])
+            base_container = pod.spec.containers[0] # type: k8s.V1Container
+
+            dummy_pod = Pod(image=base_container.image,
+                            envs=extract_env_vars(base_container.env),
+                            volumes=extract_volumes(pod.spec.volumes),
+                            volume_mounts=extract_volume_mounts(base_container.volume_mounts),
+                            labels=pod.metadata.labels,
+                            name=pod.metadata.name,
+                            namespace=pod.metadata.namespace,
+                            image_pull_policy=base_container.image_pull_policy,
+                            cmds=[],
+                            ports=extract_ports(base_container.ports)
+                            )
             pod_mutation_hook(dummy_pod)
             dummy_pod = dummy_pod.to_v1_kubernetes_pod()
             PodGenerator.reconcile_pods(pod, dummy_pod)
