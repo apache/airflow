@@ -73,14 +73,15 @@ def get_craft_type(craft_type: str = DEFAULT_CRAFT_TYPE) -> int:
 
 
 def get_curve_mode(final_state, error_tag):
-    print(final_state, error_tag)
+    train_error_tag = os.environ.get('TRAIN_ERROR_TAG', False)
     if final_state == 'OK':
-        return 0
+        return [0]
+    if train_error_tag == 'False' or train_error_tag is False:
+        return [1]
     if error_tag is not None:
         curve_modes = json.loads(error_tag)
         if len(curve_modes) > 0:
-            # todo: send multiple error_tag
-            return ensure_int(curve_modes[0])
+            return list(map(ensure_int, curve_modes))
     return None
 
 
