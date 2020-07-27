@@ -57,7 +57,7 @@ class TestEmailOperator(unittest.TestCase):
 
     def test_execute(self):
         with conf_vars(
-            {('email', 'email_backend'): 'tests.providers.email.operators.test_email.send_email_test'}
+            {('email', 'email_backend'): 'tests.operators.test_email.send_email_test'}
         ):
             self._run_as_operator()
         assert send_email_test.call_count == 1
