@@ -19,16 +19,7 @@ import kubernetes.client.models as k8s
 from airflow.kubernetes.pod import Resources
 
 
-class Port:
-    def __init__(
-            self,
-            name=None,
-            container_port=None):
-        self.name = name
-        self.container_port = container_port
-
-
-class Pod:
+class Pod(object):
     """
     Represents a kubernetes pod and manages execution of a single pod.
     :param image: The docker image
@@ -168,3 +159,19 @@ class Pod:
             pod = runtime_info.attach_to_pod(pod)
         pod = self.resources.attach_to_pod(pod)
         return pod
+
+    def as_dict(self):
+        res = self.__dict__
+        res['resources'] = res['resources'].as_dict()
+
+        new_ports = []
+        for port in res['ports']:
+            new_ports.append(port.as_dict())
+        res['ports'] = new_ports
+
+        volume_mounts = []
+        for volume_mount in res['volume_mounts']:
+            volume_mounts.append(volume_mount.as_dict())
+        res['volume_mounts'] = volume_mounts
+        return res
+

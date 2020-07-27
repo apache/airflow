@@ -3,9 +3,28 @@ import kubernetes.client.models as k8s  # noqa
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.kubernetes.pod import Port
+from airflow.kubernetes_deprecated.pod import Pod
+from airflow.kubernetes.pod_generator import PodGenerator
+import kubernetes.client.models as k8s  # noqa
 
 
-def extract_env_vars(env_vars):
+def convert_to_airflow_pod(pod):
+    base_container = pod.spec.containers[0]  # type: k8s.V1Container
+
+    dummy_pod = Pod(image=base_container.image,
+                    envs=_extract_env_vars(base_container.env),
+                    volumes=_extract_volumes(pod.spec.volumes),
+                    volume_mounts=_extract_volume_mounts(base_container.volume_mounts),
+                    labels=pod.metadata.labels,
+                    name=pod.metadata.name,
+                    namespace=pod.metadata.namespace,
+                    image_pull_policy=base_container.image_pull_policy or 'IfNotPresent',
+                    cmds=[],
+                    ports=_extract_ports(base_container.ports)
+                    )
+    return dummy_pod
+
+def _extract_env_vars(env_vars):
     """
 
     @param env_vars:
@@ -14,22 +33,25 @@ def extract_env_vars(env_vars):
     @rtype: dict
     """
     result = {}
+    env_vars = env_vars or []
     for e in env_vars:
         env_var = e  # type: k8s.V1EnvVar
         result[env_var.name] = env_var.value
     return result
 
 
-def extract_volumes(volumes):
+def _extract_volumes(volumes):
     result = []
+    volumes = volumes or []
     for v in volumes:
         volume = v  # type: k8s.V1Volume
         result.append(Volume(name=volume.name, configs=volume.__dict__))
     return result
 
 
-def extract_volume_mounts(volume_mounts):
+def _extract_volume_mounts(volume_mounts):
     result = []
+    volume_mounts = volume_mounts or []
     for v in volume_mounts:
         volume = v  # type: k8s.V1VolumeMount
         result.append(VolumeMount(name=volume.name,
@@ -39,8 +61,10 @@ def extract_volume_mounts(volume_mounts):
 
     return result
 
-def extract_ports(ports):
+
+def _extract_ports(ports):
     result = []
+    ports = ports or []
     for p in ports:
         port = p  # type: k8s.V1ContainerPort
         result.append(Port(name=port.name, container_port=port.container_port))

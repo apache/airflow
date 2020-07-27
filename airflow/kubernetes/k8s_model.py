@@ -47,6 +47,12 @@ class K8SModel(ABC):
         :return: The pod with the object attached
         """
 
+    def as_dict(self):
+        res ={}
+        for s in self.__slots__:
+            if hasattr(self, s):
+                res[s] = getattr(self, s)
+        return res
 
 def append_to_pod(pod, k8s_objects):
     """
@@ -60,3 +66,4 @@ def append_to_pod(pod, k8s_objects):
         return pod
     new_pod = reduce(lambda p, o: o.attach_to_pod(p), k8s_objects, pod)
     return new_pod
+

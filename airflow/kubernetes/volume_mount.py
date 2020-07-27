@@ -24,6 +24,10 @@ from airflow.kubernetes.k8s_model import K8SModel
 
 
 class VolumeMount(K8SModel):
+    __slots__ = ('name',
+                 'mount_path',
+                 'sub_path',
+                 'read_only')
     """
     Initialize a Kubernetes Volume Mount. Used to mount pod level volumes to
     running container.

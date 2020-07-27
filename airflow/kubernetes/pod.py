@@ -25,7 +25,13 @@ import kubernetes.client.models as k8s
 from airflow.kubernetes.k8s_model import K8SModel
 
 class Resources(K8SModel):
-    __slots__ = ('request_memory', 'request_cpu', 'limit_memory', 'limit_cpu', 'limit_gpu')
+    __slots__ = ('request_memory',
+                 'request_cpu',
+                 'limit_memory',
+                 'limit_cpu',
+                 'limit_gpu',
+                 'request_ephemeral_storage',
+                 'limit_ephemeral_storage')
 
     """
     :param request_memory: requested memory
