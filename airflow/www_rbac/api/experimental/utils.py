@@ -9,6 +9,8 @@ from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
 from airflow.api.common.experimental import trigger_dag as trigger
 import json
+from airflow.utils import timezone
+from airflow.api.common.experimental.get_task_instance import get_task_instance
 
 CAS_ANALYSIS_BASE_URL = os.environ.get("CAS_ANALYSIS_BASE_URL", "http://localhost:9095")
 CAS_TRAINING_BASE_URL = os.environ.get("CAS_TRAINING_BASE_URL", "http://localhost:9095")
@@ -160,6 +162,10 @@ def get_curve_entity_ids(bolt_number=None, craft_type=None):
 
 
 def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task_id, dag_id, verify_error, curve_mode):
+    if isinstance(curve_mode, str):
+        curve_mode = json.loads(curve_mode)
+    if isinstance(curve_mode, int):
+        curve_mode = [curve_mode]
     analysis_result = form_analysis_result_trigger(
         result,
         entity_id,
@@ -177,13 +183,14 @@ def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task
     trigger.trigger_dag(push_result_dag_id, conf=conf, replace_microseconds=False)
 
 
-def trigger_training_dag(dag_id, task_id, execution_date, final_state):
+def trigger_training_dag(dag_id, task_id, execution_date, final_state, error_tags):
     trigger_training_dag_id = 'curve_training_dag'
     conf = {
         'dag_id': dag_id,
         'task_id': task_id,
         'execution_date': execution_date,
-        'final_state': final_state
+        'final_state': final_state,
+        'error_tags': error_tags
     }
     trigger.trigger_dag(trigger_training_dag_id, conf=conf, replace_microseconds=False)
 
@@ -211,3 +218,18 @@ def trigger_push_template_dag(template_name, template_data):
         'data_type': 'curve_template'
     }
     trigger.trigger_dag(push_result_dag_id, conf=conf, replace_microseconds=False)
+
+
+def do_save_curve_error_tag(dag_id, task_id, execution_date, error_tags=None):
+    try:
+        execution_date = timezone.parse(execution_date)
+    except ValueError:
+        error_message = (
+            'Given execution date, {}, could not be identified '
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'
+                .format(execution_date))
+        raise Exception(error_message)
+    if error_tags is None:
+        error_tags = []
+    task = get_task_instance(dag_id, task_id, execution_date)
+    task.set_error_tag(json.dumps(error_tags))

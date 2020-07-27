@@ -1,5 +1,6 @@
 {% extends "appbuilder/base.html" %}
 {% import 'airflow/panel.html' as panel %}
+{% import 'airflow/result_panel.html' as result_panel %}
 
 
 {% block head_css %}
@@ -13,30 +14,78 @@
 {% endblock %}
 
 {% block body %}
-<div id="root" class="">
-  {% call panel.panel('','base-info-container','flex-row') %}
+<div id="root">
+
+  {% call panel.panel('基本信息','base-info-container') %}
+  <div class="panel-body d-flex flex-row justify-content-center align-items-center p-0">
+    <table class="table">
+      <tbody>
+      <tr>
+        <td><h4 class="m-0">螺栓编号</h4></td>
+        <td><h4 class="m-0">{{result.nut_no}}</h4></td>
+      </tr>
+      <tr>
+        <td><h4 class="m-0">工具序列号</h4></td>
+        <td><h4 class="m-0">{{result.tool_sn}}</h4></td>
+      </tr>
+      <tr>
+        <td><h4 class="m-0">拧紧时间</h4></td>
+        <td><h4 class="m-0">{{result.update_time}}</h4></td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+  {% endcall %}
+  {% call panel.panel('','result-check-container','flex-row') %}
+
+  {{result_panel.result_panel('拧紧结果', 'measure-result-card',result.measure_result) }}
+
+  {{ result_panel.result_panel('分析结果', 'analysis-result-card',task_instance.result,
+  verify_error_map.get('{}'.format(task_instance.verify_error),task_instance.verify_error)) }}
+
+
   {% call panel.panel('二次确认', 'double-check-card','panel-danger base-info-item' if task_instance.final_state =='NOK'
   else ('panel-success base-info-item' if task_instance.final_state =='OK' else 'panel-default base-info-item')) %}
-  <div class="panel-body d-flex flex-row justify-content-center align-items-center" id="double-check-result">
+  <div class="panel-body d-flex flex-column justify-content-center align-items-center" id="double-check-result"
+       style="flex:1">
+    <!--      <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>-->
+
     {% if task_instance.final_state %}
-    <h4 class="m-0">{{task_instance.final_state}}</h4>
+    <h2>{{task_instance.final_state}}</h2>
     {% elif can_verify %}
-    <button id="btn_double_check_success" style="width:80px"
-            class="button-double-check btn btn-success mr-2 font-weight-bold">
-      <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
-      OK
-    </button>
-    <button id="btn_double_check_failed" style="width:80px"
-            class="button-double-check btn btn-danger ml-2 font-weight-bold">
-      <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
-      NOK
-    </button>
+    <h2>
+      <button id="btn_double_check_success" style="width:80px;"
+              class="button-double-check btn btn-success mr-2 font-weight-bold">
+        <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
+        OK
+      </button>
+      <button id="btn_double_check_failed" style="width:80px"
+              class="button-double-check btn btn-danger ml-2 font-weight-bold">
+        <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+        NOK
+      </button>
+    </h2>
     {% else %}
-    <h4 class="m-0">未确认</h4>
+    <h2>未确认</h2>
     {% endif %}
+    <h4 id="error-tags"></h4>
   </div>
   {% endcall %}
   {% endcall %}
+
+  <!--    <div id="error-tag-container"-->
+  <!--         class="panel rounded-sm d-flex p-2 align-items-center shadow-sm m-1  rounded flex-row justify-content-between">-->
+  <!--      曲线标签-->
+  <!--      <label for="error-tag-select" id="error-tag-label-container" class="mx-2 my-0 flex-fill">-->
+  <!--        <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple disabled>-->
+  <!--          {% for err in errorTags %}-->
+  <!--          <option value="{{err.value}}" data-value="{{err.value}}">{{err.label}}</option>-->
+  <!--          {% endfor %}-->
+  <!--        </select>-->
+  <!--      </label>-->
+  <!--      <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>-->
+  <!--    </div>-->
+  {% include 'airflow/curve_chart.html' %}
   {% call panel.panel('结果数据','result-container') %}
   <div class=" overflow-auto p-0">
     <table id="result_table" class="table position-relative ">
@@ -50,19 +99,6 @@
     </table>
   </div>
   {% endcall %}
-  <div id="error-tag-container"
-       class="panel rounded-sm d-flex p-2 align-items-center shadow-sm m-1  rounded flex-row justify-content-between">
-    曲线标签
-    <label for="error-tag-select" id="error-tag-label-container" class="mx-2 my-0 flex-fill">
-      <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple disabled>
-        {% for err in errorTags %}
-        <option value="{{err.value}}" data-value="{{err.value}}">{{err.label}}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>
-  </div>
-  {% include 'airflow/curve_chart.html' %}
 </div>
 
 {% include 'airflow/dialog.html' %}
@@ -76,11 +112,11 @@
 <script type="text/javascript">
   const result = JSON.parse('{{ result|tojson|safe }}');
   const curve = JSON.parse('{{ curve|tojson|safe }}');
-  const analysisErrs = JSON.parse('{{ analysisErrorMessageMapping|tojson|safe }}');
-  const verifyErrorMap = JSON.parse('{{ verify_error_map|tojson|safe }}');
+  const errorTags = JSON.parse('{{ errorTags|tojson|safe }}');
   const resultErrs = JSON.parse('{{ resultErrorMessageMapping|tojson|safe }}');
   const resultKeys = JSON.parse('{{ resultKeysTranslationMapping|tojson|safe }}');
-
+  let $errorTagsSelector = null;
+  let $errorTagInput = null;
 
   function genData() {
     const { xKey, yKey } = chartParams;
@@ -197,68 +233,15 @@
     $('#result_detail').append($rows);
   }
 
-  const info = [
-    {
-      title: '螺栓编号',
-      content: result.nut_no,
-    },
-    {
-      title: '工具序列号',
-      content: result.tool_sn,
-    },
-    {
-      title: '拧紧时间',
-      content: result.update_time,
-    },
-    {
-      title: '拧紧结果',
-      content: result.measure_result,
-      className: result.measure_result === 'NOK' ? 'panel-danger' : 'panel-success',
-    },
-    {
-      title: '分析结果',
-      content: '{{task_instance.result}}',
-      className: '{{task_instance.result}}' === 'NOK' ? 'panel-danger' : 'panel-success',
-    },
-    {
-      title: '异常信息',
-      content: verifyErrorMap['{{task_instance.verify_error}}'] || '{{task_instance.verify_error}}',
-      className: '{{task_instance.result}}' === 'NOK' ? 'panel-danger' : 'panel-success',
-    },
-  ];
-  const errorCode = '{{task_instance.error_code}}';
-
-  // if (!Number.isNaN(+errorCode) && +errorCode !== 0) {
-  //   info.push({
-  //     title: '异常类型',
-  //     content: analysisErrs[+'{{task_instance.error_code}}'] || '{{task_instance.error_code}}',
-  //     css: {
-  //       color: '#ee3333',
-  //     },
-  //   });
-  // }
-
-  info.reverse().forEach((i) => {
-    const $info = $('<div class="panel panel-default base-info-item flex-column shadow-sm m-1">');
-    const $titleText = $('<h5 class="m-0 panel-title">').append([i.title]);
-    const $title = $('<div class="base-info-title panel-heading ">').append($titleText);
-    const $contentText = $('<h4 class="m-0">').append([i.content]);
-    const $content = $('<div class="panel-body d-flex flex-row justify-content-center align-items-center">').append($contentText);
-    $info.append([$title, $content]);
-    if (i.className) {
-      $info.removeClass('panel-default');
-      $info.addClass(i.className);
-    }
-    $('#base-info-container').prepend($info);
-  });
-
-  function submitDoubleCheck(finalState) {
+  function submitDoubleCheck(finalState, finalErrorTags) {
+    const errorTagsArr = (finalErrorTags || []).map(t => JSON.parse(t));
     $.ajax({
       type: 'POST',
       url: "{{ url_for('api_experimental.double_confirm_task',dag_id=task_instance.dag_id, task_id=task_instance.task_id, execution_date=task_instance.execution_date ) }}",
       data: JSON.stringify({
         csrf_token: '{{ csrf_token() }}',
         final_state: finalState,
+        error_tags: errorTagsArr,
         execution_date: '{{task_instance.execution_date}}',
       }),
       headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
@@ -267,7 +250,7 @@
     }).then((resp) => {
       const resultClass = finalState === 'OK' ? 'panel-success' : 'panel-danger';
       $('#double-check-card').addClass(resultClass);
-      $('#double-check-result').html(`<h5 class="m-0 panel-title">${finalState}</h5>`);
+      $('#double-check-result').html(`<h2 class="m-0 panel-title">${finalState}</h2>`);
       $('#doubleCheckModal').modal('hide');
       if (resp && resp.response === 'ok') {
         $('#double_check_result').html(`二次确认为${finalState}`);
@@ -275,10 +258,52 @@
     });
   }
 
+  function tagsSelector() {
+    $errorTagsSelector = $(
+      '<label for="error-tag-select" id="error-tag-label-container" class="my-0">'
+      + '          <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple>'
+      + '            {% for err in errorTags %}'
+      + '            <option value="{{err.value}}" data-value="{{err.value}}">{{err.label}}</option>'
+      + '            {% endfor %}'
+      + '          </select>'
+      + '        </label>',
+    );
+    $errorTagInput = $errorTagsSelector.find('.error-tag-select-input');
+    // const $errorTagButton = $errorTagsSelector.find('#error-tag-button');
+    $errorTagInput.select2({
+      width: '100%',
+    });
+
+    $errorTagInput.val(getTaskErrorTags()).trigger('change');
+
+    // $errorTagButton.click((e) => {
+    //   const editing = !$errorTagInput.attr('disabled');
+    //   if (editing) {
+    //     $errorTagInput.attr('disabled', true);
+    //     $errorTagButton.html('编辑');
+    //     saveErrorTags($errorTagInput.val());
+    //     return;
+    //   }
+    //   $errorTagInput.attr('disabled', false);
+    //   $errorTagButton.html('保存');
+    // });
+    return $errorTagsSelector;
+  }
+
   function confirmDoubleCheck(status) {
-    showDialog('二次确认', `<p>二次确认曲线结果为：${status}？</p>`, {
+    const message = status === 'OK' ? `二次确认曲线结果为：${status}，曲线的标签将被清除。`
+      : `二次确认曲线结果为：${status}，请选择曲线标签：`;
+    const $content = $('<div/>');
+    const $message = $(`<h4>${message}</h4>`);
+    $content.append($message);
+    if (status === 'NOK') {
+      const $selector = tagsSelector();
+      $content.append($selector);
+    }
+    showDialog('二次确认', $content, {
       onConfirm() {
-        submitDoubleCheck(status);
+        const finalErrorTags = $errorTagInput.val();
+        submitDoubleCheck(status, finalErrorTags);
       },
     });
   }
@@ -291,9 +316,7 @@
   });
 
   function saveErrorTags(errorTags) {
-    const errorTagsArr = (errorTags || []).map(t => {
-      return JSON.parse(t);
-    });
+    const errorTagsArr = (errorTags || []).map(t => JSON.parse(t));
     $.ajax({
       type: 'POST',
       url: "{{ url_for('api_experimental.save_curve_error_tag',dag_id=task_instance.dag_id, task_id=task_instance.task_id, execution_date=task_instance.execution_date ) }}",
@@ -311,35 +334,40 @@
 
   function getTaskErrorTags() {
     try {
-      return JSON.parse('{{task_instance.error_tag}}');
+      return JSON.parse('{{task_instance.error_tag}}').map(t => `${t}`);
     } catch (e) {
+      console.error(e);
       return [];
     }
+  }
+
+  function getTaskErrorTagLabels() {
+    try {
+      const tagsVal = getTaskErrorTags();
+      return tagsVal.map((val) => {
+        const tag = errorTags.find(e => e.value === val);
+        if (tag) {
+          return tag;
+        }
+        return null;
+      }).filter(t => !!t).map(t => t.label);
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  }
+
+  function renderErrorTags() {
+    const tags = getTaskErrorTagLabels();
+    const tagsContainer = $('#error-tags');
+    tagsContainer.append(tags.join('，'));
   }
 
   $(document).ready(() => {
     chartInit();
     renderChart();
     renderResultDetail();
-    const $errorTagInput = $('.error-tag-select-input');
-    const $errorTagButton = $('#error-tag-button');
-    $errorTagInput.select2({
-      width: '100%',
-    });
-
-    $errorTagInput.val(getTaskErrorTags().map(t => `${t}`)).trigger('change');
-
-    $errorTagButton.click((e) => {
-      const editing = !$errorTagInput.attr('disabled');
-      if (editing) {
-        $errorTagInput.attr('disabled', true);
-        $errorTagButton.html('编辑');
-        saveErrorTags($errorTagInput.val());
-        return;
-      }
-      $errorTagInput.attr('disabled', false);
-      $errorTagButton.html('保存');
-    });
+    renderErrorTags();
   });
 </script>
 {% endblock %}

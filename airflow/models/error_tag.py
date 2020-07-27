@@ -32,5 +32,5 @@ class ErrorTag(Base):
     @provide_session
     def get_all(cls, session=None):
         objs = session.query(cls).all()
-        dataArr = map(cls._error_tag_data, objs)
+        dataArr = list(map(cls._error_tag_data, objs))
         return dataArr
