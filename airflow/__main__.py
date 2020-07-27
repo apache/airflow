@@ -27,7 +27,6 @@ from airflow import settings
 from airflow.cli import cli_parser
 from airflow.configuration import conf
 
-from airflow import settings
 
 def main():
     """Main executable function"""
