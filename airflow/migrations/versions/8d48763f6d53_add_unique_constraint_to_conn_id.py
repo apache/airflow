@@ -27,6 +27,8 @@ Create Date: 2020-05-03 16:55:01.834231
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.models.base import ID_LEN
+
 # revision identifiers, used by Alembic.
 revision = '8d48763f6d53'
 down_revision = '8f966b9c467a'
@@ -46,7 +48,7 @@ def upgrade():
             batch_op.alter_column(
                 "conn_id",
                 nullable=False,
-                existing_type=sa.String
+                existing_type=sa.String(ID_LEN)
             )
     except sa.exc.IntegrityError:
         raise Exception("Make sure there are no duplicate connections with the same conn_id or null values")
@@ -63,5 +65,5 @@ def downgrade():
         batch_op.alter_column(
             "conn_id",
             nullable=True,
-            existing_type=sa.String
+            existing_type=sa.String(ID_LEN)
         )
