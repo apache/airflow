@@ -29,6 +29,7 @@ else:
 
 
 class K8SModel(ABC):
+    __slots__ = []
     """
     These Airflow Kubernetes models are here for backwards compatibility
     reasons only. Ideally clients should use the kubernetes api
@@ -52,7 +53,9 @@ class K8SModel(ABC):
         for s in self.__slots__:
             if hasattr(self, s):
                 res[s] = getattr(self, s)
-        return res
+        res_dict = self.__dict__.copy()
+        res_dict.update(res)
+        return res_dict
 
 def append_to_pod(pod, k8s_objects):
     """

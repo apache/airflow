@@ -173,5 +173,10 @@ class Pod(object):
         for volume_mount in res['volume_mounts']:
             volume_mounts.append(volume_mount.as_dict())
         res['volume_mounts'] = volume_mounts
+
+        volumes = []
+        for volume in res['volumes']:
+            volumes.append(volume.as_dict())
+        res['volumes'] = volumes
         return res
 

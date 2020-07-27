@@ -23,6 +23,7 @@ from airflow import AirflowException
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.pod import Port,Resources
 from airflow.kubernetes.volume_mount import VolumeMount
+from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.pod_launcher_helper import convert_to_airflow_pod
 from airflow.kubernetes_deprecated.pod import Pod
 import kubernetes.client.models as k8s
@@ -53,6 +54,11 @@ class TestPodLauncherHelper(unittest.TestCase):
                             read_only="True"
                         )]
                     )
+                ],
+                volumes=[
+                    k8s.V1Volume(
+                        name="myvolume"
+                    )
                 ]
             )
         )
@@ -72,10 +78,25 @@ class TestPodLauncherHelper(unittest.TestCase):
                 mount_path="/tmp/mount",
                 sub_path=None,
                 read_only="True"
-            )]
+            )],
+            volumes=[Volume(name="myvolume", configs={})]
         )
         expected_dict = expected.as_dict()
         result_dict = result_pod.as_dict()
+        parsed_configs = self.pull_out_volumes(result_dict)
+        result_dict['volumes'] = parsed_configs
         self.maxDiff = None
 
         self.assertDictEqual(expected_dict, result_dict)
+
+    def pull_out_volumes(self, result_dict):
+        parsed_configs = []
+        for volume in result_dict['volumes']:
+            vol = {'name': volume['name']}
+            confs = {}
+            for k, v in volume['configs'].items():
+                if v and k[0] != '_':
+                    confs[k] = v
+            vol['configs'] = confs
+            parsed_configs.append(vol)
+        return parsed_configs
