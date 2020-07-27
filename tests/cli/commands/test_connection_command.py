@@ -16,8 +16,9 @@
 # under the License.
 
 import io
+import json
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, contextmanager
 from unittest import mock
 
 from parameterized import parameterized
@@ -29,6 +30,13 @@ from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
 
+
+@contextmanager
+def mock_local_file(content):
+    with mock.patch(
+        "airflow.secrets.local_filesystem.open", mock.mock_open(read_data=content)
+    ) as file_mock, mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=True):
+        yield file_mock
 
 class TestCliListConnections(unittest.TestCase):
     EXPECTED_CONS = [
@@ -321,3 +329,30 @@ class TestCliDeleteConnections(unittest.TestCase):
 
         # Check deletion attempt stdout
         self.assertIn("\tDid not find a connection with `conn_id`=fake", stdout)
+
+class TestCliImportConnections(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli_parser.get_parser()
+        clear_db_connections()
+    
+    @classmethod
+    def tearDownClass(cls):
+        clear_db_connections()
+
+    @parameterized.expand(
+        (
+            ({"CONN_ID": {'conn_type': 'mysql', 'host': 'host_1'}}, {"CONN_ID": {'conn_type': 'mysql', 'host': 'host_1'}}),
+        )
+    )
+    def test_connections_import(self, file_content, expected_connection_uris):
+        """Test connections_import command"""
+    
+        with mock_local_file(json.dumps(file_content)):
+            connection_command.connections_import(self.parser.parse_args([
+                     'connections', 'import', "a.json"]))
+            with create_session() as session:
+                for conn_id in expected_connection_uris:
+                    current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+                    print(getattr(current_conn, 'conn_type'))
+                    self.assertEqual(expected_connection_uris[conn_id], {attr: getattr(current_conn, attr) for attr in expected_connection_uris[conn_id]})
