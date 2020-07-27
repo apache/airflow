@@ -63,6 +63,7 @@ class EmrAddStepsOperator(BaseOperator):
         if not (job_flow_id is None) ^ (job_flow_name is None):
             raise AirflowException('Exactly one of job_flow_id or job_flow_name must be specified.')
         super().__init__(*args, **kwargs)
+        cluster_states = cluster_states or []
         steps = steps or []
         self.aws_conn_id = aws_conn_id
         self.job_flow_id = job_flow_id
