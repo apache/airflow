@@ -19,19 +19,7 @@
   {% call panel.panel('基本信息','base-info-container') %}
   <div class="panel-body d-flex flex-row justify-content-center align-items-center p-0">
     <table class="table">
-      <tbody>
-      <tr>
-        <td><h4 class="m-0">螺栓编号</h4></td>
-        <td><h4 class="m-0">{{result.nut_no}}</h4></td>
-      </tr>
-      <tr>
-        <td><h4 class="m-0">工具序列号</h4></td>
-        <td><h4 class="m-0">{{result.tool_sn}}</h4></td>
-      </tr>
-      <tr>
-        <td><h4 class="m-0">拧紧时间</h4></td>
-        <td><h4 class="m-0">{{result.update_time}}</h4></td>
-      </tr>
+      <tbody id="base-info-content">
       </tbody>
     </table>
   </div>
@@ -51,7 +39,9 @@
     <!--      <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>-->
 
     {% if task_instance.final_state %}
-    <h2>{{task_instance.final_state}}</h2>
+    <h2
+      class="{{'text-danger' if task_instance.final_state =='NOK' else ('text-success' if task_instance.final_state =='OK' else '')}}"
+      style="font-weight: bolder">{{task_instance.final_state}}</h2>
     {% elif can_verify %}
     <h2>
       <button id="btn_double_check_success" style="width:80px;"
@@ -73,19 +63,8 @@
   {% endcall %}
   {% endcall %}
 
-  <!--    <div id="error-tag-container"-->
-  <!--         class="panel rounded-sm d-flex p-2 align-items-center shadow-sm m-1  rounded flex-row justify-content-between">-->
-  <!--      曲线标签-->
-  <!--      <label for="error-tag-select" id="error-tag-label-container" class="mx-2 my-0 flex-fill">-->
-  <!--        <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple disabled>-->
-  <!--          {% for err in errorTags %}-->
-  <!--          <option value="{{err.value}}" data-value="{{err.value}}">{{err.label}}</option>-->
-  <!--          {% endfor %}-->
-  <!--        </select>-->
-  <!--      </label>-->
-  <!--      <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>-->
-  <!--    </div>-->
   {% include 'airflow/curve_chart.html' %}
+
   {% call panel.panel('结果数据','result-container') %}
   <div class=" overflow-auto p-0">
     <table id="result_table" class="table position-relative ">
@@ -133,52 +112,90 @@
     const { xName, yName } = chartParams;
 
     const option = {
-      title: {
-        text: `${xName}-${yName}图`,
-      },
+      // title: {
+      //   text: `${xName}-${yName}图`,
+      //   textStyle: {
+      //     color: '#17222a',
+      //     fontFamily: 'Courier New',
+      //     fontSize: 20,
+      //     fontWeight: 'bolder'
+      //   }
+      // },
       legend: {
         type: 'scroll',
-        data: [yName],
+        data: [yName]
       },
-      xAxis: { type: 'value' },
-      yAxis: { type: 'value' },
+      grid: {
+        bottom: 100
+      },
+      xAxis: {
+        type: 'value',
+        name: xName,
+        nameLocation: 'middle',
+        nameGap: 30,
+        axisLabel: {
+          fontSize: 16
+        }
+      },
+      yAxis: {
+        type: 'value',
+        name: yName,
+        nameLocation: 'middle',
+        nameRotate: 0,
+        nameGap: 50,
+        axisLabel: {
+          fontSize: 16
+        }
+      },
       series: [{
         name: yName,
         type: 'line',
         data: genData(),
-        symbol: 'none',
+        symbol: 'circle',
+        showSymbol: false,
+        itemStyle: {
+          color: '#3083bf'
+        },
+        lineStyle: {
+          color: '#3083bf',
+          width: 3
+        },
         markLine: {
           data: [
             { type: 'min', name: '最小值' },
-            { type: 'max', name: '最大值' },
-          ],
-        },
+            { type: 'max', name: '最大值' }
+          ]
+        }
       }],
+      textStyle: {
+        fontFamily: 'monospace',
+        fontSize: 18
+      },
       dataZoom: [
         {
           type: 'slider',
           xAxisIndex: 0,
-          filterMode: 'empty',
+          filterMode: 'empty'
         },
         {
           type: 'slider',
           yAxisIndex: 0,
-          filterMode: 'empty',
+          filterMode: 'empty'
         },
         {
           type: 'inside',
           xAxisIndex: 0,
-          filterMode: 'empty',
+          filterMode: 'empty'
         },
         {
           type: 'inside',
           yAxisIndex: 0,
-          filterMode: 'empty',
-        },
+          filterMode: 'empty'
+        }
       ],
       tooltip: {
-        trigger: 'axis',
-      },
+        trigger: 'axis'
+      }
     };
     curveChart.setOption(option);
   }
@@ -242,11 +259,11 @@
         csrf_token: '{{ csrf_token() }}',
         final_state: finalState,
         error_tags: errorTagsArr,
-        execution_date: '{{task_instance.execution_date}}',
+        execution_date: '{{task_instance.execution_date}}'
       }),
       headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
       dataType: 'json',
-      contentType: 'application/json',
+      contentType: 'application/json'
     }).then((resp) => {
       const resultClass = finalState === 'OK' ? 'panel-success' : 'panel-danger';
       $('#double-check-card').addClass(resultClass);
@@ -269,24 +286,11 @@
       + '        </label>',
     );
     $errorTagInput = $errorTagsSelector.find('.error-tag-select-input');
-    // const $errorTagButton = $errorTagsSelector.find('#error-tag-button');
     $errorTagInput.select2({
-      width: '100%',
+      width: '100%'
     });
 
     $errorTagInput.val(getTaskErrorTags()).trigger('change');
-
-    // $errorTagButton.click((e) => {
-    //   const editing = !$errorTagInput.attr('disabled');
-    //   if (editing) {
-    //     $errorTagInput.attr('disabled', true);
-    //     $errorTagButton.html('编辑');
-    //     saveErrorTags($errorTagInput.val());
-    //     return;
-    //   }
-    //   $errorTagInput.attr('disabled', false);
-    //   $errorTagButton.html('保存');
-    // });
     return $errorTagsSelector;
   }
 
@@ -304,7 +308,7 @@
       onConfirm() {
         const finalErrorTags = $errorTagInput && $errorTagInput.val() || [];
         submitDoubleCheck(status, finalErrorTags);
-      },
+      }
     });
   }
 
@@ -315,21 +319,27 @@
     confirmDoubleCheck('OK');
   });
 
-  function saveErrorTags(errorTags) {
-    const errorTagsArr = (errorTags || []).map(t => JSON.parse(t));
-    $.ajax({
-      type: 'POST',
-      url: "{{ url_for('api_experimental.save_curve_error_tag',dag_id=task_instance.dag_id, task_id=task_instance.task_id, execution_date=task_instance.execution_date ) }}",
-      data: JSON.stringify({
-        csrf_token: '{{ csrf_token() }}',
-        error_tags: errorTagsArr,
-      }),
-      headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
-      dataType: 'json',
-      contentType: 'application/json',
-    }).then((resp) => {
-      console.log(resp);
-    });
+  function renderBaseInfoRow(label, value) {
+    return $(
+      `<tr>
+        <td><h4 class="m-0 p-1">${label}</h4></td>
+        <td><h4 class="m-0 p-1">${value}</h4></td>
+      </tr>`
+    );
+  }
+
+  function renderBaseInfo() {
+    const info = [
+      { label: '螺栓编号', value: '{{result.nut_no}}' },
+      { label: '工段', value: '{{controller.line_code}}' },
+      { label: '工位名称', value: '{{controller.work_center_name}}' },
+      { label: '工位编号', value: '{{controller.work_center_code}}' },
+      { label: '控制器', value: '{{controller.controller_name}}' },
+      { label: '拧紧时间', value: '{{result.update_time}}' },
+      { label: '工具序列号', value: '{{result.tool_sn}}' }
+    ];
+
+    $('#base-info-content').append(info.map(i => renderBaseInfoRow(i.label, i.value)));
   }
 
   function getTaskErrorTags() {
@@ -364,6 +374,7 @@
   }
 
   $(document).ready(() => {
+    renderBaseInfo();
     chartInit();
     renderChart();
     renderResultDetail();

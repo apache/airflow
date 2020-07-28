@@ -10,11 +10,14 @@ else ('panel-success base-info-item' if result =='OK' else 'panel-default base-i
   {% else %}
   <div class="d-flex flex-column justify-content-center align-items-center">
 
-    <h2>{{result}}</h2>
+    <h2 class="{{'text-danger' if result =='NOK' else ('text-success' if result =='OK' else '')}}"
+        style="font-weight: bolder">
+      {{result}}
+    </h2>
     {% if info %}
     <h4>{{info}}</h4>
     {% else %}
-    <h4> </h4>
+    <h4></h4>
     {% endif %}
   </div>
   {% endif %}
