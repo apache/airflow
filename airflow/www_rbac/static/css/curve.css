@@ -14,17 +14,22 @@ body {
   overflow: hidden;
   display: grid;
   grid-template-columns: 1fr 3fr;
-  grid-template-rows: 20% auto 1fr;
+  grid-template-rows: 20% 20% 1fr;
   grid-auto-flow: row dense;
 }
 
 #base-info-container {
+  grid-row: span 2;
+  grid-column: span 1;
+}
+
+#result-check-container {
   grid-row: span 1;
-  grid-column: span 2;
+  grid-column: span 1;
 }
 
 #result-container {
-  grid-row: span 2;
+  grid-row: span 1;
   grid-column: span 1;
 }
 
@@ -39,8 +44,8 @@ body {
 .base-info-item {
   --height: 100%;
   --width: auto;
-  padding: auto;
-  flex: auto;
+  /*padding: auto;*/
+  flex: 1;
 }
 
 .button-double-check {
@@ -57,8 +62,8 @@ body {
 }
 
 #echarts-container {
-  --width: auto;
-  --height: auto;
+  grid-row: span 2;
+  grid-column: span 1;
 }
 
 #echarts-main {
@@ -80,4 +85,8 @@ body {
   white-space: normal;
   word-wrap: break-word;
   word-break: break-all;
+}
+
+#error-tag-label-container {
+  width: 100%;
 }
