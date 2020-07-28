@@ -57,10 +57,14 @@ Fundamentals
 
    * - :mod:`airflow.operators.branch_operator`
      -
+
    * - :mod:`airflow.operators.dagrun_operator`
      -
 
    * - :mod:`airflow.operators.dummy_operator`
+     -
+
+   * - :mod:`airflow.operators.email`
      -
 
    * - :mod:`airflow.operators.generic_transfer`
@@ -1596,12 +1600,6 @@ communication protocols or interface.
      -
      - :mod:`airflow.providers.ssh.hooks.ssh`
      - :mod:`airflow.providers.ssh.operators.ssh`
-     -
-
-   * - `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc821>`__
-     -
-     -
-     - :mod:`airflow.providers.email.operators.email`
      -
 
    * - `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-gb/windows/win32/winrm/portal>`__

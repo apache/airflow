@@ -380,7 +380,7 @@ Airflow provides operators for many common tasks, including:
 
 - :class:`~airflow.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
-- :class:`~airflow.providers.email.operators.email.EmailOperator` - sends an email
+- :class:`~airflow.operators.email.EmailOperator` - sends an email
 - :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
 - :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`,
   :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator`,

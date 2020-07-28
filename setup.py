@@ -510,7 +510,6 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "discord": [],
     "docker": docker,
     "elasticsearch": [],
-    "email": [],
     "exasol": exasol,
     "facebook": facebook,
     "ftp": [],
