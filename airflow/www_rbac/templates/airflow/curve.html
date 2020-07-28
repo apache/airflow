@@ -250,7 +250,7 @@
     }).then((resp) => {
       const resultClass = finalState === 'OK' ? 'panel-success' : 'panel-danger';
       $('#double-check-card').addClass(resultClass);
-      $('#double-check-result').html(`<h2 class="m-0 panel-title">${finalState}</h2>`);
+      $('#double-check-result').html(`<h2>${finalState}</h2>`);
       $('#doubleCheckModal').modal('hide');
       if (resp && resp.response === 'ok') {
         $('#double_check_result').html(`二次确认为${finalState}`);
