@@ -53,7 +53,7 @@
   const treeRoles = {
     cluster: 'cluster',
     group: 'group',
-    curve: 'curve',
+    curve: 'curve'
   };
 
   function randomColor() {
@@ -82,7 +82,7 @@
         && c.centroid === data.centroid
         && c.idx === data.idx);
       renderChart();
-    },
+    }
   };
 
   function doRemoveCurve(version, mode, groupCenterIdx, curveIdx) {
@@ -94,11 +94,11 @@
         version,
         mode,
         group_center_idx: groupCenterIdx,
-        curve_idx: curveIdx,
+        curve_idx: curveIdx
       }),
       headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
       dataType: 'json',
-      contentType: 'application/json',
+      contentType: 'application/json'
     }).then((resp) => {
       console.log(resp);
       const { error, data } = resp;
@@ -115,7 +115,7 @@
 
   function showRemoveCurveDialog(name, color) {
     const curve = curves.find(c => c.name === name);
-    showDialog('删除曲线', `<p>确认删除曲线 <span class="color-indicator" style="display:inline-block;background-color: ${color}"></span>${name}</p>`, {
+    showDialog('删除曲线', `<h4>确认删除曲线 <span class="color-indicator" style="display:inline-block;background-color: ${color}"></span>${name}</h4>`, {
       onConfirm() {
         doRemoveCurve(
           curveTemplate.version || 0,
@@ -125,14 +125,14 @@
         );
       },
       confirmText: '删除',
-      confirmClass: 'btn-danger',
+      confirmClass: 'btn-danger'
     });
   }
 
   function templateListInit() {
     const treeView = $('#tree');
     treeView.treeview({
-      data: tree,
+      data: tree
       // showCheckbox: true,
     });
     treeView.off('nodeSelected');
@@ -188,7 +188,7 @@
         text: `<span style="user-select: none;">模板簇-模式${mode}</span>`,
         nodes: [],
         role: treeRoles.cluster,
-        mode,
+        mode
       };
       const { curve_template_group_array: templateGroup } = cluster;
       templateGroup.forEach((group, groupIdx) => {
@@ -198,7 +198,7 @@
           nodes: [],
           mode,
           centroid,
-          role: treeRoles.group,
+          role: treeRoles.group
         };
         curvesData.forEach((curve, idx) => {
           const { template_angle: cur_w, template_torque: cur_m, start_point } = curve;
@@ -213,7 +213,7 @@
             cur_m,
             color,
             name,
-            cur_t: genTimeSeries(timeStep, cur_w.length),
+            cur_t: genTimeSeries(timeStep, cur_w.length)
           });
           gRow.nodes.push({
             text: `<span style="user-select: none;height:100%;">
@@ -227,7 +227,7 @@
             role: treeRoles.curve,
             centroid,
             idx,
-            mode,
+            mode
           });
         });
         row.nodes.push(gRow);
@@ -253,61 +253,89 @@
       type: 'line',
       data: genData(c, xKey, yKey),
       cursor: 'pointer',
+      symbol: 'circle',
       showSymbol: false,
       clip: false,
       itemStyle: {
         color: c.color,
+
+        borderWidth: 2,
       },
       lineStyle: {
         color: c.color,
+        width: 3
       },
       markLine: {
         // data: [
         //   { type: 'min', name: '最小值' },
         //   { type: 'max', name: '最大值' },
         // ],
-      },
+      }
     }));
   }
 
   function renderChart() {
     const { xName, yName } = chartParams;
     const option = {
-      title: {
-        text: `${xName}-${yName}图`,
-      },
+      // title: {
+      //   text: `${xName}-${yName}图`
+      // },
       legend: {
         type: 'scroll',
-        data: [yName],
+        data: [yName]
       },
-      xAxis: { type: 'value' },
-      yAxis: { type: 'value' },
+      grid: {
+        bottom: 100
+      },
+      xAxis: {
+        type: 'value',
+        name: xName,
+        nameLocation: 'middle',
+        nameGap: 30,
+        axisLabel: {
+          fontSize: 16
+        }
+      },
+      yAxis: {
+        type: 'value',
+        name: yName,
+        nameLocation: 'middle',
+        nameRotate: 0,
+        nameGap: 50,
+        axisLabel: {
+          fontSize: 16
+        }
+      },
       series: genDataSeries(),
+      textStyle: {
+        fontFamily: 'monospace',
+        fontSize: 18
+      },
       dataZoom: [
         {
           type: 'slider',
           xAxisIndex: 0,
-          filterMode: 'empty',
+          filterMode: 'none'
         },
         {
           type: 'slider',
           yAxisIndex: 0,
-          filterMode: 'empty',
+          filterMode: 'none'
         },
         {
           type: 'inside',
           xAxisIndex: 0,
-          filterMode: 'empty',
+          filterMode: 'none'
         },
         {
           type: 'inside',
           yAxisIndex: 0,
-          filterMode: 'empty',
-        },
+          filterMode: 'none'
+        }
       ],
       tooltip: {
-        trigger: 'axis',
-      },
+        trigger: 'axis'
+      }
     };
     curveChart.setOption(option, true);
   }

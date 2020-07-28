@@ -112,15 +112,6 @@
     const { xName, yName } = chartParams;
 
     const option = {
-      // title: {
-      //   text: `${xName}-${yName}图`,
-      //   textStyle: {
-      //     color: '#17222a',
-      //     fontFamily: 'Courier New',
-      //     fontSize: 20,
-      //     fontWeight: 'bolder'
-      //   }
-      // },
       legend: {
         type: 'scroll',
         data: [yName]
@@ -331,11 +322,11 @@
   function renderBaseInfo() {
     const info = [
       { label: '螺栓编号', value: '{{result.nut_no}}' },
+      { label: '拧紧时间', value: '{{result.update_time}}' },
       { label: '工段', value: '{{controller.line_code}}' },
       { label: '工位名称', value: '{{controller.work_center_name}}' },
       { label: '工位编号', value: '{{controller.work_center_code}}' },
       { label: '控制器', value: '{{controller.controller_name}}' },
-      { label: '拧紧时间', value: '{{result.update_time}}' },
       { label: '工具序列号', value: '{{result.tool_sn}}' }
     ];
 
