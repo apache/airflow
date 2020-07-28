@@ -197,3 +197,18 @@ class ErrorTagForm(DynamicForm):
     label = StringField(
         lazy_gettext('Label'),
         widget=BS3TextFieldWidget())
+
+
+class TighteningControllerForm(DynamicForm):
+    controller_name = StringField(
+        lazy_gettext('Controller_name'),
+        widget=BS3TextFieldWidget())
+    line_code = StringField(
+        lazy_gettext('Line_code'),
+        widget=BS3TextFieldWidget())
+    work_center_code = StringField(
+        lazy_gettext('Work_center_code'),
+        widget=BS3TextFieldWidget())
+    work_center_name = StringField(
+        lazy_gettext('Work_center_name'),
+        widget=BS3TextFieldWidget())

@@ -15,7 +15,7 @@ class TighteningController(Base):
     work_center_code = Column(String(1000), nullable=False)
     work_center_name = Column(String(1000), nullable=True)
 
-    def __init__(self, controller_name, line_code, work_center_code, work_center_name=None):
+    def __init__(self, controller_name=None, line_code=None, work_center_code=None, work_center_name=None):
         self.controller_name = controller_name
         self.line_code = line_code
         self.work_center_code = work_center_code
