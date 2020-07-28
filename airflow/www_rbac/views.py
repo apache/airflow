@@ -64,6 +64,7 @@ from airflow.models import Variable, Connection, DagModel, DagRun, DagTag, Log, 
 from airflow.exceptions import AirflowException
 from airflow.models.dagcode import DagCode
 from airflow.models.error_tag import ErrorTag
+from airflow.models.tightening_controller import TighteningController
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
@@ -77,7 +78,7 @@ from airflow.www_rbac.app import app, appbuilder
 from airflow.www_rbac.decorators import action_logging, gzipped, has_dag_access
 from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DateTimeWithNumRunsWithDagRunsForm, VariableForm,
-                                    DagRunForm, ConnectionForm, ErrorTagForm)
+                                    DagRunForm, ConnectionForm, ErrorTagForm, TighteningControllerForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
 from flask_wtf.csrf import CSRFProtect
 from airflow.www_rbac.api.experimental.utils import get_curve_entity_ids, get_curve, get_result
@@ -2396,6 +2397,31 @@ class ErrorTagModelView(AirflowModelView):
     add_form = edit_form = ErrorTagForm
     add_template = 'airflow/error_tag_create.html'
     edit_template = 'airflow/error_tag_edit.html'
+
+    base_order = ('id', 'asc')
+
+    @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
+            single=False)
+    @has_dag_access(can_dag_edit=True)
+    def action_muldelete(self, items):
+        self.datamodel.delete_all(items)
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+
+class TighteningController(AirflowModelView):
+    route_base = '/tightening_controller'
+
+    datamodel = AirflowModelView.CustomSQLAInterface(TighteningController)
+
+    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
+
+    extra_fields = []
+    list_columns = ['controller_name', 'line_code', 'work_center_code', 'work_center_name']
+    add_columns = edit_columns = ['controller_name', 'line_code', 'work_center_code', 'work_center_name'] + extra_fields
+    add_form = edit_form = TighteningControllerForm
+    add_template = 'airflow/tightening_controller_create.html'
+    edit_template = 'airflow/tightening_controller_edit.html'
 
     base_order = ('id', 'asc')
 

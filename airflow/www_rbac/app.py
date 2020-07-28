@@ -21,9 +21,11 @@ import logging
 import socket
 from datetime import timedelta
 from typing import Any
-
+import flask_login
 import six
+import datetime
 import pendulum
+import flask
 from flask import Flask, session as flask_session
 from flask_appbuilder import AppBuilder, SQLA
 from flask_caching import Cache
@@ -153,6 +155,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 category="Admin")
             appbuilder.add_view(views.ErrorTagModelView,
                                 "Error Tags",
+                                category="Admin")
+            appbuilder.add_view(views.TighteningController,
+                                "Tightening Controller",
                                 category="Admin")
             appbuilder.add_view(views.PoolModelView,
                                 "Pools",
