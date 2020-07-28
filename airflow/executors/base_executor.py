@@ -264,3 +264,9 @@ class BaseExecutor(LoggingMixin):
         This method is called when the daemon receives a SIGTERM
         """
         raise NotImplementedError()
+
+    @staticmethod
+    def validate_command(command: List[str]) -> None:
+        """Check if the command to execute is airflow comnand"""
+        if command[0:3] != ["airflow", "tasks", "run"]:
+            raise ValueError('The command must start with ["airflow", "tasks", "run"].')

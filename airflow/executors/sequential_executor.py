@@ -49,10 +49,7 @@ class SequentialExecutor(BaseExecutor):
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
-
-        if command[0:3] != ["airflow", "tasks", "run"]:
-            raise ValueError('The command must start with ["airflow", "tasks", "run"].')
-
+        self.validate_command(command)
         self.commands_to_run.append((key, command))
 
     def sync(self) -> None:
