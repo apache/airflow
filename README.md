@@ -26,6 +26,7 @@
 [![License](http://img.shields.io/:license-Apache%202-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
+[![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
 
 _NOTE: The transition from 1.8.0 (or before) to 1.8.1 (or after) requires uninstalling Apache Airflow before installing the new version. The package name was changed from `airflow` to `apache-airflow` as of version 1.8.1._
 
@@ -415,5 +416,5 @@ Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.
 
 
 - [Documentation](https://airflow.apache.org/)
-- [Chat](https://apache-airflow-slack.herokuapp.com/)
+- [Chat](https://s.apache.org/airflow-slack)
 - [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)
