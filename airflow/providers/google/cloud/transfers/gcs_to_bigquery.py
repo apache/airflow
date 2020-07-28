@@ -20,6 +20,7 @@ This module contains a Google Cloud Storage to BigQuery operator.
 """
 
 import json
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -112,9 +113,9 @@ class GCSToBigQueryOperator(BaseOperator):
     :param google_cloud_storage_conn_id: (Optional) The connection ID used to connect to Google Cloud
         Platform and interact with the Google Cloud Storage service.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to
-        work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
@@ -149,9 +150,18 @@ class GCSToBigQueryOperator(BaseOperator):
     :param location: [Optional] The geographic location of the job. Required except for US and EU.
         See details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type location: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     template_fields = ('bucket', 'source_objects',
-                       'schema_object', 'destination_project_dataset_table')
+                       'schema_object', 'destination_project_dataset_table', 'impersonation_chain',)
     template_ext = ('.sql',)
     ui_color = '#f0eee4'
 
@@ -187,6 +197,7 @@ class GCSToBigQueryOperator(BaseOperator):
                  autodetect=True,
                  encryption_configuration=None,
                  location=None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs):
 
         super().__init__(**kwargs)
@@ -229,17 +240,21 @@ class GCSToBigQueryOperator(BaseOperator):
         self.autodetect = autodetect
         self.encryption_configuration = encryption_configuration
         self.location = location
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to,
-                               location=self.location)
+                               location=self.location,
+                               impersonation_chain=self.impersonation_chain)
 
         if not self.schema_fields:
             if self.schema_object and self.source_format != 'DATASTORE_BACKUP':
                 gcs_hook = GCSHook(
                     google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                    delegate_to=self.delegate_to)
+                    delegate_to=self.delegate_to,
+                    impersonation_chain=self.impersonation_chain,
+                )
                 schema_fields = json.loads(gcs_hook.download(
                     self.bucket,
                     self.schema_object).decode("utf-8"))

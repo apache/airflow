@@ -49,7 +49,10 @@ class TestCloudTasksQueueCreate(unittest.TestCase):
             location=LOCATION, task_queue=Queue(), task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.create_queue.assert_called_once_with(
             location=LOCATION,
             task_queue=Queue(),
@@ -69,7 +72,10 @@ class TestCloudTasksQueueUpdate(unittest.TestCase):
             task_queue=Queue(name=FULL_QUEUE_PATH), task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.update_queue.assert_called_once_with(
             task_queue=Queue(name=FULL_QUEUE_PATH),
             project_id=None,
@@ -90,7 +96,10 @@ class TestCloudTasksQueueGet(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.get_queue.assert_called_once_with(
             location=LOCATION,
             queue_name=QUEUE_ID,
@@ -107,7 +116,10 @@ class TestCloudTasksQueuesList(unittest.TestCase):
         mock_hook.return_value.list_queues.return_value = mock.MagicMock()
         operator = CloudTasksQueuesListOperator(location=LOCATION, task_id="id")
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.list_queues.assert_called_once_with(
             location=LOCATION,
             project_id=None,
@@ -127,7 +139,10 @@ class TestCloudTasksQueueDelete(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.delete_queue.assert_called_once_with(
             location=LOCATION,
             queue_name=QUEUE_ID,
@@ -146,7 +161,10 @@ class TestCloudTasksQueuePurge(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.purge_queue.assert_called_once_with(
             location=LOCATION,
             queue_name=QUEUE_ID,
@@ -165,7 +183,10 @@ class TestCloudTasksQueuePause(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.pause_queue.assert_called_once_with(
             location=LOCATION,
             queue_name=QUEUE_ID,
@@ -184,7 +205,10 @@ class TestCloudTasksQueueResume(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.resume_queue.assert_called_once_with(
             location=LOCATION,
             queue_name=QUEUE_ID,
@@ -203,7 +227,10 @@ class TestCloudTasksTaskCreate(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task=Task(), task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.create_task.assert_called_once_with(
             location=LOCATION,
             queue_name=QUEUE_ID,
@@ -225,7 +252,10 @@ class TestCloudTasksTaskGet(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.get_task.assert_called_once_with(
             location=LOCATION,
             queue_name=QUEUE_ID,
@@ -246,7 +276,10 @@ class TestCloudTasksTasksList(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.list_tasks.assert_called_once_with(
             location=LOCATION,
             queue_name=QUEUE_ID,
@@ -267,7 +300,10 @@ class TestCloudTasksTaskDelete(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.delete_task.assert_called_once_with(
             location=LOCATION,
             queue_name=QUEUE_ID,
@@ -287,7 +323,10 @@ class TestCloudTasksTaskRun(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, task_id="id"
         )
         operator.execute(context=None)
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+        )
         mock_hook.return_value.run_task.assert_called_once_with(
             location=LOCATION,
             queue_name=QUEUE_ID,

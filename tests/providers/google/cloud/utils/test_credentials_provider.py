@@ -28,15 +28,19 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import (
-    _DEFAULT_SCOPES, AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, _get_scopes, _get_target_principal_and_delegates,
-    build_gcp_conn, get_credentials_and_project_id, provide_gcp_conn_and_credentials, provide_gcp_connection,
-    provide_gcp_credentials,
+    _DEFAULT_SCOPES, AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, _get_project_id_from_service_account_email,
+    _get_scopes, _get_target_principal_and_delegates, build_gcp_conn, get_credentials_and_project_id,
+    provide_gcp_conn_and_credentials, provide_gcp_connection, provide_gcp_credentials,
 )
 
 ENV_VALUE = "test_env"
 TEMP_VARIABLE = "temp_variable"
 KEY = str(uuid4())
 ENV_CRED = "temp_cred"
+ACCOUNT_1_SAME_PROJECT = "account_1@project_id.iam.gserviceaccount.com"
+ACCOUNT_2_SAME_PROJECT = "account_2@project_id.iam.gserviceaccount.com"
+ACCOUNT_3_ANOTHER_PROJECT = "account_3@another_project_id.iam.gserviceaccount.com"
+ANOTHER_PROJECT_ID = "another_project_id"
 
 
 class TestHelper(unittest.TestCase):
@@ -180,15 +184,17 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         mock_credentials = mock.MagicMock()
         mock_auth_default.return_value = (mock_credentials, self.test_project_id)
 
-        result = get_credentials_and_project_id(target_principal="ACCOUNT_1")
+        result = get_credentials_and_project_id(
+            target_principal=ACCOUNT_3_ANOTHER_PROJECT,
+        )
         mock_auth_default.assert_called_once_with(scopes=None)
         mock_impersonated_credentials.assert_called_once_with(
             source_credentials=mock_credentials,
-            target_principal="ACCOUNT_1",
+            target_principal=ACCOUNT_3_ANOTHER_PROJECT,
             delegates=None,
             target_scopes=None,
         )
-        self.assertEqual((mock_impersonated_credentials.return_value, self.test_project_id), result)
+        self.assertEqual((mock_impersonated_credentials.return_value, ANOTHER_PROJECT_ID), result)
 
     @mock.patch('airflow.providers.google.cloud.utils.credentials_provider.'
                 'impersonated_credentials.Credentials')
@@ -201,12 +207,12 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
 
         result = get_credentials_and_project_id(
             scopes=['scope1', 'scope2'],
-            target_principal="ACCOUNT_1",
+            target_principal=ACCOUNT_1_SAME_PROJECT,
         )
         mock_auth_default.assert_called_once_with(scopes=['scope1', 'scope2'])
         mock_impersonated_credentials.assert_called_once_with(
             source_credentials=mock_credentials,
-            target_principal="ACCOUNT_1",
+            target_principal=ACCOUNT_1_SAME_PROJECT,
             delegates=None,
             target_scopes=['scope1', 'scope2'],
         )
@@ -222,17 +228,17 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         mock_auth_default.return_value = (mock_credentials, self.test_project_id)
 
         result = get_credentials_and_project_id(
-            target_principal="ACCOUNT_3",
-            delegates=["ACCOUNT_1", "ACCOUNT_2"],
+            target_principal=ACCOUNT_3_ANOTHER_PROJECT,
+            delegates=[ACCOUNT_1_SAME_PROJECT, ACCOUNT_2_SAME_PROJECT],
         )
         mock_auth_default.assert_called_once_with(scopes=None)
         mock_impersonated_credentials.assert_called_once_with(
             source_credentials=mock_credentials,
-            target_principal="ACCOUNT_3",
-            delegates=["ACCOUNT_1", "ACCOUNT_2"],
+            target_principal=ACCOUNT_3_ANOTHER_PROJECT,
+            delegates=[ACCOUNT_1_SAME_PROJECT, ACCOUNT_2_SAME_PROJECT],
             target_scopes=None,
         )
-        self.assertEqual((mock_impersonated_credentials.return_value, self.test_project_id), result)
+        self.assertEqual((mock_impersonated_credentials.return_value, ANOTHER_PROJECT_ID), result)
 
     @mock.patch(
         'google.oauth2.service_account.Credentials.from_service_account_file',
@@ -327,11 +333,12 @@ class TestGetTargetPrincipalAndDelegates(unittest.TestCase):
         self.assertEqual(_get_target_principal_and_delegates(), (None, None))
 
     @parameterized.expand([
-        ('string', "ACCOUNT_1", ("ACCOUNT_1", None)),
+        ('string', ACCOUNT_1_SAME_PROJECT, (ACCOUNT_1_SAME_PROJECT, None)),
         ('empty_list', [], (None, None)),
-        ('single_element_list', ["ACCOUNT_1"], ("ACCOUNT_1", [])),
+        ('single_element_list', [ACCOUNT_1_SAME_PROJECT], (ACCOUNT_1_SAME_PROJECT, [])),
         ('multiple_elements_list',
-         ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"], ("ACCOUNT_3", ["ACCOUNT_1", "ACCOUNT_2"])),
+         [ACCOUNT_1_SAME_PROJECT, ACCOUNT_2_SAME_PROJECT, ACCOUNT_3_ANOTHER_PROJECT],
+         (ACCOUNT_3_ANOTHER_PROJECT, [ACCOUNT_1_SAME_PROJECT, ACCOUNT_2_SAME_PROJECT])),
     ])
     def test_get_target_principal_and_delegates_with_input(
         self, _, impersonation_chain, target_principal_and_delegates
@@ -340,3 +347,16 @@ class TestGetTargetPrincipalAndDelegates(unittest.TestCase):
             _get_target_principal_and_delegates(impersonation_chain),
             target_principal_and_delegates
         )
+
+
+class TestGetProjectIdFromServiceAccountEmail(unittest.TestCase):
+
+    def test_get_project_id_from_service_account_email(self,):
+        self.assertEqual(
+            _get_project_id_from_service_account_email(ACCOUNT_3_ANOTHER_PROJECT),
+            ANOTHER_PROJECT_ID,
+        )
+
+    def test_get_project_id_from_service_account_email_wrong_input(self):
+        with self.assertRaises(AirflowException):
+            _get_project_id_from_service_account_email("ACCOUNT_1")

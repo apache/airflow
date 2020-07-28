@@ -19,15 +19,15 @@
 This module contains Google Cloud Storage to S3 operator.
 """
 import warnings
-from typing import Iterable
+from typing import Iterable, Optional, Sequence, Union
 
+from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.operators.gcs import GCSListObjectsOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class GCSToS3Operator(GCSListObjectsOperator):
+class GCSToS3Operator(BaseOperator):
     """
     Synchronizes a Google Cloud Storage bucket with an S3 bucket.
 
@@ -45,8 +45,8 @@ class GCSToS3Operator(GCSListObjectsOperator):
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
         Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
     :param dest_aws_conn_id: The destination S3 connection
@@ -73,8 +73,18 @@ class GCSToS3Operator(GCSListObjectsOperator):
         If set to False, will upload only the files that are in the origin but not
         in the destination bucket.
     :type replace: bool
+    :param google_impersonation_chain: Optional Google service account to impersonate using
+        short-term credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter', 'dest_s3_key')
+    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter', 'dest_s3_key',
+                                      'google_impersonation_chain',)
     ui_color = '#f0eee4'
 
     @apply_defaults
@@ -89,7 +99,9 @@ class GCSToS3Operator(GCSListObjectsOperator):
                  dest_s3_key=None,
                  dest_verify=None,
                  replace=False,
+                 google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs):
+        super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
@@ -97,23 +109,32 @@ class GCSToS3Operator(GCSListObjectsOperator):
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
             gcp_conn_id = google_cloud_storage_conn_id
 
-        super().__init__(
-            bucket=bucket,
-            prefix=prefix,
-            delimiter=delimiter,
-            gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
-            **kwargs
-        )
-
+        self.bucket = bucket
+        self.prefix = prefix
+        self.delimiter = delimiter
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
         self.dest_aws_conn_id = dest_aws_conn_id
         self.dest_s3_key = dest_s3_key
         self.dest_verify = dest_verify
         self.replace = replace
+        self.google_impersonation_chain = google_impersonation_chain
 
     def execute(self, context):
-        # use the super to list all files in an Google Cloud Storage bucket
-        files = super().execute(context)
+        # list all files in an Google Cloud Storage bucket
+        hook = GCSHook(
+            google_cloud_storage_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.google_impersonation_chain,
+        )
+
+        self.log.info('Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
+                      self.bucket, self.delimiter, self.prefix)
+
+        files = hook.list(bucket_name=self.bucket,
+                          prefix=self.prefix,
+                          delimiter=self.delimiter)
+
         s3_hook = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
 
         if not self.replace:
@@ -131,10 +152,6 @@ class GCSToS3Operator(GCSListObjectsOperator):
             files = list(set(files) - set(existing_files))
 
         if files:
-            hook = GCSHook(
-                google_cloud_storage_conn_id=self.gcp_conn_id,
-                delegate_to=self.delegate_to
-            )
 
             for file in files:
                 file_bytes = hook.download(self.bucket, file)

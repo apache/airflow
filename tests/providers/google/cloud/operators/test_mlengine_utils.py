@@ -88,7 +88,8 @@ class TestCreateEvaluateOps(unittest.TestCase):
             hook_instance = mock_mlengine_hook.return_value
             hook_instance.create_job.return_value = success_message
             result = pred.execute(None)
-            mock_mlengine_hook.assert_called_once_with('google_cloud_default', None)
+            mock_mlengine_hook.assert_called_once_with('google_cloud_default', None,
+                                                       impersonation_chain=None,)
             hook_instance.create_job.assert_called_once_with(
                 project_id='test-project',
                 job={

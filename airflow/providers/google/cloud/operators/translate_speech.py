@@ -18,7 +18,7 @@
 """
 This module contains a Google Cloud Translate Speech operator.
 """
-from typing import Optional
+from typing import Optional, Sequence, Union
 
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 from google.protobuf.json_format import MessageToDict
@@ -96,9 +96,20 @@ class CloudTranslateSpeechOperator(BaseOperator):
         Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
 
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     """
     # [START translate_speech_template_fields]
-    template_fields = ('target_language', 'format_', 'source_language', 'model', 'project_id', 'gcp_conn_id')
+    template_fields = ('target_language', 'format_', 'source_language', 'model', 'project_id',
+                       'gcp_conn_id', 'impersonation_chain',)
     # [END translate_speech_template_fields]
 
     @apply_defaults
@@ -112,6 +123,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
         model: str,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -123,10 +135,17 @@ class CloudTranslateSpeechOperator(BaseOperator):
         self.model = model
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        speech_to_text_hook = CloudSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
-        translate_hook = CloudTranslateHook(gcp_conn_id=self.gcp_conn_id)
+        speech_to_text_hook = CloudSpeechToTextHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        translate_hook = CloudTranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         recognize_result = speech_to_text_hook.recognize_speech(
             config=self.config, audio=self.audio

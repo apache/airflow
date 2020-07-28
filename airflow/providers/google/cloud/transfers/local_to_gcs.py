@@ -21,6 +21,7 @@ This module contains operator for uploading local file(s) to GCS.
 import os
 import warnings
 from glob import glob
+from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -56,8 +57,17 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     :type delegate_to: str
     :param gzip: Allows for file to be compressed and uploaded as gzip
     :type gzip: bool
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('src', 'dst', 'bucket')
+    template_fields = ('src', 'dst', 'bucket', 'impersonation_chain',)
 
     @apply_defaults
     def __init__(self, *,
@@ -69,6 +79,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
                  mime_type='application/octet-stream',
                  delegate_to=None,
                  gzip=False,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs):
         super().__init__(**kwargs)
 
@@ -85,6 +96,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         self.mime_type = mime_type
         self.delegate_to = delegate_to
         self.gzip = gzip
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         """
@@ -92,7 +104,9 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         """
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to)
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         filepaths = self.src if isinstance(self.src, list) else glob(self.src)
         if os.path.basename(self.dst):  # path to a file

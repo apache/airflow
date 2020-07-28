@@ -21,6 +21,7 @@ This module allows you to transfer data from any Google API endpoint into a S3 B
 """
 import json
 import sys
+from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
@@ -68,17 +69,27 @@ class GoogleApiToS3Operator(BaseOperator):
     :type s3_overwrite: bool
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
     :param aws_conn_id: The connection id specifying the authentication information for the S3 Bucket.
     :type aws_conn_id: str
+    :param google_impersonation_chain: Optional Google service account to impersonate using
+        short-term credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
         'google_api_endpoint_params',
         's3_destination_key',
+        'google_impersonation_chain',
     )
     template_ext = ()
     ui_color = '#cc181e'
@@ -100,6 +111,7 @@ class GoogleApiToS3Operator(BaseOperator):
         gcp_conn_id='google_cloud_default',
         delegate_to=None,
         aws_conn_id='aws_default',
+        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -117,6 +129,7 @@ class GoogleApiToS3Operator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.aws_conn_id = aws_conn_id
+        self.google_impersonation_chain = google_impersonation_chain
 
     def execute(self, context):
         """
@@ -142,7 +155,8 @@ class GoogleApiToS3Operator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_service_name=self.google_api_service_name,
-            api_version=self.google_api_service_version
+            api_version=self.google_api_service_version,
+            impersonation_chain=self.google_impersonation_chain,
         )
         google_api_response = google_discovery_api_hook.query(
             endpoint=self.google_api_endpoint_path,

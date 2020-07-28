@@ -64,7 +64,10 @@ class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.delete_report.assert_called_once_with(
             profile_id=profile_id, report_id=report_id
@@ -130,13 +133,18 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.get_report_file.assert_called_once_with(
             profile_id=profile_id, report_id=report_id, file_id=file_id
         )
         gcs_hook_mock.assert_called_once_with(
-            google_cloud_storage_conn_id=GCP_CONN_ID, delegate_to=None
+            google_cloud_storage_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=None,
         )
         gcs_hook_mock.return_value.upload.assert_called_once_with(
             bucket_name=bucket_name,
@@ -178,7 +186,10 @@ class TestGoogleCampaignManagerInsertReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.insert_report.assert_called_once_with(
             profile_id=profile_id, report=report
@@ -233,7 +244,10 @@ class TestGoogleCampaignManagerRunReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.run_report.assert_called_once_with(
             profile_id=profile_id, report_id=report_id, synchronous=synchronous

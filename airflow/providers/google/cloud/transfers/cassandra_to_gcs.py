@@ -26,7 +26,7 @@ from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 from uuid import UUID
 
 from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
@@ -72,12 +72,21 @@ class CassandraToGCSOperator(BaseOperator):
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
         Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to
-        work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('cql', 'bucket', 'filename', 'schema_filename',)
+    template_fields = ('cql', 'bucket', 'filename', 'schema_filename', 'impersonation_chain',)
     template_ext = ('.cql',)
     ui_color = '#a0e08c'
 
@@ -93,6 +102,7 @@ class CassandraToGCSOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -111,6 +121,7 @@ class CassandraToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.gzip = gzip
+        self.impersonation_chain = impersonation_chain
 
     # Default Cassandra to BigQuery type mapping
     CQL_TYPE_MAP = {
@@ -209,7 +220,9 @@ class CassandraToGCSOperator(BaseOperator):
     def _upload_to_gcs(self, files_to_upload: Dict[str, Any]):
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to)
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
         for obj, tmp_file_handle in files_to_upload.items():
             hook.upload(
                 bucket_name=self.bucket,

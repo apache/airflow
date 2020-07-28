@@ -22,6 +22,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
 
 MODULE = "airflow.providers.google.suite.transfers.gcs_to_gdrive"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestGcsToGDriveOperator(unittest.TestCase):
@@ -43,7 +44,11 @@ class TestGcsToGDriveOperator(unittest.TestCase):
 
         mock_gcs_hook.assert_has_calls(
             [
-                mock.call(delegate_to=None, google_cloud_storage_conn_id="google_cloud_default"),
+                mock.call(
+                    delegate_to=None,
+                    google_cloud_storage_conn_id="google_cloud_default",
+                    impersonation_chain=None,
+                ),
                 mock.call().download(
                     bucket_name="data", filename="TMP1", object_name="sales/sales-2017/january.avro"
                 ),
@@ -52,7 +57,11 @@ class TestGcsToGDriveOperator(unittest.TestCase):
 
         mock_gdrive.assert_has_calls(
             [
-                mock.call(delegate_to=None, gcp_conn_id="google_cloud_default"),
+                mock.call(
+                    delegate_to=None,
+                    gcp_conn_id="google_cloud_default",
+                    impersonation_chain=None,
+                ),
                 mock.call().upload_file(
                     local_location="TMP1", remote_location="copied_sales/2017/january-backup.avro"
                 ),
@@ -74,12 +83,17 @@ class TestGcsToGDriveOperator(unittest.TestCase):
             source_bucket="data",
             source_object="sales/sales-2017/*.avro",
             destination_object="copied_sales/2017/",
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         task.execute(mock.MagicMock())
         mock_gcs_hook.assert_has_calls(
             [
-                mock.call(delegate_to=None, google_cloud_storage_conn_id="google_cloud_default"),
+                mock.call(
+                    delegate_to=None,
+                    google_cloud_storage_conn_id="google_cloud_default",
+                    impersonation_chain=IMPERSONATION_CHAIN,
+                ),
                 mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
                 mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
                 mock.call().download(bucket_name="data", filename="TMP2", object_name="sales/B.avro"),
@@ -89,7 +103,11 @@ class TestGcsToGDriveOperator(unittest.TestCase):
 
         mock_gdrive.assert_has_calls(
             [
-                mock.call(delegate_to=None, gcp_conn_id="google_cloud_default"),
+                mock.call(
+                    delegate_to=None,
+                    gcp_conn_id="google_cloud_default",
+                    impersonation_chain=IMPERSONATION_CHAIN,
+                ),
                 mock.call().upload_file(local_location="TMP1", remote_location="sales/A.avro"),
                 mock.call().upload_file(local_location="TMP2", remote_location="sales/B.avro"),
                 mock.call().upload_file(local_location="TMP3", remote_location="sales/C.avro"),
@@ -109,12 +127,17 @@ class TestGcsToGDriveOperator(unittest.TestCase):
             source_bucket="data",
             source_object="sales/sales-2017/*.avro",
             move_object=True,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         task.execute(mock.MagicMock())
         mock_gcs_hook.assert_has_calls(
             [
-                mock.call(delegate_to=None, google_cloud_storage_conn_id="google_cloud_default"),
+                mock.call(
+                    delegate_to=None,
+                    google_cloud_storage_conn_id="google_cloud_default",
+                    impersonation_chain=IMPERSONATION_CHAIN,
+                ),
                 mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
                 mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
                 mock.call().delete("data", "sales/A.avro"),
@@ -127,7 +150,11 @@ class TestGcsToGDriveOperator(unittest.TestCase):
 
         mock_gdrive.assert_has_calls(
             [
-                mock.call(delegate_to=None, gcp_conn_id="google_cloud_default"),
+                mock.call(
+                    delegate_to=None,
+                    gcp_conn_id="google_cloud_default",
+                    impersonation_chain=IMPERSONATION_CHAIN,
+                ),
                 mock.call().upload_file(local_location="TMP1", remote_location="sales/A.avro"),
                 mock.call().upload_file(local_location="TMP2", remote_location="sales/B.avro"),
                 mock.call().upload_file(local_location="TMP3", remote_location="sales/C.avro"),

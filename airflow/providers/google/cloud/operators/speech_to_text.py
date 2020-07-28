@@ -18,7 +18,7 @@
 """
 This module contains a Google Speech to Text operator.
 """
-from typing import Optional
+from typing import Optional, Sequence, Union
 
 from google.api_core.retry import Retry
 from google.cloud.speech_v1.types import RecognitionConfig
@@ -57,9 +57,19 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request to complete.
         Note that if retry is specified, the timeout applies to each individual attempt.
     :type timeout: float
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_speech_to_text_synthesize_template_fields]
-    template_fields = ("audio", "config", "project_id", "gcp_conn_id", "timeout")
+    template_fields = ("audio", "config", "project_id", "gcp_conn_id", "timeout",
+                       "impersonation_chain",)
     # [END gcp_speech_to_text_synthesize_template_fields]
 
     @apply_defaults
@@ -71,6 +81,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         self.audio = audio
@@ -80,6 +91,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self._validate_inputs()
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def _validate_inputs(self):
@@ -89,7 +101,10 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
             raise AirflowException("The required parameter 'config' is empty")
 
     def execute(self, context):
-        hook = CloudSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudSpeechToTextHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         respones = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout
         )

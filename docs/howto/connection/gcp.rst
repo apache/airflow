@@ -100,3 +100,99 @@ Number of Retries
     .. code-block:: bash
 
        export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='google-cloud-platform://?extra__google_cloud_platform__key_path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra__google_cloud_platform__project=airflow&extra__google_cloud_platform__num_retries=5'
+
+Direct impersonation of a service account
+-----------------------------------------
+
+Google operators support `direct impersonation of a service account
+<https://cloud.google.com/iam/docs/understanding-service-accounts#directly_impersonating_a_service_account>`_
+via ``impersonation_chain`` argument.
+
+For example:
+
+.. code-block:: python
+
+        import os
+
+        from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator
+
+        IMPERSONATION_CHAIN = "impersonated_account@your_project_id.iam.gserviceaccount.com"
+
+        create_dataset = BigQueryCreateEmptyDatasetOperator(
+            task_id="create-dataset",
+            gcp_conn_id="google_cloud_default",
+            dataset_id="test_dataset",
+            location="southamerica-east1",
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+In order for this example to work, the account ``impersonated_account`` must grant the
+``Service Account Token Creator`` IAM role to the service account specified in the
+``google_cloud_default`` Connection. This will allow to generate ``impersonated_account``'s
+access token, which will allow to act on its behalf using its permissions. ``impersonated_account``
+does not even need to have a generated key.
+
+You can even impersonate accounts from projects other than the project of the originating account.
+In that case, the project id of the impersonated account will be used as the default project id in
+operators logic, unless you have explicitly specified the Project Id in Connection's configuration.
+
+Impersonation can also be used in chain: if the service account specified in Connection has
+``Service Account Token Creator`` role granted on account A, and account A has this role on account
+B, then we are able to impersonate account B.
+
+For example, with the following ``terraform`` setup...
+
+.. code-block:: terraform
+
+        terraform {
+          required_version = "> 0.11.14"
+        }
+        provider "google" {}
+        variable "project_id" {
+          type = "string"
+        }
+        resource "google_service_account" "sa_1" {
+          account_id   = "impersonation-chain-1"
+          project = "${var.project_id}"
+        }
+        resource "google_service_account" "sa_2" {
+          account_id   = "impersonation-chain-2"
+          project = "${var.project_id}"
+        }
+        resource "google_service_account" "sa_3" {
+          account_id   = "impersonation-chain-3"
+          project = "${var.project_id}"
+        }
+        resource "google_service_account" "sa_4" {
+          account_id   = "impersonation-chain-4"
+          project = "${var.project_id}"
+        }
+        resource "google_service_account_iam_member" "sa_4_member" {
+          service_account_id = "${google_service_account.sa_4.name}"
+          role               = "roles/iam.serviceAccountTokenCreator"
+          member             = "serviceAccount:${google_service_account.sa_3.email}"
+        }
+        resource "google_service_account_iam_member" "sa_3_member" {
+          service_account_id = "${google_service_account.sa_3.name}"
+          role               = "roles/iam.serviceAccountTokenCreator"
+          member             = "serviceAccount:${google_service_account.sa_2.email}"
+        }
+        resource "google_service_account_iam_member" "sa_2_member" {
+          service_account_id = "${google_service_account.sa_2.name}"
+          role               = "roles/iam.serviceAccountTokenCreator"
+          member             = "serviceAccount:${google_service_account.sa_1.email}"
+        }
+
+...we should configure Airflow Connection to use ``impersonation-chain-1`` account's key and provide
+following value for ``impersonation_chain`` argument...
+
+.. code-block:: python
+
+        PROJECT_ID = os.environ.get("TF_VAR_project_id", "your_project_id")
+        IMPERSONATION_CHAIN = [
+            f"impersonation-chain-2@{PROJECT_ID}.iam.gserviceaccount.com",
+            f"impersonation-chain-3@{PROJECT_ID}.iam.gserviceaccount.com",
+            f"impersonation-chain-4@{PROJECT_ID}.iam.gserviceaccount.com",
+        ]
+
+...then requests will be executed using ``impersonation-chain-4`` account's privileges.

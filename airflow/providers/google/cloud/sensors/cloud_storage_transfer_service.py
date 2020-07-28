@@ -18,7 +18,7 @@
 """
 This module contains a Google Cloud Transfer sensor.
 """
-from typing import Optional, Set, Union
+from typing import Optional, Sequence, Set, Union
 
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -47,10 +47,19 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
     :param gcp_conn_id: The connection ID used to connect to Google Cloud
         Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_transfer_job_sensor_template_fields]
-    template_fields = ('job_name',)
+    template_fields = ('job_name', 'impersonation_chain',)
     # [END gcp_transfer_job_sensor_template_fields]
 
     @apply_defaults
@@ -60,6 +69,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         expected_statuses: Union[Set[str], str],
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -69,9 +79,13 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         )
         self.project_id = project_id
         self.gcp_cloud_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def poke(self, context):
-        hook = CloudDataTransferServiceHook(gcp_conn_id=self.gcp_cloud_conn_id)
+        hook = CloudDataTransferServiceHook(
+            gcp_conn_id=self.gcp_cloud_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         operations = hook.list_transfer_operations(
             request_filter={'project_id': self.project_id, 'job_names': [self.job_name]}
         )

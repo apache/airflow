@@ -34,6 +34,7 @@ PREFIX = "TEST"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 TEST_OBJECT = "dir1/test-object"
 LOCAL_FILE_PATH = "/home/airflow/gcp/test-object"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
@@ -242,11 +243,13 @@ class TestGoogleCloudStorageSync(unittest.TestCase):
             allow_overwrite=True,
             gcp_conn_id="GCP_CONN_ID",
             delegate_to="DELEGATE_TO",
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         task.execute({})
         mock_hook.assert_called_once_with(
             google_cloud_storage_conn_id='GCP_CONN_ID',
-            delegate_to='DELEGATE_TO'
+            delegate_to='DELEGATE_TO',
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.sync.assert_called_once_with(
             source_bucket='SOURCE_BUCKET',

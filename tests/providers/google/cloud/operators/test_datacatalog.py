@@ -44,6 +44,7 @@ TEST_RETRY: Retry = Retry()
 TEST_TIMEOUT: float = 0.5
 TEST_METADATA: Sequence[Tuple[str, str]] = []
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
+TEST_IMPERSONATION_CHAIN: Sequence[str] = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TEST_ENTRY_GROUP_ID: str = "test-entry-group-id"
 TEST_TAG_TEMPLATE_ID: str = "test-tag-template-id"
 TEST_TAG_TEMPLATE_FIELD_ID: str = "test-tag-template-field-id"
@@ -104,10 +105,14 @@ class TestCloudDataCatalogCreateEntryOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         ti = mock.MagicMock()
         result = task.execute(context={"task_instance": ti})
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_entry.assert_called_once_with(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -140,10 +145,14 @@ class TestCloudDataCatalogCreateEntryOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         ti = mock.MagicMock()
         result = task.execute(context={"task_instance": ti})
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_entry.assert_called_once_with(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -183,10 +192,14 @@ class TestCloudDataCatalogCreateEntryGroupOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         ti = mock.MagicMock()
         result = task.execute(context={"task_instance": ti})
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_entry_group.assert_called_once_with(
             location=TEST_LOCATION,
             entry_group_id=TEST_ENTRY_GROUP_ID,
@@ -218,10 +231,14 @@ class TestCloudDataCatalogCreateTagOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         ti = mock.MagicMock()
         result = task.execute(context={"task_instance": ti})
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_tag.assert_called_once_with(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -253,10 +270,14 @@ class TestCloudDataCatalogCreateTagTemplateOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         ti = mock.MagicMock()
         result = task.execute(context={"task_instance": ti})
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_tag_template.assert_called_once_with(
             location=TEST_LOCATION,
             tag_template_id=TEST_TAG_TEMPLATE_ID,
@@ -287,10 +308,14 @@ class TestCloudDataCatalogCreateTagTemplateFieldOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         ti = mock.MagicMock()
         result = task.execute(context={"task_instance": ti})
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_tag_template_field.assert_called_once_with(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -318,9 +343,13 @@ class TestCloudDataCatalogDeleteEntryOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.delete_entry.assert_called_once_with(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -344,9 +373,13 @@ class TestCloudDataCatalogDeleteEntryGroupOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.delete_entry_group.assert_called_once_with(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -371,9 +404,13 @@ class TestCloudDataCatalogDeleteTagOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.delete_tag.assert_called_once_with(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -399,9 +436,13 @@ class TestCloudDataCatalogDeleteTagTemplateOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.delete_tag_template.assert_called_once_with(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -427,9 +468,13 @@ class TestCloudDataCatalogDeleteTagTemplateFieldOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.delete_tag_template_field.assert_called_once_with(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -455,9 +500,13 @@ class TestCloudDataCatalogGetEntryOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.get_entry.assert_called_once_with(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -482,9 +531,13 @@ class TestCloudDataCatalogGetEntryGroupOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.get_entry_group.assert_called_once_with(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -508,9 +561,13 @@ class TestCloudDataCatalogGetTagTemplateOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.get_tag_template.assert_called_once_with(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -535,9 +592,13 @@ class TestCloudDataCatalogListTagsOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.list_tags.assert_called_once_with(
             location=TEST_LOCATION,
             entry_group=TEST_ENTRY_GROUP_ID,
@@ -561,9 +622,13 @@ class TestCloudDataCatalogLookupEntryOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.lookup_entry.assert_called_once_with(
             linked_resource=TEST_LINKED_RESOURCE,
             sql_resource=TEST_SQL_RESOURCE,
@@ -587,9 +652,13 @@ class TestCloudDataCatalogRenameTagTemplateFieldOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.rename_tag_template_field.assert_called_once_with(
             location=TEST_LOCATION,
             tag_template=TEST_TAG_TEMPLATE_ID,
@@ -615,9 +684,13 @@ class TestCloudDataCatalogSearchCatalogOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.search_catalog.assert_called_once_with(
             scope=TEST_SCOPE,
             query=TEST_QUERY,
@@ -644,9 +717,13 @@ class TestCloudDataCatalogUpdateEntryOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.update_entry.assert_called_once_with(
             entry=TEST_ENTRY,
             update_mask=TEST_UPDATE_MASK,
@@ -676,9 +753,13 @@ class TestCloudDataCatalogUpdateTagOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.update_tag.assert_called_once_with(
             tag=TEST_TAG_ID,
             update_mask=TEST_UPDATE_MASK,
@@ -707,9 +788,13 @@ class TestCloudDataCatalogUpdateTagTemplateOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.update_tag_template.assert_called_once_with(
             tag_template=TEST_TAG_TEMPLATE_ID,
             update_mask=TEST_UPDATE_MASK,
@@ -738,9 +823,13 @@ class TestCloudDataCatalogUpdateTagTemplateFieldOperator(TestCase):
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
             gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(context=mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.update_tag_template_field.assert_called_once_with(
             tag_template_field=TEST_TAG_TEMPLATE_FIELD,
             update_mask=TEST_UPDATE_MASK,

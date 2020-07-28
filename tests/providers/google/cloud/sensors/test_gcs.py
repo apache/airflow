@@ -35,6 +35,8 @@ TEST_DELEGATE_TO = "TEST_DELEGATE_TO"
 
 TEST_GCP_CONN_ID = 'TEST_GCP_CONN_ID'
 
+TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+
 TEST_PREFIX = "TEST_PREFIX"
 
 TEST_DAG_ID = 'unit_tests_gcs_sensor'
@@ -65,6 +67,7 @@ class TestGoogleCloudStorageObjectSensor(TestCase):
             object=TEST_OBJECT,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.exists.return_value = True
 
@@ -73,7 +76,8 @@ class TestGoogleCloudStorageObjectSensor(TestCase):
         self.assertEqual(True, result)
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID
+            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.exists.assert_called_once_with(TEST_BUCKET, TEST_OBJECT)
 
@@ -111,13 +115,15 @@ class TestGoogleCloudStorageObjectUpdatedSensor(TestCase):
             object=TEST_OBJECT,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.is_updated_after.return_value = True
         result = task.poke(mock.MagicMock())
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID
+            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.is_updated_after.assert_called_once_with(TEST_BUCKET, TEST_OBJECT, mock.ANY)
         self.assertEqual(True, result)
@@ -132,13 +138,15 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
             prefix=TEST_PREFIX,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list.return_value = ["NOT_EMPTY_LIST"]
         result = task.poke(mock.MagicMock)
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID
+            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
         self.assertEqual(True, result)
@@ -165,6 +173,7 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
             prefix=TEST_PREFIX,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
             poke_interval=0)
         generated_messages = ['test-prefix/obj%s' % i for i in range(5)]
         mock_hook.return_value.list.return_value = generated_messages
@@ -173,7 +182,8 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
 
         mock_hook.assert_called_once_with(
             delegate_to=TEST_DELEGATE_TO,
-            google_cloud_storage_conn_id=TEST_GCP_CONN_ID
+            google_cloud_storage_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
         self.assertEqual(response, generated_messages)
@@ -214,6 +224,7 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
             allow_delete=False,
             google_cloud_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
             dag=self.dag
         )
 
@@ -225,6 +236,7 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             delegate_to=TEST_DELEGATE_TO,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         self.assertEqual(mock_hook.return_value, self.sensor.hook)
 

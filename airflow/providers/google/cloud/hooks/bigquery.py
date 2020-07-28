@@ -63,11 +63,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def __init__(self,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  use_legacy_sql: bool = True,
                  location: Optional[str] = None,
                  bigquery_conn_id: Optional[str] = None,
-                 api_resource_configs: Optional[Dict] = None) -> None:
+                 api_resource_configs: Optional[Dict] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if bigquery_conn_id:

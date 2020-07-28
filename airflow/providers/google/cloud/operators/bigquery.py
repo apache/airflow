@@ -26,7 +26,7 @@ import json
 import re
 import uuid
 import warnings
-from typing import Any, Dict, Iterable, List, Optional, Set, SupportsAbs, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union
 
 import attr
 from google.api_core.exceptions import Conflict
@@ -134,9 +134,18 @@ class BigQueryCheckOperator(CheckOperator):
     :param location: The geographic location of the job. See details at:
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type location: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('sql', 'gcp_conn_id',)
+    template_fields = ('sql', 'gcp_conn_id', 'impersonation_chain',)
     template_ext = ('.sql',)
     ui_color = BigQueryUIColors.CHECK.value
 
@@ -148,6 +157,7 @@ class BigQueryCheckOperator(CheckOperator):
         bigquery_conn_id: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, **kwargs)
@@ -159,12 +169,14 @@ class BigQueryCheckOperator(CheckOperator):
         self.sql = sql
         self.use_legacy_sql = use_legacy_sql
         self.location = location
+        self.impersonation_chain = impersonation_chain
 
     def get_db_hook(self) -> BigQueryHook:
         return BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             use_legacy_sql=self.use_legacy_sql,
-            location=self.location
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
         )
 
 
@@ -189,9 +201,18 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     :param location: The geographic location of the job. See details at:
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type location: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('sql', 'gcp_conn_id', 'pass_value',)
+    template_fields = ('sql', 'gcp_conn_id', 'pass_value', 'impersonation_chain',)
     template_ext = ('.sql',)
     ui_color = BigQueryUIColors.CHECK.value
 
@@ -205,6 +226,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
         bigquery_conn_id: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -221,12 +243,14 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
+        self.impersonation_chain = impersonation_chain
 
     def get_db_hook(self) -> BigQueryHook:
         return BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             use_legacy_sql=self.use_legacy_sql,
-            location=self.location
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
         )
 
 
@@ -264,9 +288,18 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     :param location: The geographic location of the job. See details at:
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type location: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('table', 'gcp_conn_id', 'sql1', 'sql2')
+    template_fields = ('table', 'gcp_conn_id', 'sql1', 'sql2', 'impersonation_chain',)
     ui_color = BigQueryUIColors.CHECK.value
 
     @apply_defaults
@@ -280,6 +313,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
         bigquery_conn_id: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -297,12 +331,14 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
         self.location = location
+        self.impersonation_chain = impersonation_chain
 
     def get_db_hook(self) -> BigQueryHook:
         return BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             use_legacy_sql=self.use_legacy_sql,
             location=self.location,
+            impersonation_chain=self.impersonation_chain,
         )
 
 
@@ -353,14 +389,24 @@ class BigQueryGetDataOperator(BaseOperator):
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param location: The location used for the operation.
     :type location: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('dataset_id', 'table_id', 'max_results', 'selected_fields')
+    template_fields = ('dataset_id', 'table_id', 'max_results', 'selected_fields',
+                       'impersonation_chain',)
     ui_color = BigQueryUIColors.QUERY.value
 
     @apply_defaults
@@ -374,6 +420,7 @@ class BigQueryGetDataOperator(BaseOperator):
         bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         location: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -391,6 +438,7 @@ class BigQueryGetDataOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.location = location
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         self.log.info('Fetching Data from %s.%s max results: %s',
@@ -398,7 +446,8 @@ class BigQueryGetDataOperator(BaseOperator):
 
         hook = BigQueryHook(
             bigquery_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         rows = hook.list_rows(
@@ -447,9 +496,9 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param udf_config: The User Defined Function configuration for the query.
         See https://cloud.google.com/bigquery/user-defined-functions for details.
@@ -507,9 +556,19 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
     :type encryption_configuration: dict
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('sql', 'destination_dataset_table', 'labels', 'query_params')
+    template_fields = ('sql', 'destination_dataset_table', 'labels', 'query_params',
+                       'impersonation_chain',)
     template_ext = ('.sql', )
     ui_color = BigQueryUIColors.QUERY.value
 
@@ -552,6 +611,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                  cluster_fields: Optional[List[str]] = None,
                  location: Optional[str] = None,
                  encryption_configuration: Optional[dict] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -588,6 +648,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         self.location = location
         self.encryption_configuration = encryption_configuration
         self.hook = None  # type: Optional[BigQueryHook]
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         if self.hook is None:
@@ -597,6 +658,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 use_legacy_sql=self.use_legacy_sql,
                 delegate_to=self.delegate_to,
                 location=self.location,
+                impersonation_chain=self.impersonation_chain,
             )
         if isinstance(self.sql, str):
             job_id = self.hook.run_query(
@@ -702,9 +764,9 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :param google_cloud_storage_conn_id: [Optional] The connection ID used to connect to Google Cloud
         Platform and interact with the Google Cloud Storage service.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to
-        work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param labels: a dictionary containing labels for the table, passed to BigQuery
 
@@ -770,6 +832,15 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
             .. seealso::
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
     :type cluster_fields: list
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     template_fields = (
         'dataset_id',
@@ -777,7 +848,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         'project_id',
         'gcs_schema_object',
         'labels',
-        'view'
+        'view',
+        'impersonation_chain',
     )
 
     ui_color = BigQueryUIColors.TABLE.value
@@ -801,6 +873,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         encryption_configuration: Optional[Dict] = None,
         location: Optional[str] = None,
         cluster_fields: Optional[List[str]] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -820,19 +893,23 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.location = location
         self.cluster_fields = cluster_fields
         self.table_resource = table_resource
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to,
-            location=self.location
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
         )
 
         if not self.schema_fields and self.gcs_schema_object:
             gcs_bucket, gcs_object = _parse_gcs_url(self.gcs_schema_object)
             gcs_hook = GCSHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                delegate_to=self.delegate_to)
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
             schema_fields = json.loads(gcs_hook.download(
                 gcs_bucket,
                 gcs_object).decode("utf-8"))
@@ -933,9 +1010,9 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         Platform and interact with the Google Cloud Storage service.
         cloud storage hook.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any. For this to
-        work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param src_fmt_configs: configure optional fields specific to the source format
     :type src_fmt_configs: dict
@@ -950,6 +1027,15 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type encryption_configuration: dict
     :param location: The location used for the operation.
     :type location: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     template_fields = (
         'bucket',
@@ -958,6 +1044,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         'destination_project_dataset_table',
         'labels',
         'table_resource',
+        'impersonation_chain',
     )
     ui_color = BigQueryUIColors.TABLE.value
 
@@ -986,6 +1073,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         labels: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
         location: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1043,18 +1131,22 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.labels = labels
         self.encryption_configuration = encryption_configuration
         self.location = location
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.bigquery_conn_id,
             delegate_to=self.delegate_to,
-            location=self.location
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
         )
 
         if not self.schema_fields and self.schema_object and self.source_format != 'DATASTORE_BACKUP':
             gcs_hook = GCSHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                delegate_to=self.delegate_to)
+                delegate_to=self.delegate_to,
+                impersonation_chain=self.impersonation_chain,
+            )
             schema_object = gcs_hook.download(self.bucket, self.schema_object)
             schema_fields = json.loads(schema_object.decode("utf-8"))
         else:
@@ -1115,6 +1207,19 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     **Example**: ::
 
@@ -1127,7 +1232,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
             dag=dag)
     """
 
-    template_fields = ('dataset_id', 'project_id')
+    template_fields = ('dataset_id', 'project_id', 'impersonation_chain',)
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
@@ -1139,6 +1244,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         if bigquery_conn_id:
@@ -1152,6 +1258,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         self.delete_contents = delete_contents
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
         super().__init__(**kwargs)
 
@@ -1160,7 +1267,8 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         bq_hook.delete_dataset(
@@ -1194,6 +1302,19 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
         **Example**: ::
 
             create_new_dataset = BigQueryCreateEmptyDatasetOperator(
@@ -1203,11 +1324,9 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                 gcp_conn_id='_my_gcp_conn_',
                 task_id='newDatasetCreator',
                 dag=dag)
-    :param location: The location used for the operation.
-    :type location: str
     """
 
-    template_fields = ('dataset_id', 'project_id', 'dataset_reference')
+    template_fields = ('dataset_id', 'project_id', 'dataset_reference', 'impersonation_chain',)
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
@@ -1220,6 +1339,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  bigquery_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
 
         if bigquery_conn_id:
@@ -1234,6 +1354,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.dataset_reference = dataset_reference if dataset_reference else {}
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
 
         super().__init__(**kwargs)
 
@@ -1241,7 +1362,8 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
-            location=self.location
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
         )
 
         try:
@@ -1273,11 +1395,25 @@ class BigQueryGetDatasetOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: dataset
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
-    template_fields = ('dataset_id', 'project_id')
+    template_fields = ('dataset_id', 'project_id', 'impersonation_chain',)
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
@@ -1287,16 +1423,20 @@ class BigQueryGetDatasetOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
+
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
-                               delegate_to=self.delegate_to)
+                               delegate_to=self.delegate_to,
+                               impersonation_chain=self.impersonation_chain)
 
         self.log.info('Start getting dataset: %s:%s', self.project_id, self.dataset_id)
 
@@ -1323,12 +1463,21 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
     :type max_results: int
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: (Optional) The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('dataset_id', 'project_id')
+    template_fields = ('dataset_id', 'project_id', 'impersonation_chain',)
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
@@ -1339,6 +1488,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         max_results: Optional[int] = None,
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         self.dataset_id = dataset_id
@@ -1346,12 +1496,14 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         self.max_results = max_results
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         return bq_hook.get_dataset_tables(
@@ -1381,11 +1533,25 @@ class BigQueryPatchDatasetOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: dataset
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
-    template_fields = ('dataset_id', 'project_id')
+    template_fields = ('dataset_id', 'project_id', 'impersonation_chain',)
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
@@ -1396,6 +1562,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
 
@@ -1408,12 +1575,14 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.dataset_resource = dataset_resource
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         return bq_hook.patch_dataset(
@@ -1448,11 +1617,25 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: dataset
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
     """
 
-    template_fields = ('dataset_id', 'project_id')
+    template_fields = ('dataset_id', 'project_id', 'impersonation_chain',)
     ui_color = BigQueryUIColors.DATASET.value
 
     @apply_defaults
@@ -1464,6 +1647,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         self.dataset_id = dataset_id
@@ -1472,12 +1656,14 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.dataset_resource = dataset_resource
         self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
         fields = self.fields or list(self.dataset_resource.keys())
 
@@ -1507,17 +1693,26 @@ class BigQueryDeleteTableOperator(BaseOperator):
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
         This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type bigquery_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param ignore_if_missing: if True, then return success even if the
         requested table does not exist.
     :type ignore_if_missing: bool
     :param location: The location used for the operation.
     :type location: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('deletion_dataset_table',)
+    template_fields = ('deletion_dataset_table', 'impersonation_chain',)
     ui_color = BigQueryUIColors.TABLE.value
 
     @apply_defaults
@@ -1529,6 +1724,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
         delegate_to: Optional[str] = None,
         ignore_if_missing: bool = False,
         location: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1544,13 +1740,15 @@ class BigQueryDeleteTableOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.ignore_if_missing = ignore_if_missing
         self.location = location
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         self.log.info('Deleting: %s', self.deletion_dataset_table)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
-            location=self.location
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
         )
         hook.delete_table(
             table_id=self.deletion_dataset_table,
@@ -1587,8 +1785,17 @@ class BigQueryUpsertTableOperator(BaseOperator):
     :type delegate_to: str
     :param location: The location used for the operation.
     :type location: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ('dataset_id', 'table_resource')
+    template_fields = ('dataset_id', 'table_resource', 'impersonation_chain',)
     ui_color = BigQueryUIColors.TABLE.value
 
     @apply_defaults
@@ -1601,6 +1808,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         location: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1617,6 +1825,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.location = location
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         self.log.info('Upserting Dataset: %s with table_resource: %s', self.dataset_id, self.table_resource)
@@ -1624,6 +1833,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
             bigquery_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
+            impersonation_chain=self.impersonation_chain,
         )
         hook.run_table_upsert(
             dataset_id=self.dataset_id,
@@ -1675,9 +1885,22 @@ class BigQueryInsertJobOperator(BaseOperator):
     :type location: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("configuration", "job_id")
+    template_fields = ("configuration", "job_id", "impersonation_chain",)
     template_ext = (".json", )
     ui_color = BigQueryUIColors.QUERY.value
 
@@ -1691,6 +1914,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         reattach_states: Optional[Set[str]] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1702,6 +1926,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.force_rerun = force_rerun
         self.reattach_states: Set[str] = reattach_states or set()
+        self.impersonation_chain = impersonation_chain
 
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
@@ -1748,6 +1973,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
 
         job_id = self._job_id(context)
