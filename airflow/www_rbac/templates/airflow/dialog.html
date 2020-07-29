@@ -2,10 +2,10 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title m-0"></h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
+        <h4 class="modal-title d-flex flex-row justify-content-between align-items-center">
+
+        </h4>
+
       </div>
       <div class="modal-body">
       </div>
@@ -27,7 +27,9 @@
     } = config;
     const modal = $('#dialogModal');
     modal.find('.modal-body').html(body);
-    modal.find('.modal-title').html(title);
+    modal.find('.modal-title').html(`${title}<button type="button" class="close align-self-center" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true" style="height:100%">&times;</span>
+          </button>`);
     modal.find('#btnDialogConfirm').off('click');
     const defaultFunction = function (ev) {
       console.log(ev);

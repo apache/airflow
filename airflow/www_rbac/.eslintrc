@@ -1,5 +1,13 @@
 {
   "extends": "airbnb-base",
   "parser": "babel-eslint",
-  "plugins": [ "html" ]
+  "plugins": [
+    "html"
+  ],
+  "rules": {
+    "comma-dangle": [
+      2,
+      "never"
+    ]
+  }
 }

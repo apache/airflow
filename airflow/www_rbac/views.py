@@ -414,6 +414,8 @@ class Airflow(AirflowBaseView):
                                                     default_var={})
         result_keys_translation_mapping = Variable.get('result_keys_translation_mapping', deserialize_json=True,
                                                        default_var={})
+        controller_name = ti.controller_name.split('@')[0] if ti.controller_name else ''
+        controller = TighteningController.find_controller(controller_name)
         error_tags = ErrorTag.get_all()
         can_verify = _has_access('set_final_state_ok', 'TaskInstanceModelView') \
                      and _has_access('set_final_state_nok', 'TaskInstanceModelView')
@@ -423,6 +425,7 @@ class Airflow(AirflowBaseView):
                                     resultKeysTranslationMapping=result_keys_translation_mapping,
                                     verify_error_map=verify_error_map,
                                     can_verify=can_verify,
+                                    controller=controller,
                                     errorTags=error_tags)
 
     @expose('/curves/<string:bolt_no>/<string:craft_type>')
@@ -2409,8 +2412,7 @@ class ErrorTagModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
 
-
-class TighteningController(AirflowModelView):
+class TighteningControllerView(AirflowModelView):
     route_base = '/tightening_controller'
 
     datamodel = AirflowModelView.CustomSQLAInterface(TighteningController)
@@ -2421,7 +2423,6 @@ class TighteningController(AirflowModelView):
     list_columns = ['controller_name', 'line_code', 'work_center_code', 'work_center_name']
     add_columns = edit_columns = ['controller_name', 'line_code', 'work_center_code', 'work_center_name'] + extra_fields
     add_form = edit_form = TighteningControllerForm
-    # list_template = 'airflow/tightening_controller_list.html'
     add_template = 'airflow/tightening_controller_create.html'
     edit_template = 'airflow/tightening_controller_edit.html'
     list_widget = AirflowControllerListWidget

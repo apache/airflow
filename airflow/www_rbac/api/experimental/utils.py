@@ -158,6 +158,7 @@ def form_analysis_result_trigger(result, entity_id, execution_date, task_id, dag
 
 def get_curve_entity_ids(bolt_number=None, craft_type=None):
     tasks = TaskInstance.list_tasks(craft_type, bolt_number)
+    tasks.sort(key=lambda t: t.execution_date, reverse=True)
     return list(map(lambda ti: ti.entity_id, tasks))
 
 

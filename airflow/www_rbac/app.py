@@ -156,7 +156,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.ErrorTagModelView,
                                 "Error Tags",
                                 category="Admin")
-            appbuilder.add_view(views.TighteningController,
+            appbuilder.add_view(views.TighteningControllerView,
                                 "Tightening Controller",
                                 category="Admin")
             appbuilder.add_view(views.PoolModelView,

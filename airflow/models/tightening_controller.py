@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from airflow.models.base import Base
+from airflow.utils.db import provide_session
 
 
 class TighteningController(Base):
@@ -20,3 +21,16 @@ class TighteningController(Base):
         self.line_code = line_code
         self.work_center_code = work_center_code
         self.work_center_name = work_center_name
+
+    @classmethod
+    @provide_session
+    def find_controller(cls, controller_name, session=None):
+        obj = session.query(cls).filter(cls.controller_name == controller_name).first()
+        if obj is None:
+            return {}
+        return {
+            'controller_name': obj.controller_name,
+            'line_code': obj.line_code,
+            'work_center_code': obj.work_center_code,
+            'work_center_name': obj.work_center_name
+        }
