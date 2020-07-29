@@ -17,6 +17,8 @@
 # under the License.
 from typing import Any, Dict, Optional
 
+from cached_property import cached_property
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -60,7 +62,6 @@ class AthenaSensor(BaseSensorOperator):
         self.query_execution_id = query_execution_id
         self.sleep_time = sleep_time
         self.max_retires = max_retires
-        self.hook = self.get_hook()
 
     def poke(self, context: Dict[Any, Any]) -> bool:
         state = self.hook.poll_query_status(self.query_execution_id, self.max_retires)
@@ -72,6 +73,7 @@ class AthenaSensor(BaseSensorOperator):
             return False
         return True
 
-    def get_hook(self) -> AWSAthenaHook:
+    @cached_property
+    def hook(self) -> AWSAthenaHook:
         """Create and return an AWSAthenaHook"""
         return AWSAthenaHook(self.aws_conn_id, self.sleep_time)

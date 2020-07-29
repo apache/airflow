@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 from typing import Any, Dict, Optional
 from uuid import uuid4
+
+from cached_property import cached_property
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
@@ -83,9 +84,9 @@ class AWSAthenaOperator(BaseOperator):
         self.sleep_time = sleep_time
         self.max_tries = max_tries
         self.query_execution_id = None  # type: Optional[str]
-        self.hook = self.get_hook()
 
-    def get_hook(self) -> AWSAthenaHook:
+    @cached_property
+    def hook(self) -> AWSAthenaHook:
         """Create and return an AWSAthenaHook."""
         return AWSAthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
 
