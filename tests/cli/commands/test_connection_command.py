@@ -358,24 +358,6 @@ class TestCliImportConnections(unittest.TestCase):
                     current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
                     self.assertEqual(expected_connection_uris[conn_id], {attr: getattr(current_conn, attr) for attr in expected_connection_uris[conn_id]})
 
-    @parameterized.expand(
-        (
-            (
-                {"CONN_ID": {'conn_type': 'mysql', 'host': 'host_1'}},
-                {"CONN_ID": {'conn_type': 'mysql', 'host': 'host_1'}}
-            ),
-        )
-    )    
-    def test_connections_import_disposition_restrict(self, file_content, expected_connection_uris):
-        """Test connections_import command with --conflict-disposition restrict"""
-        with pytest.raises(AirflowException, match='Connections with `conn_ids`=CONN_ID already exists\n') as e:
-            with mock_local_file(json.dumps(file_content)):
-                connection_command.connections_import(self.parser.parse_args([
-                        'connections', 'import', "a.json"]))
-
-                connection_command.connections_import(self.parser.parse_args([
-                            'connections', 'import', "a.json"]))
-
     
     @parameterized.expand(
         (
@@ -415,6 +397,13 @@ class TestCliImportConnections(unittest.TestCase):
            
             connection_command.connections_import(self.parser.parse_args([
                             'connections', 'import', 'a.json', '--conflict-disposition', 'overwrite']))
+
+            connection_command.connections_import(self.parser.parse_args([
+                            'connections', 'import', 'a.json', '--conflict-disposition', 'overwrite']))
+
+            with redirect_stdout(io.StringIO()) as stdout:
+                stdout = stdout.getvalue()
+                print(stdout)
  
             conn_id = 'CONN_ID3'
             with create_session() as session:

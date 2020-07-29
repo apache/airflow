@@ -160,7 +160,27 @@ def connections_delete(args):
 DIS_RESTRICT = 'restrict'
 DIS_OVERWRITE = 'overwrite'
 DIS_IGNORE = 'ignore'
+CREATED = 'created'
 DISPOSITIONS = [DIS_RESTRICT, DIS_OVERWRITE, DIS_IGNORE]
+
+
+def prep_import_status_msgs(conn_status_map):
+    msg = "\n"
+    for status, conn_list in conn_status_map.items():
+        if len(conn_list) > 0:
+            msg = msg + status + " : \n\t"
+            for conn in conn_list:
+                msg = msg + '\n\t`conn_id`={conn_id} : {uri}\n'
+                msg = msg.format(conn_id=conn.conn_id,
+                                    uri=conn.get_uri() or
+                                    urlunparse((conn.conn_type,
+                                                '{login}:{password}@{host}:{port}'
+                                                    .format(login=conn.conn_login or '',
+                                                            password='******' if conn.conn_password else '',
+                                                            host=conn.conn_host or '',
+                                                            port=conn.conn_port or ''),
+                                                conn.conn_schema or '', '', '', '')))
+    return msg
 
 @cli_utils.action_logging
 def connections_import(args):
@@ -176,7 +196,7 @@ def connections_import(args):
         raise SystemExit(msg)
 
     try:
-        new_conns_map = load_connections(args.file)
+        conns_map = load_connections(args.file)
     except AirflowException as e:
         return print(e)
 
@@ -191,56 +211,36 @@ def connections_import(args):
             'details.').format(overwrite=DIS_OVERWRITE, restrict=DIS_RESTRICT, ignore=DIS_IGNORE)
         return print(msg)
 
-    conflicting_connections = []
-    if disposition == DIS_RESTRICT:
-        for _, new_conn_list in new_conns_map.items():
-            for new_conn in new_conn_list:
-                with create_session() as session:
-                   if (session.query(Connection)
-                            .filter(Connection.conn_id == new_conn.conn_id).first()):
-                        if disposition == DIS_RESTRICT:
-                            conflicting_connections.append(new_conn.conn_id)
+    conn_status_map = {
+        DIS_OVERWRITE : [],
+        DIS_IGNORE: [],
+        CREATED : []
+    }
 
-        if len(conflicting_connections) > 0:
-            msg = "Connections with `conn_ids`={conn_ids} already exists\n"
-            msg = msg.format(conn_ids=', '.join(conflicting_connections))
-            raise AirflowException(msg)
+    try:
+        with create_session() as session:
+            for _, conn_list in conns_map.items():
+                for conn in conn_list:
+                    conn_row = (session.query(Connection)
+                            .filter(Connection.conn_id == conn.conn_id).first())
+                    if not conn_row:
+                        session.add(conn)
+                        conn_status_map[CREATED].append(conn)
+                    elif disposition == DIS_OVERWRITE:
+                        session.delete(conn_row)
+                        session.add(conn)
+                        conn_status_map[DIS_OVERWRITE].append(conn)
+                    elif disposition == DIS_IGNORE:
+                        conn_status_map[DIS_IGNORE].append(conn)
+                    else:
+                        msg = "\nConnection with `conn_id`={conn_ids} already exists"
+                        msg = msg.format(conn_ids=conn.conn_id)
+                        raise AirflowException(msg)
+            
+            print(prep_import_status_msgs(conn_status_map))
 
-    for _, new_conn_list in new_conns_map.items():
-        for new_conn in new_conn_list:
-            with create_session() as session:
-                conn = (session.query(Connection)
-                        .filter(Connection.conn_id == new_conn.conn_id).first()) 
-                if not conn:
-                    session.add(new_conn)
-                    msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-                    msg = msg.format(conn_id=new_conn.conn_id,
-                                     uri=new_conn.get_uri() or
-                                     urlunparse((new_conn.conn_type,
-                                                '{login}:{password}@{host}:{port}'
-                                                 .format(login=new_conn.conn_login or '',
-                                                         password='******' if new_conn.conn_password else '',
-                                                         host=new_conn.conn_host or '',
-                                                         port=new_conn.conn_port or ''),
-                                                 new_conn.conn_schema or '', '', '', '')))
-                    print(msg)
-                elif disposition == DIS_OVERWRITE:
-                    session.delete(conn)
-                    session.add(new_conn)
-                    msg = '\n\tSuccessfully updated `conn_id`={conn_id} : {uri}\n'
-                    msg = msg.format(conn_id=new_conn.conn_id,
-                                     uri=new_conn.get_uri() or
-                                     urlunparse((new_conn.conn_type,
-                                                '{login}:{password}@{host}:{port}'
-                                                 .format(login=new_conn.conn_login or '',
-                                                         password='******' if new_conn.conn_password else '',
-                                                         host=new_conn.conn_host or '',
-                                                         port=new_conn.conn_port or ''),
-                                                 new_conn.conn_schema or '', '', '', '')))
-                    print(msg)
-
-                elif disposition == DIS_IGNORE:
-                    msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
-                    msg = msg.format(conn_id=new_conn.conn_id)
-                    print(msg)
-                    
+    except Exception as e:
+        print(e)
+        session.rollback()
+    finally:
+        session.close()
