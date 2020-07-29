@@ -20,7 +20,7 @@
 import logging
 import flask_login
 from airflow.exceptions import AirflowConfigException
-from flask_login import current_user
+from flask_login import current_user, login_required, logout_user
 from flask import flash
 from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
