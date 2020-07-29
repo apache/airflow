@@ -17,6 +17,7 @@
 
 import io
 import json
+import pytest
 import unittest
 from contextlib import redirect_stdout, contextmanager
 from unittest import mock
@@ -25,6 +26,7 @@ from parameterized import parameterized
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import connection_command
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
@@ -354,5 +356,68 @@ class TestCliImportConnections(unittest.TestCase):
             with create_session() as session:
                 for conn_id in expected_connection_uris:
                     current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
-                    print(getattr(current_conn, 'conn_type'))
                     self.assertEqual(expected_connection_uris[conn_id], {attr: getattr(current_conn, attr) for attr in expected_connection_uris[conn_id]})
+
+    @parameterized.expand(
+        (
+            (
+                {"CONN_ID": {'conn_type': 'mysql', 'host': 'host_1'}},
+                {"CONN_ID": {'conn_type': 'mysql', 'host': 'host_1'}}
+            ),
+        )
+    )    
+    def test_connections_import_disposition_restrict(self, file_content, expected_connection_uris):
+        """Test connections_import command with --conflict-disposition restrict"""
+        with pytest.raises(AirflowException, match='Connections with `conn_ids`=CONN_ID already exists\n') as e:
+            with mock_local_file(json.dumps(file_content)):
+                connection_command.connections_import(self.parser.parse_args([
+                        'connections', 'import', "a.json"]))
+
+                connection_command.connections_import(self.parser.parse_args([
+                            'connections', 'import', "a.json"]))
+
+    
+    @parameterized.expand(
+        (
+            (
+                {"CONN_ID2": [{'conn_type': 'mysql', 'host': 'host_1'},{'conn_type': 'mysql', 'host': 'host_2'}]},
+                {"CONN_ID2": [{'conn_type': 'mysql', 'host': 'host_1'},{'conn_type': 'mysql', 'host': 'host_2'}]}
+            ),
+        )
+    )    
+    def test_connections_import_disposition_ignore(self, file_content, expected_connection_uris):
+        """Test connections_import command with --conflict-disposition ignore"""
+        with mock_local_file(json.dumps(file_content)):
+            connection_command.connections_import(self.parser.parse_args([
+                    'connections', 'import', 'a.json']))
+
+            connection_command.connections_import(self.parser.parse_args([
+                            'connections', 'import', 'a.json', '--conflict-disposition', 'ignore']))
+            
+            conn_id = 'CONN_ID2'
+            with create_session() as session:
+                current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+                current_conn_obj = {attr: getattr(current_conn, attr) for attr in expected_connection_uris[conn_id][0]}
+                self.assertEqual(expected_connection_uris[conn_id][0], {attr: getattr(current_conn, attr) for attr in expected_connection_uris[conn_id][0]})
+
+
+    @parameterized.expand(
+        (
+            (
+                {"CONN_ID3": [{'conn_type': 'mysql', 'host': 'host_1'},{'conn_type': 'mysql', 'host': 'host_2'}]},
+                {"CONN_ID3": [{'conn_type': 'mysql', 'host': 'host_1'},{'conn_type': 'mysql', 'host': 'host_2'}]}
+            ),
+        )
+    )    
+    def test_connections_import_disposition_overwrite(self, file_content, expected_connection_uris):
+        """Test connections_import command with --conflict-disposition overwrite"""
+        with mock_local_file(json.dumps(file_content)):
+           
+            connection_command.connections_import(self.parser.parse_args([
+                            'connections', 'import', 'a.json', '--conflict-disposition', 'overwrite']))
+ 
+            conn_id = 'CONN_ID3'
+            with create_session() as session:
+                current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+                current_conn_obj = {attr: getattr(current_conn, attr) for attr in expected_connection_uris[conn_id][0]}
+                self.assertEqual(expected_connection_uris[conn_id][1], {attr: getattr(current_conn, attr) for attr in expected_connection_uris[conn_id][1]})

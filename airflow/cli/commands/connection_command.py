@@ -157,13 +157,18 @@ def connections_delete(args):
             print(msg)
 
 
+DIS_RESTRICT = 'restrict'
+DIS_OVERWRITE = 'overwrite'
+DIS_IGNORE = 'ignore'
+DISPOSITIONS = [DIS_RESTRICT, DIS_OVERWRITE, DIS_IGNORE]
+
 @cli_utils.action_logging
 def connections_import(args):
     """Import new connections"""
     # check for the file path in arguments
     missing_args = []
     if not args.file:
-        missing_args.append('file-path')
+        missing_args.append('file')
 
     if missing_args:
         msg = ('The following args are required to import connections:' +
@@ -174,13 +179,39 @@ def connections_import(args):
         new_conns_map = load_connections(args.file)
     except AirflowException as e:
         return print(e)
-        
+
+    if not args.conflict_disposition:
+        disposition = DIS_RESTRICT
+    elif args.conflict_disposition in DISPOSITIONS:
+        disposition = args.conflict_disposition
+    else:
+        msg = (
+            'Not a valid argument to --conflict-disposition, please select among ' +
+            '{overwrite}, {ignore}, {restrict}. View help for more ' + 
+            'details.').format(overwrite=DIS_OVERWRITE, restrict=DIS_RESTRICT, ignore=DIS_IGNORE)
+        return print(msg)
+
+    conflicting_connections = []
+    if disposition == DIS_RESTRICT:
+        for _, new_conn_list in new_conns_map.items():
+            for new_conn in new_conn_list:
+                with create_session() as session:
+                   if (session.query(Connection)
+                            .filter(Connection.conn_id == new_conn.conn_id).first()):
+                        if disposition == DIS_RESTRICT:
+                            conflicting_connections.append(new_conn.conn_id)
+
+        if len(conflicting_connections) > 0:
+            msg = "Connections with `conn_ids`={conn_ids} already exists\n"
+            msg = msg.format(conn_ids=', '.join(conflicting_connections))
+            raise AirflowException(msg)
 
     for _, new_conn_list in new_conns_map.items():
         for new_conn in new_conn_list:
             with create_session() as session:
-                if not (session.query(Connection)
-                        .filter(Connection.conn_id == new_conn.conn_id).first()):
+                conn = (session.query(Connection)
+                        .filter(Connection.conn_id == new_conn.conn_id).first()) 
+                if not conn:
                     session.add(new_conn)
                     msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
                     msg = msg.format(conn_id=new_conn.conn_id,
@@ -193,7 +224,23 @@ def connections_import(args):
                                                          port=new_conn.conn_port or ''),
                                                  new_conn.conn_schema or '', '', '', '')))
                     print(msg)
-                else:
+                elif disposition == DIS_OVERWRITE:
+                    session.delete(conn)
+                    session.add(new_conn)
+                    msg = '\n\tSuccessfully updated `conn_id`={conn_id} : {uri}\n'
+                    msg = msg.format(conn_id=new_conn.conn_id,
+                                     uri=new_conn.get_uri() or
+                                     urlunparse((new_conn.conn_type,
+                                                '{login}:{password}@{host}:{port}'
+                                                 .format(login=new_conn.conn_login or '',
+                                                         password='******' if new_conn.conn_password else '',
+                                                         host=new_conn.conn_host or '',
+                                                         port=new_conn.conn_port or ''),
+                                                 new_conn.conn_schema or '', '', '', '')))
+                    print(msg)
+
+                elif disposition == DIS_IGNORE:
                     msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
                     msg = msg.format(conn_id=new_conn.conn_id)
                     print(msg)
+                    

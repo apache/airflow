@@ -630,6 +630,15 @@ ARG_CONN_IMPORT = Arg(
     ('file',),
     help='Import connections from a file. Acceptable file formats .json, .yaml, .env',
     type=str)
+ARG_CONFLICT_DISPOSITION = Arg(
+    ('--conflict-disposition',),
+    help=("Specifies the action that occurs if the connection already exists. Default value : restrict\n"
+        "Values -\n"
+        "\toverwrite : Overwrites the connection\n"
+        "\tignore : Skip this connection\n"
+        "\trestrict : Raise an exception\n"
+    ),
+    type=str)
 
 
 # users
@@ -1103,7 +1112,7 @@ CONNECTIONS_COMMANDS = (
         name='import',
         help='Import connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_import'),
-        args=(ARG_CONN_IMPORT,),
+        args=(ARG_CONN_IMPORT, ARG_CONFLICT_DISPOSITION),
     ),
 )
 USERS_COMMANDS = (
