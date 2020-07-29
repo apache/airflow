@@ -16,8 +16,9 @@
 # under the License.
 
 import io
+import json
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, contextmanager
 from unittest import mock
 
 from parameterized import parameterized
@@ -28,6 +29,14 @@ from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
+
+
+@contextmanager
+def mock_local_file(content):
+    with mock.patch(
+        "airflow.secrets.local_filesystem.open", mock.mock_open(read_data=content)
+    ) as file_mock, mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=True):
+        yield file_mock
 
 
 class TestCliListConnections(unittest.TestCase):
@@ -321,3 +330,87 @@ class TestCliDeleteConnections(unittest.TestCase):
 
         # Check deletion attempt stdout
         self.assertIn("\tDid not find a connection with `conn_id`=fake", stdout)
+
+
+class TestCliImportConnections(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli_parser.get_parser()
+        clear_db_connections()
+
+    @classmethod
+    def tearDownClass(cls):
+        clear_db_connections()
+
+    @parameterized.expand(
+        (
+            ({"CONN_ID": {'conn_type': 'mysql', 'host': 'host_1'}},
+             {"CONN_ID": {'conn_type': 'mysql', 'host': 'host_1'}}),
+        )
+    )
+    def test_connections_import(self, file_content, expected_connection_uris):
+        """Test connections_import command"""
+
+        with mock_local_file(json.dumps(file_content)):
+            connection_command.connections_import(self.parser.parse_args(['connections', 'import', "a.json"]))
+            with create_session() as session:
+                for conn_id in expected_connection_uris:
+                    current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+                    self.assertEqual(expected_connection_uris[conn_id],
+                                     {attr: getattr(current_conn, attr)
+                                      for attr in expected_connection_uris[conn_id]})
+
+    @parameterized.expand(
+        (
+            (
+                {"CONN_ID2": [{'conn_type': 'mysql', 'host': 'host_1'},
+                              {'conn_type': 'mysql', 'host': 'host_2'}]},
+                {"CONN_ID2": [{'conn_type': 'mysql', 'host': 'host_1'},
+                              {'conn_type': 'mysql', 'host': 'host_2'}]}
+            ),
+        )
+    )
+    def test_connections_import_disposition_ignore(self, file_content, expected_connection_uris):
+        """Test connections_import command with --conflict-disposition ignore"""
+        with mock_local_file(json.dumps(file_content)):
+            connection_command.connections_import(self.parser.parse_args([
+                'connections', 'import', 'a.json']))
+
+            connection_command.connections_import(self.parser.parse_args([
+                'connections', 'import', 'a.json', '--conflict-disposition', 'ignore']))
+
+            conn_id = 'CONN_ID2'
+            with create_session() as session:
+                current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+                self.assertEqual(expected_connection_uris[conn_id][0],
+                                 {attr: getattr(current_conn, attr)
+                                  for attr in expected_connection_uris[conn_id][0]})
+
+    @parameterized.expand(
+        (
+            (
+                {"CONN_ID3": [{'conn_type': 'mysql', 'host': 'host_1'},
+                              {'conn_type': 'mysql', 'host': 'host_2'}]},
+                {"CONN_ID3": [{'conn_type': 'mysql', 'host': 'host_1'},
+                              {'conn_type': 'mysql', 'host': 'host_2'}]}
+            ),
+        )
+    )
+    def test_connections_import_disposition_overwrite(self, file_content, expected_connection_uris):
+        """Test connections_import command with --conflict-disposition overwrite"""
+        with mock_local_file(json.dumps(file_content)):
+            connection_command.connections_import(self.parser.parse_args([
+                'connections', 'import', 'a.json', '--conflict-disposition', 'overwrite']))
+            connection_command.connections_import(self.parser.parse_args([
+                'connections', 'import', 'a.json', '--conflict-disposition', 'overwrite']))
+
+            with redirect_stdout(io.StringIO()) as stdout:
+                stdout = stdout.getvalue()
+                print(stdout)
+
+            conn_id = 'CONN_ID3'
+            with create_session() as session:
+                current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+                self.assertEqual(expected_connection_uris[conn_id][1],
+                                 {attr: getattr(current_conn, attr)
+                                  for attr in expected_connection_uris[conn_id][1]})
