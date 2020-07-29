@@ -25,6 +25,10 @@ class AirflowModelListWidget(RenderTemplateWidget):
     template = 'airflow/model_list.html'
 
 
+class AirflowControllerListWidget(RenderTemplateWidget):
+    template = 'airflow/tightening_controller_list.html'
+
+
 class AirflowDateTimePickerWidget:
     data_template = (
         '<div class="input-group datetime datetimepicker">'
