@@ -15,13 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-import mock
 
-from requests.exceptions import BaseHTTPError
-
-from airflow import AirflowException
-from airflow.kubernetes.pod_launcher import PodLauncher
-from airflow.kubernetes.pod import Port,Resources
+from airflow.kubernetes.pod import Port
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.pod_launcher_helper import convert_to_airflow_pod
@@ -33,8 +28,8 @@ class TestPodLauncherHelper(unittest.TestCase):
     def test_convert_to_airflow_pod(self):
         input_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
-              name="foo",
-              namespace="bar"
+                name="foo",
+                namespace="bar"
             ),
             spec=k8s.V1PodSpec(
                 containers=[
@@ -73,7 +68,7 @@ class TestPodLauncherHelper(unittest.TestCase):
             ports=[
                 Port(name="myport", container_port=8080)
             ],
-            volume_mounts= [VolumeMount(
+            volume_mounts=[VolumeMount(
                 name="mymount",
                 mount_path="/tmp/mount",
                 sub_path=None,

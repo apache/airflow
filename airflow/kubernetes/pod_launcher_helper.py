@@ -21,7 +21,6 @@ from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes_deprecated.pod import Pod
-from airflow.kubernetes.pod_generator import PodGenerator
 import kubernetes.client.models as k8s  # noqa
 
 
@@ -40,6 +39,7 @@ def convert_to_airflow_pod(pod):
                     ports=_extract_ports(base_container.ports)
                     )
     return dummy_pod
+
 
 def _extract_env_vars(env_vars):
     """

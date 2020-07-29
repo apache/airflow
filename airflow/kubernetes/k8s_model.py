@@ -29,7 +29,7 @@ else:
 
 
 class K8SModel(ABC):
-    __slots__ = []
+    __slots__ = []  # type: list
     """
     These Airflow Kubernetes models are here for backwards compatibility
     reasons only. Ideally clients should use the kubernetes api

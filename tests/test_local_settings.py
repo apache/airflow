@@ -22,7 +22,6 @@ import sys
 import tempfile
 import unittest
 from kubernetes.client import ApiClient
-import kubernetes.client.models as k8s #noqa
 from tests.compat import MagicMock, Mock, call, patch
 
 
@@ -76,6 +75,7 @@ def pod_mutation_hook(v1pod):
     @return:
     """
     v1pod.spec.containers[0].image = "test-image"
+
 
 class SettingsContext:
     def __init__(self, content, module_name):
@@ -294,8 +294,9 @@ class LocalSettingsTest(unittest.TestCase):
                 volume_mounts=[VolumeMount(name="foo", mount_path="/mnt", sub_path="/", read_only=True)]
             )
 
-            with self.assertRaises(AttributeError) as context:
+            with self.assertRaises(AttributeError):
                 self.assertRaises(settings.pod_mutation_hook(pod))
+
 
 class TestStatsWithAllowList(unittest.TestCase):
 
