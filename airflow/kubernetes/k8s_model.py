@@ -40,6 +40,7 @@ class K8SModel(ABC):
     can be avoided. All of these models implement the
     `attach_to_pod` method so that they integrate with the kubernetes client.
     """
+
     @abc.abstractmethod
     def attach_to_pod(self, pod):
         """
@@ -49,7 +50,7 @@ class K8SModel(ABC):
         """
 
     def as_dict(self):
-        res ={}
+        res = {}
         for s in self.__slots__:
             if hasattr(self, s):
                 res[s] = getattr(self, s)
@@ -57,8 +58,11 @@ class K8SModel(ABC):
         res_dict.update(res)
         return res_dict
 
+
 def append_to_pod(pod, k8s_objects):
     """
+    Attach Kubernetes objects to the given POD
+
     :param pod: A pod to attach a list of Kubernetes objects to
     :type pod: kubernetes.client.models.V1Pod
     :param k8s_objects: a potential None list of K8SModels
@@ -69,4 +73,3 @@ def append_to_pod(pod, k8s_objects):
         return pod
     new_pod = reduce(lambda p, o: o.attach_to_pod(p), k8s_objects, pod)
     return new_pod
-

@@ -163,20 +163,8 @@ class Pod(object):
     def as_dict(self):
         res = self.__dict__
         res['resources'] = res['resources'].as_dict()
+        res['ports'] = [port.as_dict() for port in res['ports']]
+        res['volume_mounts'] = [volume_mount.as_dict() for volume_mount in res['volume_mounts']]
+        res['volumes'] = [volume.as_dict() for volume in res['volumes']]
 
-        new_ports = []
-        for port in res['ports']:
-            new_ports.append(port.as_dict())
-        res['ports'] = new_ports
-
-        volume_mounts = []
-        for volume_mount in res['volume_mounts']:
-            volume_mounts.append(volume_mount.as_dict())
-        res['volume_mounts'] = volume_mounts
-
-        volumes = []
-        for volume in res['volumes']:
-            volumes.append(volume.as_dict())
-        res['volumes'] = volumes
         return res
-

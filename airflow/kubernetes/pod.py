@@ -128,4 +128,3 @@ class Port(K8SModel):
         cp_pod.spec.containers[0].ports = cp_pod.spec.containers[0].ports or []
         cp_pod.spec.containers[0].ports.append(port)
         return cp_pod
-
