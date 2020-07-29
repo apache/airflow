@@ -204,8 +204,8 @@ WORKDIR /opt/airflow
 
 ENV PATH=${PATH}:/root/.local/bin
 
-RUN pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]${AIRFLOW_INSTALL_VERSION}" \
-    --constraint "${AIRFLOW_CONSTRAINTS_URL}" && \
+RUN if [ -n "$AIRFLOW_INSTALL_VERSION" ]; then pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]" --constraint "${AIRFLOW_CONSTRAINTS_URL}" ; \
+		else pip install --user "${AIRFLOW_INSTALL_SOURCES}[${AIRFLOW_EXTRAS}]==${AIRFLOW_INSTALL_VERSION}" --constraint "${AIRFLOW_CONSTRAINTS_URL}" ; fi &&\
     if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then pip install --user ${ADDITIONAL_PYTHON_DEPS} \
     --constraint "${AIRFLOW_CONSTRAINTS_URL}"; fi && \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r && \
