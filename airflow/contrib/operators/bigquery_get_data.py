@@ -45,7 +45,7 @@ class BigQueryGetDataOperator(BaseOperator):
             task_id='get_data_from_bq',
             dataset_id='test_dataset',
             table_id='Transaction_partitions',
-            max_results='100',
+            max_results=100,
             selected_fields='DATE',
             bigquery_conn_id='airflow-service-account'
         )
