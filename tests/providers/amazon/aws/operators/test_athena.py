@@ -72,8 +72,7 @@ class TestAWSAthenaOperator(unittest.TestCase):
         self.assertEqual(self.athena.client_request_token, MOCK_DATA['client_request_token'])
         self.assertEqual(self.athena.sleep_time, 0)
 
-        hook = self.athena.get_hook()
-        self.assertEqual(hook.sleep_time, 0)
+        self.assertEqual(self.athena.hook.sleep_time, 0)
 
     @mock.patch.object(AWSAthenaHook, 'check_query_status', side_effect=("SUCCESS",))
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
