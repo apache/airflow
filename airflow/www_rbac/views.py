@@ -79,7 +79,7 @@ from airflow.www_rbac.decorators import action_logging, gzipped, has_dag_access
 from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DateTimeWithNumRunsWithDagRunsForm, VariableForm,
                                     DagRunForm, ConnectionForm, ErrorTagForm, TighteningControllerForm)
-from airflow.www_rbac.widgets import AirflowModelListWidget
+from airflow.www_rbac.widgets import AirflowModelListWidget,AirflowControllerListWidget
 from flask_wtf.csrf import CSRFProtect
 from airflow.www_rbac.api.experimental.utils import get_curve_entity_ids, get_curve, get_result
 from airflow.api.common.experimental.get_task_instance import get_task_instance
@@ -2409,6 +2409,7 @@ class ErrorTagModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
 
+
 class TighteningController(AirflowModelView):
     route_base = '/tightening_controller'
 
@@ -2420,8 +2421,11 @@ class TighteningController(AirflowModelView):
     list_columns = ['controller_name', 'line_code', 'work_center_code', 'work_center_name']
     add_columns = edit_columns = ['controller_name', 'line_code', 'work_center_code', 'work_center_name'] + extra_fields
     add_form = edit_form = TighteningControllerForm
+    # list_template = 'airflow/tightening_controller_list.html'
     add_template = 'airflow/tightening_controller_create.html'
     edit_template = 'airflow/tightening_controller_edit.html'
+    list_widget = AirflowControllerListWidget
+
 
     base_order = ('id', 'asc')
 
