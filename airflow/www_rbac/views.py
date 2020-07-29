@@ -53,6 +53,7 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
+from flask_paginate import Pagination, get_page_parameter
 
 import airflow
 from airflow import models, jobs
@@ -432,7 +433,12 @@ class Airflow(AirflowBaseView):
     @has_access
     def view_curves(self, bolt_no, craft_type):
         entity_ids = get_curve_entity_ids(bolt_number=bolt_no, craft_type=craft_type)
-        return self.render_template('airflow/curves.html', entity_ids=entity_ids)
+
+        page = request.args.get(get_page_parameter(), type=int, default=1)
+
+        pagination = Pagination(page=page, total=len(entity_ids), css_framework='foundation', search=False,
+                                record_name='curves')
+        return self.render_template('airflow/curves.html', entity_ids=entity_ids, pagination=pagination)
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
     @has_access
@@ -2251,6 +2257,7 @@ class ConfigurationView(AirflowBaseView):
 ######################################################################################
 #                                    ModelViews
 ######################################################################################
+
 
 class DagFilter(BaseFilter):
     def apply(self, query, func):  # noqa
