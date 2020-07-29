@@ -422,7 +422,7 @@ devel = [
     'paramiko',
     'pre-commit',
     'pysftp',
-    'pytest',
+    'pytest<6.0.0',  # FIXME: pylint complaining for pytest.mark.* on v6.0
     'pytest-cov',
     'pytest-instafail',
     'pytest-rerunfailures',
