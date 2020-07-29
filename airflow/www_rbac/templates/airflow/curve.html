@@ -44,15 +44,19 @@
       style="font-weight: bolder">{{task_instance.final_state}}</h2>
     {% elif can_verify %}
     <h2>
-      <button id="btn_double_check_success" style="width:80px;"
-              class="button-double-check btn btn-success mr-2 font-weight-bold">
-        <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
-        OK
+      <button id="btn_double_check_success" style="width:110px;padding-top: 5px;padding-bottom: 5px;"
+              class="button-double-check btn btn-lg btn-success mr-2 shadow">
+        <div>
+          <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
+          <span style="font-weight: 800">OK</span>
+        </div>
       </button>
-      <button id="btn_double_check_failed" style="width:80px"
-              class="button-double-check btn btn-danger ml-2 font-weight-bold">
-        <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
-        NOK
+      <button id="btn_double_check_failed" style="width:110px;padding-top: 5px;padding-bottom: 5px;"
+              class="button-double-check btn btn-lg btn-danger ml-2 shadow">
+        <div>
+          <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+          <span style="font-weight: 800">NOK</span>
+        </div>
       </button>
     </h2>
     {% else %}
@@ -289,7 +293,7 @@
     const message = status === 'OK' ? `二次确认曲线结果为：${status}，曲线的标签将被清除。`
       : `二次确认曲线结果为：${status}，请选择曲线标签：`;
     const $content = $('<div/>');
-    const $message = $(`<h4>${message}</h4>`);
+    const $message = $(`<h4 style="font-weight: normal">${message}</h4>`);
     $content.append($message);
     if (status === 'NOK') {
       const $selector = tagsSelector();
@@ -313,8 +317,8 @@
   function renderBaseInfoRow(label, value) {
     return $(
       `<tr>
-        <td><h4 class="m-0 p-1">${label}</h4></td>
-        <td><h4 class="m-0 p-1">${value}</h4></td>
+        <td><h4 class="m-0 p-1" style="font-weight: normal">${label}</h4></td>
+        <td><h4 class="m-0 p-1" style="font-weight: normal">${value}</h4></td>
       </tr>`
     );
   }
