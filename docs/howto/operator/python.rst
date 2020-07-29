@@ -50,3 +50,34 @@ argument.
 
 The ``templates_dict`` argument is templated, so each value in the dictionary
 is evaluated as a :ref:`Jinja template <jinja-templating>`.
+
+
+
+.. _howto/operator:PythonVirtualenvOperator:
+
+PythonVirtualenvOperator
+========================
+
+Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` to execute
+Python callables inside a new Python virtual environment.
+
+.. exampleinclude:: ../../../airflow/example_dags/example_python_operator.py
+    :language: python
+    :start-after: [START howto_operator_python_venv]
+    :end-before: [END howto_operator_python_venv]
+
+Passing in arguments
+^^^^^^^^^^^^^^^^^^^^
+
+You can use the ``op_args`` and ``op_kwargs`` arguments the same way you use it in the PythonOperator.
+Unfortunately we currently do not support to serialize ``var`` and ``ti`` / ``task_instance`` due to incompatibilities
+with the underlying library. For airflow context variables make sure that you either have access to Airflow through
+setting ``system_site_packages`` to ``True`` or add ``apache-airflow`` to the ``requirements`` argument.
+Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
+If you want the context related to datetime objects like ``execution_date`` you can add ``pendulum`` and
+``lazy_object_proxy``.
+
+Templating
+^^^^^^^^^^
+
+You can use jinja Templating the same way you use it in PythonOperator.

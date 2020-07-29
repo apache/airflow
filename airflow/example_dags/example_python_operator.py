@@ -72,6 +72,7 @@ for i in range(5):
 # [END howto_operator_python_kwargs]
 
 
+# [START howto_operator_python_venv]
 def callable_virtualenv():
     """
     Example function that will be performed in a virtual environment.
@@ -101,3 +102,4 @@ virtualenv_task = PythonVirtualenvOperator(
     system_site_packages=False,
     dag=dag,
 )
+# [END howto_operator_python_venv]
