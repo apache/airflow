@@ -117,7 +117,7 @@ class Pod(object):
         """
         Convert to support k8s V1Pod
 
-        @return: k8s.V1Pod
+        :return: k8s.V1Pod
         """
         meta = k8s.V1ObjectMeta(
             labels=self.labels,
@@ -131,7 +131,7 @@ class Pod(object):
                     image=self.image,
                     command=self.cmds,
                     name="base",
-                    env=self.envs,
+                    env=[k8s.V1EnvVar(name=key, value=val) for key, val in self.envs.items()],
                     args=self.args,
                     image_pull_policy=self.image_pull_policy,
                 )

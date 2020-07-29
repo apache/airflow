@@ -44,10 +44,10 @@ def convert_to_airflow_pod(pod):
 def _extract_env_vars(env_vars):
     """
 
-    @param env_vars:
-    @type env_vars: list
-    @return: result
-    @rtype: dict
+    :param env_vars:
+    :type env_vars: list
+    :return: result
+    :rtype: dict
     """
     result = {}
     env_vars = env_vars or []

@@ -180,10 +180,11 @@ class LocalSettingsTest(unittest.TestCase):
             settings.import_local_settings()  # pylint: ignore
 
             pod = MagicMock()
+            pod.volumes = []
             settings.pod_mutation_hook(pod)
 
             assert pod.namespace == 'airflow-tests'
-            self.assertEqual(pod.volumes[0].name, "foo")
+            self.assertEqual(pod.volumes[0].name, "bar")
 
     def test_pod_mutation_to_k8s_pod(self):
         with SettingsContext(SETTINGS_FILE_POD_MUTATION_HOOK, "airflow_local_settings"):
@@ -198,7 +199,7 @@ class LocalSettingsTest(unittest.TestCase):
                 name="bar",
                 namespace="baz",
                 image_pull_policy="Never",
-                envs=[],
+                envs={},
                 cmds=["airflow"],
                 resources=Resources(
                     request_memory="1G",
@@ -229,7 +230,7 @@ class LocalSettingsTest(unittest.TestCase):
                                 {
                                     'args': [],
                                     'command': ['airflow'],
-                                    'env': {},
+                                    'env': [],
                                     'image': 'my_image',
                                     'imagePullPolicy': 'Never',
                                     'ports': [{'containerPort': 8080}],
