@@ -633,11 +633,10 @@ ARG_CONN_IMPORT = Arg(
 ARG_CONFLICT_DISPOSITION = Arg(
     ('--conflict-disposition',),
     help=("Specifies the action that occurs if the connection already exists. Default value : restrict\n"
-        "Values -\n"
-        "\toverwrite : Overwrites the connection\n"
-        "\tignore : Skip this connection\n"
-        "\trestrict : Raise an exception\n"
-    ),
+          "Values -\n"
+          "\toverwrite : Overwrites the connection\n"
+          "\tignore : Skip this connection\n"
+          "\trestrict : Raise an exception\n"),
     type=str)
 
 

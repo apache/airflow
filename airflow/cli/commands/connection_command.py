@@ -172,15 +172,16 @@ def prep_import_status_msgs(conn_status_map):
             for conn in conn_list:
                 msg = msg + '\n\t`conn_id`={conn_id} : {uri}\n'
                 msg = msg.format(conn_id=conn.conn_id,
-                                    uri=conn.get_uri() or
-                                    urlunparse((conn.conn_type,
-                                                '{login}:{password}@{host}:{port}'
-                                                    .format(login=conn.conn_login or '',
-                                                            password='******' if conn.conn_password else '',
-                                                            host=conn.conn_host or '',
-                                                            port=conn.conn_port or ''),
-                                                conn.conn_schema or '', '', '', '')))
+                                 uri=conn.get_uri() or
+                                 urlunparse((conn.conn_type,
+                                            '{login}:{password}@{host}:{port}'
+                                             .format(login=conn.conn_login or '',
+                                                     password='******' if conn.conn_password else '',
+                                                     host=conn.conn_host or '',
+                                                     port=conn.conn_port or ''),
+                                             conn.conn_schema or '', '', '', '')))
     return msg
+
 
 @cli_utils.action_logging
 def connections_import(args):
@@ -207,14 +208,14 @@ def connections_import(args):
     else:
         msg = (
             'Not a valid argument to --conflict-disposition, please select among ' +
-            '{overwrite}, {ignore}, {restrict}. View help for more ' + 
+            '{overwrite}, {ignore}, {restrict}. View help for more ' +
             'details.').format(overwrite=DIS_OVERWRITE, restrict=DIS_RESTRICT, ignore=DIS_IGNORE)
         return print(msg)
 
     conn_status_map = {
-        DIS_OVERWRITE : [],
+        DIS_OVERWRITE: [],
         DIS_IGNORE: [],
-        CREATED : []
+        CREATED: []
     }
 
     try:
@@ -222,7 +223,7 @@ def connections_import(args):
             for _, conn_list in conns_map.items():
                 for conn in conn_list:
                     conn_row = (session.query(Connection)
-                            .filter(Connection.conn_id == conn.conn_id).first())
+                                .filter(Connection.conn_id == conn.conn_id).first())
                     if not conn_row:
                         session.add(conn)
                         conn_status_map[CREATED].append(conn)
@@ -236,7 +237,7 @@ def connections_import(args):
                         msg = "\nConnection with `conn_id`={conn_ids} already exists"
                         msg = msg.format(conn_ids=conn.conn_id)
                         raise AirflowException(msg)
-            
+
             print(prep_import_status_msgs(conn_status_map))
 
     except Exception as e:
