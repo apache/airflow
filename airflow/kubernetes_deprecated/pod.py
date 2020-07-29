@@ -22,6 +22,7 @@ from airflow.kubernetes.pod import Resources
 class Pod(object):
     """
     Represents a kubernetes pod and manages execution of a single pod.
+
     :param image: The docker image
     :type image: str
     :param envs: A dict containing the environment variables
