@@ -17,11 +17,49 @@
 <div id="root">
   {% call panel.panel('曲线列表') %}
   <div class="d-flex w-100 h-100 flex-column overflow-hidden">
-    <div class="panel-body flex-grow-1 overflow-auto">
-      <div id="tree" class=""></div>
+    <div class="panel-body flex-grow-1 overflow-auto p-0">
+      <!--      <div id="tree" class=""></div>-->
+      <table class="table position-relative" style="width: 100%; ">
+        <thead>
+        <tr class="result-content-row active">
+          <th class="position-sticky " style="top:0;z-index: 1;">
+            <input id="check_all" class="action_check_all" name="check_all" type="checkbox">
+          </th>
+          <th class="position-sticky " style="top:0;z-index: 1;">{{_('curve')}}</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for task in tasks %}
+        <!--        <tr>-->
+        <!--          <td>-->
+        <!--            <input id="{{ task.entity_id }}" class="action_check" name="rowid" value="{{ task.entity_id }}"-->
+        <!--                   type="checkbox">-->
+        <!--          </td>-->
+        <!--          <td>{{ loop.index + pagination.skip }}</td>-->
+        <!--          <td>{{ task.entity_id }}</td>-->
+        <!--        </tr>-->
+        <tr>
+          <td class="h-100" style="text-align: center;vertical-align: middle;">
+            <input id="{{ task.entity_id }}" class="action_check mr-1" name="rowid" value="{{ task.entity_id }}"
+                   type="checkbox">
+          </td>
+          <td>
+            <button class="btn list-group-item" value="{{ task.entity_id }}">
+              <h4 class="list-group-item-heading">
+                {{ task.entity_id }}
+              </h4>
+              <p class="list-group-item-text ml-4">{{ task.execution_date }}</p>
+              <p class="list-group-item-text ml-4">{{ task.result }}</p>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+
     </div>
     <div class="panel-body">
-        {{ pagination.links }}
+      {{ pagination.links }}
       <button id="btn-view-curves" class="btn btn-primary btn-block">查看</button>
     </div>
   </div>
@@ -36,7 +74,6 @@
 {{ super() }}
 <script src="{{ url_for('static', filename='js/bootstrap-treeview.js') }}" type="text/javascript"></script>
 <script type="text/javascript">
-  const entityIds = JSON.parse('{{ entity_ids|tojson|safe }}');
   const selectedEIds = [];
   let curvesData = {};
 
@@ -55,24 +92,25 @@
   }
 
   function curvesListInit() {
-    const treeView = $('#tree');
-    treeView.treeview({
-      data: entityIds.map(id => ({
-        entityId: id,
-        text: id
-      })),
-      showCheckbox: true
+    $('.btn.list-group-item').click((ev) => {
+      console.log($(ev.currentTarget).parents('tr').find('.action_check'));
+      $(ev.currentTarget).parents('tr').find('.action_check').click();
     });
-    treeView.off('nodeSelected');
-    treeView.off('nodeChecked');
-    treeView.on('nodeSelected', (event, data) => {
-      $('#tree').treeview('toggleNodeChecked', [data.nodeId]);
-      $('#tree').treeview('toggleNodeSelected', [data.nodeId], { silent: true });
+    $('.action_check_all').change((ev) => {
+      const { checked } = ev.currentTarget;
+      if (checked) {
+        $('.action_check:not(:checked)').click();
+      } else {
+        $('.action_check:checked').click();
+      }
     });
-    treeView.on('nodeChecked', (event, data) => {
-      entityIdSelect(data.entityId);
-    }).on('nodeUnchecked', (event, data) => {
-      entityIdUnselect(data.entityId);
+    $('.action_check').change((ev) => {
+      const { checked, value } = ev.target;
+      if (checked) {
+        entityIdSelect(value);
+      } else {
+        entityIdUnselect(value);
+      }
     });
   }
 

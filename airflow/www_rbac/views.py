@@ -80,9 +80,9 @@ from airflow.www_rbac.decorators import action_logging, gzipped, has_dag_access
 from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DateTimeWithNumRunsWithDagRunsForm, VariableForm,
                                     DagRunForm, ConnectionForm, ErrorTagForm, TighteningControllerForm)
-from airflow.www_rbac.widgets import AirflowModelListWidget,AirflowControllerListWidget
+from airflow.www_rbac.widgets import AirflowModelListWidget, AirflowControllerListWidget
 from flask_wtf.csrf import CSRFProtect
-from airflow.www_rbac.api.experimental.utils import get_curve_entity_ids, get_curve, get_result
+from airflow.www_rbac.api.experimental.utils import get_curve_entity_ids, get_curve, get_result, get_analysis_tasks
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 
 csrf = CSRFProtect()
@@ -432,13 +432,15 @@ class Airflow(AirflowBaseView):
     @expose('/curves/<string:bolt_no>/<string:craft_type>')
     @has_access
     def view_curves(self, bolt_no, craft_type):
-        entity_ids = get_curve_entity_ids(bolt_number=bolt_no, craft_type=craft_type)
 
         page = request.args.get(get_page_parameter(), type=int, default=1)
+        tasks = get_analysis_tasks(bolt_number=bolt_no, craft_type=craft_type)
 
-        pagination = Pagination(page=page, total=len(entity_ids), css_framework='foundation', search=False,
-                                record_name='curves')
-        return self.render_template('airflow/curves.html', entity_ids=entity_ids, pagination=pagination)
+        pagination = Pagination(page=page, total=tasks.count(), css_framework='foundation', search=False,
+                                record_name='curves', per_page=PAGE_SIZE)
+        start = (page - 1) * PAGE_SIZE
+        stop = page * PAGE_SIZE
+        return self.render_template('airflow/curves.html', tasks=tasks.slice(start, stop), pagination=pagination)
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
     @has_access
@@ -2433,7 +2435,6 @@ class TighteningControllerView(AirflowModelView):
     add_template = 'airflow/tightening_controller_create.html'
     edit_template = 'airflow/tightening_controller_edit.html'
     list_widget = AirflowControllerListWidget
-
 
     base_order = ('id', 'asc')
 

@@ -60,12 +60,6 @@
 {% endblock %}
 
 {% block begin_loop_values %}
-  <script>
-    function viewCurveTemplate(templateKey) {
-      var templateName = templateKey.split('@@')[0];
-      return '/curve_template/' + templateName;
-    }
-  </script>
   {% for item in value_columns %}
     {% set pk = pks[loop.index-1] %}
     <tr>

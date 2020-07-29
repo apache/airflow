@@ -162,6 +162,11 @@ def get_curve_entity_ids(bolt_number=None, craft_type=None):
     return list(map(lambda ti: ti.entity_id, tasks))
 
 
+def get_analysis_tasks(bolt_number=None, craft_type=None):
+    tasks = TaskInstance.query_tasks(craft_type, bolt_number).order_by(TaskInstance.execution_date.desc())
+    return tasks
+
+
 def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task_id, dag_id, verify_error, curve_mode):
     if isinstance(curve_mode, str):
         curve_mode = json.loads(curve_mode)
