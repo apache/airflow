@@ -27,7 +27,7 @@
     } = config;
     const modal = $('#dialogModal');
     modal.find('.modal-body').html(body);
-    modal.find('.modal-title').append(`${title}<button type="button" class="close align-self-center" data-dismiss="modal" aria-label="Close">
+    modal.find('.modal-title').html(`${title}<button type="button" class="close align-self-center" data-dismiss="modal" aria-label="Close">
             <span aria-hidden="true" style="height:100%">&times;</span>
           </button>`);
     modal.find('#btnDialogConfirm').off('click');
