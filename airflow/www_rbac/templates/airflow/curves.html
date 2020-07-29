@@ -40,21 +40,17 @@
   let curvesData = {};
 
   function entityIdSelect(entityId) {
-    console.log('checked', entityId);
     const idx = selectedEIds.findIndex(id => id === entityId);
     if (idx < 0) {
       selectedEIds.push(entityId);
     }
-    console.log(selectedEIds);
   }
 
   function entityIdUnselect(entityId) {
-    console.log('checked', entityId);
     const idx = selectedEIds.findIndex(id => id === entityId);
     if (idx >= 0) {
       selectedEIds.splice(idx, 1);
     }
-    console.log(selectedEIds);
   }
 
   function curvesListInit() {
@@ -62,9 +58,9 @@
     treeView.treeview({
       data: entityIds.map(id => ({
         entityId: id,
-        text: id,
+        text: id
       })),
-      showCheckbox: true,
+      showCheckbox: true
     });
     treeView.off('nodeSelected');
     treeView.off('nodeChecked');
@@ -80,7 +76,6 @@
   }
 
   function render() {
-    console.log('render');
     renderChart();
   }
 
@@ -105,52 +100,76 @@
       data: genData(c, xKey, yKey),
       cursor: 'pointer',
       showSymbol: false,
-      clip: false,
-      markLine: {},
+      symbol: 'circle',
+      lineStyle: {
+        width: 3
+      }
     }));
   }
 
   function renderChart() {
-    console.log('render chart');
     const { xName, yName } = chartParams;
     const option = {
-      title: {
-        text: `${xName}-${yName}图`,
-      },
+      // title: {
+      //   text: `${xName}-${yName}图`
+      // },
       legend: {
         type: 'scroll',
-        data: selectedEIds,
+        data: selectedEIds
       },
-      xAxis: { type: 'value' },
-      yAxis: { type: 'value' },
+      grid: {
+        bottom: 100
+      },
+      xAxis: {
+        type: 'value',
+        name: xName,
+        nameLocation: 'middle',
+        nameGap: 30,
+        axisLabel: {
+          fontSize: 16
+        }
+      },
+      yAxis: {
+        type: 'value',
+        name: yName,
+        nameLocation: 'middle',
+        nameRotate: 0,
+        nameGap: 50,
+        axisLabel: {
+          fontSize: 16
+        }
+      },
       series: genDataSeries(),
+      textStyle: {
+        fontFamily: 'monospace',
+        fontSize: 18
+      },
       dataZoom: [
         {
           type: 'slider',
           xAxisIndex: 0,
-          filterMode: 'empty',
+          filterMode: 'none'
         },
         {
           type: 'slider',
           yAxisIndex: 0,
-          filterMode: 'empty',
+          filterMode: 'none'
         },
         {
           type: 'inside',
           xAxisIndex: 0,
-          filterMode: 'empty',
+          filterMode: 'none'
         },
         {
           type: 'inside',
           yAxisIndex: 0,
-          filterMode: 'empty',
-        },
+          filterMode: 'none'
+        }
       ],
       tooltip: {
-        trigger: 'axis',
-      },
+        trigger: 'axis'
+      }
     };
-    console.log(option);
     curveChart.setOption(option, true);
   }
 
@@ -168,11 +187,11 @@
       url: "{{ url_for('api_experimental.get_curves_by_entity_id') }}",
       data: {
         entity_ids: entityIdsStr,
-        csrf_token: '{{ csrf_token() }}',
+        csrf_token: '{{ csrf_token() }}'
       },
       headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
       dataType: 'json',
-      contentType: 'application/json',
+      contentType: 'application/json'
     }).then((resp) => {
       const { error, curves } = resp;
       if (error) {
@@ -192,7 +211,7 @@
         newCurves[c.entity_id] = c.curve;
       });
       curvesData = {
-        ...curvesData, ...newCurves,
+        ...curvesData, ...newCurves
       };
       render();
     });
