@@ -316,3 +316,4 @@ yamllint==1.20.0
 zdesk==2.7.1
 zipp==3.1.0
 zope.deprecation==4.4.0
+flask_paginate==0.7.0
