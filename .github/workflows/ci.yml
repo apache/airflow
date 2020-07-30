@@ -168,7 +168,7 @@ jobs:
       - name: Cache virtualenv for kubernetes testing
         uses: actions/cache@v2
         env:
-          cache-name: cache-kubernetes-tests-virtualenv-v2
+          cache-name: cache-kubernetes-tests-virtualenv-v3
         with:
           path: .build/.kubernetes_venv
           key: "${{ env.cache-name }}-${{ github.job }}-v1"
