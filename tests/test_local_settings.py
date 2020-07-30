@@ -21,7 +21,8 @@ import os
 import sys
 import tempfile
 import unittest
-from kubernetes.client import ApiClient
+from airflow.kubernetes import pod_generator
+from airflow.kubernetes.pod_launcher import PodLauncher
 from tests.compat import MagicMock, Mock, call, patch
 
 
@@ -58,9 +59,6 @@ def pod_mutation_hook(pod):
 """
 
 SETTINGS_FILE_POD_MUTATION_HOOK_V1_POD = """
-from airflow.kubernetes.volume import Volume
-from airflow.kubernetes.pod import Port, Resources
-
 def pod_mutation_hook(pod):
     pod.spec.containers[0].image = "test-image"
 
@@ -190,113 +188,86 @@ class LocalSettingsTest(unittest.TestCase):
         with SettingsContext(SETTINGS_FILE_POD_MUTATION_HOOK, "airflow_local_settings"):
             from airflow import settings
             settings.import_local_settings()  # pylint: ignore
-            from airflow.kubernetes_deprecated.pod import Pod as DeprecatedPod
-            from airflow.kubernetes.volume import Volume
-            from airflow.kubernetes.volume_mount import VolumeMount
-            from airflow.kubernetes.pod import Resources
-            pod = DeprecatedPod(
+
+            self.mock_kube_client = Mock()
+            self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)
+            pod = pod_generator.PodGenerator(
                 image="foo",
                 name="bar",
                 namespace="baz",
                 image_pull_policy="Never",
-                envs={},
-                cmds=["airflow"],
-                resources=Resources(
-                    request_memory="1G",
-                    request_cpu="100Mi",
-                    limit_gpu="100G"
-                ),
-                volumes=[Volume(name="foo", configs={})],
-                volume_mounts=[VolumeMount(name="foo", mount_path="/mnt", sub_path="/", read_only=True)]
-            )
+                cmds=["foo"],
+                volume_mounts=[
+                    {"name": "foo", "mount_path": "/mnt", "sub_path": "/", "read_only": "True"}
+                ],
+                volumes=[{"name": "foo"}]
+            ).gen_pod()
 
-            # pod = Pod(image="", cmds=[], envs={}, name="my-name")
-            settings.pod_mutation_hook(pod)
-            result = pod.to_v1_kubernetes_pod()
-            k8s_client = ApiClient()
+            """
+            def pod_mutation_hook(pod):
+                pod.namespace = 'airflow-tests'
+                pod.image = 'my_image'
+                pod.volumes.append(Volume(name="bar", configs={}))
+                pod.ports = [Port(container_port=8080)]
+                pod.resources = Resources(
+                                request_memory="2G",
+                                request_cpu="200Mi",
+                                limit_gpu="200G"
+                            )
+            """
+            self.assertEqual(pod.metadata.namespace, "baz")
+            self.assertEqual(pod.spec.containers[0].image, "foo")
+            self.assertEqual(pod.spec.volumes, [{'name': 'foo'}])
+            self.assertEqual(pod.spec.containers[0].ports, [])
+            self.assertEqual(pod.spec.containers[0].resources, None)
 
-            result = k8s_client.sanitize_for_serialization(result)
-            expected = \
+            pod = self.pod_launcher._mutate_pod_backcompat(pod)
+
+            self.assertEqual(pod.metadata.namespace, "airflow-tests")
+            self.assertEqual(pod.spec.containers[0].image, "my_image")
+            self.assertEqual(pod.spec.volumes, [{'name': 'foo'}, {'name': 'bar'}])
+            self.maxDiff = None
+            self.assertEqual(
+                pod.spec.containers[0].ports[0].to_dict(),
                 {
-                    'metadata':
-                        {
-                            'labels': {},
-                            'name': 'bar',
-                            'namespace': 'airflow-tests'
-                        },
-                    'spec':
-                        {'containers':
-                            [
-                                {
-                                    'args': [],
-                                    'command': ['airflow'],
-                                    'env': [],
-                                    'image': 'my_image',
-                                    'imagePullPolicy': 'Never',
-                                    'ports': [{'containerPort': 8080}],
-                                    'name': 'base',
-                                    'volumeMounts':
-                                        [
-                                            {
-                                                'mountPath': '/mnt',
-                                                'name': 'foo',
-                                                'readOnly': True, 'subPath': '/'
-                                            }
-                                        ],  # noqa
-                                    'resources':
-                                        {
-                                            'limits':
-                                                {
-                                                    'cpu': None,
-                                                    'memory': None,
-                                                    'nvidia.com/gpu': '200G',
-                                                    'ephemeral-storage': None
-                                                },
-                                            'requests':
-                                                {
-                                                    'cpu': '200Mi',
-                                                    'memory': '2G',
-                                                    'ephemeral-storage': None
-                                                }
-                                        }  # noqa
-                                }
-                            ],
-                            'hostNetwork': False,
-                            'tolerations': [],
-                            'volumes': [
-                                {'name': 'foo'},
-                                {'name': 'bar'}
-                            ]
-                        }  # noqa
+                    "container_port": 8080,
+                    "host_ip": None,
+                    "host_port": None,
+                    "name": None,
+                    "protocol": None
                 }
-            self.assertEquals(expected, result)
+            )
+            self.assertEqual(
+                pod.spec.containers[0].resources.to_dict(),
+                {
+                    'limits': {
+                        'cpu': None,
+                        'memory': None,
+                        'ephemeral-storage': None,
+                        'nvidia.com/gpu': '200G'},
+                    'requests': {'cpu': '200Mi', 'ephemeral-storage': None, 'memory': '2G'}
+                }
+            )
 
     def test_pod_mutation_v1_pod(self):
         with SettingsContext(SETTINGS_FILE_POD_MUTATION_HOOK_V1_POD, "airflow_local_settings"):
             from airflow import settings
             settings.import_local_settings()  # pylint: ignore
-            from airflow.kubernetes_deprecated.pod import Pod as DeprecatedPod
-            from airflow.kubernetes.volume import Volume
-            from airflow.kubernetes.volume_mount import VolumeMount
-            from airflow.kubernetes.pod import Resources
-            pod = DeprecatedPod(
-                image="foo",
-                name="bar",
-                namespace="baz",
-                image_pull_policy="Never",
-                envs=[],
-                cmds=["airflow"],
-                resources=Resources(
-                    request_memory="1G",
-                    request_cpu="100Mi",
-                    limit_gpu="100G"
-                ),
-                volumes=[Volume(name="foo", configs={})],
-                volume_mounts=[VolumeMount(name="foo", mount_path="/mnt", sub_path="/", read_only=True)]
-            )
 
-            with self.assertRaises(AttributeError):
-                self.assertRaises(settings.pod_mutation_hook(pod))
+            self.mock_kube_client = Mock()
+            self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)
+            pod = pod_generator.PodGenerator(
+                image="myimage",
+                cmds=["foo"],
+                volume_mounts={
+                    "name": "foo", "mount_path": "/mnt", "sub_path": "/", "read_only": "True"
+                },
+                volumes=[{"name": "foo"}]
+            ).gen_pod()
+
+            self.assertEqual(pod.spec.containers[0].image, "myimage")
+            pod = self.pod_launcher._mutate_pod_backcompat(pod)
+            self.assertEqual(pod.spec.containers[0].image, "test-image")
 
 
 class TestStatsWithAllowList(unittest.TestCase):

@@ -21,7 +21,6 @@ from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes_deprecated.pod import Pod
-import kubernetes.client.models as k8s  # noqa
 
 
 def convert_to_airflow_pod(pod):
@@ -53,7 +52,9 @@ def _extract_env_vars(env_vars):
     env_vars = env_vars or []
     for e in env_vars:
         env_var = e  # type: k8s.V1EnvVar
-        result[env_var.name] = env_var.value
+        if not isinstance(env_var, dict):
+            env_var.to_dict()
+        result[env_var.get("name")] = env_var.get("value")
     return result
 
 
@@ -62,7 +63,9 @@ def _extract_volumes(volumes):
     volumes = volumes or []
     for v in volumes:
         volume = v  # type: k8s.V1Volume
-        result.append(Volume(name=volume.name, configs=volume.__dict__))
+        if not isinstance(volume, dict):
+            volume.to_dict()
+        result.append(Volume(name=volume.get("name"), configs=volume))
     return result
 
 
@@ -70,11 +73,13 @@ def _extract_volume_mounts(volume_mounts):
     result = []
     volume_mounts = volume_mounts or []
     for v in volume_mounts:
-        volume = v  # type: k8s.V1VolumeMount
-        result.append(VolumeMount(name=volume.name,
-                                  mount_path=volume.mount_path,
-                                  sub_path=volume.sub_path,
-                                  read_only=volume.read_only))
+        volume_mount = v  # type: k8s.V1VolumeMount
+        if not isinstance(volume_mount, dict):
+            volume_mount.to_dict()
+        result.append(VolumeMount(name=volume_mount.get("name"),
+                                  mount_path=volume_mount.get("mount_path"),
+                                  sub_path=volume_mount.get("sub_path"),
+                                  read_only=volume_mount.get("read_only")))
 
     return result
 
@@ -84,5 +89,7 @@ def _extract_ports(ports):
     ports = ports or []
     for p in ports:
         port = p  # type: k8s.V1ContainerPort
-        result.append(Port(name=port.name, container_port=port.container_port))
+        if not isinstance(port, dict):
+            port.to_dict()
+        result.append(Port(name=port.get("name"), container_port=port.get("container_port")))
     return result

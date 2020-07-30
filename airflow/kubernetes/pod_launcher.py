@@ -27,7 +27,7 @@ from requests.exceptions import BaseHTTPError
 
 from airflow import AirflowException
 from airflow.kubernetes.pod_launcher_helper import convert_to_airflow_pod
-from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
+from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -69,15 +69,7 @@ class PodLauncher(LoggingMixin):
         :param pod:
         :type pod: k8s.V1Pod
         """
-        try:
-            # attempts to run pod_mutation_hook using old pod, if this
-            # fails we attempt to run with k8s official pod
-            dummy_pod = convert_to_airflow_pod(pod)
-            pod_mutation_hook(dummy_pod)
-            dummy_pod = dummy_pod.to_v1_kubernetes_pod()
-            PodGenerator.reconcile_pods(pod, dummy_pod)
-        except AttributeError:
-            pod_mutation_hook(pod)
+        pod = self._mutate_pod_backcompat(pod)
 
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
@@ -92,6 +84,20 @@ class PodLauncher(LoggingMixin):
                                'to create Namespaced Pod: %s', json_pod)
             raise e
         return resp
+
+    @staticmethod
+    def _mutate_pod_backcompat(pod):
+        """Backwards compatible Pod Mutation Hook"""
+        try:
+            pod_mutation_hook(pod)
+            # attempts to run pod_mutation_hook using k8s.V1Pod, if this
+            # fails we attempt to run by converting pod to Old Pod
+        except AttributeError:
+            dummy_pod = convert_to_airflow_pod(pod)
+            pod_mutation_hook(dummy_pod)
+            dummy_pod = dummy_pod.to_v1_kubernetes_pod()
+            # pod = PodGenerator.reconcile_pods(pod, dummy_pod)
+        return dummy_pod
 
     def delete_pod(self, pod):
         """Deletes POD"""
