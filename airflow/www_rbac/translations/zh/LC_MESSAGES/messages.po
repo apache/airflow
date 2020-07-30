@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2020-03-23 18:15+0800\n"
+"POT-Creation-Date: 2020-07-30 17:03+0800\n"
 "PO-Revision-Date: 2020-03-23 18:12+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh\n"
@@ -28,125 +28,480 @@ msgstr ""
 msgid "Field must be greater than or equal to %(other_label)s."
 msgstr ""
 
-#: www/views.py:2993 www_rbac/views.py:2613
+#: www/views.py:3027 www_rbac/views.py:2870
 msgid "Clear"
 msgstr ""
 
-#: www/views.py:2994 www_rbac/views.py:2614
+#: www/views.py:3028 www_rbac/views.py:2871
 msgid ""
 "Are you sure you want to clear the state of the selected task instance(s)"
 " and set their dagruns to the running state?"
 msgstr ""
 
-#: www/templates/airflow/dag.html:120 www_rbac/templates/airflow/dag.html:119
+#: www/templates/airflow/dag.html:117 www_rbac/templates/airflow/dag.html:127
 msgid "Delete"
-msgstr "删除"
+msgstr ""
 
-#: www_rbac/forms.py:69
-msgid "Dag Id"
+#: www_rbac/app.py:135
+msgid "DAG Runs"
+msgstr "DAG运行"
+
+#: www_rbac/app.py:142
+msgid "Logs"
+msgstr "日志"
+
+#: www_rbac/app.py:151
+msgid "Configurations"
+msgstr "配置"
+
+#: www_rbac/app.py:155
+msgid "Connections"
+msgstr "连接"
+
+#: www_rbac/app.py:158
+msgid "Error Tags"
+msgstr "错误标签"
+
+#: www_rbac/app.py:161
+msgid "Tightening Controller"
+msgstr "拧紧控制器"
+
+#: www_rbac/app.py:164
+msgid "Pools"
+msgstr ""
+
+#: www_rbac/app.py:167
+msgid "Variables"
+msgstr ""
+
+#: www_rbac/app.py:170
+msgid "XComs"
 msgstr ""
 
 #: www_rbac/forms.py:73
+msgid "Key"
+msgstr ""
+
+#: www_rbac/forms.py:78 www_rbac/forms.py:195
+msgid "Value"
+msgstr ""
+
+#: www_rbac/forms.py:82
+msgid "Is Curve Template"
+msgstr ""
+
+#: www_rbac/forms.py:89
+msgid "Dag Id"
+msgstr ""
+
+#: www_rbac/forms.py:93
 msgid "Start Date"
-msgstr "起始日期"
+msgstr ""
 
-#: www_rbac/forms.py:76
+#: www_rbac/forms.py:96
 msgid "End Date"
-msgstr "截止日期"
+msgstr ""
 
-#: www_rbac/forms.py:79
+#: www_rbac/forms.py:99
 msgid "Run Id"
-msgstr "执行号"
+msgstr ""
 
-#: www_rbac/forms.py:83
+#: www_rbac/forms.py:103
 msgid "State"
-msgstr "状态"
-
-#: www_rbac/forms.py:87
-msgid "Execution Date"
-msgstr "执行日期"
-
-#: www_rbac/forms.py:90
-msgid "External Trigger"
-msgstr "外部触发"
-
-#: www_rbac/forms.py:92
-msgid "Conf"
-msgstr "配置"
+msgstr ""
 
 #: www_rbac/forms.py:107
-msgid "Conn Id"
-msgstr "链接"
+msgid "Execution Date"
+msgstr ""
 
-#: www_rbac/forms.py:111
-msgid "Conn Type"
-msgstr "连接类型"
+#: www_rbac/forms.py:110
+msgid "External Trigger"
+msgstr ""
 
-#: www_rbac/forms.py:115
-msgid "Host"
-msgstr "主机"
-
-#: www_rbac/forms.py:118
-msgid "Schema"
-msgstr "语义"
-
-#: www_rbac/forms.py:121 www_rbac/templates/appbuilder/navbar_right.html:64
-msgid "Login"
-msgstr "用户名"
-
-#: www_rbac/forms.py:124
-msgid "Password"
-msgstr "密码"
+#: www_rbac/forms.py:112
+msgid "Conf"
+msgstr ""
 
 #: www_rbac/forms.py:127
-msgid "Port"
-msgstr "端口"
+msgid "Conn Id"
+msgstr ""
 
 #: www_rbac/forms.py:131
-msgid "Extra"
-msgstr "额外信息"
+msgid "Conn Type"
+msgstr ""
 
-#: www_rbac/forms.py:140
+#: www_rbac/forms.py:135
+msgid "Host"
+msgstr ""
+
+#: www_rbac/forms.py:138
+msgid "Schema"
+msgstr ""
+
+#: www_rbac/forms.py:141 www_rbac/templates/appbuilder/navbar_right.html:82
+msgid "Login"
+msgstr ""
+
+#: www_rbac/forms.py:144
+msgid "Password"
+msgstr ""
+
+#: www_rbac/forms.py:147
+msgid "Port"
+msgstr ""
+
+#: www_rbac/forms.py:151
+msgid "Extra"
+msgstr ""
+
+#: www_rbac/forms.py:160
 msgid "Driver Path"
 msgstr ""
 
-#: www_rbac/forms.py:143
+#: www_rbac/forms.py:163
 msgid "Driver Class"
 msgstr ""
 
-#: www_rbac/forms.py:146
+#: www_rbac/forms.py:166
 msgid "Project Id"
-msgstr "项目号"
+msgstr ""
 
-#: www_rbac/forms.py:149
+#: www_rbac/forms.py:169
 msgid "Keyfile Path"
 msgstr ""
 
-#: www_rbac/forms.py:152
+#: www_rbac/forms.py:172
 msgid "Keyfile JSON"
 msgstr ""
 
-#: www_rbac/forms.py:155 www_rbac/forms.py:169
+#: www_rbac/forms.py:175 www_rbac/forms.py:189
 msgid "Scopes (comma separated)"
 msgstr ""
 
-#: www_rbac/forms.py:158
+#: www_rbac/forms.py:178
 msgid "Number of Retries"
-msgstr "重试次数"
+msgstr ""
 
-#: www_rbac/forms.py:163
+#: www_rbac/forms.py:183
 msgid "Grpc Auth Type"
 msgstr ""
 
-#: www_rbac/forms.py:166
+#: www_rbac/forms.py:186
 msgid "Credential Keyfile Path"
 msgstr ""
 
-#: www_rbac/templates/appbuilder/navbar_right.html:58
-msgid "Profile"
-msgstr "用户档案"
+#: www_rbac/forms.py:198
+msgid "Label"
+msgstr ""
 
-#: www_rbac/templates/appbuilder/navbar_right.html:59
+#: www_rbac/forms.py:204
+msgid "Controller_name"
+msgstr "控制器名称"
+
+#: www_rbac/forms.py:207
+msgid "Line_code"
+msgstr "工段"
+
+#: www_rbac/forms.py:210
+msgid "Work_center_code"
+msgstr "工作中心编号"
+
+#: www_rbac/forms.py:213
+msgid "Work_center_name"
+msgstr "工作中心名称"
+
+#: www_rbac/views.py:2305 www_rbac/views.py:2534
+msgid "key"
+msgstr ""
+
+#: www_rbac/views.py:2305 www_rbac/views.py:2411
+msgid "value"
+msgstr ""
+
+#: www_rbac/views.py:2306
+msgid "timestamp"
+msgstr ""
+
+#: www_rbac/views.py:2306 www_rbac/views.py:2686 www_rbac/views.py:2802
+msgid "execution_date"
+msgstr ""
+
+#: www_rbac/views.py:2306 www_rbac/views.py:2801
+msgid "task_id"
+msgstr ""
+
+#: www_rbac/views.py:2306 www_rbac/views.py:2652 www_rbac/views.py:2685
+#: www_rbac/views.py:2801 www_rbac/views.py:2983
+msgid "dag_id"
+msgstr ""
+
+#: www_rbac/views.py:2357
+msgid "conn_id"
+msgstr ""
+
+#: www_rbac/views.py:2357
+msgid "conn_type"
+msgstr ""
+
+#: www_rbac/views.py:2358
+msgid "host"
+msgstr ""
+
+#: www_rbac/views.py:2358
+msgid "port"
+msgstr ""
+
+#: www_rbac/views.py:2359 www_rbac/views.py:2535
+msgid "is_encrypted"
+msgstr ""
+
+#: www_rbac/views.py:2359
+msgid "is_extra_encrypted"
+msgstr ""
+
+#: www_rbac/views.py:2411
+msgid "label"
+msgstr ""
+
+#: www_rbac/views.py:2440
+msgid "controller_name"
+msgstr "控制器名称"
+
+#: www_rbac/views.py:2440
+msgid "line_code"
+msgstr "工段"
+
+#: www_rbac/views.py:2440
+msgid "work_center_code"
+msgstr "工作中心编码"
+
+#: www_rbac/views.py:2440
+msgid "work_center_name"
+msgstr "工作中心名称"
+
+#: www_rbac/views.py:2465
+msgid "pool"
+msgstr ""
+
+#: www_rbac/views.py:2465
+msgid "slots"
+msgstr ""
+
+#: www_rbac/views.py:2466
+msgid "used_slots"
+msgstr ""
+
+#: www_rbac/views.py:2466
+msgid "queued_slots"
+msgstr ""
+
+#: www_rbac/views.py:2534
+msgid "val"
+msgstr ""
+
+#: www_rbac/views.py:2535
+msgid "is_curve_template"
+msgstr ""
+
+#: www_rbac/views.py:2535
+msgid "active"
+msgstr ""
+
+#: www_rbac/views.py:2652 www_rbac/views.py:2800
+msgid "id"
+msgstr ""
+
+#: www_rbac/views.py:2653 www_rbac/views.py:2685
+msgid "state"
+msgstr ""
+
+#: www_rbac/views.py:2653
+msgid "job_type"
+msgstr ""
+
+#: www_rbac/views.py:2654
+msgid "start_date"
+msgstr ""
+
+#: www_rbac/views.py:2686
+msgid "run_id"
+msgstr ""
+
+#: www_rbac/views.py:2687
+msgid "external_trigger"
+msgstr ""
+
+#: www_rbac/views.py:2800
+msgid "dttm"
+msgstr ""
+
+#: www_rbac/views.py:2802
+msgid "event"
+msgstr ""
+
+#: www_rbac/views.py:2803 www_rbac/views.py:2985
+msgid "owners"
+msgstr ""
+
+#: www_rbac/views.py:2803
+msgid "extra"
+msgstr ""
+
+#: www_rbac/views.py:2983
+msgid "is_paused"
+msgstr ""
+
+#: www_rbac/views.py:2984
+msgid "last_scheduler_run"
+msgstr ""
+
+#: www_rbac/views.py:2984
+msgid "last_expired"
+msgstr ""
+
+#: www_rbac/views.py:2985
+msgid "scheduler_lock"
+msgstr ""
+
+#: www_rbac/views.py:2985
+msgid "fileloc"
+msgstr ""
+
+#: www_rbac/templates/appbuilder/navbar_right.html:76
+msgid "Profile"
+msgstr ""
+
+#: www_rbac/templates/appbuilder/navbar_right.html:77
 msgid "Logout"
-msgstr "登出"
+msgstr ""
+
+#~ msgid "Invalid field name '%s'."
+#~ msgstr ""
+
+#~ msgid "Field must be greater than or equal to %(other_label)s."
+#~ msgstr ""
+
+#~ msgid "Clear"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Are you sure you want to clear "
+#~ "the state of the selected task "
+#~ "instance(s) and set their dagruns to "
+#~ "the running state?"
+#~ msgstr ""
+
+#~ msgid "Delete"
+#~ msgstr "删除"
+
+#~ msgid "DAG Runs"
+#~ msgstr "工作流运行"
+
+#~ msgid "Key"
+#~ msgstr ""
+
+#~ msgid "Value"
+#~ msgstr "值"
+
+#~ msgid "Is Curve Template"
+#~ msgstr "是曲线模板"
+
+#~ msgid "Dag Id"
+#~ msgstr ""
+
+#~ msgid "Start Date"
+#~ msgstr "起始日期"
+
+#~ msgid "End Date"
+#~ msgstr "截止日期"
+
+#~ msgid "Run Id"
+#~ msgstr "执行号"
+
+#~ msgid "State"
+#~ msgstr "状态"
+
+#~ msgid "Execution Date"
+#~ msgstr "执行日期"
+
+#~ msgid "External Trigger"
+#~ msgstr "外部触发"
+
+#~ msgid "Conf"
+#~ msgstr "配置"
+
+#~ msgid "Conn Id"
+#~ msgstr "链接"
+
+#~ msgid "Conn Type"
+#~ msgstr "连接类型"
+
+#~ msgid "Host"
+#~ msgstr "主机"
+
+#~ msgid "Schema"
+#~ msgstr "语义"
+
+#~ msgid "Login"
+#~ msgstr "用户名"
+
+#~ msgid "Password"
+#~ msgstr "密码"
+
+#~ msgid "Port"
+#~ msgstr "端口"
+
+#~ msgid "Extra"
+#~ msgstr "额外信息"
+
+#~ msgid "Driver Path"
+#~ msgstr "驱动路径"
+
+#~ msgid "Driver Class"
+#~ msgstr ""
+
+#~ msgid "Project Id"
+#~ msgstr "项目号"
+
+#~ msgid "Keyfile Path"
+#~ msgstr ""
+
+#~ msgid "Keyfile JSON"
+#~ msgstr ""
+
+#~ msgid "Scopes (comma separated)"
+#~ msgstr "范围（逗号分隔）"
+
+#~ msgid "Number of Retries"
+#~ msgstr "重试次数"
+
+#~ msgid "Grpc Auth Type"
+#~ msgstr ""
+
+#~ msgid "Credential Keyfile Path"
+#~ msgstr ""
+
+#~ msgid "Label"
+#~ msgstr "标签"
+
+#~ msgid "Controller_name"
+#~ msgstr "控制器名称"
+
+#~ msgid "Line_code"
+#~ msgstr ""
+
+#~ msgid "Work_center_code"
+#~ msgstr ""
+
+#~ msgid "Work_center_name"
+#~ msgstr "工作中心名称"
+
+#~ msgid "Profile"
+#~ msgstr "用户档案"
+
+#~ msgid "Logout"
+#~ msgstr "登陆"
+
+#~ msgid "tightening_controller"
+#~ msgstr "拧紧控制器"
 

@@ -33,6 +33,7 @@ from flask_wtf.csrf import CSRFProtect
 from six.moves.urllib.parse import urlparse
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from flask_babel import gettext
 
 from airflow import settings, version
 from airflow.configuration import conf
@@ -131,14 +132,14 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view_no_menu(views.Airflow())
             appbuilder.add_view_no_menu(views.DagModelView())
             appbuilder.add_view(views.DagRunModelView,
-                                "DAG Runs",
+                                gettext("DAG Runs"),
                                 category="Browse",
                                 category_icon="fa-globe")
             appbuilder.add_view(views.JobModelView,
                                 "Jobs",
                                 category="Browse")
             appbuilder.add_view(views.LogModelView,
-                                "Logs",
+                                gettext("Logs"),
                                 category="Browse")
             appbuilder.add_view(views.SlaMissModelView,
                                 "SLA Misses",
@@ -147,26 +148,26 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 "Task Instances",
                                 category="Browse")
             appbuilder.add_view(views.ConfigurationView,
-                                "Configurations",
+                                gettext("Configurations"),
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_view(views.ConnectionModelView,
-                                "Connections",
+                                gettext("Connections"),
                                 category="Admin")
             appbuilder.add_view(views.ErrorTagModelView,
-                                "Error Tags",
+                               gettext( "Error Tags"),
                                 category="Admin")
             appbuilder.add_view(views.TighteningControllerView,
-                                "Tightening Controller",
+                                gettext("Tightening Controller"),
                                 category="Admin")
             appbuilder.add_view(views.PoolModelView,
-                                "Pools",
+                                gettext("Pools"),
                                 category="Admin")
             appbuilder.add_view(views.VariableModelView,
-                                "Variables",
+                                gettext("Variables"),
                                 category="Admin")
             appbuilder.add_view(views.XComModelView,
-                                "XComs",
+                                gettext("XComs"),
                                 category="Admin")
 
             if "dev" in version.version:

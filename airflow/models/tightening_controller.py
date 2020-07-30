@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String
 from airflow.models.base import Base
 from airflow.utils.db import provide_session
-
+from flask_babel import lazy_gettext
 
 class TighteningController(Base):
     """
