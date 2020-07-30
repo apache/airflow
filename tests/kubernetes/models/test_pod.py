@@ -74,3 +74,84 @@ class TestPod(unittest.TestCase):
                 'volumes': []
             }
         }, result)
+
+    def test_to_v1_pod(self):
+        from airflow.kubernetes_deprecated.pod import Pod as DeprecatedPod
+        from airflow.kubernetes.volume import Volume
+        from airflow.kubernetes.volume_mount import VolumeMount
+        from airflow.kubernetes.pod import Resources
+
+        pod = DeprecatedPod(
+            image="foo",
+            name="bar",
+            namespace="baz",
+            image_pull_policy="Never",
+            envs={"test_key": "test_value"},
+            cmds=["airflow"],
+            resources=Resources(
+                request_memory="1G",
+                request_cpu="100Mi",
+                limit_gpu="100G"
+            ),
+            volumes=[Volume(name="foo", configs={})],
+            volume_mounts=[VolumeMount(name="foo", mount_path="/mnt", sub_path="/", read_only=True)]
+        )
+
+        k8s_client = ApiClient()
+
+        result = pod.to_v1_kubernetes_pod()
+        result = k8s_client.sanitize_for_serialization(result)
+
+        expected = \
+            {
+                'metadata':
+                    {
+                        'labels': {},
+                        'name': 'bar',
+                        'namespace': 'baz'
+                    },
+                'spec':
+                    {'containers':
+                        [
+                            {
+                                'args': [],
+                                'command': ['airflow'],
+                                'env': [{'name': 'test_key', 'value': 'test_value'}],
+                                'image': 'foo',
+                                'imagePullPolicy': 'Never',
+                                'name': 'base',
+                                'volumeMounts':
+                                    [
+                                        {
+                                            'mountPath': '/mnt',
+                                            'name': 'foo',
+                                            'readOnly': True, 'subPath': '/'
+                                        }
+                                    ],  # noqa
+                                'resources':
+                                    {
+                                        'limits':
+                                            {
+                                                'cpu': None,
+                                                'memory': None,
+                                                'nvidia.com/gpu': '100G',
+                                                'ephemeral-storage': None
+                                            },
+                                        'requests':
+                                            {
+                                                'cpu': '100Mi',
+                                                'memory': '1G',
+                                                'ephemeral-storage': None
+                                            }
+                                }
+                            }
+                        ],
+                        'hostNetwork': False,
+                        'tolerations': [],
+                        'volumes': [
+                            {'name': 'foo'}
+                        ]
+                     }
+            }
+        self.maxDiff = None
+        self.assertEquals(expected, result)

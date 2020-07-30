@@ -201,6 +201,7 @@ exclude_patterns = [
     '_api/airflow/example_dags',
     '_api/airflow/index.rst',
     '_api/airflow/jobs',
+    '_api/airflow/kubernetes_deprecated',
     '_api/airflow/lineage',
     '_api/airflow/logging_config',
     '_api/airflow/macros',
