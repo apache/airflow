@@ -59,7 +59,7 @@ The users' selected timezone is stored in LocalStorage so is a pre-browser setti
 
 Concepts
 --------
-Naïve and aware datetime objects
+Naive and aware datetime objects
 ''''''''''''''''''''''''''''''''
 
 Python’s datetime.datetime objects have a tzinfo attribute that can be used to store time zone information,
