@@ -28,7 +28,7 @@ from requests.exceptions import BaseHTTPError
 from airflow import AirflowException
 from airflow.kubernetes.pod_launcher_helper import convert_to_airflow_pod
 from airflow.kubernetes.pod_generator import PodDefaults
-from airflow.settings import pod_mutation_hook
+from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 import kubernetes.client.models as k8s  # noqa
@@ -89,12 +89,12 @@ class PodLauncher(LoggingMixin):
     def _mutate_pod_backcompat(pod):
         """Backwards compatible Pod Mutation Hook"""
         try:
-            pod_mutation_hook(pod)
+            settings.pod_mutation_hook(pod)
             # attempts to run pod_mutation_hook using k8s.V1Pod, if this
             # fails we attempt to run by converting pod to Old Pod
         except AttributeError:
             dummy_pod = convert_to_airflow_pod(pod)
-            pod_mutation_hook(dummy_pod)
+            settings.pod_mutation_hook(dummy_pod)
             dummy_pod = dummy_pod.to_v1_kubernetes_pod()
             return dummy_pod
         return pod
