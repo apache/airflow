@@ -452,7 +452,8 @@ class Airflow(AirflowBaseView):
                                                    default_var=None
                                                    )[1]
         _has_access = self.appbuilder.sm.has_access
-        can_delete = _has_access('can_edit', 'VariableModelView') and _has_access('can_remove_curve_template', 'Airflow')
+        can_delete = _has_access('can_edit', 'VariableModelView') and _has_access('can_remove_curve_template',
+                                                                                  'Airflow')
 
         if curve_template is None:
             return None
@@ -2641,7 +2642,8 @@ class VariableModelView(AirflowModelView):
             suc_count = fail_count = 0
             for k, v in d.items():
                 try:
-                    models.Variable.set(k, v, serialize_json=isinstance(v, dict))
+                    is_curve_template = VariableModelView.is_curve_param_key(k)
+                    models.Variable.set(k, v, serialize_json=isinstance(v, dict), is_curve_template=is_curve_template)
                 except Exception as e:
                     logging.info('Variable import failed: {}'.format(repr(e)))
                     fail_count += 1
