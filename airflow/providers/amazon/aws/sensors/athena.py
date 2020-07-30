@@ -63,7 +63,7 @@ class AthenaSensor(BaseSensorOperator):
         self.sleep_time = sleep_time
         self.max_retires = max_retires
 
-    def poke(self, context: Dict[Any, Any]) -> bool:
+    def poke(self, context: dict) -> bool:
         state = self.hook.poll_query_status(self.query_execution_id, self.max_retires)
 
         if state in self.FAILURE_STATES:
