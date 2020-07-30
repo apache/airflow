@@ -51,12 +51,15 @@ class K8SModel(ABC):
 
     def as_dict(self):
         res = {}
-        for s in self.__slots__:
-            if hasattr(self, s):
-                res[s] = getattr(self, s)
-        res_dict = self.__dict__.copy()
-        res_dict.update(res)
-        return res_dict
+        if hasattr(self, "__slots__"):
+            for s in self.__slots__:
+                if hasattr(self, s):
+                    res[s] = getattr(self, s)
+        if hasattr(self, "__dict__"):
+            res_dict = self.__dict__.copy()
+            res_dict.update(res)
+            return res_dict
+        return res
 
 
 def append_to_pod(pod, k8s_objects):
