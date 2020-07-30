@@ -88,7 +88,7 @@
   function doRemoveCurve(version, mode, groupCenterIdx, curveIdx) {
     $.ajax({
       type: 'PUT',
-      url: "{{ url_for('api_experimental.remove_curve_from_curve_template',bolt_no=bolt_no, craft_type=craft_type ) }}",
+      url: "{{ url_for('Airflow.remove_curve_template',bolt_no=bolt_no, craft_type=craft_type ) }}",
       data: JSON.stringify({
         csrf_token: '{{ csrf_token() }}',
         version,
@@ -115,6 +115,10 @@
 
   function showRemoveCurveDialog(name, color) {
     const curve = curves.find(c => c.name === name);
+    console.log('{{ can_delete }}');
+    if ('{{ can_delete }}' !== 'True') {
+      return;
+    }
     showDialog('删除曲线', `<h4>确认删除曲线 <span class="color-indicator" style="display:inline-block;background-color: ${color}"></span>${name}</h4>`, {
       onConfirm() {
         doRemoveCurve(
@@ -219,7 +223,9 @@
             text: `<span style="user-select: none;height:100%;">
                   <span  class="align-items-center d-inline-flex">${name}
                   <div class="color-indicator ml-2 mr-3" style="background-color: ${color};"></div>
+                  {% if can_delete%}
                   <button class="btn check-icon btn-danger">删除</button>
+                  {% endif %}
                   </span>
                 </span>`,
             name,

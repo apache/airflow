@@ -53,6 +53,7 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
+from flask_paginate import Pagination, get_page_parameter
 
 import airflow
 from airflow import models, jobs
@@ -79,10 +80,11 @@ from airflow.www_rbac.decorators import action_logging, gzipped, has_dag_access
 from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DateTimeWithNumRunsWithDagRunsForm, VariableForm,
                                     DagRunForm, ConnectionForm, ErrorTagForm, TighteningControllerForm)
-from airflow.www_rbac.widgets import AirflowModelListWidget,AirflowControllerListWidget
+from airflow.www_rbac.widgets import AirflowModelListWidget, AirflowControllerListWidget
 from flask_wtf.csrf import CSRFProtect
-from airflow.www_rbac.api.experimental.utils import get_curve_entity_ids, get_curve, get_result
+from airflow.www_rbac.api.experimental.utils import get_curve_entity_ids, get_curve, get_result, get_analysis_tasks
 from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.www_rbac.api.experimental.endpoints import do_remove_curve_from_curve_template
 
 csrf = CSRFProtect()
 
@@ -431,8 +433,16 @@ class Airflow(AirflowBaseView):
     @expose('/curves/<string:bolt_no>/<string:craft_type>')
     @has_access
     def view_curves(self, bolt_no, craft_type):
-        entity_ids = get_curve_entity_ids(bolt_number=bolt_no, craft_type=craft_type)
-        return self.render_template('airflow/curves.html', entity_ids=entity_ids)
+        _has_access = self.appbuilder.sm.has_access
+        page = request.args.get(get_page_parameter(), type=int, default=1)
+        tasks = get_analysis_tasks(bolt_number=bolt_no, craft_type=craft_type)
+
+        pagination = Pagination(page=page, total=tasks.count(), css_framework='foundation', search=False,
+                                record_name='curves', per_page=PAGE_SIZE)
+        start = (page - 1) * PAGE_SIZE
+        stop = page * PAGE_SIZE
+        return self.render_template('airflow/curves.html', tasks=tasks.slice(start, stop),
+                                    pagination=pagination)
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
     @has_access
@@ -441,10 +451,35 @@ class Airflow(AirflowBaseView):
                                                    deserialize_json=True,
                                                    default_var=None
                                                    )[1]
+        _has_access = self.appbuilder.sm.has_access
+        can_delete = _has_access('can_edit', 'VariableModelView') and _has_access('can_remove_curve_template',
+                                                                                  'Airflow')
+
         if curve_template is None:
             return None
-        return self.render_template('airflow/curve_template.html', curve_template=curve_template, bolt_no=bolt_no,
+        return self.render_template('airflow/curve_template.html', can_delete=can_delete,
+                                    curve_template=curve_template, bolt_no=bolt_no,
                                     craft_type=craft_type)
+
+    @expose('/curve_template/<string:bolt_no>/<string:craft_type>/remove_curve', methods=['PUT'])
+    @has_access
+    def remove_curve_template(self, bolt_no, craft_type):
+        _has_access = self.appbuilder.sm.has_access
+        can_delete = _has_access('can_edit', 'VariableModelView')
+        if not can_delete:
+            return {'error': u'没有权限'}
+
+        params = request.get_json(force=True)
+        version = params.get('version', None)
+        mode = params.get('mode', None)
+        group_center_idx = params.get('group_center_idx', None)
+        curve_idx = params.get('curve_idx', None)
+        try:
+            new_template = do_remove_curve_from_curve_template(bolt_no, craft_type, version, mode, group_center_idx,
+                                                               curve_idx)
+            return {'data': new_template}
+        except Exception as e:
+            return {'error': str(e)}
 
     @expose('/task_stats', methods=['POST'])
     @has_access
@@ -2252,6 +2287,7 @@ class ConfigurationView(AirflowBaseView):
 #                                    ModelViews
 ######################################################################################
 
+
 class DagFilter(BaseFilter):
     def apply(self, query, func):  # noqa
         if appbuilder.sm.has_all_dags_access():
@@ -2427,7 +2463,7 @@ class TighteningControllerView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(TighteningController)
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
+    base_permissions = ['can_show', 'can_add', 'can_list', 'can_edit', 'can_delete']
 
     extra_fields = []
     list_columns = ['controller_name', 'line_code', 'work_center_code', 'work_center_name']
@@ -2524,7 +2560,7 @@ class VariableModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.Variable)
 
-    base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport', 'is_curve_template']
+    base_permissions = ['can_show', 'can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport']
 
     list_columns = ['key', 'val', 'is_encrypted', 'is_curve_template', 'active']
     add_columns = ['key', 'val', 'is_curve_template', 'active']
