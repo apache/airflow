@@ -124,7 +124,7 @@ class AWSAthenaHook(AwsBaseHook):
 
     def get_query_results(self, query_execution_id: str,
                           next_token_id: Optional[str] = None,
-                          max_results: int = 1000) -> Optional[Dict]:
+                          max_results: int = 1000) -> Optional[dict]:
         """
         Fetch submitted athena query results. returns none if query is in intermediate state or
         failed/cancelled state else dict of query output
