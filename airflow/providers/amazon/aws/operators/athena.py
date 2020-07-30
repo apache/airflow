@@ -90,7 +90,7 @@ class AWSAthenaOperator(BaseOperator):
         """Create and return an AWSAthenaHook."""
         return AWSAthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
 
-    def execute(self, context: Dict[Any, Any]) -> Optional[str]:
+    def execute(self, context: dict) -> Optional[str]:
         """
         Run Presto Query on Athena
         """
