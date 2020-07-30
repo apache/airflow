@@ -2337,7 +2337,10 @@ class XComModelView(AirflowModelView):
     add_columns = ['key', 'value', 'execution_date', 'task_id', 'dag_id']
     edit_columns = ['key', 'value', 'execution_date', 'task_id', 'dag_id']
     base_order = ('execution_date', 'desc')
-
+    label_columns = {
+        'key': lazy_gettext('key'), 'value': lazy_gettext('value'),
+        'timestamp': lazy_gettext('timestamp'), 'execution_date': lazy_gettext('execution_date'),'task_id': lazy_gettext('task_id'),'dag_id': lazy_gettext('dag_id')
+    }
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     formatters_columns = {
@@ -2386,7 +2389,11 @@ class ConnectionModelView(AirflowModelView):
     add_form = edit_form = ConnectionForm
     add_template = 'airflow/conn_create.html'
     edit_template = 'airflow/conn_edit.html'
-
+    label_columns = {
+        'conn_id': lazy_gettext('conn_id'), 'conn_type': lazy_gettext('conn_type'),
+        'host': lazy_gettext('host'), 'port': lazy_gettext('port'),
+        'is_encrypted': lazy_gettext('is_encrypted'), 'is_extra_encrypted': lazy_gettext('is_extra_encrypted')
+    }
     base_order = ('conn_id', 'asc')
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
@@ -2436,7 +2443,10 @@ class ErrorTagModelView(AirflowModelView):
     add_form = edit_form = ErrorTagForm
     add_template = 'airflow/error_tag_create.html'
     edit_template = 'airflow/error_tag_edit.html'
+    label_columns = {
+        'value': lazy_gettext('value'), 'label': lazy_gettext('label')
 
+    }
     base_order = ('id', 'asc')
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
@@ -2462,6 +2472,9 @@ class TighteningControllerView(AirflowModelView):
     add_template = 'airflow/tightening_controller_create.html'
     edit_template = 'airflow/tightening_controller_edit.html'
     list_widget = AirflowControllerListWidget
+    label_columns = {
+        'controller_name': lazy_gettext('controller_name'),  'line_code': lazy_gettext('line_code'),'work_center_code': lazy_gettext('work_center_code'),'work_center_name': lazy_gettext('work_center_name')
+    }
 
     base_order = ('id', 'asc')
 
@@ -2484,7 +2497,10 @@ class PoolModelView(AirflowModelView):
     list_columns = ['pool', 'slots', 'used_slots', 'queued_slots']
     add_columns = ['pool', 'slots', 'description']
     edit_columns = ['pool', 'slots', 'description']
-
+    label_columns = {
+        'pool': lazy_gettext('pool'), 'slots': lazy_gettext('slots'),
+        'used_slots': lazy_gettext('used_slots'), 'queued_slots': lazy_gettext('queued_slots')
+    }
     base_order = ('pool', 'asc')
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
@@ -2550,7 +2566,10 @@ class VariableModelView(AirflowModelView):
     add_columns = ['key', 'val', 'is_curve_template', 'active']
     edit_columns = ['key', 'val', 'is_curve_template', 'active']
     search_columns = ['key', 'val', 'is_curve_template', 'active']
-
+    label_columns = {
+        'key': lazy_gettext('key'), 'val': lazy_gettext('val'),
+        'is_encrypted': lazy_gettext('is_encrypted'), 'is_curve_template': lazy_gettext('is_curve_template'),'active': lazy_gettext('active')
+    }
     # add_form = edit_form = VariableForm
 
     base_order = ('key', 'asc')
@@ -2644,8 +2663,7 @@ class VariableModelView(AirflowModelView):
             suc_count = fail_count = 0
             for k, v in d.items():
                 try:
-                    is_curve_template = VariableModelView.is_curve_param_key(k)
-                    models.Variable.set(k, v, serialize_json=isinstance(v, dict), is_curve_template=is_curve_template)
+                    models.Variable.set(k, v, serialize_json=isinstance(v, dict))
                 except Exception as e:
                     logging.info('Variable import failed: {}'.format(repr(e)))
                     fail_count += 1
@@ -2668,6 +2686,12 @@ class JobModelView(AirflowModelView):
     list_columns = ['id', 'dag_id', 'state', 'job_type', 'start_date',
                     'end_date', 'latest_heartbeat',
                     'executor_class', 'hostname', 'unixname']
+    label_columns = {
+        'id': lazy_gettext('id'), 'dag_id': lazy_gettext('dag_id'),
+        'state': lazy_gettext('state'), 'job_type': lazy_gettext('job_type'),
+        'start_date': lazy_gettext('start_date')
+    }
+
     search_columns = ['id', 'dag_id', 'state', 'job_type', 'start_date',
                       'end_date', 'latest_heartbeat', 'executor_class',
                       'hostname', 'unixname']
@@ -2695,7 +2719,11 @@ class DagRunModelView(AirflowModelView):
     add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
     list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger']
     search_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger']
-
+    label_columns = {
+        'state': lazy_gettext('state'), 'dag_id': lazy_gettext('dag_id'),
+        'execution_date': lazy_gettext('execution_date'), 'run_id': lazy_gettext('run_id'),
+        'external_trigger': lazy_gettext('external_trigger')
+    }
     base_order = ('execution_date', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
@@ -2806,6 +2834,12 @@ class LogModelView(AirflowModelView):
 
     list_columns = ['id', 'dttm', 'dag_id', 'task_id', 'event', 'execution_date',
                     'owner', 'extra']
+    label_columns = {
+        'id': lazy_gettext('id'), 'dttm': lazy_gettext('dttm'),
+        'dag_id': lazy_gettext('dag_id'), 'task_id': lazy_gettext('task_id'),
+        'event': lazy_gettext('event'), 'execution_date': lazy_gettext('execution_date'),
+        'owners': lazy_gettext('owners'),'extra': lazy_gettext('extra')
+    }
     search_columns = ['dag_id', 'task_id', 'execution_date', 'extra']
 
     base_order = ('dttm', 'desc')
@@ -2983,7 +3017,11 @@ class DagModelView(AirflowModelView):
 
     list_columns = ['dag_id', 'is_paused', 'last_scheduler_run',
                     'last_expired', 'scheduler_lock', 'fileloc', 'owners']
-
+    label_columns = {
+        'dag_id': lazy_gettext('dag_id'), 'is_paused': lazy_gettext('is_paused'),
+        'last_scheduler_run': lazy_gettext('last_scheduler_run'), 'last_expired': lazy_gettext('last_expired'),
+        'scheduler_lock': lazy_gettext('scheduler_lock'),'fileloc': lazy_gettext('fileloc'),'owners': lazy_gettext('owners')
+    }
     formatters_columns = {
         'dag_id': wwwutils.dag_link
     }
