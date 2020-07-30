@@ -64,16 +64,6 @@ def pod_mutation_hook(pod):
 """
 
 
-def pod_mutation_hook(v1pod):
-    """
-
-    @param v1pod:
-    :type v1pod: k8s.V1Pod
-    @return:
-    """
-    v1pod.spec.containers[0].image = "test-image"
-
-
 class SettingsContext:
     def __init__(self, content, module_name):
         self.content = content

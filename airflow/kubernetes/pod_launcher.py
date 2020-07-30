@@ -66,7 +66,7 @@ class PodLauncher(LoggingMixin):
     def run_pod_async(self, pod, **kwargs):
         """Runs POD asynchronously
 
-        :param pod:
+        :param pod: Pod to run
         :type pod: k8s.V1Pod
         """
         pod = self._mutate_pod_backcompat(pod)
