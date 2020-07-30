@@ -17,6 +17,7 @@
 """Launches PODs"""
 import json
 import time
+import warnings
 from datetime import datetime as dt
 
 import tenacity
@@ -93,6 +94,10 @@ class PodLauncher(LoggingMixin):
             # attempts to run pod_mutation_hook using k8s.V1Pod, if this
             # fails we attempt to run by converting pod to Old Pod
         except AttributeError:
+            warnings.warn(
+                "Using `airflow.contrib.kubernetes.pod.Pod` is deprecated. "
+                "Please use `k8s.V1Pod` instead.", DeprecationWarning, stacklevel=2
+            )
             dummy_pod = convert_to_airflow_pod(pod)
             settings.pod_mutation_hook(dummy_pod)
             dummy_pod = dummy_pod.to_v1_kubernetes_pod()

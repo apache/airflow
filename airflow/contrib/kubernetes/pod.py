@@ -14,9 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.kubernetes.pod`."""
 
-import kubernetes.client.models as k8s
-from airflow.kubernetes.pod import Resources
+import warnings
+
+# pylint: disable=unused-import
+from airflow.kubernetes.pod import Port, Resources   # noqa
+
+warnings.warn(
+    "This module is deprecated. Please use `airflow.kubernetes.pod`.",
+    DeprecationWarning, stacklevel=2
+)
 
 
 class Pod(object):
@@ -86,6 +94,10 @@ class Pod(object):
             pod_runtime_info_envs=None,
             dnspolicy=None
     ):
+        warnings.warn(
+            "Using `airflow.contrib.kubernetes.pod.Pod` is deprecated. Please use `k8s.V1Pod`.",
+            DeprecationWarning, stacklevel=2
+        )
         self.image = image
         self.envs = envs or {}
         self.cmds = cmds
@@ -119,6 +131,7 @@ class Pod(object):
 
         :return: k8s.V1Pod
         """
+        import kubernetes.client.models as k8s
         meta = k8s.V1ObjectMeta(
             labels=self.labels,
             name=self.name,

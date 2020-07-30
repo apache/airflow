@@ -20,7 +20,6 @@ Classes for interacting with Kubernetes API
 
 import uuid
 import copy
-import kubernetes.client.models as k8s
 from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.k8s_model import K8SModel
 
@@ -65,6 +64,7 @@ class Secret(K8SModel):
         self.key = key
 
     def to_env_secret(self):
+        import kubernetes.client.models as k8s
         return k8s.V1EnvVar(
             name=self.deploy_target,
             value_from=k8s.V1EnvVarSource(
@@ -76,11 +76,13 @@ class Secret(K8SModel):
         )
 
     def to_env_from_secret(self):
+        import kubernetes.client.models as k8s
         return k8s.V1EnvFromSource(
             secret_ref=k8s.V1SecretEnvSource(name=self.secret)
         )
 
     def to_volume_secret(self):
+        import kubernetes.client.models as k8s
         vol_id = 'secretvol{}'.format(uuid.uuid4())
         return (
             k8s.V1Volume(
