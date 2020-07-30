@@ -22,7 +22,6 @@ import sys
 import tempfile
 import unittest
 from airflow.kubernetes import pod_generator
-from airflow.kubernetes.pod_launcher import PodLauncher
 from tests.compat import MagicMock, Mock, call, patch
 
 
@@ -188,6 +187,7 @@ class LocalSettingsTest(unittest.TestCase):
         with SettingsContext(SETTINGS_FILE_POD_MUTATION_HOOK, "airflow_local_settings"):
             from airflow import settings
             settings.import_local_settings()  # pylint: ignore
+            from airflow.kubernetes.pod_launcher import PodLauncher
 
             self.mock_kube_client = Mock()
             self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)
@@ -203,18 +203,6 @@ class LocalSettingsTest(unittest.TestCase):
                 volumes=[{"name": "foo"}]
             ).gen_pod()
 
-            """
-            def pod_mutation_hook(pod):
-                pod.namespace = 'airflow-tests'
-                pod.image = 'my_image'
-                pod.volumes.append(Volume(name="bar", configs={}))
-                pod.ports = [Port(container_port=8080)]
-                pod.resources = Resources(
-                                request_memory="2G",
-                                request_cpu="200Mi",
-                                limit_gpu="200G"
-                            )
-            """
             self.assertEqual(pod.metadata.namespace, "baz")
             self.assertEqual(pod.spec.containers[0].image, "foo")
             self.assertEqual(pod.spec.volumes, [{'name': 'foo'}])
@@ -253,6 +241,7 @@ class LocalSettingsTest(unittest.TestCase):
         with SettingsContext(SETTINGS_FILE_POD_MUTATION_HOOK_V1_POD, "airflow_local_settings"):
             from airflow import settings
             settings.import_local_settings()  # pylint: ignore
+            from airflow.kubernetes.pod_launcher import PodLauncher
 
             self.mock_kube_client = Mock()
             self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)

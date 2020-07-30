@@ -96,8 +96,8 @@ class PodLauncher(LoggingMixin):
             dummy_pod = convert_to_airflow_pod(pod)
             pod_mutation_hook(dummy_pod)
             dummy_pod = dummy_pod.to_v1_kubernetes_pod()
-            # pod = PodGenerator.reconcile_pods(pod, dummy_pod)
-        return dummy_pod
+            return dummy_pod
+        return pod
 
     def delete_pod(self, pod):
         """Deletes POD"""
