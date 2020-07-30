@@ -315,11 +315,18 @@ def get_curves_by_entity_id():
             return jsonify(curves)
 
         for entity_id in entity_ids:
-            curve = get_curve(entity_id)
-            if curve is not None:
+            try:
+                curve = get_curve(entity_id)
+                if curve is not None:
+                    curves.append({
+                        'entity_id': entity_id,
+                        'curve': curve
+                    })
+            except Exception as e:
+                _log.debug(e)
                 curves.append({
                     'entity_id': entity_id,
-                    'curve': curve
+                    'curve': []
                 })
 
         return jsonify(curves=curves)

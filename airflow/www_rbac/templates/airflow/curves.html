@@ -40,16 +40,28 @@
         <!--        </tr>-->
         <tr>
           <td class="h-100" style="text-align: center;vertical-align: middle;">
-            <input id="{{ task.entity_id }}" class="action_check mr-1" name="rowid" value="{{ task.entity_id }}"
-                   type="checkbox">
+            <div class="d-flex flex-column justify-content-center align-items-center">
+              <input id="{{ task.entity_id }}" class="action_check m-2" name="rowid" value="{{ task.entity_id }}"
+                     type="checkbox">
+              <a type="button" class="btn btn-sm btn-default"
+                 href="/view_curve/{{ task.dag_id }}/dag_runs/{{ task.execution_date }}/tasks/{{ task.task_id }}"
+                 target="_blank">
+                <i class="glyphicon glyphicon-new-window"></i>
+              </a>
+            </div>
           </td>
           <td>
             <button class="btn list-group-item" value="{{ task.entity_id }}">
               <h4 class="list-group-item-heading">
                 {{ task.entity_id }}
               </h4>
-              <p class="list-group-item-text ml-4">{{ task.execution_date }}</p>
-              <p class="list-group-item-text ml-4">{{ task.result }}</p>
+              <p class="list-group-item-text ml-4"><span>时间：</span>{{ task.execution_date }}</p>
+              <p class="list-group-item-text ml-4"><span>控制器结果：</span>
+                {{ task.measure_result if task.measure_result else '无结果' }}</p>
+              <p class="list-group-item-text ml-4"><span>分析结果：</span>
+                {{ task.result if task.result else '未分析'}}</p>
+              <p class="list-group-item-text ml-4"><span>最终结果：</span>
+                {{ task.final_state if task.final_state else '未确认' }}</p>
             </button>
           </td>
         </tr>
