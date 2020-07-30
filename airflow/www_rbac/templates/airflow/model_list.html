@@ -82,8 +82,9 @@
       {% for value in include_columns %}
         {% set formatter = formatters_columns.get(value) %}
         {% if formatter and formatter(item) %}
-          <td><p
-            style="text-overflow:ellipsis;overflow: auto;line-height:2rem;max-height:10rem">{{ formatter(item) }}</p>
+          <td><p style="text-overflow:ellipsis;overflow:auto;line-height:2rem;max-height:10rem;padding:3px;margin:0;">
+            {{ formatter(item) }}
+          </p>
           </td>
         {% elif item[value] != None %}
           <td>{{ item[value]|safe }}</td>
