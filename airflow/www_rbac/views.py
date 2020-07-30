@@ -2580,6 +2580,8 @@ class VariableModelView(AirflowModelView):
             return
 
     def hidden_field_formatter(attr):
+        if isinstance(attr, str):
+            return attr
         key = attr.get('key')
         val = attr.get('val')
         if wwwutils.should_hide_value_for_key(key):
