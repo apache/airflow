@@ -74,7 +74,7 @@ class TestPodLauncherHelper(unittest.TestCase):
                 sub_path=None,
                 read_only="True"
             )],
-            volumes=[Volume(name="myvolume", configs={})]
+            volumes=[Volume(name="myvolume", configs={'name': 'myvolume'})]
         )
         expected_dict = expected.as_dict()
         result_dict = result_pod.as_dict()

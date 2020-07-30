@@ -80,14 +80,13 @@ class TestPod(unittest.TestCase):
         from airflow.kubernetes.volume import Volume
         from airflow.kubernetes.volume_mount import VolumeMount
         from airflow.kubernetes.pod import Resources
-        # from airflow.kubernetes.pod import Pod
 
         pod = DeprecatedPod(
             image="foo",
             name="bar",
             namespace="baz",
             image_pull_policy="Never",
-            envs=[],
+            envs={"test_key": "test_value"},
             cmds=["airflow"],
             resources=Resources(
                 request_memory="1G",
@@ -102,7 +101,6 @@ class TestPod(unittest.TestCase):
 
         result = pod.to_v1_kubernetes_pod()
         result = k8s_client.sanitize_for_serialization(result)
-        print(result['spec']['containers'][0]['resources'])
 
         expected = \
             {
@@ -118,7 +116,7 @@ class TestPod(unittest.TestCase):
                             {
                                 'args': [],
                                 'command': ['airflow'],
-                                'env': {},
+                                'env': [{'name': 'test_key', 'value': 'test_value'}],
                                 'image': 'foo',
                                 'imagePullPolicy': 'Never',
                                 'name': 'base',
@@ -155,4 +153,5 @@ class TestPod(unittest.TestCase):
                         ]
                      }
             }
+        self.maxDiff = None
         self.assertEquals(expected, result)
