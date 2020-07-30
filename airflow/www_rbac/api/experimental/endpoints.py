@@ -420,20 +420,20 @@ def do_remove_curve_from_curve_template(bolt_no=None, craft_type=None, version=N
     return curve_template
 
 
-@api_experimental.route('/curve_template/<string:bolt_no>/<string:craft_type>/remove_curve', methods=['PUT'])
-@requires_authentication
-def remove_curve_from_curve_template(bolt_no, craft_type):
-    params = request.get_json(force=True)
-    version = params.get('version', None)
-    mode = params.get('mode', None)
-    group_center_idx = params.get('group_center_idx', None)
-    curve_idx = params.get('curve_idx', None)
-    try:
-        new_template = do_remove_curve_from_curve_template(bolt_no, craft_type, version, mode, group_center_idx,
-                                                           curve_idx)
-        return {'data': new_template}
-    except Exception as e:
-        return {'error': str(e)}
+# @api_experimental.route('/curve_template/<string:bolt_no>/<string:craft_type>/remove_curve', methods=['PUT'])
+# @requires_authentication
+# def remove_curve_from_curve_template(bolt_no, craft_type):
+#     params = request.get_json(force=True)
+#     version = params.get('version', None)
+#     mode = params.get('mode', None)
+#     group_center_idx = params.get('group_center_idx', None)
+#     curve_idx = params.get('curve_idx', None)
+#     try:
+#         new_template = do_remove_curve_from_curve_template(bolt_no, craft_type, version, mode, group_center_idx,
+#                                                            curve_idx)
+#         return {'data': new_template}
+#     except Exception as e:
+#         return {'error': str(e)}
 
 
 @api_experimental.route(
