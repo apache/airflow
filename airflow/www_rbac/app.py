@@ -133,42 +133,42 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view_no_menu(views.DagModelView())
             appbuilder.add_view(views.DagRunModelView,
                                 gettext("DAG Runs"),
-                                category="Browse",
+                                category=gettext("Browse"),
                                 category_icon="fa-globe")
             appbuilder.add_view(views.JobModelView,
                                 "Jobs",
-                                category="Browse")
+                                category=gettext("Browse"))
             appbuilder.add_view(views.LogModelView,
                                 gettext("Logs"),
-                                category="Browse")
+                                category=gettext("Browse"))
             appbuilder.add_view(views.SlaMissModelView,
                                 "SLA Misses",
-                                category="Browse")
+                                category=gettext("Browse"))
             appbuilder.add_view(views.TaskInstanceModelView,
                                 "Task Instances",
-                                category="Browse")
+                                category=gettext("Browse"))
             appbuilder.add_view(views.ConfigurationView,
                                 gettext("Configurations"),
-                                category="Admin",
+                                category=gettext("Admin"),
                                 category_icon="fa-user")
             appbuilder.add_view(views.ConnectionModelView,
                                 gettext("Connections"),
-                                category="Admin")
+                                category=gettext("Admin"))
             appbuilder.add_view(views.ErrorTagModelView,
                                gettext( "Error Tags"),
-                                category="Admin")
+                                category=gettext("Admin"))
             appbuilder.add_view(views.TighteningControllerView,
                                 gettext("Tightening Controller"),
-                                category="Admin")
+                                category=gettext("Admin"))
             appbuilder.add_view(views.PoolModelView,
                                 gettext("Pools"),
-                                category="Admin")
+                                category=gettext("Admin"))
             appbuilder.add_view(views.VariableModelView,
                                 gettext("Variables"),
-                                category="Admin")
+                                category=gettext("Admin"))
             appbuilder.add_view(views.XComModelView,
                                 gettext("XComs"),
-                                category="Admin")
+                                category=gettext("Admin"))
 
             if "dev" in version.version:
                 airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
