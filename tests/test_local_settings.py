@@ -21,6 +21,7 @@ import os
 import sys
 import tempfile
 import unittest
+from airflow.kubernetes import pod_generator
 from tests.compat import MagicMock, Mock, call, patch
 
 
@@ -40,8 +41,26 @@ def not_policy():
 """
 
 SETTINGS_FILE_POD_MUTATION_HOOK = """
+from airflow.kubernetes.volume import Volume
+from airflow.kubernetes.pod import Port, Resources
+
 def pod_mutation_hook(pod):
     pod.namespace = 'airflow-tests'
+    pod.image = 'my_image'
+    pod.volumes.append(Volume(name="bar", configs={}))
+    pod.ports = [Port(container_port=8080)]
+    pod.resources = Resources(
+                    request_memory="2G",
+                    request_cpu="200Mi",
+                    limit_gpu="200G"
+                )
+
+"""
+
+SETTINGS_FILE_POD_MUTATION_HOOK_V1_POD = """
+def pod_mutation_hook(pod):
+    pod.spec.containers[0].image = "test-image"
+
 """
 
 
@@ -148,9 +167,86 @@ class LocalSettingsTest(unittest.TestCase):
             settings.import_local_settings()  # pylint: ignore
 
             pod = MagicMock()
+            pod.volumes = []
             settings.pod_mutation_hook(pod)
 
             assert pod.namespace == 'airflow-tests'
+            self.assertEqual(pod.volumes[0].name, "bar")
+
+    def test_pod_mutation_to_k8s_pod(self):
+        with SettingsContext(SETTINGS_FILE_POD_MUTATION_HOOK, "airflow_local_settings"):
+            from airflow import settings
+            settings.import_local_settings()  # pylint: ignore
+            from airflow.kubernetes.pod_launcher import PodLauncher
+
+            self.mock_kube_client = Mock()
+            self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)
+            pod = pod_generator.PodGenerator(
+                image="foo",
+                name="bar",
+                namespace="baz",
+                image_pull_policy="Never",
+                cmds=["foo"],
+                volume_mounts=[
+                    {"name": "foo", "mount_path": "/mnt", "sub_path": "/", "read_only": "True"}
+                ],
+                volumes=[{"name": "foo"}]
+            ).gen_pod()
+
+            self.assertEqual(pod.metadata.namespace, "baz")
+            self.assertEqual(pod.spec.containers[0].image, "foo")
+            self.assertEqual(pod.spec.volumes, [{'name': 'foo'}])
+            self.assertEqual(pod.spec.containers[0].ports, [])
+            self.assertEqual(pod.spec.containers[0].resources, None)
+
+            pod = self.pod_launcher._mutate_pod_backcompat(pod)
+
+            self.assertEqual(pod.metadata.namespace, "airflow-tests")
+            self.assertEqual(pod.spec.containers[0].image, "my_image")
+            self.assertEqual(pod.spec.volumes, [{'name': 'foo'}, {'name': 'bar'}])
+            self.maxDiff = None
+            self.assertEqual(
+                pod.spec.containers[0].ports[0].to_dict(),
+                {
+                    "container_port": 8080,
+                    "host_ip": None,
+                    "host_port": None,
+                    "name": None,
+                    "protocol": None
+                }
+            )
+            self.assertEqual(
+                pod.spec.containers[0].resources.to_dict(),
+                {
+                    'limits': {
+                        'cpu': None,
+                        'memory': None,
+                        'ephemeral-storage': None,
+                        'nvidia.com/gpu': '200G'},
+                    'requests': {'cpu': '200Mi', 'ephemeral-storage': None, 'memory': '2G'}
+                }
+            )
+
+    def test_pod_mutation_v1_pod(self):
+        with SettingsContext(SETTINGS_FILE_POD_MUTATION_HOOK_V1_POD, "airflow_local_settings"):
+            from airflow import settings
+            settings.import_local_settings()  # pylint: ignore
+            from airflow.kubernetes.pod_launcher import PodLauncher
+
+            self.mock_kube_client = Mock()
+            self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)
+            pod = pod_generator.PodGenerator(
+                image="myimage",
+                cmds=["foo"],
+                volume_mounts={
+                    "name": "foo", "mount_path": "/mnt", "sub_path": "/", "read_only": "True"
+                },
+                volumes=[{"name": "foo"}]
+            ).gen_pod()
+
+            self.assertEqual(pod.spec.containers[0].image, "myimage")
+            pod = self.pod_launcher._mutate_pod_backcompat(pod)
+            self.assertEqual(pod.spec.containers[0].image, "test-image")
 
 
 class TestStatsWithAllowList(unittest.TestCase):
