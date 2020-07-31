@@ -21,7 +21,7 @@ import kubernetes.client.models as k8s  # noqa
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.kubernetes.pod import Port
-from airflow.kubernetes_deprecated.pod import Pod
+from airflow.contrib.kubernetes.pod import Pod
 
 
 def convert_to_airflow_pod(pod):

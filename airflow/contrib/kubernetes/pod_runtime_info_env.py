@@ -14,3 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.kubernetes.pod_runtime_info_env`."""
+
+import warnings
+
+# pylint: disable=unused-import
+from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv    # noqa
+
+warnings.warn(
+    "This module is deprecated. Please use `airflow.kubernetes.pod_runtime_info_env`.",
+    DeprecationWarning, stacklevel=2
+)

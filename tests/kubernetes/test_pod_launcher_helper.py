@@ -20,7 +20,7 @@ from airflow.kubernetes.pod import Port
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.pod_launcher_helper import convert_to_airflow_pod
-from airflow.kubernetes_deprecated.pod import Pod
+from airflow.contrib.kubernetes.pod import Pod
 import kubernetes.client.models as k8s
 
 
@@ -84,7 +84,8 @@ class TestPodLauncherHelper(unittest.TestCase):
 
         self.assertDictEqual(expected_dict, result_dict)
 
-    def pull_out_volumes(self, result_dict):
+    @staticmethod
+    def pull_out_volumes(result_dict):
         parsed_configs = []
         for volume in result_dict['volumes']:
             vol = {'name': volume['name']}
