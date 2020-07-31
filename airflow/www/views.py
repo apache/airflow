@@ -1786,6 +1786,8 @@ class Airflow(AirflowBaseView):
         tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
         tries = sorted(list({ti.try_number for ti in tis}))
         max_date = max([ti.execution_date for ti in tis]) if tries else None
+        chart.create_y_axis('yAxis', format='.02f', custom_format=False, label='Tries')
+        chart.axislist['yAxis']['axisLabelDistance'] = '-15'
 
         session.commit()
 
