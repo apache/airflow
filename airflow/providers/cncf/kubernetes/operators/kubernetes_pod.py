@@ -147,7 +147,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
     """
-    template_fields: Iterable[str] = ('cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
+    template_fields: Iterable[str] = (
+        'image', 'cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
