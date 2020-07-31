@@ -18,8 +18,8 @@
 #
 
 from distutils.util import strtobool
-
 from typing import Text, Union
+
 import jenkins
 
 from airflow.hooks.base_hook import BaseHook
