@@ -458,7 +458,6 @@ if PY3:
 else:
     devel_ci = devel_all + ['unittest2']
 
-
 #####################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
 # IF you are removing dependencies from this list, please make sure that you also increase
@@ -590,6 +589,7 @@ INSTALL_REQUIREMENTS = [
     'unicodecsv>=0.14.1',
     'werkzeug<1.0.0',
     'zope.deprecation>=4.0, <5.0',
+    'flask_paginate==0.7.0'
 ]
 
 
