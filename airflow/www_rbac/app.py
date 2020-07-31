@@ -183,8 +183,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             #                     href='https://github.com/apache/airflow',
             #                     category="Docs")
             appbuilder.add_view(views.VersionView,
-                                'Version',
-                                category='About',
+                                gettext('Version'),
+                                category=gettext('About'),
                                 category_icon='fa-th')
 
             def integrate_plugins():
