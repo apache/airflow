@@ -141,7 +141,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param pod_template_file: path to pod template file
     :type pod_template_file: str
     """
-    template_fields = ('cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
+    template_fields = ('image', 'cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
