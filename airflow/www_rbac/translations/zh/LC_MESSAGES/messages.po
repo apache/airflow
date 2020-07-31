@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2020-07-30 17:43+0800\n"
+"POT-Creation-Date: 2020-07-31 12:08+0800\n"
 "PO-Revision-Date: 2020-03-23 18:12+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh\n"
@@ -38,11 +38,11 @@ msgid ""
 " and set their dagruns to the running state?"
 msgstr ""
 
-#: www/templates/airflow/dag.html:117 www_rbac/templates/airflow/dag.html:127
+#: www/templates/airflow/dag.html:117
 msgid "Delete"
 msgstr ""
 
-#: www_rbac/app.py:135
+#: www_rbac/app.py:135 www_rbac/templates/airflow/dags.html:70
 msgid "DAG Runs"
 msgstr "DAG运行"
 
@@ -88,6 +88,14 @@ msgstr ""
 #: www_rbac/app.py:170
 msgid "XComs"
 msgstr ""
+
+#: www_rbac/app.py:186
+msgid "Version"
+msgstr "版本"
+
+#: www_rbac/app.py:187
+msgid "About"
+msgstr "关于"
 
 #: www_rbac/forms.py:73
 msgid "Key"
@@ -324,7 +332,7 @@ msgstr ""
 
 #: www_rbac/views.py:2691 www_rbac/views.py:2723
 msgid "state"
-msgstr ""
+msgstr "zhuangtai"
 
 #: www_rbac/views.py:2691
 msgid "job_type"
@@ -381,6 +389,46 @@ msgstr ""
 #: www_rbac/templates/airflow/curves.html:28
 msgid "curve"
 msgstr ""
+
+#: www_rbac/templates/airflow/dags.html:42
+msgid "Filter tags"
+msgstr "过滤标签"
+
+#: www_rbac/templates/airflow/dags.html:43
+msgid "Reset"
+msgstr "清除过滤"
+
+#: www_rbac/templates/airflow/dags.html:50
+msgid "Search:"
+msgstr "搜索："
+
+#: www_rbac/templates/airflow/dags.html:62
+msgid "Schedule"
+msgstr "时间表"
+
+#: www_rbac/templates/airflow/dags.html:63
+msgid "Owner"
+msgstr "所有者"
+
+#: www_rbac/templates/airflow/dags.html:64
+msgid "Recent Tasks"
+msgstr "最近任务"
+
+#: www_rbac/templates/airflow/dags.html:68
+msgid "Last Run"
+msgstr "最后运行"
+
+#: www_rbac/templates/airflow/dags.html:74
+msgid "Links"
+msgstr "链接"
+
+#: www_rbac/templates/airflow/dags.html:218
+msgid "Hide Paused DAGs"
+msgstr "隐藏暂停的DAG"
+
+#: www_rbac/templates/airflow/dags.html:220
+msgid "Show Paused DAGs"
+msgstr "显示暂停的DAG"
 
 #: www_rbac/templates/appbuilder/navbar_right.html:76
 msgid "Profile"

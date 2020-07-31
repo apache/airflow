@@ -15,7 +15,7 @@
   limitations under the License.
 
 #}
-
+from flask_babel import lazy_gettext
 {% extends base_template %}
 
 {% block title %}Airflow - DAGs{% endblock %}
@@ -39,15 +39,15 @@
                       <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
                     {% endfor %}
                   </select>
-                  <input type="submit" value="Filter tags" class="btn btn-default">
-                  <input type="submit" value="Reset" class="btn btn-default" name="reset_tags">
+                  <input type="submit" value="{{ _('Filter tags') }}" class="btn btn-default">
+                  <input type="submit" value={{_('Reset')}} class="btn btn-default" name="reset_tags">
               </div>
           </form>
       </div>
       <div class="col-sm-8">
         <form id="search_form" class="form-inline" style="width: 100%; text-align: right; float: right;">
             <div id="dags_filter" class="form-group" style="width: 100%;">
-              <label for="dag_query" style="width:20%; text-align: right;">Search:</label>
+              <label for="dag_query" style="width:20%; text-align: right;">{{_('Search:')}}</label>
               <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}" autocomplete="off">
             </div>
         </form>
@@ -59,19 +59,19 @@
                 <th></th>
                 <th width="12"><span id="pause_header" class="glyphicon glyphicon-info-sign" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span></th>
                 <th>DAG</th>
-                <th>Schedule</th>
-                <th>Owner</th>
-                <th style="padding-left: 5px;">Recent Tasks
+                <th>{{_('Schedule')}}</th>
+                <th>{{_('Owner')}}</th>
+                <th style="padding-left: 5px;">{{_('Recent Tasks')}}
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
                   <img class="loading-task-stats" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
-                <th style="padding-left: 5px;">Last Run <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
+                <th style="padding-left: 5px;">{{_('Last Run')}}<span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
                 </th>
-                <th style="padding-left: 5px;">DAG Runs
+                <th style="padding-left: 5px;">{{_('DAG Runs')}}
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
                   <img class="loading-dag-stats"  width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
-                <th class="text-center">Links</th>
+                <th class="text-center">{{_('Links')}}</th>
             </tr>
         </thead>
         <tbody>
@@ -215,9 +215,9 @@
 
     </div>
     {% if not hide_paused %}
-    <a href="{{ url_for('Airflow.index', showPaused=False, search=request.args.get('search', None)) }}">Hide Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=False, search=request.args.get('search', None)) }}">{{_('Hide Paused DAGs')}}</a>
     {% else %}
-    <a href="{{ url_for('Airflow.index', showPaused=True, search=request.args.get('search', None)) }}">Show Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=True, search=request.args.get('search', None)) }}">{{_('Show Paused DAGs')}}</a>
     {% endif %}
   </div>
 {% endblock %}
