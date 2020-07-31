@@ -19,7 +19,7 @@
 import json
 import socket
 import time
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Mapping, Optional
 from urllib.error import HTTPError, URLError
 
 import jenkins
@@ -134,7 +134,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
             parameters = ast.literal_eval(parameters)
 
         if not parameters:
-            # We need to pass a None to call the non parametrized jenkins api end point
+            # We need to a None to call the non parametrized jenkins api end point
             parameters = None
 
         request = Request(
