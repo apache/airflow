@@ -69,7 +69,25 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+<<<<<<< HEAD
 ### Major changes
+=======
+
+
+### Made BaseSensorOperator respect the trigger_rule of downstream tasks
+
+Previously, BaseSensorOperator with setting soft_fail=True becomes skipped itself
+and skips all its downstream tasks unconditionally when it fails.
+The point is it does not respect the trigger_rule of downstream tasks when it fails.
+In the new behavior, the trigger_rule of downstream tasks are respected.
+User can preserve/achieve the original behaviour by setting every downstream task to all_success,
+because downstream tasks with trigger_rule all_success (i.e. the default) are skipped
+when upstream task is skipped.
+
+### GCSTaskHandler has been moved
+The `GCSTaskHandler` class from `airflow.utils.log.gcs_task_handler` has been moved to
+`airflow.providers.google.cloud.log.gcs_task_handler`. This is because it has items specific to `google cloud`.
+>>>>>>> Fixed docs
 
 This section describes the major changes that have been made in this release.
 
@@ -178,6 +196,7 @@ reference documentation for more information
 
 ### CLI changes in Airflow 2.0
 
+<<<<<<< HEAD
 
 The Airflow CLI has been organized so that related commands are grouped together as subcommands,
 which means that if you use these commands in your scripts, you have to make changes to them.
@@ -186,6 +205,8 @@ which means that if you use these commands in your scripts, you have to make cha
 This section describes the changes that have been made, and what you need to do to update your script.
 
 
+=======
+>>>>>>> Fixed docs
 ### BaseOperator uses metaclass
 
 
