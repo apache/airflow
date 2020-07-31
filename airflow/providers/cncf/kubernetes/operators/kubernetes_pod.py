@@ -45,7 +45,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :ref:`howto/operator:KubernetesPodOperator`
 
     .. note::
-        If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, use
+        If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__
+        and Airflow is not running in the same cluster, consider using
         :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`, which
         simplifies the authorization process.
 
