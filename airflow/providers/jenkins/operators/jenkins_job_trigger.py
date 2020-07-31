@@ -84,7 +84,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :param job_name: The name of the job to trigger
     :type job_name: str
     :param parameters: The parameters block to provide to jenkins. (templated)
-    :type parameters: str or Dict
+    :type parameters: str
     :param sleep_time: How long will the operator sleep between each status
         request for the job (min 1, default 10)
     :type sleep_time: int
