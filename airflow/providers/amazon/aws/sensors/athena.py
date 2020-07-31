@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Any, Mapping, Optional
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -49,11 +51,11 @@ class AthenaSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
-                 query_execution_id,
-                 max_retries=None,
-                 aws_conn_id='aws_default',
-                 sleep_time=10,
-                 *args, **kwargs):
+                 query_execution_id: str,
+                 max_retries: Optional[int],
+                 aws_conn_id: str = 'aws_default',
+                 sleep_time: int = 10,
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.query_execution_id = query_execution_id
@@ -71,8 +73,6 @@ class AthenaSensor(BaseSensorOperator):
             return False
         return True
 
-    def get_hook(self):
+    def get_hook(self) -> AWSAthenaHook:
         """Create and return an AWSAthenaHook"""
-        if not self.hook:
-            self.hook = AWSAthenaHook(self.aws_conn_id, self.sleep_time)
-        return self.hook
+        return AWSAthenaHook(self.aws_conn_id, self.sleep_time)
