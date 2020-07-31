@@ -76,7 +76,7 @@ class TestPod(unittest.TestCase):
         }, result)
 
     def test_to_v1_pod(self):
-        from airflow.kubernetes_deprecated.pod import Pod as DeprecatedPod
+        from airflow.contrib.kubernetes.pod import Pod as DeprecatedPod
         from airflow.kubernetes.volume import Volume
         from airflow.kubernetes.volume_mount import VolumeMount
         from airflow.kubernetes.pod import Resources
