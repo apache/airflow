@@ -114,9 +114,9 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
 
-    def build_job(
-            self, jenkins_server: Jenkins, parameters: Optional[str] = "",
-        ) -> Optional[JenkinsRequest]:
+    def build_job(self,
+                  jenkins_server: Jenkins,
+                  parameters: Optional[str] = "") -> Optional[JenkinsRequest]:
         """
         This function makes an API call to Jenkins to trigger a build for 'job_name'
         It returned a dict with 2 keys : body and headers.
