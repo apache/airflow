@@ -626,6 +626,15 @@ ARG_INCLUDE_SECRETS = Arg(
     ),
     action="store_true",
     default=False)
+ARG_CONN_EXPORT = Arg(
+    ('file',),
+    help='Output file path for exporting the connections',
+    type=argparse.FileType('w', encoding='UTF-8'))
+ARG_CONN_EXPORT_FORMAT = Arg(
+    ('--format',),
+    help='Format of the connections data in file',
+    type=str,
+    choices=['json', 'yaml', 'env'])
 # users
 ARG_USERNAME = Arg(
     ('-u', '--username'),
@@ -1103,6 +1112,12 @@ CONNECTIONS_COMMANDS = (
         help='Delete a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
         args=(ARG_CONN_ID,),
+    ),
+    ActionCommand(
+        name='export',
+        help='Export all connections',
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_export'),
+        args=(ARG_CONN_EXPORT, ARG_CONN_EXPORT_FORMAT,),
     ),
 )
 USERS_COMMANDS = (
