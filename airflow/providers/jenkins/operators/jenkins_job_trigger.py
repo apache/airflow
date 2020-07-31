@@ -59,7 +59,7 @@ def jenkins_request_with_headers(jenkins_server: Type[Jenkins], req: Request) ->
         # Jenkins's funky authentication means its nigh impossible to distinguish errors.
         if e.code in [401, 403, 500]:
             raise JenkinsException(
-                'Error in request. Possibly authentication failed [%s]: %s' % (e.code, e.msg)  # type: ignore
+                'Error in request. Possibly authentication failed [%s]: %s' % (e.code, e.reason)
             )
         elif e.code == 404:
             raise jenkins.NotFoundException('Requested item could not be found')
