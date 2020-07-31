@@ -201,17 +201,17 @@ class ErrorTagForm(DynamicForm):
 
 class TighteningControllerForm(DynamicForm):
     controller_name = StringField(
-        lazy_gettext('Controller_name'),
+        lazy_gettext('Controller Name'),
         widget=BS3TextFieldWidget())
     line_code = StringField(
-        lazy_gettext('Line_code'),
+        lazy_gettext('Line Code'),
         widget=BS3TextFieldWidget())
     line_name = StringField(
-        lazy_gettext('line_name'),
+        lazy_gettext('Line Name'),
         widget=BS3TextFieldWidget())
     work_center_code = StringField(
-        lazy_gettext('Work_center_code'),
+        lazy_gettext('Work Center Code'),
         widget=BS3TextFieldWidget())
     work_center_name = StringField(
-        lazy_gettext('Work_center_name'),
+        lazy_gettext('Work Center Name'),
         widget=BS3TextFieldWidget())

@@ -136,16 +136,16 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 category=gettext("Browse"),
                                 category_icon="fa-globe")
             appbuilder.add_view(views.JobModelView,
-                                "Jobs",
+                                gettext("Jobs"),
                                 category=gettext("Browse"))
             appbuilder.add_view(views.LogModelView,
                                 gettext("Logs"),
                                 category=gettext("Browse"))
             appbuilder.add_view(views.SlaMissModelView,
-                                "SLA Misses",
+                                gettext("SLA Misses"),
                                 category=gettext("Browse"))
             appbuilder.add_view(views.TaskInstanceModelView,
-                                "Task Instances",
+                                gettext("Task Instances"),
                                 category=gettext("Browse"))
             appbuilder.add_view(views.ConfigurationView,
                                 gettext("Configurations"),
@@ -155,7 +155,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 gettext("Connections"),
                                 category=gettext("Admin"))
             appbuilder.add_view(views.ErrorTagModelView,
-                               gettext( "Error Tags"),
+                                gettext("Error Tags"),
                                 category=gettext("Admin"))
             appbuilder.add_view(views.TighteningControllerView,
                                 gettext("Tightening Controller"),

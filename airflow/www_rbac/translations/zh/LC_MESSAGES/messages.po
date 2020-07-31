@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2020-07-31 12:08+0800\n"
+"POT-Creation-Date: 2020-07-31 16:28+0800\n"
 "PO-Revision-Date: 2020-03-23 18:12+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh\n"
@@ -28,11 +28,11 @@ msgstr ""
 msgid "Field must be greater than or equal to %(other_label)s."
 msgstr ""
 
-#: www/views.py:3027 www_rbac/views.py:2908
+#: www/views.py:3027 www_rbac/views.py:2951
 msgid "Clear"
-msgstr ""
+msgstr "清除"
 
-#: www/views.py:3028 www_rbac/views.py:2909
+#: www/views.py:3028 www_rbac/views.py:2952
 msgid ""
 "Are you sure you want to clear the state of the selected task instance(s)"
 " and set their dagruns to the running state?"
@@ -40,9 +40,9 @@ msgstr ""
 
 #: www/templates/airflow/dag.html:117
 msgid "Delete"
-msgstr ""
+msgstr "删除"
 
-#: www_rbac/app.py:135 www_rbac/templates/airflow/dags.html:70
+#: www_rbac/app.py:135 www_rbac/templates/airflow/dags.html:69
 msgid "DAG Runs"
 msgstr "DAG运行"
 
@@ -51,9 +51,21 @@ msgstr "DAG运行"
 msgid "Browse"
 msgstr "浏览"
 
+#: www_rbac/app.py:139
+msgid "Jobs"
+msgstr "工作"
+
 #: www_rbac/app.py:142
 msgid "Logs"
 msgstr "日志"
+
+#: www_rbac/app.py:145
+msgid "SLA Misses"
+msgstr "服务水平未达成"
+
+#: www_rbac/app.py:148
+msgid "Task Instances"
+msgstr "任务实例"
 
 #: www_rbac/app.py:151
 msgid "Configurations"
@@ -79,15 +91,15 @@ msgstr "拧紧控制器"
 
 #: www_rbac/app.py:164
 msgid "Pools"
-msgstr ""
+msgstr "池"
 
 #: www_rbac/app.py:167
 msgid "Variables"
-msgstr ""
+msgstr "变量"
 
 #: www_rbac/app.py:170
 msgid "XComs"
-msgstr ""
+msgstr "任务间消息"
 
 #: www_rbac/app.py:186
 msgid "Version"
@@ -97,93 +109,98 @@ msgstr "版本"
 msgid "About"
 msgstr "关于"
 
-#: www_rbac/forms.py:73
+#: www_rbac/forms.py:73 www_rbac/views.py:2348 www_rbac/views.py:2583
 msgid "Key"
-msgstr ""
+msgstr "键"
 
-#: www_rbac/forms.py:78 www_rbac/forms.py:195
+#: www_rbac/forms.py:78 www_rbac/forms.py:195 www_rbac/views.py:2348
+#: www_rbac/views.py:2455
 msgid "Value"
-msgstr ""
+msgstr "值"
 
-#: www_rbac/forms.py:82
+#: www_rbac/forms.py:82 www_rbac/views.py:2584
 msgid "Is Curve Template"
-msgstr ""
+msgstr "曲线模板"
 
-#: www_rbac/forms.py:89
+#: www_rbac/forms.py:89 www_rbac/views.py:2321 www_rbac/views.py:2705
+#: www_rbac/views.py:2745 www_rbac/views.py:2862 www_rbac/views.py:2902
+#: www_rbac/views.py:3064
 msgid "Dag Id"
 msgstr ""
 
-#: www_rbac/forms.py:93
+#: www_rbac/forms.py:93 www_rbac/views.py:2708 www_rbac/views.py:2910
 msgid "Start Date"
-msgstr ""
+msgstr "开始日期"
 
-#: www_rbac/forms.py:96
+#: www_rbac/forms.py:96 www_rbac/views.py:2709 www_rbac/views.py:2911
 msgid "End Date"
-msgstr ""
+msgstr "结束日期"
 
-#: www_rbac/forms.py:99
+#: www_rbac/forms.py:99 www_rbac/views.py:2747
 msgid "Run Id"
-msgstr ""
+msgstr "运行Id"
 
-#: www_rbac/forms.py:103
+#: www_rbac/forms.py:103 www_rbac/views.py:2706 www_rbac/views.py:2744
+#: www_rbac/views.py:2901
 msgid "State"
-msgstr ""
+msgstr "状态"
 
-#: www_rbac/forms.py:107
+#: www_rbac/forms.py:107 www_rbac/views.py:2323 www_rbac/views.py:2349
+#: www_rbac/views.py:2746 www_rbac/views.py:2863 www_rbac/views.py:2906
 msgid "Execution Date"
-msgstr ""
+msgstr "执行日期"
 
-#: www_rbac/forms.py:110
+#: www_rbac/forms.py:110 www_rbac/views.py:2748
 msgid "External Trigger"
-msgstr ""
+msgstr "外部触发"
 
 #: www_rbac/forms.py:112
 msgid "Conf"
-msgstr ""
+msgstr "配置"
 
-#: www_rbac/forms.py:127
+#: www_rbac/forms.py:127 www_rbac/views.py:2401
 msgid "Conn Id"
-msgstr ""
+msgstr "连接Id"
 
-#: www_rbac/forms.py:131
+#: www_rbac/forms.py:131 www_rbac/views.py:2401
 msgid "Conn Type"
-msgstr ""
+msgstr "连接类型"
 
-#: www_rbac/forms.py:135
+#: www_rbac/forms.py:135 www_rbac/views.py:2402
 msgid "Host"
-msgstr ""
+msgstr "主机"
 
 #: www_rbac/forms.py:138
 msgid "Schema"
-msgstr ""
+msgstr "提要"
 
 #: www_rbac/forms.py:141 www_rbac/templates/appbuilder/navbar_right.html:82
 msgid "Login"
-msgstr ""
+msgstr "用户名"
 
 #: www_rbac/forms.py:144
 msgid "Password"
-msgstr ""
+msgstr "密码"
 
-#: www_rbac/forms.py:147
+#: www_rbac/forms.py:147 www_rbac/views.py:2402
 msgid "Port"
-msgstr ""
+msgstr "端口"
 
-#: www_rbac/forms.py:151
+#: www_rbac/forms.py:151 www_rbac/views.py:2864
 msgid "Extra"
-msgstr ""
+msgstr "其他"
 
 #: www_rbac/forms.py:160
 msgid "Driver Path"
-msgstr ""
+msgstr "驱动路径"
 
 #: www_rbac/forms.py:163
 msgid "Driver Class"
-msgstr ""
+msgstr "驱动类"
 
 #: www_rbac/forms.py:166
 msgid "Project Id"
-msgstr ""
+msgstr "项目Id"
 
 #: www_rbac/forms.py:169
 msgid "Keyfile Path"
@@ -199,242 +216,229 @@ msgstr ""
 
 #: www_rbac/forms.py:178
 msgid "Number of Retries"
-msgstr ""
+msgstr "重试次数"
 
 #: www_rbac/forms.py:183
 msgid "Grpc Auth Type"
-msgstr ""
+msgstr "Grpc授权类型"
 
 #: www_rbac/forms.py:186
 msgid "Credential Keyfile Path"
 msgstr ""
 
-#: www_rbac/forms.py:198
+#: www_rbac/forms.py:198 www_rbac/views.py:2455
 msgid "Label"
-msgstr ""
+msgstr "标签"
 
-#: www_rbac/forms.py:204
-msgid "Controller_name"
+#: www_rbac/forms.py:204 www_rbac/views.py:2485
+msgid "Controller Name"
 msgstr "控制器名称"
 
-#: www_rbac/forms.py:207
-msgid "Line_code"
+#: www_rbac/forms.py:207 www_rbac/views.py:2486 www_rbac/views.py:2904
+msgid "Line Code"
 msgstr "工段编号"
 
-#: www_rbac/forms.py:210
-msgid "Work_center_code"
+#: www_rbac/forms.py:210 www_rbac/views.py:2487
+msgid "Line Name"
+msgstr "工段名称"
+
+#: www_rbac/forms.py:213 www_rbac/views.py:2488
+msgid "Work Center Code"
 msgstr "工作中心编号"
 
-#: www_rbac/forms.py:213
-msgid "Work_center_name"
+#: www_rbac/forms.py:216 www_rbac/views.py:2489
+msgid "Work Center Name"
 msgstr "工作中心名称"
 
-#: www_rbac/views.py:2341 www_rbac/views.py:2570
-msgid "key"
-msgstr "键"
+#: www_rbac/views.py:2322 www_rbac/views.py:2350 www_rbac/views.py:2862
+#: www_rbac/views.py:2903
+msgid "Task Id"
+msgstr "任务Id"
 
-#: www_rbac/views.py:2341 www_rbac/views.py:2447
-msgid "value"
-msgstr "值"
+#: www_rbac/views.py:2324
+msgid "Email Sent"
+msgstr "邮件发送"
 
-#: www_rbac/views.py:2342
-msgid "timestamp"
+#: www_rbac/views.py:2325 www_rbac/views.py:2349
+msgid "Timestamp"
 msgstr "时间戳"
 
-#: www_rbac/views.py:2342 www_rbac/views.py:2724 www_rbac/views.py:2840
-msgid "execution_date"
-msgstr "执行时间"
-
-#: www_rbac/views.py:2342 www_rbac/views.py:2839
-msgid "task_id"
+#: www_rbac/views.py:2350
+msgid "DAG Id"
 msgstr ""
 
-#: www_rbac/views.py:2342 www_rbac/views.py:2690 www_rbac/views.py:2723
-#: www_rbac/views.py:2839 www_rbac/views.py:3021
-msgid "dag_id"
+#: www_rbac/views.py:2403 www_rbac/views.py:2584
+msgid "Is Encrypted"
+msgstr "加密"
+
+#: www_rbac/views.py:2403
+msgid "Is Extra Encrypted"
+msgstr "额外加密"
+
+#: www_rbac/views.py:2514 www_rbac/views.py:2916
+msgid "Pool"
+msgstr "池"
+
+#: www_rbac/views.py:2514
+msgid "Slots"
+msgstr "插槽"
+
+#: www_rbac/views.py:2515
+msgid "Used Slots"
+msgstr "已用插槽"
+
+#: www_rbac/views.py:2515
+msgid "Queued Slots"
+msgstr "已排队插槽"
+
+#: www_rbac/views.py:2583
+msgid "Val"
+msgstr "值"
+
+#: www_rbac/views.py:2585
+msgid "Active"
+msgstr "已启用"
+
+#: www_rbac/views.py:2704 www_rbac/views.py:2861
+msgid "Id"
 msgstr ""
 
-#: www_rbac/views.py:2393
-msgid "conn_id"
+#: www_rbac/views.py:2707
+msgid "Job Type"
+msgstr "工作类型"
+
+#: www_rbac/views.py:2710
+msgid "Latest Heartbeat"
 msgstr ""
 
-#: www_rbac/views.py:2393
-msgid "conn_type"
+#: www_rbac/views.py:2711
+msgid "Executor Class"
 msgstr ""
 
-#: www_rbac/views.py:2394
-msgid "host"
+#: www_rbac/views.py:2712
+msgid "Hostname"
+msgstr "主机名称"
+
+#: www_rbac/views.py:2713
+msgid "Unixname"
+msgstr "Unix名称"
+
+#: www_rbac/views.py:2861
+msgid "Dttm"
 msgstr ""
 
-#: www_rbac/views.py:2394
-msgid "port"
+#: www_rbac/views.py:2863
+msgid "Event"
+msgstr "事件"
+
+#: www_rbac/templates/airflow/dags.html:62 www_rbac/views.py:2864
+msgid "Owner"
+msgstr "所有者"
+
+#: www_rbac/views.py:2905
+msgid "Entity Id"
+msgstr "实体编号"
+
+#: www_rbac/views.py:2907
+msgid "Measure Result"
+msgstr "测量结果"
+
+#: www_rbac/views.py:2908
+msgid "Result"
+msgstr "分析结果"
+
+#: www_rbac/views.py:2909
+msgid "Final State"
+msgstr "最终结果"
+
+#: www_rbac/views.py:2912
+msgid "Duration"
+msgstr "耗时"
+
+#: www_rbac/views.py:2913
+msgid "Job Id"
+msgstr "工作Id"
+
+#: www_rbac/views.py:2914
+msgid "Priority Weight"
+msgstr "优先权重"
+
+#: www_rbac/views.py:2915
+msgid "Try Number"
+msgstr "尝试次数"
+
+#: www_rbac/views.py:2917
+msgid "Log Url"
 msgstr ""
 
-#: www_rbac/views.py:2395 www_rbac/views.py:2571
-msgid "is_encrypted"
+#: www_rbac/views.py:3064
+msgid "Is Paused"
+msgstr "已暂停"
+
+#: www_rbac/views.py:3065
+msgid "Last Scheduler Run"
+msgstr "最后一次执行"
+
+#: www_rbac/views.py:3065
+msgid "Last Expired"
+msgstr "最后一次失败"
+
+#: www_rbac/views.py:3066
+msgid "Scheduler Lock"
 msgstr ""
 
-#: www_rbac/views.py:2395
-msgid "is_extra_encrypted"
+#: www_rbac/views.py:3066
+msgid "Fileloc"
 msgstr ""
 
-#: www_rbac/views.py:2447
-msgid "label"
-msgstr ""
-
-#: www_rbac/views.py:2476
-msgid "controller_name"
-msgstr "控制器名称"
-
-#: www_rbac/views.py:2476
-msgid "line_code"
-msgstr "工段编号"
-
-#: www_rbac/views.py:2476
-msgid "work_center_code"
-msgstr "工作中心编号"
-
-#: www_rbac/views.py:2476
-msgid "work_center_name"
-msgstr "工作中心名称"
-
-#: www_rbac/views.py:2501
-msgid "pool"
-msgstr ""
-
-#: www_rbac/views.py:2501
-msgid "slots"
-msgstr ""
-
-#: www_rbac/views.py:2502
-msgid "used_slots"
-msgstr ""
-
-#: www_rbac/views.py:2502
-msgid "queued_slots"
-msgstr ""
-
-#: www_rbac/views.py:2570
-msgid "val"
-msgstr ""
-
-#: www_rbac/views.py:2571
-msgid "is_curve_template"
-msgstr ""
-
-#: www_rbac/views.py:2571
-msgid "active"
-msgstr ""
-
-#: www_rbac/views.py:2690 www_rbac/views.py:2838
-msgid "id"
-msgstr ""
-
-#: www_rbac/views.py:2691 www_rbac/views.py:2723
-msgid "state"
-msgstr "zhuangtai"
-
-#: www_rbac/views.py:2691
-msgid "job_type"
-msgstr ""
-
-#: www_rbac/views.py:2692
-msgid "start_date"
-msgstr ""
-
-#: www_rbac/views.py:2724
-msgid "run_id"
-msgstr ""
-
-#: www_rbac/views.py:2725
-msgid "external_trigger"
-msgstr ""
-
-#: www_rbac/views.py:2838
-msgid "dttm"
-msgstr ""
-
-#: www_rbac/views.py:2840
-msgid "event"
-msgstr ""
-
-#: www_rbac/views.py:2841 www_rbac/views.py:3023
-msgid "owners"
-msgstr ""
-
-#: www_rbac/views.py:2841
-msgid "extra"
-msgstr ""
-
-#: www_rbac/views.py:3021
-msgid "is_paused"
-msgstr ""
-
-#: www_rbac/views.py:3022
-msgid "last_scheduler_run"
-msgstr ""
-
-#: www_rbac/views.py:3022
-msgid "last_expired"
-msgstr ""
-
-#: www_rbac/views.py:3023
-msgid "scheduler_lock"
-msgstr ""
-
-#: www_rbac/views.py:3023
-msgid "fileloc"
-msgstr ""
+#: www_rbac/views.py:3067
+msgid "Owners"
+msgstr "所有者"
 
 #: www_rbac/templates/airflow/curves.html:28
 msgid "curve"
-msgstr ""
+msgstr "曲线"
 
-#: www_rbac/templates/airflow/dags.html:42
+#: www_rbac/templates/airflow/dags.html:41
 msgid "Filter tags"
 msgstr "过滤标签"
 
-#: www_rbac/templates/airflow/dags.html:43
+#: www_rbac/templates/airflow/dags.html:42
 msgid "Reset"
 msgstr "清除过滤"
 
-#: www_rbac/templates/airflow/dags.html:50
+#: www_rbac/templates/airflow/dags.html:49
 msgid "Search:"
 msgstr "搜索："
 
-#: www_rbac/templates/airflow/dags.html:62
+#: www_rbac/templates/airflow/dags.html:61
 msgid "Schedule"
 msgstr "时间表"
 
 #: www_rbac/templates/airflow/dags.html:63
-msgid "Owner"
-msgstr "所有者"
-
-#: www_rbac/templates/airflow/dags.html:64
 msgid "Recent Tasks"
 msgstr "最近任务"
 
-#: www_rbac/templates/airflow/dags.html:68
+#: www_rbac/templates/airflow/dags.html:67
 msgid "Last Run"
 msgstr "最后运行"
 
-#: www_rbac/templates/airflow/dags.html:74
+#: www_rbac/templates/airflow/dags.html:73
 msgid "Links"
 msgstr "链接"
 
-#: www_rbac/templates/airflow/dags.html:218
+#: www_rbac/templates/airflow/dags.html:217
 msgid "Hide Paused DAGs"
 msgstr "隐藏暂停的DAG"
 
-#: www_rbac/templates/airflow/dags.html:220
+#: www_rbac/templates/airflow/dags.html:219
 msgid "Show Paused DAGs"
 msgstr "显示暂停的DAG"
 
 #: www_rbac/templates/appbuilder/navbar_right.html:76
 msgid "Profile"
-msgstr ""
+msgstr "档案"
 
 #: www_rbac/templates/appbuilder/navbar_right.html:77
 msgid "Logout"
-msgstr ""
-
+msgstr "登出"
