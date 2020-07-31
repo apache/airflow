@@ -206,6 +206,9 @@ class TighteningControllerForm(DynamicForm):
     line_code = StringField(
         lazy_gettext('Line_code'),
         widget=BS3TextFieldWidget())
+    line_name = StringField(
+        lazy_gettext('line_name'),
+        widget=BS3TextFieldWidget())
     work_center_code = StringField(
         lazy_gettext('Work_center_code'),
         widget=BS3TextFieldWidget())

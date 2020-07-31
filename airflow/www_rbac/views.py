@@ -2339,7 +2339,8 @@ class XComModelView(AirflowModelView):
     base_order = ('execution_date', 'desc')
     label_columns = {
         'key': lazy_gettext('key'), 'value': lazy_gettext('value'),
-        'timestamp': lazy_gettext('timestamp'), 'execution_date': lazy_gettext('execution_date'),'task_id': lazy_gettext('task_id'),'dag_id': lazy_gettext('dag_id')
+        'timestamp': lazy_gettext('timestamp'), 'execution_date': lazy_gettext('execution_date'),
+        'task_id': lazy_gettext('task_id'), 'dag_id': lazy_gettext('dag_id')
     }
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
@@ -2466,14 +2467,19 @@ class TighteningControllerView(AirflowModelView):
     base_permissions = ['can_show', 'can_add', 'can_list', 'can_edit', 'can_delete']
 
     extra_fields = []
-    list_columns = ['controller_name', 'line_code', 'work_center_code', 'work_center_name']
-    add_columns = edit_columns = ['controller_name', 'line_code', 'work_center_code', 'work_center_name'] + extra_fields
+    list_columns = ['controller_name', 'line_code', 'line_name', 'work_center_code', 'work_center_name']
+    add_columns = edit_columns = ['controller_name', 'line_code', 'line_name', 'work_center_code',
+                                  'work_center_name'] + extra_fields
     add_form = edit_form = TighteningControllerForm
     add_template = 'airflow/tightening_controller_create.html'
     edit_template = 'airflow/tightening_controller_edit.html'
     list_widget = AirflowControllerListWidget
     label_columns = {
-        'controller_name': lazy_gettext('controller_name'),  'line_code': lazy_gettext('line_code'),'work_center_code': lazy_gettext('work_center_code'),'work_center_name': lazy_gettext('work_center_name')
+        'controller_name': lazy_gettext('controller_name'),
+        'line_code': lazy_gettext('line_code'),
+        'line_name': lazy_gettext('line_name'),
+        'work_center_code': lazy_gettext('work_center_code'),
+        'work_center_name': lazy_gettext('work_center_name')
     }
 
     base_order = ('id', 'asc')
@@ -2568,7 +2574,8 @@ class VariableModelView(AirflowModelView):
     search_columns = ['key', 'val', 'is_curve_template', 'active']
     label_columns = {
         'key': lazy_gettext('key'), 'val': lazy_gettext('val'),
-        'is_encrypted': lazy_gettext('is_encrypted'), 'is_curve_template': lazy_gettext('is_curve_template'),'active': lazy_gettext('active')
+        'is_encrypted': lazy_gettext('is_encrypted'), 'is_curve_template': lazy_gettext('is_curve_template'),
+        'active': lazy_gettext('active')
     }
     # add_form = edit_form = VariableForm
 
@@ -2838,7 +2845,7 @@ class LogModelView(AirflowModelView):
         'id': lazy_gettext('id'), 'dttm': lazy_gettext('dttm'),
         'dag_id': lazy_gettext('dag_id'), 'task_id': lazy_gettext('task_id'),
         'event': lazy_gettext('event'), 'execution_date': lazy_gettext('execution_date'),
-        'owners': lazy_gettext('owners'),'extra': lazy_gettext('extra')
+        'owners': lazy_gettext('owners'), 'extra': lazy_gettext('extra')
     }
     search_columns = ['dag_id', 'task_id', 'execution_date', 'extra']
 
@@ -3020,7 +3027,8 @@ class DagModelView(AirflowModelView):
     label_columns = {
         'dag_id': lazy_gettext('dag_id'), 'is_paused': lazy_gettext('is_paused'),
         'last_scheduler_run': lazy_gettext('last_scheduler_run'), 'last_expired': lazy_gettext('last_expired'),
-        'scheduler_lock': lazy_gettext('scheduler_lock'),'fileloc': lazy_gettext('fileloc'),'owners': lazy_gettext('owners')
+        'scheduler_lock': lazy_gettext('scheduler_lock'), 'fileloc': lazy_gettext('fileloc'),
+        'owners': lazy_gettext('owners')
     }
     formatters_columns = {
         'dag_id': wwwutils.dag_link
