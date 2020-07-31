@@ -108,6 +108,7 @@ Content
 
     Operators and hooks <operators-and-hooks-ref>
     CLI <cli-ref>
+    CLI migration guide <cli-migration-guide>
     Macros <macros-ref>
     Python API <_api/index>
     Experimental REST API <rest-api-ref>
