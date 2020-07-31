@@ -19,7 +19,7 @@
 import json
 import socket
 import time
-from typing import Any, Mapping, Optional, Type, Union
+from typing import Any, Mapping, Optional, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
@@ -31,10 +31,10 @@ from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.utils.decorators import apply_defaults
 
-JReqType = Mapping[str, Union[str, Mapping[str, str]]]
+JenkinsRequest = Mapping[str, Any]
 
 
-def jenkins_request_with_headers(jenkins_server: Type[Jenkins], req: Request) -> JReqType:
+def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Optional[JenkinsRequest]:
     """
     We need to get the headers in addition to the body answer
     to get the location from them
@@ -69,6 +69,7 @@ def jenkins_request_with_headers(jenkins_server: Type[Jenkins], req: Request) ->
         raise jenkins.TimeoutException('Error in request: %s' % e)
     except URLError as e:
         raise JenkinsException('Error in request: %s' % e.reason)
+    return None
 
 
 class JenkinsJobTriggerOperator(BaseOperator):
@@ -83,7 +84,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :param job_name: The name of the job to trigger
     :type job_name: str
     :param parameters: The parameters block to provide to jenkins. (templated)
-    :type parameters: str
+    :type parameters: str or Dict
     :param sleep_time: How long will the operator sleep between each status
         request for the job (min 1, default 10)
     :type sleep_time: int
@@ -99,7 +100,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     def __init__(self,
                  jenkins_connection_id: str,
                  job_name: str,
-                 parameters: Optional[str] = "",
+                 parameters: str = "",
                  sleep_time: int = 10,
                  max_try_before_job_appears: int = 10,
                  *args,
@@ -113,7 +114,9 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
 
-    def build_job(self, jenkins_server: Jenkins) -> JReqType:
+    def build_job(
+            self, jenkins_server: Jenkins, parameters: Optional[str] = "",
+        ) -> Optional[JenkinsRequest]:
         """
         This function makes an API call to Jenkins to trigger a build for 'job_name'
         It returned a dict with 2 keys : body and headers.
@@ -126,17 +129,17 @@ class JenkinsJobTriggerOperator(BaseOperator):
         """
         # Warning if the parameter is too long, the URL can be longer than
         # the maximum allowed size
-        if self.parameters and isinstance(self.parameters, str):
+        if parameters and isinstance(parameters, str):
             import ast
-            self.parameters = ast.literal_eval(self.parameters)
+            parameters = ast.literal_eval(parameters)
 
-        if not self.parameters:
-            # We need a None to call the non parametrized jenkins api end point
-            self.parameters = None
+        if not parameters:
+            # We need to pass a None to call the non parametrized jenkins api end point
+            parameters = None
 
         request = Request(
             method='POST',
-            url=jenkins_server.build_job_url(self.job_name, self.parameters, None))
+            url=jenkins_server.build_job_url(self.job_name, parameters, None))
         return jenkins_request_with_headers(jenkins_server, request)
 
     def poll_job_in_queue(self, location: str, jenkins_server: Jenkins) -> int:
@@ -163,7 +166,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
             location_answer = jenkins_request_with_headers(
                 jenkins_server, Request(method='POST', url=location))
             if location_answer is not None:
-                json_response = json.loads(location_answer['body'])  # type: ignore
+                json_response = json.loads(location_answer['body'])
                 if 'executable' in json_response:
                     build_number = json_response['executable']['number']
                     self.log.info('Job executed on Jenkins side with the build number %s',
@@ -198,9 +201,10 @@ class JenkinsJobTriggerOperator(BaseOperator):
             'Triggering the job %s on the jenkins : %s with the parameters : %s',
             self.job_name, self.jenkins_connection_id, self.parameters)
         jenkins_server = self.get_hook().get_jenkins_server()
-        jenkins_response = self.build_job(jenkins_server)
-        build_number = self.poll_job_in_queue(
-            jenkins_response['headers']['Location'], jenkins_server)  # type: ignore
+        jenkins_response = self.build_job(jenkins_server, self.parameters)
+        if jenkins_response:
+            build_number = self.poll_job_in_queue(
+                jenkins_response['headers']['Location'], jenkins_server)
 
         time.sleep(self.sleep_time)
         keep_polling_job = True
