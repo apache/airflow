@@ -66,13 +66,14 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
 TR = TaskReschedule
+Context = Dict[str, Any]
 
-_CURRENT_CONTEXT = []
+_CURRENT_CONTEXT: List[Context] = []
 log = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager
-def set_current_context(context: Dict[str, Any]):
+def set_current_context(context: Context):
     """
     Sets the current execution context to the provided context object.
     This method should be called once per Task execution, before calling operator.execute.
@@ -1391,7 +1392,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         return ''
 
     @provide_session
-    def get_template_context(self, session=None) -> Dict[str, Any]:  # pylint: disable=too-many-locals
+    def get_template_context(self, session=None) -> Context:  # pylint: disable=too-many-locals
         """Return TI Context"""
         task = self.task
         from airflow import macros
@@ -1583,7 +1584,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self.log.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
             params.update(dag_run.conf)
 
-    def render_templates(self, context: Optional[Dict] = None) -> None:
+    def render_templates(self, context: Optional[Context] = None) -> None:
         """Render templates in the operator fields."""
         if not context:
             context = self.get_template_context()
