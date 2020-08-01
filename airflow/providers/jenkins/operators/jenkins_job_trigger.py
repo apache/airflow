@@ -134,7 +134,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
             parameters = ast.literal_eval(parameters)
 
         if not parameters:
-            # We need to a None to call the non parametrized jenkins api end point
+            # We need None to call the non parametrized jenkins api end point
             parameters = None
 
         request = Request(
