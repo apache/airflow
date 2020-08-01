@@ -54,8 +54,8 @@ class MySqlOperator(BaseOperator):
             parameters: Optional[Union[Mapping, Iterable]] = None,
             autocommit: bool = False,
             database: Optional[str] = None,
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
         self.mysql_conn_id = mysql_conn_id
         self.sql = sql
         self.autocommit = autocommit

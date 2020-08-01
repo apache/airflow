@@ -52,9 +52,8 @@ class DingdingOperator(BaseOperator):
                  message=None,
                  at_mobiles=None,
                  at_all=False,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.dingding_conn_id = dingding_conn_id
         self.message_type = message_type
         self.message = message

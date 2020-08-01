@@ -193,9 +193,8 @@ class DataflowCreateJavaJobOperator(BaseOperator):
             job_class: Optional[str] = None,
             check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
             multiple_jobs: Optional[bool] = None,
-            *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
         options = options or {}
@@ -376,9 +375,8 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
-            *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.template = template
         self.job_name = job_name
         self.options = options or {}
@@ -508,10 +506,9 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
-            *args,
             **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.py_file = py_file
         self.job_name = job_name

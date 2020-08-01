@@ -122,7 +122,6 @@ class PubSubCreateTopicOperator(BaseOperator):
             timeout: Optional[float] = None,
             metadata: Optional[Sequence[Tuple[str, str]]] = None,
             project: Optional[str] = None,
-            *args,
             **kwargs) -> None:
 
         # To preserve backward compatibility
@@ -133,7 +132,7 @@ class PubSubCreateTopicOperator(BaseOperator):
                 "the project_id parameter.", DeprecationWarning, stacklevel=2)
             project_id = project
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.topic = topic
         self.fail_if_exists = fail_if_exists
@@ -297,7 +296,6 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
             metadata: Optional[Sequence[Tuple[str, str]]] = None,
             topic_project: Optional[str] = None,
             subscription_project: Optional[str] = None,
-            *args,
             **kwargs) -> None:
 
         # To preserve backward compatibility
@@ -313,7 +311,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
                 "the subscription_project parameter.", DeprecationWarning, stacklevel=2)
             subscription_project_id = subscription_project
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.topic = topic
         self.subscription = subscription
@@ -428,7 +426,6 @@ class PubSubDeleteTopicOperator(BaseOperator):
             timeout: Optional[float] = None,
             metadata: Optional[Sequence[Tuple[str, str]]] = None,
             project: Optional[str] = None,
-            *args,
             **kwargs) -> None:
 
         # To preserve backward compatibility
@@ -439,7 +436,7 @@ class PubSubDeleteTopicOperator(BaseOperator):
                 "the project_id parameter.", DeprecationWarning, stacklevel=2)
             project_id = project
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.topic = topic
         self.fail_if_not_exists = fail_if_not_exists
@@ -540,7 +537,6 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
             timeout: Optional[float] = None,
             metadata: Optional[Sequence[Tuple[str, str]]] = None,
             project: Optional[str] = None,
-            *args,
             **kwargs) -> None:
 
         # To preserve backward compatibility
@@ -551,7 +547,7 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
                 "the project_id parameter.", DeprecationWarning, stacklevel=2)
             project_id = project
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.subscription = subscription
         self.fail_if_not_exists = fail_if_not_exists
@@ -642,7 +638,6 @@ class PubSubPublishMessageOperator(BaseOperator):
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             project: Optional[str] = None,
-            *args,
             **kwargs) -> None:
 
         # To preserve backward compatibility
@@ -653,7 +648,7 @@ class PubSubPublishMessageOperator(BaseOperator):
                 "the project_id parameter.", DeprecationWarning, stacklevel=2)
             project_id = project
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.topic = topic
         self.messages = messages
@@ -728,10 +723,9 @@ class PubSubPullOperator(BaseOperator):
             messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
-            *args,
             **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.project_id = project_id

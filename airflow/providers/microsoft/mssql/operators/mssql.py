@@ -59,9 +59,9 @@ class MsSqlOperator(BaseOperator):
         parameters: Optional[Union[Mapping, Iterable]] = None,
         autocommit: bool = False,
         database: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id
         self.sql = sql
         self.parameters = parameters

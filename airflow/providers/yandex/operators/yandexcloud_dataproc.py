@@ -107,7 +107,7 @@ class DataprocCreateClusterOperator(BaseOperator):
                  connection_id: Optional[str] = None,
                  *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.folder_id = folder_id
         self.connection_id = connection_id
         self.cluster_name = cluster_name
@@ -180,7 +180,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
                  cluster_id: Optional[str] = None,
                  *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.connection_id = connection_id
         self.cluster_id = cluster_id
         self.hook = None
@@ -233,7 +233,7 @@ class DataprocCreateHiveJobOperator(BaseOperator):
                  connection_id: Optional[str] = None,
                  *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.query = query
         self.query_file_uri = query_file_uri
         self.script_variables = script_variables
@@ -307,7 +307,7 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
                  connection_id: Optional[str] = None,
                  *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
         self.jar_file_uris = jar_file_uris
@@ -384,7 +384,7 @@ class DataprocCreateSparkJobOperator(BaseOperator):
                  connection_id: Optional[str] = None,
                  *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
         self.jar_file_uris = jar_file_uris
@@ -461,7 +461,7 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
                  connection_id: Optional[str] = None,
                  *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.main_python_file_uri = main_python_file_uri
         self.python_file_uris = python_file_uris
         self.jar_file_uris = jar_file_uris

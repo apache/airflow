@@ -60,9 +60,9 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                  wait_for_completion=True,
                  check_interval=30,
                  max_ingestion_time=None,
-                 *args, **kwargs):
+                 **kwargs):
         super().__init__(config=config,
-                         *args, **kwargs)
+                         **kwargs)
         self.config = config
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
