@@ -47,9 +47,8 @@ class TableauRefreshWorkbookOperator(BaseOperator):
                  site_id: Optional[str] = None,
                  blocking: bool = True,
                  tableau_conn_id: str = 'tableau_default',
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.workbook_name = workbook_name
         self.site_id = site_id
         self.blocking = blocking

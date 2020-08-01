@@ -50,8 +50,8 @@ class SnsPublishOperator(BaseOperator):
             aws_conn_id='aws_default',
             subject=None,
             message_attributes=None,
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
         self.target_arn = target_arn
         self.message = message
         self.subject = subject

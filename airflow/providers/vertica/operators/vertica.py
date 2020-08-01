@@ -41,8 +41,8 @@ class VerticaOperator(BaseOperator):
     @apply_defaults
     def __init__(self, sql: Union[str, List[str]],
                  vertica_conn_id: str = 'vertica_default',
-                 *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.vertica_conn_id = vertica_conn_id
         self.sql = sql
 

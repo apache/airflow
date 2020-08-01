@@ -76,10 +76,9 @@ class SingularityOperator(BaseOperator):
             volumes: Optional[List[str]] = None,
             options: Optional[List[str]] = None,
             auto_remove: Optional[bool] = False,
-            *args,
             **kwargs) -> None:
 
-        super(SingularityOperator, self).__init__(*args, **kwargs)
+        super(SingularityOperator, self).__init__(**kwargs)
         self.auto_remove = auto_remove
         self.command = command
         self.start_command = start_command

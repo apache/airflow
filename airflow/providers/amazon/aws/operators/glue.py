@@ -69,9 +69,9 @@ class AwsGlueJobOperator(BaseOperator):
                  region_name=None,
                  s3_bucket=None,
                  iam_role_name=None,
-                 *args, **kwargs
+                 **kwargs
                  ):  # pylint: disable=too-many-arguments
-        super(AwsGlueJobOperator, self).__init__(*args, **kwargs)
+        super(AwsGlueJobOperator, self).__init__(**kwargs)
         self.job_name = job_name
         self.job_desc = job_desc
         self.script_location = script_location

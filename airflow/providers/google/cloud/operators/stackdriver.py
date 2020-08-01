@@ -93,9 +93,9 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.format_ = format_
         self.filter_ = filter_
         self.order_by = order_by
@@ -171,9 +171,9 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
@@ -243,9 +243,9 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
@@ -317,9 +317,9 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.alerts = alerts
         self.retry = retry
         self.timeout = timeout
@@ -387,9 +387,9 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.name = name
         self.retry = retry
         self.timeout = timeout
@@ -480,9 +480,9 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.format_ = format_
         self.filter_ = filter_
         self.order_by = order_by
@@ -561,9 +561,9 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.filter_ = filter_
         self.retry = retry
         self.timeout = timeout
@@ -634,9 +634,9 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.filter_ = filter_
         self.retry = retry
         self.timeout = timeout
@@ -709,9 +709,9 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.channels = channels
         self.retry = retry
         self.timeout = timeout
@@ -780,9 +780,9 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.name = name
         self.retry = retry
         self.timeout = timeout

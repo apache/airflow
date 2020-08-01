@@ -67,7 +67,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
                  display_name: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.configuration_name = configuration_name
@@ -75,7 +75,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
         self.display_name = display_name
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -125,12 +125,12 @@ class SpannerDeleteInstanceOperator(BaseOperator):
                  instance_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -183,14 +183,14 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
                  query: Union[str, List[str]],
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
         self.query = query
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -266,14 +266,14 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
                  ddl_statements: List[str],
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
         self.ddl_statements = ddl_statements
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -341,7 +341,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  operation_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
@@ -349,7 +349,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         self.operation_id = operation_id
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -411,13 +411,13 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
                  database_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':

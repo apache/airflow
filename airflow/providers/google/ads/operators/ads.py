@@ -69,10 +69,9 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         google_ads_conn_id: str = "google_ads_default",
         gzip: bool = False,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket = bucket
         self.object_name = object_name
         self.gcp_conn_id = gcp_conn_id

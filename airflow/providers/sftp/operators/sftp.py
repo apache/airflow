@@ -90,9 +90,8 @@ class SFTPOperator(BaseOperator):
                  operation=SFTPOperation.PUT,
                  confirm=True,
                  create_intermediate_dirs=False,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.ssh_hook = ssh_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
