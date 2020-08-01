@@ -207,8 +207,17 @@ A new command was added to the CLI for executing one full run of a DAG for a giv
 airflow dags test [dag_id] [execution_date]
 airflow dags test example_branch_operator 2018-01-01
 ```
+### Configuration changes
 
-### Other changes
+#### airflow.contrib.utils.log has been moved
+Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
+package was supported by the community. The project was passed to the Apache community and currently the
+entire code is maintained by the community, so now the division has no justification, and it is only due
+to historical reasons.
+
+To clean up, modules in `airflow.contrib.utils.log` have been moved into `airflow.utils.log`
+this includes:
+* `TaskHandlerWithCustomFormatter` class
 
 #### GCSTaskHandler has been moved
 The `GCSTaskHandler` class from `airflow.utils.log.gcs_task_handler` has been moved to
@@ -255,6 +264,143 @@ email_backend = airflow.providers.sendgrid.utils.emailer.send_email
 
 The old configuration still works but can be abandoned.
 
+#### Unify `hostname_callable` option in `core` section
+
+The previous option used a colon(`:`) to split the module from function. Now the dot(`.`) is used.
+
+The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
+
+
+#### Custom executors is loaded using full import path
+
+In previous versions of Airflow it was possible to use plugins to load custom executors. It is still
+possible, but the configuration has changed. Now you don't have to create a plugin to configure a
+custom executor, but you need to provide the full path to the module in the `executor` option
+in the `core` section. The purpose of this change is to simplify the plugin mechanism and make
+it easier to configure executor.
+
+If your module was in the path `my_acme_company.executors.MyCustomExecutor`  and the plugin was
+called `my_plugin` then your configuration looks like this
+
+```ini
+[core]
+executor = my_plguin.MyCustomExecutor
+```
+And now it should look like this:
+```ini
+[core]
+executor = my_acme_company.executors.MyCustomExecutor
+```
+
+The old configuration is still works but can be abandoned at any time.
+
+#### Drop plugin support for stat_name_handler
+
+In previous version, you could use plugins mechanism to configure ``stat_name_handler``. You should now use the `stat_name_handler`
+option in `[scheduler]` section to achieve the same effect.
+
+If your plugin looked like this and was available through the `test_plugin` path:
+```python
+def my_stat_name_handler(stat):
+    return stat
+
+class AirflowTestPlugin(AirflowPlugin):
+    name = "test_plugin"
+    stat_name_handler = my_stat_name_handler
+```
+then your `airflow.cfg` file should look like this:
+```ini
+[scheduler]
+stat_name_handler=test_plugin.my_stat_name_handler
+```
+
+This change is intended to simplify the statsd configuration.
+
+#### Logging configuration has been moved to new section
+
+The following configurations have been moved from `[core]` to the new `[logging]` section.
+
+* `base_log_folder`
+* `remote_logging`
+* `remote_log_conn_id`
+* `remote_base_log_folder`
+* `encrypt_s3_logs`
+* `logging_level`
+* `fab_logging_level`
+* `logging_config_class`
+* `colored_console_log`
+* `colored_log_format`
+* `colored_formatter_class`
+* `log_format`
+* `simple_log_format`
+* `task_log_prefix_template`
+* `log_filename_template`
+* `log_processor_filename_template`
+* `dag_processor_manager_log_location`
+* `task_log_reader`
+
+#### Remove gcp_service_account_keys option in airflow.cfg file
+
+This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new
+recommended service account keys for the Google Cloud Platform management method is
+[Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
+
+#### Fernet is enabled by default
+
+The fernet mechanism is enabled by default to increase the security of the default installation.  In order to
+restore the previous behavior, the user must consciously set an empty key in the ``fernet_key`` option of
+section ``[core]`` in the ``airflow.cfg`` file.
+
+At the same time, this means that the `apache-airflow[crypto]` extra-packages are always installed.
+However, this requires that your operating system has ``libffi-dev`` installed.
+
+
+#### Changes to propagating Kubernetes worker annotations
+
+`kubernetes_annotations` configuration section has been removed.
+A new key `worker_annotations` has been added to existing `kubernetes` section instead.
+That is to remove restriction on the character set for k8s annotation keys.
+All key/value pairs from `kubernetes_annotations` should now go to `worker_annotations` as a json. I.e. instead of e.g.
+```
+[kubernetes_annotations]
+annotation_key = annotation_value
+annotation_key2 = annotation_value2
+```
+it should be rewritten to
+```
+[kubernetes]
+worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" : "annotation_value2" }
+```
+
+#### Remove run_duration
+
+We should not use the `run_duration` option anymore. This used to be for restarting the scheduler from time to time, but right now the scheduler is getting more stable and therefore using this setting is considered bad and might cause an inconsistent state.
+
+#### Deprecate legacy UI in favor of FAB RBAC UI
+
+Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
+in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
+RBAC UI explicitly in the configuration now as this is the only default UI.
+Please note that that custom auth backends will need re-writing to target new FAB based UI.
+
+As part of this change, a few configuration items in `[webserver]` section are removed and no longer applicable,
+including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
+
+#### Rename pool statsd metrics
+
+Used slot has been renamed to running slot to make the name self-explanatory
+and the code more maintainable.
+
+This means `pool.used_slots.<pool_name>` metric has been renamed to
+`pool.running_slots.<pool_name>`. The `Used Slots` column in Pools Web UI view
+has also been changed to `Running Slots`.
+
+#### Removal of Mesos Executor
+
+The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/thread.html/daa9500026b820c6aaadeffd66166eae558282778091ebbc68819fb7@%3Cdev.airflow.apache.org%3E).
+
+### Other changes
+
 #### Weekday enum has been moved
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
 package was supported by the community. The project was passed to the Apache community and currently the
@@ -263,15 +409,6 @@ to historical reasons.
 
 To clean up, `Weekday` enum has been moved from `airflow.contrib.utils` into `airflow.utils` module.
 
-#### airflow.contrib.utils.log has been moved
-Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
-package was supported by the community. The project was passed to the Apache community and currently the
-entire code is maintained by the community, so now the division has no justification, and it is only due
-to historical reasons.
-
-To clean up, modules in `airflow.contrib.utils.log` have been moved into `airflow.utils.log`
-this includes:
-* `TaskHandlerWithCustomFormatter` class
 
 #### Deprecated method in Connection
 
@@ -430,12 +567,6 @@ and now it is:
 BigQueryGetDatasetTablesOperator(dataset_resource: dict, dataset_id: Optional[str] = None, ...)
 ```
 
-#### Unify `hostname_callable` option in `core` section
-
-The previous option used a colon(`:`) to split the module from function. Now the dot(`.`) is used.
-
-The change aims to unify the format of all options that refer to objects in the `airflow.cfg` file.
-
 #### Changes in BigQueryHook
 In general all hook methods are decorated with `@GoogleBaseHook.fallback_to_default_project_id` thus
 parameters to hook can only be passed via keyword arguments.
@@ -504,15 +635,6 @@ Will now call:
 Where '.keep' is a single file at your prefix that the sensor should not consider new.
 
 
-#### Rename pool statsd metrics
-
-Used slot has been renamed to running slot to make the name self-explanatory
-and the code more maintainable.
-
-This means `pool.used_slots.<pool_name>` metric has been renamed to
-`pool.running_slots.<pool_name>`. The `Used Slots` column in Pools Web UI view
-has also been changed to `Running Slots`.
-
 #### Remove SQL support in base_hook
 
 Remove ``get_records`` and ``get_pandas_df`` and ``run`` from base_hook, which only apply for sql like hook,
@@ -565,29 +687,6 @@ with DAG('my_dag'):
 When doing backfill with `depends_on_past` dags, users will need to pass `--ignore-first-depends-on-past`.
 We should default it as `true` to avoid confusion
 
-#### Custom executors is loaded using full import path
-
-In previous versions of Airflow it was possible to use plugins to load custom executors. It is still
-possible, but the configuration has changed. Now you don't have to create a plugin to configure a
-custom executor, but you need to provide the full path to the module in the `executor` option
-in the `core` section. The purpose of this change is to simplify the plugin mechanism and make
-it easier to configure executor.
-
-If your module was in the path `my_acme_company.executors.MyCustomExecutor`  and the plugin was
-called `my_plugin` then your configuration looks like this
-
-```ini
-[core]
-executor = my_plguin.MyCustomExecutor
-```
-And now it should look like this:
-```ini
-[core]
-executor = my_acme_company.executors.MyCustomExecutor
-```
-
-The old configuration is still works but can be abandoned at any time.
-
 #### Removed sub-package imports from `airflow/__init__.py`
 
 The imports `LoggingMixin`, `conf`, and `AirflowException` have been removed from `airflow/__init__.py`.
@@ -600,27 +699,6 @@ replaced with its corresponding new path.
 | ``airflow.conf``             | ``airflow.configuration.conf``                   |
 | ``airflow.AirflowException`` | ``airflow.exceptions.AirflowException``          |
 
-#### Drop plugin support for stat_name_handler
-
-In previous version, you could use plugins mechanism to configure ``stat_name_handler``. You should now use the `stat_name_handler`
-option in `[scheduler]` section to achieve the same effect.
-
-If your plugin looked like this and was available through the `test_plugin` path:
-```python
-def my_stat_name_handler(stat):
-    return stat
-
-class AirflowTestPlugin(AirflowPlugin):
-    name = "test_plugin"
-    stat_name_handler = my_stat_name_handler
-```
-then your `airflow.cfg` file should look like this:
-```ini
-[scheduler]
-stat_name_handler=test_plugin.my_stat_name_handler
-```
-
-This change is intended to simplify the statsd configuration.
 
 #### Move methods from BiqQueryBaseCursor to BigQueryHook
 
@@ -705,35 +783,6 @@ from airflow.models.baseoperator import cross_downstream
 #### Change python3 as Dataflow Hooks/Operators default interpreter
 
 Now the `py_interpreter` argument for DataFlow Hooks/Operators has been changed from python2 to python3.
-
-#### Logging configuration has been moved to new section
-
-The following configurations have been moved from `[core]` to the new `[logging]` section.
-
-* `base_log_folder`
-* `remote_logging`
-* `remote_log_conn_id`
-* `remote_base_log_folder`
-* `encrypt_s3_logs`
-* `logging_level`
-* `fab_logging_level`
-* `logging_config_class`
-* `colored_console_log`
-* `colored_log_format`
-* `colored_formatter_class`
-* `log_format`
-* `simple_log_format`
-* `task_log_prefix_template`
-* `log_filename_template`
-* `log_processor_filename_template`
-* `dag_processor_manager_log_location`
-* `task_log_reader`
-
-#### Remove gcp_service_account_keys option in airflow.cfg file
-
-This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new
-recommended service account keys for the Google Cloud Platform management method is
-[Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
 
 #### BranchPythonOperator has a return value
 `BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch,
@@ -877,15 +926,6 @@ Hooks involved:
 
 Other GCP hooks are unaffected.
 
-#### Fernet is enabled by default
-
-The fernet mechanism is enabled by default to increase the security of the default installation.  In order to
-restore the previous behavior, the user must consciously set an empty key in the ``fernet_key`` option of
-section ``[core]`` in the ``airflow.cfg`` file.
-
-At the same time, this means that the `apache-airflow[crypto]` extra-packages are always installed.
-However, this requires that your operating system has ``libffi-dev`` installed.
-
 #### Changes to Google PubSub Operators, Hook and Sensor
 In the `PubSubPublishOperator` and `PubSubHook.publsh` method the data field in a message should be bytestring (utf-8 encoded) rather than base64 encoded string.
 
@@ -959,23 +999,6 @@ Following components were affected by normalization:
   * airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator
   * airflow.operators.cassandra_to_gcs.CassandraToGoogleCloudStorageOperator
   * airflow.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator
-
-#### Changes to propagating Kubernetes worker annotations
-
-`kubernetes_annotations` configuration section has been removed.
-A new key `worker_annotations` has been added to existing `kubernetes` section instead.
-That is to remove restriction on the character set for k8s annotation keys.
-All key/value pairs from `kubernetes_annotations` should now go to `worker_annotations` as a json. I.e. instead of e.g.
-```
-[kubernetes_annotations]
-annotation_key = annotation_value
-annotation_key2 = annotation_value2
-```
-it should be rewritten to
-```
-[kubernetes]
-worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" : "annotation_value2" }
-```
 
 #### Changes to import paths and names of GCP operators and hooks
 
@@ -1262,10 +1285,6 @@ has been renamed to `request_filter`.
  To obtain pylint compatibility the `filter` argument in `GCPTransferServiceHook.list_transfer_job` and
  `GCPTransferServiceHook.list_transfer_operations` has been renamed to `request_filter`.
 
-#### Removal of Mesos Executor
-
-The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/thread.html/daa9500026b820c6aaadeffd66166eae558282778091ebbc68819fb7@%3Cdev.airflow.apache.org%3E).
-
 #### Increase standard Dataproc disk sizes
 
 It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
@@ -1350,19 +1369,6 @@ If you want to install integration for Google Cloud Platform, then instead of
 `pip install 'apache-airflow[gcp_api]'`, you should execute `pip install 'apache-airflow[gcp]'`.
 The old way will work until the release of Airflow 2.1.
 
-#### Deprecate legacy UI in favor of FAB RBAC UI
-
-Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
-in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
-RBAC UI explicitly in the configuration now as this is the only default UI.
-Please note that that custom auth backends will need re-writing to target new FAB based UI.
-
-As part of this change, a few configuration items in `[webserver]` section are removed and no longer applicable,
-including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
-
-#### Remove run_duration
-
-We should not use the `run_duration` option anymore. This used to be for restarting the scheduler from time to time, but right now the scheduler is getting more stable and therefore using this setting is considered bad and might cause an inconsistent state.
 
 #### Unification of `do_xcom_push` flag
 The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
