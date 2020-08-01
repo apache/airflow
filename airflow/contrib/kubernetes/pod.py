@@ -19,7 +19,13 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.kubernetes.pod import Port, Resources   # noqa
+from typing import List, Union
+
+from kubernetes.client import models as k8s
+
+from airflow.kubernetes.pod import Port, Resources  # noqa
+from airflow.kubernetes.volume import Volume
+from airflow.kubernetes.volume_mount import VolumeMount
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.kubernetes.pod`.",
@@ -154,6 +160,7 @@ class Pod(object):
             dns_policy=self.dnspolicy,
             host_network=self.hostnetwork,
             tolerations=self.tolerations,
+            affinity=self.affinity,
             security_context=self.security_context,
         )
 
@@ -161,11 +168,11 @@ class Pod(object):
             spec=spec,
             metadata=meta,
         )
-        for port in self.ports:
+        for port in _extract_ports(self.ports):
             pod = port.attach_to_pod(pod)
-        for volume in self.volumes:
+        for volume in _extract_volumes(self.volumes):
             pod = volume.attach_to_pod(pod)
-        for volume_mount in self.volume_mounts:
+        for volume_mount in _extract_volume_mounts(self.volume_mounts):
             pod = volume_mount.attach_to_pod(pod)
         for secret in self.secrets:
             pod = secret.attach_to_pod(pod)
@@ -182,3 +189,62 @@ class Pod(object):
         res['volumes'] = [volume.as_dict() for volume in res['volumes']]
 
         return res
+
+
+def _extract_env_vars(env_vars):
+    result = {}
+    env_vars = env_vars or []  # type: List[Union[k8s.V1EnvVar, dict]]
+    for env_var in env_vars:
+        if isinstance(env_var, k8s.V1EnvVar):
+            env_var.to_dict()
+        result[env_var.get("name")] = env_var.get("value")
+    return result
+
+
+def _extract_ports(ports):
+    result = []
+    ports = ports or []  # type: List[Union[k8s.V1ContainerPort, dict]]
+    for port in ports:
+        if isinstance(port, k8s.V1ContainerPort):
+            port = port.to_dict()
+            port = Port(name=port.get("name"), container_port=port.get("container_port"))
+        if not isinstance(port, Port):
+            port = Port(name=port.get("name"), container_port=port.get("containerPort"))
+        result.append(port)
+    return result
+
+
+def _extract_volume_mounts(volume_mounts):
+    result = []
+    volume_mounts = volume_mounts or []  # type: List[Union[k8s.V1VolumeMount, dict]]
+    for volume_mount in volume_mounts:
+        if isinstance(volume_mount, k8s.V1VolumeMount):
+            volume_mount = volume_mount.to_dict()
+            volume_mount = VolumeMount(
+                name=volume_mount.get("name"),
+                mount_path=volume_mount.get("mount_path"),
+                sub_path=volume_mount.get("sub_path"),
+                read_only=volume_mount.get("read_only")
+            )
+        elif not isinstance(volume_mount, VolumeMount):
+            volume_mount = VolumeMount(
+                name=volume_mount.get("name"),
+                mount_path=volume_mount.get("mountPath"),
+                sub_path=volume_mount.get("subPath"),
+                read_only=volume_mount.get("readOnly")
+            )
+
+        result.append(volume_mount)
+    return result
+
+
+def _extract_volumes(volumes):
+    result = []
+    volumes = volumes or []  # type: List[Union[k8s.V1Volume, dict]]
+    for volume in volumes:
+        if isinstance(volume, k8s.V1Volume):
+            volume = volume.to_dict()
+        if not isinstance(volume, Volume):
+            volume = Volume(name=volume.get("name"), configs=volume)
+        result.append(volume)
+    return result

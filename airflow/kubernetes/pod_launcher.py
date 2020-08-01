@@ -27,13 +27,15 @@ from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
 
 from airflow import AirflowException
-from airflow.kubernetes.pod_launcher_helper import convert_to_airflow_pod
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 import kubernetes.client.models as k8s  # noqa
 from .kube_client import get_kube_client
+from ..contrib.kubernetes.pod import (
+    Pod, _extract_env_vars, _extract_volumes, _extract_volume_mounts, _extract_ports
+)
 
 
 class PodStatus:
@@ -90,19 +92,17 @@ class PodLauncher(LoggingMixin):
     def _mutate_pod_backcompat(pod):
         """Backwards compatible Pod Mutation Hook"""
         try:
-            settings.pod_mutation_hook(pod)
-            # attempts to run pod_mutation_hook using k8s.V1Pod, if this
-            # fails we attempt to run by converting pod to Old Pod
-        except AttributeError:
+            dummy_pod = _convert_to_airflow_pod(pod)
+            settings.pod_mutation_hook(dummy_pod)
             warnings.warn(
                 "Using `airflow.contrib.kubernetes.pod.Pod` is deprecated. "
                 "Please use `k8s.V1Pod` instead.", DeprecationWarning, stacklevel=2
             )
-            dummy_pod = convert_to_airflow_pod(pod)
-            settings.pod_mutation_hook(dummy_pod)
             dummy_pod = dummy_pod.to_v1_kubernetes_pod()
-            return dummy_pod
-        return pod
+        except AttributeError:
+            settings.pod_mutation_hook(pod)
+            return pod
+        return dummy_pod
 
     def delete_pod(self, pod):
         """Deletes POD"""
@@ -269,7 +269,7 @@ class PodLauncher(LoggingMixin):
         return None
 
     def process_status(self, job_id, status):
-        """Process status infomration for the JOB"""
+        """Process status information for the JOB"""
         status = status.lower()
         if status == PodStatus.PENDING:
             return State.QUEUED
@@ -284,3 +284,23 @@ class PodLauncher(LoggingMixin):
         else:
             self.log.info('Event: Invalid state %s on job %s', status, job_id)
             return State.FAILED
+
+
+def _convert_to_airflow_pod(pod):
+    base_container = pod.spec.containers[0]  # type: k8s.V1Container
+
+    dummy_pod = Pod(
+        image=base_container.image,
+        envs=_extract_env_vars(base_container.env),
+        volumes=_extract_volumes(pod.spec.volumes),
+        volume_mounts=_extract_volume_mounts(base_container.volume_mounts),
+        labels=pod.metadata.labels,
+        name=pod.metadata.name,
+        namespace=pod.metadata.namespace,
+        image_pull_policy=base_container.image_pull_policy or 'IfNotPresent',
+        cmds=[],
+        ports=_extract_ports(base_container.ports),
+        tolerations=pod.spec.tolerations,
+        affinity=pod.spec.affinity
+    )
+    return dummy_pod

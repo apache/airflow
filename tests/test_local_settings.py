@@ -22,7 +22,9 @@ import sys
 import tempfile
 import unittest
 from airflow.kubernetes import pod_generator
-from tests.compat import MagicMock, Mock, call, patch
+from tests.compat import MagicMock, Mock, mock, call, patch
+
+from kubernetes.client.api_client import ApiClient
 
 
 SETTINGS_FILE_POLICY = """
@@ -48,18 +50,71 @@ def pod_mutation_hook(pod):
     pod.namespace = 'airflow-tests'
     pod.image = 'my_image'
     pod.volumes.append(Volume(name="bar", configs={}))
-    pod.ports = [Port(container_port=8080)]
+    pod.ports = [Port(container_port=8080), {"containerPort": 8081}]
     pod.resources = Resources(
                     request_memory="2G",
                     request_cpu="200Mi",
                     limit_gpu="200G"
                 )
 
+    secret_volume = {
+        "name":  "airflow-secrets-mount",
+        "secret": {
+          "secretName": "airflow-test-secrets"
+        }
+    }
+    secret_volume_mount = {
+      "name": "airflow-secrets-mount",
+      "readOnly": True,
+      "mountPath": "/opt/airflow/secrets/"
+    }
+
+    pod.volumes.append(secret_volume)
+    pod.volume_mounts.append(secret_volume_mount)
+
+    pod.labels.update({"test_label": "test_value"})
+    pod.envs.update({"TEST_USER": "ADMIN"})
+
+    pod.tolerations += [
+        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+    ]
+    pod.affinity.update(
+        {"nodeAffinity":
+            {"requiredDuringSchedulingIgnoredDuringExecution":
+                {"nodeSelectorTerms":
+                    [{
+                        "matchExpressions": [
+                            {"key": "test/dynamic-pods", "operator": "In", "values": ["true"]}
+                        ]
+                    }]
+                }
+            }
+        }
+    )
 """
 
 SETTINGS_FILE_POD_MUTATION_HOOK_V1_POD = """
 def pod_mutation_hook(pod):
-    pod.spec.containers[0].image = "test-image"
+    from kubernetes.client import models as k8s
+    secret_volume = {
+        "name":  "airflow-secrets-mount",
+        "secret": {
+          "secretName": "airflow-test-secrets"
+        }
+    }
+    secret_volume_mount = {
+      "name": "airflow-secrets-mount",
+      "readOnly": True,
+      "mountPath": "/opt/airflow/secrets/"
+    }
+    base_container = pod.spec.containers[0]
+    base_container.image = "test-image"
+    base_container.volume_mounts.append(secret_volume_mount)
+    base_container.env.extend([{'name': 'TEST_USER', 'value': 'ADMIN'}])
+    base_container.ports.extend([{'containerPort': 8080}, k8s.V1ContainerPort(container_port=8081)])
+
+    pod.spec.volumes.append(secret_volume)
+    pod.metadata.namespace = 'airflow-tests'
 
 """
 
@@ -85,6 +140,7 @@ class LocalSettingsTest(unittest.TestCase):
     # Make sure that the configure_logging is not cached
     def setUp(self):
         self.old_modules = dict(sys.modules)
+        self.maxDiff = None
 
     def tearDown(self):
         # Remove any new modules imported during the test run. This lets us
@@ -181,50 +237,101 @@ class LocalSettingsTest(unittest.TestCase):
 
             self.mock_kube_client = Mock()
             self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)
+            self.api_client = ApiClient()
             pod = pod_generator.PodGenerator(
                 image="foo",
                 name="bar",
                 namespace="baz",
                 image_pull_policy="Never",
                 cmds=["foo"],
+                tolerations=[
+                    {'effect': 'NoSchedule',
+                     'key': 'static-pods',
+                     'operator': 'Equal',
+                     'value': 'true'}
+                ],
                 volume_mounts=[
-                    {"name": "foo", "mount_path": "/mnt", "sub_path": "/", "read_only": "True"}
+                    {"name": "foo", "mountPath": "/mnt", "subPath": "/", "readOnly": True}
                 ],
                 volumes=[{"name": "foo"}]
             ).gen_pod()
 
-            self.assertEqual(pod.metadata.namespace, "baz")
-            self.assertEqual(pod.spec.containers[0].image, "foo")
-            self.assertEqual(pod.spec.volumes, [{'name': 'foo'}])
-            self.assertEqual(pod.spec.containers[0].ports, [])
-            self.assertEqual(pod.spec.containers[0].resources, None)
+            sanitized_pod_pre_mutation = self.api_client.sanitize_for_serialization(pod)
+            self.assertEqual(
+                sanitized_pod_pre_mutation,
+                {'apiVersion': 'v1',
+                 'kind': 'Pod',
+                 'metadata': {'name': mock.ANY,
+                              'namespace': 'baz'},
+                 'spec': {'containers': [{'args': [],
+                                          'command': ['foo'],
+                                          'env': [],
+                                          'envFrom': [],
+                                          'image': 'foo',
+                                          'imagePullPolicy': 'Never',
+                                          'name': 'base',
+                                          'ports': [],
+                                          'volumeMounts': [{'mountPath': '/mnt',
+                                                            'name': 'foo',
+                                                            'readOnly': True,
+                                                            'subPath': '/'}]}],
+                          'hostNetwork': False,
+                          'imagePullSecrets': [],
+                          'tolerations': [{'effect': 'NoSchedule',
+                                           'key': 'static-pods',
+                                           'operator': 'Equal',
+                                           'value': 'true'}],
+                          'volumes': [{'name': 'foo'}]}}
+            )
 
+            # Apply Pod Mutation Hook
             pod = self.pod_launcher._mutate_pod_backcompat(pod)
 
-            self.assertEqual(pod.metadata.namespace, "airflow-tests")
-            self.assertEqual(pod.spec.containers[0].image, "my_image")
-            self.assertEqual(pod.spec.volumes, [{'name': 'foo'}, {'name': 'bar'}])
-            self.maxDiff = None
+            sanitized_pod_post_mutation = self.api_client.sanitize_for_serialization(pod)
             self.assertEqual(
-                pod.spec.containers[0].ports[0].to_dict(),
-                {
-                    "container_port": 8080,
-                    "host_ip": None,
-                    "host_port": None,
-                    "name": None,
-                    "protocol": None
-                }
-            )
-            self.assertEqual(
-                pod.spec.containers[0].resources.to_dict(),
-                {
-                    'limits': {
-                        'cpu': None,
-                        'memory': None,
-                        'ephemeral-storage': None,
-                        'nvidia.com/gpu': '200G'},
-                    'requests': {'cpu': '200Mi', 'ephemeral-storage': None, 'memory': '2G'}
-                }
+                sanitized_pod_post_mutation,
+                {'metadata': {'labels': {'test_label': 'test_value'},
+                              'name': mock.ANY,
+                              'namespace': 'airflow-tests'},
+                 'spec': {'affinity': {'nodeAffinity': {'requiredDuringSchedulingIgnoredDuringExecution': {
+                     'nodeSelectorTerms': [{'matchExpressions': [{'key': 'test/dynamic-pods',
+                                                                  'operator': 'In',
+                                                                  'values': ['true']}]}]}}},
+                          'containers': [{'args': [],
+                                          'command': [],
+                                          'env': [{'name': 'TEST_USER', 'value': 'ADMIN'}],
+                                          'image': 'my_image',
+                                          'imagePullPolicy': 'Never',
+                                          'name': 'base',
+                                          'ports': [{'containerPort': 8080},
+                                                    {'containerPort': 8081}],
+                                          'resources': {'limits': {'cpu': None,
+                                                                   'ephemeral-storage': None,
+                                                                   'memory': None,
+                                                                   'nvidia.com/gpu': '200G'},
+                                                        'requests': {'cpu': '200Mi',
+                                                                     'ephemeral-storage': None,
+                                                                     'memory': '2G'}},
+                                          'volumeMounts': [{'mountPath': '/mnt',
+                                                            'name': 'foo',
+                                                            'readOnly': True,
+                                                            'subPath': '/'},
+                                                           {'mountPath': '/opt/airflow/secrets/',
+                                                            'name': 'airflow-secrets-mount',
+                                                            'readOnly': True}]}],
+                          'hostNetwork': False,
+                          'tolerations': [{'effect': 'NoSchedule',
+                                           'key': 'static-pods',
+                                           'operator': 'Equal',
+                                           'value': 'true'},
+                                          {'effect': 'NoSchedule',
+                                           'key': 'dynamic-pods',
+                                           'operator': 'Equal',
+                                           'value': 'true'}],
+                          'volumes': [{'name': 'foo'},
+                                      {'name': 'bar'},
+                                      {'name': 'airflow-secrets-mount',
+                                       'secret': {'secretName': 'airflow-test-secrets'}}]}}
             )
 
     def test_pod_mutation_v1_pod(self):
@@ -234,19 +341,70 @@ class LocalSettingsTest(unittest.TestCase):
             from airflow.kubernetes.pod_launcher import PodLauncher
 
             self.mock_kube_client = Mock()
+            self.api_client = ApiClient()
             self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)
             pod = pod_generator.PodGenerator(
                 image="myimage",
                 cmds=["foo"],
-                volume_mounts={
-                    "name": "foo", "mount_path": "/mnt", "sub_path": "/", "read_only": "True"
-                },
+                namespace="baz",
+                volume_mounts=[
+                    {"name": "foo", "mountPath": "/mnt", "subPath": "/", "readOnly": True}
+                ],
                 volumes=[{"name": "foo"}]
             ).gen_pod()
 
-            self.assertEqual(pod.spec.containers[0].image, "myimage")
+            sanitized_pod_pre_mutation = self.api_client.sanitize_for_serialization(pod)
+
+            self.assertEqual(
+                sanitized_pod_pre_mutation,
+                {'apiVersion': 'v1',
+                 'kind': 'Pod',
+                 'metadata': {'namespace': 'baz'},
+                 'spec': {'containers': [{'args': [],
+                                          'command': ['foo'],
+                                          'env': [],
+                                          'envFrom': [],
+                                          'image': 'myimage',
+                                          'name': 'base',
+                                          'ports': [],
+                                          'volumeMounts': [{'mountPath': '/mnt',
+                                                            'name': 'foo',
+                                                            'readOnly': True,
+                                                            'subPath': '/'}]}],
+                          'hostNetwork': False,
+                          'imagePullSecrets': [],
+                          'volumes': [{'name': 'foo'}]}}
+            )
+
+            # Apply Pod Mutation Hook
             pod = self.pod_launcher._mutate_pod_backcompat(pod)
-            self.assertEqual(pod.spec.containers[0].image, "test-image")
+
+            sanitized_pod_post_mutation = self.api_client.sanitize_for_serialization(pod)
+            self.assertEqual(
+                sanitized_pod_post_mutation,
+                {'apiVersion': 'v1',
+                 'kind': 'Pod',
+                 'metadata': {'namespace': 'airflow-tests'},
+                 'spec': {'containers': [{'args': [],
+                                          'command': ['foo'],
+                                          'env': [{'name': 'TEST_USER', 'value': 'ADMIN'}],
+                                          'envFrom': [],
+                                          'image': 'test-image',
+                                          'name': 'base',
+                                          'ports': [{'containerPort': 8080}, {'containerPort': 8081}],
+                                          'volumeMounts': [{'mountPath': '/mnt',
+                                                            'name': 'foo',
+                                                            'readOnly': True,
+                                                            'subPath': '/'},
+                                                           {'mountPath': '/opt/airflow/secrets/',
+                                                            'name': 'airflow-secrets-mount',
+                                                            'readOnly': True}]}],
+                          'hostNetwork': False,
+                          'imagePullSecrets': [],
+                          'volumes': [{'name': 'foo'},
+                                      {'name': 'airflow-secrets-mount',
+                                       'secret': {'secretName': 'airflow-test-secrets'}}]}}
+            )
 
 
 class TestStatsWithAllowList(unittest.TestCase):
