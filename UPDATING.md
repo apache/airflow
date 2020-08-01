@@ -62,6 +62,152 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+### CLI changes
+
+#### Simplification of CLI commands
+
+The ability to manipulate users from the command line has been changed. 'airflow create_user' and 'airflow delete_user' and 'airflow list_users' has been grouped to a single command `airflow users` with optional flags `--create`, `--list` and `--delete`.
+
+Example Usage:
+
+To create a new user:
+```bash
+airflow users --create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
+```
+
+To list users:
+```bash
+airflow users --list
+```
+
+To delete a user:
+```bash
+airflow users --delete --username jondoe
+```
+
+To add a user to a role:
+```bash
+airflow users --add-role --username jondoe --role Public
+```
+
+To remove a user from a role:
+```bash
+airflow users --remove-role --username jondoe --role Public
+```
+
+#### CLI reorganization
+
+The Airflow CLI has been organized so that related commands are grouped
+together as subcommands. The `airflow list_dags` command is now `airflow
+dags list`, `airflow pause` is `airflow dags pause`, `airflow config` is `airflow config list`, etc.
+For a complete list of updated CLI commands, see https://airflow.apache.org/cli.html.
+
+#### Grouped to improve UX of CLI
+
+Some commands have been grouped to improve UX of CLI. New commands are available according to the following table:
+
+| Old command               | New command                        |
+|---------------------------|------------------------------------|
+| ``airflow worker``        | ``airflow celery worker``          |
+| ``airflow flower``        | ``airflow celery flower``          |
+
+#### Cli use exactly single character for short option style change
+
+For Airflow short option, use exactly one single character, New commands are available according to the following table:
+
+| Old command                                          | New command                                         |
+| :----------------------------------------------------| :---------------------------------------------------|
+| ``airflow (dags\|tasks\|scheduler) [-sd, --subdir]`` | ``airflow (dags\|tasks\|scheduler) [-S, --subdir]`` |
+| ``airflow tasks test [-dr, --dry_run]``              | ``airflow tasks test [-n, --dry-run]``              |
+| ``airflow dags backfill [-dr, --dry_run]``           | ``airflow dags backfill [-n, --dry-run]``           |
+| ``airflow tasks clear [-dx, --dag_regex]``           | ``airflow tasks clear [-R, --dag-regex]``           |
+| ``airflow kerberos [-kt, --keytab]``                 | ``airflow kerberos [-k, --keytab]``                 |
+| ``airflow tasks run [-int, --interactive]``          | ``airflow tasks run [-N, --interactive]``           |
+| ``airflow webserver [-hn, --hostname]``              | ``airflow webserver [-H, --hostname]``              |
+| ``airflow celery worker [-cn, --celery_hostname]``   | ``airflow celery worker [-H, --celery-hostname]``   |
+| ``airflow celery flower [-hn, --hostname]``          | ``airflow celery flower [-H, --hostname]``          |
+| ``airflow celery flower [-fc, --flower_conf]``       | ``airflow celery flower [-c, --flower-conf]``       |
+| ``airflow celery flower [-ba, --basic_auth]``        | ``airflow celery flower [-A, --basic-auth]``        |
+| ``airflow celery flower [-tp, --task_params]``       | ``airflow celery flower [-t, --task-params]``       |
+| ``airflow celery flower [-pm, --post_mortem]``       | ``airflow celery flower [-m, --post-mortem]``       |
+
+For Airflow long option, use [kebab-case](https://en.wikipedia.org/wiki/Letter_case) instead of [snake_case](https://en.wikipedia.org/wiki/Snake_case)
+
+| Old option                         | New option                         |
+| :--------------------------------- | :--------------------------------- |
+| ``--task_regex``                   | ``--task-regex``                   |
+| ``--start_date``                   | ``--start-date``                   |
+| ``--end_date``                     | ``--end-date``                     |
+| ``--dry_run``                      | ``--dry-run``                      |
+| ``--no_backfill``                  | ``--no-backfill``                  |
+| ``--mark_success``                 | ``--mark-success``                 |
+| ``--donot_pickle``                 | ``--donot-pickle``                 |
+| ``--ignore_dependencies``          | ``--ignore-dependencies``          |
+| ``--ignore_first_depends_on_past`` | ``--ignore-first-depends-on-past`` |
+| ``--delay_on_limit``               | ``--delay-on-limit``               |
+| ``--reset_dagruns``                | ``--reset-dagruns``                |
+| ``--rerun_failed_tasks``           | ``--rerun-failed-tasks``           |
+| ``--run_backwards``                | ``--run-backwards``                |
+| ``--only_failed``                  | ``--only-failed``                  |
+| ``--only_running``                 | ``--only-running``                 |
+| ``--exclude_subdags``              | ``--exclude-subdags``              |
+| ``--exclude_parentdag``            | ``--exclude-parentdag``            |
+| ``--dag_regex``                    | ``--dag-regex``                    |
+| ``--run_id``                       | ``--run-id``                       |
+| ``--exec_date``                    | ``--exec-date``                    |
+| ``--ignore_all_dependencies``      | ``--ignore-all-dependencies``      |
+| ``--ignore_depends_on_past``       | ``--ignore-depends-on-past``       |
+| ``--ship_dag``                     | ``--ship-dag``                     |
+| ``--job_id``                       | ``--job-id``                       |
+| ``--cfg_path``                     | ``--cfg-path``                     |
+| ``--ssl_cert``                     | ``--ssl-cert``                     |
+| ``--ssl_key``                      | ``--ssl-key``                      |
+| ``--worker_timeout``               | ``--worker-timeout``               |
+| ``--access_logfile``               | ``--access-logfile``               |
+| ``--error_logfile``                | ``--error-logfile``                |
+| ``--dag_id``                       | ``--dag-id``                       |
+| ``--num_runs``                     | ``--num-runs``                     |
+| ``--do_pickle``                    | ``--do-pickle``                    |
+| ``--celery_hostname``              | ``--celery-hostname``              |
+| ``--broker_api``                   | ``--broker-api``                   |
+| ``--flower_conf``                  | ``--flower-conf``                  |
+| ``--url_prefix``                   | ``--url-prefix``                   |
+| ``--basic_auth``                   | ``--basic-auth``                   |
+| ``--task_params``                  | ``--task-params``                  |
+| ``--post_mortem``                  | ``--post-mortem``                  |
+| ``--conn_uri``                     | ``--conn-uri``                     |
+| ``--conn_type``                    | ``--conn-type``                    |
+| ``--conn_host``                    | ``--conn-host``                    |
+| ``--conn_login``                   | ``--conn-login``                   |
+| ``--conn_password``                | ``--conn-password``                |
+| ``--conn_schema``                  | ``--conn-schema``                  |
+| ``--conn_port``                    | ``--conn-port``                    |
+| ``--conn_extra``                   | ``--conn-extra``                   |
+| ``--use_random_password``          | ``--use-random-password``          |
+| ``--skip_serve_logs``              | ``--skip-serve-logs``              |
+
+#### Remove serve_logs command from CLI
+
+The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms
+and there is no need for it to be accessible from the CLI interface.
+
+#### dag_state CLI command
+
+If the DAGRun was triggered with conf key/values passed in, they will also be printed in the dag_state CLI response
+ie. running, {"name": "bob"}
+whereas in in prior releases it just printed the state:
+ie. running
+
+#### Added `airflow dags test` CLI command
+
+A new command was added to the CLI for executing one full run of a DAG for a given execution date, similar to
+`airflow tasks test`. Example usage:
+
+```
+airflow dags test [dag_id] [execution_date]
+airflow dags test example_branch_operator 2018-01-01
+```
+
 ### Other changes
 
 #### GCSTaskHandler has been moved
@@ -454,16 +600,6 @@ replaced with its corresponding new path.
 | ``airflow.conf``             | ``airflow.configuration.conf``                   |
 | ``airflow.AirflowException`` | ``airflow.exceptions.AirflowException``          |
 
-#### Added `airflow dags test` CLI command
-
-A new command was added to the CLI for executing one full run of a DAG for a given execution date, similar to
-`airflow tasks test`. Example usage:
-
-```
-airflow dags test [dag_id] [execution_date]
-airflow dags test example_branch_operator 2018-01-01
-```
-
 #### Drop plugin support for stat_name_handler
 
 In previous version, you could use plugins mechanism to configure ``stat_name_handler``. You should now use the `stat_name_handler`
@@ -592,104 +728,6 @@ The following configurations have been moved from `[core]` to the new `[logging]
 * `log_processor_filename_template`
 * `dag_processor_manager_log_location`
 * `task_log_reader`
-
-#### Simplification of CLI commands
-
-#### Grouped to improve UX of CLI
-
-Some commands have been grouped to improve UX of CLI. New commands are available according to the following table:
-
-| Old command               | New command                        |
-|---------------------------|------------------------------------|
-| ``airflow worker``        | ``airflow celery worker``          |
-| ``airflow flower``        | ``airflow celery flower``          |
-
-#### Cli use exactly single character for short option style change
-
-For Airflow short option, use exactly one single character, New commands are available according to the following table:
-
-| Old command                                          | New command                                         |
-| :----------------------------------------------------| :---------------------------------------------------|
-| ``airflow (dags\|tasks\|scheduler) [-sd, --subdir]`` | ``airflow (dags\|tasks\|scheduler) [-S, --subdir]`` |
-| ``airflow tasks test [-dr, --dry_run]``              | ``airflow tasks test [-n, --dry-run]``              |
-| ``airflow dags backfill [-dr, --dry_run]``           | ``airflow dags backfill [-n, --dry-run]``           |
-| ``airflow tasks clear [-dx, --dag_regex]``           | ``airflow tasks clear [-R, --dag-regex]``           |
-| ``airflow kerberos [-kt, --keytab]``                 | ``airflow kerberos [-k, --keytab]``                 |
-| ``airflow tasks run [-int, --interactive]``          | ``airflow tasks run [-N, --interactive]``           |
-| ``airflow webserver [-hn, --hostname]``              | ``airflow webserver [-H, --hostname]``              |
-| ``airflow celery worker [-cn, --celery_hostname]``   | ``airflow celery worker [-H, --celery-hostname]``   |
-| ``airflow celery flower [-hn, --hostname]``          | ``airflow celery flower [-H, --hostname]``          |
-| ``airflow celery flower [-fc, --flower_conf]``       | ``airflow celery flower [-c, --flower-conf]``       |
-| ``airflow celery flower [-ba, --basic_auth]``        | ``airflow celery flower [-A, --basic-auth]``        |
-| ``airflow celery flower [-tp, --task_params]``       | ``airflow celery flower [-t, --task-params]``       |
-| ``airflow celery flower [-pm, --post_mortem]``       | ``airflow celery flower [-m, --post-mortem]``       |
-
-For Airflow long option, use [kebab-case](https://en.wikipedia.org/wiki/Letter_case) instead of [snake_case](https://en.wikipedia.org/wiki/Snake_case)
-
-| Old option                         | New option                         |
-| :--------------------------------- | :--------------------------------- |
-| ``--task_regex``                   | ``--task-regex``                   |
-| ``--start_date``                   | ``--start-date``                   |
-| ``--end_date``                     | ``--end-date``                     |
-| ``--dry_run``                      | ``--dry-run``                      |
-| ``--no_backfill``                  | ``--no-backfill``                  |
-| ``--mark_success``                 | ``--mark-success``                 |
-| ``--donot_pickle``                 | ``--donot-pickle``                 |
-| ``--ignore_dependencies``          | ``--ignore-dependencies``          |
-| ``--ignore_first_depends_on_past`` | ``--ignore-first-depends-on-past`` |
-| ``--delay_on_limit``               | ``--delay-on-limit``               |
-| ``--reset_dagruns``                | ``--reset-dagruns``                |
-| ``--rerun_failed_tasks``           | ``--rerun-failed-tasks``           |
-| ``--run_backwards``                | ``--run-backwards``                |
-| ``--only_failed``                  | ``--only-failed``                  |
-| ``--only_running``                 | ``--only-running``                 |
-| ``--exclude_subdags``              | ``--exclude-subdags``              |
-| ``--exclude_parentdag``            | ``--exclude-parentdag``            |
-| ``--dag_regex``                    | ``--dag-regex``                    |
-| ``--run_id``                       | ``--run-id``                       |
-| ``--exec_date``                    | ``--exec-date``                    |
-| ``--ignore_all_dependencies``      | ``--ignore-all-dependencies``      |
-| ``--ignore_depends_on_past``       | ``--ignore-depends-on-past``       |
-| ``--ship_dag``                     | ``--ship-dag``                     |
-| ``--job_id``                       | ``--job-id``                       |
-| ``--cfg_path``                     | ``--cfg-path``                     |
-| ``--ssl_cert``                     | ``--ssl-cert``                     |
-| ``--ssl_key``                      | ``--ssl-key``                      |
-| ``--worker_timeout``               | ``--worker-timeout``               |
-| ``--access_logfile``               | ``--access-logfile``               |
-| ``--error_logfile``                | ``--error-logfile``                |
-| ``--dag_id``                       | ``--dag-id``                       |
-| ``--num_runs``                     | ``--num-runs``                     |
-| ``--do_pickle``                    | ``--do-pickle``                    |
-| ``--celery_hostname``              | ``--celery-hostname``              |
-| ``--broker_api``                   | ``--broker-api``                   |
-| ``--flower_conf``                  | ``--flower-conf``                  |
-| ``--url_prefix``                   | ``--url-prefix``                   |
-| ``--basic_auth``                   | ``--basic-auth``                   |
-| ``--task_params``                  | ``--task-params``                  |
-| ``--post_mortem``                  | ``--post-mortem``                  |
-| ``--conn_uri``                     | ``--conn-uri``                     |
-| ``--conn_type``                    | ``--conn-type``                    |
-| ``--conn_host``                    | ``--conn-host``                    |
-| ``--conn_login``                   | ``--conn-login``                   |
-| ``--conn_password``                | ``--conn-password``                |
-| ``--conn_schema``                  | ``--conn-schema``                  |
-| ``--conn_port``                    | ``--conn-port``                    |
-| ``--conn_extra``                   | ``--conn-extra``                   |
-| ``--use_random_password``          | ``--use-random-password``          |
-| ``--skip_serve_logs``              | ``--skip-serve-logs``              |
-
-#### Remove serve_logs command from CLI
-
-The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms
-and there is no need for it to be accessible from the CLI interface.
-
-#### dag_state CLI command
-
-If the DAGRun was triggered with conf key/values passed in, they will also be printed in the dag_state CLI response
-ie. running, {"name": "bob"}
-whereas in in prior releases it just printed the state:
-ie. running
 
 #### Remove gcp_service_account_keys option in airflow.cfg file
 
@@ -1224,13 +1262,6 @@ has been renamed to `request_filter`.
  To obtain pylint compatibility the `filter` argument in `GCPTransferServiceHook.list_transfer_job` and
  `GCPTransferServiceHook.list_transfer_operations` has been renamed to `request_filter`.
 
-#### CLI reorganization
-
-The Airflow CLI has been organized so that related commands are grouped
-together as subcommands. The `airflow list_dags` command is now `airflow
-dags list`, `airflow pause` is `airflow dags pause`, `airflow config` is `airflow config list`, etc.
-For a complete list of updated CLI commands, see https://airflow.apache.org/cli.html.
-
 #### Removal of Mesos Executor
 
 The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/thread.html/daa9500026b820c6aaadeffd66166eae558282778091ebbc68819fb7@%3Cdev.airflow.apache.org%3E).
@@ -1332,37 +1363,6 @@ including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
 #### Remove run_duration
 
 We should not use the `run_duration` option anymore. This used to be for restarting the scheduler from time to time, but right now the scheduler is getting more stable and therefore using this setting is considered bad and might cause an inconsistent state.
-
-#### CLI Changes
-
-The ability to manipulate users from the command line has been changed. 'airflow create_user' and 'airflow delete_user' and 'airflow list_users' has been grouped to a single command `airflow users` with optional flags `--create`, `--list` and `--delete`.
-
-Example Usage:
-
-To create a new user:
-```bash
-airflow users --create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
-```
-
-To list users:
-```bash
-airflow users --list
-```
-
-To delete a user:
-```bash
-airflow users --delete --username jondoe
-```
-
-To add a user to a role:
-```bash
-airflow users --add-role --username jondoe --role Public
-```
-
-To remove a user from a role:
-```bash
-airflow users --remove-role --username jondoe --role Public
-```
 
 #### Unification of `do_xcom_push` flag
 The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
