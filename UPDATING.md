@@ -207,6 +207,12 @@ A new command was added to the CLI for executing one full run of a DAG for a giv
 airflow dags test [dag_id] [execution_date]
 airflow dags test example_branch_operator 2018-01-01
 ```
+
+#### Deprecating ignore_first_depends_on_past on backfill command and default it to True
+
+When doing backfill with `depends_on_past` dags, users will need to pass `--ignore-first-depends-on-past`.
+We should default it as `true` to avoid confusion
+
 ### Configuration changes
 
 #### airflow.contrib.utils.log has been moved
@@ -398,6 +404,11 @@ has also been changed to `Running Slots`.
 #### Removal of Mesos Executor
 
 The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/thread.html/daa9500026b820c6aaadeffd66166eae558282778091ebbc68819fb7@%3Cdev.airflow.apache.org%3E).
+
+#### Change dag loading duration metric name
+Change DAG file loading duration metric from
+`dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to
+better handle the case when a DAG file has multiple DAGs.
 
 ### Changes in `google` provider package
 
@@ -962,6 +973,11 @@ Hipchat has reached end of life and is no longer available.
 
 For more information please see
 https://community.atlassian.com/t5/Stride-articles/Stride-and-Hipchat-Cloud-have-reached-End-of-Life-updated/ba-p/940248
+
+#### Change default snowflake_conn_id for Snowflake hook and operators
+
+When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overriden when specified.
+
 ### Changes to the core operators/hooks
 
 #### BaseOperator uses metaclass
@@ -1135,6 +1151,15 @@ Previously `TimeSensor` always compared the `target_time` with the current time 
 
 Now it will compare `target_time` with the current time in the timezone of the DAG,
 defaulting to the `default_timezone` in the global config.
+
+#### Skipped tasks can satisfy wait_for_downstream
+
+Previously, a task instance with `wait_for_downstream=True` will only run if the downstream task of
+the previous task instance is successful. Meanwhile, a task instance with `depends_on_past=True`
+will run if the previous task instance is either successful or skipped. These two flags are close siblings
+yet they have different behavior. This inconsistency in behavior made the API less intuitive to users.
+To maintain consistent behavior, both successful or skipped downstream task can now satisfy the
+`wait_for_downstream=True` flag.
 
 ### Changes to the core Python API
 
@@ -1399,15 +1424,6 @@ For example instead of `pip install apache-airflow[atlas]` you should use
 
 The deprecated extras will be removed in 2.1:
 
-#### Skipped tasks can satisfy wait_for_downstream
-
-Previously, a task instance with `wait_for_downstream=True` will only run if the downstream task of
-the previous task instance is successful. Meanwhile, a task instance with `depends_on_past=True`
-will run if the previous task instance is either successful or skipped. These two flags are close siblings
-yet they have different behavior. This inconsistency in behavior made the API less intuitive to users.
-To maintain consistent behavior, both successful or skipped downstream task can now satisfy the
-`wait_for_downstream=True` flag.
-
 #### Added mypy plugin to preserve types of decorated functions
 
 Mypy currently doesn't support precise type information for decorated
@@ -1421,17 +1437,6 @@ functions. To use the plugin, update your setup.cfg:
 plugins =
   airflow.mypy.plugin.decorators
 ```
-
-#### Deprecating ignore_first_depends_on_past on backfill command and default it to True
-
-When doing backfill with `depends_on_past` dags, users will need to pass `--ignore-first-depends-on-past`.
-We should default it as `true` to avoid confusion
-
-#### Change dag loading duration metric name
-Change DAG file loading duration metric from
-`dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to
-better handle the case when a DAG file has multiple DAGs.
-
 
 #### Renamed "extra" requirements for cloud providers
 
@@ -1451,10 +1456,6 @@ If you want to install integration for Amazon Web Services, then instead of
 If you want to install integration for Google Cloud Platform, then instead of
 `pip install 'apache-airflow[gcp_api]'`, you should execute `pip install 'apache-airflow[gcp]'`.
 The old way will work until the release of Airflow 2.1.
-
-#### Change default snowflake_conn_id for Snowflake hook and operators
-
-When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overriden when specified.
 
 #### Simplify the response payload of endpoints /dag_stats and /task_stats
 
