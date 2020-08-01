@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Dict, Optional
 from contextlib import closing
 from tempfile import NamedTemporaryFile
 
@@ -65,6 +66,7 @@ class VerticaToMySqlOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
+<<<<<<< HEAD
             *,
             sql,
             mysql_table,
@@ -75,6 +77,17 @@ class VerticaToMySqlOperator(BaseOperator):
             bulk_load=False,
             **kwargs):
         super().__init__(**kwargs)
+=======
+            sql: str,
+            mysql_table: str,
+            vertica_conn_id: str = 'vertica_default',
+            mysql_conn_id: str = 'mysql_default',
+            mysql_preoperator: Optional[str] = None,
+            mysql_postoperator: Optional[str] = None,
+            bulk_load: bool = False,
+            *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+>>>>>>> 1cbbae022... add typing coverage to mysql providers package
         self.sql = sql
         self.mysql_table = mysql_table
         self.mysql_conn_id = mysql_conn_id
@@ -83,7 +96,7 @@ class VerticaToMySqlOperator(BaseOperator):
         self.vertica_conn_id = vertica_conn_id
         self.bulk_load = bulk_load
 
-    def execute(self, context):
+    def execute(self, context: Dict) -> None:
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 
