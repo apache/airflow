@@ -84,44 +84,160 @@ If you are proposing a new feature:
 -   Remember that this is a volunteer-driven project, and that contributions are
     welcome :)
 
-Documentation
-=============
+Contribution Workflow
+=====================
 
-The latest API documentation is usually available
-`here <https://airflow.apache.org/docs/>`__.
+Typically, you start your first contribution by reviewing open tickets
+at `GitHub issues <https://github.com/apache/airflow/issues>`__.
 
-To generate a local version:
+If you create pull-request, you don't have to create an issue first, but if you want, you can do it.
+Creating an issue will allow you to collect feedback or share plans with other people.
 
-1.  Set up an Airflow development environment.
+For example, you want to have the following sample ticket assigned to you:
+`#7782: Add extra CC: to the emails sent by Aiflow <https://github.com/apache/airflow/issues/7782>`_.
 
-2.  Install the ``doc`` extra.
+In general, your contribution includes the following stages:
+
+.. image:: images/workflow.png
+    :align: center
+    :alt: Contribution Workflow
+
+1. Make your own `fork <https://help.github.com/en/github/getting-started-with-github/fork-a-repo>`__ of
+   the Apache Airflow `main repository <https://github.com/apache/airflow>`__.
+
+2. Create a `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
+   initialize the `Breeze environment <BREEZE.rst>`__, and
+   install `pre-commit framework <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__.
+   If you want to add more changes in the future, set up your fork and enable Github Actions.
+
+3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
+   and set up a `Slack account <https://apache-airflow-slack.herokuapp.com>`__.
+
+4. Make the change and create a `Pull Request from your fork <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__.
+
+5. Ping @ #development slack, comment @people. Be annoying. Be considerate.
+
+Step 1: Fork the Apache Repo
+----------------------------
+From the `apache/airflow <https://github.com/apache/airflow>`_ repo,
+`create a fork <https://help.github.com/en/github/getting-started-with-github/fork-a-repo>`_:
+
+.. image:: images/fork.png
+    :align: center
+    :alt: Creating a fork
+
+
+Step 2: Configure Your Environment
+----------------------------------
+Configure the Docker-based Breeze development environment and run tests.
+
+You can use the default Breeze configuration as follows:
+
+1. Install the latest versions of the Docker Community Edition
+   and Docker Compose and add them to the PATH.
+
+2. Enter Breeze: ``./breeze``
+
+   Breeze starts with downloading the Airflow CI image from
+   the Docker Hub and installing all required dependencies.
+
+3. Enter the Docker environment and mount your local sources
+   to make them immediately visible in the environment.
+
+4. Create a local virtualenv, for example:
 
 .. code-block:: bash
 
-    pip install -e '.[doc]'
+   mkvirtualenv myenv --python=python3.6
 
-
-3.  Generate and serve the documentation as follows:
+5. Initialize the created environment:
 
 .. code-block:: bash
 
-    cd docs
-    ./build
-    ./start_doc_server.sh
+   ./breeze --initialize-local-virtualenv
 
-.. note::
-    The docs build script ``build`` requires Python 3.6 or greater.
+6. Open your IDE (for example, PyCharm) and select the virtualenv you created
+   as the project's default virtualenv in your IDE.
 
-**Known issues:**
+Step 3: Connect with People
+---------------------------
 
-If you are creating a new directory for new integration in the ``airflow.providers`` package,
-you should also update the ``docs/autoapi_templates/index.rst`` file.
+For effective collaboration, make sure to join the following Airflow groups:
 
-If you are creating a ``hooks``, ``sensors``, ``operators`` directory in
-the ``airflow.providers`` package, you should also update
-the ``docs/operators-and-hooks-ref.rst`` file.
+- Mailing lists:
 
-If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache license or copy another ``__init__.py`` file that contains the necessary license.
+  - Developer’s mailing list `<dev-subscribe@airflow.apache.org>`_
+    (quite substantial traffic on this list)
+
+  - All commits mailing list: `<commits-subscribe@airflow.apache.org>`_
+    (very high traffic on this list)
+
+  - Airflow users mailing list: `<users-subscribe@airflow.apache.org>`_
+    (reasonably small traffic on this list)
+
+- `Issues on GitHub <https://github.com/apache/airflow/issues>`__
+
+- `Slack (chat) <https://apache-airflow-slack.herokuapp.com/>`__
+
+Step 4: Prepare PR
+------------------
+
+1. Update the local sources to address the issue.
+
+   For example, to address this example issue, do the following:
+
+   * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
+
+   * Find the class you should modify. For the example ticket,
+     this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
+
+   * Find the test class where you should add tests. For the example ticket,
+     this is `test_email.py <https://github.com/apache/airflow/blob/master/tests/utils/test_email.py>`__.
+
+   * Create a local branch for your development. Make sure to use latest
+     ``apache/master`` as base for the branch. See `How to Rebase PR <#how-to-rebase-pr>`_ for some details
+     on setting up the ``apache`` remote. Note - some people develop their changes directy in their own
+     ``master`` branches - this is OK and you can make PR from your master to ``apache/master`` but we
+     recommend to always create a local branch for your development. This allows you to easily compare
+     changes, have several changes that you work on at the same time and many more.
+     If you have ``apache`` set as remote then you can make sure that you have latest changes in your master
+     by ``git pull apache master`` when you are in the local ``master`` branch. If you have conflicts and
+     want to override your locally changed master you can override your local changes with
+     ``git fetch apache; git reset --hard apache/master``.
+
+   * Modify the class and add necessary code and unit tests.
+
+   * Run the unit tests from the `IDE <TESTING.rst#running-unit-tests-from-ide>`__
+     or `local virtualenv <TESTING.rst#running-unit-tests-from-local-virtualenv>`__ as you see fit.
+
+   * Run the tests in `Breeze <TESTING.rst#running-unit-tests-inside-breeze>`__.
+
+   * Run and fix all the `static checks <STATIC_CODE_CHECKS>`__. If you have
+     `pre-commits installed <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__,
+     this step is automatically run while you are committing your code. If not, you can do it manually
+     via ``git add`` and then ``pre-commit run``.
+
+2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
+   if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to
+   review/fix. This will make rebase process much easier and less painful - and the more often you do it,
+   the more comfortable you will feel doing it.
+
+3. Re-run static code checks again.
+
+4. Create a pull request with the following title for the sample ticket:
+   ``[AIRFLOW-5934] Added extra CC: field to the Airflow emails.``
+
+Make sure to follow other PR guidelines described in `this document <#pull-request-guidelines>`_.
+
+Step 5: Pass PR Review
+----------------------
+
+.. image:: images/review.png
+    :align: center
+    :alt: PR Review
+
+Note that committers will use **Squash and Merge** instead of **Rebase and Merge**
+when merging PRs and your commit will be squashed to single commit.
 
 Pull Request Guidelines
 =======================
@@ -458,6 +574,45 @@ snowflake                  slack
 
   .. END PACKAGE DEPENDENCIES HERE
 
+Documentation
+=============
+
+The latest API documentation is usually available
+`here <https://airflow.apache.org/docs/>`__.
+
+To generate a local version:
+
+1.  Set up an Airflow development environment.
+
+2.  Install the ``doc`` extra.
+
+.. code-block:: bash
+
+    pip install -e '.[doc]'
+
+
+3.  Generate and serve the documentation as follows:
+
+.. code-block:: bash
+
+    cd docs
+    ./build
+    ./start_doc_server.sh
+
+.. note::
+    The docs build script ``build`` requires Python 3.6 or greater.
+
+**Known issues:**
+
+If you are creating a new directory for new integration in the ``airflow.providers`` package,
+you should also update the ``docs/autoapi_templates/index.rst`` file.
+
+If you are creating a ``hooks``, ``sensors``, ``operators`` directory in
+the ``airflow.providers`` package, you should also update
+the ``docs/operators-and-hooks-ref.rst`` file.
+
+If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache license or copy another ``__init__.py`` file that contains the necessary license.
+
 Static code checks
 ==================
 
@@ -706,162 +861,6 @@ commands:
 
     # Check JS code in .js and .html files, report any errors/warnings and fix them if possible
     yarn run lint:fix
-
-Contribution Workflow Example
-==============================
-
-Typically, you start your first contribution by reviewing open tickets
-at `GitHub issues <https://github.com/apache/airflow/issues>`__.
-
-If you create pull-request, you don't have to create an issue first, but if you want, you can do it.
-Creating an issue will allow you to collect feedback or share plans with other people.
-
-For example, you want to have the following sample ticket assigned to you:
-`#7782: Add extra CC: to the emails sent by Aiflow <https://github.com/apache/airflow/issues/7782>`_.
-
-In general, your contribution includes the following stages:
-
-.. image:: images/workflow.png
-    :align: center
-    :alt: Contribution Workflow
-
-1. Make your own `fork <https://help.github.com/en/github/getting-started-with-github/fork-a-repo>`__ of
-   the Apache Airflow `main repository <https://github.com/apache/airflow>`__.
-
-2. Create a `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
-   initialize the `Breeze environment <BREEZE.rst>`__, and
-   install `pre-commit framework <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__.
-   If you want to add more changes in the future, set up your fork and enable Github Actions.
-
-3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
-   and set up a `Slack account <https://apache-airflow-slack.herokuapp.com>`__.
-
-4. Make the change and create a `Pull Request from your fork <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__.
-
-5. Ping @ #development slack, comment @people. Be annoying. Be considerate.
-
-Step 1: Fork the Apache Repo
-----------------------------
-From the `apache/airflow <https://github.com/apache/airflow>`_ repo,
-`create a fork <https://help.github.com/en/github/getting-started-with-github/fork-a-repo>`_:
-
-.. image:: images/fork.png
-    :align: center
-    :alt: Creating a fork
-
-
-Step 2: Configure Your Environment
-----------------------------------
-Configure the Docker-based Breeze development environment and run tests.
-
-You can use the default Breeze configuration as follows:
-
-1. Install the latest versions of the Docker Community Edition
-   and Docker Compose and add them to the PATH.
-
-2. Enter Breeze: ``./breeze``
-
-   Breeze starts with downloading the Airflow CI image from
-   the Docker Hub and installing all required dependencies.
-
-3. Enter the Docker environment and mount your local sources
-   to make them immediately visible in the environment.
-
-4. Create a local virtualenv, for example:
-
-.. code-block:: bash
-
-   mkvirtualenv myenv --python=python3.6
-
-5. Initialize the created environment:
-
-.. code-block:: bash
-
-   ./breeze --initialize-local-virtualenv
-
-6. Open your IDE (for example, PyCharm) and select the virtualenv you created
-   as the project's default virtualenv in your IDE.
-
-Step 3: Connect with People
----------------------------
-
-For effective collaboration, make sure to join the following Airflow groups:
-
-- Mailing lists:
-
-  - Developer’s mailing list `<dev-subscribe@airflow.apache.org>`_
-    (quite substantial traffic on this list)
-
-  - All commits mailing list: `<commits-subscribe@airflow.apache.org>`_
-    (very high traffic on this list)
-
-  - Airflow users mailing list: `<users-subscribe@airflow.apache.org>`_
-    (reasonably small traffic on this list)
-
-- `Issues on GitHub <https://github.com/apache/airflow/issues>`__
-
-- `Slack (chat) <https://apache-airflow-slack.herokuapp.com/>`__
-
-Step 4: Prepare PR
-------------------
-
-1. Update the local sources to address the issue.
-
-   For example, to address this example issue, do the following:
-
-   * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
-
-   * Find the class you should modify. For the example ticket,
-     this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
-
-   * Find the test class where you should add tests. For the example ticket,
-     this is `test_email.py <https://github.com/apache/airflow/blob/master/tests/utils/test_email.py>`__.
-
-   * Create a local branch for your development. Make sure to use latest
-     ``apache/master`` as base for the branch. See `How to Rebase PR <#how-to-rebase-pr>`_ for some details
-     on setting up the ``apache`` remote. Note - some people develop their changes directy in their own
-     ``master`` branches - this is OK and you can make PR from your master to ``apache/master`` but we
-     recommend to always create a local branch for your development. This allows you to easily compare
-     changes, have several changes that you work on at the same time and many more.
-     If you have ``apache`` set as remote then you can make sure that you have latest changes in your master
-     by ``git pull apache master`` when you are in the local ``master`` branch. If you have conflicts and
-     want to override your locally changed master you can override your local changes with
-     ``git fetch apache; git reset --hard apache/master``.
-
-   * Modify the class and add necessary code and unit tests.
-
-   * Run the unit tests from the `IDE <TESTING.rst#running-unit-tests-from-ide>`__
-     or `local virtualenv <TESTING.rst#running-unit-tests-from-local-virtualenv>`__ as you see fit.
-
-   * Run the tests in `Breeze <TESTING.rst#running-unit-tests-inside-breeze>`__.
-
-   * Run and fix all the `static checks <STATIC_CODE_CHECKS>`__. If you have
-     `pre-commits installed <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__,
-     this step is automatically run while you are committing your code. If not, you can do it manually
-     via ``git add`` and then ``pre-commit run``.
-
-2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
-   if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to
-   review/fix. This will make rebase process much easier and less painful - and the more often you do it,
-   the more comfortable you will feel doing it.
-
-3. Re-run static code checks again.
-
-4. Create a pull request with the following title for the sample ticket:
-   ``[AIRFLOW-5934] Added extra CC: field to the Airflow emails.``
-
-Make sure to follow other PR guidelines described in `this document <#pull-request-guidelines>`_.
-
-
-Step 5: Pass PR Review
-----------------------
-
-.. image:: images/review.png
-    :align: center
-    :alt: PR Review
-
-Note that committers will use **Squash and Merge** instead of **Rebase and Merge**
-when merging PRs and your commit will be squashed to single commit.
 
 How to rebase PR
 ================
