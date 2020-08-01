@@ -193,7 +193,7 @@ For Airflow short option, use exactly one single character, New commands are ava
    * - ``airflow celery flower [-pm, --post_mortem]``
      - ``airflow celery flower [-m, --post-mortem]``
 
-For Airflow long option, use `kebab-case <https://en.wikipedia.org/wiki/Letter_case>`_ instead of `snake_case https://en.wikipedia.org/wiki/Snake_case`_
+For Airflow long option, use `kebab-case <https://en.wikipedia.org/wiki/Letter_case>`_ instead of `snake_case <https://en.wikipedia.org/wiki/Snake_case>`_
 
 .. list-table:: Airflow CLI long option
    :widths: 50, 50
@@ -209,7 +209,7 @@ For Airflow long option, use `kebab-case <https://en.wikipedia.org/wiki/Letter_c
      - ``--start-date``
 
    * - ``--end_date``
-       ``--end-date``
+     - ``--end-date``
 
    * - ``--dry_run``
      - ``--dry-run``
