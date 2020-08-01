@@ -47,6 +47,13 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+The 2.0 release of the Airflow is a significant upgrade, and includes substantial major changes,
+and some of them may be breaking. Existing code written for earlier versions of this project will may require updates
+to use this version. Sometimes necessary configuration changes are also required.
+This document describes the changes that have been made, and what you need to do to update your usage.
+
+If you experience issues or have questions, please file [an issue](https://github.com/apache/airflow/issues/new/choose).
+
 <!--
 
 I'm glad you want to write a new note. Remember that this note is intended for users.
@@ -63,6 +70,11 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 ### CLI changes
+
+The Airflow CLI has been organized so that related commands are grouped together as subcommands,
+which means that if you use these commands in your scripts, you have to make changes to them.
+
+This section describes the changes that have been made, and what you need to do to update your script.
 
 #### Simplification of CLI commands
 
@@ -213,7 +225,10 @@ airflow dags test example_branch_operator 2018-01-01
 When doing backfill with `depends_on_past` dags, users will need to pass `--ignore-first-depends-on-past`.
 We should default it as `true` to avoid confusion
 
-### Database changes
+### Database schema changes
+
+In order to migrate the database, you should use the command `airflow db upgrade`, but in
+some cases manual steps are required.
 
 #### Not-nullable conn_type column in connection table
 
@@ -225,7 +240,13 @@ null in the conn_type column.
 
 ### Configuration changes
 
+This release contains many changes that require a change in the configuration of this application or
+other application that integrate with it.
+
+This section describes the changes that have been made, and what you need to do to.
+
 #### airflow.contrib.utils.log has been moved
+
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
 package was supported by the community. The project was passed to the Apache community and currently the
 entire code is maintained by the community, so now the division has no justification, and it is only due
@@ -370,7 +391,6 @@ section ``[core]`` in the ``airflow.cfg`` file.
 At the same time, this means that the `apache-airflow[crypto]` extra-packages are always installed.
 However, this requires that your operating system has ``libffi-dev`` installed.
 
-
 #### Changes to propagating Kubernetes worker annotations
 
 `kubernetes_annotations` configuration section has been removed.
@@ -421,6 +441,12 @@ Change DAG file loading duration metric from
 better handle the case when a DAG file has multiple DAGs.
 
 ### Changes to the core operators/hooks
+
+We strive to ensure that there are no changes that may affect the end user and your files, but this
+release may contain changes that will require changes to your DAG files.
+
+This section describes the changes that have been made, and what you need to do to update your DAG File,
+if you use core operators or any other.
 
 #### BaseOperator uses metaclass
 
@@ -605,14 +631,23 @@ To maintain consistent behavior, both successful or skipped downstream task can 
 
 ### Changes to the core Python API
 
+We strive to ensure that there are no changes that may affect the end user, and your Python files, but this
+release may contain changes that will require changes to your plugins, DAG File or other integration.
+
+Only changes unique to this provider are described here. You should still pay attention to the changes that
+have been made to the core (including core operators) as they can affect the integration behavior
+of this provider.
+
+This section describes the changes that have been made, and what you need to do to update your Python files.
+
 #### Weekday enum has been moved
+
 Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
 package was supported by the community. The project was passed to the Apache community and currently the
 entire code is maintained by the community, so now the division has no justification, and it is only due
 to historical reasons.
 
 To clean up, `Weekday` enum has been moved from `airflow.contrib.utils` into `airflow.utils` module.
-
 
 #### Deprecated method in Connection
 
@@ -827,6 +862,17 @@ sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: slot_
 Fix for this, https://github.com/apache/airflow/pull/8587
 
 ### Changes in `google` provider package
+
+We strive to ensure that there are no changes that may affect the end user and your Python files, but this
+release may contain changes that will require changes to your configuration, DAG Files or other integration
+e.g. custom operators.
+
+Only changes unique to this provider are described here. You should still pay attention to the changes that
+have been made to the core (including core operators) as they can affect the integration behavior
+of this provider.
+
+This section describes the changes that have been made, and what you need to do to update your if
+you use operators or hooks which integrate with Google services (including Google Cloud Platform - GCP).
 
 #### Use project_id argument consistently across GCP hooks and operators
 
@@ -1259,6 +1305,17 @@ BigQueryGetDatasetTablesOperator(dataset_resource: dict, dataset_id: Optional[st
 
 ### Changes in `amazon` provider package
 
+We strive to ensure that there are no changes that may affect the end user, and your Python files, but this
+release may contain changes that will require changes to your configuration, DAG Files or other integration
+e.g. custom operators.
+
+Only changes unique to this provider are described here. You should still pay attention to the changes that
+have been made to the core (including core operators) as they can affect the integration behavior
+of this provider.
+
+This section describes the changes that have been made, and what you need to do to update your if
+you use operators or hooks which integrate with Amazon services (including Amazon Web Service - AWS).
+
 #### Change default aws_conn_id in EMR operators
 
 The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
@@ -1318,6 +1375,17 @@ The `bucket_name` is now optional. It falls back to the `connection schema` attr
 The `delete_objects` now returns `None` instead of a response, since the method now makes multiple api requests when the keys list length is > 1000.
 
 ### Changes in other provider packages
+
+We strive to ensure that there are no changes that may affect the end user and your Python files, but this
+release may contain changes that will require changes to your configuration, DAG Files or other integration
+e.g. custom operators.
+
+Only changes unique to providers are described here. You should still pay attention to the changes that
+have been made to the core (including core operators) as they can affect the integration behavior
+of this provider.
+
+This section describes the changes that have been made, and what you need to do to update your if
+you use any code located in `airflow.providers` package.
 
 #### Changes to SalesforceHook
 
@@ -1395,6 +1463,8 @@ https://community.atlassian.com/t5/Stride-articles/Stride-and-Hipchat-Cloud-have
 When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overriden when specified.
 
 ### Other changes
+
+This release also includes changes that fall outside any of the sections above.
 
 #### Standardised "extra" requirements
 
