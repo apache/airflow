@@ -805,6 +805,10 @@ The `AwsBatchOperator` can use a new `waiters` parameter, an instance of `AwsBat
 specify that custom job waiters will be used to monitor a batch job.  See the latest API
 documentation for details.
 
+### AthenaSensor
+
+Replace parameter `max_retires` with `max_retries` to fix typo.
+
 ### Additional arguments passed to BaseOperator cause an exception
 
 Previous versions of Airflow took additional arguments and displayed a message on the console. When the

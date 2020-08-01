@@ -25,16 +25,16 @@ from airflow.utils.decorators import apply_defaults
 class AthenaSensor(BaseSensorOperator):
     """
     Asks for the state of the Query until it reaches a failure state or success state.
-    If it fails, failing the task.
+    If the query fails, the task will fail.
 
     :param query_execution_id: query_execution_id to check the state of
     :type query_execution_id: str
-    :param max_retires: Number of times to poll for query state before
+    :param max_retries: Number of times to poll for query state before
         returning the current state, defaults to None
-    :type max_retires: int
+    :type max_retries: int
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     :type aws_conn_id: str
-    :param sleep_time: Time to wait between two consecutive call to
+    :param sleep_time: Time in seconds to wait between two consecutive call to
         check query status on athena, defaults to 10
     :type sleep_time: int
     """
@@ -50,7 +50,7 @@ class AthenaSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self,
                  query_execution_id,
-                 max_retires=None,
+                 max_retries=None,
                  aws_conn_id='aws_default',
                  sleep_time=10,
                  *args, **kwargs):
@@ -58,11 +58,11 @@ class AthenaSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.query_execution_id = query_execution_id
         self.sleep_time = sleep_time
-        self.max_retires = max_retires
+        self.max_retries = max_retries
         self.hook = None
 
     def poke(self, context):
-        state = self.get_hook().poll_query_status(self.query_execution_id, self.max_retires)
+        state = self.get_hook().poll_query_status(self.query_execution_id, self.max_retries)
 
         if state in self.FAILURE_STATES:
             raise AirflowException('Athena sensor failed')
