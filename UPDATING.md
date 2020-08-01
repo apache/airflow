@@ -137,9 +137,8 @@ All changes made are backward compatible, but if you use the old import paths yo
 see a deprecation warning. The old import paths can be abandoned in the future.
 
 ### Migration Guide from Experimental API to Stable API v1
-If your application is still using the experimental API, it is important to
-consider migrating to the stable API so that your application continues to
-work.
+In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
+If your application is still using the experimental API, you should consider migrating to the stable API.
 
 The stable API exposes many endpoints available through the webserver. Here are the
 differences between the two endpoints that will help you migrate from the
