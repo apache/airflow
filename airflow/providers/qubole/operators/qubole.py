@@ -184,7 +184,7 @@ class QuboleOperator(BaseOperator):
     )
 
     @apply_defaults
-    def __init__(self, qubole_conn_id="qubole_default", **kwargs):
+    def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
         self.kwargs['qubole_conn_id'] = qubole_conn_id
