@@ -16,10 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import ast
 import json
 import socket
 import time
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
@@ -116,7 +117,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
 
     def build_job(self,
                   jenkins_server: Jenkins,
-                  parameters: Optional[str] = "") -> Optional[JenkinsRequest]:
+                  params: Optional[Union[str, Mapping]] = "") -> Optional[JenkinsRequest]:
         """
         This function makes an API call to Jenkins to trigger a build for 'job_name'
         It returned a dict with 2 keys : body and headers.
@@ -124,22 +125,22 @@ class JenkinsJobTriggerOperator(BaseOperator):
         the location to poll in the queue.
 
         :param jenkins_server: The jenkins server where the job should be triggered
+        :param params: The parameters block to provide to jenkins API call.
         :return: Dict containing the response body (key body)
             and the headers coming along (headers)
         """
-        # Warning if the parameter is too long, the URL can be longer than
-        # the maximum allowed size
-        if parameters and isinstance(parameters, str):
-            import ast
-            parameters = ast.literal_eval(parameters)
+        # Since params can be either a JSON string or a dictionary directly,
+        # check type and pass to build_job_url as a dictionary
+        if params and isinstance(params, str):
+            params = ast.literal_eval(params)
 
-        if not parameters:
-            # We need None to call the non parametrized jenkins api end point
-            parameters = None
+        # We need a None to call the non-parametrized jenkins api end point
+        if not params:
+            params = None
 
         request = Request(
             method='POST',
-            url=jenkins_server.build_job_url(self.job_name, parameters, None))
+            url=jenkins_server.build_job_url(self.job_name, params, None))
         return jenkins_request_with_headers(jenkins_server, request)
 
     def poll_job_in_queue(self, location: str, jenkins_server: Jenkins) -> int:
