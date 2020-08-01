@@ -136,52 +136,24 @@ with third party services to the ``airflow.providers`` package.
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
 
-### CLI changes
+### CLI changes in Airflow 2.0
 
 The Airflow CLI has been organized so that related commands are grouped together as subcommands,
 which means that if you use these commands in your scripts, you have to make changes to them.
 
 This section describes the changes that have been made, and what you need to do to update your script.
 
-#### Simplification of CLI commands
-
 The ability to manipulate users from the command line has been changed. ``airflow create_user``,  ``airflow delete_user``
  and ``airflow list_users`` has been grouped to a single command `airflow users` with optional flags `create`, `list` and `delete`.
 
-Example Usage:
+The `airflow list_dags` command is now `airflow dags list`, `airflow pause` is `airflow dags pause`, etc.
 
-To create a new user:
-```bash
-airflow users create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
-```
+In Airflow 1.10 and 2.0 there is an `airflow config` command but there is a difference in behavior. In Airflow 1.10,
+it prints all config options while in Airflow 2.0, it's a command group. `airflow config` is now `airflow config list`.
+You can check other options by running the command `airflow config --help`
 
-To list users:
-```bash
-airflow users list
-```
-
-To delete a user:
-```bash
-airflow users delete --username jondoe
-```
-
-To add a user to a role:
-```bash
-airflow users add-role --username jondoe --role Public
-```
-
-To remove a user from a role:
-```bash
-airflow users remove-role --username jondoe --role Public
-```
-
-#### CLI reorganization
-
-The `airflow list_dags` command is now `airflow dags list`, `airflow pause` is `airflow dags pause`,
-`airflow config` is `airflow config list`, etc.
 For a complete list of updated CLI commands, see https://airflow.apache.org/cli.html.
 
-#### Grouped to improve UX of CLI
 You can learn about the commands by running ``airflow --help``. For example to get help about the ``celery`` group command,
 you have to run the help command: ``airflow celery --help``.
 
@@ -216,7 +188,34 @@ you have to run the help command: ``airflow celery --help``.
 | ``airflow list_users``      | ``airflow users list``             |     ``users``      |
 
 
-#### Cli use exactly single character for short option style change
+Example Usage for the ``users`` group:
+
+To create a new user:
+```bash
+airflow users create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
+```
+
+To list users:
+```bash
+airflow users list
+```
+
+To delete a user:
+```bash
+airflow users delete --username jondoe
+```
+
+To add a user to a role:
+```bash
+airflow users add-role --username jondoe --role Public
+```
+
+To remove a user from a role:
+```bash
+airflow users remove-role --username jondoe --role Public
+```
+
+#### Use exactly single character for short option style change in CLI
 
 For Airflow short option, use exactly one single character, New commands are available according to the following table:
 
