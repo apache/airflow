@@ -30,7 +30,7 @@ class JenkinsHook(BaseHook):
     Hook to manage connection to jenkins server
     """
 
-    def __init__(self, conn_id: Union[str, Text] = 'jenkins_default') -> None:
+    def __init__(self, conn_id: str = 'jenkins_default') -> None:
         super().__init__()
         connection = self.get_connection(conn_id)
         self.connection = connection
