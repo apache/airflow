@@ -890,6 +890,79 @@ Note: The order of arguments has changed for `check_for_prefix`.
 The `bucket_name` is now optional. It falls back to the `connection schema` attribute.
 The `delete_objects` now returns `None` instead of a response, since the method now makes multiple api requests when the keys list length is > 1000.
 
+### Changes in other provider packages
+
+#### Changes to SalesforceHook
+
+Replace parameter ``sandbox`` with ``domain``. According to change in simple-salesforce package
+
+#### Rename parameter name in PinotAdminHook.create_segment
+
+Rename parameter name from ``format`` to ``segment_format`` in PinotAdminHook function create_segment fro pylint compatible
+
+#### Rename parameter name in HiveMetastoreHook.get_partitions
+
+Rename parameter name from ``filter`` to ``partition_filter`` in HiveMetastoreHook function get_partitions for pylint compatible
+
+#### Remove unnecessary parameter in FTPHook.list_directory
+
+Remove unnecessary parameter ``nlst`` in FTPHook function list_directory for pylint compatible
+
+#### Remove unnecessary parameter in PostgresHook function copy_expert
+
+Remove unnecessary parameter ``open`` in PostgresHook function copy_expert for pylint compatible
+
+#### Change parameter name in OpsgenieAlertOperator
+
+Change parameter name from ``visibleTo`` to ``visible_to`` in OpsgenieAlertOperator for pylint compatible
+
+#### Changes to ImapHook, ImapAttachmentSensor and ImapAttachmentToS3Operator
+
+ImapHook:
+* The order of arguments has changed for `has_mail_attachment`,
+`retrieve_mail_attachments` and `download_mail_attachments`.
+* A new `mail_filter` argument has been added to each of those.
+
+ImapAttachmentSensor:
+* The order of arguments has changed for `__init__`.
+* A new `mail_filter` argument has been added to `__init__`.
+
+ImapAttachmentToS3Operator:
+* The order of arguments has changed for `__init__`.
+* A new `imap_mail_filter` argument has been added to `__init__`.
+
+#### Changes to SalesforceHook
+
+* renamed `sign_in` function to `get_conn`
+
+#### HTTPHook verify default value changed from False to True.
+
+The HTTPHook is now secured by default: `verify=True`.
+This can be overwriten by using the extra_options param as `{'verify': False}`.
+
+#### Changes to CloudantHook
+
+* upgraded cloudant version from `>=0.5.9,<2.0` to `>=2.0`
+* removed the use of the `schema` attribute in the connection
+* removed `db` function since the database object can also be retrieved by calling `cloudant_session['database_name']`
+
+For example:
+```python
+from airflow.contrib.hooks.cloudant_hook import CloudantHook
+
+with CloudantHook().get_conn() as cloudant_session:
+    database = cloudant_session['database_name']
+```
+
+See the [docs](https://python-cloudant.readthedocs.io/en/latest/) for more information on how to use the new cloudant version.
+
+#### Removed Hipchat integration
+
+Hipchat has reached end of life and is no longer available.
+
+For more information please see
+https://community.atlassian.com/t5/Stride-articles/Stride-and-Hipchat-Cloud-have-reached-End-of-Life-updated/ba-p/940248
+
 
 ### Other changes
 
@@ -1068,30 +1141,6 @@ plugins =
 Remove ``get_records`` and ``get_pandas_df`` and ``run`` from base_hook, which only apply for sql like hook,
 If want to use them, or your custom hook inherit them, please use ``dbapi_hook``
 
-#### Changes to SalesforceHook
-
-Replace parameter ``sandbox`` with ``domain``. According to change in simple-salesforce package
-
-#### Rename parameter name in PinotAdminHook.create_segment
-
-Rename parameter name from ``format`` to ``segment_format`` in PinotAdminHook function create_segment fro pylint compatible
-
-#### Rename parameter name in HiveMetastoreHook.get_partitions
-
-Rename parameter name from ``filter`` to ``partition_filter`` in HiveMetastoreHook function get_partitions for pylint compatible
-
-#### Remove unnecessary parameter in FTPHook.list_directory
-
-Remove unnecessary parameter ``nlst`` in FTPHook function list_directory for pylint compatible
-
-#### Remove unnecessary parameter in PostgresHook function copy_expert
-
-Remove unnecessary parameter ``open`` in PostgresHook function copy_expert for pylint compatible
-
-#### Change parameter name in OpsgenieAlertOperator
-
-Change parameter name from ``visibleTo`` to ``visible_to`` in OpsgenieAlertOperator for pylint compatible
-
 #### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
 
 Previously, you could assign a task to a DAG as follows:
@@ -1238,13 +1287,6 @@ delete this option.
 The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
 As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
 
-#### Removed Hipchat integration
-
-Hipchat has reached end of life and is no longer available.
-
-For more information please see
-https://community.atlassian.com/t5/Stride-articles/Stride-and-Hipchat-Cloud-have-reached-End-of-Life-updated/ba-p/940248
-
 #### Remove provide_context
 
 `provide_context` argument on the PythonOperator was removed. The signature of the callable passed to the PythonOperator is now inferred and argument values are always automatically provided. There is no need to explicitly provide or not provide the context anymore. For example:
@@ -1294,21 +1336,6 @@ Change DAG file loading duration metric from
 `dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to
 better handle the case when a DAG file has multiple DAGs.
 
-#### Changes to ImapHook, ImapAttachmentSensor and ImapAttachmentToS3Operator
-
-ImapHook:
-* The order of arguments has changed for `has_mail_attachment`,
-`retrieve_mail_attachments` and `download_mail_attachments`.
-* A new `mail_filter` argument has been added to each of those.
-
-ImapAttachmentSensor:
-* The order of arguments has changed for `__init__`.
-* A new `mail_filter` argument has been added to `__init__`.
-
-ImapAttachmentToS3Operator:
-* The order of arguments has changed for `__init__`.
-* A new `imap_mail_filter` argument has been added to `__init__`.
-
 #### Changes to `SubDagOperator`
 
 `SubDagOperator` is changed to use Airflow scheduler instead of backfill
@@ -1321,31 +1348,6 @@ The following variables were removed from the task instance context:
 - end_date
 - latest_date
 - tables
-
-#### Changes to SalesforceHook
-
-* renamed `sign_in` function to `get_conn`
-
-#### HTTPHook verify default value changed from False to True.
-
-The HTTPHook is now secured by default: `verify=True`.
-This can be overwriten by using the extra_options param as `{'verify': False}`.
-
-#### Changes to CloudantHook
-
-* upgraded cloudant version from `>=0.5.9,<2.0` to `>=2.0`
-* removed the use of the `schema` attribute in the connection
-* removed `db` function since the database object can also be retrieved by calling `cloudant_session['database_name']`
-
-For example:
-```python
-from airflow.contrib.hooks.cloudant_hook import CloudantHook
-
-with CloudantHook().get_conn() as cloudant_session:
-    database = cloudant_session['database_name']
-```
-
-See the [docs](https://python-cloudant.readthedocs.io/en/latest/) for more information on how to use the new cloudant version.
 
 #### Removed deprecated import mechanism
 
