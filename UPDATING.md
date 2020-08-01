@@ -69,6 +69,73 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+### Major changes
+
+This section describes the major changes that have been made in this release.
+
+#### Python 2 support is going away
+
+> WARNING: Breaking change
+
+Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.6 and up.
+
+If you have a specific task that still requires Python 2 then you can use the PythonVirtualenvOperator for this.
+
+#### Drop legacy UI in favor of FAB RBAC UI
+
+> WARNING: Breaking change
+
+Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
+in both versions. With this release we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
+RBAC UI explicitly in the configuration now as this is the only default UI. We did it to avoid
+the huge maintenance burden of two independent user interfaces
+
+Please note that that custom auth backends will need re-writing to target new FAB based UI.
+
+As part of this change, a few configuration items in `[webserver]` section are removed and no longer applicable,
+including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
+
+Before upgrading to this release, we recommend activating the new FAB RBAC UI. For that, you should set
+the `rbac` options  in `[webserver]` in the `airflow.cfg` file to `true`
+
+```ini
+[webserver]
+rbac = true
+```
+
+In order to login to the interface, you need to create an administrator account.
+```
+airflow create_user \
+    --role Admin \
+    --username admin \
+    --firstname FIRST_NAME \
+    --lastname LAST_NAME \
+    --email EMAIL@example.org
+```
+
+If you have already installed Airflow 2.0, you can create a user with the command `airflow users create`.
+You don't need to make changes to the configuration file as the FAB RBAC UI is
+the only supported UI.
+```
+airflow users create \
+    --role Admin \
+    --username admin \
+    --firstname FIRST_NAME \
+    --lastname LAST_NAME \
+    --email EMAIL@example.org
+```
+
+#### Changes to import paths
+
+Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
+package was supported by the community. The project was passed to the Apache community and currently the
+entire code is maintained by the community, so now the division has no justification, and it is only due
+to historical reasons. In Airflow 2.0, we want to organize packages and move integrations
+with third party services to the ``airflow.providers`` package.
+
+All changes made are backward compatible, but if you use the old import paths you will
+see a deprecation warning. The old import paths can be abandoned in the future.
+
 ### CLI changes
 
 The Airflow CLI has been organized so that related commands are grouped together as subcommands,
@@ -398,16 +465,6 @@ worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" 
 #### Remove run_duration
 
 We should not use the `run_duration` option anymore. This used to be for restarting the scheduler from time to time, but right now the scheduler is getting more stable and therefore using this setting is considered bad and might cause an inconsistent state.
-
-#### Deprecate legacy UI in favor of FAB RBAC UI
-
-Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
-in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
-RBAC UI explicitly in the configuration now as this is the only default UI.
-Please note that that custom auth backends will need re-writing to target new FAB based UI.
-
-As part of this change, a few configuration items in `[webserver]` section are removed and no longer applicable,
-including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
 
 #### Rename pool statsd metrics
 
@@ -1728,12 +1785,6 @@ by default, rather than using the default timezone of the MySQL server.
 This is the correct behavior for use with BigQuery, since BigQuery
 assumes that TIMESTAMP columns without time zones are in UTC. To
 preserve the previous behavior, set `ensure_utc` to `False.`
-
-### Python 2 support is going away
-
-Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.5 and up.
-
-If you have a specific task that still requires Python 2 then you can use the PythonVirtualenvOperator for this.
 
 ### Changes to DatastoreHook
 
