@@ -105,7 +105,6 @@ class DataprocCreateClusterOperator(BaseOperator):
                  computenode_disk_type: str = 'network-ssd',
                  computenode_count: int = 0,
                  connection_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
         super().__init__(**kwargs)
         self.folder_id = folder_id
@@ -178,7 +177,6 @@ class DataprocDeleteClusterOperator(BaseOperator):
     def __init__(self,
                  connection_id: Optional[str] = None,
                  cluster_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
         super().__init__(**kwargs)
         self.connection_id = connection_id
@@ -231,7 +229,6 @@ class DataprocCreateHiveJobOperator(BaseOperator):
                  name: str = 'Hive job',
                  cluster_id: Optional[str] = None,
                  connection_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
         super().__init__(**kwargs)
         self.query = query
@@ -305,7 +302,6 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
                  name: str = 'Mapreduce job',
                  cluster_id: Optional[str] = None,
                  connection_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
         super().__init__(**kwargs)
         self.main_class = main_class
@@ -382,7 +378,6 @@ class DataprocCreateSparkJobOperator(BaseOperator):
                  name: str = 'Spark job',
                  cluster_id: Optional[str] = None,
                  connection_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
         super().__init__(**kwargs)
         self.main_class = main_class
@@ -459,7 +454,6 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
                  name: str = 'Pyspark job',
                  cluster_id: Optional[str] = None,
                  connection_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
         super().__init__(**kwargs)
         self.main_python_file_uri = main_python_file_uri
