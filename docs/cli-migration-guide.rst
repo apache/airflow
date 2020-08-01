@@ -351,3 +351,14 @@ For Airflow long option, use `kebab-case <https://en.wikipedia.org/wiki/Letter_c
 
    * - ``--skip_serve_logs``
      - ``--skip-serve-logs``
+
+``serve_logs`` command has been removed from CLI
+------------------------------------------------
+The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms and
+there is no need for it to be accessible from the CLI interface.
+
+``dag_state`` CLI command
+-------------------------
+This command has been changed to ``dags state``.
+If the DAGRun was triggered with conf key/values passed in, they will also be printed in the ``dags state``
+CLI response ie. running, {"name": "bob"} whereas in prior releases it just printed the state: ie. running
