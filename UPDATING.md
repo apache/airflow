@@ -182,13 +182,39 @@ dags list`, `airflow pause` is `airflow dags pause`, `airflow config` is `airflo
 For a complete list of updated CLI commands, see https://airflow.apache.org/cli.html.
 
 #### Grouped to improve UX of CLI
+You can learn about the commands by running ``airflow --help``. For example to get help about the ``celery`` group command,
+you have to run the help command: ``airflow celery --help``.
 
-Some commands have been grouped to improve UX of CLI. New commands are available according to the following table:
+| Old command                 | New command                        |     Group          |
+|-----------------------------|------------------------------------|--------------------|
+| ``airflow worker``          | ``airflow celery worker``          |    ``celery``      |
+| ``airflow flower``          | ``airflow celery flower``          |    ``celery``      |
+| ``airflow trigger_dag``     | ``airflow dags trigger``           |    ``dags``        |
+| ``airflow delete_dag``      | ``airflow dags delete``            |    ``dags``        |
+| ``airflow show_dag``        | ``airflow dags show``              |    ``dags``        |
+| ``airflow list_dag``        | ``airflow dags list``              |    ``dags``        |
+| ``airflow dag_status``      | ``airflow dags status``            |    ``dags``        |
+| ``airflow backfill``        | ``airflow dags backfill``          |    ``dags``        |
+| ``airflow list_dag_runs``   | ``airflow dags list_runs``         |    ``dags``        |
+| ``airflow pause``           | ``airflow dags pause``             |    ``dags``        |
+| ``airflow unpause``         | ``airflow dags unpause``           |    ``dags``        |
+| ``airflow test``            | ``airflow tasks test``             |    ``tasks``       |
+| ``airflow clear``           | ``airflow tasks clear``            |    ``tasks``       |
+| ``airflow list_tasks``      | ``airflow tasks list``             |    ``tasks``       |
+| ``airflow task_failed_deps``| ``airflow tasks failed_deps``      |    ``tasks``       |
+| ``airflow task_state``      | ``airflow tasks state``            |    ``tasks``       |
+| ``airflow run``             | ``airflow tasks run``              |    ``tasks``       |
+| ``airflow render``          | ``airflow tasks render``           |    ``tasks``       |
+| ``airflow initdb``          | ``airflow db init``                |     ``db``         |
+| ``airflow resetdb``         | ``airflow db reset``               |     ``db``         |
+| ``airflow upgradedb``       | ``airflow db upgrade``             |     ``db``         |
+| ``airflow checkdb``         | ``airflow db check``               |     ``db``         |
+| ``airflow shell``           | ``airflow db shell``               |     ``db``         |
+| ``airflow pool``            | ``airflow pools``                  |     ``pools``      |
+| ``airflow create_user``     | ``airflow users create``           |     ``users``      |
+| ``airflow delete_user``     | ``airflow users delete``           |     ``users``      |
+| ``airflow list_users``      | ``airflow users list``             |     ``users``      |
 
-| Old command               | New command                        |
-|---------------------------|------------------------------------|
-| ``airflow worker``        | ``airflow celery worker``          |
-| ``airflow flower``        | ``airflow celery flower``          |
 
 #### Cli use exactly single character for short option style change
 
