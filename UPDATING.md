@@ -1359,7 +1359,7 @@ sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: slot_
 ```
 Fix for this, https://github.com/apache/airflow/pull/8587
 
-### Other changes
+### Database changes
 
 #### Not-nullable conn_type column in connection table
 
@@ -1368,6 +1368,8 @@ by application logic, but was not enforced by the database schema.
 
 If you made any modifications to the table directly, make sure you don't have
 null in the conn_type column.
+
+### Other changes
 
 #### Standardised "extra" requirements
 
