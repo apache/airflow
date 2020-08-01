@@ -213,6 +213,16 @@ airflow dags test example_branch_operator 2018-01-01
 When doing backfill with `depends_on_past` dags, users will need to pass `--ignore-first-depends-on-past`.
 We should default it as `true` to avoid confusion
 
+### Database changes
+
+#### Not-nullable conn_type column in connection table
+
+The `conn_type` column in the `connection` table must contain content. Previously, this rule was enforced
+by application logic, but was not enforced by the database schema.
+
+If you made any modifications to the table directly, make sure you don't have
+null in the conn_type column.
+
 ### Configuration changes
 
 #### airflow.contrib.utils.log has been moved
@@ -409,6 +419,412 @@ The Mesos Executor is removed from the code base as it was not widely used and n
 Change DAG file loading duration metric from
 `dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to
 better handle the case when a DAG file has multiple DAGs.
+
+### Changes to the core operators/hooks
+
+#### BaseOperator uses metaclass
+
+`BaseOperator` class uses a `BaseOperatorMeta` as a metaclass. This meta class is based on
+`abc.ABCMeta`. If your custom operator uses different metaclass then you will have to adjust it.
+
+#### Remove SQL support in base_hook
+
+Remove ``get_records`` and ``get_pandas_df`` and ``run`` from base_hook, which only apply for sql like hook,
+If want to use them, or your custom hook inherit them, please use ``dbapi_hook``
+
+#### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
+
+Previously, you could assign a task to a DAG as follows:
+
+```python
+dag = DAG('my_dag')
+dummy = DummyOperator(task_id='dummy')
+
+dag >> dummy
+```
+
+This is no longer supported. Instead, we recommend using the DAG as context manager:
+
+```python
+with DAG('my_dag'):
+    dummy = DummyOperator(task_id='dummy')
+```
+
+#### Chain and cross_downstream moved from helpers to BaseOperator
+
+The `chain` and `cross_downstream` methods are now moved to airflow.models.baseoperator module from
+`airflow.utils.helpers` module.
+
+The baseoperator module seems to be a better choice to keep
+closely coupled methods together. Helpers module is supposed to contain standalone helper methods
+that can be imported by all classes.
+
+The `chain` method and `cross_downstream` method both use BaseOperator. If any other package imports
+any classes or functions from helpers module, then it automatically has an
+implicit dependency to BaseOperator. That can often lead to cyclic dependencies.
+
+More information in [AIFLOW-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
+
+In Airflow <2.0 you imported those two methods like this:
+
+```python
+from airflow.utils.helpers import chain
+from airflow.utils.helpers import cross_downstream
+```
+
+In Airflow 2.0 it should be changed to:
+```python
+from airflow.models.baseoperator import chain
+from airflow.models.baseoperator import cross_downstream
+```
+
+#### BranchPythonOperator has a return value
+`BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch,
+where previously it returned None. Since it inherits from BaseOperator it will do an
+`xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making.
+
+#### Changes to SQLSensor
+
+SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
+
+It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That
+changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success
+criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
+behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
+
+#### Simplification of the TriggerDagRunOperator
+
+The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
+As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
+
+#### Remove provide_context in PythonOperator
+
+`provide_context` argument on the PythonOperator was removed. The signature of the callable passed to the PythonOperator is now inferred and argument values are always automatically provided. There is no need to explicitly provide or not provide the context anymore. For example:
+
+```python
+def myfunc(execution_date):
+    print(execution_date)
+
+python_operator = PythonOperator(task_id='mytask', python_callable=myfunc, dag=dag)
+```
+
+Notice you don't have to set provide_context=True, variables from the task context are now automatically detected and provided.
+
+All context variables can still be provided with a double-asterisk argument:
+
+```python
+def myfunc(**context):
+    print(context)  # all variables will be provided to context
+
+python_operator = PythonOperator(task_id='mytask', python_callable=myfunc)
+```
+
+The task context variable names are reserved names in the callable function, hence a clash with `op_args` and `op_kwargs` results in an exception:
+
+```python
+def myfunc(dag):
+    # raises a ValueError because "dag" is a reserved name
+    # valid signature example: myfunc(mydag)
+
+python_operator = PythonOperator(
+    task_id='mytask',
+    op_args=[1],
+    python_callable=myfunc,
+)
+```
+
+The change is backwards compatible, setting `provide_context` will add the `provide_context` variable to the `kwargs` (but won't do anything).
+
+PR: [#5990](https://github.com/apache/airflow/pull/5990)
+
+#### Changes to FileSensor
+
+FileSensor is now takes a glob pattern, not just a filename. If the filename you are looking for has `*`, `?`, or `[` in it then you should replace these with `[*]`, `[?]`, and `[[]`.
+
+#### Changes to `SubDagOperator`
+
+`SubDagOperator` is changed to use Airflow scheduler instead of backfill
+to schedule tasks in the subdag. User no longer need to specify the executor
+in `SubDagOperator`.
+
+#### Removed deprecated import mechanism
+
+The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
+
+For example: `from airflow.operators import BashOperator`
+becomes `from airflow.operators.bash_operator import BashOperator`
+
+#### Changes to sensor imports
+
+Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
+
+For example: `from airflow.operators.sensors import BaseSensorOperator`
+becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
+
+#### Unification of `do_xcom_push` flag
+The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
+
+The following operators were affected:
+
+* DatastoreExportOperator (Backwards compatible)
+* DatastoreImportOperator (Backwards compatible)
+* KubernetesPodOperator (Not backwards compatible)
+* SSHOperator (Not backwards compatible)
+* WinRMOperator (Not backwards compatible)
+* BashOperator (Not backwards compatible)
+* DockerOperator (Not backwards compatible)
+* SimpleHttpOperator (Not backwards compatible)
+
+See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) for details
+
+#### Changes to skipping behaviour of LatestOnlyOperator
+
+In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct and undirect) downstream tasks on its own. From this version on the operator will **only skip direct downstream** tasks and the scheduler will handle skipping any further downstream dependencies.
+
+No change is needed if only the default trigger rule `all_success` is being used.
+
+If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
+
+The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
+
+#### TimeSensor is now timezone aware
+
+Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
+
+Now it will compare `target_time` with the current time in the timezone of the DAG,
+defaulting to the `default_timezone` in the global config.
+
+#### Skipped tasks can satisfy wait_for_downstream
+
+Previously, a task instance with `wait_for_downstream=True` will only run if the downstream task of
+the previous task instance is successful. Meanwhile, a task instance with `depends_on_past=True`
+will run if the previous task instance is either successful or skipped. These two flags are close siblings
+yet they have different behavior. This inconsistency in behavior made the API less intuitive to users.
+To maintain consistent behavior, both successful or skipped downstream task can now satisfy the
+`wait_for_downstream=True` flag.
+
+### Changes to the core Python API
+
+#### Weekday enum has been moved
+Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
+package was supported by the community. The project was passed to the Apache community and currently the
+entire code is maintained by the community, so now the division has no justification, and it is only due
+to historical reasons.
+
+To clean up, `Weekday` enum has been moved from `airflow.contrib.utils` into `airflow.utils` module.
+
+
+#### Deprecated method in Connection
+
+The connection module has new deprecated methods:
+
+- `Connection.parse_from_uri`
+- `Connection.log_info`
+- `Connection.debug_info`
+
+and one deprecated function:
+- `parse_netloc_to_hostname`
+
+Previously, users could create a connection object in two ways
+```
+conn_1 = Connection(conn_id="conn_a", uri="mysql://AAA/")
+# or
+conn_2 = Connection(conn_id="conn_a")
+conn_2.parse_uri(uri="mysql://AAA/")
+```
+Now the second way is not supported.
+
+`Connection.log_info` and `Connection.debug_info` method have been deprecated. Read each Connection field individually or use the
+default representation (`__repr__`).
+
+The old method is still works but can be abandoned at any time. The changes are intended to delete method
+that are rarely used.
+
+#### DAG.create_dagrun accepts run_type and does not require run_id
+This change is caused by adding `run_type` column to `DagRun`.
+
+Previous signature:
+```python
+def create_dagrun(self,
+                  run_id,
+                  state,
+                  execution_date=None,
+                  start_date=None,
+                  external_trigger=False,
+                  conf=None,
+                  session=None):
+```
+current:
+```python
+def create_dagrun(self,
+                  state,
+                  execution_date=None,
+                  run_id=None,
+                  start_date=None,
+                  external_trigger=False,
+                  conf=None,
+                  run_type=None,
+                  session=None):
+```
+If user provides `run_id` then the `run_type` will be derived from it by checking prefix, allowed types
+: `manual`, `scheduled`, `backfill` (defined by `airflow.utils.types.DagRunType`).
+
+If user provides `run_type` and `execution_date` then `run_id` is constructed as
+`{run_type}__{execution_data.isoformat()}`.
+
+Airflow should construct dagruns using `run_type` and `execution_date`, creation using
+`run_id` is preserved for user actions.
+
+
+#### Use DagRunType.SCHEDULED.value instead of DagRun.ID_PREFIX
+
+All the run_id prefixes for different kind of DagRuns have been grouped into a single
+enum in `airflow.utils.types.DagRunType`.
+
+Previously, there were defined in various places, example as `ID_PREFIX` class variables for
+`DagRun`, `BackfillJob` and in `_trigger_dag` function.
+
+Was:
+
+```python
+>> from airflow.models.dagrun import DagRun
+>> DagRun.ID_PREFIX
+scheduled__
+```
+
+Replaced by:
+
+```python
+>> from airflow.utils.types import DagRunType
+>> DagRunType.SCHEDULED.value
+scheduled
+```
+
+#### Removed sub-package imports from `airflow/__init__.py`
+
+The imports `LoggingMixin`, `conf`, and `AirflowException` have been removed from `airflow/__init__.py`.
+All implicit references of these objects will no longer be valid. To migrate, all usages of each old path must be
+replaced with its corresponding new path.
+
+| Old Path (Implicit Import)   | New Path (Explicit Import)                       |
+|------------------------------|--------------------------------------------------|
+| ``airflow.LoggingMixin``     | ``airflow.utils.log.logging_mixin.LoggingMixin`` |
+| ``airflow.conf``             | ``airflow.configuration.conf``                   |
+| ``airflow.AirflowException`` | ``airflow.exceptions.AirflowException``          |
+
+
+
+#### Remove airflow.utils.file.TemporaryDirectory
+
+Since Airflow dropped support for Python < 3.5 there's no need to have this custom
+implementation of `TemporaryDirectory` because the same functionality is provided by
+`tempfile.TemporaryDirectory`.
+
+Now users instead of `import from airflow.utils.files import TemporaryDirectory` should
+do `from tempfile import TemporaryDirectory`. Both context managers provide the same
+interface, thus no additional changes should be required.
+
+#### Removal of airflow.AirflowMacroPlugin class
+
+The class was there in airflow package but it has not been used (apparently since 2015).
+It has been removed.
+
+#### Changes to settings
+
+CONTEXT_MANAGER_DAG was removed from settings. It's role has been taken by `DagContext` in
+'airflow.models.dag'. One of the reasons was that settings should be rather static than store
+dynamic context from the DAG, but the main one is that moving the context out of settings allowed to
+untangle cyclic imports between DAG, BaseOperator, SerializedDAG, SerializedBaseOperator which was
+part of AIRFLOW-6010.
+
+#### Removal of redirect_stdout, redirect_stderr
+
+Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has
+been deleted because it can be easily replaced by the standard library.
+The functions of the standard library are more flexible and can be used in larger cases.
+
+The code below
+```python
+import logging
+
+from airflow.utils.log.logging_mixin import redirect_stderr, redirect_stdout
+
+logger = logging.getLogger("custom-logger")
+with redirect_stdout(logger, logging.INFO), redirect_stderr(logger, logging.WARN):
+    print("I love Airflow")
+```
+can be replaced by the following code:
+```python
+from contextlib import redirect_stdout, redirect_stderr
+import logging
+
+from airflow.utils.log.logging_mixin import StreamLogWriter
+
+logger = logging.getLogger("custom-logger")
+
+with redirect_stdout(StreamLogWriter(logger, logging.INFO)), \
+        redirect_stderr(StreamLogWriter(logger, logging.WARN)):
+    print("I Love Airflow")
+```
+
+#### Additional arguments passed to BaseOperator cause an exception
+
+Previous versions of Airflow took additional arguments and displayed a message on the console. When the
+message was not noticed by users, it caused very difficult to detect errors.
+
+In order to restore the previous behavior, you must set an ``True`` in  the ``allow_illegal_arguments``
+option of section ``[operators]`` in the ``airflow.cfg`` file. In the future it is possible to completely
+delete this option.
+
+#### Variables removed from the task instance context
+
+The following variables were removed from the task instance context:
+- end_date
+- latest_date
+- tables
+
+#### Change in DagBag signature
+
+Passing `store_serialized_dags` argument to DagBag.__init__ and accessing `DagBag.store_serialized_dags` property
+are deprecated and will be removed in future versions.
+
+
+**Previous signature**:
+
+```python
+DagBag(
+    dag_folder=None,
+    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+    store_serialized_dags=False
+):
+```
+
+**current**:
+```python
+DagBag(
+    dag_folder=None,
+    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
+    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
+    read_dags_from_db=False
+):
+```
+
+If you were using positional arguments, it requires no change but if you were using keyword
+arguments, please change `store_serialized_dags` to `read_dags_from_db`.
+
+Similarly, if you were using `DagBag().store_serialized_dags` property, change it to
+`DagBag().read_dags_from_db`.
+
+#### Ability to patch Pool.DEFAULT_POOL_NAME in BaseOperator
+It was not possible to patch pool in BaseOperator as the signature sets the default value of pool
+as Pool.DEFAULT_POOL_NAME.
+While using subdagoperator in unittest(without initializing the sqlite db), it was throwing the
+following error:
+```
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: slot_pool.
+```
+Fix for this, https://github.com/apache/airflow/pull/8587
 
 ### Changes in `google` provider package
 
@@ -977,422 +1393,6 @@ https://community.atlassian.com/t5/Stride-articles/Stride-and-Hipchat-Cloud-have
 #### Change default snowflake_conn_id for Snowflake hook and operators
 
 When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overriden when specified.
-
-### Changes to the core operators/hooks
-
-#### BaseOperator uses metaclass
-
-`BaseOperator` class uses a `BaseOperatorMeta` as a metaclass. This meta class is based on
-`abc.ABCMeta`. If your custom operator uses different metaclass then you will have to adjust it.
-
-#### Remove SQL support in base_hook
-
-Remove ``get_records`` and ``get_pandas_df`` and ``run`` from base_hook, which only apply for sql like hook,
-If want to use them, or your custom hook inherit them, please use ``dbapi_hook``
-
-#### Assigning task to a DAG using bitwise shift (bit-shift) operators are no longer supported
-
-Previously, you could assign a task to a DAG as follows:
-
-```python
-dag = DAG('my_dag')
-dummy = DummyOperator(task_id='dummy')
-
-dag >> dummy
-```
-
-This is no longer supported. Instead, we recommend using the DAG as context manager:
-
-```python
-with DAG('my_dag'):
-    dummy = DummyOperator(task_id='dummy')
-```
-
-#### Chain and cross_downstream moved from helpers to BaseOperator
-
-The `chain` and `cross_downstream` methods are now moved to airflow.models.baseoperator module from
-`airflow.utils.helpers` module.
-
-The baseoperator module seems to be a better choice to keep
-closely coupled methods together. Helpers module is supposed to contain standalone helper methods
-that can be imported by all classes.
-
-The `chain` method and `cross_downstream` method both use BaseOperator. If any other package imports
-any classes or functions from helpers module, then it automatically has an
-implicit dependency to BaseOperator. That can often lead to cyclic dependencies.
-
-More information in [AIFLOW-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
-
-In Airflow <2.0 you imported those two methods like this:
-
-```python
-from airflow.utils.helpers import chain
-from airflow.utils.helpers import cross_downstream
-```
-
-In Airflow 2.0 it should be changed to:
-```python
-from airflow.models.baseoperator import chain
-from airflow.models.baseoperator import cross_downstream
-```
-
-#### BranchPythonOperator has a return value
-`BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch,
-where previously it returned None. Since it inherits from BaseOperator it will do an
-`xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making.
-
-#### Changes to SQLSensor
-
-SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
-
-It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That
-changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success
-criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
-behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
-
-#### Simplification of the TriggerDagRunOperator
-
-The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
-As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
-
-#### Remove provide_context in PythonOperator
-
-`provide_context` argument on the PythonOperator was removed. The signature of the callable passed to the PythonOperator is now inferred and argument values are always automatically provided. There is no need to explicitly provide or not provide the context anymore. For example:
-
-```python
-def myfunc(execution_date):
-    print(execution_date)
-
-python_operator = PythonOperator(task_id='mytask', python_callable=myfunc, dag=dag)
-```
-
-Notice you don't have to set provide_context=True, variables from the task context are now automatically detected and provided.
-
-All context variables can still be provided with a double-asterisk argument:
-
-```python
-def myfunc(**context):
-    print(context)  # all variables will be provided to context
-
-python_operator = PythonOperator(task_id='mytask', python_callable=myfunc)
-```
-
-The task context variable names are reserved names in the callable function, hence a clash with `op_args` and `op_kwargs` results in an exception:
-
-```python
-def myfunc(dag):
-    # raises a ValueError because "dag" is a reserved name
-    # valid signature example: myfunc(mydag)
-
-python_operator = PythonOperator(
-    task_id='mytask',
-    op_args=[1],
-    python_callable=myfunc,
-)
-```
-
-The change is backwards compatible, setting `provide_context` will add the `provide_context` variable to the `kwargs` (but won't do anything).
-
-PR: [#5990](https://github.com/apache/airflow/pull/5990)
-
-#### Changes to FileSensor
-
-FileSensor is now takes a glob pattern, not just a filename. If the filename you are looking for has `*`, `?`, or `[` in it then you should replace these with `[*]`, `[?]`, and `[[]`.
-
-#### Changes to `SubDagOperator`
-
-`SubDagOperator` is changed to use Airflow scheduler instead of backfill
-to schedule tasks in the subdag. User no longer need to specify the executor
-in `SubDagOperator`.
-
-#### Removed deprecated import mechanism
-
-The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
-
-For example: `from airflow.operators import BashOperator`
-becomes `from airflow.operators.bash_operator import BashOperator`
-
-#### Changes to sensor imports
-
-Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
-
-For example: `from airflow.operators.sensors import BaseSensorOperator`
-becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
-
-#### Unification of `do_xcom_push` flag
-The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
-
-The following operators were affected:
-
-* DatastoreExportOperator (Backwards compatible)
-* DatastoreImportOperator (Backwards compatible)
-* KubernetesPodOperator (Not backwards compatible)
-* SSHOperator (Not backwards compatible)
-* WinRMOperator (Not backwards compatible)
-* BashOperator (Not backwards compatible)
-* DockerOperator (Not backwards compatible)
-* SimpleHttpOperator (Not backwards compatible)
-
-See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) for details
-
-#### Changes to skipping behaviour of LatestOnlyOperator
-
-In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct and undirect) downstream tasks on its own. From this version on the operator will **only skip direct downstream** tasks and the scheduler will handle skipping any further downstream dependencies.
-
-No change is needed if only the default trigger rule `all_success` is being used.
-
-If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
-
-The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
-
-#### TimeSensor is now timezone aware
-
-Previously `TimeSensor` always compared the `target_time` with the current time in UTC.
-
-Now it will compare `target_time` with the current time in the timezone of the DAG,
-defaulting to the `default_timezone` in the global config.
-
-#### Skipped tasks can satisfy wait_for_downstream
-
-Previously, a task instance with `wait_for_downstream=True` will only run if the downstream task of
-the previous task instance is successful. Meanwhile, a task instance with `depends_on_past=True`
-will run if the previous task instance is either successful or skipped. These two flags are close siblings
-yet they have different behavior. This inconsistency in behavior made the API less intuitive to users.
-To maintain consistent behavior, both successful or skipped downstream task can now satisfy the
-`wait_for_downstream=True` flag.
-
-### Changes to the core Python API
-
-#### Weekday enum has been moved
-Formerly the core code was maintained by the original creators - Airbnb. The code that was in the contrib
-package was supported by the community. The project was passed to the Apache community and currently the
-entire code is maintained by the community, so now the division has no justification, and it is only due
-to historical reasons.
-
-To clean up, `Weekday` enum has been moved from `airflow.contrib.utils` into `airflow.utils` module.
-
-
-#### Deprecated method in Connection
-
-The connection module has new deprecated methods:
-
-- `Connection.parse_from_uri`
-- `Connection.log_info`
-- `Connection.debug_info`
-
-and one deprecated function:
-- `parse_netloc_to_hostname`
-
-Previously, users could create a connection object in two ways
-```
-conn_1 = Connection(conn_id="conn_a", uri="mysql://AAA/")
-# or
-conn_2 = Connection(conn_id="conn_a")
-conn_2.parse_uri(uri="mysql://AAA/")
-```
-Now the second way is not supported.
-
-`Connection.log_info` and `Connection.debug_info` method have been deprecated. Read each Connection field individually or use the
-default representation (`__repr__`).
-
-The old method is still works but can be abandoned at any time. The changes are intended to delete method
-that are rarely used.
-
-#### DAG.create_dagrun accepts run_type and does not require run_id
-This change is caused by adding `run_type` column to `DagRun`.
-
-Previous signature:
-```python
-def create_dagrun(self,
-                  run_id,
-                  state,
-                  execution_date=None,
-                  start_date=None,
-                  external_trigger=False,
-                  conf=None,
-                  session=None):
-```
-current:
-```python
-def create_dagrun(self,
-                  state,
-                  execution_date=None,
-                  run_id=None,
-                  start_date=None,
-                  external_trigger=False,
-                  conf=None,
-                  run_type=None,
-                  session=None):
-```
-If user provides `run_id` then the `run_type` will be derived from it by checking prefix, allowed types
-: `manual`, `scheduled`, `backfill` (defined by `airflow.utils.types.DagRunType`).
-
-If user provides `run_type` and `execution_date` then `run_id` is constructed as
-`{run_type}__{execution_data.isoformat()}`.
-
-Airflow should construct dagruns using `run_type` and `execution_date`, creation using
-`run_id` is preserved for user actions.
-
-
-#### Use DagRunType.SCHEDULED.value instead of DagRun.ID_PREFIX
-
-All the run_id prefixes for different kind of DagRuns have been grouped into a single
-enum in `airflow.utils.types.DagRunType`.
-
-Previously, there were defined in various places, example as `ID_PREFIX` class variables for
-`DagRun`, `BackfillJob` and in `_trigger_dag` function.
-
-Was:
-
-```python
->> from airflow.models.dagrun import DagRun
->> DagRun.ID_PREFIX
-scheduled__
-```
-
-Replaced by:
-
-```python
->> from airflow.utils.types import DagRunType
->> DagRunType.SCHEDULED.value
-scheduled
-```
-
-#### Removed sub-package imports from `airflow/__init__.py`
-
-The imports `LoggingMixin`, `conf`, and `AirflowException` have been removed from `airflow/__init__.py`.
-All implicit references of these objects will no longer be valid. To migrate, all usages of each old path must be
-replaced with its corresponding new path.
-
-| Old Path (Implicit Import)   | New Path (Explicit Import)                       |
-|------------------------------|--------------------------------------------------|
-| ``airflow.LoggingMixin``     | ``airflow.utils.log.logging_mixin.LoggingMixin`` |
-| ``airflow.conf``             | ``airflow.configuration.conf``                   |
-| ``airflow.AirflowException`` | ``airflow.exceptions.AirflowException``          |
-
-
-
-#### Remove airflow.utils.file.TemporaryDirectory
-
-Since Airflow dropped support for Python < 3.5 there's no need to have this custom
-implementation of `TemporaryDirectory` because the same functionality is provided by
-`tempfile.TemporaryDirectory`.
-
-Now users instead of `import from airflow.utils.files import TemporaryDirectory` should
-do `from tempfile import TemporaryDirectory`. Both context managers provide the same
-interface, thus no additional changes should be required.
-
-#### Removal of airflow.AirflowMacroPlugin class
-
-The class was there in airflow package but it has not been used (apparently since 2015).
-It has been removed.
-
-#### Changes to settings
-
-CONTEXT_MANAGER_DAG was removed from settings. It's role has been taken by `DagContext` in
-'airflow.models.dag'. One of the reasons was that settings should be rather static than store
-dynamic context from the DAG, but the main one is that moving the context out of settings allowed to
-untangle cyclic imports between DAG, BaseOperator, SerializedDAG, SerializedBaseOperator which was
-part of AIRFLOW-6010.
-
-#### Removal of redirect_stdout, redirect_stderr
-
-Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has
-been deleted because it can be easily replaced by the standard library.
-The functions of the standard library are more flexible and can be used in larger cases.
-
-The code below
-```python
-import logging
-
-from airflow.utils.log.logging_mixin import redirect_stderr, redirect_stdout
-
-logger = logging.getLogger("custom-logger")
-with redirect_stdout(logger, logging.INFO), redirect_stderr(logger, logging.WARN):
-    print("I love Airflow")
-```
-can be replaced by the following code:
-```python
-from contextlib import redirect_stdout, redirect_stderr
-import logging
-
-from airflow.utils.log.logging_mixin import StreamLogWriter
-
-logger = logging.getLogger("custom-logger")
-
-with redirect_stdout(StreamLogWriter(logger, logging.INFO)), \
-        redirect_stderr(StreamLogWriter(logger, logging.WARN)):
-    print("I Love Airflow")
-```
-
-#### Additional arguments passed to BaseOperator cause an exception
-
-Previous versions of Airflow took additional arguments and displayed a message on the console. When the
-message was not noticed by users, it caused very difficult to detect errors.
-
-In order to restore the previous behavior, you must set an ``True`` in  the ``allow_illegal_arguments``
-option of section ``[operators]`` in the ``airflow.cfg`` file. In the future it is possible to completely
-delete this option.
-
-#### Variables removed from the task instance context
-
-The following variables were removed from the task instance context:
-- end_date
-- latest_date
-- tables
-
-#### Change in DagBag signature
-
-Passing `store_serialized_dags` argument to DagBag.__init__ and accessing `DagBag.store_serialized_dags` property
-are deprecated and will be removed in future versions.
-
-
-**Previous signature**:
-
-```python
-DagBag(
-    dag_folder=None,
-    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
-    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-    store_serialized_dags=False
-):
-```
-
-**current**:
-```python
-DagBag(
-    dag_folder=None,
-    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
-    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-    read_dags_from_db=False
-):
-```
-
-If you were using positional arguments, it requires no change but if you were using keyword
-arguments, please change `store_serialized_dags` to `read_dags_from_db`.
-
-Similarly, if you were using `DagBag().store_serialized_dags` property, change it to
-`DagBag().read_dags_from_db`.
-
-#### Ability to patch Pool.DEFAULT_POOL_NAME in BaseOperator
-It was not possible to patch pool in BaseOperator as the signature sets the default value of pool
-as Pool.DEFAULT_POOL_NAME.
-While using subdagoperator in unittest(without initializing the sqlite db), it was throwing the
-following error:
-```
-sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: slot_pool.
-```
-Fix for this, https://github.com/apache/airflow/pull/8587
-
-### Database changes
-
-#### Not-nullable conn_type column in connection table
-
-The `conn_type` column in the `connection` table must contain content. Previously, this rule was enforced
-by application logic, but was not enforced by the database schema.
-
-If you made any modifications to the table directly, make sure you don't have
-null in the conn_type column.
 
 ### Other changes
 
