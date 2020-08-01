@@ -103,55 +103,27 @@ class TestPod(unittest.TestCase):
         result = k8s_client.sanitize_for_serialization(result)
 
         expected = \
-            {
-                'metadata':
-                    {
-                        'labels': {},
-                        'name': 'bar',
-                        'namespace': 'baz'
-                    },
-                'spec':
-                    {'containers':
-                        [
-                            {
-                                'args': [],
-                                'command': ['airflow'],
-                                'env': [{'name': 'test_key', 'value': 'test_value'}],
-                                'image': 'foo',
-                                'imagePullPolicy': 'Never',
-                                'name': 'base',
-                                'volumeMounts':
-                                    [
-                                        {
-                                            'mountPath': '/mnt',
-                                            'name': 'foo',
-                                            'readOnly': True, 'subPath': '/'
-                                        }
-                                    ],  # noqa
-                                'resources':
-                                    {
-                                        'limits':
-                                            {
-                                                'cpu': None,
-                                                'memory': None,
-                                                'nvidia.com/gpu': '100G',
-                                                'ephemeral-storage': None
-                                            },
-                                        'requests':
-                                            {
-                                                'cpu': '100Mi',
-                                                'memory': '1G',
-                                                'ephemeral-storage': None
-                                            }
-                                }
-                            }
-                        ],
-                        'hostNetwork': False,
-                        'tolerations': [],
-                        'volumes': [
-                            {'name': 'foo'}
-                        ]
-                     }
-            }
+            {'metadata': {'labels': {}, 'name': 'bar', 'namespace': 'baz'},
+             'spec': {'affinity': {},
+                      'containers': [{'args': [],
+                                      'command': ['airflow'],
+                                      'env': [{'name': 'test_key', 'value': 'test_value'}],
+                                      'image': 'foo',
+                                      'imagePullPolicy': 'Never',
+                                      'name': 'base',
+                                      'resources': {'limits': {'cpu': None,
+                                                               'ephemeral-storage': None,
+                                                               'memory': None,
+                                                               'nvidia.com/gpu': '100G'},
+                                                    'requests': {'cpu': '100Mi',
+                                                                 'ephemeral-storage': None,
+                                                                 'memory': '1G'}},
+                                      'volumeMounts': [{'mountPath': '/mnt',
+                                                        'name': 'foo',
+                                                        'readOnly': True,
+                                                        'subPath': '/'}]}],
+                      'hostNetwork': False,
+                      'tolerations': [],
+                      'volumes': [{'name': 'foo'}]}}
         self.maxDiff = None
         self.assertEquals(expected, result)
