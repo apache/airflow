@@ -96,7 +96,6 @@ Content
     lineage
     dag-serialization
     Using the REST API <stable-rest-api/index>
-    REST API Migration Guide <stable-rest-api/migration>
     changelog
     best-practices
     faq
