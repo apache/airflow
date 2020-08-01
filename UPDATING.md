@@ -145,40 +145,40 @@ This section describes the changes that have been made, and what you need to do 
 
 #### Simplification of CLI commands
 
-The ability to manipulate users from the command line has been changed. 'airflow create_user' and 'airflow delete_user' and 'airflow list_users' has been grouped to a single command `airflow users` with optional flags `--create`, `--list` and `--delete`.
+The ability to manipulate users from the command line has been changed. ``airflow create_user``,  ``airflow delete_user``
+ and ``airflow list_users`` has been grouped to a single command `airflow users` with optional flags `create`, `list` and `delete`.
 
 Example Usage:
 
 To create a new user:
 ```bash
-airflow users --create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
+airflow users create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
 ```
 
 To list users:
 ```bash
-airflow users --list
+airflow users list
 ```
 
 To delete a user:
 ```bash
-airflow users --delete --username jondoe
+airflow users delete --username jondoe
 ```
 
 To add a user to a role:
 ```bash
-airflow users --add-role --username jondoe --role Public
+airflow users add-role --username jondoe --role Public
 ```
 
 To remove a user from a role:
 ```bash
-airflow users --remove-role --username jondoe --role Public
+airflow users remove-role --username jondoe --role Public
 ```
 
 #### CLI reorganization
 
-The Airflow CLI has been organized so that related commands are grouped
-together as subcommands. The `airflow list_dags` command is now `airflow
-dags list`, `airflow pause` is `airflow dags pause`, `airflow config` is `airflow config list`, etc.
+The `airflow list_dags` command is now `airflow dags list`, `airflow pause` is `airflow dags pause`,
+`airflow config` is `airflow config list`, etc.
 For a complete list of updated CLI commands, see https://airflow.apache.org/cli.html.
 
 #### Grouped to improve UX of CLI
