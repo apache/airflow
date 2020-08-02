@@ -20,7 +20,7 @@ import ast
 import json
 import socket
 import time
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Dict, List, Mapping, Optional, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
@@ -33,6 +33,7 @@ from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.utils.decorators import apply_defaults
 
 JenkinsRequest = Mapping[str, Any]
+ParamType = Optional[Union[str, Dict, List]]
 
 
 def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Optional[JenkinsRequest]:
@@ -101,7 +102,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     def __init__(self,
                  jenkins_connection_id: str,
                  job_name: str,
-                 parameters: str = "",
+                 parameters: ParamType = "",
                  sleep_time: int = 10,
                  max_try_before_job_appears: int = 10,
                  *args,
@@ -117,7 +118,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
 
     def build_job(self,
                   jenkins_server: Jenkins,
-                  params: Optional[Union[str, Mapping]] = "") -> Optional[JenkinsRequest]:
+                  params: ParamType = "") -> Optional[JenkinsRequest]:
         """
         This function makes an API call to Jenkins to trigger a build for 'job_name'
         It returned a dict with 2 keys : body and headers.
