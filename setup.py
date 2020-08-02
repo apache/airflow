@@ -307,7 +307,7 @@ ldap = [
 ]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
-    'pymongo>=3.6.0',
+    'pymongo>=3.6.0,<3.11.0',
 ]
 mssql = [
     'pymssql~=2.1.1',
