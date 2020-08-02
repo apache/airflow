@@ -28,7 +28,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 
-from airflow.exceptions import AirflowException, AirflowFileParseException, FileSyntaxError
+from airflow.exceptions import (
+    AirflowException, AirflowFileParseException, ConnectionNotUnique, FileSyntaxError,
+)
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.file import COMMENT_PATTERN
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -252,6 +254,10 @@ def load_connections(file_path: str):
                 connections_by_conn_id[key].append(_create_connection(key, secret_value))
         else:
             connections_by_conn_id[key].append(_create_connection(key, secret_values))
+
+        if len(connections_by_conn_id[key]) > 1:
+            raise ConnectionNotUnique(f"Found multiple values for {key} in {file_path}")
+
     num_conn = sum(map(len, connections_by_conn_id.values()))
     log.debug("Loaded %d connections", num_conn)
 

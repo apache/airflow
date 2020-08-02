@@ -675,11 +675,6 @@ managed in the UI (``Menu -> Admin -> Connections``).  A ``conn_id`` is defined 
 password / schema information attached to it.  Airflow pipelines retrieve centrally-managed connections
 information by specifying the relevant ``conn_id``.
 
-You may add more than one connection with the same ``conn_id``.  When there is more than one connection
-with the same ``conn_id``, the :py:meth:`~airflow.hooks.base_hook.BaseHook.get_connection` method on
-:py:class:`~airflow.hooks.base_hook.BaseHook` will choose one connection randomly. This can be be used to
-provide basic load balancing and fault tolerance, when used in conjunction with retries.
-
 Airflow also provides a mechanism to store connections outside the database, e.g. in :ref:`environment variables <environment_variables_secrets_backend>`.
 Additional sources may be enabled, e.g. :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`, or you may
 :ref:`roll your own secrets backend <roll_your_own_secrets_backend>`.

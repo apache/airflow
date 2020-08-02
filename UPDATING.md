@@ -322,6 +322,14 @@ We should default it as `true` to avoid confusion
 In order to migrate the database, you should use the command `airflow db upgrade`, but in
 some cases manual steps are required.
 
+#### Unique conn_id in connection table
+
+Previously, Airflow allowed users to add more than one connection with the same `conn_id` and on access it would choose one connection randomly. This acted as a basic load balancing and fault tolerance technique, when used in conjunction with retries.
+
+This behavior caused some confusion for users, and there was no clear evidence if it actually worked well or not.
+
+Now the `conn_id` will be unique. If you already have duplicates in your metadata database, you will have to manage those duplicate connections before upgrading the database.
+
 #### Not-nullable conn_type column in connection table
 
 The `conn_type` column in the `connection` table must contain content. Previously, this rule was enforced
