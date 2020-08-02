@@ -665,27 +665,8 @@ If this function is designed to be called by "end-users" (i.e. DAG authors) then
       ...
       # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
 
-Test Infrastructure
-===================
-
-We support the following types of tests:
-
-* **Unit tests** are Python tests launched with ``pytest``.
-  Unit tests are available both in the `Breeze environment <BREEZE.rst>`_
-  and `local virtualenv <LOCAL_VIRTUALENV.rst>`_.
-
-* **Integration tests** are available in the Breeze development environment
-  that is also used for Airflow's CI tests. Integration test are special tests that require
-  additional services running, such as Postgres, Mysql, Kerberos, etc.
-
-* **System tests** are automatic tests that use external systems like
-  Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
-
-For details on running different types of Airflow tests, see `TESTING.rst <TESTING.rst>`_.
-
-
 Naming Conventions for provider packages
-========================================
+----------------------------------------
 
 In Airflow 2.0 we standardized and enforced naming for provider packages, modules and classes.
 those rules (introduced as AIP-21) were not only introduced but enforced using automated checks
@@ -745,6 +726,24 @@ The rules are as follows:
 
 * System tests (not yet fully automated but allowing to run e2e testing of particular provider) are
   named with _system.py suffix.
+
+Test Infrastructure
+===================
+
+We support the following types of tests:
+
+* **Unit tests** are Python tests launched with ``pytest``.
+  Unit tests are available both in the `Breeze environment <BREEZE.rst>`_
+  and `local virtualenv <LOCAL_VIRTUALENV.rst>`_.
+
+* **Integration tests** are available in the Breeze development environment
+  that is also used for Airflow's CI tests. Integration test are special tests that require
+  additional services running, such as Postgres, Mysql, Kerberos, etc.
+
+* **System tests** are automatic tests that use external systems like
+  Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
+
+For details on running different types of Airflow tests, see `TESTING.rst <TESTING.rst>`_.
 
 Metadata Database Updates
 =========================
