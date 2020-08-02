@@ -1545,25 +1545,40 @@ We standardised the Extras names and synchronized providers package names with t
 
 We deprecated a number of extras in 2.0.
 
-| Deprecated extras | New extras       |
-|-------------------|------------------|
-| atlas             | apache.atlas     |
-| aws               | amazon           |
-| azure             | microsoft.azure  |
-| cassandra         | apache.cassandra |
-| druid             | apache.druid     |
-| gcp               | google           |
-| gcp_api           | google           |
-| hdfs              | apache.hdfs      |
-| hive              | apache.hive      |
-| kubernetes        | cncf.kubernetes  |
-| mssql             | microsoft.mssql  |
-| pinot             | apache.pinot     |
-| webhdfs           | apache.webhdfs   |
-| winrm             | apache.winrm     |
+| Deprecated extras         | New extras       |
+|---------------------------|------------------|
+| atlas                     | apache.atlas     |
+| aws                       | amazon           |
+| azure                     | microsoft.azure  |
+| azure_blob_storage        | microsoft.azure  |
+| azure_data_lake           | microsoft.azure  |
+| azure_cosmos              | microsoft.azure  |
+| azure_container_instances | microsoft.azure  |
+| cassandra                 | apache.cassandra |
+| druid                     | apache.druid     |
+| gcp                       | google           |
+| gcp_api                   | google           |
+| hdfs                      | apache.hdfs      |
+| hive                      | apache.hive      |
+| kubernetes                | cncf.kubernetes  |
+| mssql                     | microsoft.mssql  |
+| pinot                     | apache.pinot     |
+| webhdfs                   | apache.webhdfs   |
+| winrm                     | apache.winrm     |
 
-For example instead of `pip install apache-airflow[atlas]` you should use
-`pip install apache-airflow[apache.atlas]` .
+For example:
+
+If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
+you should use `pip install apache-airflow[apache.atlas]`.
+
+If you want to install integration for Microsoft Azure, then instead of
+```
+pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
+```
+you should execute `pip install 'apache-airflow[azure]'`
+
+If you want to install integration for Amazon Web Services, then instead of
+`pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
 
 The deprecated extras will be removed in 2.1:
 
@@ -1580,25 +1595,6 @@ functions. To use the plugin, update your setup.cfg:
 plugins =
   airflow.mypy.plugin.decorators
 ```
-
-#### Renamed "extra" requirements for cloud providers
-
-Subpackages for specific services have been combined into one variant for
-each cloud provider. The name of the subpackage for the Google Cloud Platform
-has changed to follow style.
-
-If you want to install integration for Microsoft Azure, then instead of
-```
-pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
-```
-you should execute `pip install 'apache-airflow[azure]'`
-
-If you want to install integration for Amazon Web Services, then instead of
-`pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
-
-If you want to install integration for Google Cloud Platform, then instead of
-`pip install 'apache-airflow[gcp_api]'`, you should execute `pip install 'apache-airflow[gcp]'`.
-The old way will work until the release of Airflow 2.1.
 
 #### Simplify the response payload of endpoints /dag_stats and /task_stats
 
