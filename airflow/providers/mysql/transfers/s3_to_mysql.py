@@ -21,7 +21,6 @@ from typing import Dict, Optional
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class S3ToMySqlOperator(BaseOperator):
@@ -53,7 +52,6 @@ class S3ToMySqlOperator(BaseOperator):
     template_ext = ()
     ui_color = '#f4a460'
 
-    @apply_defaults
     def __init__(
         self,
         *,

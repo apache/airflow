@@ -19,7 +19,6 @@
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
-from airflow.utils.decorators import apply_defaults
 
 
 class DataprepGetJobsForJobGroupOperator(BaseOperator):
@@ -37,7 +36,6 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
 
     template_fields = ("job_id",)
 
-    @apply_defaults
     def __init__(self, *, dataprep_conn_id: str = "dataprep_default", job_id: int, **kwargs) -> None:
         super().__init__(**kwargs)
         self.dataprep_conn_id = (dataprep_conn_id,)
@@ -72,7 +70,6 @@ class DataprepGetJobGroupOperator(BaseOperator):
 
     template_fields = ("job_group_id", "embed")
 
-    @apply_defaults
     def __init__(
         self,
         *,

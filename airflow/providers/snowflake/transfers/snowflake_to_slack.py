@@ -24,7 +24,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SnowflakeToSlackOperator(BaseOperator):
@@ -71,7 +70,6 @@ class SnowflakeToSlackOperator(BaseOperator):
     template_ext = ['.sql', '.jinja', '.j2']
     times_rendered = 0
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

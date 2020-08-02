@@ -19,7 +19,6 @@ from typing import Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class TableauJobFailedException(AirflowException):
@@ -43,7 +42,6 @@ class TableauJobStatusSensor(BaseSensorOperator):
 
     template_fields = ('job_id',)
 
-    @apply_defaults
     def __init__(
         self,
         *,

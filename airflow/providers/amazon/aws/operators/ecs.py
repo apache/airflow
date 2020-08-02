@@ -28,7 +28,6 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.typing_compat import Protocol, runtime_checkable
-from airflow.utils.decorators import apply_defaults
 
 
 @runtime_checkable
@@ -130,7 +129,6 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     ui_color = '#f0ede4'
     template_fields = ('overrides',)
 
-    @apply_defaults
     def __init__(
         self,
         *,

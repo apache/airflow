@@ -20,7 +20,6 @@ from typing import Optional, Sequence, Union
 
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleSearchAdsReportSensor(BaseSensorOperator):
@@ -61,7 +60,6 @@ class GoogleSearchAdsReportSensor(BaseSensorOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

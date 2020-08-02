@@ -22,7 +22,6 @@ from typing import Any, Dict, Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
-from airflow.utils.decorators import apply_defaults
 
 
 class LivyOperator(BaseOperator):
@@ -72,7 +71,6 @@ class LivyOperator(BaseOperator):
 
     template_fields = ('spark_params',)
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -19,7 +19,6 @@ from typing import Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from airflow.utils.decorators import apply_defaults
 
 
 class PostgresOperator(BaseOperator):
@@ -46,7 +45,6 @@ class PostgresOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -33,7 +33,7 @@ from google.cloud.automl_v1beta1 import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
-from airflow.utils.decorators import apply_defaults
+
 
 MetaData = Sequence[Tuple[str, str]]
 
@@ -81,7 +81,6 @@ class AutoMLTrainModelOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -175,14 +174,13 @@ class AutoMLPredictOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
         model_id: str,
         location: str,
         payload: dict,
-        params: Optional[Dict[str, str]] = None,
+        operation_params: Optional[Dict[str, str]] = None,
         project_id: Optional[str] = None,
         metadata: Optional[MetaData] = None,
         timeout: Optional[float] = None,
@@ -194,7 +192,7 @@ class AutoMLPredictOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.model_id = model_id
-        self.params = params  # type: ignore
+        self.operation_params = operation_params  # type: ignore
         self.location = location
         self.project_id = project_id
         self.metadata = metadata
@@ -214,7 +212,7 @@ class AutoMLPredictOperator(BaseOperator):
             payload=self.payload,
             location=self.location,
             project_id=self.project_id,
-            params=self.params,
+            params=self.operation_params,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
@@ -283,7 +281,6 @@ class AutoMLBatchPredictOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -382,7 +379,6 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -478,7 +474,6 @@ class AutoMLImportDataOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -583,7 +578,6 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -685,7 +679,6 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -772,7 +765,6 @@ class AutoMLGetModelOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -858,7 +850,6 @@ class AutoMLDeleteModelOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -953,7 +944,6 @@ class AutoMLDeployModelOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1052,7 +1042,6 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1142,7 +1131,6 @@ class AutoMLListDatasetOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1232,7 +1220,6 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

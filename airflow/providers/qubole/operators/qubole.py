@@ -30,7 +30,6 @@ from airflow.providers.qubole.hooks.qubole import (
     QuboleHook,
     flatten_list,
 )
-from airflow.utils.decorators import apply_defaults
 
 
 class QDSLink(BaseOperatorLink):
@@ -218,7 +217,6 @@ class QuboleOperator(BaseOperator):
 
     operator_extra_links = (QDSLink(),)
 
-    @apply_defaults
     def __init__(self, *, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.kwargs = kwargs
         self.kwargs['qubole_conn_id'] = qubole_conn_id

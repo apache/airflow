@@ -24,7 +24,6 @@ from typing import Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class S3FileTransformOperator(BaseOperator):
@@ -82,7 +81,6 @@ class S3FileTransformOperator(BaseOperator):
     template_ext = ()
     ui_color = '#f9c915'
 
-    @apply_defaults
     def __init__(
         self,
         *,

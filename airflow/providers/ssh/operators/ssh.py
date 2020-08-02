@@ -24,7 +24,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SSHOperator(BaseOperator):
@@ -58,7 +57,6 @@ class SSHOperator(BaseOperator):
     template_fields = ('command', 'remote_host')
     template_ext = ('.sh',)
 
-    @apply_defaults
     def __init__(
         self,
         *,

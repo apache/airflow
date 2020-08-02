@@ -20,7 +20,6 @@ from typing import Optional
 
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class WasbBlobSensor(BaseSensorOperator):
@@ -40,7 +39,6 @@ class WasbBlobSensor(BaseSensorOperator):
 
     template_fields = ('container_name', 'blob_name')
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -81,7 +79,6 @@ class WasbPrefixSensor(BaseSensorOperator):
 
     template_fields = ('container_name', 'prefix')
 
-    @apply_defaults
     def __init__(
         self,
         *,

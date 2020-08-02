@@ -28,13 +28,11 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
-from airflow.utils.decorators import apply_defaults
 
 
 class ComputeEngineBaseOperator(BaseOperator):
     """Abstract base operator for Google Compute Engine operators to inherit from."""
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -111,7 +109,6 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_start_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -186,7 +183,6 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_stop_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -274,7 +270,6 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_set_machine_type_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -437,7 +432,6 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_template_copy_operator_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -574,7 +568,6 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
     )
     # [END gce_igm_update_template_operator_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,

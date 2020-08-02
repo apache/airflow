@@ -21,7 +21,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.providers.odbc.hooks.odbc import OdbcHook
-from airflow.utils.decorators import apply_defaults
 
 
 class MsSqlOperator(BaseOperator):
@@ -51,7 +50,6 @@ class MsSqlOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,

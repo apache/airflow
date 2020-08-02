@@ -35,7 +35,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class CassandraToGCSOperator(BaseOperator):
@@ -97,7 +96,6 @@ class CassandraToGCSOperator(BaseOperator):
     template_ext = ('.cql',)
     ui_color = '#a0e08c'
 
-    @apply_defaults
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments

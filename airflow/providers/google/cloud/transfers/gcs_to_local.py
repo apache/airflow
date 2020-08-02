@@ -82,7 +82,6 @@ class GCSToLocalFilesystemOperator(BaseOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,

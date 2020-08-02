@@ -21,7 +21,6 @@ from subprocess import PIPE, STDOUT, Popen
 from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
 
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class BashSensor(BaseSensorOperator):
@@ -44,7 +43,6 @@ class BashSensor(BaseSensorOperator):
 
     template_fields = ('bash_command', 'env')
 
-    @apply_defaults
     def __init__(self, *, bash_command, env=None, output_encoding='utf-8', **kwargs):
         super().__init__(**kwargs)
         self.bash_command = bash_command

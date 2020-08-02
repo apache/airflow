@@ -28,7 +28,6 @@ import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class BaseSQLToGCSOperator(BaseOperator):
@@ -99,7 +98,6 @@ class BaseSQLToGCSOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
-    @apply_defaults
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments

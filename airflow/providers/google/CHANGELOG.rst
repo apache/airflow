@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Change in ``AutoMLPredictOperator``
+```````````````````````````````````
+
+The ``params`` parameter in :class:`~airflow.providers.google.cloud.operators.automl.AutoMLPredictOperator` class
+was renamed ``operation_params`` because it conflicted with a ``param`` parameter in the ``BaseOperator`` class.
+
 2.1.0
 .....
 

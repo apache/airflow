@@ -21,7 +21,6 @@ from typing import Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SQSSensor(BaseSensorOperator):
@@ -42,7 +41,6 @@ class SQSSensor(BaseSensorOperator):
 
     template_fields = ('sqs_queue', 'max_messages')
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -23,7 +23,6 @@ from azure.batch import models as batch_models
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_batch import AzureBatchHook
-from airflow.utils.decorators import apply_defaults
 
 
 # pylint: disable=too-many-instance-attributes
@@ -132,7 +131,6 @@ class AzureBatchOperator(BaseOperator):
     )
     ui_color = '#f0f0e4'
 
-    @apply_defaults
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments,too-many-locals

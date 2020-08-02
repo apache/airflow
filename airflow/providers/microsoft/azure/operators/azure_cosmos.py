@@ -18,7 +18,6 @@
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_cosmos import AzureCosmosDBHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AzureCosmosInsertDocumentOperator(BaseOperator):
@@ -39,7 +38,6 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
     template_fields = ('database_name', 'collection_name')
     ui_color = '#e4f0e8'
 
-    @apply_defaults
     def __init__(
         self,
         *,

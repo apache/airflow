@@ -30,7 +30,7 @@ from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
-from airflow.utils.decorators import apply_defaults
+
 
 MetaData = Sequence[Tuple[str, str]]
 
@@ -84,7 +84,6 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -193,7 +192,6 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -282,7 +280,6 @@ class CloudTasksQueueGetOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -367,7 +364,6 @@ class CloudTasksQueuesListOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -451,7 +447,6 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -533,7 +528,6 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -616,7 +610,6 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -699,7 +692,6 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -793,7 +785,6 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -891,7 +882,6 @@ class CloudTasksTaskGetOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -986,7 +976,6 @@ class CloudTasksTasksListOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1076,7 +1065,6 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1167,7 +1155,6 @@ class CloudTasksTaskRunOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

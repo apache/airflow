@@ -19,7 +19,6 @@ from typing import Callable, Dict, Optional, TypeVar
 
 from airflow.decorators.base import BaseDecoratedOperator, task_decorator_factory
 from airflow.exceptions import AirflowException
-from airflow.utils.decorators import apply_defaults
 
 PYTHON_OPERATOR_UI_COLOR = '#ffefeb'
 
@@ -51,7 +50,6 @@ class _PythonDecoratedOperator(BaseDecoratedOperator):
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs = ('python_callable',)
 
-    @apply_defaults
     def __init__(
         self,
         **kwargs,
