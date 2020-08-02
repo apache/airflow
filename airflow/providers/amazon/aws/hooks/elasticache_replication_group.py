@@ -155,7 +155,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
                 num_tries += 1
 
                 # No point in sleeping if all tries have exhausted
-                if not num_tries <= max_retries:
+                if num_tries > max_retries:
                     break
 
                 self.log.info('Poke retry %s. Sleep time %s seconds. Sleeping...', num_tries, sleep_time)
@@ -239,7 +239,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
                 num_tries += 1
 
                 # No point in sleeping if all tries have exhausted
-                if not num_tries <= max_retries:
+                if num_tries > max_retries:
                     break
 
                 self.log.info('Poke retry %s. Sleep time %s seconds. Sleeping...', num_tries, sleep_time)
