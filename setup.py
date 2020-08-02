@@ -325,6 +325,7 @@ pagerduty = [
 papermill = [
     'papermill[all]>=1.0.0',
     'nteract-scrapbook[all]>=0.2.1',
+    'pyarrow<1.0.0'
 ]
 password = [
     'bcrypt>=2.0.0',
