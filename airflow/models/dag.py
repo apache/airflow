@@ -48,6 +48,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
@@ -692,6 +693,7 @@ class DAG(BaseDag, LoggingMixin):
                 callback(context)
             except Exception:
                 self.log.exception("failed to invoke dag state update callback")
+                Stats.incr("dag.callback_exceptions")
 
     def get_active_runs(self):
         """

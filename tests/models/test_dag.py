@@ -1089,12 +1089,13 @@ class TestDag(unittest.TestCase):
         dag.clear()
         self._clean_up(dag_id)
 
-    def test_dag_handle_callback_crash(self):
+    @patch('airflow.models.dag.Stats')
+    def test_dag_handle_callback_crash(self, mock_stats):
         """
         Tests avoid crashes from calling dag callbacks exceptions
         """
         dag_id = "test_dag_callback_crash"
-        mock_callback_with_exception = mock.MagicMock
+        mock_callback_with_exception = mock.MagicMock()
         mock_callback_with_exception.side_effect = Exception
         dag = DAG(
             dag_id=dag_id,
@@ -1111,6 +1112,9 @@ class TestDag(unittest.TestCase):
         # should not rause any exception
         dag.handle_callback(dag_run, success=False)
         dag.handle_callback(dag_run, success=True)
+
+        mock_stats.incr.assert_called_with("dag.callback_exceptions")
+
         dag.clear()
         self._clean_up(dag_id)
 
