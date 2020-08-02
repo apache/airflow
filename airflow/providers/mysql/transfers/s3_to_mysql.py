@@ -16,7 +16,7 @@
 # under the License.
 
 import os
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook

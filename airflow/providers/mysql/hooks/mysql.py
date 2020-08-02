@@ -19,9 +19,8 @@
 """
 This module allows to connect to a MySQL database.
 """
-from typing import Any, Dict, Tuple
-
 import json
+from typing import Any, Dict, Tuple
 
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.models import Connection

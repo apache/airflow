@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Optional
 from contextlib import closing
 from tempfile import NamedTemporaryFile
+from typing import Dict, Optional
 
 import MySQLdb
 import unicodecsv as csv
@@ -82,8 +82,8 @@ class VerticaToMySqlOperator(BaseOperator):
             mysql_table: str,
             vertica_conn_id: str = 'vertica_default',
             mysql_conn_id: str = 'mysql_default',
-            mysql_preoperator: Optional[str] = None,
-            mysql_postoperator: Optional[str] = None,
+            mysql_preoperator: str = None,
+            mysql_postoperator: str = None,
             bulk_load: bool = False,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
