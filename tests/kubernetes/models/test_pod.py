@@ -123,6 +123,7 @@ class TestPod(unittest.TestCase):
                                                         'readOnly': True,
                                                         'subPath': '/'}]}],
                       'hostNetwork': False,
+                      'securityContext': {},
                       'tolerations': [],
                       'volumes': [{'name': 'foo'}]}}
         self.maxDiff = None
