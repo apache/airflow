@@ -180,7 +180,7 @@ class TestPodLauncherHelper(unittest.TestCase):
                 containers=[
                     k8s.V1Container(
                         name="base",
-                        command="foo",
+                        command=["foo"],
                         image="myimage",
                         ports=[
                             k8s.V1ContainerPort(
@@ -208,7 +208,7 @@ class TestPodLauncherHelper(unittest.TestCase):
             name="foo",
             namespace="bar",
             envs={},
-            cmds=[],
+            cmds=["foo"],
             image="myimage",
             ports=[
                 Port(name="myport", container_port=8080)
