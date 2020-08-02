@@ -96,7 +96,7 @@ class VerticaToMySqlOperator(BaseOperator):
         self.vertica_conn_id = vertica_conn_id
         self.bulk_load = bulk_load
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context):
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 
