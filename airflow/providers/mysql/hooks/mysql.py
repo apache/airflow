@@ -184,7 +184,7 @@ class MySqlHook(DbApiHook):
         conn.commit()
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: Connection) -> object:  # pylint: disable=signature-differs
+    def _serialize_cell(cell: object, conn: Connection = None) -> object:  # pylint: disable=signature-differs
         """
         MySQLdb converts an argument to a literal
         when passing those separately to execute. Hence, this method does nothing.
