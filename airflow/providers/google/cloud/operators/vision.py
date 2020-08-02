@@ -33,7 +33,6 @@ from google.cloud.vision_v1.types import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
-from airflow.utils.decorators import apply_defaults
 
 MetaData = Sequence[Tuple[str, str]]
 
@@ -92,7 +91,6 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
     )
     # [END vision_productset_create_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -189,7 +187,6 @@ class CloudVisionGetProductSetOperator(BaseOperator):
     )
     # [END vision_productset_get_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -295,7 +292,6 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
     )
     # [END vision_productset_update_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -390,7 +386,6 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
     )
     # [END vision_productset_delete_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -489,7 +484,6 @@ class CloudVisionCreateProductOperator(BaseOperator):
     )
     # [END vision_product_create_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -589,7 +583,6 @@ class CloudVisionGetProductOperator(BaseOperator):
     )
     # [END vision_product_get_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -706,7 +699,6 @@ class CloudVisionUpdateProductOperator(BaseOperator):
     )
     # [END vision_product_update_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -806,7 +798,6 @@ class CloudVisionDeleteProductOperator(BaseOperator):
     )
     # [END vision_product_delete_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -886,7 +877,6 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
     )
     # [END vision_annotate_image_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -980,7 +970,6 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
     )
     # [END vision_reference_image_create_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1086,7 +1075,6 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
     )
     # [END vision_reference_image_create_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1185,7 +1173,6 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
     )
     # [END vision_add_product_to_product_set_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1278,7 +1265,6 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
     )
     # [END vision_remove_product_from_product_set_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -26,7 +26,6 @@ import cx_Oracle
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
-from airflow.utils.decorators import apply_defaults
 
 
 class OracleToGCSOperator(BaseSQLToGCSOperator):
@@ -59,7 +58,6 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
         cx_Oracle.DB_TYPE_TIMESTAMP_TZ: 'TIMESTAMP',
     }
 
-    @apply_defaults
     def __init__(self, *, oracle_conn_id='oracle_default', ensure_utc=False, **kwargs):
         super().__init__(**kwargs)
         self.ensure_utc = ensure_utc

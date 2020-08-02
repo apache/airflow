@@ -25,7 +25,6 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
 from airflow.providers.oracle.hooks.oracle import OracleHook
-from airflow.utils.decorators import apply_defaults
 
 
 class OracleToAzureDataLakeOperator(BaseOperator):
@@ -61,7 +60,6 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     ui_color = '#e08c8c'
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -21,7 +21,6 @@ from typing import Dict, Iterable, Union
 from airflow.exceptions import AirflowException
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
 
 
 class BranchDateTimeOperator(BaseBranchOperator):
@@ -48,7 +47,6 @@ class BranchDateTimeOperator(BaseBranchOperator):
     :type use_task_execution_date: bool
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

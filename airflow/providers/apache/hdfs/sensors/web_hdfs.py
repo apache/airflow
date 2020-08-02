@@ -18,7 +18,6 @@
 from typing import Any, Dict
 
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class WebHdfsSensor(BaseSensorOperator):
@@ -26,7 +25,6 @@ class WebHdfsSensor(BaseSensorOperator):
 
     template_fields = ('filepath',)
 
-    @apply_defaults
     def __init__(self, *, filepath: str, webhdfs_conn_id: str = 'webhdfs_default', **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.filepath = filepath

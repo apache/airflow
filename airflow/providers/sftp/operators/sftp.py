@@ -23,7 +23,6 @@ from typing import Any
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SFTPOperation:
@@ -81,7 +80,6 @@ class SFTPOperator(BaseOperator):
 
     template_fields = ('local_filepath', 'remote_filepath', 'remote_host')
 
-    @apply_defaults
     def __init__(
         self,
         *,

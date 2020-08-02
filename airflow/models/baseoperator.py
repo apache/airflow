@@ -65,7 +65,7 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
+from airflow.utils.decorators import _apply_defaults
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -84,6 +84,11 @@ TaskStateChangeCallback = Callable[[Context], None]
 
 class BaseOperatorMeta(abc.ABCMeta):
     """Base metaclass of BaseOperator."""
+
+    def __new__(cls, name, bases, namespace):
+        new_cls = super().__new__(cls, name, bases, namespace)
+        new_cls.__init__ = _apply_defaults(new_cls.__init__)
+        return new_cls
 
     def __call__(cls, *args, **kwargs):
         """
@@ -362,7 +367,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     _lock_for_execution = False
 
     # pylint: disable=too-many-arguments,too-many-locals, too-many-statements
-    @apply_defaults
     def __init__(
         self,
         task_id: str,

@@ -21,7 +21,6 @@ from typing import Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class StepFunctionExecutionSensor(BaseSensorOperator):
@@ -51,7 +50,6 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
     template_ext = ()
     ui_color = '#66c3ff'
 
-    @apply_defaults
     def __init__(
         self,
         *,

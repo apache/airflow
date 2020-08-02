@@ -19,7 +19,6 @@ from typing import Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
-from airflow.utils.decorators import apply_defaults
 
 
 class OracleOperator(BaseOperator):
@@ -45,7 +44,6 @@ class OracleOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -81,7 +81,7 @@ class TestMovingCoreToContrib(TestCase):
                 klass = old_module_class()
                 if isinstance(klass, BaseOperator):
                     # In case of operators we are validating that proper stacklevel
-                    # is used (=3 or =4 if @apply_defaults)
+                    # is used (=3)
                     assert len(warnings) >= 1
                     assert any(warning.filename == __file__ for warning in warnings)
                 init_mock.assert_called_once()

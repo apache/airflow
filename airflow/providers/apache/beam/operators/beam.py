@@ -29,7 +29,6 @@ from airflow.providers.google.cloud.hooks.dataflow import (
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.version import version
 
@@ -168,7 +167,6 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
     template_fields = ["py_file", "runner", "pipeline_options", "default_pipeline_options", "dataflow_config"]
     template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -339,7 +337,6 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
     template_fields_renderers = {'dataflow_config': 'json', 'pipeline_options': 'json'}
     ui_color = "#0273d4"
 
-    @apply_defaults
     def __init__(
         self,
         *,

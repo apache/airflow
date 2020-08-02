@@ -24,7 +24,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 # pylint: disable=too-many-instance-attributes
@@ -174,7 +173,6 @@ class GCSToBigQueryOperator(BaseOperator):
     ui_color = '#f0eee4'
 
     # pylint: disable=too-many-locals,too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

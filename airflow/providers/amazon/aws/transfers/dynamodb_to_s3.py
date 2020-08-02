@@ -31,7 +31,6 @@ from uuid import uuid4
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.decorators import apply_defaults
 
 
 def _convert_item_to_json_bytes(item: Dict[str, Any]) -> bytes:
@@ -97,7 +96,6 @@ class DynamoDBToS3Operator(BaseOperator):
     :type process_func: Callable[[Dict[str, Any]], bytes]
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

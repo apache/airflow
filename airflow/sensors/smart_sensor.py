@@ -31,7 +31,6 @@ from airflow.models import BaseOperator, SensorInstance, SkipMixin, TaskInstance
 from airflow.settings import LOGGING_CLASS_PATH
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.module_loading import import_string
@@ -311,7 +310,6 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
     ui_color = '#e6f1f2'
 
-    @apply_defaults
     def __init__(
         self,
         poke_interval=180,

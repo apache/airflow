@@ -17,7 +17,6 @@
 # under the License.
 
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class DummyOperator(BaseOperator):
@@ -31,7 +30,6 @@ class DummyOperator(BaseOperator):
     ui_color = '#e8f7e4'
     inherits_from_dummy_operator = True
 
-    @apply_defaults
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 

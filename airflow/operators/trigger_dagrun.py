@@ -25,7 +25,6 @@ from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -79,7 +78,6 @@ class TriggerDagRunOperator(BaseOperator):
         """Return operator extra links"""
         return [TriggerDagRunLink()]
 
-    @apply_defaults
     def __init__(
         self,
         *,

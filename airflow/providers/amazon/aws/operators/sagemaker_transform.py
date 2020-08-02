@@ -20,7 +20,6 @@ from typing import List, Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerTransformOperator(SageMakerBaseOperator):
@@ -62,7 +61,6 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     :type max_ingestion_time: int
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

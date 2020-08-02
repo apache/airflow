@@ -20,7 +20,6 @@ from typing import Any, Dict, Optional
 
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SlackWebhookOperator(SimpleHttpOperator):
@@ -71,7 +70,6 @@ class SlackWebhookOperator(SimpleHttpOperator):
     ]
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

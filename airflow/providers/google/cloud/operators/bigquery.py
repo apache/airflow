@@ -37,7 +37,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
-from airflow.utils.decorators import apply_defaults
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
 
@@ -166,7 +165,6 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     template_ext = ('.sql',)
     ui_color = BigQueryUIColors.CHECK.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -236,7 +234,6 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
     template_ext = ('.sql',)
     ui_color = BigQueryUIColors.CHECK.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -321,7 +318,6 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
     )
     ui_color = BigQueryUIColors.CHECK.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -429,7 +425,6 @@ class BigQueryGetDataOperator(BaseOperator):
     )
     ui_color = BigQueryUIColors.QUERY.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -610,7 +605,6 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         return (BigQueryConsoleIndexableLink(i) for i, _ in enumerate(self.sql))
 
     # pylint: disable=too-many-arguments, too-many-locals
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -889,7 +883,6 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     ui_color = BigQueryUIColors.TABLE.value
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1089,7 +1082,6 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     ui_color = BigQueryUIColors.TABLE.value
 
     # pylint: disable=too-many-arguments,too-many-locals
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1282,7 +1274,6 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     )
     ui_color = BigQueryUIColors.DATASET.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1386,7 +1377,6 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     template_fields_renderers = {"dataset_reference": "json"}
     ui_color = BigQueryUIColors.DATASET.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1484,7 +1474,6 @@ class BigQueryGetDatasetOperator(BaseOperator):
     )
     ui_color = BigQueryUIColors.DATASET.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1555,7 +1544,6 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
     )
     ui_color = BigQueryUIColors.DATASET.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1635,7 +1623,6 @@ class BigQueryPatchDatasetOperator(BaseOperator):
     template_fields_renderers = {"dataset_resource": "json"}
     ui_color = BigQueryUIColors.DATASET.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1728,7 +1715,6 @@ class BigQueryUpdateTableOperator(BaseOperator):
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1819,7 +1805,6 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
     template_fields_renderers = {"dataset_resource": "json"}
     ui_color = BigQueryUIColors.DATASET.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1901,7 +1886,6 @@ class BigQueryDeleteTableOperator(BaseOperator):
     )
     ui_color = BigQueryUIColors.TABLE.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1991,7 +1975,6 @@ class BigQueryUpsertTableOperator(BaseOperator):
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2111,7 +2094,6 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
     template_fields_renderers = {"schema_fields_updates": "json"}
     ui_color = BigQueryUIColors.TABLE.value
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2221,7 +2203,6 @@ class BigQueryInsertJobOperator(BaseOperator):
     template_fields_renderers = {"configuration": "json"}
     ui_color = BigQueryUIColors.QUERY.value
 
-    @apply_defaults
     def __init__(
         self,
         configuration: Dict[str, Any],

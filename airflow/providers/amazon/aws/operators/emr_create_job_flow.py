@@ -21,7 +21,6 @@ from typing import Any, Dict, Optional, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.utils.decorators import apply_defaults
 
 
 class EmrCreateJobFlowOperator(BaseOperator):
@@ -46,7 +45,6 @@ class EmrCreateJobFlowOperator(BaseOperator):
     template_fields_renderers = {"job_flow_overrides": "json"}
     ui_color = '#f9c915'
 
-    @apply_defaults
     def __init__(
         self,
         *,

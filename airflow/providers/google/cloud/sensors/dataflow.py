@@ -25,7 +25,6 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowJobStatus,
 )
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class DataflowJobStatusSensor(BaseSensorOperator):
@@ -68,7 +67,6 @@ class DataflowJobStatusSensor(BaseSensorOperator):
 
     template_fields = ['job_id']
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -163,7 +161,6 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
 
     template_fields = ['job_id']
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -257,7 +254,6 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
 
     template_fields = ['job_id']
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -351,7 +347,6 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
 
     template_fields = ['job_id']
 
-    @apply_defaults
     def __init__(
         self,
         *,

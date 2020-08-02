@@ -21,7 +21,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class EC2StopInstanceOperator(BaseOperator):
@@ -43,7 +42,6 @@ class EC2StopInstanceOperator(BaseOperator):
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 
-    @apply_defaults
     def __init__(
         self,
         *,

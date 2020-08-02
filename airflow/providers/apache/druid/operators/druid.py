@@ -20,7 +20,6 @@ from typing import Any, Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
-from airflow.utils.decorators import apply_defaults
 
 
 class DruidOperator(BaseOperator):
@@ -37,7 +36,6 @@ class DruidOperator(BaseOperator):
     template_fields = ('json_index_file',)
     template_ext = ('.json',)
 
-    @apply_defaults
     def __init__(
         self,
         *,

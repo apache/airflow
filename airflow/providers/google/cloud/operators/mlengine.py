@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
-from airflow.utils.decorators import apply_defaults
 
 log = logging.getLogger(__name__)
 
@@ -177,7 +176,6 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,  # pylint: disable=too-many-arguments
         *,
@@ -341,7 +339,6 @@ class MLEngineManageModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -422,7 +419,6 @@ class MLEngineCreateModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -488,7 +484,6 @@ class MLEngineGetModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -558,7 +553,6 @@ class MLEngineDeleteModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -662,7 +656,6 @@ class MLEngineManageVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -766,7 +759,6 @@ class MLEngineCreateVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -850,7 +842,6 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -931,7 +922,6 @@ class MLEngineListVersionsOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1011,7 +1001,6 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1167,7 +1156,6 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
     operator_extra_links = (AIPlatformConsoleLink(),)
 
-    @apply_defaults
     def __init__(
         self,  # pylint: disable=too-many-arguments
         *,
@@ -1352,7 +1340,6 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
