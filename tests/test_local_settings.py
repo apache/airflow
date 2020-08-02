@@ -91,6 +91,15 @@ def pod_mutation_hook(pod):
             }
         }
     )
+
+    if 'fsGroup' in pod.security_context and pod.security_context['fsGroup'] == 0 :
+        del pod.security_context['fsGroup']
+    if 'runAsUser' in pod.security_context and pod.security_context['runAsUser'] == 0 :
+        del pod.security_context['runAsUser']
+
+    if pod.args and pod.args[0] == "/bin/sh":
+        pod.args = ['/bin/sh', '-c', 'touch /tmp/healthy2']
+
 """
 
 SETTINGS_FILE_POD_MUTATION_HOOK_V1_POD = """
@@ -244,6 +253,7 @@ class LocalSettingsTest(unittest.TestCase):
                 namespace="baz",
                 image_pull_policy="Never",
                 cmds=["foo"],
+                args=["/bin/sh", "-c", "touch /tmp/healthy"],
                 tolerations=[
                     {'effect': 'NoSchedule',
                      'key': 'static-pods',
@@ -263,7 +273,7 @@ class LocalSettingsTest(unittest.TestCase):
                  'kind': 'Pod',
                  'metadata': {'name': mock.ANY,
                               'namespace': 'baz'},
-                 'spec': {'containers': [{'args': [],
+                 'spec': {'containers': [{'args': ['/bin/sh', '-c', 'touch /tmp/healthy'],
                                           'command': ['foo'],
                                           'env': [],
                                           'envFrom': [],
@@ -297,8 +307,8 @@ class LocalSettingsTest(unittest.TestCase):
                      'nodeSelectorTerms': [{'matchExpressions': [{'key': 'test/dynamic-pods',
                                                                   'operator': 'In',
                                                                   'values': ['true']}]}]}}},
-                          'containers': [{'args': [],
-                                          'command': [],
+                          'containers': [{'args': ['/bin/sh', '-c', 'touch /tmp/healthy2'],
+                                          'command': ['foo'],
                                           'env': [{'name': 'TEST_USER', 'value': 'ADMIN'}],
                                           'image': 'my_image',
                                           'imagePullPolicy': 'Never',
@@ -320,6 +330,7 @@ class LocalSettingsTest(unittest.TestCase):
                                                             'name': 'airflow-secrets-mount',
                                                             'readOnly': True}]}],
                           'hostNetwork': False,
+                          'securityContext': {},
                           'tolerations': [{'effect': 'NoSchedule',
                                            'key': 'static-pods',
                                            'operator': 'Equal',

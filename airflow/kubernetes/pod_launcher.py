@@ -292,15 +292,18 @@ def _convert_to_airflow_pod(pod):
     dummy_pod = Pod(
         image=base_container.image,
         envs=_extract_env_vars(base_container.env),
+        cmds=base_container.command,
+        args=base_container.args,
+        labels=pod.metadata.labels,
+        node_selectors=pod.spec.node_selector,
+        name=pod.metadata.name,
+        ports=_extract_ports(base_container.ports),
         volumes=_extract_volumes(pod.spec.volumes),
         volume_mounts=_extract_volume_mounts(base_container.volume_mounts),
-        labels=pod.metadata.labels,
-        name=pod.metadata.name,
         namespace=pod.metadata.namespace,
         image_pull_policy=base_container.image_pull_policy or 'IfNotPresent',
-        cmds=[],
-        ports=_extract_ports(base_container.ports),
         tolerations=pod.spec.tolerations,
-        affinity=pod.spec.affinity
+        affinity=pod.spec.affinity,
+        security_context=pod.spec.security_context
     )
     return dummy_pod

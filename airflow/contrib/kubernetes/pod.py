@@ -126,7 +126,7 @@ class Pod(object):
         self.affinity = affinity or {}
         self.hostnetwork = hostnetwork or False
         self.tolerations = tolerations or []
-        self.security_context = security_context
+        self.security_context = security_context or {}
         self.configmaps = configmaps or []
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
         self.dnspolicy = dnspolicy
@@ -196,7 +196,7 @@ def _extract_env_vars(env_vars):
     env_vars = env_vars or []  # type: List[Union[k8s.V1EnvVar, dict]]
     for env_var in env_vars:
         if isinstance(env_var, k8s.V1EnvVar):
-            env_var.to_dict()
+            env_var = env_var.to_dict()
         result[env_var.get("name")] = env_var.get("value")
     return result
 
@@ -208,7 +208,7 @@ def _extract_ports(ports):
         if isinstance(port, k8s.V1ContainerPort):
             port = port.to_dict()
             port = Port(name=port.get("name"), container_port=port.get("container_port"))
-        if not isinstance(port, Port):
+        elif not isinstance(port, Port):
             port = Port(name=port.get("name"), container_port=port.get("containerPort"))
         result.append(port)
     return result
