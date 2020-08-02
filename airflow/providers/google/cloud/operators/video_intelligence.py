@@ -78,10 +78,9 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.input_uri = input_uri
         self.input_content = input_content
         self.output_uri = output_uri
@@ -157,10 +156,9 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.input_uri = input_uri
         self.output_uri = output_uri
         self.input_content = input_content
@@ -236,10 +234,9 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.input_uri = input_uri
         self.output_uri = output_uri
         self.input_content = input_content

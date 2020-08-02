@@ -66,9 +66,8 @@ class SSHOperator(BaseOperator):
                  timeout=10,
                  environment=None,
                  get_pty=False,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.ssh_hook = ssh_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host

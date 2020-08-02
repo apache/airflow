@@ -51,8 +51,8 @@ class StepFunctionStartExecutionOperator(BaseOperator):
     def __init__(self, state_machine_arn: str, name: Optional[str] = None,
                  state_machine_input: Union[dict, str, None] = None,
                  aws_conn_id='aws_default', region_name=None,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+                 **kwargs):
+        super().__init__(**kwargs)
         self.state_machine_arn = state_machine_arn
         self.name = name
         self.input = state_machine_input

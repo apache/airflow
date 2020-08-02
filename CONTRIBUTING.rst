@@ -94,7 +94,7 @@ If you create pull-request, you don't have to create an issue first, but if you 
 Creating an issue will allow you to collect feedback or share plans with other people.
 
 For example, you want to have the following sample ticket assigned to you:
-`#7782: Add extra CC: to the emails sent by Aiflow <https://github.com/apache/airflow/issues/7782>`_.
+`#7782: Add extra CC: to the emails sent by Airflow <https://github.com/apache/airflow/issues/7782>`_.
 
 In general, your contribution includes the following stages:
 
@@ -117,8 +117,8 @@ In general, your contribution includes the following stages:
 
 5. Ping @ #development slack, comment @people. Be annoying. Be considerate.
 
-Step 1: Fork the Apache Repo
-----------------------------
+Step 1: Fork the Apache Airflow Repo
+------------------------------------
 From the `apache/airflow <https://github.com/apache/airflow>`_ repo,
 `create a fork <https://help.github.com/en/github/getting-started-with-github/fork-a-repo>`_:
 
@@ -177,7 +177,7 @@ For effective collaboration, make sure to join the following Airflow groups:
 
 - `Issues on GitHub <https://github.com/apache/airflow/issues>`__
 
-- `Slack (chat) <https://apache-airflow-slack.herokuapp.com/>`__
+- `Slack (chat) <https://s.apache.org/airflow-slack>`__
 
 Step 4: Prepare PR
 ------------------
@@ -188,7 +188,7 @@ Step 4: Prepare PR
 
    * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
 
-   * Find the class you should modify. For the example ticket,
+   * Find the class you should modify. For the example github issue,
      this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
 
    * Find the test class where you should add tests. For the example ticket,
@@ -196,7 +196,7 @@ Step 4: Prepare PR
 
    * Create a local branch for your development. Make sure to use latest
      ``apache/master`` as base for the branch. See `How to Rebase PR <#how-to-rebase-pr>`_ for some details
-     on setting up the ``apache`` remote. Note - some people develop their changes directy in their own
+     on setting up the ``apache`` remote. Note, some people develop their changes directly in their own
      ``master`` branches - this is OK and you can make PR from your master to ``apache/master`` but we
      recommend to always create a local branch for your development. This allows you to easily compare
      changes, have several changes that you work on at the same time and many more.
@@ -219,7 +219,7 @@ Step 4: Prepare PR
 
 2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
    if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to
-   review/fix. This will make rebase process much easier and less painful - and the more often you do it,
+   review/fix. This will make rebase process much easier and less painful and the more often you do it,
    the more comfortable you will feel doing it.
 
 3. Re-run static code checks again.
@@ -577,8 +577,8 @@ snowflake                  slack
 Documentation
 =============
 
-The latest API documentation is usually available
-`here <https://airflow.apache.org/docs/>`__.
+The latest API documentation (for the master branch) is usually available
+`here <https://airflow.readthedocs.io/en/latest/>`__.
 
 To generate a local version:
 
@@ -607,11 +607,12 @@ To generate a local version:
 If you are creating a new directory for new integration in the ``airflow.providers`` package,
 you should also update the ``docs/autoapi_templates/index.rst`` file.
 
-If you are creating a ``hooks``, ``sensors``, ``operators`` directory in
+If you are creating new ``hooks``, ``sensors``, ``operators`` directory in
 the ``airflow.providers`` package, you should also update
 the ``docs/operators-and-hooks-ref.rst`` file.
 
-If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache license or copy another ``__init__.py`` file that contains the necessary license.
+If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache
+license or copy another ``__init__.py`` file that contains the necessary license.
 
 Static code checks
 ==================
@@ -664,27 +665,8 @@ If this function is designed to be called by "end-users" (i.e. DAG authors) then
       ...
       # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
 
-Test Infrastructure
-===================
-
-We support the following types of tests:
-
-* **Unit tests** are Python tests launched with ``pytest``.
-  Unit tests are available both in the `Breeze environment <BREEZE.rst>`_
-  and `local virtualenv <LOCAL_VIRTUALENV.rst>`_.
-
-* **Integration tests** are available in the Breeze development environment
-  that is also used for Airflow's CI tests. Integration test are special tests that require
-  additional services running, such as Postgres, Mysql, Kerberos, etc.
-
-* **System tests** are automatic tests that use external systems like
-  Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
-
-For details on running different types of Airflow tests, see `TESTING.rst <TESTING.rst>`_.
-
-
 Naming Conventions for provider packages
-========================================
+----------------------------------------
 
 In Airflow 2.0 we standardized and enforced naming for provider packages, modules and classes.
 those rules (introduced as AIP-21) were not only introduced but enforced using automated checks
@@ -712,18 +694,18 @@ The rules are as follows:
     * secrets -> secret backends are stored here
     * transfers -> transfer operators are stored here
 
-* Module names do not contain word "hooks" , "operators" etc. The right type comes from
+* Module names do not contain word "hooks", "operators" etc. The right type comes from
   the package. For example 'hooks.datastore' module contains DataStore hook and 'operators.datastore'
   contains DataStore operators.
 
 * Class names contain 'Operator', 'Hook', 'Sensor' - for example DataStoreHook, DataStoreExportOperator
 
-* Operator name usually follows the convention: <Subject><Action><Entity>Operator
+* Operator name usually follows the convention: ``<Subject><Action><Entity>Operator``
   (BigQueryExecuteQueryOperator) is a good example
 
 * Transfer Operators are those that actively push data from one service/provider and send it to another
   service (might be for the same or another provider). This usually involves two hooks. The convention
-  for those <Source>To<Destination>Operator. They are not named *TransferOperator nor *Transfer.
+  for those ``<Source>To<Destination>Operator``. They are not named *TransferOperator nor *Transfer.
 
 * Operators that use external service to perform transfer (for example CloudDataTransferService operators
   are not placed in "transfers" package and do not have to follow the naming convention for
@@ -737,13 +719,31 @@ The rules are as follows:
   * For Cloud Providers or Service providers that usually means that the transfer operators
     should land at the "target" side of the transfer
 
-* Secret Backend name follows the convention: <SecretEngine>Backend.
+* Secret Backend name follows the convention: ``<SecretEngine>Backend``.
 
-* Tests are grouped in parallel packages under "tests.providers" top level package.  Module name is usually
-  "test_<object_to_test>.py',
+* Tests are grouped in parallel packages under "tests.providers" top level package. Module name is usually
+  ``test_<object_to_test>.py``,
 
 * System tests (not yet fully automated but allowing to run e2e testing of particular provider) are
   named with _system.py suffix.
+
+Test Infrastructure
+===================
+
+We support the following types of tests:
+
+* **Unit tests** are Python tests launched with ``pytest``.
+  Unit tests are available both in the `Breeze environment <BREEZE.rst>`_
+  and `local virtualenv <LOCAL_VIRTUALENV.rst>`_.
+
+* **Integration tests** are available in the Breeze development environment
+  that is also used for Airflow's CI tests. Integration test are special tests that require
+  additional services running, such as Postgres, Mysql, Kerberos, etc.
+
+* **System tests** are automatic tests that use external systems like
+  Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
+
+For details on running different types of Airflow tests, see `TESTING.rst <TESTING.rst>`_.
 
 Metadata Database Updates
 =========================

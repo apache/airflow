@@ -72,10 +72,9 @@ class AutoMLTrainModelOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model = model
         self.location = location
@@ -149,10 +148,9 @@ class AutoMLPredictOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model_id = model_id
         self.params = params  # type: ignore
@@ -243,10 +241,9 @@ class AutoMLBatchPredictOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model_id = model_id
         self.location = location
@@ -320,10 +317,9 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.dataset = dataset
         self.location = location
@@ -397,10 +393,9 @@ class AutoMLImportDataOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.dataset_id = dataset_id
         self.input_config = input_config
@@ -491,10 +486,9 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.dataset_id = dataset_id
         self.table_spec_id = table_spec_id
         self.field_mask = field_mask
@@ -570,10 +564,9 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.dataset = dataset
         self.update_mask = update_mask
@@ -638,10 +631,9 @@ class AutoMLGetModelOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model_id = model_id
         self.location = location
@@ -705,10 +697,9 @@ class AutoMLDeleteModelOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model_id = model_id
         self.location = location
@@ -783,10 +774,9 @@ class AutoMLDeployModelOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.model_id = model_id
         self.image_detection_metadata = image_detection_metadata
@@ -864,10 +854,9 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.dataset_id = dataset_id
         self.filter_ = filter_
         self.page_size = page_size
@@ -933,10 +922,9 @@ class AutoMLListDatasetOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.project_id = project_id
         self.metadata = metadata
@@ -1005,10 +993,9 @@ class AutoMLDeleteDatasetOperator(BaseOperator):
         timeout: Optional[float] = None,
         retry: Optional[Retry] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.dataset_id = dataset_id
         self.location = location

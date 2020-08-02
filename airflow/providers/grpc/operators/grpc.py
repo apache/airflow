@@ -63,8 +63,8 @@ class GrpcOperator(BaseOperator):
                  streaming: bool = False,
                  response_callback: Optional[Callable] = None,
                  log_response: bool = False,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.stub_class = stub_class
         self.call_func = call_func
         self.grpc_conn_id = grpc_conn_id

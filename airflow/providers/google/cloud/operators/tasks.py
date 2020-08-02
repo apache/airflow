@@ -85,10 +85,9 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.task_queue = task_queue
         self.project_id = project_id
@@ -179,10 +178,9 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.task_queue = task_queue
         self.project_id = project_id
         self.location = location
@@ -245,10 +243,9 @@ class CloudTasksQueueGetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.queue_name = queue_name
         self.project_id = project_id
@@ -311,10 +308,9 @@ class CloudTasksQueuesListOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.project_id = project_id
         self.results_filter = results_filter
@@ -374,10 +370,9 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.queue_name = queue_name
         self.project_id = project_id
@@ -435,10 +430,9 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.queue_name = queue_name
         self.project_id = project_id
@@ -497,10 +491,9 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.queue_name = queue_name
         self.project_id = project_id
@@ -559,10 +552,9 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.queue_name = queue_name
         self.project_id = project_id
@@ -640,10 +632,9 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.queue_name = queue_name
         self.task = task
@@ -721,10 +712,9 @@ class CloudTasksTaskGetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.queue_name = queue_name
         self.task_name = task_name
@@ -795,10 +785,9 @@ class CloudTasksTasksListOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.queue_name = queue_name
         self.project_id = project_id
@@ -869,10 +858,9 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.queue_name = queue_name
         self.task_name = task_name
@@ -945,10 +933,9 @@ class CloudTasksTaskRunOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.queue_name = queue_name
         self.task_name = task_name

@@ -190,7 +190,7 @@ class QuboleOperator(BaseOperator):
         self.kwargs['qubole_conn_id'] = qubole_conn_id
         self.hook = None
         filtered_base_kwargs = self._get_filtered_args(kwargs)
-        super().__init__(*args, **filtered_base_kwargs)
+        super().__init__(**filtered_base_kwargs)
 
         if self.on_failure_callback is None:
             self.on_failure_callback = QuboleHook.handle_failure_retry

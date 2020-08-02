@@ -43,9 +43,9 @@ class RedisPublishOperator(BaseOperator):
             channel: str,
             message: str,
             redis_conn_id: str = 'redis_default',
-            *args, **kwargs) -> None:
+            **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.redis_conn_id = redis_conn_id
         self.channel = channel
         self.message = message

@@ -95,9 +95,9 @@ class S3FileTransformOperator(BaseOperator):
             dest_aws_conn_id: str = 'aws_default',
             dest_verify: Optional[Union[bool, str]] = None,
             replace: bool = False,
-            *args, **kwargs) -> None:
+            **kwargs) -> None:
         # pylint: disable=too-many-arguments
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id
         self.source_verify = source_verify

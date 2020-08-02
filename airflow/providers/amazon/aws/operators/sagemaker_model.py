@@ -39,9 +39,9 @@ class SageMakerModelOperator(SageMakerBaseOperator):
     @apply_defaults
     def __init__(self,
                  config,
-                 *args, **kwargs):
+                 **kwargs):
         super().__init__(config=config,
-                         *args, **kwargs)
+                         **kwargs)
 
         self.config = config
 

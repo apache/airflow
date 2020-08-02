@@ -56,12 +56,12 @@ class EmrAddStepsOperator(BaseOperator):
             cluster_states=None,
             aws_conn_id='aws_default',
             steps=None,
-            *args, **kwargs):
+            **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         if not (job_flow_id is None) ^ (job_flow_name is None):
             raise AirflowException('Exactly one of job_flow_id or job_flow_name must be specified.')
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         steps = steps or []
         self.aws_conn_id = aws_conn_id
         self.job_flow_id = job_flow_id
