@@ -54,11 +54,11 @@ class SegmentHook(BaseHook):
     """
     def __init__(
             self,
-            segment_conn_id='segment_default',
-            segment_debug_mode=False,
+            segment_conn_id: str = 'segment_default',
+            segment_debug_mode: bool = False,
             *args,
             **kwargs
-    ):
+    ) -> None:
         super().__init__()
         self.segment_conn_id = segment_conn_id
         self.segment_debug_mode = segment_debug_mode
@@ -72,7 +72,7 @@ class SegmentHook(BaseHook):
         if self.write_key is None:
             raise AirflowException('No Segment write key provided')
 
-    def get_conn(self):
+    def get_conn(self) -> analytics:
         self.log.info('Setting write key for Segment analytics connection')
         analytics.debug = self.segment_debug_mode
         if self.segment_debug_mode:
@@ -81,7 +81,7 @@ class SegmentHook(BaseHook):
         analytics.write_key = self.write_key
         return analytics
 
-    def on_error(self, error, items):
+    def on_error(self, error: str, items: str) -> None:
         """
         Handles error callbacks when using Segment with segment_debug_mode set to True
         """
