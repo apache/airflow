@@ -28,7 +28,10 @@ from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
-from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig, ReceivedMessage
+from google.cloud.pubsub_v1.types import (
+    DeadLetterPolicy, Duration, ExpirationPolicy, MessageStoragePolicy, PushConfig, ReceivedMessage,
+    RetryPolicy,
+)
 from googleapiclient.errors import HttpError
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -300,6 +303,11 @@ class PubSubHook(GoogleBaseHook):
         retain_acked_messages: Optional[bool] = None,
         message_retention_duration: Optional[Union[Dict, Duration]] = None,
         labels: Optional[Dict[str, str]] = None,
+        enable_message_ordering: bool = False,
+        expiration_policy: Optional[Union[Dict, ExpirationPolicy]] = None,
+        filter_: Optional[str] = None,
+        dead_letter_policy: Optional[Union[Dict, DeadLetterPolicy]] = None,
+        retry_policy: Optional[Union[Dict, RetryPolicy]] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -345,6 +353,32 @@ class PubSubHook(GoogleBaseHook):
         :param labels: Client-assigned labels; see
             https://cloud.google.com/pubsub/docs/labels
         :type labels: Dict[str, str]
+        :param enable_message_ordering: If true, messages published with the same
+            ordering_key in PubsubMessage will be delivered to the subscribers in the order
+            in which they are received by the Pub/Sub system. Otherwise, they may be
+            delivered in any order.
+        :type enable_message_ordering: bool
+        :param expiration_policy: A policy that specifies the conditions for this
+            subscription’s expiration. A subscription is considered active as long as any
+            connected subscriber is successfully consuming messages from the subscription or
+            is issuing operations on the subscription. If expiration_policy is not set,
+            a default policy with ttl of 31 days will be used. The minimum allowed value for
+            expiration_policy.ttl is 1 day.
+        :type expiration_policy: Union[Dict, google.cloud.pubsub_v1.types.ExpirationPolicy`]
+        :param filter_: An expression written in the Cloud Pub/Sub filter language. If
+            non-empty, then only PubsubMessages whose attributes field matches the filter are
+            delivered on this subscription. If empty, then no messages are filtered out.
+        :type filter_: str
+        :param dead_letter_policy: A policy that specifies the conditions for dead lettering
+            messages in this subscription. If dead_letter_policy is not set, dead lettering is
+            disabled.
+        :type dead_letter_policy: Union[Dict, google.cloud.pubsub_v1.types.DeadLetterPolicy]
+        :param retry_policy: A policy that specifies how Pub/Sub retries message delivery
+            for this subscription. If not set, the default retry policy is applied. This
+            generally implies that messages will be retried as soon as possible for healthy
+            subscribers. RetryPolicy will be triggered on NACKs or acknowledgement deadline
+            exceeded events for a given message.
+        :type retry_policy: Union[Dict, google.cloud.pubsub_v1.types.RetryPolicy]
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -383,6 +417,11 @@ class PubSubHook(GoogleBaseHook):
                 retain_acked_messages=retain_acked_messages,
                 message_retention_duration=message_retention_duration,
                 labels=labels,
+                enable_message_ordering=enable_message_ordering,
+                expiration_policy=expiration_policy,
+                filter_=filter_,
+                dead_letter_policy=dead_letter_policy,
+                retry_policy=retry_policy,
                 retry=retry,
                 timeout=timeout,
                 metadata=metadata,
