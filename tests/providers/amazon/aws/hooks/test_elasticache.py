@@ -20,17 +20,18 @@ from unittest import TestCase
 from unittest.mock import Mock
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.elasticache_replication_group import ElastiCacheReplicationGroupHook
 
 
 class TestElastiCacheHook(TestCase):
     """
     Test ElastiCacheHook
     """
-    replication_group_id = "test-elasticache-hook"
+    REPLICATION_GROUP_ID = "test-elasticache-hook"
 
-    replication_group_config = {
-        'ReplicationGroupId': replication_group_id,
-        'ReplicationGroupDescription': replication_group_id,
+    REPLICATION_GROUP_CONFIG = {
+        'ReplicationGroupId': REPLICATION_GROUP_ID,
+        'ReplicationGroupDescription': REPLICATION_GROUP_ID,
         'AutomaticFailoverEnabled': False,
         'NumCacheClusters': 1,
         'CacheNodeType': 'cache.m5.large',
@@ -39,9 +40,30 @@ class TestElastiCacheHook(TestCase):
         'CacheParameterGroupName': 'default.redis5.0'
     }
 
-    valid_status = ('creating', 'available', 'modifying', 'deleting', 'create - failed', 'snapshotting')
+    VALID_STATES = frozenset({
+        'creating', 'available', 'modifying', 'deleting', 'create - failed', 'snapshotting'
+    })
 
-    hook = Mock()
+    # Track calls to describe when deleting replication group
+    # First call will return status as `available` and we will initiate delete
+    # Second call with return status as `deleting`
+    # Subsequent call will raise ReplicationGroupNotFoundFault exception
+    describe_call_count_for_delete = 0
+
+    def setUp(self):
+        self.hook = ElastiCacheReplicationGroupHook()
+        setattr(self.hook, 'conn', Mock())
+
+        # We need this for every test
+        self.hook.conn.create_replication_group.return_value = {
+            "ReplicationGroup": {
+                "ReplicationGroupId": self.REPLICATION_GROUP_ID,
+                "Status": "creating"
+            }
+        }
+
+    def _create_replication_group(self):
+        return self.hook.create_replication_group(config=self.REPLICATION_GROUP_CONFIG)
 
     def test_get_conn_not_none(self):
         """
@@ -53,136 +75,283 @@ class TestElastiCacheHook(TestCase):
         """
         Test creation of replication group
         """
-        self.hook.create_replication_group.return_value = {
-            "ReplicationGroup": {
-                "ReplicationGroupId": self.replication_group_id,
-                "Status": "creating"
-            }
-        }
-        response = self.hook.create_replication_group(config=self.replication_group_config)
-
-        assert response["ReplicationGroup"]["ReplicationGroupId"] == self.replication_group_id
+        response = self._create_replication_group()
+        assert response["ReplicationGroup"]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
         assert response["ReplicationGroup"]["Status"] == "creating"
 
     def test_describe_replication_group(self):
         """
         Test describing replication group
         """
-        self.hook.describe_replication_group.return_value = {
+        self._create_replication_group()
+
+        self.hook.conn.describe_replication_groups.return_value = {
             "ReplicationGroups": [
                 {
-                    "ReplicationGroupId": self.replication_group_id
+                    "ReplicationGroupId": self.REPLICATION_GROUP_ID
                 }
             ]
         }
 
-        self.hook.create_replication_group(config=self.replication_group_config)
-        response = self.hook.describe_replication_group(replication_group_id=self.replication_group_id)
-
-        assert response["ReplicationGroups"][0]["ReplicationGroupId"] == self.replication_group_id
+        response = self.hook.describe_replication_group(replication_group_id=self.REPLICATION_GROUP_ID)
+        assert response["ReplicationGroups"][0]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
 
     def test_get_replication_group_status(self):
         """
         Test getting status of replication group
         """
-        self.hook.get_replication_group_status.return_value = 'creating'
-        self.hook.create_replication_group(config=self.replication_group_config)
-        response = self.hook.get_replication_group_status(replication_group_id=self.replication_group_id)
+        self._create_replication_group()
 
-        assert response in self.valid_status
+        self.hook.conn.describe_replication_groups.return_value = {
+            "ReplicationGroups": [
+                {
+                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
+                    "Status": "available"
+                }
+            ]
+        }
+
+        response = self.hook.get_replication_group_status(replication_group_id=self.REPLICATION_GROUP_ID)
+        assert response in self.VALID_STATES
 
     def test_is_replication_group_available(self):
         """
         Test checking availability of replication group
         """
-        self.hook.is_replication_group_available.return_value = False
-        self.hook.create_replication_group(config=self.replication_group_config)
-        response = self.hook.is_replication_group_available(replication_group_id=self.replication_group_id)
+        self._create_replication_group()
 
+        self.hook.conn.describe_replication_groups.return_value = {
+            "ReplicationGroups": [
+                {
+                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
+                    "Status": "available"
+                }
+            ]
+        }
+
+        response = self.hook.is_replication_group_available(replication_group_id=self.REPLICATION_GROUP_ID)
         assert response in (True, False)
 
-    def test_should_stop_poking(self):
+    def test_has_reached_terminal_state(self):
         """
-        Test if we should stop poking replication group for availability
+        Test if we replication group has reached a terminal state or not
         """
-        self.hook._has_reached_terminal_state.return_value = True, 'available'
-        self.hook.create_replication_group(config=self.replication_group_config)
-        stop_poking, status = self.hook._has_reached_terminal_state(self.replication_group_id)
+        self._create_replication_group()
 
-        assert stop_poking in (True, False)
-        assert status in self.valid_status
+        # Terminal state reached
+        self.hook.conn.describe_replication_groups.return_value = {
+            "ReplicationGroups": [
+                {
+                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
+                    "Status": "available"
+                }
+            ]
+        }
+
+        stop_poking, status = self.hook._has_reached_terminal_state(self.REPLICATION_GROUP_ID)
+        assert stop_poking is True
+        assert status in self.VALID_STATES
+
+        # Terminal state not reached
+        self.hook.conn.describe_replication_groups.return_value = {
+            "ReplicationGroups": [
+                {
+                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
+                    "Status": "modifying"
+                }
+            ]
+        }
+
+        stop_poking, status = self.hook._has_reached_terminal_state(self.REPLICATION_GROUP_ID)
+        assert stop_poking is False
+        assert status in self.VALID_STATES
 
     def test_wait_for_availability(self):
         """
         Test waiting for availability of replication group
         """
-        self.hook.wait_for_availability.return_value = True
-        self.hook.create_replication_group(config=self.replication_group_config)
-        response = self.hook.wait_for_availability(replication_group_id=self.replication_group_id)
+        self._create_replication_group()
 
-        assert response in (True, False)
+        # Test non availability
+        self.hook.conn.describe_replication_groups.return_value = {
+            "ReplicationGroups": [
+                {
+                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
+                    "Status": "creating"
+                }
+            ]
+        }
+
+        response = self.hook.wait_for_availability(
+            replication_group_id=self.REPLICATION_GROUP_ID,
+            max_retries=1,
+            initial_sleep_time=1,  # seconds
+        )
+        assert response is False
+
+        # Test availability
+        self.hook.conn.describe_replication_groups.return_value = {
+            "ReplicationGroups": [
+                {
+                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
+                    "Status": "available"
+                }
+            ]
+        }
+
+        response = self.hook.wait_for_availability(
+            replication_group_id=self.REPLICATION_GROUP_ID,
+            max_retries=1,
+            initial_sleep_time=1,  # seconds
+        )
+        assert response is True
 
     def test_delete_replication_group(self):
         """
         Test deletion of replication group
         """
-        self.hook.delete_replication_group.return_value = {
+        self._create_replication_group()
+
+        self.hook.conn.delete_replication_group.return_value = {
             "ReplicationGroup": {
-                "ReplicationGroupId": self.replication_group_id,
+                "ReplicationGroupId": self.REPLICATION_GROUP_ID,
                 "Status": "deleting"
             }
         }
-        self.hook.create_replication_group(config=self.replication_group_config)
-        self.hook.wait_for_availability(replication_group_id=self.replication_group_id)
-        response = self.hook.delete_replication_group(replication_group_id=self.replication_group_id)
 
-        assert response["ReplicationGroup"]["ReplicationGroupId"] == self.replication_group_id
+        # Wait for availability, can only delete when replication group is available
+        self.hook.conn.describe_replication_groups.return_value = {
+            "ReplicationGroups": [
+                {
+                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
+                    "Status": "available"
+                }
+            ]
+        }
+
+        response = self.hook.wait_for_availability(
+            replication_group_id=self.REPLICATION_GROUP_ID,
+            max_retries=1,
+            initial_sleep_time=1,  # seconds
+        )
+        assert response is True
+
+        response = self.hook.delete_replication_group(replication_group_id=self.REPLICATION_GROUP_ID)
+        assert response["ReplicationGroup"]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
         assert response["ReplicationGroup"]["Status"] == "deleting"
+
+    # noinspection PyUnusedLocal
+    def _mock_describe_side_effect(self, *args, **kwargs):
+        """
+        Mock describe calls to replication group for testing delete calls
+        """
+        # On first call replication group is in available state, this will allow to initiate a delete
+        # A replication group can only be deleted when it is in `available` state
+        if self.describe_call_count_for_delete == 0:
+            self.describe_call_count_for_delete = self.describe_call_count_for_delete + 1
+
+            return {
+                "ReplicationGroups": [
+                    {
+                        "ReplicationGroupId": self.REPLICATION_GROUP_ID,
+                        "Status": "available"
+                    }
+                ]
+            }
+
+        # On second call replication group is in deleting state
+        if self.describe_call_count_for_delete == 1:
+            self.describe_call_count_for_delete = self.describe_call_count_for_delete + 1
+
+            return {
+                "ReplicationGroups": [
+                    {
+                        "ReplicationGroupId": self.REPLICATION_GROUP_ID,
+                        "Status": "deleting"
+                    }
+                ]
+            }
+
+        # On further calls we will assume the replication group is deleted
+        class MockReplicationGroupNotFoundFault(BaseException):
+            pass
+
+        self.hook.conn.exceptions.ReplicationGroupNotFoundFault = MockReplicationGroupNotFoundFault
+
+        raise self.hook.conn.exceptions.ReplicationGroupNotFoundFault
 
     def test_wait_for_deletion(self):
         """
         Test waiting for deletion of replication group
         """
-        self.hook.wait_for_deletion.return_value = {
+        self.describe_call_count_for_delete = 0
+
+        self._create_replication_group()
+
+        self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect
+
+        self.hook.conn.delete_replication_group.return_value = {
             "ReplicationGroup": {
-                "ReplicationGroupId": self.replication_group_id
+                "ReplicationGroupId": self.REPLICATION_GROUP_ID
             }
-        }, True
-        self.hook.create_replication_group(config=self.replication_group_config)
-        response, deleted = self.hook.wait_for_deletion(replication_group_id=self.replication_group_id)
+        }
 
-        assert response["ReplicationGroup"]["ReplicationGroupId"] == self.replication_group_id
-        assert deleted in (True, False)
+        response, deleted = self.hook.wait_for_deletion(
+            replication_group_id=self.REPLICATION_GROUP_ID,
+            # Initial call - status is `available`
+            # 1st retry - status is `deleting`
+            # 2nd retry - Replication group is deleted
+            max_retries=2,
+            initial_sleep_time=1
+        )
+        assert response["ReplicationGroup"]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
+        assert deleted is True
 
-    def test_ensure_delete_replication_groups_success(self):
+    def test_ensure_delete_replication_group_success(self):
         """
         Test deletion of replication group with surety that it is deleted
         """
-        self.hook.ensure_delete_replication_group.return_value = {
+        self.describe_call_count_for_delete = 0
+
+        self._create_replication_group()
+
+        self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect
+
+        self.hook.conn.delete_replication_group.return_value = {
             "ReplicationGroup": {
-                "ReplicationGroupId": self.replication_group_id
+                "ReplicationGroupId": self.REPLICATION_GROUP_ID
             }
         }
-        self.hook.create_replication_group(config=self.replication_group_config)
 
-        with self.assertRaises(AirflowException):
-            response = self.hook.ensure_delete_replication_group(self.replication_group_id)
+        response = self.hook.ensure_delete_replication_group(
+            replication_group_id=self.REPLICATION_GROUP_ID,
+            initial_sleep_time=1,
+            max_retries=2
+        )
 
-            assert response["ReplicationGroup"]["ReplicationGroupId"] == self.replication_group_id
+        assert response["ReplicationGroup"]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
 
-    def test_ensure_delete_replication_groups_failure(self):
+    def test_ensure_delete_replication_group_failure(self):
         """
         Test failure case for deletion of replication group with surety that it is deleted
         """
-        self.hook.ensure_delete_replication_group.side_effect = AirflowException
-        self.hook.create_replication_group(config=self.replication_group_config)
+        self.describe_call_count_for_delete = 0
+
+        self._create_replication_group()
+
+        self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect
+
+        self.hook.conn.delete_replication_group.return_value = {
+            "ReplicationGroup": {
+                "ReplicationGroupId": self.REPLICATION_GROUP_ID
+            }
+        }
 
         with self.assertRaises(AirflowException):
-            # Try only 1 once with 5 sec buffer time. This will ensure that the `wait_for_deletion` loop
+            # Try only 1 once with 1 sec buffer time. This will ensure that the `wait_for_deletion` loop
             # breaks quickly before the group is deleted and we get the Airflow exception
             self.hook.ensure_delete_replication_group(
-                replication_group_id=self.replication_group_id,
-                initial_sleep_time=5,
-                exponential_back_off_factor=1,
+                replication_group_id=self.REPLICATION_GROUP_ID,
+                initial_sleep_time=1,
                 max_retries=1
             )
