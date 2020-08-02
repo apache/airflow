@@ -18,7 +18,6 @@
 #
 
 from distutils.util import strtobool
-from typing import Union
 
 import jenkins
 
