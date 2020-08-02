@@ -212,10 +212,21 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
             poke_interval=10,
             min_objects=1,
             allow_delete=False,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
             dag=self.dag
         )
 
         self.last_mocked_date = datetime(2019, 4, 24, 0, 0, 0)
+
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
+    def test_get_gcs_hook(self, mock_hook):
+        self.sensor._get_gcs_hook()
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+        )
+        self.assertEqual(mock_hook.return_value, self.sensor.hook)
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_files_deleted_between_pokes_throw_error(self):
