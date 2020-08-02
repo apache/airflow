@@ -19,6 +19,7 @@
 
 import inspect
 import os
+import warnings
 from copy import copy
 from functools import wraps
 from typing import Any, Callable, Dict, TypeVar, cast
@@ -30,7 +31,7 @@ signature = inspect.signature
 T = TypeVar('T', bound=Callable)  # pylint: disable=invalid-name
 
 
-def apply_defaults(func: T) -> T:
+def _apply_defaults(func: T) -> T:
     """
     Function decorator that Looks for an argument named "default_args", and
     fills the unspecified arguments from it.
@@ -94,7 +95,28 @@ def apply_defaults(func: T) -> T:
     return cast(T, wrapper)
 
 
+def apply_defaults(func: T) -> T:
+    """
+    This decorator is deprecated.
+
+    In previous versions, all subclasses of BaseOperator must use apply_default decorator for the"
+    `default_args` feature to work properly.
+
+    In current version, it is optional. The decorator is applied automatically using the metaclass.
+    """
+    warnings.warn(
+        "This decorator is deprecated. \n"
+        "\n"
+        "In previous versions, all subclasses of BaseOperator must use apply_default decorator for the"
+        "`default_args` feature to work properly.\n"
+        "\n"
+        "In current version, it is optional. The decorator is applied automatically using the metaclass.\n",
+        DeprecationWarning, stacklevel=3
+    )
+    return func
+
+
 if 'BUILDING_AIRFLOW_DOCS' in os.environ:
     # flake8: noqa: F811
     # Monkey patch hook to get good function headers while building docs
-    apply_defaults = lambda x: x
+    _apply_defaults = lambda x: x

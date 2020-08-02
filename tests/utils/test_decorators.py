@@ -19,18 +19,27 @@
 import unittest
 
 from airflow.exceptions import AirflowException
-from airflow.utils.decorators import apply_defaults
+from airflow.utils.decorators import _apply_defaults
 
 
-# Essentially similar to airflow.models.BaseOperator
-class DummyClass:
-    @apply_defaults
+# Essentially similar to airflow.models.baseoperator.BaseOperatorMetaClass
+class DummyMetaClass(type):
+    """
+    A metaclass that automatically decorates the constructor with apply_default for all child classes
+    """
+    def __new__(cls, name, bases, namespace):
+        new_cls = super().__new__(cls, name, bases, namespace)
+        new_cls.__init__ = _apply_defaults(new_cls.__init__)
+        return new_cls
+
+
+# Essentially similar to airflow.models.baseoperator.BaseOperator
+class DummyClass(metaclass=DummyMetaClass):
     def __init__(self, test_param, params=None, default_args=None):  # pylint: disable=unused-argument
         self.test_param = test_param
 
 
 class DummySubClass(DummyClass):
-    @apply_defaults
     def __init__(self, test_sub_param, **kwargs):
         super().__init__(**kwargs)
         self.test_sub_param = test_sub_param
