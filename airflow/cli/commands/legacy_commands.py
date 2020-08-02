@@ -50,8 +50,6 @@ COMMAND_MAP = {
 
 def check_value(action, value):
     """ Checks command value and raise error if value is in removed command """
-    try:
+    if COMMAND_MAP.get(value) is not None:
         msg = "{} command, has been removed, please use `airflow {}`".format(value, COMMAND_MAP[value])
         raise ArgumentError(action, msg)
-    except KeyError:
-        pass

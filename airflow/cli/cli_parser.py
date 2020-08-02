@@ -66,7 +66,8 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if value == 'celery' and executor != ExecutorLoader.CELERY_EXECUTOR:
             message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
             raise ArgumentError(action, message)
-        check_value(action, value)
+        if action.choices is not None and value not in action.choices:
+            check_value(action, value)
 
         super()._check_value(action, value)
 
