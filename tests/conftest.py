@@ -24,8 +24,6 @@ from datetime import datetime, timedelta
 import freezegun
 import pytest
 
-from airflow import settings
-
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
 tests_directory = os.path.dirname(os.path.realpath(__file__))
@@ -43,6 +41,10 @@ if perf_directory not in sys.path:
 from perf_kit.sqlalchemy import (  # noqa: E402 isort:skip # pylint: disable=wrong-import-position
     count_queries, trace_queries
 )
+
+
+from airflow import settings  # noqa: E402 isort:skip # pylint: disable=wrong-import-position
+
 settings.initialize()
 
 
