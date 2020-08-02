@@ -75,11 +75,7 @@ This section describes the major changes that have been made in this release.
 
 #### Python 2 support is going away
 
-<<<<<<< HEAD
 > WARNING: Breaking change
-=======
-Now the `conn_id` will be unique. New users will not have to deal with any consequences. But for existing users that already have data in their metadata database, they will have to manage those duplicate connections before upgrading the database with `airflow db upgrade`.
->>>>>>> More small fixes in UPDATING.md
 
 Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.6 and up.
 
@@ -326,7 +322,7 @@ We should default it as `true` to avoid confusion
 In order to migrate the database, you should use the command `airflow db upgrade`, but in
 some cases manual steps are required.
 
-#### Ubique conn_id in connection table
+#### Unique conn_id in connection table
 
 Previously, Airflow allowed users to add more than one connection with the same `conn_id` and on access it would choose one connection randomly. This acted as a basic load balancing and fault tolerance technique, when used in conjunction with retries.
 
