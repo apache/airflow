@@ -33,6 +33,7 @@ import string
 import subprocess
 import time
 import uuid
+from pathlib import Path
 from subprocess import PIPE, Popen
 from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import quote_plus
@@ -553,13 +554,8 @@ class CloudSqlProxyRunner(LoggingMixin):
         else:
             command_to_run = [self.sql_proxy_path]
             command_to_run.extend(self.command_line_parameters)
-            try:
-                self.log.info("Creating directory %s",
-                              self.cloud_sql_proxy_socket_directory)
-                os.makedirs(self.cloud_sql_proxy_socket_directory)
-            except OSError:
-                # Needed for python 2 compatibility (exists_ok missing)
-                pass
+            self.log.info("Creating directory %s", self.cloud_sql_proxy_socket_directory)
+            Path(self.cloud_sql_proxy_socket_directory).mkdir(parents=True, exist_ok=True)
             command_to_run.extend(self._get_credential_parameters())  # pylint: disable=no-value-for-parameter
             self.log.info("Running the command: `%s`", " ".join(command_to_run))
             self.sql_proxy_process = Popen(command_to_run,
