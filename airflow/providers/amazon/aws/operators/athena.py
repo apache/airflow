@@ -59,10 +59,9 @@ class AWSAthenaOperator(BaseOperator):
         result_configuration=None,
         sleep_time=30,
         max_tries=None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.query = query
         self.database = database
         self.output_location = output_location

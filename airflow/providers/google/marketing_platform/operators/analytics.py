@@ -58,10 +58,9 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
         self,
         api_version: str = "v3",
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
@@ -110,10 +109,9 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
         web_property_id: str,
         api_version: str = "v3",
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.account_id = account_id
         self.web_property_ad_words_link_id = web_property_ad_words_link_id
@@ -165,10 +163,9 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
         web_property_id: str,
         api_version: str = "v3",
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.account_id = account_id
         self.web_property_id = web_property_id
@@ -226,10 +223,9 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         api_version: str = "v3",
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.storage_bucket = storage_bucket
         self.storage_name_object = storage_name_object
         self.account_id = account_id
@@ -298,10 +294,9 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         api_version: str = "v3",
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.account_id = account_id
         self.web_property_id = web_property_id
@@ -364,11 +359,10 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         custom_dimension_header_mapping: Optional[Dict[str, str]] = None,
-        *args,
         **kwargs
     ):
         super(GoogleAnalyticsModifyFileHeadersDataImportOperator, self).__init__(
-            *args, **kwargs
+            **kwargs
         )
         self.storage_bucket = storage_bucket
         self.storage_name_object = storage_name_object

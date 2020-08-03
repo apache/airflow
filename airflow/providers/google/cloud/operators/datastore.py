@@ -73,9 +73,8 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
                  polling_interval_in_seconds: int = 10,
                  overwrite_existing: bool = False,
                  project_id: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.datastore_conn_id = datastore_conn_id
         self.cloud_storage_conn_id = cloud_storage_conn_id
         self.delegate_to = delegate_to
@@ -157,9 +156,8 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  polling_interval_in_seconds: float = 10,
                  project_id: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.datastore_conn_id = datastore_conn_id
         self.delegate_to = delegate_to
         self.bucket = bucket

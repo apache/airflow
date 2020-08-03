@@ -45,10 +45,9 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
         spreadsheet: Dict[str, Any],
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.spreadsheet = spreadsheet
         self.delegate_to = delegate_to

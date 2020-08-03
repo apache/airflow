@@ -101,18 +101,16 @@ The key ``extra_dejson`` can be used to provide parameters as JSON object where 
 The keys ``extra`` and ``extra_dejson`` are mutually exclusive.
 
 The JSON file must contain an object where the key contains the connection ID and the value contains
-the definitions of one or more connections. In this format, the connection can be defined as a URI (string) or JSON object.
+the definition of one connection. The connection can be defined as a URI (string) or JSON object.
+For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.
+For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
 The following is a sample JSON file.
 
 .. code-block:: json
 
     {
         "CONN_A": "mysq://host_a",
-        "CONN_B": [
-            "mysq://host_a",
-            "mysq://host_a"
-        ],
-        "CONN_C": {
+        "CONN_B": {
             "conn_type": "scheme",
             "host": "host",
             "schema": "lschema",
@@ -146,8 +144,8 @@ In this format, the connection can be defined as a URI (string) or JSON object.
           x: y
 
 You can also define connections using a ``.env`` file. Then the key is the connection ID, and
-the value should describe the connection using the URI. If the connection ID is repeated, all values will
-be returned. The following is a sample file.
+the value should describe the connection using the URI. Connection ID should not be repeated, it will
+raise an exception. The following is a sample file.
 
   .. code-block:: text
 

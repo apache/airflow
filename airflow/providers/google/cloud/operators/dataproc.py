@@ -191,7 +191,6 @@ class ClusterGenerator:
                  auto_delete_time: Optional[datetime] = None,
                  auto_delete_ttl: Optional[int] = None,
                  customer_managed_key: Optional[str] = None,
-                 *args,  # just in case
                  **kwargs
                  ) -> None:
 
@@ -465,7 +464,6 @@ class DataprocCreateClusterOperator(BaseOperator):
                  timeout: Optional[float] = None,
                  metadata: Optional[Sequence[Tuple[str, str]]] = None,
                  gcp_conn_id: str = "google_cloud_default",
-                 *args,
                  **kwargs) -> None:
         # TODO: remove one day
         if cluster is None:
@@ -491,7 +489,7 @@ class DataprocCreateClusterOperator(BaseOperator):
                 if arg in kwargs:
                     del kwargs[arg]
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.cluster = cluster
         self.cluster_name = cluster.get('cluster_name')
@@ -580,9 +578,8 @@ class DataprocScaleClusterOperator(BaseOperator):
                  num_preemptible_workers: int = 0,
                  graceful_decommission_timeout: Optional[str] = None,
                  gcp_conn_id: str = "google_cloud_default",
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
         self.cluster_name = cluster_name
@@ -708,10 +705,9 @@ class DataprocDeleteClusterOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
         self.cluster_name = cluster_name
@@ -793,9 +789,8 @@ class DataprocJobBaseOperator(BaseOperator):
                  labels: Optional[Dict] = None,
                  region: str = 'global',
                  job_error_states: Optional[Set[str]] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.labels = labels
@@ -920,7 +915,6 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         query: Optional[str] = None,
         query_uri: Optional[str] = None,
         variables: Optional[Dict] = None,
-        *args,
         **kwargs
     ) -> None:
         # TODO: Remove one day
@@ -932,7 +926,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
             stacklevel=1
         )
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
@@ -986,7 +980,6 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         query: Optional[str] = None,
         query_uri: Optional[str] = None,
         variables: Optional[Dict] = None,
-        *args,
         **kwargs
     ) -> None:
         # TODO: Remove one day
@@ -998,7 +991,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
             stacklevel=1
         )
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
@@ -1052,7 +1045,6 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
         query: Optional[str] = None,
         query_uri: Optional[str] = None,
         variables: Optional[Dict] = None,
-        *args,
         **kwargs
     ) -> None:
         # TODO: Remove one day
@@ -1064,7 +1056,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
             stacklevel=1
         )
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.query = query
         self.query_uri = query_uri
         self.variables = variables
@@ -1127,7 +1119,6 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
         arguments: Optional[List] = None,
         archives: Optional[List] = None,
         files: Optional[List] = None,
-        *args,
         **kwargs
     ) -> None:
         # TODO: Remove one day
@@ -1139,7 +1130,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
             stacklevel=1
         )
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.main_jar = main_jar
         self.main_class = main_class
         self.arguments = arguments
@@ -1200,7 +1191,6 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         arguments: Optional[List] = None,
         archives: Optional[List] = None,
         files: Optional[List] = None,
-        *args,
         **kwargs
     ) -> None:
         # TODO: Remove one day
@@ -1212,7 +1202,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
             stacklevel=1
         )
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.main_jar = main_jar
         self.main_class = main_class
         self.arguments = arguments
@@ -1300,7 +1290,6 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         archives: Optional[List] = None,
         pyfiles: Optional[List] = None,
         files: Optional[List] = None,
-        *args,
         **kwargs
     ) -> None:
         # TODO: Remove one day
@@ -1312,7 +1301,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
             stacklevel=1
         )
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.main = main
         self.arguments = arguments
         self.archives = archives
@@ -1424,10 +1413,9 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.template_id = template_id
         self.parameters = parameters
@@ -1513,10 +1501,9 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.template = template
         self.project_id = project_id
         self.location = region
@@ -1585,10 +1572,9 @@ class DataprocSubmitJobOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
         self.job = job
@@ -1677,10 +1663,9 @@ class DataprocUpdateClusterOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name

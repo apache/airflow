@@ -74,8 +74,8 @@ class SimpleHttpOperator(BaseOperator):
                  extra_options: Optional[Dict[str, Any]] = None,
                  http_conn_id: str = 'http_default',
                  log_response: bool = False,
-                 *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.http_conn_id = http_conn_id
         self.method = method
         self.endpoint = endpoint

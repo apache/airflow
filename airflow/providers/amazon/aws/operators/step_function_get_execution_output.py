@@ -41,8 +41,8 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
     ui_color = '#f9c915'
 
     @apply_defaults
-    def __init__(self, execution_arn: str, aws_conn_id='aws_default', region_name=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, execution_arn: str, aws_conn_id='aws_default', region_name=None, **kwargs):
+        super().__init__(**kwargs)
         self.execution_arn = execution_arn
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name

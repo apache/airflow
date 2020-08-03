@@ -190,6 +190,11 @@ class TestPubSubHook(unittest.TestCase):
             retain_acked_messages=None,
             message_retention_duration=None,
             labels=LABELS,
+            enable_message_ordering=False,
+            expiration_policy=None,
+            filter_=None,
+            dead_letter_policy=None,
+            retry_policy=None,
             retry=None,
             timeout=None,
             metadata=None,
@@ -216,6 +221,11 @@ class TestPubSubHook(unittest.TestCase):
             retain_acked_messages=None,
             message_retention_duration=None,
             labels=LABELS,
+            enable_message_ordering=False,
+            expiration_policy=None,
+            filter_=None,
+            dead_letter_policy=None,
+            retry_policy=None,
             retry=None,
             timeout=None,
             metadata=None,
@@ -271,6 +281,11 @@ class TestPubSubHook(unittest.TestCase):
             retain_acked_messages=None,
             message_retention_duration=None,
             labels=LABELS,
+            enable_message_ordering=False,
+            expiration_policy=None,
+            filter_=None,
+            dead_letter_policy=None,
+            retry_policy=None,
             retry=None,
             timeout=None,
             metadata=None,
@@ -292,6 +307,40 @@ class TestPubSubHook(unittest.TestCase):
             retain_acked_messages=None,
             message_retention_duration=None,
             labels=LABELS,
+            enable_message_ordering=False,
+            expiration_policy=None,
+            filter_=None,
+            dead_letter_policy=None,
+            retry_policy=None,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
+        self.assertEqual(TEST_SUBSCRIPTION, response)
+
+    @mock.patch(PUBSUB_STRING.format('PubSubHook.subscriber_client'))
+    def test_create_subscription_with_filter(self, mock_service):
+        create_method = mock_service.create_subscription
+
+        response = self.pubsub_hook.create_subscription(
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            subscription=TEST_SUBSCRIPTION,
+            filter_='attributes.domain="com"'
+        )
+        create_method.assert_called_once_with(
+            name=EXPANDED_SUBSCRIPTION,
+            topic=EXPANDED_TOPIC,
+            push_config=None,
+            ack_deadline_seconds=10,
+            retain_acked_messages=None,
+            message_retention_duration=None,
+            labels=LABELS,
+            enable_message_ordering=False,
+            expiration_policy=None,
+            filter_='attributes.domain="com"',
+            dead_letter_policy=None,
+            retry_policy=None,
             retry=None,
             timeout=None,
             metadata=None,

@@ -53,8 +53,8 @@ class ExasolOperator(BaseOperator):
             autocommit: bool = False,
             parameters: Optional[Mapping] = None,
             schema: Optional[str] = None,
-            *args, **kwargs):
-        super(ExasolOperator, self).__init__(*args, **kwargs)
+            **kwargs):
+        super(ExasolOperator, self).__init__(**kwargs)
         self.exasol_conn_id = exasol_conn_id
         self.sql = sql
         self.autocommit = autocommit

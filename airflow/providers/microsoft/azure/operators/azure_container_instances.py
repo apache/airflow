@@ -139,9 +139,8 @@ class AzureContainerInstancesOperator(BaseOperator):
                  remove_on_error: bool = True,
                  fail_if_exists: bool = True,
                  tags: Optional[Dict[str, str]] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.ci_conn_id = ci_conn_id
         self.resource_group = resource_group

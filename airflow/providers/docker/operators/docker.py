@@ -162,10 +162,9 @@ class DockerOperator(BaseOperator):
             shm_size: Optional[int] = None,
             tty: Optional[bool] = False,
             cap_add: Optional[Iterable[str]] = None,
-            *args,
             **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.api_version = api_version
         self.auto_remove = auto_remove
         self.command = command

@@ -47,9 +47,8 @@ class SegmentTrackEventOperator(BaseOperator):
                  properties=None,
                  segment_conn_id='segment_default',
                  segment_debug_mode=False,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.user_id = user_id
         self.event = event
         properties = properties or {}
