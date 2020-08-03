@@ -30,6 +30,7 @@ fi
 
 function run_airflow_testing_in_docker() {
     set +u
+    set +e
     # shellcheck disable=SC2016
     docker-compose --log-level INFO \
       -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
@@ -37,7 +38,18 @@ function run_airflow_testing_in_docker() {
       "${INTEGRATIONS[@]}" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
          run airflow "${@}"
+    EXIT_CODE=$?
+    if [[ ${ONLY_RUN_QUARANTINED_TESTS:=} == "true" ]]; then
+        if [[ ${EXIT_CODE} == "1" ]]; then
+            echo "Some Quarantined tests failed. but we recorded it in an issue"
+            EXIT_CODE="0"
+        else
+            echo "All Quarantined tests succeeded"
+        fi
+    fi
     set -u
+    set -e
+    return "${EXIT_CODE}"
 }
 
 get_environment_for_builds_on_ci
@@ -93,6 +105,7 @@ elif [[ ${TEST_TYPE:=} == "Long" ]]; then
     export ONLY_RUN_LONG_RUNNING_TESTS="true"
 elif [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
     export ONLY_RUN_QUARANTINED_TESTS="true"
+    # Do not fail in quarantined tests
 fi
 
 for _INT in ${ENABLED_INTEGRATIONS}
@@ -103,4 +116,9 @@ done
 
 RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
 
+
 run_airflow_testing_in_docker "${@}"
+
+if [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
+    export ONLY_RUN_QUARANTINED_TESTS="true"
+fi

@@ -287,6 +287,14 @@ function get_environment_for_builds_on_ci() {
             else
                 export CI_EVENT_TYPE="push"
             fi
+        elif [[ "${LOCAL_CI_TESTING:=}" == "true" ]]; then
+            export CI_TARGET_REPO="apache/airflow"
+            export CI_TARGET_BRANCH="${DEFAULT_BRANCH:="master"}"
+            export CI_BUILD_ID="0"
+            export CI_JOB_ID="0"
+            export CI_EVENT_TYPE="pull_request"
+            export CI_SOURCE_REPO="apache/airflow"
+            export CI_SOURCE_BRANCH="${DEFAULT_BRANCH:="master"}"
         else
             echo
             echo "ERROR! Unknown CI environment. Exiting"

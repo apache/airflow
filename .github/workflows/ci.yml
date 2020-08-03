@@ -49,6 +49,7 @@ jobs:
     steps:
       - uses: potiuk/cancel-workflow-runs@v1
         with:
+          workflow: ci.yaml
           token: ${{ secrets.GITHUB_TOKEN }}
 
   static-checks:
@@ -62,7 +63,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: Cache pre-commit env
         uses: actions/cache@v2
         env:
@@ -100,7 +101,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
@@ -154,7 +155,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - uses: engineerd/setup-kind@v0.4.0
@@ -204,7 +205,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
@@ -234,7 +235,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
@@ -262,38 +263,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
-      - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Build CI image ${{ matrix.python-version }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Tests"
-        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
-
-  tests-quarantined:
-    timeout-minutes: 80
-    name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    needs: [trigger-tests]
-    strategy:
-      matrix:
-        python-version: [3.6]
-        postgres-version: [9.6]
-        test-type: [Quarantined]
-      fail-fast: false
-    env:
-      BACKEND: postgres
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      POSTGRES_VERSION: ${{ matrix.postgres-version }}
-      RUN_TESTS: "true"
-      TEST_TYPE: ${{ matrix.test-type }}
-    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
