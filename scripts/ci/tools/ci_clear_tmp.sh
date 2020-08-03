@@ -40,5 +40,6 @@ export HOST_OS
 docker-compose \
     -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
     -f "${SCRIPTS_CI_DIR}/docker-compose/local.yml" \
+    -f "${SCRIPTS_CI_DIR}/docker-compose/files.yml" \
    run --entrypoint /bin/bash \
     airflow -c /opt/airflow/scripts/ci/in_container/run_clear_tmp.sh
