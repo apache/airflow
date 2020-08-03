@@ -243,6 +243,7 @@ class LocalSettingsTest(unittest.TestCase):
             from airflow import settings
             settings.import_local_settings()  # pylint: ignore
             from airflow.kubernetes.pod_launcher import PodLauncher
+            from kubernetes.client.models.v1_pod_security_context import V1PodSecurityContext
 
             self.mock_kube_client = Mock()
             self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)
@@ -263,6 +264,7 @@ class LocalSettingsTest(unittest.TestCase):
                 volume_mounts=[
                     {"name": "foo", "mountPath": "/mnt", "subPath": "/", "readOnly": True}
                 ],
+                security_context=V1PodSecurityContext(fs_group=0),
                 volumes=[{"name": "foo"}]
             ).gen_pod()
 
@@ -291,13 +293,15 @@ class LocalSettingsTest(unittest.TestCase):
                                            'key': 'static-pods',
                                            'operator': 'Equal',
                                            'value': 'true'}],
-                          'volumes': [{'name': 'foo'}]}}
+                          'volumes': [{'name': 'foo'}],
+                          'securityContext': {'fsGroup': 0}}},
             )
 
             # Apply Pod Mutation Hook
             pod = self.pod_launcher._mutate_pod_backcompat(pod)
 
             sanitized_pod_post_mutation = self.api_client.sanitize_for_serialization(pod)
+
             self.assertEqual(
                 sanitized_pod_post_mutation,
                 {'metadata': {'labels': {'test_label': 'test_value'},
@@ -330,7 +334,6 @@ class LocalSettingsTest(unittest.TestCase):
                                                             'name': 'airflow-secrets-mount',
                                                             'readOnly': True}]}],
                           'hostNetwork': False,
-                          'securityContext': {},
                           'tolerations': [{'effect': 'NoSchedule',
                                            'key': 'static-pods',
                                            'operator': 'Equal',
@@ -342,7 +345,8 @@ class LocalSettingsTest(unittest.TestCase):
                           'volumes': [{'name': 'foo'},
                                       {'name': 'bar'},
                                       {'name': 'airflow-secrets-mount',
-                                       'secret': {'secretName': 'airflow-test-secrets'}}]}}
+                                       'secret': {'secretName': 'airflow-test-secrets'}}],
+                          'securityContext': {}}}
             )
 
     def test_pod_mutation_v1_pod(self):

@@ -34,7 +34,8 @@ from airflow.utils.state import State
 import kubernetes.client.models as k8s  # noqa
 from .kube_client import get_kube_client
 from ..contrib.kubernetes.pod import (
-    Pod, _extract_env_vars, _extract_volumes, _extract_volume_mounts, _extract_ports
+    Pod, _extract_env_vars, _extract_volumes, _extract_volume_mounts,
+    _extract_ports, _extract_security_context
 )
 
 
@@ -304,6 +305,6 @@ def _convert_to_airflow_pod(pod):
         image_pull_policy=base_container.image_pull_policy or 'IfNotPresent',
         tolerations=pod.spec.tolerations,
         affinity=pod.spec.affinity,
-        security_context=pod.spec.security_context
+        security_context=_extract_security_context(pod.spec.security_context)
     )
     return dummy_pod

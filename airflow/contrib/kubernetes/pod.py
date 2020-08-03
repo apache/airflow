@@ -214,6 +214,14 @@ def _extract_ports(ports):
     return result
 
 
+def _extract_security_context(security_context):
+    from kubernetes.client.api_client import ApiClient
+    api_client = ApiClient()
+    if isinstance(security_context, k8s.V1PodSecurityContext):
+        security_context = api_client.sanitize_for_serialization(security_context)
+    return security_context
+
+
 def _extract_volume_mounts(volume_mounts):
     result = []
     volume_mounts = volume_mounts or []  # type: List[Union[k8s.V1VolumeMount, dict]]

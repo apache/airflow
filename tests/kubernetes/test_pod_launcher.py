@@ -195,6 +195,10 @@ class TestPodLauncherHelper(unittest.TestCase):
                         )]
                     )
                 ],
+                security_context=k8s.V1PodSecurityContext(
+                    run_as_user=0,
+                    fs_group=0,
+                ),
                 volumes=[
                     k8s.V1Volume(
                         name="myvolume"
@@ -219,14 +223,13 @@ class TestPodLauncherHelper(unittest.TestCase):
                 sub_path=None,
                 read_only="True"
             )],
+            security_context={'fsGroup': 0, 'runAsUser': 0},
             volumes=[Volume(name="myvolume", configs={'name': 'myvolume'})]
         )
         expected_dict = expected.as_dict()
         result_dict = result_pod.as_dict()
         parsed_configs = self.pull_out_volumes(result_dict)
         result_dict['volumes'] = parsed_configs
-        self.maxDiff = None
-
         self.assertDictEqual(expected_dict, result_dict)
 
     @staticmethod
