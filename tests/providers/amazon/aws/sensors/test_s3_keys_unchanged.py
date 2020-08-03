@@ -20,6 +20,7 @@ from datetime import datetime
 from unittest import TestCase, mock
 
 from freezegun import freeze_time
+from parameterized import parameterized
 
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.amazon.aws.sensors.s3_keys_unchanged import S3KeysUnchangedSensor
@@ -46,7 +47,7 @@ class TestS3KeysUnchangedSensor(TestCase):
             inactivity_period=12,
             poke_interval=0.1,
             min_objects=1,
-            allow_delete=False,
+            allow_delete=True,
             dag=self.dag
         )
 
@@ -63,61 +64,25 @@ class TestS3KeysUnchangedSensor(TestCase):
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_files_deleted_between_pokes_throw_error(self):
+        self.sensor.allow_delete = False
         self.sensor.is_keys_unchanged({'a', 'b'})
         with self.assertRaises(AirflowException):
             self.sensor.is_keys_unchanged({'a'})
 
-    @freeze_time(DEFAULT_DATE)
-    def test_files_deleted_between_pokes_allow_delete(self):
-        self.sensor = S3KeysUnchangedSensor(
-            task_id='sensor_2',
-            bucket_name='test-bucket',
-            prefix='test-prefix/path',
-            inactivity_period=12,
-            poke_interval=0.1,
-            min_objects=1,
-            allow_delete=True,
-            dag=self.dag
-        )
-        self.sensor.is_keys_unchanged({'a', 'b'})
-        self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_keys_unchanged({'a'})
-        self.assertEqual(len(self.sensor.previous_objects), 1)
-        self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_keys_unchanged({'a', 'c'})
-        self.assertEqual(self.sensor.inactivity_seconds, 0)
-
+    @parameterized.expand([
+        (({'a'}, {'a', 'b'}, {'a', 'b', 'c'}), (False, False, False), (0, 0, 0)),
+        (({'a', 'b'}, {'a'}, {'a', 'c'}), (False, False, False), (0, 0, 0)),
+        (({'a'}, {'a'}, {'a'}), (False, False, True), (0, 10, 20)),
+        ((set(), set(), set()), (False, False, False), (0, 10, 20))
+    ])
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
-    def test_incoming_data(self):
-        self.sensor.is_keys_unchanged({'a'})
-        self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_keys_unchanged({'a', 'b'})
-        self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_keys_unchanged({'a', 'b', 'c'})
-        self.assertEqual(self.sensor.inactivity_seconds, 0)
-
-    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
-    def test_no_new_data(self):
-        self.sensor.is_keys_unchanged({'a'})
-        self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_keys_unchanged({'a'})
-        self.assertEqual(self.sensor.inactivity_seconds, 10)
-
-    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
-    def test_no_new_data_success_criteria(self):
-        self.sensor.is_keys_unchanged({'a'})
-        self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_keys_unchanged({'a'})
-        self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertTrue(self.sensor.is_keys_unchanged({'a'}))
-
-    @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
-    def test_not_enough_objects(self):
-        self.sensor.is_keys_unchanged(set())
-        self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_keys_unchanged(set())
-        self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertFalse(self.sensor.is_keys_unchanged(set()))
+    def test_key_changes(self, current_objects, expected_returns, inactivity_periods):
+        self.assertEqual(self.sensor.is_keys_unchanged(current_objects[0]), expected_returns[0])
+        self.assertEqual(self.sensor.inactivity_seconds, inactivity_periods[0])
+        self.assertEqual(self.sensor.is_keys_unchanged(current_objects[1]), expected_returns[1])
+        self.assertEqual(self.sensor.inactivity_seconds, inactivity_periods[1])
+        self.assertEqual(self.sensor.is_keys_unchanged(current_objects[2]), expected_returns[2])
+        self.assertEqual(self.sensor.inactivity_seconds, inactivity_periods[2])
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     @mock.patch('airflow.providers.amazon.aws.sensors.s3_keys_unchanged.S3Hook')
