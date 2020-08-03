@@ -64,7 +64,7 @@ export BACKEND=${BACKEND:="sqlite"}
 # Whether necessary for airflow run local sources are mounted to docker
 export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
 
-# whethere verbose output should be produced
+# whether verbose output should be produced
 export VERBOSE=${VERBOSE:="false"}
 
 # whethere verbose commadns output (set-x) should be used
@@ -76,10 +76,14 @@ export FORWARD_CREDENTIALS=${FORWARD_CREDENTIALS:="false"}
 # Installs different airflow version than current from the sources
 export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:=""}
 
+DOCKER_COMPOSE_LOCAL=()
+
 if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
-    DOCKER_COMPOSE_LOCAL=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local.yml")
-else
-    DOCKER_COMPOSE_LOCAL=()
+    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local.yml")
+fi
+
+if [[ ${CI} == "true" ]]; then
+    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/ci.yml")
 fi
 
 if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
@@ -115,7 +119,6 @@ do
 done
 
 RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
-
 
 run_airflow_testing_in_docker "${@}"
 

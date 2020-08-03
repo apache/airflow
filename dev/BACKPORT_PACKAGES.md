@@ -131,7 +131,7 @@ The script generates two types of files:
 
 Note that our CI system builds the release notes for backport packages automatically with every build and
 current date - this way you might be sure the automated generation of the release notes continues to
-work. You can also preview the generated readme files (by downloading artifacts uploaded to file.io).
+work. You can also preview the generated readme files (by downloading artifacts from Github Actions).
 The script does not modify the README and CHANGES files if there is no change in the repo for that provider.
 
 # Preparing backport packages

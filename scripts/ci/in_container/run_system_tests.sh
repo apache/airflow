@@ -47,7 +47,7 @@ if [[ "${RES}" == "0" && ${CI} == "true" ]]; then
 fi
 
 if [[ ${CI} == "true" ]]; then
-    send_airflow_logs_to_file_io
+    dump_airflow_logs
 fi
 
 in_container_script_end
