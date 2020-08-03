@@ -53,7 +53,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
+    :type verify: Optional[Union[bool, str]]
     :param inactivity_period: The total seconds of inactivity to designate
         keys unchanged. Note, this mechanism is not real time and
         this operator may not return until a poke_interval after this period
@@ -63,7 +63,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         sensor to be considered valid.
     :type min_objects: int
     :param previous_objects: The set of object ids found during the last poke.
-    :type previous_objects: set[str]
+    :type previous_objects: Optional[Set[str]]
     :param allow_delete: Should this sensor consider objects being deleted
         between pokes valid behavior. If true a warning message will be logged
         when this happens. If false an error will be raised.
@@ -92,7 +92,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
             raise ValueError("inactivity_period must be non-negative")
         self.inactivity_period = inactivity_period
         self.min_objects = min_objects
-        self.previous_objects = previous_objects if previous_objects else set()
+        self.previous_objects = previous_objects or {}
         self.inactivity_seconds = 0
         self.allow_delete = allow_delete
         self.aws_conn_id = aws_conn_id
