@@ -18,7 +18,6 @@ import contextlib
 import io
 import unittest
 from argparse import ArgumentError
-from unittest import mock
 from unittest.mock import MagicMock
 
 from airflow.cli import cli_parser
@@ -53,12 +52,10 @@ class TestCliDeprecatedCommandsValue(unittest.TestCase):
         for item in LEGACY_COMMANDS:
             self.assertIsNotNone(COMMAND_MAP[item])
 
-    @mock.patch("airflow.cli.commands.legacy_commands.COMMAND_MAP")
-    def test_check_legacy_command(self, command_map):
+    def test_check_legacy_command(self):
         action = MagicMock()
-        command_map.__getitem__.return_value = "users list"
         with self.assertRaises(ArgumentError) as e:
-            check_legacy_command(action, 'list_user')
+            check_legacy_command(action, 'list_users')
         self.assertEqual(
             str(e.exception),
-            "argument : `airflow list_user` command, has been removed, please use `airflow users list`")
+            "argument : `airflow list_users` command, has been removed, please use `airflow users list`")
