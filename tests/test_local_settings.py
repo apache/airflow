@@ -264,7 +264,7 @@ class LocalSettingsTest(unittest.TestCase):
                 volume_mounts=[
                     {"name": "foo", "mountPath": "/mnt", "subPath": "/", "readOnly": True}
                 ],
-                security_context=V1PodSecurityContext(fs_group=0),
+                security_context=V1PodSecurityContext(fs_group=0, run_as_user=1),
                 volumes=[{"name": "foo"}]
             ).gen_pod()
 
@@ -294,7 +294,7 @@ class LocalSettingsTest(unittest.TestCase):
                                            'operator': 'Equal',
                                            'value': 'true'}],
                           'volumes': [{'name': 'foo'}],
-                          'securityContext': {'fsGroup': 0}}},
+                          'securityContext': {'fsGroup': 0, 'runAsUser': 1}}},
             )
 
             # Apply Pod Mutation Hook
@@ -346,7 +346,7 @@ class LocalSettingsTest(unittest.TestCase):
                                       {'name': 'bar'},
                                       {'name': 'airflow-secrets-mount',
                                        'secret': {'secretName': 'airflow-test-secrets'}}],
-                          'securityContext': {}}}
+                          'securityContext': {'runAsUser': 1}}}
             )
 
     def test_pod_mutation_v1_pod(self):
