@@ -8,7 +8,6 @@
 .airflowignore
 .coverage
 .coveragerc
-.codecov.yml
 .eslintrc
 .eslintignore
 .flake8

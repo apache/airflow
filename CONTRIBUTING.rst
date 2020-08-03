@@ -249,7 +249,7 @@ these guidelines:
     request.
 
     The airflow repo uses `Github Actions <https://help.github.com/en/actions>`__ to
-    run the tests and `codecov <https://codecov.io/gh/apache/airflow>`__ to track
+    run the tests and `coveralls <https://docs.coveralls.io/>`__ to track
     coverage. You can set up both for free on your fork. It will help you make sure you do not
     break the build with your PR and that you help increase coverage.
 

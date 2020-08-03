@@ -142,19 +142,10 @@ function initialize_common_environment {
         print_info
         print_info "Skip mounting host volumes to Docker"
         print_info
+        # shellcheck disable=SC2034
         EXTRA_DOCKER_FLAGS=( \
             "--env" "PYTHONDONTWRITEBYTECODE" \
         )
-    fi
-
-    # In case of the CI build get environment variables from codecov.io and
-    # set it as the extra docker flags. As described in https://docs.codecov.io/docs/testing-with-docker
-    if [[ ${CI:=} == "true" ]]; then
-        CI_CODECOV_ENV="$(bash <(curl -s https://codecov.io/env))"
-        for ENV_PARAM in ${CI_CODECOV_ENV}
-        do
-            EXTRA_DOCKER_FLAGS+=("${ENV_PARAM}")
-        done
     fi
 
     # By default we are not upgrading to latest version of constraints when building Docker CI image

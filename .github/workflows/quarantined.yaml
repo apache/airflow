@@ -108,6 +108,12 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - name: Coveralls Parallel
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.github_token }}
+          flag-name: run-quarantined
+          parallel: true
       - uses: actions/upload-artifact@v2
         name: Upload Quarantine test results
         if: always()

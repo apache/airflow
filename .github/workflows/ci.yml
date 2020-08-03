@@ -190,11 +190,17 @@ jobs:
           key: "${{ env.cache-name }}-${{ github.job }}-v1"
       - name: "Tests"
         run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
+      - name: Coveralls Parallel
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.github_token }}
+          flag-name: run-${{matrix.python-version}}-${{matrix.kubernetes-version}}
+          parallel: true
       - uses: actions/upload-artifact@v2
         name: Upload KinD logs
         if: always()
         with:
-          name: 'kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}'
+          name: kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           path: '/tmp/kind_logs_*'
 
   tests-postgres:
@@ -226,11 +232,17 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - name: Coveralls Parallel
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.github_token }}
+          flag-name: run-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
+          parallel: true
       - uses: actions/upload-artifact@v2
         name: Upload airflow logs
         if: always()
         with:
-          name: 'airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}'
+          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: './files/airflow_logs*'
 
   tests-mysql:
@@ -262,11 +274,17 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - name: Coveralls Parallel
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.github_token }}
+          flag-name: run-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
+          parallel: true
       - uses: actions/upload-artifact@v2
         name: Upload airflow logs
         if: always()
         with:
-          name: 'airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}'
+          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: './files/airflow_logs*'
 
   tests-sqlite:
@@ -296,11 +314,17 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - name: Coveralls Parallel
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.github_token }}
+          flag-name: run-${{matrix.test-type}}-${{matrix.python-version}}
+          parallel: true
       - uses: actions/upload-artifact@v2
         name: Upload airflow logs
         if: always()
         with:
-          name: 'airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}'
+          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}
           path: './files/airflow_logs*'
 
   helm-tests:
@@ -470,6 +494,21 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}
           directory: "repo"
+
+  complete-coverage-run:
+    timeout-minutes: 10
+    name: "Complete coverage run"
+    runs-on: ubuntu-latest
+    needs:
+      - tests-sqlite
+      - tests-postgres
+      - tests-mysql
+    steps:
+      - name: Coveralls Finished
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.github_token }}
+          parallel-finished: true
 
   tag-repo-nightly:
     timeout-minutes: 60
