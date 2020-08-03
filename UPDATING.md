@@ -342,16 +342,6 @@ ie. running, {"name": "bob"}
 whereas in in prior releases it just printed the state:
 ie. running
 
-#### Added `airflow dags test` CLI command
-
-A new command was added to the CLI for executing one full run of a DAG for a given execution date, similar to
-`airflow tasks test`. Example usage:
-
-```
-airflow dags test [dag_id] [execution_date]
-airflow dags test example_branch_operator 2018-01-01
-```
-
 #### Deprecating ignore_first_depends_on_past on backfill command and default it to True
 
 When doing backfill with `depends_on_past` dags, users will need to pass `--ignore-first-depends-on-past`.
@@ -982,16 +972,6 @@ arguments, please change `store_serialized_dags` to `read_dags_from_db`.
 
 Similarly, if you were using `DagBag().store_serialized_dags` property, change it to
 `DagBag().read_dags_from_db`.
-
-#### `airflow.models.baseoperator.BaseOperator`
-It was not possible to patch pool in BaseOperator as the signature sets the default value of pool
-as Pool.DEFAULT_POOL_NAME.
-While using subdagoperator in unittest(without initializing the sqlite db), it was throwing the
-following error:
-```
-sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: slot_pool.
-```
-Fix for this, https://github.com/apache/airflow/pull/8587
 
 ### Changes in `google` provider package
 
@@ -1654,20 +1634,6 @@ If you want to install integration for Amazon Web Services, then instead of
 `pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
 
 The deprecated extras will be removed in 2.1:
-
-#### Added mypy plugin to preserve types of decorated functions
-
-Mypy currently doesn't support precise type information for decorated
-functions; see https://github.com/python/mypy/issues/3157 for details.
-To preserve precise type definitions for decorated functions, we now
-include a mypy plugin to preserve precise type definitions for decorated
-functions. To use the plugin, update your setup.cfg:
-
-```
-[mypy]
-plugins =
-  airflow.mypy.plugin.decorators
-```
 
 #### Simplify the response payload of endpoints /dag_stats and /task_stats
 
