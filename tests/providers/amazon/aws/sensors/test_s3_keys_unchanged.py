@@ -120,7 +120,7 @@ class TestS3KeysUnchangedSensor(TestCase):
         self.assertFalse(self.sensor.is_keys_unchanged(set()))
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3_upload_session_complete.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_keys_unchanged.S3Hook')
     def test_poke_succeeds_on_upload_complete(self, mock_hook):
         mock_hook.return_value.list_keys.return_value = {'a'}
         self.assertFalse(self.sensor.poke(dict()))
