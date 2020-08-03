@@ -219,11 +219,8 @@ class LocalSettingsTest(unittest.TestCase):
                 pod.spec.containers[0].resources.to_dict(),
                 {
                     'limits': {
-                        'cpu': None,
-                        'memory': None,
-                        'ephemeral-storage': None,
                         'nvidia.com/gpu': '200G'},
-                    'requests': {'cpu': '200Mi', 'ephemeral-storage': None, 'memory': '2G'}
+                    'requests': {'cpu': '200Mi', 'memory': '2G'}
                 }
             )
 

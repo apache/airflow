@@ -132,16 +132,12 @@ class TestPod(unittest.TestCase):
                                     {
                                         'limits':
                                             {
-                                                'cpu': None,
-                                                'memory': None,
-                                                'nvidia.com/gpu': '100G',
-                                                'ephemeral-storage': None
+                                                'nvidia.com/gpu': '100G'
                                             },
                                         'requests':
                                             {
                                                 'cpu': '100Mi',
-                                                'memory': '1G',
-                                                'ephemeral-storage': None
+                                                'memory': '1G'
                                             }
                                 }
                             }

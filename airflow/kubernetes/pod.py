@@ -87,17 +87,21 @@ class Resources(K8SModel):
             self.request_ephemeral_storage is not None
 
     def to_k8s_client_obj(self):
+        limits = {
+            'cpu': self.limit_cpu,
+            'memory': self.limit_memory,
+            'nvidia.com/gpu': self.limit_gpu,
+            'ephemeral-storage': self.limit_ephemeral_storage
+        }
+        requests = {
+            'cpu': self.request_cpu,
+            'memory': self.request_memory,
+            'ephemeral-storage': self.request_ephemeral_storage}
+        limits = {k: v for k, v in limits.items() if v is not None}
+        requests = {k: v for k, v in requests.items() if v is not None}
         return k8s.V1ResourceRequirements(
-            limits={
-                'cpu': self.limit_cpu,
-                'memory': self.limit_memory,
-                'nvidia.com/gpu': self.limit_gpu,
-                'ephemeral-storage': self.limit_ephemeral_storage
-            },
-            requests={
-                'cpu': self.request_cpu,
-                'memory': self.request_memory,
-                'ephemeral-storage': self.request_ephemeral_storage}
+            limits=limits,
+            requests=requests
         )
 
     def attach_to_pod(self, pod):
