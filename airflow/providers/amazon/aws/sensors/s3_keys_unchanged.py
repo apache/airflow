@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -92,7 +91,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
             raise ValueError("inactivity_period must be non-negative")
         self.inactivity_period = inactivity_period
         self.min_objects = min_objects
-        self.previous_objects = previous_objects or {}
+        self.previous_objects = previous_objects or set()
         self.inactivity_seconds = 0
         self.allow_delete = allow_delete
         self.aws_conn_id = aws_conn_id
@@ -118,10 +117,9 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         if current_objects > self.previous_objects:
             # When new objects arrived, reset the inactivity_seconds
             # and update previous_objects for the next poke.
-            self.log.info("New objects found at %s resetting last_activity_time.",
+            self.log.info("New objects found at %s, resetting last_activity_time.",
                           os.path.join(self.bucket, self.prefix))
-            self.log.debug("New objects: %s",
-                           "\n".join(current_objects - self.previous_objects))
+            self.log.debug("New objects: %s", current_objects - self.previous_objects)
             self.last_activity_time = datetime.now()
             self.inactivity_seconds = 0
             self.previous_objects = current_objects
@@ -133,18 +131,12 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
                 deleted_objects = self.previous_objects - current_objects
                 self.previous_objects = current_objects
                 self.last_activity_time = datetime.now()
-                self.log.info(
-                    "Objects were deleted during the last poke interval. Updating the file counter and "
-                    "resetting last_activity_time:\n    %s",
-                    deleted_objects
-                )
+                self.log.info("Objects were deleted during the last poke interval. Updating the "
+                              "file counter and resetting last_activity_time:\n%s", deleted_objects)
                 return False
 
-            raise AirflowException(
-                """
-                Illegal behavior: objects were deleted in {} between pokes.
-                """.format(os.path.join(self.bucket, self.prefix))
-            )
+            raise AirflowException("Illegal behavior: objects were deleted in %s between pokes."
+                                   % os.path.join(self.bucket, self.prefix))
 
         if self.last_activity_time:
             self.inactivity_seconds = int((datetime.now() - self.last_activity_time).total_seconds())
@@ -157,10 +149,9 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
             path = os.path.join(self.bucket, self.prefix)
 
             if current_num_objects >= self.min_objects:
-                self.log.info("""SUCCESS:
-                    Sensor found %s objects at %s.
-                    Waited at least %s seconds, with no new objects dropped.
-                    """, current_num_objects, path, self.inactivity_period)
+                self.log.info("SUCCESS: \nSensor found %s objects at %s.\n"
+                              "Waited at least %s seconds, with no new objects uploaded.",
+                              current_num_objects, path, self.inactivity_period)
                 return True
 
             self.log.error("FAILURE: Inactivity Period passed, not enough objects found in %s", path)
