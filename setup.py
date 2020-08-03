@@ -238,7 +238,7 @@ docker = [
     'docker~=3.0',
 ]
 druid = [
-    'pydruid>=0.4.1,<=0.5.8',
+    'pydruid>=0.4.1',
 ]
 elasticsearch = [
     'elasticsearch>7, <7.6.0',
