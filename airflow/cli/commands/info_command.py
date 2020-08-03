@@ -391,7 +391,7 @@ class FileIoException(Exception):
     after=tenacity.after_log(log, logging.DEBUG),
 )
 def _upload_text_to_fileio(content):
-    """Uload text file to File.io service and return lnk"""
+    """Upload text file to File.io service and return lnk"""
     resp = requests.post("https://file.io", files={"file": ("airflow-report.txt", content)})
     if not resp.ok:
         raise FileIoException("Failed to send report to file.io service.")

@@ -41,7 +41,6 @@ function generate_local_mounts_list {
         "$prefix"dags:/opt/airflow/dags:cached
         "$prefix"dev:/opt/airflow/dev:cached
         "$prefix"docs:/opt/airflow/docs:cached
-        "$prefix"files:/files:cached
         "$prefix"dist:/dist:cached
         "$prefix"hooks:/opt/airflow/hooks:cached
         "$prefix"logs:/root/airflow/logs:cached
