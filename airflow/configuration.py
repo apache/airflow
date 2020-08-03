@@ -42,6 +42,7 @@ import yaml
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
+from airflow.utils.module_loading import import_string
 
 standard_library.install_aliases()
 
@@ -341,6 +342,26 @@ class AirflowConfigParser(ConfigParser):
             raise AirflowConfigException(
                 "section/key [{section}/{key}] not found "
                 "in config".format(section=section, key=key))
+
+    def getimport(self, section, key, **kwargs):
+        """
+        Reads options, imports the full qualified name, and returns the object.
+        In case of failure, it throws an exception a clear message with the key aad the section names
+        :return: The object or None, if the option is empty
+        """
+        full_qualified_path = conf.get(section=section, key=key, **kwargs)
+        if not full_qualified_path:
+            return None
+
+        try:
+            return import_string(full_qualified_path)
+        except ImportError as e:
+            log.error(e)
+            raise AirflowConfigException(
+                'The object could not be loaded. Please check "{key}" key in "{section}" section. '
+                'Current value: "{full_qualified_path}".' .format(
+                    key=key, section=section, full_qualified_path=full_qualified_path)
+            )
 
     def getboolean(self, section, key, **kwargs):
         val = str(self.get(section, key, **kwargs)).lower().strip()
