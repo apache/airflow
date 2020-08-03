@@ -238,4 +238,6 @@ if __name__ == '__main__':
     with open(join(dirname(realpath(__file__)), "quarantine_issue_header.md"), "r") as f:
         header = jinja2.Template(f.read(), autoescape=True, undefined=StrictUndefined).\
             render(DATE_UTC_NOW=datetime.utcnow())
-    quarantined_issue.edit(None, header + "\n\n" + str(table))
+    quarantined_issue.edit(title=None,
+                           body=header + "\n\n" + str(table),
+                           state='open' if len(test_results) > 0 else 'closed')
