@@ -74,6 +74,7 @@ class GKEDeleteClusterOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  name: str,
                  location: str,
                  project_id: Optional[str] = None,
@@ -152,6 +153,7 @@ class GKECreateClusterOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  location: str,
                  body: Optional[Union[Dict, Cluster]],
                  project_id: Optional[str] = None,
@@ -224,6 +226,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  location: str,
                  cluster_name: str,
                  use_internal_ip: bool = False,

@@ -60,7 +60,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
     # [END gcp_spanner_deploy_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  configuration_name: str,
                  node_count: int,
@@ -121,7 +121,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
     # [END gcp_spanner_delete_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
@@ -177,7 +177,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
     # [END gcp_spanner_query_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  database_id: str,
                  query: Union[str, List[str]],
@@ -260,7 +260,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
     # [END gcp_spanner_database_deploy_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  database_id: str,
                  ddl_statements: List[str],
@@ -334,7 +334,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
     # [END gcp_spanner_database_update_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  database_id: str,
                  ddl_statements: List[str],
@@ -406,7 +406,7 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
     # [END gcp_spanner_database_delete_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  database_id: str,
                  project_id: Optional[str] = None,

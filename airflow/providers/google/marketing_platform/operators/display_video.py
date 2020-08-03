@@ -62,7 +62,7 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         body: Dict[str, Any],
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
@@ -124,7 +124,7 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         report_id: Optional[str] = None,
         report_name: Optional[str] = None,
         api_version: str = "v1",
@@ -204,7 +204,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         report_id: str,
         bucket_name: str,
         report_name: Optional[str] = None,
@@ -309,7 +309,7 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         report_id: str,
         params: Dict[str, Any],
         api_version: str = "v1",
@@ -360,7 +360,7 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         request_body: Dict[str, Any],
         bucket_name: str,
         object_name: str,
@@ -435,7 +435,7 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         bucket_name: str,
         object_name: str,
         api_version: str = "v1.1",
@@ -506,7 +506,7 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         body_request: Dict[str, Any],
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
@@ -569,7 +569,7 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         operation_name: str,
         bucket_name: str,
         object_name: str,

@@ -75,7 +75,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         product_set: Union[dict, ProductSet],
         location: str,
         project_id: Optional[str] = None,
@@ -150,7 +150,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         product_set_id: str,
         project_id: Optional[str] = None,
@@ -234,7 +234,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         product_set: Union[Dict, ProductSet],
         location: Optional[str] = None,
         product_set_id: Optional[str] = None,
@@ -307,7 +307,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         product_set_id: str,
         project_id: Optional[str] = None,
@@ -384,7 +384,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         product: str,
         project_id: Optional[str] = None,
@@ -462,7 +462,7 @@ class CloudVisionGetProductOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         product_id: str,
         project_id: Optional[str] = None,
@@ -557,7 +557,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         product: Union[Dict, Product],
         location: Optional[str] = None,
         product_id: Optional[str] = None,
@@ -635,7 +635,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         product_id: str,
         project_id: Optional[str] = None,
@@ -695,7 +695,7 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         request: Union[Dict, AnnotateImageRequest],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -774,7 +774,7 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         reference_image: Union[Dict, ReferenceImage],
         product_id: str,
@@ -863,7 +863,7 @@ class CloudVisionDeleteReferenceImageOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         product_id: str,
         reference_image_id: str,
@@ -939,7 +939,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         product_set_id: str,
         product_id: str,
         location: str,
@@ -1009,7 +1009,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         product_set_id: str,
         product_id: str,
         location: str,

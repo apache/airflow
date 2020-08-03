@@ -103,7 +103,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         audio: RecognitionAudio,
         config: RecognitionConfig,
         target_language: str,

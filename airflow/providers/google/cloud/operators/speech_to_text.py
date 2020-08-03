@@ -64,7 +64,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         audio: RecognitionAudio,
         config: RecognitionConfig,
         project_id: Optional[str] = None,

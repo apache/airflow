@@ -57,7 +57,7 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         report: Dict[str, Any],
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
@@ -124,7 +124,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         report_id: str,
         bucket_name: str,
         report_name: Optional[str] = None,
