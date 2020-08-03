@@ -41,7 +41,7 @@ cd "${AIRFLOW_SOURCES}/backport_packages" || exit 1
 
 python3 setup_backport_packages.py update-package-release-notes "$@"
 
-AIRFLOW_BACKPORT_README_TGZ_FILE="/dist/airflow-backport-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
+AIRFLOW_BACKPORT_README_TGZ_FILE="/files/airflow-backport-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
@@ -50,10 +50,3 @@ find airflow/providers \( -name 'README.md' -o -name 'PROVIDERS_CHANGES*' \) -pr
 echo
 echo "Airflow readme for backport packages are tar-gzipped in ${AIRFLOW_BACKPORT_README_TGZ_FILE}"
 echo
-if [[ "${CI:=false}" == "true" ]]; then
-    echo
-    echo "Sending all airflow packages to file.io"
-    echo
-    curl -F "file=@${AIRFLOW_PACKAGES_TGZ_FILE}" https://file.io
-    echo
-fi

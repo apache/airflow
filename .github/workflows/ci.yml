@@ -28,6 +28,7 @@ on:
 env:
 
   MOUNT_LOCAL_SOURCES: "false"
+  MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   SKIP_CHECK_REMOTE_IMAGE: "true"
   SKIP_CI_IMAGE_CHECK: "true"
@@ -108,6 +109,20 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Prepare & test backport packages"
         run: "./scripts/ci/backport_packages/ci_prepare_and_test_backport_packages.sh"
+      - uses: actions/upload-artifact@v2
+        name: Upload packages
+        if: always()
+        with:
+          name: >
+            airflow-backport-packages
+          path: './files/airflow-packages-*'
+      - uses: actions/upload-artifact@v2
+        name: Upload readmes
+        if: always()
+        with:
+          name: >
+            airflow-backport-readmes
+          path: './files/airflow-backport-readme*'
 
   trigger-tests:
     timeout-minutes: 5
@@ -177,7 +192,6 @@ jobs:
         run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
       - uses: actions/upload-artifact@v2
         name: Upload KinD logs
-        # Always run this, even if one of th previous steps failed.
         if: always()
         with:
           name: 'kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}'
@@ -212,6 +226,12 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload airflow logs
+        if: always()
+        with:
+          name: 'airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}'
+          path: './files/airflow_logs*'
 
   tests-mysql:
     timeout-minutes: 80
@@ -242,6 +262,12 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload airflow logs
+        if: always()
+        with:
+          name: 'airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}'
+          path: './files/airflow_logs*'
 
   tests-sqlite:
     timeout-minutes: 80
@@ -256,8 +282,8 @@ jobs:
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      TEST_TYPE: ${{ matrix.test-type }}
       RUN_TESTS: "true"
+      TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v2
@@ -270,6 +296,12 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload airflow logs
+        if: always()
+        with:
+          name: 'airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}'
+          path: './files/airflow_logs*'
 
   helm-tests:
     timeout-minutes: 5
@@ -383,7 +415,7 @@ jobs:
         name: Upload constraint artifacts
         with:
           name: 'constraints-${{matrix.python-version}}'
-          path: 'files/constraints-${{matrix.python-version}}/constraints-${{matrix.python-version}}.txt'
+          path: './files/constraints-${{matrix.python-version}}/constraints-${{matrix.python-version}}.txt'
 
   constraints-push:
     timeout-minutes: 10

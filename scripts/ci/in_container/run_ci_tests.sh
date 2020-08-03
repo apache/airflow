@@ -59,7 +59,7 @@ else
 fi
 
 if [[ ${CI:=} == "true" ]]; then
-    send_airflow_logs_to_file_io
+    dump_airflow_logs
 fi
 
 exit "${RES}"

@@ -138,6 +138,7 @@ function initialize_common_environment {
         print_info
 
         read -r -a EXTRA_DOCKER_FLAGS <<< "$(convert_local_mounts_to_docker_params)"
+        EXTRA_DOCKER_FLAGS+=("-v" "${AIRFLOW_SOURCES}/files:/files" )
     else
         print_info
         print_info "Skip mounting host volumes to Docker"
