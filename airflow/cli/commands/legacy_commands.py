@@ -48,8 +48,9 @@ COMMAND_MAP = {
 }
 
 
-def check_value(action, value):
+def check_legacy_command(action, value):
     """ Checks command value and raise error if value is in removed command """
     if COMMAND_MAP.get(value) is not None:
-        msg = "{} command, has been removed, please use `airflow {}`".format(value, COMMAND_MAP[value])
+        new_command = COMMAND_MAP[value]
+        msg = f"`airflow {value}` command, has been removed, please use `airflow {new_command}`"
         raise ArgumentError(action, msg)
