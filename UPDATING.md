@@ -76,23 +76,6 @@ This section describes the major changes that have been made in this release.
 #### Python 2 support is going away
 
 > WARNING: Breaking change
-### Flask-ouathlib has been replaced with Authlib
-The flask-ouathlib has been replaced with authlib because flask-outhlib have also
-been deprecated in favour of authlib.
-The Old and New provider configuration keys that have changed are as follows
-
-|      Old Keys       |      New keys     |
-|---------------------|-------------------|
-| consumer_key        | client_id         |
-| consumer_secret     | client_secret     |
-| base_url            | api_base_url      |
-| request_token_params| client_kwargs     |
-
-For more information, visit https://docs.authlib.org/en/stable/
-
-### GCSTaskHandler has been moved
-The `GCSTaskHandler` class from `airflow.utils.log.gcs_task_handler` has been moved to
-`airflow.providers.google.cloud.log.gcs_task_handler`. This is because it has items specific to `google cloud`.
 
 Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0 will only support Python 3.6 and up.
 
@@ -153,6 +136,21 @@ with third party services to the ``airflow.providers`` package.
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
 
+
+### Breaking Change in OAuth
+
+The flask-ouathlib has been replaced with authlib because flask-outhlib have
+been deprecated in favour of authlib.
+The Old and New provider configuration keys that have changed are as follows
+
+|      Old Keys       |      New keys     |
+|---------------------|-------------------|
+| consumer_key        | client_id         |
+| consumer_secret     | client_secret     |
+| base_url            | api_base_url      |
+| request_token_params| client_kwargs     |
+
+For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
 
 ### Migration Guide from Experimental API to Stable API v1
 In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
