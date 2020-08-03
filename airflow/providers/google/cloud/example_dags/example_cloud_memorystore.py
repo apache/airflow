@@ -31,7 +31,8 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreExportInstanceOperator, CloudMemorystoreFailoverInstanceOperator,
     CloudMemorystoreGetInstanceOperator, CloudMemorystoreImportOperator,
     CloudMemorystoreListInstancesOperator, CloudMemorystoreScaleInstanceOperator,
-    CloudMemorystoreUpdateInstanceOperator,
+    CloudMemorystoreUpdateInstanceOperator, CloudMemorystoreMemcachedCreateInstanceOperator,
+    CloudMemorystoreMemcachedDeleteInstanceOperator
 )
 from airflow.providers.google.cloud.operators.gcs import GCSBucketCreateAclEntryOperator
 from airflow.utils import dates
@@ -41,6 +42,7 @@ GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 INSTANCE_NAME = os.environ.get("GCP_MEMORYSTORE_INSTANCE_NAME", "test-memorystore")
 INSTANCE_NAME_2 = os.environ.get("GCP_MEMORYSTORE_INSTANCE_NAME2", "test-memorystore-2")
 INSTANCE_NAME_3 = os.environ.get("GCP_MEMORYSTORE_INSTANCE_NAME3", "test-memorystore-3")
+INSTANCE_NAME_4 = os.environ.get("GCP_MEMORYSTORE_INSTANCE_NAME4", "test-memorystore-4")
 
 EXPORT_GCS_URL = os.environ.get("GCP_MEMORYSTORE_EXPORT_GCS_URL", "gs://test-memorystore/my-export.rdb")
 EXPORT_GCS_URL_PARTS = urlparse(EXPORT_GCS_URL)
@@ -51,6 +53,10 @@ FIRST_INSTANCE = {"tier": Instance.Tier.BASIC, "memory_size_gb": 1}
 # [END howto_operator_instance]
 
 SECOND_INSTANCE = {"tier": Instance.Tier.STANDARD_HA, "memory_size_gb": 3}
+
+# [START howto_operator_memcached_instance]
+MEMCACHED_INSTANCE = {"name": "", "node_count": 1, "node_config": {"cpu_count": 1, "memory_size_mb": 1024}}
+# [END howto_operator_memcached_instance]
 
 
 with models.DAG(
@@ -224,3 +230,19 @@ with models.DAG(
     failover_instance >> delete_instance_2
 
     export_instance >> create_instance_and_import >> scale_instance >> export_and_delete_instance
+
+    # [START howto_operator_create_instance_memcached]
+    create_instance_3 = CloudMemorystoreMemcachedCreateInstanceOperator(
+        task_id="create-instance-3",
+        location="europe-north1",
+        instance_id=INSTANCE_NAME_4,
+        instance=MEMCACHED_INSTANCE,
+        project_id=GCP_PROJECT_ID,
+    )
+    # [END howto_operator_create_instance_memcached]
+
+    # [START howto_operator_delete_instance_memcached]
+    delete_instance_3 = CloudMemorystoreMemcachedDeleteInstanceOperator(
+        task_id="delete-instance-3", location="europe-north1", instance=INSTANCE_NAME_4, project_id=GCP_PROJECT_ID
+    )
+    # [END howto_operator_delete_instance_memcached]

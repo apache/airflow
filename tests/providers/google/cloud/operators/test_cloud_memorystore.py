@@ -28,6 +28,7 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreFailoverInstanceOperator, CloudMemorystoreGetInstanceOperator,
     CloudMemorystoreImportOperator, CloudMemorystoreListInstancesOperator,
     CloudMemorystoreScaleInstanceOperator, CloudMemorystoreUpdateInstanceOperator,
+    CloudMemorystoreMemcachedCreateInstanceOperator, CloudMemorystoreMemcachedDeleteInstanceOperator
 )
 
 TEST_GCP_CONN_ID = "test-gcp-conn-id"
@@ -328,4 +329,56 @@ class TestCloudMemorystoreCreateInstanceAndImportOperatorOperator(TestCase):
                     timeout=TEST_TIMEOUT,
                 ),
             ]
+        )
+
+
+class TestCloudMemorystoreMemcachedCreateInstanceOperator(TestCase):
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedHook")
+    def test_assert_valid_hook_call(self, mock_hook):
+        task = CloudMemorystoreMemcachedCreateInstanceOperator(
+            task_id=TEST_TASK_ID,
+            location=TEST_LOCATION,
+            instance_id=TEST_INSTANCE_ID,
+            instance=TEST_INSTANCE,
+            project_id=TEST_PROJECT_ID,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
+        task.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.return_value.create_instance.assert_called_once_with(
+            location=TEST_LOCATION,
+            instance_id=TEST_INSTANCE_ID,
+            instance=TEST_INSTANCE,
+            project_id=TEST_PROJECT_ID,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+
+
+class TestCloudMemorystoreMemcachedDeleteInstanceOperator(TestCase):
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedHook")
+    def test_assert_valid_hook_call(self, mock_hook):
+        task = CloudMemorystoreMemcachedDeleteInstanceOperator(
+            task_id=TEST_TASK_ID,
+            location=TEST_LOCATION,
+            instance=TEST_INSTANCE_NAME,
+            project_id=TEST_PROJECT_ID,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
+        task.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(gcp_conn_id=TEST_GCP_CONN_ID)
+        mock_hook.return_value.delete_instance.assert_called_once_with(
+            location=TEST_LOCATION,
+            instance=TEST_INSTANCE_NAME,
+            project_id=TEST_PROJECT_ID,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
         )

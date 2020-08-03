@@ -21,7 +21,10 @@ Hooks for Cloud Memorystore service
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
+from google.api_core import path_template
 from google.api_core.retry import Retry
+from google.cloud.memcache_v1beta2 import CloudMemcacheClient
+from google.cloud.memcache_v1beta2.types import Instance as MemcachedInstance
 from google.cloud.redis_v1 import CloudRedisClient
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
 from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, OutputConfig
@@ -501,3 +504,275 @@ class CloudMemorystoreHook(GoogleBaseHook):
         )
         result.result()
         self.log.info("Instance updated: %s", instance.name)
+
+
+class CloudMemorystoreMemcachedHook(GoogleBaseHook):
+    """
+        Hook for Google Cloud Memorystore for Memcached service APIs.
+
+        All the methods in the hook where project_id is used must be called with
+        keyword arguments rather than positional.
+
+        :param gcp_conn_id: The connection ID to use when fetching connection info.
+        :type gcp_conn_id: str
+        :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+            if any. For this to work, the service account making the request must have
+            domain-wide delegation enabled.
+        :type delegate_to: str
+        :param impersonation_chain: Optional service account to impersonate using short-term
+            credentials, or chained list of accounts required to get the access_token
+            of the last account in the list, which will be impersonated in the request.
+            If set as a string, the account must grant the originating account
+            the Service Account Token Creator IAM role.
+            If set as a sequence, the identities from the list must grant
+            Service Account Token Creator IAM role to the directly preceding identity, with first
+            account from the list granting this role to the originating account.
+        :type impersonation_chain: Union[str, Sequence[str]]
+        """
+
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
+        self._client = None  # type: Optional[CloudMemcacheClient]
+
+    def get_conn(self, ):
+        """
+        Retrieves client library object that allow access to Cloud Memorystore Memcached service.
+
+        """
+        if not self._client:
+            self._client = CloudMemcacheClient(credentials=self._get_credentials())
+        return self._client
+
+    @staticmethod
+    def _append_label(instance: MemcachedInstance, key: str, val: str) -> MemcachedInstance:
+        """
+        Append labels to provided Instance type
+
+        Labels must fit the regex ``[a-z]([-a-z0-9]*[a-z0-9])?`` (current
+         airflow version string follows semantic versioning spec: x.y.z).
+
+        :param instance: The proto to append resource_label airflow
+            version to
+        :type instance: google.cloud.memcache_v1beta2.types.cloud_memcache.Instance
+        :param key: The key label
+        :type key: str
+        :param val:
+        :type val: str
+        :return: The cluster proto updated with new label
+        """
+        val = val.replace(".", "-").replace("+", "-")
+        instance.labels.update({key: val})
+        return instance
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_instance(
+        self,
+        location: str,
+        instance_id: str,
+        instance: Union[Dict, MemcachedInstance],
+        project_id: str,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ):
+        """
+        Creates a Memcached instance based on the specified tier and memory size.
+
+        By default, the instance is accessible from the project's `default network
+        <https://cloud.google.com/compute/docs/networks-and-firewalls#networks>`__.
+
+        :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
+        :param instance_id: Required. The logical name of the Memcached instance in the customer project with the
+            following restrictions:
+
+            -  Must contain only lowercase letters, numbers, and hyphens.
+            -  Must start with a letter.
+            -  Must be between 1-40 characters.
+            -  Must end with a number or a letter.
+            -  Must be unique within the customer project / location
+        :type instance_id: str
+        :param instance: Required. A Memcached [Instance] resource
+
+            If a dict is provided, it must be of the same form as the protobuf message
+            :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.Instance`
+        :type instance: Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.Instance]
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+            retried.
+        :type retry: google.api_core.retry.Retry
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
+        """
+        client = self.get_conn()
+        parent = path_template.expand(
+            "projects/{project}/locations/{location}",
+            project=project_id,
+            location=location
+        )
+        instance_name = CloudMemcacheClient.instance_path(project_id, location, instance_id)
+        try:
+            instance = client.get_instance(
+                name=instance_name, retry=retry, timeout=timeout, metadata=metadata
+            )
+            self.log.info("Instance exists. Skipping creation.")
+            return instance
+        except NotFound:
+            self.log.info("Instance not exists.")
+
+        if isinstance(instance, dict):
+            instance = ParseDict(instance, MemcachedInstance())
+        elif not isinstance(instance, Instance):
+            raise AirflowException("instance is not instance of Instance type or python dict")
+
+        self._append_label(instance, "airflow-version", "v" + version.version)
+
+        result = client.create_instance(
+            parent=parent,
+            instance_id=instance_id,
+            instance=instance,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        result.result()
+        self.log.info("Instance created.")
+        return client.get_instance(name=instance_name, retry=retry, timeout=timeout, metadata=metadata)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_instance(
+        self,
+        location: str,
+        instance: str,
+        project_id: str,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ):
+        """
+        Deletes a specific Memcached instance.  Instance stops serving and data is deleted.
+
+        :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
+        :param instance: The logical name of the Memcached instance in the customer project.
+        :type instance: str
+        :param project_id:  Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+            retried.
+        :type retry: google.api_core.retry.Retry
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
+        """
+        client = self.get_conn()
+        name = CloudMemcacheClient.instance_path(project_id, location, instance)
+        self.log.info("Fetching Instance: %s", name)
+        instance = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata)
+
+        if not instance:
+            return
+
+        self.log.info("Deleting Instance: %s", name)
+        result = client.delete_instance(name=name, retry=retry, timeout=timeout, metadata=metadata)
+        result.result()
+        self.log.info("Instance deleted: %s", name)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_instance(
+        self,
+        location: str,
+        instance: str,
+        project_id: str,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ):
+        """
+        Gets the details of a specific Memcached instance.
+
+        :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
+        :param instance: The logical name of the Memcached instance in the customer project.
+        :type instance: str
+        :param project_id:  Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+            retried.
+        :type retry: google.api_core.retry.Retry
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
+        """
+        client = self.get_conn()
+        name = CloudMemcacheClient.instance_path(project_id, location, instance)
+        result = client.get_instance(name=name, retry=retry, timeout=timeout, metadata=metadata)
+        self.log.info("Fetched Instance: %s", name)
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_instances(
+        self,
+        location: str,
+        page_size: int,
+        project_id: str,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ):
+        """
+        Lists all Memcached instances owned by a project in either the specified location (region) or all
+        locations.
+
+        :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+
+                If it is specified as ``-`` (wildcard), then all regions available to the project are
+                queried, and the results are aggregated.
+        :type location: str
+        :param page_size: The maximum number of resources contained in the underlying API response. If page
+            streaming is performed per- resource, this parameter does not affect the return value. If page
+            streaming is performed per-page, this determines the maximum number of resources in a page.
+        :type page_size: int
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+            retried.
+        :type retry: google.api_core.retry.Retry
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
+        """
+        client = self.get_conn()
+        parent = path_template.expand(
+            "projects/{project}/locations/{location}",
+            project=project_id,
+            location=location
+        )
+        result = client.list_instances(
+            parent=parent, page_size=page_size, retry=retry, timeout=timeout, metadata=metadata
+        )
+        self.log.info("Fetched instances")
+        return result

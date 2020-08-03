@@ -19,12 +19,13 @@
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
+from google.cloud.memcache_v1beta2.types import Instance as MemcachedInstance
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
 from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, OutputConfig
 from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.cloud_memorystore import CloudMemorystoreHook
+from airflow.providers.google.cloud.hooks.cloud_memorystore import CloudMemorystoreHook, CloudMemorystoreMemcachedHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -922,6 +923,160 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
             metadata=self.metadata,
         )
 
+        hook.delete_instance(
+            location=self.location,
+            instance=self.instance,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+
+
+class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
+    """
+    Creates a Memcached instance based on the specified tier and memory size.
+
+    By default, the instance is accessible from the project's `default network
+    <https://cloud.google.com/compute/docs/networks-and-firewalls#networks>`__.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudMemorystoreMemcachedCreateInstanceOperator`
+
+    :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+    :type location: str
+    :param instance_id: Required. The logical name of the Memcached instance in the customer project with the
+        following restrictions:
+
+        -  Must contain only lowercase letters, numbers, and hyphens.
+        -  Must start with a letter.
+        -  Must be between 1-40 characters.
+        -  Must end with a number or a letter.
+        -  Must be unique within the customer project / location
+    :type instance_id: str
+    :param instance: Required. A Memcached [Instance] resource
+
+        If a dict is provided, it must be of the same form as the protobuf message
+        :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.Instance`
+    :type instance: Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.Instance]
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the GCP connection is used.
+    :type project_id: str
+    :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+        retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+        ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+
+    template_fields = (
+        "location",
+        "instance_id",
+        "instance",
+        "project_id",
+        "retry",
+        "timeout",
+        "metadata",
+        "gcp_conn_id",
+    )
+
+    @apply_defaults
+    def __init__(
+        self,
+        location: str,
+        instance_id: str,
+        instance: Union[Dict, MemcachedInstance],
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.location = location
+        self.instance_id = instance_id
+        self.instance = instance
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+
+    def execute(self, context: Dict):
+        hook = CloudMemorystoreMemcachedHook(gcp_conn_id=self.gcp_conn_id)
+        result = hook.create_instance(
+            location=self.location,
+            instance_id=self.instance_id,
+            instance=self.instance,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        return MessageToDict(result)
+
+
+class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
+    """
+    Deletes a specific Memcached instance. Instance stops serving and data is deleted.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudMemorystoreMemcachedDeleteInstanceOperator`
+
+    :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+    :type location: str
+    :param instance: The logical name of the Memcached instance in the customer project.
+    :type instance: str
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the GCP connection is used.
+    :type project_id: str
+    :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+        retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+        ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+
+    template_fields = ("location", "instance", "project_id", "retry", "timeout", "metadata", "gcp_conn_id")
+
+    @apply_defaults
+    def __init__(
+        self,
+        location: str,
+        instance: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.location = location
+        self.instance = instance
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+
+    def execute(self, context: Dict):
+        hook = CloudMemorystoreMemcachedHook(gcp_conn_id=self.gcp_conn_id)
         hook.delete_instance(
             location=self.location,
             instance=self.instance,
