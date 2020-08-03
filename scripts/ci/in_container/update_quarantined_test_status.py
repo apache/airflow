@@ -20,11 +20,14 @@ import os
 import re
 import sys
 from datetime import datetime
+from os.path import dirname, join, realpath
 from typing import Dict, List, NamedTuple, Optional
 from urllib.parse import urlsplit
 
+import jinja2
 from bs4 import BeautifulSoup
 from github3 import login
+from jinja2 import StrictUndefined
 from tabulate import tabulate
 
 
@@ -42,6 +45,7 @@ class TestHistory(NamedTuple):
     name: str
     url: str
     states: List[bool]
+    comment: str
 
 
 test_results = []
@@ -84,6 +88,7 @@ def parse_test_history(line: str) -> Optional[TestHistory]:
         http_url = match_url.group(2)
         parsed_url = urlsplit(http_url)
         the_id = parsed_url[3].split("=")[1]
+        comment = values[4] if len(values) >= 5 else ""
         # noinspection PyBroadException
         try:
             states = parse_state_history(values[3])
@@ -93,7 +98,8 @@ def parse_test_history(line: str) -> Optional[TestHistory]:
             test_id=the_id,
             name=name,
             states=states,
-            url=url
+            url=url,
+            comment=comment,
         )
     return None
 
@@ -124,7 +130,8 @@ def update_test_history(history: TestHistory, last_status: bool):
         test_id=history.test_id,
         name=history.name,
         url=history.url,
-        states=([last_status] + history.states)[0:num_runs]
+        states=([last_status] + history.states)[0:num_runs],
+        comment=history.comment,
     )
 
 
@@ -134,7 +141,8 @@ def create_test_history(result: TestResult) -> TestHistory:
         test_id=result.test_id,
         name=result.name,
         url=get_url(result),
-        states=[result.result]
+        states=[result.result],
+        comment=""
     )
 
 
@@ -153,7 +161,7 @@ def get_history_status(history: TestHistory):
 
 
 def get_table(history_map: Dict[str, TestHistory]) -> str:
-    headers = ["Test", "Last run", f"Last {num_runs} runs", "Status"]
+    headers = ["Test", "Last run", f"Last {num_runs} runs", "Status", "Comment"]
     the_table: List[List[str]] = []
     for ordered_key in sorted(history_map.keys()):
         history = history_map[ordered_key]
@@ -161,7 +169,8 @@ def get_table(history_map: Dict[str, TestHistory]) -> str:
             history.url,
             "Succeeded" if history.states[0] else "Failed",
             " ".join([reverse_status_map[state] for state in history.states]),
-            get_history_status(history)
+            get_history_status(history),
+            history.comment
         ])
     return tabulate(the_table, headers, tablefmt="github")
 
@@ -199,6 +208,9 @@ if __name__ == '__main__':
     issue_id = int(os.environ.get('ISSUE_ID', 0))
     num_runs = int(os.environ.get('NUM_RUNS', 10))
 
+    if issue_id == 0:
+        raise Exception("You need to define ISSUE_ID as environment variable")
+
     gh = login(token=token)
 
     quarantined_issue = gh.issue(user, repo, issue_id)
@@ -223,4 +235,7 @@ if __name__ == '__main__':
     print()
     print(table)
     print()
-    quarantined_issue.edit(None, f"Last status update (UTC): {datetime.utcnow()}\n\n" + str(table))
+    with open(join(dirname(realpath(__file__)), "quarantine_issue_header.md"), "r") as f:
+        header = jinja2.Template(f.read(), autoescape=True, undefined=StrictUndefined).\
+            render(DATE_UTC_NOW=datetime.utcnow())
+    quarantined_issue.edit(None, header + "\n\n" + str(table))
