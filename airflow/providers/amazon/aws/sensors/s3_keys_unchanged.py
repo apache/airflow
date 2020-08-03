@@ -29,7 +29,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 @poke_mode_only
-class S3UploadSessionCompleteSensor(BaseSensorOperator):
+class S3KeysUnchangedSensor(BaseSensorOperator):
     """
     Checks for changes in the number of objects at prefix in AWS S3
     bucket and returns True if the inactivity period has passed with no
@@ -55,12 +55,12 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
     :param inactivity_period: The total seconds of inactivity to designate
-        an upload session is over. Note, this mechanism is not real time and
+        keys unchanged. Note, this mechanism is not real time and
         this operator may not return until a poke_interval after this period
         has passed with no additional objects sensed.
     :type inactivity_period: float
-    :param min_objects: The minimum number of objects needed for upload session
-        to be considered valid.
+    :param min_objects: The minimum number of objects needed for keys unchanged
+        sensor to be considered valid.
     :type min_objects: int
     :param previous_objects: The set of object ids found during the last poke.
     :type previous_objects: set[str]
@@ -106,7 +106,7 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
         """
         return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
-    def is_upload_session_complete(self, current_objects: Set[str]) -> bool:
+    def is_keys_unchanged(self, current_objects: Set[str]) -> bool:
         """
         Checks whether new objects have been uploaded and the inactivity_period
         has passed and updates the state of the sensor accordingly.
@@ -169,4 +169,4 @@ class S3UploadSessionCompleteSensor(BaseSensorOperator):
         return False
 
     def poke(self, context):
-        return self.is_upload_session_complete(set(self.hook.list_keys(self.bucket, prefix=self.prefix)))
+        return self.is_keys_unchanged(set(self.hook.list_keys(self.bucket, prefix=self.prefix)))

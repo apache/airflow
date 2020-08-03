@@ -22,13 +22,13 @@ from unittest import TestCase, mock
 from freezegun import freeze_time
 
 from airflow.models.dag import DAG, AirflowException
-from airflow.providers.amazon.aws.sensors.s3_upload_session_complete import S3UploadSessionCompleteSensor
+from airflow.providers.amazon.aws.sensors.s3_keys_unchanged import S3KeysUnchangedSensor
 
 TEST_DAG_ID = 'unit_tests_aws_sensor'
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 
-class TestS3UploadSessionCompleteSensor(TestCase):
+class TestS3KeysUnchangedSensor(TestCase):
 
     def setUp(self):
         args = {
@@ -39,7 +39,7 @@ class TestS3UploadSessionCompleteSensor(TestCase):
         dag.schedule_interval = '@once'
         self.dag = dag
 
-        self.sensor = S3UploadSessionCompleteSensor(
+        self.sensor = S3KeysUnchangedSensor(
             task_id='sensor_1',
             bucket_name='test-bucket',
             prefix='test-prefix/path',
@@ -52,7 +52,7 @@ class TestS3UploadSessionCompleteSensor(TestCase):
 
     def test_reschedule_mode_not_allowed(self):
         with self.assertRaises(ValueError):
-            S3UploadSessionCompleteSensor(
+            S3KeysUnchangedSensor(
                 task_id='sensor_2',
                 bucket_name='test-bucket',
                 prefix='test-prefix/path',
@@ -63,13 +63,13 @@ class TestS3UploadSessionCompleteSensor(TestCase):
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_files_deleted_between_pokes_throw_error(self):
-        self.sensor.is_upload_session_complete({'a', 'b'})
+        self.sensor.is_keys_unchanged({'a', 'b'})
         with self.assertRaises(AirflowException):
-            self.sensor.is_upload_session_complete({'a'})
+            self.sensor.is_keys_unchanged({'a'})
 
     @freeze_time(DEFAULT_DATE)
     def test_files_deleted_between_pokes_allow_delete(self):
-        self.sensor = S3UploadSessionCompleteSensor(
+        self.sensor = S3KeysUnchangedSensor(
             task_id='sensor_2',
             bucket_name='test-bucket',
             prefix='test-prefix/path',
@@ -79,45 +79,45 @@ class TestS3UploadSessionCompleteSensor(TestCase):
             allow_delete=True,
             dag=self.dag
         )
-        self.sensor.is_upload_session_complete({'a', 'b'})
+        self.sensor.is_keys_unchanged({'a', 'b'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_upload_session_complete({'a'})
+        self.sensor.is_keys_unchanged({'a'})
         self.assertEqual(len(self.sensor.previous_objects), 1)
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_upload_session_complete({'a', 'c'})
+        self.sensor.is_keys_unchanged({'a', 'c'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_incoming_data(self):
-        self.sensor.is_upload_session_complete({'a'})
+        self.sensor.is_keys_unchanged({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_upload_session_complete({'a', 'b'})
+        self.sensor.is_keys_unchanged({'a', 'b'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_upload_session_complete({'a', 'b', 'c'})
+        self.sensor.is_keys_unchanged({'a', 'b', 'c'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_no_new_data(self):
-        self.sensor.is_upload_session_complete({'a'})
+        self.sensor.is_keys_unchanged({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_upload_session_complete({'a'})
+        self.sensor.is_keys_unchanged({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_no_new_data_success_criteria(self):
-        self.sensor.is_upload_session_complete({'a'})
+        self.sensor.is_keys_unchanged({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_upload_session_complete({'a'})
+        self.sensor.is_keys_unchanged({'a'})
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertTrue(self.sensor.is_upload_session_complete({'a'}))
+        self.assertTrue(self.sensor.is_keys_unchanged({'a'}))
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_not_enough_objects(self):
-        self.sensor.is_upload_session_complete(set())
+        self.sensor.is_keys_unchanged(set())
         self.assertEqual(self.sensor.inactivity_seconds, 0)
-        self.sensor.is_upload_session_complete(set())
+        self.sensor.is_keys_unchanged(set())
         self.assertEqual(self.sensor.inactivity_seconds, 10)
-        self.assertFalse(self.sensor.is_upload_session_complete(set()))
+        self.assertFalse(self.sensor.is_keys_unchanged(set()))
 
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     @mock.patch('airflow.providers.amazon.aws.sensors.s3_upload_session_complete.S3Hook')
