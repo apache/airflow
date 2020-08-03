@@ -85,8 +85,9 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :type jenkins_connection_id: str
     :param job_name: The name of the job to trigger
     :type job_name: str
-    :param parameters: The parameters block to provide to jenkins. (templated)
-    :type parameters: JSON blob, path to JSON file, Dict, or List
+    :param parameters: The parameters block provided to jenkins for use in
+        the API call when triggering a build. (templated)
+    :type parameters: str, Dict, or List
     :param sleep_time: How long will the operator sleep between each status
         request for the job (min 1, default 10)
     :type sleep_time: int
@@ -130,8 +131,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
         :return: Dict containing the response body (key body)
             and the headers coming along (headers)
         """
-        # Since params can be either a JSON string or a dictionary directly,
-        # check type and pass to build_job_url as a dictionary
+        # Since params can be either JSON string, dictionary, or list,
+        # check type and pass to build_job_url
         if params and isinstance(params, str):
             params = ast.literal_eval(params)
 
