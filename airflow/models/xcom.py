@@ -234,7 +234,7 @@ class BaseXCom(Base, LoggingMixin):
             raise
 
     @staticmethod
-    def deserialize_value(result) -> Any:
+    def deserialize_value(result):
         # TODO: "pickling" has been deprecated and JSON is preferred.
         # "pickling" will be removed in Airflow 2.0.
         enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
@@ -253,11 +253,13 @@ class BaseXCom(Base, LoggingMixin):
 
 def resolve_xcom_backend():
     """Resolves custom XCom class"""
-    clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
+    clazz = conf.getimport("core", "xcom_backend", fallback="airflow.models.xcom.{}"
+                           .format(BaseXCom.__name__))
     if clazz:
         if not issubclass(clazz, BaseXCom):
             raise TypeError(
-                f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
+                "Your custom XCom class `{class_name}` is not a subclass of `{base_name}`."
+                .format(class_name=clazz.__name__, base_name=BaseXCom.__name__)
             )
         return clazz
     return BaseXCom
