@@ -238,7 +238,7 @@ docker = [
     'docker~=3.0',
 ]
 druid = [
-    'pydruid>=0.4.1,<=0.5.8',
+    'pydruid>=0.4.1',
 ]
 elasticsearch = [
     'elasticsearch>7, <7.6.0',
@@ -269,7 +269,7 @@ google = [
     'google-cloud-datacatalog>=0.5.0,<0.8',
     'google-cloud-dataproc>=0.5.0',
     'google-cloud-dlp>=0.11.0',
-    'google-cloud-kms>=1.2.1',
+    'google-cloud-kms>=1.2.1,<2.0.0',
     'google-cloud-language>=1.1.1',
     'google-cloud-logging>=1.14.0',
     'google-cloud-monitoring>=0.34.0',
@@ -462,7 +462,7 @@ devel = [
     'pre-commit',
     'pylint==2.5.3',
     'pysftp',
-    'pytest',
+    'pytest<6.0.0',  # FIXME: pylint complaining for pytest.mark.* on v6.0
     'pytest-cov',
     'pytest-instafail',
     'pytest-rerunfailures',
@@ -510,7 +510,6 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "discord": [],
     "docker": docker,
     "elasticsearch": [],
-    "email": [],
     "exasol": exasol,
     "facebook": facebook,
     "ftp": [],

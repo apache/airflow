@@ -380,7 +380,7 @@ Airflow provides operators for many common tasks, including:
 
 - :class:`~airflow.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
-- :class:`~airflow.providers.email.operators.email.EmailOperator` - sends an email
+- :class:`~airflow.operators.email.EmailOperator` - sends an email
 - :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
 - :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`,
   :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator`,
@@ -674,11 +674,6 @@ The information needed to connect to external systems is stored in the Airflow m
 managed in the UI (``Menu -> Admin -> Connections``).  A ``conn_id`` is defined there, and hostname / login /
 password / schema information attached to it.  Airflow pipelines retrieve centrally-managed connections
 information by specifying the relevant ``conn_id``.
-
-You may add more than one connection with the same ``conn_id``.  When there is more than one connection
-with the same ``conn_id``, the :py:meth:`~airflow.hooks.base_hook.BaseHook.get_connection` method on
-:py:class:`~airflow.hooks.base_hook.BaseHook` will choose one connection randomly. This can be be used to
-provide basic load balancing and fault tolerance, when used in conjunction with retries.
 
 Airflow also provides a mechanism to store connections outside the database, e.g. in :ref:`environment variables <environment_variables_secrets_backend>`.
 Additional sources may be enabled, e.g. :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`, or you may

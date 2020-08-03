@@ -75,9 +75,8 @@ class S3ListOperator(BaseOperator):
                  delimiter='',
                  aws_conn_id='aws_default',
                  verify=None,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket = bucket
         self.prefix = prefix
         self.delimiter = delimiter

@@ -45,7 +45,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :ref:`howto/operator:KubernetesPodOperator`
 
     .. note::
-        If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, use
+        If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__
+        and Airflow is not running in the same cluster, consider using
         :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`, which
         simplifies the authorization process.
 
@@ -146,7 +147,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
     """
-    template_fields: Iterable[str] = ('cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
+    template_fields: Iterable[str] = (
+        'image', 'cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
@@ -286,9 +288,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                     self.reattach_on_restart:
                 self.log.info("found a running pod with labels %s but a different try_number"
                               "Will attach to this pod and monitor instead of starting new one", labels)
-                final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
+                final_state, result = self.monitor_launched_pod(launcher, pod_list.items[0])
             elif len(pod_list.items) == 1:
-                final_state, result = self.monitor_launched_pod(launcher, pod_list[0])
+                self.log.info("found a running pod with labels %s."
+                              "Will monitor this pod instead of starting new one", labels)
+                final_state, result = self.monitor_launched_pod(launcher, pod_list.items[0])
             else:
                 self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)

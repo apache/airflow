@@ -45,8 +45,8 @@ class SqliteOperator(BaseOperator):
             sql: str,
             sqlite_conn_id: str = 'sqlite_default',
             parameters: Optional[Union[Mapping, Iterable]] = None,
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+            **kwargs) -> None:
+        super().__init__(**kwargs)
         self.sqlite_conn_id = sqlite_conn_id
         self.sql = sql
         self.parameters = parameters or []

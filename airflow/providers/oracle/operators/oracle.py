@@ -51,8 +51,8 @@ class OracleOperator(BaseOperator):
             oracle_conn_id: str = 'oracle_default',
             parameters: Optional[Union[Mapping, Iterable]] = None,
             autocommit: bool = False,
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+            **kwargs) -> None:
+        super().__init__(**kwargs)
         self.oracle_conn_id = oracle_conn_id
         self.sql = sql
         self.autocommit = autocommit
