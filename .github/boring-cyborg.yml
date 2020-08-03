@@ -22,11 +22,11 @@ labelPRBasedOnFilePath:
   provider:Google:
     - airflow/providers/google/*
     - airflow/providers/google/**/*
-    - tests/providers/google/*
-    - tests/providers/google/**/*
     - docs/howto/connection/gcp.rst
     - docs/howto/connection/gcp_sql.rst
-    - docs/howto/operator/gcp/*
+    - docs/howto/operator/google/*
+    - tests/providers/google/*
+    - tests/providers/google/**/*
 
   provider:AWS:
     - airflow/providers/amazon/aws/**/*
@@ -42,22 +42,41 @@ labelPRBasedOnFilePath:
 
   provider:Apache:
     - airflow/providers/apache/**/*
-    - tests/providers/apache/**/*
+    - docs/howto/operator/apache/*
     - tests/providers/apache/*
+    - tests/providers/apache/**/*
 
   k8s:
     - airflow/**/kubernetes_*.py
+    - airflow/example_dags/example_kubernetes_executor.py
+    - airflow/example_dags/example_kubernetes_executor_config.py
     - airflow/kubernetes/**/*
-    - tests/runtime/kubernetes/*
+    - docs/executor/kubernetes.rst
+    - docs/howto/connection/kubernetes.rst
+    - docs/howto/operator/kubernetes.rst
     - docs/kubernetes.rst
+    - tests/runtime/kubernetes/*
 
   area:API:
+    - airflow/api/*
+    - airflow/api/**/*
     - airflow/api_connexion/*
     - airflow/api_connexion/**/*
+    - airflow/www/api/*
+    - airflow/www/api/**/*
+    - clients/*
+    - clients/**/*
+    - docs/rest-api-ref.rst
+    - docs/stable-rest-api/*
+    - docs/stable-rest-api/**/*
     - tests/api_connexion/*
     - tests/api_connexion/**/*
+    - tests/www/api/*
+    - tests/www/api/**/*
 
   area:dev:
+    - airflow/mypy/*
+    - airflow/mypy/**/*
     - scripts/**/*
     - scripts/*
     - dev/**/*
@@ -83,6 +102,10 @@ labelPRBasedOnFilePath:
     - .rat-excludes
     - .readthedocs.yml
     - .travis.yml
+    - airflow/www/.eslintignore
+    - airflow/www/.eslintrc
+    - airflow/www/.stylelintignore
+    - airflow/www/.stylelintrc
 
   area:docs:
     - docs/**/*
@@ -106,17 +129,22 @@ labelPRBasedOnFilePath:
     - airflow/bin/cli.py
     - airflow/cli/**/*.py
     - tests/cli/**/*.py
+    - docs/cli-ref.rst
+    - docs/usage-cli.rst
 
   area:Lineage:
     - airflow/lineage/**/*
     - airflow/lineage/*
     - tests/lineage/*
+    - docs/lineage.rst
 
   area:Logging:
+    - airflow/providers/**/log/*
     - airflow/utils/log/*
-    - tests/utils/log/**/*
+    - docs/howto/write-logs.rst
+    - tests/providers/**/log/*
     - tests/utils/log/*
-    - docs/lineage.rst
+    - tests/utils/log/**/*
 
   area:Plugins:
     - airflow/cli/commands/plugins_command.py
@@ -140,6 +168,7 @@ labelPRBasedOnFilePath:
     - airflow/providers/**/secrets/*
     - tests/secrets/*
     - tests/providers/**/secrets/*
+    - docs/howto/use-alternative-secrets-backend.rst
 
   area:Serialization:
     - airflow/serialization/*

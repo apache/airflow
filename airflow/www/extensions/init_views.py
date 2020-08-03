@@ -50,12 +50,16 @@ def init_appbuilder_views(app):
     appbuilder.add_view(views.LogModelView, "Logs", category="Browse")
     appbuilder.add_view(views.SlaMissModelView, "SLA Misses", category="Browse")
     appbuilder.add_view(views.TaskInstanceModelView, "Task Instances", category="Browse")
+    appbuilder.add_view(views.TaskRescheduleModelView, "Task Reschedules", category="Browse")
     appbuilder.add_view(views.ConfigurationView, "Configurations", category="Admin", category_icon="fa-user")
     appbuilder.add_view(views.ConnectionModelView, "Connections", category="Admin")
     appbuilder.add_view(views.PoolModelView, "Pools", category="Admin")
     appbuilder.add_view(views.VariableModelView, "Variables", category="Admin")
     appbuilder.add_view(views.XComModelView, "XComs", category="Admin")
     appbuilder.add_view(views.VersionView, 'Version', category='About', category_icon='fa-th')
+    # add_view_no_menu to change item position.
+    # I added link in extensions.init_appbuilder_links.init_appbuilder_links
+    appbuilder.add_view_no_menu(views.RedocView)
 
 
 def init_plugins(app):
@@ -107,13 +111,6 @@ def init_api_connexion(app: Flask) -> None:
 def init_api_experimental(app):
     """Initialize Experimental API"""
     from airflow.www.api.experimental import endpoints
-
-    # required for testing purposes otherwise the module retains
-    # a link to the default_auth
-    if app.config['TESTING']:
-        import importlib
-
-        importlib.reload(endpoints)
 
     app.register_blueprint(endpoints.api_experimental, url_prefix='/api/experimental')
     app.extensions['csrf'].exempt(endpoints.api_experimental)

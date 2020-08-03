@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
 import sys
 import token
@@ -23,13 +22,14 @@ from os.path import dirname
 from shutil import copyfile, copytree, rmtree
 from typing import List
 
+from bowler import LN, TOKEN, Capture, Filename, Query
+from fissix.fixer_util import Comma, KeywordArg, Name
+from fissix.pytree import Leaf
+
 from backport_packages.setup_backport_packages import (
     get_source_airflow_folder, get_source_providers_folder, get_target_providers_folder,
     get_target_providers_package_folder,
 )
-from bowler import LN, TOKEN, Capture, Filename, Query
-from fissix.fixer_util import Comma, KeywordArg, Name
-from fissix.pytree import Leaf
 
 CLASS_TYPES = ["hooks", "operators", "sensors", "secrets", "protocols"]
 
@@ -54,9 +54,16 @@ def copy_provider_sources() -> None:
                     ignored_names.append(file_name)
         return ignored_names
 
+    def ignore_google_auth_backend(src: str, names: List[str]) -> List[str]:
+        del names
+        if src.endswith("google" + os.path.sep + "common"):
+            return ["auth_backend"]
+        return []
+
     def ignore_some_files(src: str, names: List[str]) -> List[str]:
         ignored_list = []
         ignored_list.extend(ignore_kubernetes_files(src=src, names=names))
+        ignored_list.extend(ignore_google_auth_backend(src=src, names=names))
         return ignored_list
 
     rm_build_dir()

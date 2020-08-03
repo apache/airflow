@@ -16,6 +16,7 @@
 # under the License.
 
 """GRPC Hook"""
+from typing import Callable, Generator, List, Optional
 
 import grpc
 from google import auth as google_auth
@@ -45,7 +46,10 @@ class GrpcHook(BaseHook):
         its only arg. Could be partial or lambda.
     """
 
-    def __init__(self, grpc_conn_id, interceptors=None, custom_connection_func=None):
+    def __init__(self,
+                 grpc_conn_id: str,
+                 interceptors: Optional[List[Callable]] = None,
+                 custom_connection_func: Optional[Callable] = None) -> None:
         super().__init__()
         self.grpc_conn_id = grpc_conn_id
         self.conn = self.get_connection(self.grpc_conn_id)
@@ -53,7 +57,7 @@ class GrpcHook(BaseHook):
         self.interceptors = interceptors if interceptors else []
         self.custom_connection_func = custom_connection_func
 
-    def get_conn(self):
+    def get_conn(self) -> grpc.Channel:
         base_url = self.conn.host
 
         if self.conn.port:
@@ -96,7 +100,11 @@ class GrpcHook(BaseHook):
 
         return channel
 
-    def run(self, stub_class, call_func, streaming=False, data=None):
+    def run(self,
+            stub_class: Callable,
+            call_func: str,
+            streaming: bool = False,
+            data: Optional[dict] = None) -> Generator:
         """
         Call gRPC function and yield response to caller
         """
@@ -123,7 +131,7 @@ class GrpcHook(BaseHook):
                 )
                 raise ex
 
-    def _get_field(self, field_name, default=None):
+    def _get_field(self, field_name: str) -> str:
         """
         Fetches a field from extras, and returns it. This is some Airflow
         magic. The grpc hook type adds custom UI elements
@@ -131,7 +139,4 @@ class GrpcHook(BaseHook):
         They get formatted as shown below.
         """
         full_field_name = 'extra__grpc__{}'.format(field_name)
-        if full_field_name in self.extras:
-            return self.extras[full_field_name]
-        else:
-            return default
+        return self.extras[full_field_name]

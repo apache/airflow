@@ -84,7 +84,11 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
                           "You should pass the gcp_conn_id parameter."
         with self.assertWarns(DeprecationWarning) as warn:
             BigQueryHook(bigquery_conn_id=bigquery_conn_id)
-            mock_base_hook_init.assert_called_once_with(delegate_to=None, gcp_conn_id='bigquery conn id')
+            mock_base_hook_init.assert_called_once_with(
+                delegate_to=None,
+                gcp_conn_id='bigquery conn id',
+                impersonation_chain=None,
+            )
         self.assertEqual(warning_message, str(warn.warning))
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -100,18 +104,19 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         with self.assertRaises(NotImplementedError):
             self.hook.insert_rows(table="table", rows=[1, 2])
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_bigquery_table_exists_true(self, mock_client):
         result = self.hook.table_exists(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID)
         mock_client.return_value.get_table.assert_called_once_with(TABLE_REFERENCE)
+        mock_client.assert_called_once_with(project_id=PROJECT_ID)
         assert result is True
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_bigquery_table_exists_false(self, mock_client):
         mock_client.return_value.get_table.side_effect = NotFound("Dataset not found")
-
         result = self.hook.table_exists(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID)
         mock_client.return_value.get_table.assert_called_once_with(TABLE_REFERENCE)
+        mock_client.assert_called_once_with(project_id=PROJECT_ID)
         assert result is False
 
     @mock.patch('airflow.providers.google.cloud.hooks.bigquery.read_gbq')
@@ -667,6 +672,42 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             kwargs["configuration"]['labels'],
             {'label1': 'test1', 'label2': 'test2'}
         )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.QueryJob")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_insert_job(self, mock_client, mock_query_job):
+        job_conf = {
+            "query": {
+                "query": "SELECT * FROM test",
+                "useLegacySql": "False",
+            }
+        }
+        mock_query_job._JOB_TYPE = "query"
+
+        self.hook.insert_job(
+            configuration=job_conf,
+            job_id=JOB_ID,
+            project_id=PROJECT_ID,
+            location=LOCATION,
+        )
+
+        mock_client.assert_called_once_with(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+        )
+
+        mock_query_job.from_api_repr.assert_called_once_with(
+            {
+                'configuration': job_conf,
+                'jobReference': {
+                    'jobId': JOB_ID,
+                    'projectId': PROJECT_ID,
+                    'location': LOCATION
+                }
+            },
+            mock_client.return_value
+        )
+        mock_query_job.from_api_repr.return_value.result.assert_called_once_with()
 
 
 class TestBigQueryTableSplitter(unittest.TestCase):

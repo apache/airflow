@@ -43,9 +43,8 @@ class S3CreateBucketOperator(BaseOperator):
                  bucket_name,
                  aws_conn_id: Optional[str] = "aws_default",
                  region_name: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket_name = bucket_name
         self.region_name = region_name
         self.aws_conn_id = aws_conn_id
@@ -79,9 +78,8 @@ class S3DeleteBucketOperator(BaseOperator):
                  bucket_name,
                  force_delete: Optional[bool] = False,
                  aws_conn_id: Optional[str] = "aws_default",
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket_name = bucket_name
         self.force_delete = force_delete
         self.aws_conn_id = aws_conn_id

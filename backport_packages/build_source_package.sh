@@ -23,8 +23,8 @@
 # or it needs to be available in your keychain
 set -euo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "${MY_DIR}"/..
+BACKPORT_PACKAGES_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "${BACKPORT_PACKAGES_DIR}"/..
 
 function check_version() {
     : "${VERSION:?"Please export VERSION variable with the version of source package to prepare"}"

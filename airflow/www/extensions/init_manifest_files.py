@@ -29,7 +29,7 @@ def configure_manifest_files(app):
     :param app:
     :return:
     """
-    manifest = dict()
+    manifest = {}
 
     def parse_manifest_json():
         # noinspection PyBroadException

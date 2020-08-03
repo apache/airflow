@@ -19,6 +19,7 @@
 import functools
 import gzip
 from io import BytesIO as IO
+from typing import Callable, TypeVar, cast
 
 import pendulum
 from flask import after_this_request, flash, g, redirect, request, url_for
@@ -26,8 +27,10 @@ from flask import after_this_request, flash, g, redirect, request, url_for
 from airflow.models import Log
 from airflow.utils.session import create_session
 
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
-def action_logging(f):
+
+def action_logging(f: T) -> T:
     """
     Decorator to log user actions
     """
@@ -56,10 +59,10 @@ def action_logging(f):
 
         return f(*args, **kwargs)
 
-    return wrapper
+    return cast(T, wrapper)
 
 
-def gzipped(f):
+def gzipped(f: T) -> T:
     """
     Decorator to make a view compressed
     """
@@ -92,14 +95,14 @@ def gzipped(f):
 
         return f(*args, **kwargs)
 
-    return view_func
+    return cast(T, view_func)
 
 
-def has_dag_access(**dag_kwargs):
+def has_dag_access(**dag_kwargs) -> Callable[[T], T]:
     """
     Decorator to check whether the user has read / write permission on the dag.
     """
-    def decorator(f):
+    def decorator(f: T):
         @functools.wraps(f)
         def wrapper(self, *args, **kwargs):
             has_access = self.appbuilder.sm.has_access
@@ -124,5 +127,5 @@ def has_dag_access(**dag_kwargs):
                 flash("Access is Denied", "danger")
                 return redirect(url_for(self.appbuilder.sm.auth_view.
                                         __class__.__name__ + ".login"))
-        return wrapper
+        return cast(T, wrapper)
     return decorator

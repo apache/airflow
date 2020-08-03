@@ -32,13 +32,11 @@ from airflow.utils.dates import days_ago
 DATASET_NAME = os.environ.get("GCP_DATASET_NAME", 'airflow_test')
 TABLE_NAME = os.environ.get("GCP_TABLE_NAME", 'gcs_to_bq_table')
 
-args = {
-    'start_date': days_ago(2)
-}
-
 dag = models.DAG(
-    dag_id='example_gcs_to_bigquery_operator', default_args=args,
-    schedule_interval=None, tags=['example'])
+    dag_id='example_gcs_to_bigquery_operator',
+    start_date=days_ago(2),
+    schedule_interval=None,
+    tags=['example'])
 
 create_test_dataset = BigQueryCreateEmptyDatasetOperator(
     task_id='create_airflow_test_dataset',

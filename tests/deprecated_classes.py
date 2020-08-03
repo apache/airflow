@@ -1148,15 +1148,15 @@ OPERATORS = [
         'airflow.operators.papermill_operator.PapermillOperator',
     ),
     (
-        'airflow.operators.check_operator.CheckOperator',
+        'airflow.operators.sql.SQLCheckOperator',
         'airflow.operators.presto_check_operator.PrestoCheckOperator',
     ),
     (
-        'airflow.operators.check_operator.IntervalCheckOperator',
+        'airflow.operators.sql.SQLIntervalCheckOperator',
         'airflow.operators.presto_check_operator.PrestoIntervalCheckOperator',
     ),
     (
-        'airflow.operators.check_operator.ValueCheckOperator',
+        'airflow.operators.sql.SQLValueCheckOperator',
         'airflow.operators.presto_check_operator.PrestoValueCheckOperator',
     ),
     (
@@ -1268,7 +1268,7 @@ OPERATORS = [
         'airflow.contrib.operators.winrm_operator.WinRMOperator',
     ),
     (
-        'airflow.providers.email.operators.email.EmailOperator',
+        'airflow.operators.email.EmailOperator',
         'airflow.operators.email_operator.EmailOperator',
     ),
     (
@@ -1746,10 +1746,41 @@ UTILS = [
     (
         'airflow.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter',
         'airflow.contrib.utils.log.task_handler_with_custom_formatter.TaskHandlerWithCustomFormatter',
+    ),
+    (
+        'airflow.utils.weekday.WeekDay',
+        'airflow.contrib.utils.weekday.WeekDay',
     )
 ]
 
-ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS + UTILS
+LOGS = [
+    (
+        "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler",
+        "airflow.utils.log.s3_task_handler.S3TaskHandler"
+    ),
+    (
+        'airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler',
+        'airflow.utils.log.cloudwatch_task_handler.CloudwatchTaskHandler'
+    ),
+    (
+        'airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler',
+        'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler'
+    ),
+    (
+        "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
+        "airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler"
+    ),
+    (
+        "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
+        "airflow.utils.log.gcs_task_handler.GCSTaskHandler"
+    ),
+    (
+        "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler",
+        "airflow.utils.log.wasb_task_handler.WasbTaskHandler"
+    )
+]
+
+ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS + UTILS + LOGS
 
 RENAMED_ALL = [
     (old_class, new_class)

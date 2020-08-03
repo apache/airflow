@@ -36,11 +36,11 @@ These are examples of the development options available with the local virtualen
 
 * local debugging;
 * Airflow source view;
-* autocompletion;
+* auto-completion;
 * documentation support;
 * unit tests.
 
-This document describes minimum requirements and insructions for using a standalone version of the local virtualenv.
+This document describes minimum requirements and instructions for using a standalone version of the local virtualenv.
 
 Prerequisites
 =============
@@ -116,13 +116,22 @@ To create and initialize the local virtualenv:
 
    .. code-block:: bash
 
-    pip install -U -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -U -e ".[devel,gcp,postgres]"
+    pip install -U -e ".[devel,<OTHER EXTRAS>]" # for example: pip install -U -e ".[devel,google,postgres]"
+
+In case you have problems with installing airflow because of some requirements are not installable, you can
+try to install it with the set of working constraints (note that there are different constraint files
+for different python versions:
+
+   .. code-block:: bash
+
+    pip install -U -e ".[devel,<OTHER EXTRAS>]" \
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
 
 Note: when you first initialize database (the next step), you may encounter some problems.
-This is because airflow by default will try to load in example dags where some of them requires dependencies ``gcp`` and ``postgres``.
+This is because airflow by default will try to load in example dags where some of them requires dependencies ``google`` and ``postgres``.
 You can solve the problem by:
 
-- installing the extras i.e. ``[devel,gcp,postgres]`` or
+- installing the extras i.e. ``[devel,google,postgres]`` or
 - disable the example dags with environment variable: ``export AIRFLOW__CORE__LOAD_EXAMPLES=False`` or
 - simply ignore the error messages and proceed
 

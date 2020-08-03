@@ -35,9 +35,6 @@ from airflow.providers.google.cloud.operators.dlp import (
 )
 from airflow.utils.dates import days_ago
 
-default_args = {"start_date": days_ago(1)}
-
-
 GCP_PROJECT = os.environ.get("GCP_PROJECT_ID", "example-project")
 TEMPLATE_ID = "dlp-inspect-838746"
 ITEM = ContentItem(
@@ -54,8 +51,8 @@ INSPECT_TEMPLATE = InspectTemplate(inspect_config=INSPECT_CONFIG)
 
 with models.DAG(
     "example_gcp_dlp",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     create_template = CloudDLPCreateInspectTemplateOperator(

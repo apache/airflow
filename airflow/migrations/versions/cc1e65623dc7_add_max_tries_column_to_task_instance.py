@@ -44,7 +44,7 @@ BATCH_SIZE = 5000
 ID_LEN = 250
 
 
-class TaskInstance(Base):  # noqa: D101
+class TaskInstance(Base):  # noqa: D101  # type: ignore
     __tablename__ = "task_instance"
 
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)

@@ -149,7 +149,7 @@
         This is useful when you want to configure db engine args that SqlAlchemy won't parse
         in connection string.
         See https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine.params.connect_args
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: ~
@@ -330,6 +330,14 @@
       type: string
       example: ~
       default: "30"
+    - name: min_serialized_dag_fetch_interval
+      description: |
+        Fetching serialized DAG can not be faster than a minimum interval to reduce database
+        read rate. This config controls when your DAGs are updated in the Webserver
+      version_added: ~
+      type: string
+      example: ~
+      default: "10"
     - name: store_dag_code
       description: |
         Whether to persist DAG files code in DB.
@@ -338,8 +346,8 @@
         ``store_serialized_dags`` setting.
       version_added: 1.10.10
       type: string
-      example: ~
-      default: "%(store_serialized_dags)s"
+      example: "False"
+      default: ~
     - name: max_num_rendered_ti_fields_per_task
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
@@ -411,6 +419,7 @@
         Cloudwatch log groups should start with "cloudwatch://"
         GCS buckets should start with "gs://"
         WASB buckets should start with "wasb" just to help Airflow select correct handler
+        Stackdriver logs should start with "stackdriver://"
       version_added: ~
       type: string
       example: ~
@@ -517,6 +526,14 @@
       type: string
       example: ~
       default: "task"
+    - name: extra_loggers
+      description: |
+        A comma\-separated list of third-party logger names that will be configured to print messages to
+        consoles\.
+      version_added: ~
+      type: string
+      example: "connexion,sqlalchemy"
+      default: ""
 - name: secrets
   description: ~
   options:
@@ -574,11 +591,45 @@
   options:
     - name: auth_backend
       description: |
-        How to authenticate users of the API
+        How to authenticate users of the API. See
+        https://airflow.apache.org/docs/stable/security.html for possible values.
+        ("airflow.api.auth.backend.default" allows all requests for historic reasons)
       version_added: ~
       type: string
       example: ~
-      default: "airflow.api.auth.backend.default"
+      default: "airflow.api.auth.backend.deny_all"
+    - name: maximum_page_limit
+      description: |
+        Used to set the maximum page limit for API requests
+      version_added: ~
+      type: integer
+      example: ~
+      default: "100"
+    - name: fallback_page_limit
+      description: |
+        Used to set the default page limit when limit is zero. A default limit
+        of 100 is set on OpenApi spec. However, this particular default limit
+        only work when limit is set equal to zero(0) from API requests.
+        If no limit is supplied, the OpenApi spec default is used.
+      type: integer
+      example: ~
+      default: "100"
+    - name: google_oauth2_audience
+      description: The intended audience for JWT token credentials used for authorization.
+        This value must match on the client and server sides.
+        If empty, audience will not be tested.
+      type: string
+      example: project-id-random-value.apps.googleusercontent.com
+      default: ""
+    - name: google_key_path
+      description: |
+        Path to GCP Credential JSON file. If ommited, authorization based on `the Application Default
+        Credentials
+        <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
+        be used.
+      type: string
+      example: /files/service-account-json
+      default: ""
 - name: lineage
   description: ~
   options:
@@ -765,6 +816,14 @@
       type: string
       example: ~
       default: "30"
+    - name: reload_on_plugin_change
+      description: |
+        If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
+        then reload the gunicorn.
+      version_added: 1.10.11
+      type: boolean
+      example: ~
+      default: "False"
     - name: secret_key
       description: |
         Secret key used to run your flask app
@@ -1098,7 +1157,11 @@
       default: "airflow@example.com"
 - name: sentry
   description: |
-    Sentry (https://docs.sentry.io) integration
+    Sentry (https://docs.sentry.io) integration. Here you can supply
+    additional configuration options based on the Python platform. See:
+    https://docs.sentry.io/error-reporting/configuration/?platform=python.
+    Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,
+    ``ignore_errors``, ``before_breadcrumb``, ``before_send``, ``transport``.
   options:
     - name: sentry_dsn
       description: ~
@@ -1767,7 +1830,7 @@
     - name: pod_template_file
       description: |
         Path to the YAML pod file. If set, all other kubernetes-related fields are ignored.
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: ""
@@ -1796,7 +1859,7 @@
       description: |
         If False (and delete_worker_pods is True),
         failed worker pods will not be deleted so users can investigate them.
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: "False"
@@ -1890,7 +1953,7 @@
     - name: dags_volume_mount_point
       description: |
         For either git sync or volume mounted DAGs, the worker will mount the volume in this path
-      version_added: ~
+      version_added: 1.10.11
       type: string
       example: ~
       default: ""

@@ -287,12 +287,41 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
+    post:
+      summary: Trigger a DAG Run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: post_dag_run
+      tags: [DAGRun]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRun'
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          $ref: '#/components/responses/AlreadyExists'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /dags/~/dagRuns/list:
     post:
-      summary: Get all DAG Runs from aall DAGs.
+      summary: Get all DAG Runs from all DAGs
       description: >
         This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
-        would run in to maximum HTTP request URL lengthlimits
+        would run in to maximum HTTP request URL length limit.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: get_dag_runs_batch
       tags: [DAGRun]
@@ -335,63 +364,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DAGRun'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    post:
-      summary: Trigger a DAG Run
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: post_dag_run
-      tags: [DAGRun]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DAGRun'
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGRun'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '409':
-          $ref: '#/components/responses/AlreadyExists'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-
-    patch:
-      summary: Update a DAG Run
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: patch_dag_run
-      tags: [DAGRun]
-      parameters:
-        - $ref: '#/components/parameters/UpdateMask'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DAGRun'
-
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGRun'
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -606,6 +578,8 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/AlreadyExists'
 
     delete:
       summary: Delete a pool
@@ -621,6 +595,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
     parameters:
@@ -638,7 +614,7 @@ paths:
       - $ref: '#/components/parameters/FilterPool'
       - $ref: '#/components/parameters/FilterQueue'
     get:
-      summary: Get a list of task instance of DAG.
+      summary: Get a list of task instance of DAG
       description: >
         This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve DAG Runs for all DAGs
         and DAG Runs.
@@ -692,7 +668,7 @@ paths:
       summary: Get list of task instances from all DAGs and DAG Runs.
       description: >
         This endpoint is a POST to allow filtering across a large number of DAG IDs, where as a GET it
-        would run in to maximum HTTP request URL lengthlimits
+        would run in to maximum HTTP request URL length limits.
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
       operationId: get_task_instances_batch
       tags: [TaskInstance]
@@ -867,31 +843,6 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-    post:
-      summary: Create an XCom entry
-      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
-      operationId: post_xcom_entries
-      tags: [XCom]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/XCom'
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/XCom'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -917,51 +868,6 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
-
-    patch:
-      summary: Update an XCom entry
-      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
-      operationId: patch_xcom_entry
-      tags: [XCom]
-      parameters:
-        - $ref: '#/components/parameters/UpdateMask'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/XCom'
-
-      responses:
-        '200':
-          description: Successful response.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/XCom'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    delete:
-      summary: Delete an XCom entry
-      x-openapi-router-controller: airflow.api_connexion.endpoints.xcom_endpoint
-      operationId: delete_xcom_entry
-      tags: [XCom]
-      responses:
-        '204':
-          description: No content.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
 
   # Non-database resources
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links:
@@ -1033,7 +939,7 @@ paths:
       - $ref: '#/components/parameters/DAGID'
 
     get:
-      summary: Get a simplified representation of DAG.
+      summary: Get a simplified representation of DAG
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: get_dag_details
       description: >
@@ -1083,7 +989,7 @@ paths:
       - $ref: '#/components/parameters/TaskID'
 
     get:
-      summary: Get simplified representation of a task.
+      summary: Get simplified representation of a task
       x-openapi-router-controller: airflow.api_connexion.endpoints.task_endpoint
       operationId: get_task
       tags: [DAG]
@@ -1120,12 +1026,18 @@ paths:
                 properties:
                   content:
                     type: string
+            plain/text:
+              schema:
+                type: string
+
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
 
   /config:
     get:
@@ -1133,9 +1045,6 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
       operationId: get_config
       tags: [Config]
-      parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
           description: Return current configuration.
@@ -1153,17 +1062,17 @@ paths:
 
   /health:
     get:
-      summary: Checks if the API works
+      summary: Returns the status of Airflow's metadatabase and scheduler
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
       tags: [Monitoring]
       responses:
         '200':
-          description: It should always return "OK"
+          description: Returns info about metadatabase and last heart beat.
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/HealthInfo'
 
   /version:
     get:
@@ -1234,8 +1143,10 @@ components:
         root_dag_id:
           type: string
           readOnly: true
+          nullable: true
         is_paused:
           type: boolean
+          nullable: true
         is_subdag:
           type: boolean
           readOnly: true
@@ -1257,11 +1168,13 @@ components:
         description:
           type: string
           readOnly: true
+          nullable: true
         schedule_interval:
           $ref: '#/components/schemas/ScheduleInterval'
           readOnly: true
         tags:
           type: array
+          nullable: true
           items:
             $ref: '#/components/schemas/Tag'
           readOnly: true
@@ -1290,6 +1203,7 @@ components:
             If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
 
             This together with DAG_ID are a unique key.
+          nullable: true
         dag_id:
           type: string
           readOnly: true
@@ -1309,18 +1223,19 @@ components:
           format: date-time
           description: >
             The start time. The time when DAG Run was actually created..
-          readOnly: True
+          readOnly: true
         end_date:
           type: string
           format: date-time
-          readOnly: True
+          readOnly: true
           nullable: true
         state:
           $ref: '#/components/schemas/DagState'
+          readOnly: True
         external_trigger:
           type: boolean
           default: true
-          readOnly: True
+          readOnly: true
         conf:
           type: object
           description: >
@@ -1376,6 +1291,14 @@ components:
           items:
             $ref: '#/components/schemas/EventLog'
 
+    HealthInfo:
+      type: object
+      properties:
+        metadatabase:
+          $ref: '#/components/schemas/MetadatabaseStatus'
+        scheduler:
+          $ref: '#/components/schemas/SchedulerStatus'
+
     ImportError:
       type: object
       properties:
@@ -1400,6 +1323,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ImportError'
+
+    MetadatabaseStatus:
+      type: object
+      description: Returns the status of the metadatabase
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
 
     Pool:
       type: object
@@ -1428,6 +1358,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Pool'
+
+    SchedulerStatus:
+      type: object
+      description: Returns the status and the latest scheduler heartbeat
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_scheduler_heartbeat:
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
 
     SLAMiss:
       type: object
@@ -1638,6 +1580,7 @@ components:
               format: 'date-time'
               readOnly: true
             dag_run_timeout:
+              nullable: true
               $ref: '#/components/schemas/TimeDelta'
             doc_md:
               type: string
@@ -1685,6 +1628,7 @@ components:
           type: string
           format: 'date-time'
           readOnly: true
+          nullable: true
         trigger_rule:
           $ref: '#/components/schemas/TriggerRule'
         extra_links:
@@ -1715,8 +1659,10 @@ components:
           readOnly: true
         execution_timeout:
           $ref: '#/components/schemas/TimeDelta'
+          nullable: true
         retry_delay:
           $ref: '#/components/schemas/TimeDelta'
+          nullable: true
         retry_exponential_backoff:
           type: boolean
           readOnly: true
@@ -1937,7 +1883,7 @@ components:
           description: >
             Returns objects greater or equal the specified date.
 
-            This can be combined with startd_ate_lte parameter to receive only the selected period.
+            This can be combined with start_date_lte parameter to receive only the selected period.
         start_date_lte:
           type: string
           format: date-time
@@ -2003,17 +1949,35 @@ components:
       type: object
       required:
         - __type
+        - days
+        - seconds
+        - microseconds
       properties:
         __type: {type: string}
         days: {type: integer}
         seconds: {type: integer}
-        microsecond: {type: integer}
+        microseconds: {type: integer}
 
     RelativeDelta:
       # TODO: Why we need these fields?
       type: object
       required:
         - __type
+        - years
+        - months
+        - days
+        - leapdays
+        - hours
+        - minutes
+        - seconds
+        - microseconds
+        - year
+        - month
+        - day
+        - hour
+        - minute
+        - second
+        - microsecond
       properties:
         __type: {type: string}
         years: {type: integer}
@@ -2036,6 +2000,7 @@ components:
       type: object
       required:
         - __type
+        - value
       properties:
         __type: {type: string}
         value: {type: string}
@@ -2078,7 +2043,7 @@ components:
             the problem type.
         title:
           type: string
-          description: A short, human-readable summary of the problem  type.
+          description: A short, human-readable summary of the problem type.
         status:
           type: number
           description: The HTTP status code generated by the API server for this occurrence of the problem.
@@ -2106,7 +2071,7 @@ components:
     TaskState:
       type: string
       enum:
-        - succcess
+        - success
         - running
         - failed
         - upstream_failed
@@ -2144,6 +2109,12 @@ components:
         - upstream
         - absolute
 
+    HealthStatus:
+      type: string
+      enum:
+        - healthy
+        - unhealthy
+
   # Reusable path, query, header and cookie parameters
   parameters:
     # Pagination parameters
@@ -2162,7 +2133,6 @@ components:
       required: false
       schema:
         type: integer
-        minimum: 1
         default: 100
       description: The numbers of items to return.
 
@@ -2300,7 +2270,7 @@ components:
       description: >
         Returns objects greater or equal the specified date.
 
-        This can be combined with startd_ate_lte parameter to receive only the selected period.
+        This can be combined with start_date_lte parameter to receive only the selected period.
     FilterStartDateLTE:
       in: query
       name: start_date_lte
@@ -2438,6 +2408,13 @@ components:
     # 404
     'NotFound':
       description: A specified resource is not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    # 406
+    'NotAcceptable':
+      description: A specified Accept header is not allowed.
       content:
         application/json:
           schema:

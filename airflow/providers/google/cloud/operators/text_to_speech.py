@@ -91,7 +91,6 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        *args,
         **kwargs
     ) -> None:
         self.input_data = input_data
@@ -104,7 +103,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         for parameter in [

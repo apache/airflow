@@ -33,13 +33,13 @@ from airflow.utils.dates import days_ago
 
 default_args = {
     'owner': 'airflow',
-    'start_date': days_ago(2)
 }
 
 with DAG(
     dag_id='example_papermill_operator',
     default_args=default_args,
     schedule_interval='0 0 * * *',
+    start_date=days_ago(2),
     dagrun_timeout=timedelta(minutes=60),
     tags=['example'],
 ) as dag_1:
@@ -71,6 +71,7 @@ with DAG(
     dag_id='example_papermill_operator',
     default_args=default_args,
     schedule_interval='0 0 * * *',
+    start_date=days_ago(2),
     dagrun_timeout=timedelta(minutes=60)
 ) as dag_2:
 

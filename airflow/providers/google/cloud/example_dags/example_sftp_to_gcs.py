@@ -25,8 +25,6 @@ from airflow import models
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
 from airflow.utils.dates import days_ago
 
-default_args = {"start_date": days_ago(1)}
-
 BUCKET_SRC = os.environ.get("GCP_GCS_BUCKET_1_SRC", "test-sftp-gcs")
 
 TMP_PATH = "/tmp"
@@ -39,7 +37,7 @@ OBJECT_SRC_3 = "parent-3.txt"
 
 
 with models.DAG(
-    "example_sftp_to_gcs", default_args=default_args, schedule_interval=None
+    "example_sftp_to_gcs", start_date=days_ago(1), schedule_interval=None
 ) as dag:
     # [START howto_operator_sftp_to_gcs_copy_single_file]
     copy_file_from_sftp_to_gcs = SFTPToGCSOperator(

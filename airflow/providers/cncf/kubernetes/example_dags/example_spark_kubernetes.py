@@ -43,7 +43,6 @@ from airflow.utils.dates import days_ago
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': days_ago(1),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,
@@ -58,6 +57,7 @@ dag = DAG(
     default_args=default_args,
     description='submit spark-pi as sparkApplication on kubernetes',
     schedule_interval=timedelta(days=1),
+    start_date=days_ago(1),
 )
 
 t1 = SparkKubernetesOperator(

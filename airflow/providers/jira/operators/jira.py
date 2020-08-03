@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Any, Callable, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -45,21 +46,20 @@ class JiraOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 jira_conn_id='jira_default',
-                 jira_method=None,
-                 jira_method_args=None,
-                 result_processor=None,
-                 get_jira_resource_method=None,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+                 jira_method: str,
+                 jira_conn_id: str = 'jira_default',
+                 jira_method_args: Optional[dict] = None,
+                 result_processor: Optional[Callable] = None,
+                 get_jira_resource_method: Optional[Callable] = None,
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.jira_conn_id = jira_conn_id
         self.method_name = jira_method
         self.jira_method_args = jira_method_args
         self.result_processor = result_processor
         self.get_jira_resource_method = get_jira_resource_method
 
-    def execute(self, context):
+    def execute(self, context: Dict) -> Any:
         try:
             if self.get_jira_resource_method is not None:
                 # if get_jira_resource_method is provided, jira_method will be executed on

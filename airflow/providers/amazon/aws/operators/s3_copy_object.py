@@ -77,8 +77,8 @@ class S3CopyObjectOperator(BaseOperator):
             source_version_id=None,
             aws_conn_id='aws_default',
             verify=None,
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
 
         self.source_bucket_key = source_bucket_key
         self.dest_bucket_key = dest_bucket_key

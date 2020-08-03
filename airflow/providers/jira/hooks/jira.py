@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for JIRA"""
+from typing import Any, Optional
+
 from jira import JIRA
 from jira.exceptions import JIRAError
 
@@ -31,15 +33,15 @@ class JiraHook(BaseHook):
     :type jira_conn_id: str
     """
     def __init__(self,
-                 jira_conn_id='jira_default',
-                 proxies=None):
+                 jira_conn_id: str = 'jira_default',
+                 proxies: Optional[Any] = None) -> None:
         super().__init__()
         self.jira_conn_id = jira_conn_id
         self.proxies = proxies
         self.client = None
         self.get_conn()
 
-    def get_conn(self):
+    def get_conn(self) -> JIRA:
         if not self.client:
             self.log.debug('Creating Jira client for conn_id: %s', self.jira_conn_id)
 

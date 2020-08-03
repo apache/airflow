@@ -15,20 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 from functools import wraps
-from typing import Callable, Dict
+from typing import Callable, Dict, TypeVar, cast
 
 from pendulum.parsing import ParserError
 
 from airflow.api_connexion.exceptions import BadRequest
+from airflow.configuration import conf
 from airflow.utils import timezone
-
-# Page parameters
-page_offset = "offset"
-page_limit = "limit"
-
-# Database entity fields
-dag_id = "dag_id"
-pool_id = "pool_id"
 
 
 def format_datetime(value: str):
@@ -38,6 +31,7 @@ def format_datetime(value: str):
 
     This should only be used within connection views because it raises 400
     """
+    value = value.strip()
     if value[-1] != 'Z':
         value = value.replace(" ", '+')
     try:
@@ -48,7 +42,27 @@ def format_datetime(value: str):
         )
 
 
-def format_parameters(params_formatters: Dict[str, Callable[..., bool]]):
+def check_limit(value: int):
+    """
+    This checks the limit passed to view and raises BadRequest if
+    limit exceed user configured value
+    """
+    max_val = conf.getint("api", "maximum_page_limit")  # user configured max page limit
+    fallback = conf.getint("api", "fallback_page_limit")
+
+    if value > max_val:
+        return max_val
+    if value == 0:
+        return fallback
+    if value < 0:
+        raise BadRequest("Page limit must be a positive integer")
+    return value
+
+
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+
+
+def format_parameters(params_formatters: Dict[str, Callable[..., bool]]) -> Callable[[T], T]:
     """
     Decorator factory that create decorator that convert parameters using given formatters.
 
@@ -56,12 +70,15 @@ def format_parameters(params_formatters: Dict[str, Callable[..., bool]]):
 
     :param params_formatters: Map of key name and formatter function
     """
-    def format_parameters_decorator(func):
+
+    def format_parameters_decorator(func: T):
         @wraps(func)
         def wrapped_function(*args, **kwargs):
             for key, formatter in params_formatters.items():
                 if key in kwargs:
                     kwargs[key] = formatter(kwargs[key])
             return func(*args, **kwargs)
-        return wrapped_function
+
+        return cast(T, wrapped_function)
+
     return format_parameters_decorator

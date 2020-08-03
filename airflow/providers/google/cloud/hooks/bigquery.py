@@ -61,6 +61,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def __init__(self,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  use_legacy_sql: bool = True,
                  location: Optional[str] = None,
                  bigquery_conn_id: Optional[str] = None,
@@ -73,7 +74,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
             gcp_conn_id = bigquery_conn_id
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self.use_legacy_sql = use_legacy_sql
         self.location = location
         self.running_job_id = None  # type: Optional[str]
@@ -211,7 +215,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         table_reference = TableReference(DatasetReference(project_id, dataset_id), table_id)
         try:
-            self.get_client().get_table(table_reference)
+            self.get_client(project_id=project_id).get_table(table_reference)
             return True
         except NotFound:
             return False
@@ -1481,6 +1485,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not job:
             raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
         job = job.from_api_repr(job_data, client)
+        # Start the job and wait for it to complete and get the result.
+        job.result()
         return job
 
     def run_with_configuration(self, configuration: Dict) -> str:
@@ -1501,8 +1507,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             DeprecationWarning
         )
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -1746,8 +1750,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             configuration['load']['allowJaggedRows'] = allow_jagged_rows
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -1843,8 +1845,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ] = encryption_configuration
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -2167,8 +2167,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ] = encryption_configuration
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 

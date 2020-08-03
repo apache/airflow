@@ -33,10 +33,6 @@ function initialize_common_environment {
     # shellcheck disable=SC2034
     FILES_TO_CLEANUP_ON_EXIT=()
 
-    # Sets to where airflow sources are located
-    AIRFLOW_SOURCES=${AIRFLOW_SOURCES:=$(cd "${MY_DIR}/../../" && pwd)}
-    export AIRFLOW_SOURCES
-
     # Sets to the build cache directory - status of build and convenience scripts are stored there
     BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
     export BUILD_CACHE_DIR
@@ -161,14 +157,9 @@ function initialize_common_environment {
         done
     fi
 
-    # We use pulled docker image cache by default to speed up the builds
-    # but we can also set different docker caching strategy (for example we can use local cache
-    # to build the images in case we iterate with the image
-    export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
-
-    # By default we are not upgrading to latest requirements when building Docker CI image
+    # By default we are not upgrading to latest version of constraints when building Docker CI image
     # This will only be done in cron jobs
-    export UPGRADE_TO_LATEST_REQUIREMENTS=${UPGRADE_TO_LATEST_REQUIREMENTS:="false"}
+    export UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS:="false"}
 
     # In case of MacOS we need to use gstat - gnu version of the stats
     export STAT_BIN=stat
@@ -177,27 +168,17 @@ function initialize_common_environment {
     fi
 
     # Read airflow version from the version.py
-    AIRFLOW_VERSION=$(grep version "airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
+    AIRFLOW_VERSION=$(grep version "${AIRFLOW_SOURCES}/airflow/version.py" | awk '{print $3}' | sed "s/['+]//g")
     export AIRFLOW_VERSION
 
     # default version of python used to tag the "master" and "latest" images in DockerHub
     export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.6
 
-    # In case we are not in CI - we assume we run locally. There are subtle changes if you run
-    # CI scripts locally - for example requirements are eagerly updated if you do local run
-    # in generate requirements
+    # In case we are not in CI - we assume we run locally.
     if [[ ${CI:="false"} == "true" ]]; then
         export LOCAL_RUN="false"
     else
         export LOCAL_RUN="true"
-    fi
-
-    # eager upgrade while generating requirements should only happen in locally run
-    # pre-commits or in cron job
-    if [[ ${LOCAL_RUN} == "true" ]]; then
-        export UPGRADE_WHILE_GENERATING_REQUIREMENTS="true"
-    else
-        export UPGRADE_WHILE_GENERATING_REQUIREMENTS=${UPGRADE_WHILE_GENERATING_REQUIREMENTS:="false"}
     fi
 
     # Default extras used for building CI image
@@ -223,14 +204,23 @@ function initialize_common_environment {
     # Artifact name suffix for SVN packaging
     export VERSION_SUFFIX_FOR_SVN=""
 
+    # Default Kubernetes version
+    export DEFAULT_KUBERNETES_VERSION="v1.18.6"
+
+    # Default KinD version
+    export DEFAULT_KIND_VERSION="v0.8.0"
+
+    # Default Helm version
+    export DEFAULT_HELM_VERSION="v3.2.4"
+
     # Version of Kubernetes to run
-    export KUBERNETES_VERSION="${KUBERNETES_VERSION:="v1.15.3"}"
+    export KUBERNETES_VERSION="${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}"
 
-    # Name of the KinD cluster to connect to
-    export KIND_CLUSTER_NAME=${KIND_CLUSTER_NAME:="airflow-python-${PYTHON_MAJOR_MINOR_VERSION}-${KUBERNETES_VERSION}"}
+    # folder with DAGs to embed into production image
+    export EMBEDDED_DAGS=${EMBEDDED_DAGS:="empty"}
 
-    # Name of the KinD cluster to connect to when referred to via kubectl
-    export KUBECTL_CLUSTER_NAME=kind-${KIND_CLUSTER_NAME}
+    # Namespace where airflow is installed via helm
+    export HELM_AIRFLOW_NAMESPACE="airflow"
 
 }
 
@@ -239,7 +229,7 @@ function initialize_common_environment {
 # (This makes it easy to move between different CI systems)
 # This function maps CI-specific variables into a generic ones (prefixed with CI_) that
 # we used in other scripts
-function get_ci_environment() {
+function get_environment_for_builds_on_ci() {
     export CI_EVENT_TYPE="manual"
     export CI_TARGET_REPO="apache/airflow"
     export CI_TARGET_BRANCH="master"
@@ -268,7 +258,7 @@ function get_ci_environment() {
             fi
         elif [[ ${GITHUB_ACTIONS:=} == "true" ]]; then
             export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
-            export CI_TARGET_BRANCH="${GITHUB_BASE_REF}"
+            export CI_TARGET_BRANCH="${GITHUB_BASE_REF:=${CI_TARGET_BRANCH}}"
             export CI_BUILD_ID="${GITHUB_RUN_ID}"
             export CI_JOB_ID="${GITHUB_JOB}"
             if [[ ${GITHUB_EVENT_NAME:=} == "pull_request" ]]; then

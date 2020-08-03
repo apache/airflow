@@ -47,8 +47,8 @@ class SparkKubernetesOperator(BaseOperator):
                  application_file: str,
                  namespace: Optional[str] = None,
                  kubernetes_conn_id: str = 'kubernetes_default',
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.application_file = application_file
         self.namespace = namespace
         self.kubernetes_conn_id = kubernetes_conn_id

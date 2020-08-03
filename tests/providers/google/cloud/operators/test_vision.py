@@ -26,10 +26,11 @@ from airflow.providers.google.cloud.operators.vision import (
     CloudVisionAddProductToProductSetOperator, CloudVisionCreateProductOperator,
     CloudVisionCreateProductSetOperator, CloudVisionCreateReferenceImageOperator,
     CloudVisionDeleteProductOperator, CloudVisionDeleteProductSetOperator,
-    CloudVisionDetectImageLabelsOperator, CloudVisionDetectImageSafeSearchOperator,
-    CloudVisionDetectTextOperator, CloudVisionGetProductOperator, CloudVisionGetProductSetOperator,
-    CloudVisionImageAnnotateOperator, CloudVisionRemoveProductFromProductSetOperator,
-    CloudVisionTextDetectOperator, CloudVisionUpdateProductOperator, CloudVisionUpdateProductSetOperator,
+    CloudVisionDeleteReferenceImageOperator, CloudVisionDetectImageLabelsOperator,
+    CloudVisionDetectImageSafeSearchOperator, CloudVisionDetectTextOperator, CloudVisionGetProductOperator,
+    CloudVisionGetProductSetOperator, CloudVisionImageAnnotateOperator,
+    CloudVisionRemoveProductFromProductSetOperator, CloudVisionTextDetectOperator,
+    CloudVisionUpdateProductOperator, CloudVisionUpdateProductSetOperator,
 )
 
 PRODUCTSET_TEST = ProductSet(display_name='Test Product Set')
@@ -272,6 +273,31 @@ class TestCloudVisionReferenceImageCreate(unittest.TestCase):
             product_id=PRODUCT_ID_TEST,
             reference_image=REFERENCE_IMAGE_TEST,
             reference_image_id=None,
+            project_id=None,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
+
+
+class TestCloudVisionReferenceImageDelete(unittest.TestCase):
+    @mock.patch(
+        'airflow.providers.google.cloud.operators.vision.CloudVisionHook',
+    )
+    def test_minimal_green_path(self, mock_hook):
+        mock_hook.return_value.delete_reference_image.return_value = {}
+        op = CloudVisionDeleteReferenceImageOperator(
+            location=LOCATION_TEST,
+            product_id=PRODUCT_ID_TEST,
+            reference_image_id=REFERENCE_IMAGE_ID_TEST,
+            task_id='id',
+        )
+        op.execute(context=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.delete_reference_image.assert_called_once_with(
+            location=LOCATION_TEST,
+            product_id=PRODUCT_ID_TEST,
+            reference_image_id=REFERENCE_IMAGE_ID_TEST,
             project_id=None,
             retry=None,
             timeout=None,

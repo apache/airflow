@@ -39,7 +39,7 @@ from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.timeout import timeout
@@ -71,9 +71,7 @@ app = Celery(
 @app.task
 def execute_command(command_to_exec: CommandType) -> None:
     """Executes command."""
-    if command_to_exec[0:3] != ["airflow", "tasks", "run"]:
-        raise ValueError('The command must start with ["airflow", "tasks", "run"].')
-
+    BaseExecutor.validate_command(command_to_exec)
     log.info("Executing command in Celery: %s", command_to_exec)
     env = os.environ.copy()
     try:
@@ -102,12 +100,12 @@ class ExceptionWithTraceback:
 
 
 # Task instance that is sent over Celery queues
-# TaskInstanceKeyType, SimpleTaskInstance, Command, queue_name, CallableTask
-TaskInstanceInCelery = Tuple[TaskInstanceKeyType, SimpleTaskInstance, CommandType, Optional[str], Task]
+# TaskInstanceKey, SimpleTaskInstance, Command, queue_name, CallableTask
+TaskInstanceInCelery = Tuple[TaskInstanceKey, SimpleTaskInstance, CommandType, Optional[str], Task]
 
 
 def send_task_to_executor(task_tuple: TaskInstanceInCelery) \
-        -> Tuple[TaskInstanceKeyType, CommandType, Union[AsyncResult, ExceptionWithTraceback]]:
+        -> Tuple[TaskInstanceKey, CommandType, Union[AsyncResult, ExceptionWithTraceback]]:
     """Sends task to executor."""
     key, _, command, queue, task_to_run = task_tuple
     try:
@@ -235,7 +233,7 @@ class CeleryExecutor(BaseExecutor):
             if state:
                 self.update_task_state(key, state, info)
 
-    def update_task_state(self, key: TaskInstanceKeyType, state: str, info: Any) -> None:
+    def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
         """Updates state of a single task."""
         # noinspection PyBroadException
         try:
@@ -260,12 +258,12 @@ class CeleryExecutor(BaseExecutor):
 
     def end(self, synchronous: bool = False) -> None:
         if synchronous:
-            while any([task.state not in celery_states.READY_STATES for task in self.tasks.values()]):
+            while any(task.state not in celery_states.READY_STATES for task in self.tasks.values()):
                 time.sleep(5)
         self.sync()
 
     def execute_async(self,
-                      key: TaskInstanceKeyType,
+                      key: TaskInstanceKey,
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None):

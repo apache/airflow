@@ -14,41 +14,74 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: sshttps://github.com/apache/airflow/issues/8134
+from sqlalchemy import and_, func
+from sqlalchemy.orm.session import Session
+
+from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
+from airflow.api_connexion.schemas.xcom_schema import (
+    XComCollection, XComCollectionItemSchema, XComCollectionSchema, xcom_collection_item_schema,
+    xcom_collection_schema,
+)
+from airflow.models import DagRun as DR, XCom
+from airflow.utils.session import provide_session
 
 
-def delete_xcom_entry():
-    """
-    Delete an XCom entry
-    """
-    raise NotImplementedError("Not implemented yet.")
-
-
-def get_xcom_entries():
+@format_parameters({
+    'limit': check_limit
+})
+@provide_session
+def get_xcom_entries(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: Session,
+    limit: Optional[int],
+    offset: Optional[int] = None
+) -> XComCollectionSchema:
     """
     Get all XCom values
     """
-    raise NotImplementedError("Not implemented yet.")
+
+    query = session.query(XCom)
+    if dag_id != '~':
+        query = query.filter(XCom.dag_id == dag_id)
+        query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
+    else:
+        query.join(DR, XCom.execution_date == DR.execution_date)
+    if task_id != '~':
+        query = query.filter(XCom.task_id == task_id)
+    if dag_run_id != '~':
+        query = query.filter(DR.run_id == dag_run_id)
+    query = query.order_by(
+        XCom.execution_date, XCom.task_id, XCom.dag_id, XCom.key
+    )
+    total_entries = session.query(func.count(XCom.key)).scalar()
+    query = query.offset(offset).limit(limit)
+    return xcom_collection_schema.dump(XComCollection(xcom_entries=query.all(), total_entries=total_entries))
 
 
-def get_xcom_entry():
+@provide_session
+def get_xcom_entry(
+    dag_id: str,
+    task_id: str,
+    dag_run_id: str,
+    xcom_key: str,
+    session: Session
+) -> XComCollectionItemSchema:
     """
     Get an XCom entry
     """
-    raise NotImplementedError("Not implemented yet.")
+    query = session.query(XCom)
+    query = query.filter(and_(XCom.dag_id == dag_id,
+                              XCom.task_id == task_id,
+                              XCom.key == xcom_key))
+    query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
+    query = query.filter(DR.run_id == dag_run_id)
 
-
-def patch_xcom_entry():
-    """
-    Update an XCom entry
-    """
-    raise NotImplementedError("Not implemented yet.")
-
-
-def post_xcom_entries():
-    """
-    Create an XCom entry
-    """
-    raise NotImplementedError("Not implemented yet.")
+    query_object = query.one_or_none()
+    if not query_object:
+        raise NotFound("XCom entry not found")
+    return xcom_collection_item_schema.dump(query_object)

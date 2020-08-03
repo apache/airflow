@@ -45,12 +45,11 @@ MODEL = 'base'
 SOURCE_LANGUAGE = None  # type: None
 # [END howto_operator_translate_speech_arguments]
 
-default_args = {"start_date": dates.days_ago(1)}
 
 with models.DAG(
     "example_gcp_translate_speech",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag:
     text_to_speech_synthesize_task = CloudTextToSpeechSynthesizeOperator(

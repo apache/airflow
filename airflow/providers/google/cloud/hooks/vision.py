@@ -129,8 +129,17 @@ class CloudVisionHook(GoogleBaseHook):
         'ProductSet', 'productset_id', ProductSearchClient.product_set_path
     )
 
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: Optional[str] = None) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self._client = None
 
     def get_conn(self) -> ProductSearchClient:
@@ -385,7 +394,7 @@ class CloudVisionHook(GoogleBaseHook):
     ) -> str:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateReferenceImageOperator`
         """
         client = self.get_conn()
         self.log.info('Creating ReferenceImage')
@@ -425,7 +434,7 @@ class CloudVisionHook(GoogleBaseHook):
     ) -> Dict:
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator`
         """
         client = self.get_conn()
         self.log.info('Deleting ReferenceImage')

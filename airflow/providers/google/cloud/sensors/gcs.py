@@ -259,7 +259,10 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
 
     def _get_gcs_hook(self):
         if not self.hook:
-            self.hook = GCSHook()
+            self.hook = GCSHook(
+                gcp_conn_id=self.google_cloud_conn_id,
+                delegate_to=self.delegate_to,
+            )
         return self.hook
 
     def is_bucket_updated(self, current_objects: Set[str]) -> bool:

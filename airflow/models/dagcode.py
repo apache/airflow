@@ -22,9 +22,9 @@ from typing import Iterable, Optional
 
 from sqlalchemy import BigInteger, Column, String, UnicodeText, and_, exists
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagCodeNotFound
-from airflow.models import Base
+from airflow.models.base import Base
+from airflow.settings import STORE_DAG_CODE
 from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import provide_session
@@ -92,7 +92,7 @@ class DagCode(Base):
                 orm_dag_code.fileloc: orm_dag_code for orm_dag_code in existing_orm_dag_codes
             }
         else:
-            existing_orm_dag_codes_map = dict()
+            existing_orm_dag_codes_map = {}
 
         existing_orm_dag_codes_by_fileloc_hashes = {
             orm.fileloc_hash: orm for orm in existing_orm_dag_codes
@@ -181,7 +181,7 @@ class DagCode(Base):
 
         :return: source code as string
         """
-        if conf.getboolean('core', 'store_dag_code', fallback=False):
+        if STORE_DAG_CODE:
             return cls._get_code_from_db(fileloc)
         else:
             return cls._get_code_from_file(fileloc)
@@ -214,6 +214,7 @@ class DagCode(Base):
         # Hashing is needed because the length of fileloc is 2000 as an Airflow convention,
         # which is over the limit of indexing.
         import hashlib
+
         # Only 7 bytes because MySQL BigInteger can hold only 8 bytes (signed).
         return struct.unpack('>Q', hashlib.sha1(
             full_filepath.encode('utf-8')).digest()[-8:])[0] >> 8

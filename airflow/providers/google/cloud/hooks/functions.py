@@ -19,7 +19,7 @@
 This module contains a Google Cloud Functions Hook.
 """
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import requests
 from googleapiclient.discovery import build
@@ -44,10 +44,15 @@ class CloudFunctionsHook(GoogleBaseHook):
     def __init__(
         self,
         api_version: str,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self.api_version = api_version
 
     @staticmethod
@@ -145,8 +150,9 @@ class CloudFunctionsHook(GoogleBaseHook):
         :return: The upload URL that was returned by generateUploadUrl method.
         :rtype: str
         """
+        # pylint: disable=no-member # noqa
         response = \
-            self.get_conn().projects().locations().functions().generateUploadUrl(  # pylint: disable=no-member # noqa
+            self.get_conn().projects().locations().functions().generateUploadUrl(
                 parent=self._full_location(project_id, location)
             ).execute(num_retries=self.num_retries)
 

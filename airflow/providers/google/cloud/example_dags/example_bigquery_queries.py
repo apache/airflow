@@ -54,16 +54,15 @@ SCHEMA = [
     {"name": "ds", "type": "DATE", "mode": "NULLABLE"},
 ]
 
-default_args = {"start_date": days_ago(1)}
-
 for location in [None, LOCATION]:
     dag_id = "example_bigquery_queries_location" if location else "example_bigquery_queries"
 
     with models.DAG(
         dag_id,
-        default_args=default_args,
         schedule_interval=None,  # Override to match your needs
+        start_date=days_ago(1),
         tags=["example"],
+        user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_1}
     ) as dag_with_locations:
         create_dataset = BigQueryCreateEmptyDatasetOperator(
             task_id="create-dataset", dataset_id=DATASET_NAME, location=location,
@@ -97,12 +96,25 @@ for location in [None, LOCATION]:
             configuration={
                 "query": {
                     "query": INSERT_ROWS_QUERY,
-                    "useLegacySql": False,
+                    "useLegacySql": "False",
                 }
             },
             location=location,
         )
         # [END howto_operator_bigquery_insert_job]
+
+        # [START howto_operator_bigquery_select_job]
+        select_query_job = BigQueryInsertJobOperator(
+            task_id="select_query_job",
+            configuration={
+                "query": {
+                    "query": "{% include 'example_bigquery_query.sql' %}",
+                    "useLegacySql": False,
+                }
+            },
+            location=location,
+        )
+        # [END howto_operator_bigquery_select_job]
 
         execute_insert_query = BigQueryExecuteQueryOperator(
             task_id="execute_insert_query", sql=INSERT_ROWS_QUERY, use_legacy_sql=False, location=location
@@ -172,7 +184,7 @@ for location in [None, LOCATION]:
         )
         # [END howto_operator_bigquery_interval_check]
 
-        [create_table_1, create_table_2] >> insert_query_job
+        [create_table_1, create_table_2] >> insert_query_job >> select_query_job
 
         insert_query_job >> execute_insert_query
         execute_insert_query >> get_data >> get_data_result >> delete_dataset

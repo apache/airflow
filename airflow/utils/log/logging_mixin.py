@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import abc
 import logging
 import re
 import sys
@@ -58,6 +59,21 @@ class LoggingMixin:
             set_context(self.log, context)
 
 
+class ExternalLoggingMixin:
+    """
+    Define a log handler based on an external service (e.g. ELK, StackDriver).
+    """
+    @abc.abstractproperty
+    def log_name(self) -> str:
+        """Return log name"""
+
+    @abc.abstractmethod
+    def get_external_log_url(self, task_instance, try_number) -> str:
+        """
+        Return the URL for log visualization in the external service.
+        """
+
+
 # TODO: Formally inherit from io.IOBase
 class StreamLogWriter:
     """
@@ -72,7 +88,7 @@ class StreamLogWriter:
         """
         self.logger = logger
         self.level = level
-        self._buffer = str()
+        self._buffer = ''
 
     @property
     def closed(self):   # noqa: D402
@@ -101,7 +117,7 @@ class StreamLogWriter:
         else:
             self._buffer += message
             self._propagate_log(self._buffer.rstrip())
-            self._buffer = str()
+            self._buffer = ''
 
     def flush(self):
         """
@@ -109,7 +125,7 @@ class StreamLogWriter:
         """
         if len(self._buffer) > 0:
             self._propagate_log(self._buffer)
-            self._buffer = str()
+            self._buffer = ''
 
     def isatty(self):
         """

@@ -22,8 +22,10 @@ from airflow import DAG
 from airflow.models import Log, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import provide_session
 from airflow.www import app
+from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_logs
 
 
 class TestEventLogEndpoint(unittest.TestCase):
@@ -34,14 +36,12 @@ class TestEventLogEndpoint(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
-        with create_session() as session:
-            session.query(Log).delete()
+        clear_db_logs()
         self.default_time = "2020-06-10T20:00:00+00:00"
         self.default_time_2 = '2020-06-11T07:00:00+00:00'
 
     def tearDown(self) -> None:
-        with create_session() as session:
-            session.query(Log).delete()
+        clear_db_logs()
 
     def _create_task_instance(self):
         dag = DAG('TEST_DAG_ID', start_date=timezone.parse(self.default_time),
@@ -189,7 +189,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         self.assertEqual(events, expected_events)
 
     @provide_session
-    def test_should_respect_page_size_limit(self, session):
+    def test_should_respect_page_size_limit_default(self, session):
         log_models = self._create_event_logs(200)
         session.add_all(log_models)
         session.commit()
@@ -199,6 +199,17 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
 
         self.assertEqual(response.json["total_entries"], 200)
         self.assertEqual(len(response.json["event_logs"]), 100)  # default 100
+
+    @provide_session
+    @conf_vars({("api", "maximum_page_limit"): "150"})
+    def test_should_return_conf_max_if_req_max_above_conf(self, session):
+        log_models = self._create_event_logs(200)
+        session.add_all(log_models)
+        session.commit()
+
+        response = self.client.get("/api/v1/eventLogs?limit=180")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['event_logs']), 150)
 
     def _create_event_logs(self, count):
         return [

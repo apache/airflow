@@ -26,6 +26,11 @@ an alternative secrets backend to retrieve Airflow connections or Airflow variab
 such as :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`,
 :ref:`Hashicorp Vault Secrets<hashicorp_vault_secrets>` or you can :ref:`roll your own <roll_your_own_secrets_backend>`.
 
+.. note::
+
+    The Airflow UI only shows connections and variables stored in the Metadata DB and not via any other method.
+    If you use an alternative secrets backend, check inside your backend to view the values of your variables and connections.
+
 Search path
 ^^^^^^^^^^^
 When looking up a connection/variable, by default Airflow will search environment variables first and metastore
@@ -81,7 +86,7 @@ Here is a sample configuration:
     backend = airflow.secrets.local_filesystem.LocalFilesystemBackend
     backend_kwargs = {"variables_file_path": "/files/var.json", "connections_file_path": "/files/conn.json"}
 
-Both ``JSON`` and ``.env`` files are supported. All parameters are optional. If the file path is not passed,
+``JSON``, ``YAML`` and ``.env`` files are supported. All parameters are optional. If the file path is not passed,
 the backend returns an empty collection.
 
 Storing and Retrieving Connections
@@ -90,10 +95,13 @@ Storing and Retrieving Connections
 If you have set ``connections_file_path`` as ``/files/my_conn.json``, then the backend will read the
 file ``/files/my_conn.json`` when it looks for connections.
 
-The file can be defined in ``JSON`` or ``env`` format.
+The file can be defined in ``JSON``, ``YAML`` or ``env`` format. Depending on the format, the data should be saved as a URL or as a connection object.
+Any extra json parameters can be provided using keys like ``extra_dejson`` and ``extra``.
+The key ``extra_dejson`` can be used to provide parameters as JSON object where as the key ``extra`` can be used in case of a JSON string.
+The keys ``extra`` and ``extra_dejson`` are mutually exclusive.
 
 The JSON file must contain an object where the key contains the connection ID and the value contains
-the definitions of one or more connections. The connection can be defined as a URI (string) or JSON object.
+the definition of one connection. The connection can be defined as a URI (string) or JSON object.
 For a guide about defining a connection as a URI, see:: :ref:`generating_connection_uri`.
 For a description of the connection object parameters see :class:`~airflow.models.connection.Connection`.
 The following is a sample JSON file.
@@ -102,11 +110,7 @@ The following is a sample JSON file.
 
     {
         "CONN_A": "mysq://host_a",
-        "CONN_B": [
-            "mysq://host_a",
-            "mysq://host_a"
-        ],
-        "CONN_C": {
+        "CONN_B": {
             "conn_type": "scheme",
             "host": "host",
             "schema": "lschema",
@@ -116,9 +120,32 @@ The following is a sample JSON file.
         }
     }
 
+The YAML file structure is similar to that of a JSON. The key-value pair of connection ID and the definitions of one or more connections.
+In this format, the connection can be defined as a URI (string) or JSON object.
+
+.. code-block:: yaml
+
+    CONN_A: 'mysq://host_a'
+
+    CONN_B:
+      - 'mysq://host_a'
+      - 'mysq://host_b'
+
+    CONN_C:
+      conn_type: scheme
+      host: host
+      schema: lschema
+      login: Login
+      password: None
+      port: 1234
+      extra_dejson:
+        a: b
+        nestedblock_dict:
+          x: y
+
 You can also define connections using a ``.env`` file. Then the key is the connection ID, and
-the value should describe the connection using the URI. If the connection ID is repeated, all values will
-be returned. The following is a sample file.
+the value should describe the connection using the URI. Connection ID should not be repeated, it will
+raise an exception. The following is a sample file.
 
   .. code-block:: text
 
@@ -131,7 +158,7 @@ Storing and Retrieving Variables
 If you have set ``variables_file_path`` as ``/files/my_var.json``, then the backend will read the
 file ``/files/my_var.json`` when it looks for variables.
 
-The file can be defined in ``JSON`` or ``env`` format.
+The file can be defined in ``JSON``, ``YAML`` or ``env`` format.
 
 The JSON file must contain an object where the key contains the variable key and the value contains
 the variable value. The following is a sample JSON file.
@@ -142,6 +169,14 @@ the variable value. The following is a sample JSON file.
         "VAR_A": "some_value",
         "var_b": "differnet_value"
     }
+
+The YAML file structure is similar to that of JSON, with key containing the variable key and the value containing
+the variable value. The following is a sample YAML file.
+
+  .. code-block:: yaml
+
+    VAR_A: some_value
+    VAR_B: different_value
 
 You can also define variable using a ``.env`` file. Then the key is the variable key, and variable should
 describe the variable value. The following is a sample file.
@@ -214,7 +249,9 @@ Example:
 
 .. code-block:: bash
 
-    aws secretsmanager put-secret-value --secret-id airflow/connections/smtp_default --secret-string "smtps://user:host@relay.example.com:465"
+    aws secretsmanager put-secret-value \
+        --secret-id airflow/connections/smtp_default \
+        --secret-string "smtps://user:host@relay.example.com:465"
 
 Verify that you can get the secret:
 

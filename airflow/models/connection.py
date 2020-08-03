@@ -72,7 +72,7 @@ CONN_TYPE_TO_HOOK = {
     "jira": ("airflow.providers.jira.hooks.jira.JiraHook", "jira_conn_id"),
     "kubernetes": ("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook", "kubernetes_conn_id"),
     "mongo": ("airflow.providers.mongo.hooks.mongo.MongoHook", "conn_id"),
-    "mssql": ("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook", "mssql_conn_id"),
+    "mssql": ("airflow.providers.odbc.hooks.odbc.OdbcHook", "odbc_conn_id"),
     "mysql": ("airflow.providers.mysql.hooks.mysql.MySqlHook", "mysql_conn_id"),
     "odbc": ("airflow.providers.odbc.hooks.odbc.OdbcHook", "odbc_conn_id"),
     "oracle": ("airflow.providers.oracle.hooks.oracle.OracleHook", "oracle_conn_id"),
@@ -80,6 +80,7 @@ CONN_TYPE_TO_HOOK = {
     "postgres": ("airflow.providers.postgres.hooks.postgres.PostgresHook", "postgres_conn_id"),
     "presto": ("airflow.providers.presto.hooks.presto.PrestoHook", "presto_conn_id"),
     "redis": ("airflow.providers.redis.hooks.redis.RedisHook", "redis_conn_id"),
+    "snowflake": ("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook", "snowflake_conn_id"),
     "sqlite": ("airflow.providers.sqlite.hooks.sqlite.SqliteHook", "sqlite_conn_id"),
     "tableau": ("airflow.providers.salesforce.hooks.tableau.TableauHook", "tableau_conn_id"),
     "vertica": ("airflow.providers.vertica.hooks.vertica.VerticaHook", "vertica_conn_id"),
@@ -130,7 +131,7 @@ class Connection(Base, LoggingMixin):
     :type host: str
     :param login: The login.
     :type login: str
-    :param password: The pasword.
+    :param password: The password.
     :type password: str
     :param schema: The schema.
     :type schema: str
@@ -145,7 +146,7 @@ class Connection(Base, LoggingMixin):
     __tablename__ = "connection"
 
     id = Column(Integer(), primary_key=True)
-    conn_id = Column(String(ID_LEN))
+    conn_id = Column(String(ID_LEN), unique=True, nullable=False)
     conn_type = Column(String(500), nullable=False)
     host = Column(String(500))
     schema = Column(String(500))

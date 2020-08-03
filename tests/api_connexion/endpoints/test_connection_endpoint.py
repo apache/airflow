@@ -19,8 +19,9 @@ import unittest
 from parameterized import parameterized
 
 from airflow.models import Connection
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import provide_session
 from airflow.www import app
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections
 
 
@@ -33,8 +34,7 @@ class TestConnectionEndpoint(unittest.TestCase):
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
         # we want only the connection created here for this test
-        with create_session() as session:
-            session.query(Connection).delete()
+        clear_db_connections(False)
 
     def tearDown(self) -> None:
         clear_db_connections()
@@ -161,6 +161,7 @@ class TestGetConnections(TestConnectionEndpoint):
 
 
 class TestGetConnectionsPagination(TestConnectionEndpoint):
+
     @parameterized.expand(
         [
             ("/api/v1/connections?limit=1", ['TEST_CONN_ID1']),
@@ -210,16 +211,39 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         self.assertEqual(conn_ids, expected_conn_ids)
 
     @provide_session
-    def test_should_respect_page_size_limit(self, session):
+    def test_should_respect_page_size_limit_default(self, session):
         connection_models = self._create_connections(200)
         session.add_all(connection_models)
         session.commit()
 
-        response = self.client.get("/api/v1/connections")  # default limit is 100
+        response = self.client.get("/api/v1/connections")
         assert response.status_code == 200
 
         self.assertEqual(response.json["total_entries"], 200)
-        self.assertEqual(len(response.json["connections"]), 100)  # default
+        self.assertEqual(len(response.json["connections"]), 100)
+
+    @provide_session
+    def test_limit_of_zero_should_return_default(self, session):
+        connection_models = self._create_connections(200)
+        session.add_all(connection_models)
+        session.commit()
+
+        response = self.client.get("/api/v1/connections?limit=0")
+        assert response.status_code == 200
+
+        self.assertEqual(response.json["total_entries"], 200)
+        self.assertEqual(len(response.json["connections"]), 100)
+
+    @provide_session
+    @conf_vars({("api", "maximum_page_limit"): "150"})
+    def test_should_return_conf_max_if_req_max_above_conf(self, session):
+        connection_models = self._create_connections(200)
+        session.add_all(connection_models)
+        session.commit()
+
+        response = self.client.get("/api/v1/connections?limit=180")
+        assert response.status_code == 200
+        self.assertEqual(len(response.json['connections']), 150)
 
     def _create_connections(self, count):
         return [Connection(
@@ -361,7 +385,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "connection_id": "test-connection-id",
                     "conn_type": "test-type",
                     "extras": "{}",  # extras not a known field e.g typo
-                }, "Extra arguments passed: ['extras']"
+                }, "extras"
             ),
             (
                 {
@@ -369,7 +393,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "conn_type": "test-type",
                     "invalid_field": "invalid field",  # unknown field
                     "_password": "{}",  # _password not a known field
-                }, "Extra arguments passed:"
+                }, "_password"
             ),
         ]
     )

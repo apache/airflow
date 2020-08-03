@@ -21,7 +21,7 @@ This module contains Google DataFusion hook.
 import json
 import os
 from time import monotonic, sleep
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import quote, urlencode
 
 import google.auth
@@ -64,8 +64,13 @@ class DataFusionHook(GoogleBaseHook):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self.api_version = api_version
 
     def wait_for_operation(self, operation: Dict[str, Any]) -> Dict[str, Any]:
@@ -107,13 +112,15 @@ class DataFusionHook(GoogleBaseHook):
         start_time = monotonic()
         current_state = None
         while monotonic() - start_time < timeout:
-            current_state = self._get_workflow_state(
-                pipeline_name=pipeline_name,
-                pipeline_id=pipeline_id,
-                instance_url=instance_url,
-                namespace=namespace,
-            )
-
+            try:
+                current_state = self._get_workflow_state(
+                    pipeline_name=pipeline_name,
+                    pipeline_id=pipeline_id,
+                    instance_url=instance_url,
+                    namespace=namespace,
+                )
+            except AirflowException:
+                pass  # Because the pipeline may not be visible in system yet
             if current_state in success_states:
                 return
             if current_state in failure_states:

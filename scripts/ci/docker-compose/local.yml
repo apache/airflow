@@ -18,8 +18,8 @@
 version: "2.2"
 services:
   airflow:
-    stdin_open: true # docker run -i
-    tty: true        # docker run -t
+    stdin_open: true  # docker run -i
+    tty: true  # docker run -t
     # We need to mount files an directories individually because some files
     # such apache_airflow.egg-info should not be mounted from host
     # we only mount those files that it makes sense to edit while developing
@@ -51,7 +51,6 @@ services:
       - ../../../logs:/root/airflow/logs:cached
       - ../../../pylintrc:/opt/airflow/pylintrc:cached
       - ../../../pytest.ini:/opt/airflow/pytest.ini:cached
-      - ../../../requirements:/opt/airflow/requirements:cached
       - ../../../scripts:/opt/airflow/scripts:cached
       - ../../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached

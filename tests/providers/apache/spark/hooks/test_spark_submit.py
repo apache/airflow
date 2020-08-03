@@ -17,8 +17,11 @@
 # under the License.
 
 import io
+import os
 import unittest
 from unittest.mock import call, patch
+
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -609,6 +612,19 @@ class TestSparkSubmitHook(unittest.TestCase):
                          'spark-pi-edf2ace37be7353a958b38733a12f8e6-driver')
         self.assertEqual(hook._spark_exit_code, 999)
 
+    def test_process_spark_submit_log_k8s_spark_3(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_k8s_cluster')
+        log_lines = [
+            'exit code: 999'
+        ]
+
+        # When
+        hook._process_spark_submit_log(log_lines)
+
+        # Then
+        self.assertEqual(hook._spark_exit_code, 999)
+
     def test_process_spark_submit_log_standalone_cluster(self):
         # Given
         hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
@@ -651,8 +667,9 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         self.assertEqual(hook._driver_status, 'RUNNING')
 
+    @patch('airflow.providers.apache.spark.hooks.spark_submit.renew_from_kt')
     @patch('airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen')
-    def test_yarn_process_on_kill(self, mock_popen):
+    def test_yarn_process_on_kill(self, mock_popen, mock_renew_from_kt):
         # Given
         mock_popen.return_value.stdout = io.StringIO('stdout')
         mock_popen.return_value.stderr = io.StringIO('stderr')
@@ -679,7 +696,24 @@ class TestSparkSubmitHook(unittest.TestCase):
         # Then
         self.assertIn(call(['yarn', 'application', '-kill',
                             'application_1486558679801_1820'],
-                           stderr=-1, stdout=-1),
+                      env=None, stderr=-1, stdout=-1),
+                      mock_popen.mock_calls)
+        # resetting the mock to test  kill with keytab & principal
+        mock_popen.reset_mock()
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_yarn_cluster', keytab='privileged_user.keytab',
+                               principal='user/spark@airflow.org')
+        hook._process_spark_submit_log(log_lines)
+        hook.submit()
+
+        # When
+        hook.on_kill()
+        # Then
+        expected_env = os.environ.copy()
+        expected_env["KRB5CCNAME"] = '/tmp/airflow_krb5_ccache'
+        self.assertIn(call(['yarn', 'application', '-kill',
+                            'application_1486558679801_1820'],
+                      env=expected_env, stderr=-1, stdout=-1),
                       mock_popen.mock_calls)
 
     def test_standalone_cluster_process_on_kill(self):
@@ -748,3 +782,49 @@ class TestSparkSubmitHook(unittest.TestCase):
         client.delete_namespaced_pod.assert_called_once_with(
             'spark-pi-edf2ace37be7353a958b38733a12f8e6-driver',
             'mynamespace', **kwargs)
+
+    @parameterized.expand(
+        (
+            (
+                ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo", "bar"),
+                "spark-submit foo --bar baz --password='******' --foo bar",
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", "--password='secret'"),
+                "spark-submit foo --bar baz --password='******'",
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", '--password="secret"'),
+                'spark-submit foo --bar baz --password="******"',
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", '--password=secret'),
+                'spark-submit foo --bar baz --password=******',
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", "--password 'secret'"),
+                "spark-submit foo --bar baz --password '******'",
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", "--password='sec\"ret'"),
+                "spark-submit foo --bar baz --password='******'",
+            ),
+            (
+                ("spark-submit", "foo", "--bar", "baz", '--password="sec\'ret"'),
+                'spark-submit foo --bar baz --password="******"',
+            ),
+            (
+                ("spark-submit",),
+                "spark-submit",
+            ),
+        )
+    )
+    def test_masks_passwords(self, command: str, expected: str) -> None:
+        # Given
+        hook = SparkSubmitHook()
+
+        # When
+        command_masked = hook._mask_cmd(command)
+
+        # Then
+        assert command_masked == expected

@@ -16,9 +16,10 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
-import kubernetes.client.models as k8s
+import yaml
+from kubernetes.client import models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
@@ -44,7 +45,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :ref:`howto/operator:KubernetesPodOperator`
 
     .. note::
-        If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, use
+        If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__
+        and Airflow is not running in the same cluster, consider using
         :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`, which
         simplifies the authorization process.
 
@@ -145,7 +147,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
     """
-    template_fields = ('cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
+    template_fields: Iterable[str] = (
+        'image', 'cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
@@ -187,11 +190,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  do_xcom_push: bool = False,
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
-                 *args,
                  **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-        super().__init__(*args, resources=None, **kwargs)
+        super().__init__(resources=None, **kwargs)
 
         self.pod = None
         self.do_xcom_push = do_xcom_push
@@ -286,12 +288,13 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                     self.reattach_on_restart:
                 self.log.info("found a running pod with labels %s but a different try_number"
                               "Will attach to this pod and monitor instead of starting new one", labels)
-                final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
+                final_state, result = self.monitor_launched_pod(launcher, pod_list.items[0])
             elif len(pod_list.items) == 1:
                 self.log.info("found a running pod with labels %s."
                               "Will monitor this pod instead of starting new one", labels)
-                final_state, result = self.monitor_launched_pod(launcher, pod_list[0])
+                final_state, result = self.monitor_launched_pod(launcher, pod_list.items[0])
             else:
+                self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
             if final_state != State.SUCCESS:
                 raise AirflowException(
@@ -325,9 +328,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         """
         Creates a new pod and monitors for duration of task
 
-        @param labels: labels used to track pod
-        @param launcher: pod launcher that will manage launching and monitoring pods
-        @return:
+        :param labels: labels used to track pod
+        :param launcher: pod launcher that will manage launching and monitoring pods
+        :return:
         """
         if not (self.full_pod_spec or self.pod_template_file):
             # Add Airflow Version to the label
@@ -370,16 +373,16 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         # noinspection PyTypeChecker
         pod = append_to_pod(
             pod,
-            self.pod_runtime_info_envs +  # type: ignore
+            self.pod_runtime_info_envs +
             self.ports +  # type: ignore
-            self.resources +  # type: ignore
+            self.resources +
             self.secrets +  # type: ignore
             self.volumes +  # type: ignore
             self.volume_mounts  # type: ignore
         )
 
         self.pod = pod
-
+        self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod.to_dict()))
         try:
             launcher.start_pod(
                 pod,
@@ -397,9 +400,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     def monitor_launched_pod(self, launcher, pod) -> Tuple[State, Optional[str]]:
         """
-        Montitors a pod to completion that was created by a previous KubernetesPodOperator
+        Monitors a pod to completion that was created by a previous KubernetesPodOperator
 
-        @param launcher: pod launcher that will manage launching and monitoring pods
+        :param launcher: pod launcher that will manage launching and monitoring pods
         :param pod: podspec used to find pod using k8s API
         :return:
         """

@@ -16,17 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""merge multiple heads
+"""Merge the four heads back together
 
 Revision ID: 08364691d074
-Revises: a56c9515abdc, 74effc47d867, b3b105409875, bbf4a7ad0465
+Revises: a56c9515abdc, 004c1210f153, 74effc47d867, b3b105409875
 Create Date: 2019-11-19 22:05:11.752222
 
 """
 
 # revision identifiers, used by Alembic.
 revision = '08364691d074'
-down_revision = ('a56c9515abdc', '74effc47d867', 'b3b105409875', 'bbf4a7ad0465')
+down_revision = ('a56c9515abdc', '004c1210f153', '74effc47d867', 'b3b105409875')
 branch_labels = None
 depends_on = None
 

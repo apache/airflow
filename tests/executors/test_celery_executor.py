@@ -125,7 +125,7 @@ class TestCeleryExecutor(unittest.TestCase):
                 ]
 
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
-                for (key, simple_ti, command, queue, task) in task_tuples_to_send:
+                for (key, simple_ti, command, queue, task) in task_tuples_to_send:  # pylint: disable=W0612
                     executor.queued_tasks[key] = (command, 1, queue, simple_ti)
 
                 executor._process_tasks(task_tuples_to_send)

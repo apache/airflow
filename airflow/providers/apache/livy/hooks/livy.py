@@ -18,10 +18,10 @@
 """
 This module contains the Apache Livy hook.
 """
-
 import json
 import re
 from enum import Enum
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import requests
 
@@ -70,10 +70,10 @@ class LivyHook(HttpHook, LoggingMixin):
         'Accept': 'application/json'
     }
 
-    def __init__(self, livy_conn_id='livy_default'):
+    def __init__(self, livy_conn_id: str = 'livy_default') -> None:
         super(LivyHook, self).__init__(http_conn_id=livy_conn_id)
 
-    def get_conn(self, headers=None):
+    def get_conn(self, headers: Optional[Dict[str, Any]] = None) -> Any:
         """
         Returns http session for use with requests
 
@@ -87,7 +87,14 @@ class LivyHook(HttpHook, LoggingMixin):
             tmp_headers.update(headers)
         return super().get_conn(tmp_headers)
 
-    def run_method(self, method='GET', endpoint=None, data=None, headers=None, extra_options=None):
+    def run_method(
+        self,
+        endpoint: str,
+        method: str = 'GET',
+        data: Optional[Any] = None,
+        headers: Optional[Dict[str, Any]] = None,
+        extra_options: Optional[Dict[Any, Any]] = None
+    ) -> Any:
         """
         Wrapper for HttpHook, allows to change method on the same HttpHook
 
@@ -117,7 +124,7 @@ class LivyHook(HttpHook, LoggingMixin):
             self.method = back_method
         return result
 
-    def post_batch(self, *args, **kwargs):
+    def post_batch(self, *args: Any, **kwargs: Any) -> Any:
         """
         Perform request to submit batch
 
@@ -153,7 +160,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
         return batch_id
 
-    def get_batch(self, session_id):
+    def get_batch(self, session_id: Union[int, str]) -> Any:
         """
         Fetch info about the specified batch
 
@@ -178,7 +185,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
         return response.json()
 
-    def get_batch_state(self, session_id):
+    def get_batch_state(self, session_id: Union[int, str]) -> BatchState:
         """
         Fetch the state of the specified batch
 
@@ -206,7 +213,7 @@ class LivyHook(HttpHook, LoggingMixin):
             raise AirflowException("Unable to get state for batch with id: {}".format(session_id))
         return BatchState(jresp['state'])
 
-    def delete_batch(self, session_id):
+    def delete_batch(self, session_id: Union[int, str]) -> Any:
         """
         Delete the specified batch
 
@@ -235,7 +242,7 @@ class LivyHook(HttpHook, LoggingMixin):
         return response.json()
 
     @staticmethod
-    def _validate_session_id(session_id):
+    def _validate_session_id(session_id: Union[int, str]) -> None:
         """
         Validate session id is a int
 
@@ -248,36 +255,36 @@ class LivyHook(HttpHook, LoggingMixin):
             raise TypeError("'session_id' must be an integer")
 
     @staticmethod
-    def _parse_post_response(response):
+    def _parse_post_response(response: Dict[Any, Any]) -> Any:
         """
         Parse batch response for batch id
 
         :param response: response body
         :type response: dict
         :return: session id
-        :rtype: str
+        :rtype: int
         """
         return response.get('id')
 
     @staticmethod
     def build_post_batch_body(
-        file,
-        args=None,
-        class_name=None,
-        jars=None,
-        py_files=None,
-        files=None,
-        archives=None,
-        name=None,
-        driver_memory=None,
-        driver_cores=None,
-        executor_memory=None,
-        executor_cores=None,
-        num_executors=None,
-        queue=None,
-        proxy_user=None,
-        conf=None
-    ):
+        file: str,
+        args: Optional[Sequence[Union[str, int, float]]] = None,
+        class_name: Optional[str] = None,
+        jars: Optional[List[str]] = None,
+        py_files: Optional[List[str]] = None,
+        files: Optional[List[str]] = None,
+        archives: Optional[List[str]] = None,
+        name: Optional[str] = None,
+        driver_memory: Optional[str] = None,
+        driver_cores: Optional[Union[int, str]] = None,
+        executor_memory: Optional[str] = None,
+        executor_cores: Optional[int] = None,
+        num_executors: Optional[Union[int, str]] = None,
+        queue: Optional[str] = None,
+        proxy_user: Optional[str] = None,
+        conf: Optional[Dict[Any, Any]] = None
+    ) -> Any:
         """
         Build the post batch request body.
         For more information about the format refer to
@@ -320,7 +327,7 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         # pylint: disable-msg=too-many-arguments
 
-        body = {'file': file}
+        body: Dict[str, Any] = {'file': file}
 
         if proxy_user:
             body['proxyUser'] = proxy_user
@@ -356,7 +363,7 @@ class LivyHook(HttpHook, LoggingMixin):
         return body
 
     @staticmethod
-    def _validate_size_format(size):
+    def _validate_size_format(size: str) -> bool:
         """
         Validate size format.
 
@@ -370,7 +377,7 @@ class LivyHook(HttpHook, LoggingMixin):
         return True
 
     @staticmethod
-    def _validate_list_of_stringables(vals):
+    def _validate_list_of_stringables(vals: Sequence[Union[str, int, float]]) -> bool:
         """
         Check the values in the provided list can be converted to strings.
 
@@ -386,7 +393,7 @@ class LivyHook(HttpHook, LoggingMixin):
         return True
 
     @staticmethod
-    def _validate_extra_conf(conf):
+    def _validate_extra_conf(conf: Dict[Any, Any]) -> bool:
         """
         Check configuration values are either strings or ints.
 

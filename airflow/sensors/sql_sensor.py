@@ -51,8 +51,8 @@ class SqlSensor(BaseSensorOperator):
     :type: fail_on_empty: bool
     """
 
-    template_fields = ('sql',)  # type: Iterable[str]
-    template_ext = ('.hql', '.sql',)  # type: Iterable[str]
+    template_fields: Iterable[str] = ('sql',)
+    template_ext: Iterable[str] = ('.hql', '.sql',)
     ui_color = '#7c7287'
 
     @apply_defaults
@@ -71,7 +71,7 @@ class SqlSensor(BaseSensorOperator):
 
         allowed_conn_type = {'google_cloud_platform', 'jdbc', 'mssql',
                              'mysql', 'odbc', 'oracle', 'postgres',
-                             'presto', 'sqlite', 'vertica'}
+                             'presto', 'snowflake', 'sqlite', 'vertica'}
         if conn.conn_type not in allowed_conn_type:
             raise AirflowException("The connection type is not supported by SqlSensor. " +
                                    "Supported connection types: {}".format(list(allowed_conn_type)))

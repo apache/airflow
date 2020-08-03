@@ -14,23 +14,72 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 
-import pytest
+import textwrap
+
+from mock import patch
 
 from airflow.www import app
 
+MOCK_CONF = {
+    'core': {
+        'parallelism': '1024',
+    },
+    'smtp': {
+        'smtp_host': 'localhost',
+        'smtp_mail_from': 'airflow@example.com',
+    },
+}
 
-class TestGetConfig(unittest.TestCase):
+
+@patch(
+    "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
+    return_value=MOCK_CONF
+)
+class TestGetConfig:
     @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
+    def setup_class(cls) -> None:
         cls.app = app.create_app(testing=True)  # type:ignore
+        cls.client = None
 
-    def setUp(self) -> None:
+    def setup_method(self) -> None:
         self.client = self.app.test_client()  # type:ignore
 
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_should_response_200(self):
-        response = self.client.get("/api/v1/config")
+    def test_should_response_200_text_plain(self, mock_as_dict):
+        response = self.client.get("/api/v1/config", headers={'Accept': 'text/plain'})
         assert response.status_code == 200
+        expected = textwrap.dedent("""\
+        [core]
+        parallelism = 1024
+
+        [smtp]
+        smtp_host = localhost
+        smtp_mail_from = airflow@example.com
+        """)
+        assert expected == response.data.decode()
+
+    def test_should_response_200_application_json(self, mock_as_dict):
+        response = self.client.get("/api/v1/config", headers={'Accept': 'application/json'})
+        assert response.status_code == 200
+        expected = {
+            'sections': [
+                {
+                    'name': 'core',
+                    'options': [
+                        {'key': 'parallelism', 'value': '1024'},
+                    ]
+                },
+                {
+                    'name': 'smtp',
+                    'options': [
+                        {'key': 'smtp_host', 'value': 'localhost'},
+                        {'key': 'smtp_mail_from', 'value': 'airflow@example.com'},
+                    ]
+                },
+            ]
+        }
+        assert expected == response.json
+
+    def test_should_response_406(self, mock_as_dict):
+        response = self.client.get("/api/v1/config", headers={'Accept': 'application/octet-stream'})
+        assert response.status_code == 406

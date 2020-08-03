@@ -194,7 +194,7 @@ azure = [
     'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
     'azure-kusto-data>=0.0.43,<0.1',
-    'azure-mgmt-containerinstance>=1.5.0',
+    'azure-mgmt-containerinstance>=1.5.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
     'azure-storage>=0.34.0, <0.37.0',
@@ -215,7 +215,8 @@ cloudant = [
     'cloudant>=2.0',
 ]
 dask = [
-    'distributed>=2.11.1, <3',
+    'cloudpickle>=1.4.1, <1.5.0',
+    'distributed>=2.11.1, <2.20'
 ]
 databricks = [
     'requests>=2.20.0, <3',
@@ -231,12 +232,13 @@ doc = [
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
+    "sphinxcontrib-redoc>=1.6.0"
 ]
 docker = [
     'docker~=3.0',
 ]
 druid = [
-    'pydruid>=0.4.1,<=0.5.8',
+    'pydruid>=0.4.1',
 ]
 elasticsearch = [
     'elasticsearch>7, <7.6.0',
@@ -263,11 +265,11 @@ google = [
     'google-cloud-automl>=0.4.0',
     'google-cloud-bigquery-datatransfer>=0.4.0',
     'google-cloud-bigtable>=1.0.0',
-    'google-cloud-container>=0.1.1',
+    'google-cloud-container>=0.1.1,<2.0',
     'google-cloud-datacatalog>=0.5.0,<0.8',
     'google-cloud-dataproc>=0.5.0',
     'google-cloud-dlp>=0.11.0',
-    'google-cloud-kms>=1.2.1',
+    'google-cloud-kms>=1.2.1,<2.0.0',
     'google-cloud-language>=1.1.1',
     'google-cloud-logging>=1.14.0',
     'google-cloud-monitoring>=0.34.0',
@@ -318,6 +320,9 @@ kerberos = [
 kubernetes = [
     'cryptography>=2.0.0',
     'kubernetes>=3.0.0',
+]
+kylin = [
+    'kylinpy>=2.6'
 ]
 ldap = [
     'ldap3>=2.5.1',
@@ -404,7 +409,7 @@ statsd = [
     'statsd>=3.3.0, <4.0',
 ]
 tableau = [
-    'tableauserverclient==0.9',
+    'tableauserverclient~=0.12',
 ]
 vertica = [
     'vertica-python>=0.5.1',
@@ -455,9 +460,9 @@ devel = [
     'paramiko',
     'pipdeptree',
     'pre-commit',
-    'pylint==2.4.4',
+    'pylint==2.5.3',
     'pysftp',
-    'pytest',
+    'pytest<6.0.0',  # FIXME: pylint complaining for pytest.mark.* on v6.0
     'pytest-cov',
     'pytest-instafail',
     'pytest-rerunfailures',
@@ -490,6 +495,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
+    "apache.kylin": kylin,
     "apache.livy": [],
     "apache.pig": [],
     "apache.pinot": pinot,
@@ -504,7 +510,6 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "discord": [],
     "docker": docker,
     "elasticsearch": [],
-    "email": [],
     "exasol": exasol,
     "facebook": facebook,
     "ftp": [],
@@ -554,6 +559,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
+    "apache.kylin": kylin,
     "apache.pinot": pinot,
     "apache.webhdfs": webhdfs,
     'async': async_packages,
@@ -694,8 +700,8 @@ INSTALL_REQUIREMENTS = [
     'cryptography>=0.9.3',
     'dill>=0.2.2, <0.4',
     'flask>=1.1.0, <2.0',
-    'flask-appbuilder~=2.3.4',
-    'flask-caching>=1.3.3, <1.4.0',
+    'flask-appbuilder>2.3.4,~=3.0',
+    'flask-caching>=1.3.3, <2.0.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
     'flask-wtf>=0.14.2, <0.15',
@@ -703,19 +709,20 @@ INSTALL_REQUIREMENTS = [
     'graphviz>=0.12',
     'gunicorn>=19.5.0, <20.0',
     'iso8601>=0.1.12',
-    'jinja2>=2.10.1, <2.11.0',
+    'jinja2>=2.10.1, <2.12.0',
     'json-merge-patch==0.2',
     'jsonschema~=3.0',
     'lazy_object_proxy~=1.3',
     'lockfile>=0.12.2',
     'markdown>=2.5.2, <3.0',
     'markupsafe>=1.1.1, <2.0',
+    'marshmallow-oneofschema>=2.0.1',
     'pandas>=0.17.1, <2.0',
     'pendulum~=2.0',
     'pep562~=1.0;python_version<"3.7"',
     'psutil>=4.2.0, <6.0.0',
     'pygments>=2.0.1, <3.0',
-    'python-daemon>=2.1.1, <2.2',
+    'python-daemon>=2.1.1',
     'python-dateutil>=2.3, <3',
     'python-nvd3~=0.15.0',
     'python-slugify>=3.0.0,<5.0',
@@ -724,7 +731,7 @@ INSTALL_REQUIREMENTS = [
     'sqlalchemy~=1.3',
     'sqlalchemy_jsonfield~=0.9',
     'tabulate>=0.7.5, <0.9',
-    'tenacity==4.12.0',
+    'tenacity>=4.12.0, <5.2',
     'thrift>=0.9.2',
     'typing;python_version<"3.6"',
     'typing-extensions>=3.7.4;python_version<"3.8"',
@@ -746,6 +753,7 @@ def do_setup():
         version=version,
         packages=find_packages(exclude=['tests*']),
         package_data={
+            'airflow': ['py.typed'],
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
                  "airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
             'airflow.api_connexion.openapi': ['*.yaml'],

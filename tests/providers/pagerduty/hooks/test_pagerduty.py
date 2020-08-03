@@ -28,8 +28,9 @@ DEFAULT_CONN_ID = "pagerduty_default"
 
 
 class TestPagerdutyHook(unittest.TestCase):
+    @classmethod
     @provide_session
-    def setUp(self, session=None):
+    def setUpClass(cls, session=None):
         session.add(Connection(
             conn_id=DEFAULT_CONN_ID,
             conn_type='http',

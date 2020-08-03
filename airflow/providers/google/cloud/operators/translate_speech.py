@@ -108,14 +108,13 @@ class CloudTranslateSpeechOperator(BaseOperator):
         config: RecognitionConfig,
         target_language: str,
         format_: str,
-        source_language: str,
+        source_language: Optional[str],
         model: str,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.audio = audio
         self.config = config
         self.target_language = target_language

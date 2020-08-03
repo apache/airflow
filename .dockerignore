@@ -44,13 +44,10 @@
 !pylintrc
 !pytest.ini
 !CHANGELOG.txt
-!Dockerfile.ci
-!Dockerfile
 !LICENSE
 !MANIFEST.in
 !NOTICE
 !.github
-!requirements
 !empty
 
 # Avoid triggering context change on README change (new companies using Airflow)

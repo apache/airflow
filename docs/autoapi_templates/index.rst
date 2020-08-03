@@ -86,6 +86,8 @@ All operators are in the following packages:
 
   airflow/providers/apache/hive/transfers/index
 
+  airflow/providers/apache/kylin/operators/index
+
   airflow/providers/apache/livy/operators/index
 
   airflow/providers/apache/livy/sensors/index
@@ -111,8 +113,6 @@ All operators are in the following packages:
   airflow/providers/discord/operators/index
 
   airflow/providers/docker/operators/index
-
-  airflow/providers/email/operators/index
 
   airflow/providers/exasol/operators/index
 
@@ -244,6 +244,8 @@ All hooks are in the following packages:
   airflow/providers/apache/hdfs/hooks/index
 
   airflow/providers/apache/hive/hooks/index
+
+  airflow/providers/apache/kylin/hooks/index
 
   airflow/providers/apache/livy/hooks/index
 
@@ -408,3 +410,19 @@ All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
   airflow/providers/amazon/aws/secrets/index
   airflow/providers/hashicorp/secrets/index
   airflow/providers/google/cloud/secrets/index
+
+Task Log Handlers
+-----------------
+Task log handlers are python log handlers that handles and reads task instance logs.
+All task log handlers are derived from :class:`~airflow.utils.log.file_task_handler.FileTaskHandler`.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+
+  airflow/providers/amazon/aws/log/index
+  airflow/providers/elasticsearch/log/index
+  airflow/providers/google/cloud/log/index
+  airflow/providers/microsoft/azure/log/index

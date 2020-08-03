@@ -25,7 +25,7 @@ class MultiprocessingStartMethodMixin:
     """
     Convenience class to add support for different types of multiprocessing.
     """
-    def _get_multiprocessing_start_method(self):
+    def _get_multiprocessing_start_method(self) -> str:
         """
         Determine method of creating new processes by checking if the
         mp_start_method is set in configs, else, it uses the OS default.
@@ -33,4 +33,7 @@ class MultiprocessingStartMethodMixin:
         if conf.has_option('core', 'mp_start_method'):
             return conf.get('core', 'mp_start_method')
 
-        return multiprocessing.get_start_method()
+        method = multiprocessing.get_start_method()
+        if not method:
+            raise ValueError("Failed to determine start method")
+        return method

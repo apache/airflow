@@ -55,12 +55,10 @@ PARAMS = {
 }
 # [END howto_FB_ADS_variables]
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_facebook_ads_to_gcs",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1)
 ) as dag:
 
     create_bucket = GCSCreateBucketOperator(

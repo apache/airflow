@@ -98,8 +98,8 @@ class MySqlToHiveOperator(BaseOperator):
             mysql_conn_id: str = 'mysql_default',
             hive_cli_conn_id: str = 'hive_cli_default',
             tblproperties: Optional[Dict] = None,
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+            **kwargs) -> None:
+        super().__init__(**kwargs)
         self.sql = sql
         self.hive_table = hive_table
         self.partition = partition
@@ -150,7 +150,7 @@ class MySqlToHiveOperator(BaseOperator):
                                     quotechar=self.quotechar,
                                     escapechar=self.escapechar,
                                     encoding="utf-8")
-            field_dict = OrderedDict()  # type:ignore
+            field_dict = OrderedDict()
             for field in cursor.description:
                 field_dict[field[0]] = self.type_map(field[1])
             csv_writer.writerows(cursor)

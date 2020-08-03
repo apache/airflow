@@ -14,20 +14,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from flask import current_app
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at: https://github.com/apache/airflow/issues/8138
+from airflow import DAG
+from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
+from airflow.exceptions import TaskNotFound
 
 
-def get_task():
+def get_task(dag_id, task_id):
     """
     Get simplified representation of a task.
     """
-    raise NotImplementedError("Not implemented yet.")
+    dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    if not dag:
+        raise NotFound("DAG not found")
+
+    try:
+        task = dag.get_task(task_id=task_id)
+    except TaskNotFound:
+        raise NotFound("Task not found")
+    return task_schema.dump(task)
 
 
-def get_tasks():
+def get_tasks(dag_id):
     """
     Get tasks for DAG
     """
-    raise NotImplementedError("Not implemented yet.")
+    dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    if not dag:
+        raise NotFound("DAG not found")
+    tasks = dag.tasks
+    task_collection = TaskCollection(tasks=tasks, total_entries=len(tasks))
+    return task_collection_schema.dump(task_collection)

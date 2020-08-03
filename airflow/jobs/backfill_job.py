@@ -20,7 +20,7 @@
 import time
 from collections import OrderedDict
 from datetime import datetime
-from typing import Set
+from typing import Optional, Set
 
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
@@ -34,7 +34,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
 from airflow.utils import timezone
@@ -67,17 +67,17 @@ class BackfillJob(BaseJob):
         it easier to pass it around.
 
         :param to_run: Tasks to run in the backfill
-        :type to_run: dict[tuple[TaskInstanceKeyType], airflow.models.TaskInstance]
+        :type to_run: dict[tuple[TaskInstanceKey], airflow.models.TaskInstance]
         :param running: Maps running task instance key to task instance object
-        :type running: dict[tuple[TaskInstanceKeyType], airflow.models.TaskInstance]
+        :type running: dict[tuple[TaskInstanceKey], airflow.models.TaskInstance]
         :param skipped: Tasks that have been skipped
-        :type skipped: set[tuple[TaskInstanceKeyType]]
+        :type skipped: set[tuple[TaskInstanceKey]]
         :param succeeded: Tasks that have succeeded so far
-        :type succeeded: set[tuple[TaskInstanceKeyType]]
+        :type succeeded: set[tuple[TaskInstanceKey]]
         :param failed: Tasks that have failed
-        :type failed: set[tuple[TaskInstanceKeyType]]
+        :type failed: set[tuple[TaskInstanceKey]]
         :param not_ready: Tasks not ready for execution
-        :type not_ready: set[tuple[TaskInstanceKeyType]]
+        :type not_ready: set[tuple[TaskInstanceKey]]
         :param deadlocked: Deadlocked tasks
         :type deadlocked: set[airflow.models.TaskInstance]
         :param active_runs: Active dag runs at a certain point in time
@@ -104,7 +104,7 @@ class BackfillJob(BaseJob):
                      total_runs=0,
                      ):
             self.to_run = to_run or OrderedDict()
-            self.running = running or dict()
+            self.running = running or {}
             self.skipped = skipped or set()
             self.succeeded = succeeded or set()
             self.failed = failed or set()
@@ -196,7 +196,7 @@ class BackfillJob(BaseJob):
 
         for ti in refreshed_tis:
             # Here we remake the key by subtracting 1 to match in memory information
-            key = (ti.dag_id, ti.task_id, ti.execution_date, max(1, ti.try_number - 1))
+            key = ti.key.reduced
             if ti.state == State.SUCCESS:
                 ti_status.succeeded.add(key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
@@ -295,12 +295,14 @@ class BackfillJob(BaseJob):
 
         # check if we are scheduling on top of a already existing dag_run
         # we could find a "scheduled" run instead of a "backfill"
-        run = DagRun.find(dag_id=dag.dag_id,
-                          execution_date=run_date,
-                          session=session)
-
-        if run is not None and len(run) > 0:
-            run = run[0]
+        runs = DagRun.find(
+            dag_id=dag.dag_id,
+            execution_date=run_date,
+            session=session
+        )
+        run: Optional[DagRun]
+        if runs:
+            run = runs[0]
             if run.state == State.RUNNING:
                 respect_dag_max_active_limit = False
         else:
@@ -637,10 +639,12 @@ class BackfillJob(BaseJob):
 
     @provide_session
     def _collect_errors(self, ti_status, session=None):
-        def tabulate_ti_keys_set(set_ti_keys: Set[TaskInstanceKeyType]) -> str:
+        def tabulate_ti_keys_set(set_ti_keys: Set[TaskInstanceKey]) -> str:
             # Sorting by execution date first
             sorted_ti_keys = sorted(
-                set_ti_keys, key=lambda ti_key: (ti_key[2], ti_key[0], ti_key[1], ti_key[3]))
+                set_ti_keys, key=lambda ti_key:
+                (ti_key.execution_date, ti_key.dag_id, ti_key.task_id, ti_key.try_number)
+            )
             return tabulate(sorted_ti_keys, headers=["DAG ID", "Task ID", "Execution date", "Try number"])
 
         def tabulate_tis_set(set_tis: Set[TaskInstance]) -> str:

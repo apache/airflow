@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.utils.log`.
+This package is deprecated. Please use `airflow.utils.log`.
 """
 
 import warnings

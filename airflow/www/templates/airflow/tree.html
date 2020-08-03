@@ -23,6 +23,13 @@
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/tree.css') }}">
+<style type="text/css">
+  {% for state, state_color in state_color_mapping.items() %}
+    rect.{{state}} {
+      fill: {{state_color}};
+    }
+  {% endfor %}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -45,22 +52,11 @@
 <div>
   <div class="legend_item" style="border: none;">no_status</div>
   <div class="square" style="background: white;"></div>
-  <div class="legend_item" style="border: none;">queued</div>
-  <div class="square" style="background: grey;"></div>
-  <div class="legend_item" style="border: none;">up_for_retry</div>
-  <div class="square" style="background: gold;"></div>
-  <div class="legend_item" style="border: none;">up_for_reschedule</div>
-  <div class="square" style="background: turquoise;"></div>
-  <div class="legend_item" style="border: none;">upstream_failed</div>
-  <div class="square" style="background: orange;"></div>
-  <div class="legend_item" style="border: none;">skipped</div>
-  <div class="square" style="background: pink;"></div>
-  <div class="legend_item" style="border: none;">failed</div>
-  <div class="square" style="background: red;"></div>
-  <div class="legend_item" style="border: none;">running</div>
-  <div class="square" style="background: lime;"></div>
-  <div class="legend_item" style="border: none;">success</div>
-  <div class="square" style="background: green;"></div>
+  {% for state, state_color in state_color_mapping.items() %}
+    <div class="legend_item" style="border: none;">{{state}}</div>
+    <div class="square" style="background: {{state_color}};"></div>
+  {% endfor %}
+
   {% for op in operators %}
   <div class="legend_circle" style="background:{{ op.ui_color }};">
   </div>

@@ -23,6 +23,7 @@ from cached_property import cached_property
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.utils.helpers import render_log_filename
+from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 
 
 class TaskLogReader:
@@ -95,10 +96,15 @@ class TaskLogReader:
         return handler
 
     @property
-    def is_supported(self):
+    def supports_read(self):
         """Checks if a read operation is supported by a current log handler."""
 
         return hasattr(self.log_handler, 'read')
+
+    @property
+    def supports_external_link(self):
+        """Check if the logging handler supports external links (e.g. to Elasticsearch, Stackdriver, etc)."""
+        return isinstance(self.log_handler, ExternalLoggingMixin)
 
     def render_log_filename(self, ti: TaskInstance, try_number: Optional[int] = None):
         """

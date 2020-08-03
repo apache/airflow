@@ -31,13 +31,11 @@ class GoogleAnalyticsHook(GoogleBaseHook):
     def __init__(
         self,
         api_version: str = "v3",
-        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.api_version = api_version
-        self.gcp_connection_is = gcp_conn_id
         self._conn = None
 
     def _paginate(self, resource: Resource, list_args: Optional[Dict[str, Any]] = None):

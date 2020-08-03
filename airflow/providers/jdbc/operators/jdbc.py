@@ -51,8 +51,8 @@ class JdbcOperator(BaseOperator):
                  jdbc_conn_id: str = 'jdbc_default',
                  autocommit: bool = False,
                  parameters: Optional[Union[Mapping, Iterable]] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.parameters = parameters
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id

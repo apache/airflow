@@ -34,7 +34,6 @@
 import os
 import sys
 from glob import glob
-from itertools import chain
 from typing import Dict, List
 
 import airflow
@@ -135,6 +134,11 @@ extensions = [
     'docroles',
     'removemarktransform',
     'sphinx_copybutton',
+    'redirects',
+    # First, generate redoc
+    'sphinxcontrib.redoc',
+    # Second, update redoc script
+    "sphinx_script_update",
 ]
 
 autodoc_default_options = {
@@ -200,21 +204,30 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/apache/index.rst",
     "_api/airflow/providers/yandex/index.rst",
     "_api/airflow/providers/cncf/index.rst",
-    # Utils for internal use
-    '_api/airflow/providers/google/cloud/utils',
-    # Internal client for Hashicorp Vault
-    '_api/airflow/providers/hashicorp/_internal_client',
-    # Internal client for GCP Secret Manager
-    '_api/airflow/providers/google/cloud/_internal_client',
+    # Packages without operators
+    "_api/airflow/providers/sendgrid",
     # Templates or partials
     'autoapi_templates',
-    'howto/operator/gcp/_partials',
+    'howto/operator/google/_partials',
 ]
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 
-# Generate top-level
 
+def _get_rst_filepath_from_path(filepath: str):
+    if os.path.isdir(filepath):
+        result = filepath
+    elif os.path.isfile(filepath) and filepath.endswith('/__init__.py'):
+        result = filepath.rpartition("/")[0]
+    else:
+        result = filepath.rpartition(".",)[0]
+    result += "/index.rst"
+
+    result = f"_api/{os.path.relpath(result, ROOT_DIR)}"
+    return result
+
+
+# Exclude top-level packages
 # do not exclude these top-level modules from the doc build:
 allowed_top_level = ("exceptions.py",)
 
@@ -226,11 +239,11 @@ for path in glob(f"{ROOT_DIR}/airflow/*"):
     if os.path.isdir(path) and name not in browsable_packages:
         exclude_patterns.append(f"_api/airflow/{name}")
 
-# Generate list of package index
+# Exclude package index
 providers_packages_roots = {
     name.rpartition("/")[0]
     for entity in ["hooks", "operators", "secrets", "sensors"]
-    for name in chain(glob(f"{ROOT_DIR}/airflow/providers/**/{entity}", recursive=True))
+    for name in glob(f"{ROOT_DIR}/airflow/providers/**/{entity}", recursive=True)
 }
 
 providers_package_indexes = {
@@ -240,12 +253,23 @@ providers_package_indexes = {
 
 exclude_patterns.extend(providers_package_indexes)
 
-# Generate list of example_dags
-excluded_example_dags = (
-    f"_api/{os.path.relpath(name, ROOT_DIR)}"
-    for name in glob(f"{ROOT_DIR}/airflow/providers/**/example_dags", recursive=True)
-)
-exclude_patterns.extend(excluded_example_dags)
+# Exclude auth_backend, utils, _internal_client, example_dags in providers packages
+excluded_packages_in_providers = {
+    name
+    for entity in ['auth_backend', 'utils', '_internal_client', 'example_dags']
+    for name in glob(f"{ROOT_DIR}/airflow/providers/**/{entity}/", recursive=True)
+}
+excluded_files_in_providers = {
+    _get_rst_filepath_from_path(path)
+    for p in excluded_packages_in_providers
+    for path in glob(f"{p}/**/*", recursive=True)
+}
+excluded_files_in_providers |= {
+    _get_rst_filepath_from_path(name)
+    for name in excluded_packages_in_providers
+}
+
+exclude_patterns.extend(excluded_files_in_providers)
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -498,9 +522,6 @@ autoapi_template_dir = 'autoapi_templates'
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
     '*/airflow/kubernetes/kubernetes_request_factory/*',
-    '*/airflow/contrib/sensors/*',
-    '*/airflow/contrib/hooks/*',
-    '*/airflow/contrib/operators/*',
     '*/_internal*',
     '*/node_modules/*',
     '*/migrations/*',
@@ -515,6 +536,28 @@ autoapi_root = '_api'
 
 # -- Options for example include ------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
+
+# -- Options for sphinxcontrib-redirects ----------------------------------
+redirects_file = 'redirects.txt'
+
+# -- Options for redoc docs ----------------------------------
+OPENAPI_FILE = os.path.join(
+    os.path.dirname(__file__),
+    "..", "airflow", "api_connexion", "openapi", "v1.yaml"
+)
+redoc = [
+    {
+        'name': 'Airflow REST API',
+        'page': 'stable-rest-api/redoc',
+        'spec': OPENAPI_FILE,
+        'opts': {
+            'hide-hostname': True,
+        }
+    },
+]
+
+# Options for script updater
+redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.30/bundles/redoc.standalone.js"
 
 # -- Additional HTML Context variable
 html_context = {

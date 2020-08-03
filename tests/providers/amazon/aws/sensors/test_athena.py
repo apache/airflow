@@ -31,7 +31,7 @@ class TestAthenaSensor(unittest.TestCase):
         self.sensor = AthenaSensor(task_id='test_athena_sensor',
                                    query_execution_id='abc',
                                    sleep_time=5,
-                                   max_retires=1,
+                                   max_retries=1,
                                    aws_conn_id='aws_default')
 
     @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("SUCCEEDED",))

@@ -17,14 +17,14 @@
 # under the License.
 
 from datetime import datetime, timedelta
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from croniter import croniter
 from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
 
 from airflow.utils import timezone
 
-cron_presets = {
+cron_presets: Dict[str, str] = {
     '@hourly': '0 * * * *',
     '@daily': '0 0 * * *',
     '@weekly': '0 0 * * 0',

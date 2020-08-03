@@ -19,6 +19,7 @@
 This module contains Google DisplayVideo operators.
 """
 import csv
+import json
 import shutil
 import tempfile
 import urllib.request
@@ -66,14 +67,19 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.body = body
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+
+    def prepare_template(self) -> None:
+        # If .json is passed then we have to read the file
+        if isinstance(self.body, str) and self.body.endswith('.json'):
+            with open(self.body, 'r') as file:
+                self.body = json.load(file)
 
     def execute(self, context: Dict):
         hook = GoogleDisplayVideo360Hook(
@@ -124,10 +130,9 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.report_id = report_id
         self.report_name = report_name
         self.api_version = api_version
@@ -208,10 +213,9 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.report_id = report_id
         self.chunk_size = chunk_size
         self.gzip = gzip
@@ -311,10 +315,9 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.report_id = report_id
         self.params = params
         self.api_version = api_version
@@ -365,10 +368,9 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
         api_version: str = "v1.1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.request_body = request_body
         self.object_name = object_name
         self.bucket_name = bucket_name
@@ -439,10 +441,9 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         api_version: str = "v1.1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket_name = bucket_name
         self.object_name = object_name
         self.api_version = api_version
@@ -510,10 +511,9 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.body_request = body_request
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
@@ -577,10 +577,9 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.operation_name = operation_name
         self.bucket_name = bucket_name
         self.object_name = object_name

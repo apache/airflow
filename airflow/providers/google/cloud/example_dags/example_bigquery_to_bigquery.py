@@ -33,12 +33,10 @@ DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset_transfe
 ORIGIN = "origin"
 TARGET = "target"
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_bigquery_to_bigquery",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
     copy_selected_data = BigQueryToBigQueryOperator(

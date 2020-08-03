@@ -44,8 +44,8 @@ class SageMakerBaseOperator(BaseOperator):
     def __init__(self,
                  config,
                  aws_conn_id='aws_default',
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+                 **kwargs):
+        super().__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
         self.config = config

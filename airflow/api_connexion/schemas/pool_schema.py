@@ -28,10 +28,7 @@ class PoolSchema(SQLAlchemySchema):
 
     class Meta:
         """Meta"""
-
         model = Pool
-        load_instance = True
-        exclude = ("pool",)
 
     name = auto_field("pool")
     slots = auto_field()
@@ -62,7 +59,7 @@ class PoolSchema(SQLAlchemySchema):
         return obj.queued_slots()
 
     @staticmethod
-    def get_open_slots(obj: Pool) -> int:
+    def get_open_slots(obj: Pool) -> float:
         """
         Returns the open slots of the pool.
         """
@@ -83,5 +80,5 @@ class PoolCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-pool_collection_schema = PoolCollectionSchema(strict=True)
-pool_schema = PoolSchema(strict=True)
+pool_collection_schema = PoolCollectionSchema()
+pool_schema = PoolSchema()

@@ -41,8 +41,9 @@ class TestSlackHook(unittest.TestCase):
         expected = test_token
         self.assertEqual(output, expected)
 
+    @mock.patch('airflow.providers.slack.hooks.slack.WebClient')
     @mock.patch('airflow.providers.slack.hooks.slack.SlackHook.get_connection')
-    def test_get_token_with_valid_slack_conn_id_only(self, get_connection_mock):
+    def test_get_token_with_valid_slack_conn_id_only(self, get_connection_mock, mock_slack_client):
         """ tests `__get_token` method when only connection is provided """
         # Given
         test_token = None
@@ -59,6 +60,7 @@ class TestSlackHook(unittest.TestCase):
         output = hook.token
         expected = test_password
         self.assertEqual(output, expected)
+        mock_slack_client.assert_called_once_with(test_password)
 
     @mock.patch('airflow.providers.slack.hooks.slack.SlackHook.get_connection')
     def test_get_token_with_no_password_slack_conn_id_only(self, get_connection_mock):

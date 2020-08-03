@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import random
 import re
 import string
@@ -30,9 +29,10 @@ from tests.test_utils.config import conf_vars
 
 try:
     from kubernetes.client.rest import ApiException
-    from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler
-    from airflow.executors.kubernetes_executor import KubernetesExecutor
-    from airflow.executors.kubernetes_executor import KubeConfig
+
+    from airflow.executors.kubernetes_executor import (
+        AirflowKubernetesScheduler, KubeConfig, KubernetesExecutor,
+    )
     from airflow.kubernetes import pod_generator
     from airflow.kubernetes.pod_generator import PodGenerator
     from airflow.utils.state import State

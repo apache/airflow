@@ -82,11 +82,17 @@ class TestBackfillJob(unittest.TestCase):
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
 
-    def setUp(self):
+    @staticmethod
+    def clean_db():
         clear_db_runs()
         clear_db_pools()
 
+    def setUp(self):
+        self.clean_db()
         self.parser = cli_parser.get_parser()
+
+    def tearDown(self) -> None:
+        self.clean_db()
 
     def test_unfinished_dag_runs_set_to_failed(self):
         dag = self._get_dummy_dag('dummy_dag')
@@ -904,7 +910,7 @@ class TestBackfillJob(unittest.TestCase):
 
         dagruns = DagRun.find(dag_id=dag.dag_id)
         self.assertEqual(2, len(dagruns))
-        self.assertTrue(all([run.state == State.SUCCESS for run in dagruns]))
+        self.assertTrue(all(run.state == State.SUCCESS for run in dagruns))
 
     def test_backfill_max_limit_check(self):
         dag_id = 'test_backfill_max_limit_check'
@@ -1431,7 +1437,7 @@ class TestBackfillJob(unittest.TestCase):
 
         queued_times = [ti.queued_dttm for ti in tis]
         self.assertTrue(queued_times == sorted(queued_times, reverse=True))
-        self.assertTrue(all([ti.state == State.SUCCESS for ti in tis]))
+        self.assertTrue(all(ti.state == State.SUCCESS for ti in tis))
 
         dag.clear()
         session.close()

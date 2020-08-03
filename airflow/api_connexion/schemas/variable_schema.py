@@ -30,5 +30,5 @@ class VariableCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-variable_schema = VariableSchema(strict=True)
-variable_collection_schema = VariableCollectionSchema(strict=True)
+variable_schema = VariableSchema()
+variable_collection_schema = VariableCollectionSchema()

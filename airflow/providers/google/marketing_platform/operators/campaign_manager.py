@@ -18,6 +18,7 @@
 """
 This module contains Google CampaignManager operators.
 """
+import json
 import tempfile
 import uuid
 from typing import Any, Dict, List, Optional
@@ -76,10 +77,9 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if not (report_name or report_id):
             raise AirflowException("Please provide `report_name` or `report_id`.")
         if report_name and report_id:
@@ -174,10 +174,9 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.profile_id = profile_id
         self.report_id = report_id
         self.file_id = file_id
@@ -288,15 +287,20 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.profile_id = profile_id
         self.report = report
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+
+    def prepare_template(self) -> None:
+        # If .json is passed then we have to read the file
+        if isinstance(self.report, str) and self.report.endswith('.json'):
+            with open(self.report, 'r') as file:
+                self.report = json.load(file)
 
     def execute(self, context: Dict):
         hook = GoogleCampaignManagerHook(
@@ -307,7 +311,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         self.log.info("Inserting Campaign Manager report.")
         response = hook.insert_report(
             profile_id=self.profile_id, report=self.report
-        )  # type: ignore
+        )
         report_id = response.get("id")
         self.xcom_push(context, key="report_id", value=report_id)
         self.log.info("Report successfully inserted. Report id: %s", report_id)
@@ -349,7 +353,6 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         "gcp_conn_id",
         "delegate_to",
     )
-    template_ext = (".json",)
 
     @apply_defaults
     def __init__(
@@ -360,10 +363,9 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.profile_id = profile_id
         self.report_id = report_id
         self.synchronous = synchronous
@@ -446,10 +448,9 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.profile_id = profile_id
         self.conversions = conversions
         self.encryption_entity_type = encryption_entity_type
@@ -534,10 +535,9 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.profile_id = profile_id
         self.conversions = conversions
         self.encryption_entity_type = encryption_entity_type

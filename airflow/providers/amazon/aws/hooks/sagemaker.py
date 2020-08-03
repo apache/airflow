@@ -123,7 +123,7 @@ def secondary_training_status_message(job_description, prev_description):
     return '\n'.join(status_strs)
 
 
-class SageMakerHook(AwsBaseHook):
+class SageMakerHook(AwsBaseHook):   # pylint: disable=too-many-public-methods
     """
     Interact with Amazon SageMaker.
 
@@ -250,10 +250,12 @@ class SageMakerHook(AwsBaseHook):
     def log_stream(self, log_group, stream_name, start_time=0, skip=0):
         """
         This method is deprecated.
-        Please use :py:meth:`airflow.contrib.hooks.AwsLogsHook.get_log_events` instead.
+        Please use
+        :py:meth:`airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events` instead.
         """
         warnings.warn("Method `log_stream` has been deprecated. "
-                      "Please use `airflow.contrib.hooks.AwsLogsHook.get_log_events` instead.",
+                      "Please use "
+                      "`airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events` instead.",
                       category=DeprecationWarning,
                       stacklevel=2)
 
@@ -394,6 +396,34 @@ class SageMakerHook(AwsBaseHook):
             self.check_status(config['TransformJobName'],
                               'TransformJobStatus',
                               self.describe_transform_job,
+                              check_interval, max_ingestion_time
+                              )
+        return response
+
+    def create_processing_job(self, config, wait_for_completion=True,
+                              check_interval=30, max_ingestion_time=None):
+        """
+        Create a processing job
+
+        :param config: the config for processing job
+        :type config: dict
+        :param wait_for_completion: if the program should keep running until job finishes
+        :type wait_for_completion: bool
+        :param check_interval: the time interval in seconds which the operator
+            will check the status of any SageMaker job
+        :type check_interval: int
+        :param max_ingestion_time: the maximum ingestion time in seconds. Any
+            SageMaker jobs that run longer than this will fail. Setting this to
+            None implies no timeout for any SageMaker job.
+        :type max_ingestion_time: int
+        :return: A response to transform job creation
+        """
+
+        response = self.get_conn().create_processing_job(**config)
+        if wait_for_completion:
+            self.check_status(config['ProcessingJobName'],
+                              'ProcessingJobStatus',
+                              self.describe_processing_job,
                               check_interval, max_ingestion_time
                               )
         return response
@@ -576,6 +606,17 @@ class SageMakerHook(AwsBaseHook):
         """
 
         return self.get_conn().describe_transform_job(TransformJobName=name)
+
+    def describe_processing_job(self, name):
+        """
+        Return the processing job info associated with the name
+
+        :param name: the name of the processing job
+        :type name: str
+        :return: A dict contains all the processing job info
+        """
+
+        return self.get_conn().describe_processing_job(ProcessingJobName=name)
 
     def describe_endpoint_config(self, name):
         """
@@ -763,7 +804,7 @@ class SageMakerHook(AwsBaseHook):
         :return: results of the list_training_jobs request
         """
 
-        config = dict()
+        config = {}
 
         if name_contains:
             if "NameContains" in kwargs:
@@ -781,6 +822,28 @@ class SageMakerHook(AwsBaseHook):
         list_training_jobs_request = partial(self.get_conn().list_training_jobs, **config)
         results = self._list_request(
             list_training_jobs_request, "TrainingJobSummaries", max_results=max_results
+        )
+        return results
+
+    def list_processing_jobs(self, **kwargs) -> List[Dict]:  # noqa: D402
+        """
+        This method wraps boto3's list_processing_jobs(). All arguments should be provided via kwargs.
+        Note boto3 expects these in CamelCase format, for example:
+
+        .. code-block:: python
+
+            list_processing_jobs(NameContains="myjob", StatusEquals="Failed")
+
+        .. seealso::
+            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.list_processing_jobs
+
+        :param kwargs: (optional) kwargs to boto3's list_training_jobs method
+        :return: results of the list_processing_jobs request
+        """
+
+        list_processing_jobs_request = partial(self.get_conn().list_processing_jobs, **kwargs)
+        results = self._list_request(
+            list_processing_jobs_request, "ProcessingJobSummaries", max_results=kwargs.get("MaxResults")
         )
         return results
 
@@ -806,7 +869,7 @@ class SageMakerHook(AwsBaseHook):
         next_token = None
 
         while True:
-            kwargs = dict()
+            kwargs = {}
             if next_token is not None:
                 kwargs["NextToken"] = next_token
 

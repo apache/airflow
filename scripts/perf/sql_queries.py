@@ -200,7 +200,7 @@ def main() -> None:
         times.append(exec_time)
         for qry in queries:
             info = qry.to_dict()
-            info["test_no"] = i  # type: ignore
+            info["test_no"] = i
             rows.append(info)
 
     rows_to_csv(rows, name="/files/sql_after_remote.csv")

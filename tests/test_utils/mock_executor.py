@@ -19,6 +19,7 @@
 from collections import defaultdict
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -93,4 +94,4 @@ class MockExecutor(BaseExecutor):
         If the task identified by the tuple ``(dag_id, task_id, date,
         try_number)`` is run by this executor it's state will be FAILED.
         """
-        self.mock_task_results[(dag_id, task_id, date, try_number)] = State.FAILED
+        self.mock_task_results[TaskInstanceKey(dag_id, task_id, date, try_number)] = State.FAILED

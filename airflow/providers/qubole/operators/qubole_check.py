@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from typing import Iterable
+
 from airflow.exceptions import AirflowException
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.providers.qubole.hooks.qubole_check import QuboleCheckHook
@@ -72,14 +74,16 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
 
     """
 
-    template_fields = QuboleOperator.template_fields + CheckOperator.template_fields
+    template_fields: Iterable[str] = (
+        set(QuboleOperator.template_fields) | set(CheckOperator.template_fields)
+    )
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 
     @apply_defaults
-    def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
+    def __init__(self, qubole_conn_id="qubole_default", **kwargs):
         sql = get_sql_from_qbol_cmd(kwargs)
-        super().__init__(qubole_conn_id=qubole_conn_id, sql=sql, *args, **kwargs)
+        super().__init__(qubole_conn_id=qubole_conn_id, sql=sql, **kwargs)
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry
         self.on_retry_callback = QuboleCheckHook.handle_failure_retry
 
@@ -153,19 +157,19 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
             QuboleOperator and ValueCheckOperator are template-supported.
     """
 
-    template_fields = QuboleOperator.template_fields + ValueCheckOperator.template_fields
+    template_fields = set(QuboleOperator.template_fields) | set(ValueCheckOperator.template_fields)
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 
     @apply_defaults
     def __init__(self, pass_value, tolerance=None, results_parser_callable=None,
-                 qubole_conn_id="qubole_default", *args, **kwargs):
+                 qubole_conn_id="qubole_default", **kwargs):
 
         sql = get_sql_from_qbol_cmd(kwargs)
         super().__init__(
             qubole_conn_id=qubole_conn_id,
             sql=sql, pass_value=pass_value, tolerance=tolerance,
-            *args, **kwargs)
+            **kwargs)
 
         self.results_parser_callable = results_parser_callable
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry

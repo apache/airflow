@@ -60,7 +60,7 @@ class TestCloudTasksHook(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.hook._client, result)
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.create_queue.return_value": API_RESPONSE},  # type: ignore
     )
@@ -82,7 +82,7 @@ class TestCloudTasksHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.update_queue.return_value": API_RESPONSE},  # type: ignore
     )
@@ -104,7 +104,7 @@ class TestCloudTasksHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.get_queue.return_value": API_RESPONSE},  # type: ignore
     )
@@ -119,7 +119,7 @@ class TestCloudTasksHook(unittest.TestCase):
             name=FULL_QUEUE_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.list_queues.return_value": API_RESPONSE},  # type: ignore
     )
@@ -137,7 +137,7 @@ class TestCloudTasksHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.delete_queue.return_value": API_RESPONSE},  # type: ignore
     )
@@ -152,7 +152,7 @@ class TestCloudTasksHook(unittest.TestCase):
             name=FULL_QUEUE_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.purge_queue.return_value": API_RESPONSE},  # type: ignore
     )
@@ -167,7 +167,7 @@ class TestCloudTasksHook(unittest.TestCase):
             name=FULL_QUEUE_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.pause_queue.return_value": API_RESPONSE},  # type: ignore
     )
@@ -182,7 +182,7 @@ class TestCloudTasksHook(unittest.TestCase):
             name=FULL_QUEUE_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.resume_queue.return_value": API_RESPONSE},  # type: ignore
     )
@@ -197,7 +197,7 @@ class TestCloudTasksHook(unittest.TestCase):
             name=FULL_QUEUE_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.create_task.return_value": API_RESPONSE},  # type: ignore
     )
@@ -221,7 +221,7 @@ class TestCloudTasksHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.get_task.return_value": API_RESPONSE},  # type: ignore
     )
@@ -243,7 +243,7 @@ class TestCloudTasksHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.list_tasks.return_value": API_RESPONSE},  # type: ignore
     )
@@ -263,7 +263,7 @@ class TestCloudTasksHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.delete_task.return_value": API_RESPONSE},  # type: ignore
     )
@@ -281,7 +281,7 @@ class TestCloudTasksHook(unittest.TestCase):
             name=FULL_TASK_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.run_task.return_value": API_RESPONSE},  # type: ignore
     )

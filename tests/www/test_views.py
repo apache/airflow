@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import copy
 import html
 import io
@@ -56,6 +55,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
+from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import using_mysql
 from airflow.utils.state import State
@@ -99,6 +99,7 @@ class TemplateWithContext(NamedTuple):
             'log_fetch_delay_sec',
             'log_auto_tailing_offset',
             'log_animation_speed',
+            'state_color_mapping',
             # airflow.www.static_config.configure_manifest_files
             'url_for_asset',
             # airflow.www.views.AirflowBaseView.render_template
@@ -430,7 +431,7 @@ class TestAirflowBaseViews(TestBase):
             state=State.RUNNING)
 
     def test_index(self):
-        with assert_queries_count(38):
+        with assert_queries_count(40):
             resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
@@ -991,6 +992,36 @@ class TestAirflowBaseViews(TestBase):
         self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': dag_id})
         self.session.commit()
 
+    @parameterized.expand(["graph", "tree"])
+    def test_show_external_log_redirect_link_with_local_log_handler(self, endpoint):
+        """Do not show external links if log handler is local."""
+        url = f'{endpoint}?dag_id=example_bash_operator'
+        with self.capture_templates() as templates:
+            self.client.get(url, follow_redirects=True)
+            ctx = templates[0].local_context
+            self.assertFalse(ctx['show_external_log_redirect'])
+            self.assertIsNone(ctx['external_log_name'])
+
+    @parameterized.expand(["graph", "tree"])
+    @mock.patch('airflow.utils.log.log_reader.TaskLogReader.log_handler', new_callable=PropertyMock)
+    def test_show_external_log_redirect_link_with_external_log_handler(self, endpoint, mock_log_handler):
+        """Show external links if log handler is external."""
+        class ExternalHandler(ExternalLoggingMixin):
+            LOG_NAME = 'ExternalLog'
+
+            @property
+            def log_name(self):
+                return self.LOG_NAME
+
+        mock_log_handler.return_value = ExternalHandler()
+
+        url = f'{endpoint}?dag_id=example_bash_operator'
+        with self.capture_templates() as templates:
+            self.client.get(url, follow_redirects=True)
+            ctx = templates[0].local_context
+            self.assertTrue(ctx['show_external_log_redirect'])
+            self.assertEqual(ctx['external_log_name'], ExternalHandler.LOG_NAME)
+
 
 class TestConfigurationView(TestBase):
     def test_configuration_do_not_expose_config(self):
@@ -1009,6 +1040,19 @@ class TestConfigurationView(TestBase):
             resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', 'Running Configuration'], resp)
+
+
+class TestRedocView(TestBase):
+    def test_should_render_template(self):
+        with self.capture_templates() as templates:
+            resp = self.client.get('redoc')
+            self.check_content_in_response('Redoc', resp)
+
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0].name, 'airflow/redoc.html')
+        self.assertEqual(templates[0].local_context, {
+            'openapi_spec_url': '/api/v1/openapi.yaml'
+        })
 
 
 class TestLogView(TestBase):
@@ -1056,7 +1100,7 @@ class TestLogView(TestBase):
             dag.sync_to_db()
             dag_removed = DAG(self.DAG_ID_REMOVED, start_date=self.DEFAULT_DATE)
             dag_removed.sync_to_db()
-            dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+            dagbag.bag_dag(dag=dag, root_dag=dag)
             with create_session() as session:
                 self.ti = TaskInstance(
                     task=DummyOperator(task_id=self.TASK_ID, dag=dag),
@@ -1250,7 +1294,7 @@ class TestLogView(TestBase):
 
     @mock.patch("airflow.www.views.TaskLogReader")
     def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
-        type(mock_log_reader.return_value).is_supported = PropertyMock(return_value=False)
+        type(mock_log_reader.return_value).supports_read = PropertyMock(return_value=False)
 
         url_template = "get_logs_with_metadata?dag_id={}&" \
                        "task_id={}&execution_date={}&" \
@@ -1269,6 +1313,48 @@ class TestLogView(TestBase):
             'Task log handler does not support read logs.',
             response.json['message'])
 
+    @parameterized.expand([
+        ('inexistent', ),
+        (TASK_ID, ),
+    ])
+    def test_redirect_to_external_log_with_local_log_handler(self, task_id):
+        """Redirect to home if TI does not exist or if log handler is local"""
+        url_template = "redirect_to_external_log?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}"
+        try_number = 1
+        url = url_template.format(self.DAG_ID,
+                                  task_id,
+                                  quote_plus(self.DEFAULT_DATE.isoformat()),
+                                  try_number)
+        response = self.client.get(url)
+
+        self.assertEqual(302, response.status_code)
+        self.assertEqual('http://localhost/home', response.headers['Location'])
+
+    @mock.patch('airflow.utils.log.log_reader.TaskLogReader.log_handler', new_callable=PropertyMock)
+    def test_redirect_to_external_log_with_external_log_handler(self, mock_log_handler):
+        class ExternalHandler(ExternalLoggingMixin):
+            EXTERNAL_URL = 'http://external-service.com'
+
+            def get_external_log_url(self, *args, **kwargs):
+                return self.EXTERNAL_URL
+
+        mock_log_handler.return_value = ExternalHandler()
+
+        url_template = "redirect_to_external_log?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}"
+        try_number = 1
+        url = url_template.format(self.DAG_ID,
+                                  self.TASK_ID,
+                                  quote_plus(self.DEFAULT_DATE.isoformat()),
+                                  try_number)
+        response = self.client.get(url)
+
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(ExternalHandler.EXTERNAL_URL, response.headers['Location'])
+
 
 class TestVersionView(TestBase):
     def test_version(self):
@@ -1284,7 +1370,7 @@ class TestVersionView(TestBase):
         self.assertEqual(templates[0].local_context, dict(
             airflow_version=version.version,
             git_version=mock.ANY,
-            title='Version Info'
+            title='Version Info',
         ))
 
 
@@ -1306,7 +1392,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
     def setup(self):
         dagbag = self.test.app.dag_bag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
-        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+        dagbag.bag_dag(dag=dag, root_dag=dag)
         for run_data in self.RUNS_DATA:
             run = dag.create_dagrun(
                 run_id=run_data[0],
@@ -1492,7 +1578,7 @@ class TestGraphView(TestBase):
     def test_dt_nr_dr_form_with_execution_date_parameter_only(self):
         self.tester.test_with_execution_date_parameter_only()
 
-    def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_parameters_only(self):
         self.tester.test_with_base_date_and_num_runs_parameters_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
@@ -1531,7 +1617,7 @@ class TestGanttView(TestBase):
     def test_dt_nr_dr_form_with_execution_date_parameter_only(self):
         self.tester.test_with_execution_date_parameter_only()
 
-    def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_parameters_only(self):
         self.tester.test_with_base_date_and_num_runs_parameters_only()
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
@@ -2214,6 +2300,18 @@ class TestTaskInstanceView(TestBase):
         self.check_content_in_response('List Task Instance', resp)
 
 
+class TestTaskRescheduleView(TestBase):
+    TI_ENDPOINT = '/taskreschedule/list/?_flt_0_execution_date={}'
+
+    def test_start_date_filter(self):
+        resp = self.client.get(self.TI_ENDPOINT.format(
+            self.percent_encode('2018-10-09 22:44:31')))
+        # We aren't checking the logic of the date filter itself (that is built
+        # in to FAB) but simply that our UTC conversion was run - i.e. it
+        # doesn't blow up!
+        self.check_content_in_response('List Task Reschedule', resp)
+
+
 class TestRenderedView(TestBase):
 
     def setUp(self):
@@ -2382,8 +2480,7 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
-        from tests.test_utils.mock_operators import Dummy3TestOperator
-        from tests.test_utils.mock_operators import Dummy2TestOperator
+        from tests.test_utils.mock_operators import Dummy2TestOperator, Dummy3TestOperator
 
         self.endpoint = "extra_links"
         self.default_date = datetime(2017, 1, 1)
