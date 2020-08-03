@@ -276,7 +276,7 @@ pycountry==20.7.3
 pycparser==2.20
 pycryptodomex==3.9.8
 pydata-google-auth==1.1.0
-pydruid==0.5.8
+pydruid==0.6.1
 pyexasol==0.13.1
 pyflakes==2.2.0
 pykerberos==1.2.1
@@ -324,7 +324,7 @@ sasl==0.2.1
 semver==2.10.2
 sendgrid==6.4.4
 sentinels==1.0.0
-sentry-sdk==0.16.2
+sentry-sdk==0.16.3
 setproctitle==1.1.10
 sh==1.13.1
 simple-salesforce==1.10.1
@@ -368,7 +368,7 @@ thrift==0.13.0
 toml==0.10.1
 toolz==0.10.0
 tornado==5.1.1
-tqdm==4.48.0
+tqdm==4.48.1
 traitlets==4.3.3
 typed-ast==1.4.1
 typing-extensions==3.7.4.2
