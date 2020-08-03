@@ -3287,7 +3287,7 @@ class ConfigurationView(wwwutils.SuperUserMixin, AirflowViewMixin, BaseView):
 
 class DagModelView(wwwutils.SuperUserMixin, ModelView):
     column_list = ('dag_id', 'owners')
-    column_editable_list = ('is_paused', 'description', 'default_view')
+    column_editable_list = ()
     form_excluded_columns = ('is_subdag', 'is_active')
     column_searchable_list = ('dag_id',)
     column_filters = (
@@ -3305,6 +3305,8 @@ class DagModelView(wwwutils.SuperUserMixin, ModelView):
         'pickle_size': {'disabled': True},
         'scheduler_lock': {'disabled': True},
         'owners': {'disabled': True},
+        'description': {'disabled': True},
+        'default_view': {'disabled': True},
     }
     column_formatters = dict(
         dag_id=dag_link,

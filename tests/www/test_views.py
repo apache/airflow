@@ -1276,7 +1276,6 @@ class TestDagModelView(unittest.TestCase):
             self.EDIT_URL,
             data={
                 "fileloc": "/etc/passwd",
-                "description": "Set in tests",
             },
             follow_redirects=True,
         )
@@ -1286,7 +1285,6 @@ class TestDagModelView(unittest.TestCase):
         dm = session.query(DM).filter(DM.dag_id == 'example_bash_operator').one()
         session.close()
 
-        self.assertEqual(dm.description, "Set in tests")
         self.assertNotEqual(dm.fileloc, "/etc/passwd", "Disabled fields shouldn't be updated")
 
 
