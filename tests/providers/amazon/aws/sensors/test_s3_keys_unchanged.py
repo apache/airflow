@@ -70,9 +70,13 @@ class TestS3KeysUnchangedSensor(TestCase):
             self.sensor.is_keys_unchanged({'a'})
 
     @parameterized.expand([
+        # Test: resetting inactivity period after key change
         (({'a'}, {'a', 'b'}, {'a', 'b', 'c'}), (False, False, False), (0, 0, 0)),
+        # ..and in case an item was deleted with option `allow_delete=True`
         (({'a', 'b'}, {'a'}, {'a', 'c'}), (False, False, False), (0, 0, 0)),
+        # Test: passes after inactivity period was exceeded
         (({'a'}, {'a'}, {'a'}), (False, False, True), (0, 10, 20)),
+        # ..and do not pass if empty key is given
         ((set(), set(), set()), (False, False, False), (0, 10, 20))
     ])
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
