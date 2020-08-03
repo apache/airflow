@@ -726,7 +726,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Datastore <https://cloud.google.com/datastore/>`__
-     -
+     - :doc:`How to use <howto/operator/google/cloud/datastore>`
      - :mod:`airflow.providers.google.cloud.hooks.datastore`
      - :mod:`airflow.providers.google.cloud.operators.datastore`
      -
