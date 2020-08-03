@@ -2677,7 +2677,8 @@ class VariableModelView(AirflowModelView):
             suc_count = fail_count = 0
             for k, v in d.items():
                 try:
-                    models.Variable.set(k, v, serialize_json=isinstance(v, dict))
+                    is_curve_template = VariableModelView.is_curve_param_key(k)
+                    models.Variable.set(k, v, serialize_json=isinstance(v, dict), is_curve_template=is_curve_template)
                 except Exception as e:
                     logging.info('Variable import failed: {}'.format(repr(e)))
                     fail_count += 1
