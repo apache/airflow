@@ -437,6 +437,14 @@ function get_environment_for_builds_on_ci() {
                 export CI_SOURCE_REPO="${CI_TARGET_REPO}"
                 export CI_SOURCE_BRANCH="${CI_TARGET_BRANCH}"
             fi
+        elif [[ "${LOCAL_CI_TESTING:=}" == "true" ]]; then
+            export CI_TARGET_REPO="apache/airflow"
+            export CI_TARGET_BRANCH="${DEFAULT_BRANCH:="master"}"
+            export CI_BUILD_ID="0"
+            export CI_JOB_ID="0"
+            export CI_EVENT_TYPE="pull_request"
+            export CI_SOURCE_REPO="apache/airflow"
+            export CI_SOURCE_BRANCH="${DEFAULT_BRANCH:="master"}"
         else
             export CI_SOURCE_REPO="${CI_TARGET_REPO}"
             export CI_SOURCE_BRANCH="${CI_TARGET_BRANCH}"
