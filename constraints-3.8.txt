@@ -111,7 +111,7 @@ docker-pycreds==0.4.0
 docker==3.7.3
 docopt==0.6.2
 docutils==0.16
-ecdsa==0.15
+ecdsa==0.14.1
 elasticsearch-dbapi==0.1.0
 elasticsearch-dsl==7.2.1
 elasticsearch==7.5.1
