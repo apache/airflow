@@ -49,7 +49,7 @@ jobs:
     steps:
       - uses: potiuk/cancel-workflow-runs@v1
         with:
-          workflow: quarantined.yml
+          workflow: quarantined.yaml
           token: ${{ secrets.GITHUB_TOKEN }}
 
   trigger-tests:
