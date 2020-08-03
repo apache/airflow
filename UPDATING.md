@@ -139,7 +139,7 @@ see a deprecation warning. The old import paths can be abandoned in the future.
 
 ### Breaking Change in OAuth
 
-The flask-ouathlib has been replaced with authlib because flask-outhlib have
+The flask-ouathlib has been replaced with authlib because flask-outhlib has
 been deprecated in favour of authlib.
 The Old and New provider configuration keys that have changed are as follows
 
