@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.segment.hooks.segment import SegmentHook
@@ -42,12 +43,12 @@ class SegmentTrackEventOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 user_id,
-                 event,
-                 properties=None,
-                 segment_conn_id='segment_default',
-                 segment_debug_mode=False,
-                 **kwargs):
+                 user_id: str,
+                 event: str,
+                 properties: Optional[dict] = None,
+                 segment_conn_id: str = 'segment_default',
+                 segment_debug_mode: bool = False,
+                 **kwargs) -> None:
         super().__init__(**kwargs)
         self.user_id = user_id
         self.event = event
@@ -56,7 +57,7 @@ class SegmentTrackEventOperator(BaseOperator):
         self.segment_debug_mode = segment_debug_mode
         self.segment_conn_id = segment_conn_id
 
-    def execute(self, context):
+    def execute(self, context: Dict) -> None:
         hook = SegmentHook(segment_conn_id=self.segment_conn_id,
                            segment_debug_mode=self.segment_debug_mode)
 
@@ -65,7 +66,7 @@ class SegmentTrackEventOperator(BaseOperator):
             self.event, self.user_id, self.properties)
 
         # pylint: disable=no-member
-        hook.track(
+        hook.track(  # type: ignore
             user_id=self.user_id,
             event=self.event,
             properties=self.properties)
