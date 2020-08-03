@@ -29,7 +29,6 @@ services:
       - ../../../.github:/opt/airflow/.github:cached
       - ../../../.inputrc:/root/.inputrc:cached
       - ../../../.kube:/root/.kube:cached
-      - ../../../files:/files:cached
       - ../../../dist:/dist:cached
       - ../../../scripts/prod/entrypoint_prod.sh:/entrypoint:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,26 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
-
-echo
-echo "Starting the tests with those pytest arguments:" "${@}"
-echo
-set +e
-
-pytest "${@}"
-
-RES=$?
-
-set +x
-if [[ "${RES}" == "0" && ${CI:="false"} == "true" ]]; then
-    echo "All tests successful"
-    bash <(curl -s https://codecov.io/bash)
-fi
-
-if [[ ${CI:=} == "true" ]]; then
-    dump_airflow_logs
-fi
-
-exit "${RES}"
+---
+version: "2.2"
+services:
+  airflow:
+    volumes:
+      - ../../../files:/files:cached
