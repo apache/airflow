@@ -22,9 +22,9 @@
 
 {% block page_title %}
   {% if search_query %}
-    "{{ search_query }}" - DAGs - Airflow
+    "{{ search_query }}" - {{ appbuilder.app_name }}
   {% else %}
-    DAGs - Airflow
+    Airflow - {{ appbuilder.app_name }}
   {% endif %}
 {% endblock %}
 
@@ -35,7 +35,7 @@
 {% endblock %}
 
 {% block content %}
-  <h2>DAGs</h2>
+  <h2>{{ page_title }}</h2>
   <div id="main_content">
     <div class="dags-table-wrap">
       <div class="row dags-table-header">

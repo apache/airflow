@@ -574,11 +574,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
 
+        page_title = conf.get(section="webserver", key="instance_name", fallback="DAGs")
+
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
+            page_title=page_title,
             page_size=dags_per_page,
             num_of_pages=num_of_pages,
             num_dag_from=min(start + 1, num_of_all_dags),

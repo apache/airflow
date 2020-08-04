@@ -18,7 +18,7 @@
 #}
 
 {% extends "airflow/dag.html" %}
-{% block page_title %}{{ dag.dag_id }} - Duration chart - Airflow{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - Duration chart - {{ appbuilder.app_name }}{% endblock %}
 
 {% block head_css %}
   {{ super() }}

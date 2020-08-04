@@ -66,14 +66,14 @@ def sync_appbuilder_roles(flask_app):
         security_manager.sync_resource_permissions()
 
 
-def create_app(config=None, testing=False, app_name="Airflow"):
+def create_app(config=None, testing=False):
     """Create a new instance of Airflow WWW app"""
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     flask_app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=settings.get_session_lifetime_config())
     flask_app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
-    flask_app.config['APP_NAME'] = app_name
+    flask_app.config['APP_NAME'] = conf.get(section="webserver", key="instance_name", fallback="Airflow")
     flask_app.config['TESTING'] = testing
     flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('core', 'SQL_ALCHEMY_CONN')
     flask_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

@@ -19,7 +19,7 @@
 
 {% extends "airflow/dag.html" %}
 
-{% block page_title %}{{ dag.dag_id }} - {{ title }} - Airflow{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - DAG Details - {{ appbuilder.app_name }}{% endblock %}
 
 {% block content %}
   {{ super() }}

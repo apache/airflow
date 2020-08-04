@@ -18,7 +18,7 @@
 #}
 
 {% extends "airflow/dag.html" %}
-{% block page_title %}{{ dag.dag_id }} - Tree - Airflow{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - Tree - {{ appbuilder.app_name }}{% endblock %}
 
 {% block head_css %}
   {{ super() }}

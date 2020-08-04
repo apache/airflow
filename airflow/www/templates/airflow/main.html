@@ -19,6 +19,14 @@
 
 {% extends 'appbuilder/baselayout.html' %}
 
+{% block page_title -%}
+  {% if title is defined -%}
+    {{ title }} - {{ appbuilder.app_name }}
+  {% else -%}
+    {{ appbuilder.app_name }}
+  {% endif%}
+{% endblock %}
+
 {% block head_css %}
   {{ super() }}
 

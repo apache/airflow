@@ -20,7 +20,7 @@
 {% extends "airflow/dag.html" %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
 
-{% block page_title %}{{ dag.dag_id }} - Graph - Airflow{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - Graph - {{ appbuilder.app_name }}{% endblock %}
 
 {% block head_css %}
   {{ super() }}
