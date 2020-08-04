@@ -384,7 +384,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             )
         validate_key(task_id)
         self.task_group = task_group or TaskGroupContext.get_current_task_group()
-        self.task_id = task_id
+        self._task_id = task_id
         if self.task_group:
             self.task_group.add(self)
         self.owner = owner
@@ -614,7 +614,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
             dag.add_task(self)
 
-        self._dag = dag  # type: ignore
+        self._dag = dag
 
     def has_dag(self):
         """

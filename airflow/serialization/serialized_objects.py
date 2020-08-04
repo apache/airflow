@@ -346,6 +346,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         """Serializes operator into a JSON object.
         """
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
+        serialize_op["task_id"] = op.task_id
         serialize_op['_task_type'] = op.__class__.__name__
         serialize_op['_task_module'] = op.__class__.__module__
         if op.operator_extra_links:
@@ -391,7 +392,14 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         for k, v in encoded_op.items():
 
-            if k == "_downstream_task_ids":
+            if k == "task_id":
+                if "_task_id" in encoded_op:
+                    continue
+
+                # This is deserializing old data before the addition of TaskGroup.
+                # Should not set task_id directly.
+                k = "_task_id"
+            elif k == "_downstream_task_ids":
                 v = set(v)
             elif k == "subdag":
                 v = SerializedDAG.deserialize_dag(v)
