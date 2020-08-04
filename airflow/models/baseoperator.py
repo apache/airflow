@@ -55,6 +55,7 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import provide_session
+from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -360,6 +361,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         do_xcom_push: bool = True,
         inlets: Optional[Any] = None,
         outlets: Optional[Any] = None,
+        task_group: Optional[TaskGroup] = None,
         **kwargs
     ):
         from airflow.models.dag import DagContext
@@ -381,7 +383,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 stacklevel=3
             )
         validate_key(task_id)
+        self.task_group = task_group or TaskGroupContext.get_current_task_group()
         self.task_id = task_id
+        if self.task_group:
+            self.task_group.add(self)
         self.owner = owner
         self.email = email
         self.email_on_retry = email_on_retry
@@ -609,7 +614,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
             dag.add_task(self)
 
-        self._dag = dag  # pylint: disable=attribute-defined-outside-init
+        self._dag = dag  # type: ignore
 
     def has_dag(self):
         """
@@ -1178,6 +1183,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         Set a task or a task list to be directly downstream from the current
         task. Required by TaskMixin.
         """
+        if isinstance(task_or_task_list, TaskGroup):
+            task_or_task_list = task_or_task_list.get_roots()
         self._set_relatives(task_or_task_list, upstream=False)
 
     def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
@@ -1185,6 +1192,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         Set a task or a task list to be directly upstream from the current
         task. Required by TaskMixin.
         """
+        if isinstance(task_or_task_list, TaskGroup):
+            task_or_task_list = task_or_task_list.get_leaves()
         self._set_relatives(task_or_task_list, upstream=True)
 
     @property
