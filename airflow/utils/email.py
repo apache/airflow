@@ -24,7 +24,7 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -91,6 +91,7 @@ def build_mime_message(
     bcc: Optional[Union[str, Iterable[str]]] = None,
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
+    custom_headers: Optional[Dict[str, Any]] = None,
 ) -> Tuple[MIMEMultipart, List[str]]:
     """
     Build a MIME message that can be used to send an email and
@@ -105,6 +106,8 @@ def build_mime_message(
     :param bcc: List of email addresses to set as email's BCC
     :param mime_subtype: Can be used to specify the subtype of the message. Default = mixed
     :param mime_charset: Email's charset. Default = UTF-8.
+    :param custom_headers: Additional headers to add to the MIME message.
+        No validations are run on these values and they should be able to be encoded.
     :return: Email as MIMEMultipart and list of recipients' addresses.
     """
     to = get_email_address_list(to)
@@ -138,6 +141,10 @@ def build_mime_message(
             part['Content-Disposition'] = f'attachment; filename="{basename}"'
             part['Content-ID'] = f'<{basename}>'
             msg.attach(part)
+
+    if custom_headers:
+        for header_key, header_value in custom_headers.items():
+            msg[header_key] = header_value
 
     return msg, recipients
 

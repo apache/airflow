@@ -68,6 +68,8 @@ def test_send_email(to, cc, bcc):
         html_content='<html>Test</html>',
         cc=cc,
         bcc=bcc,
+        reply_to='reply_to@domain.com',
+        return_path='return_path@domain.com',
     )
 
     # Then
