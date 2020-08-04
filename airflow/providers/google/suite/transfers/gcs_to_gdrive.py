@@ -85,10 +85,9 @@ class GCSToGoogleDriveOperator(BaseOperator):
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.source_bucket = source_bucket
         self.source_object = source_object

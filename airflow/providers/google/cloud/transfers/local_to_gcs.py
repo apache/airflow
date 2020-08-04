@@ -69,9 +69,8 @@ class LocalFilesystemToGCSOperator(BaseOperator):
                  mime_type='application/octet-stream',
                  delegate_to=None,
                  gzip=False,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(

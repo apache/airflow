@@ -60,9 +60,8 @@ class S3PrefixSensor(BaseSensorOperator):
                  delimiter='/',
                  aws_conn_id='aws_default',
                  verify=None,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         # Parse
         self.bucket_name = bucket_name
         self.prefix = prefix

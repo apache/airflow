@@ -86,9 +86,8 @@ class BigQueryToBigQueryOperator(BaseOperator):
                  labels: Optional[Dict] = None,
                  encryption_configuration: Optional[Dict] = None,
                  location: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if bigquery_conn_id:
             warnings.warn(

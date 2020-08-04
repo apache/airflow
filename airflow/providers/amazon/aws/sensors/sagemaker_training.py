@@ -41,9 +41,8 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     def __init__(self,
                  job_name,
                  print_log=True,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.job_name = job_name
         self.print_log = print_log
         self.positions = {}

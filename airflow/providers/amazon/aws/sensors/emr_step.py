@@ -51,9 +51,8 @@ class EmrStepSensor(EmrBaseSensor):
                  step_id: str,
                  target_states: Optional[Iterable[str]] = None,
                  failed_states: Optional[Iterable[str]] = None,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.step_id = step_id
         self.target_states = target_states or ['COMPLETED']

@@ -89,9 +89,8 @@ class BigQueryToMySqlOperator(BaseOperator):
                  replace: bool = False,
                  batch_size: int = 1000,
                  location: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
         self.mysql_conn_id = mysql_conn_id

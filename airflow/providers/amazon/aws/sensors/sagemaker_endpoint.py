@@ -36,9 +36,8 @@ class SageMakerEndpointSensor(SageMakerBaseSensor):
     @apply_defaults
     def __init__(self,
                  endpoint_name,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.endpoint_name = endpoint_name
 
     def non_terminal_states(self):

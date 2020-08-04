@@ -56,9 +56,9 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
                  table_id: str,
                  bigquery_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id

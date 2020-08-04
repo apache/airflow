@@ -36,8 +36,8 @@ class RedisPubSubSensor(BaseSensorOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, channels: Union[List[str], str], redis_conn_id: str, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, channels: Union[List[str], str], redis_conn_id: str, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.channels = channels
         self.redis_conn_id = redis_conn_id
         self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()

@@ -55,8 +55,8 @@ class S3ToSnowflakeOperator(BaseOperator):
                  columns_array=None,
                  autocommit=True,
                  snowflake_conn_id='snowflake_default',
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+                 **kwargs):
+        super().__init__(**kwargs)
         self.s3_keys = s3_keys
         self.table = table
         self.stage = stage

@@ -74,10 +74,9 @@ class GoogleAdsToGcsOperator(BaseOperator):
         google_ads_conn_id: str = "google_ads_default",
         page_size: int = 10000,
         gzip: bool = False,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.client_ids = client_ids
         self.query = query
         self.attributes = attributes

@@ -48,9 +48,8 @@ class FileToWasbOperator(BaseOperator):
                  blob_name: str,
                  wasb_conn_id: str = 'wasb_default',
                  load_options: Optional[dict] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if load_options is None:
             load_options = {}
         self.file_path = file_path

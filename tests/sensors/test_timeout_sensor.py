@@ -43,10 +43,9 @@ class TimeoutTestSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self,
                  return_value=False,
-                 *args,
                  **kwargs):
         self.return_value = return_value
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def poke(self, context):
         return self.return_value

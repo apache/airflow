@@ -74,8 +74,8 @@ class S3ToRedshiftOperator(BaseOperator):
             verify: Optional[Union[bool, str]] = None,
             copy_options: Optional[List] = None,
             autocommit: bool = False,
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+            **kwargs) -> None:
+        super().__init__(**kwargs)
         self.schema = schema
         self.table = table
         self.s3_bucket = s3_bucket

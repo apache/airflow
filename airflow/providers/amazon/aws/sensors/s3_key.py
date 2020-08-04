@@ -64,9 +64,8 @@ class S3KeySensor(BaseSensorOperator):
                  wildcard_match=False,
                  aws_conn_id='aws_default',
                  verify=None,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         # Parse
         if bucket_name is None:
             parsed_url = urlparse(bucket_key)

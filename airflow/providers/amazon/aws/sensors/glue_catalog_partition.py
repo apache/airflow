@@ -57,10 +57,9 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
                  region_name=None,
                  database_name='default',
                  poke_interval=60 * 3,
-                 *args,
                  **kwargs):
         super().__init__(
-            poke_interval=poke_interval, *args, **kwargs)
+            poke_interval=poke_interval, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.table_name = table_name

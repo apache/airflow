@@ -84,10 +84,9 @@ class SFTPToGCSOperator(BaseOperator):
         mime_type: str = "application/octet-stream",
         gzip: bool = False,
         move_object: bool = False,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.source_path = source_path
         self.destination_path = self._set_destination_path(destination_path)

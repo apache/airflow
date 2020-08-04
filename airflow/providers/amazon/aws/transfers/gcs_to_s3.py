@@ -89,7 +89,6 @@ class GCSToS3Operator(GCSListObjectsOperator):
                  dest_s3_key=None,
                  dest_verify=None,
                  replace=False,
-                 *args,
                  **kwargs):
 
         if google_cloud_storage_conn_id:
@@ -104,7 +103,6 @@ class GCSToS3Operator(GCSListObjectsOperator):
             delimiter=delimiter,
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
-            *args,
             **kwargs
         )
 

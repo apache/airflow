@@ -57,14 +57,14 @@ class SqlSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False,
-                 *args, **kwargs):
+                 **kwargs):
         self.conn_id = conn_id
         self.sql = sql
         self.parameters = parameters
         self.success = success
         self.failure = failure
         self.fail_on_empty = fail_on_empty
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _get_hook(self):
         conn = BaseHook.get_connection(self.conn_id)

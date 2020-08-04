@@ -40,10 +40,9 @@ class CeleryQueueSensor(BaseSensorOperator):
             self,
             celery_queue: str,
             target_task_id: Optional[str] = None,
-            *args,
             **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.celery_queue = celery_queue
         self.target_task_id = target_task_id
 

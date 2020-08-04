@@ -56,8 +56,8 @@ class PrestoToMySqlOperator(BaseOperator):
                  presto_conn_id: str = 'presto_default',
                  mysql_conn_id: str = 'mysql_default',
                  mysql_preoperator: Optional[str] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.sql = sql
         self.mysql_table = mysql_table
         self.mysql_conn_id = mysql_conn_id

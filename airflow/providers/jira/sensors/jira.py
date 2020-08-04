@@ -44,9 +44,8 @@ class JiraSensor(BaseSensorOperator):
                  jira_conn_id: str = 'jira_default',
                  method_params: Optional[dict] = None,
                  result_processor: Optional[Callable] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.jira_conn_id = jira_conn_id
         self.result_processor = None
         if result_processor is not None:

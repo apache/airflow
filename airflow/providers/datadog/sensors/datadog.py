@@ -48,9 +48,8 @@ class DatadogSensor(BaseSensorOperator):
             sources: Optional[str] = None,
             tags: Optional[List[str]] = None,
             response_check: Optional[Callable[[Dict[str, Any]], bool]] = None,
-            *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.datadog_conn_id = datadog_conn_id
         self.from_seconds_ago = from_seconds_ago
         self.up_to_seconds_from_now = up_to_seconds_from_now

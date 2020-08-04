@@ -187,9 +187,9 @@ class GCSToBigQueryOperator(BaseOperator):
                  autodetect=True,
                  encryption_configuration=None,
                  location=None,
-                 *args, **kwargs):
+                 **kwargs):
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         # GCS config
         if src_fmt_configs is None:

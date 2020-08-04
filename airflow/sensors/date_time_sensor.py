@@ -58,9 +58,9 @@ class DateTimeSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-        self, target_time: Union[str, datetime.datetime], *args, **kwargs
+        self, target_time: Union[str, datetime.datetime], **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if isinstance(target_time, datetime.datetime):
             self.target_time = target_time.isoformat()
         elif isinstance(target_time, str):

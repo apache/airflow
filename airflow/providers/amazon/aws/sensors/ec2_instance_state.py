@@ -48,11 +48,10 @@ class EC2InstanceStateSensor(BaseSensorOperator):
                  instance_id: str,
                  aws_conn_id: str = "aws_default",
                  region_name: Optional[str] = None,
-                 *args,
                  **kwargs):
         if target_state not in self.valid_states:
             raise ValueError(f"Invalid target_state: {target_state}")
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.target_state = target_state
         self.instance_id = instance_id
         self.aws_conn_id = aws_conn_id

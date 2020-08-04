@@ -185,9 +185,8 @@ class GCSToGCSOperator(BaseOperator):
                  last_modified_time=None,
                  maximum_modified_time=None,
                  is_older_than=None,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if google_cloud_storage_conn_id:
             warnings.warn(
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "

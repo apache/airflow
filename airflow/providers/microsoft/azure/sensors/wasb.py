@@ -46,9 +46,8 @@ class WasbBlobSensor(BaseSensorOperator):
                  blob_name: str,
                  wasb_conn_id: str = 'wasb_default',
                  check_options: Optional[dict] = None,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if check_options is None:
             check_options = {}
         self.wasb_conn_id = wasb_conn_id
@@ -88,9 +87,8 @@ class WasbPrefixSensor(BaseSensorOperator):
                  prefix: str,
                  wasb_conn_id: str = 'wasb_default',
                  check_options: Optional[dict] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if check_options is None:
             check_options = {}
         self.wasb_conn_id = wasb_conn_id

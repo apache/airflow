@@ -77,10 +77,9 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         delegate_to: Optional[str] = None,
         mode: str = "reschedule",
         poke_interval: int = 60 * 5,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.mode = mode
         self.poke_interval = poke_interval
         self.profile_id = profile_id

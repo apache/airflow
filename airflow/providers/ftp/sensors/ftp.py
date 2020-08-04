@@ -49,9 +49,8 @@ class FTPSensor(BaseSensorOperator):
             path: str,
             ftp_conn_id: str = 'ftp_default',
             fail_on_transient_errors: bool = True,
-            *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.path = path
         self.ftp_conn_id = ftp_conn_id
