@@ -28,12 +28,12 @@ class SqliteHook(DbApiHook):
 
     conn_name_attr = 'sqlite_conn_id'
     default_conn_name = 'sqlite_default'
-    supports_autocommit = False
 
     def get_conn(self):
         """
         Returns a sqlite connection object
         """
-        conn = self.get_connection(self.sqlite_conn_id)  # pylint: disable=no-member
-        conn = sqlite3.connect(conn.host)
+        conn_id = getattr(self, self.conn_name_attr)
+        airflow_conn = self.get_connection(conn_id)
+        conn = sqlite3.connect(airflow_conn.host)
         return conn
