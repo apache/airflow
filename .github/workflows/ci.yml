@@ -78,6 +78,7 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Static checks"
         run: ./scripts/ci/static_checks/ci_run_static_checks.sh
+
   docs:
     timeout-minutes: 60
     name: "Build docs"
@@ -89,6 +90,12 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
         run: ./scripts/ci/docs/ci_docs.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload documentation
+        if: always()
+        with:
+          name: airflow-documentation
+          path: './files/documentation'
 
   prepare-backport-packages:
     timeout-minutes: 60

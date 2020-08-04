@@ -34,7 +34,6 @@ function run_check_license() {
 
     if ! docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --user "$(id -ur):$(id -gr)" \
-            --rm \
             ashb/apache-rat:0.13-1 \
             --exclude-file /opt/airflow/.rat-excludes \
             --d /opt/airflow | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
