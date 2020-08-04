@@ -43,3 +43,4 @@ class DagAttributeTypes(str, Enum):
     DICT = 'dict'
     SET = 'set'
     TUPLE = 'tuple'
+    TASK_GROUP = 'taskgroup'

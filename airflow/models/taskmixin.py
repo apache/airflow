@@ -33,6 +33,11 @@ class TaskMixin:
         """Should return list of root operator List[BaseOperator]"""
         raise NotImplementedError()
 
+    @property
+    def leaves(self):
+        """Should return list of leaf operator List[BaseOperator]"""
+        raise NotImplementedError()
+
     @abstractmethod
     def set_upstream(
             self,
@@ -52,6 +57,17 @@ class TaskMixin:
         Set a task or a task list to be directly downstream from the current task.
         """
         raise NotImplementedError()
+
+    def update_relative(
+            self,
+            other,  # type: "TaskMixin"
+            upstream=True
+    ):
+        """
+        Update relationship information about another TaskMixin. Default is no-op.
+        Override if necessary.
+        """
+        pass
 
     def __lshift__(
             self,

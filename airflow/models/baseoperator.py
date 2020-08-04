@@ -326,9 +326,11 @@ class BaseOperator(LoggingMixin, TaskMixin):
         do_xcom_push=True,  # type: bool
         inlets=None,  # type: Optional[Dict]
         outlets=None,  # type: Optional[Dict]
+        task_group=None,
         *args,
         **kwargs
     ):
+        from airflow.utils.task_group import TaskGroupContext
 
         if args or kwargs:
             # TODO remove *args and **kwargs in Airflow 2.0
@@ -343,6 +345,11 @@ class BaseOperator(LoggingMixin, TaskMixin):
             )
         validate_key(task_id)
         self.task_id = task_id
+        self.label = task_id
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+        if task_group:
+            self.task_id = task_group.child_id(task_id)
+            task_group.add(self)
         self.owner = owner
         self.email = email
         self.email_on_retry = email_on_retry
@@ -473,6 +480,42 @@ class BaseOperator(LoggingMixin, TaskMixin):
             except TypeError:
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
+
+    def __rshift__(self, other):
+        """
+        Implements Self >> Other == self.set_downstream(other)
+
+        If "Other" is a DAG, the DAG is assigned to the Operator.
+
+        NOTE: This method is supposed to have moved to TaskMixin. But this override is needed
+        here because of this special treatment for DAG. It can be removed in Airflow 2.0.
+        """
+        if isinstance(other, DAG):
+            # if this dag is already assigned, do nothing
+            # otherwise, do normal dag assignment
+            if not (self.has_dag() and self.dag is other):
+                self.dag = other
+        else:
+            self.set_downstream(other)
+        return other
+
+    def __lshift__(self, other):
+        """
+        Implements Self << Other == self.set_upstream(other)
+
+        If "Other" is a DAG, the DAG is assigned to the Operator.
+
+        NOTE: This method is supposed to have moved to TaskMixin. But this override is needed
+        here because of this special treatment for DAG. It can be removed in Airflow 2.0.
+        """
+        if isinstance(other, DAG):
+            # if this dag is already assigned, do nothing
+            # otherwise, do normal dag assignment
+            if not (self.has_dag() and self.dag is other):
+                self.dag = other
+        else:
+            self.set_upstream(other)
+        return other
 
     @property
     def dag(self):
@@ -946,21 +989,25 @@ class BaseOperator(LoggingMixin, TaskMixin):
         """Required by TaskMixin"""
         return [self]
 
+    @property
+    def leaves(self):
+        """Required by TaskMixin"""
+        return [self]
+
     def _set_relatives(
         self,
         task_or_task_list,  # type: Union[TaskMixin, Sequence[TaskMixin]]
         upstream=False,
     ):
         """Sets relatives for the task or task list."""
-
-        if isinstance(task_or_task_list, Sequence):
-            task_like_object_list = task_or_task_list
-        else:
-            task_like_object_list = [task_or_task_list]
+        if not isinstance(task_or_task_list, Sequence):
+            task_or_task_list = [task_or_task_list]
 
         task_list = []  # type: List["BaseOperator"]
-        for task_object in task_like_object_list:
-            task_list.extend(task_object.roots)
+        for task_object in task_or_task_list:
+            task_object.update_relative(self, not upstream)
+            relatives = task_object.leaves if upstream else task_object.roots
+            task_list.extend(relatives)
 
         for task in task_list:
             if not isinstance(task, BaseOperator):
