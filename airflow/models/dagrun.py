@@ -450,16 +450,16 @@ class DagRun(Base, LoggingMixin):
                 if ti.state == State.REMOVED:
                     pass  # ti has already been removed, just ignore it
                 elif self.state is not State.RUNNING and not dag.partial:
-                    self.log.warning("Failed to get task '{}' for dag '{}'. "
-                                     "Marking it as removed.".format(ti, dag))
+                    self.log.warning("Failed to get task '%s' for dag '%s'. "
+                                     "Marking it as removed.", ti, dag)
                     Stats.incr(
                         "task_removed_from_dag.{}".format(dag.dag_id), 1, 1)
                     ti.state = State.REMOVED
 
             should_restore_task = (task is not None) and ti.state == State.REMOVED
             if should_restore_task:
-                self.log.info("Restoring task '{}' which was previously "
-                              "removed from DAG '{}'".format(ti, dag))
+                self.log.info("Restoring task '%s' which was previously "
+                              "removed from DAG '%s'", ti, dag)
                 Stats.incr("task_restored_to_dag.{}".format(dag.dag_id), 1, 1)
                 ti.state = State.NONE
             session.merge(ti)

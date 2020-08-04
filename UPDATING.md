@@ -136,6 +136,46 @@ with third party services to the ``airflow.providers`` package.
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
 
+### Migration Guide from Experimental API to Stable API v1
+In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
+If your application is still using the experimental API, you should consider migrating to the stable API.
+
+The stable API exposes many endpoints available through the webserver. Here are the
+differences between the two endpoints that will help you migrate from the
+experimental REST API to the stable REST API.
+
+#### Base Endpoint
+The base endpoint for the stable API v1 is ``/api/v1/``. You must change the
+experimental base endpoint from ``/api/experimental/`` to ``/api/v1/``.
+The table below shows the differences:
+
+| Purpose                           | Experimental REST API Endpoint                                                   | Stable REST API Endpoint                                                       |
+|-----------------------------------|----------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
+| Create a DAGRuns(POST)            | /api/experimental/dags/<DAG_ID>/dag_runs                                         | /api/v1/dags/{dag_id}/dagRuns                                                  |
+| List DAGRuns(GET)                 | /api/experimental/dags/<DAG_ID>/dag_runs                                         | /api/v1/dags/{dag_id}/dagRuns                                                  |
+| Check Health status(GET)          | /api/experimental/test                                                           | /api/v1/health                                                                 |
+| Task information(GET)             | /api/experimental/dags/<DAG_ID>/tasks/<TASK_ID>                                  | /api/v1//dags/{dag_id}/tasks/{task_id}                                         |
+| TaskInstance public variable(GET) | /api/experimental/dags/<DAG_ID>/dag_runs/<string:execution_date>/tasks/<TASK_ID> | /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}             |
+| Pause DAG(PATCH)                  | /api/experimental/dags/<DAG_ID>/paused/<string:paused>                           | /api/v1/dags/{dag_id}                                                          |
+| Information of paused DAG(GET)    | /api/experimental/dags/<DAG_ID>/paused                                           | /api/v1/dags/{dag_id}                                                          |
+| Latest DAG Runs(GET)              | /api/experimental/latest_runs                                                    | /api/v1/dags/{dag_id}/dagRuns                                                  |
+| Get all pools(GET)                | /api/experimental/pools                                                          | /api/v1/pools                                                                  |
+| Create a pool(POST)               | /api/experimental/pools                                                          | /api/v1/pools                                                                  |
+| Delete a pool(DELETE)             | /api/experimental/pools/<string:name>                                            | /api/v1/pools/{pool_name}                                                      |
+| DAG Lineage(GET)                  | /api/experimental/lineage/<DAG_ID>/<string:execution_date>/                      | /api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries |
+
+#### Note
+This endpoint ``/api/v1/dags/{dag_id}/dagRuns`` also allows you to filter dag_runs with parameters such as ``start_date``, ``end_date``, ``execution_date`` etc in the query string.
+Therefore the operation previously performed by this endpoint
+
+    /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
+
+can now be handled with filter parameters in the query string.
+Getting information about latest runs can be accomplished with the help of
+filters in the query string of this endpoint(``/api/v1/dags/{dag_id}/dagRuns``). Please check the Stable API
+reference documentation for more information
+
+
 ### CLI changes in Airflow 2.0
 
 The Airflow CLI has been organized so that related commands are grouped together as subcommands,
@@ -301,16 +341,6 @@ If the DAGRun was triggered with conf key/values passed in, they will also be pr
 ie. running, {"name": "bob"}
 whereas in in prior releases it just printed the state:
 ie. running
-
-#### Added `airflow dags test` CLI command
-
-A new command was added to the CLI for executing one full run of a DAG for a given execution date, similar to
-`airflow tasks test`. Example usage:
-
-```
-airflow dags test [dag_id] [execution_date]
-airflow dags test example_branch_operator 2018-01-01
-```
 
 #### Deprecating ignore_first_depends_on_past on backfill command and default it to True
 
@@ -942,16 +972,6 @@ arguments, please change `store_serialized_dags` to `read_dags_from_db`.
 
 Similarly, if you were using `DagBag().store_serialized_dags` property, change it to
 `DagBag().read_dags_from_db`.
-
-#### `airflow.models.baseoperator.BaseOperator`
-It was not possible to patch pool in BaseOperator as the signature sets the default value of pool
-as Pool.DEFAULT_POOL_NAME.
-While using subdagoperator in unittest(without initializing the sqlite db), it was throwing the
-following error:
-```
-sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: slot_pool.
-```
-Fix for this, https://github.com/apache/airflow/pull/8587
 
 ### Changes in `google` provider package
 
@@ -1614,20 +1634,6 @@ If you want to install integration for Amazon Web Services, then instead of
 `pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
 
 The deprecated extras will be removed in 2.1:
-
-#### Added mypy plugin to preserve types of decorated functions
-
-Mypy currently doesn't support precise type information for decorated
-functions; see https://github.com/python/mypy/issues/3157 for details.
-To preserve precise type definitions for decorated functions, we now
-include a mypy plugin to preserve precise type definitions for decorated
-functions. To use the plugin, update your setup.cfg:
-
-```
-[mypy]
-plugins =
-  airflow.mypy.plugin.decorators
-```
 
 #### Simplify the response payload of endpoints /dag_stats and /task_stats
 

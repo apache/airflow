@@ -67,8 +67,8 @@ The following components are part of the CI infrastructure
 CI run types
 ============
 
-The following CI Job runs are currently run for Apache Airflow, and each of the runs have different
-purpose and context.
+The following CI Job run types are currently run for Apache Airflow (run by ci.yaml workflow and
+quarantined.yaml workflows) and each of the run types have different purpose and context.
 
 Pull request run
 ----------------
@@ -126,7 +126,17 @@ DockerHub when pushing ``v1-10-stable`` manually.
 All runs consist of the same jobs, but the jobs behave slightly differently or they are skipped in different
 run categories. Here is a summary of the run categories with regards of the jobs they are running.
 Those jobs often have matrix run strategy which runs several different variations of the jobs
-(with different Backend type / Python version, type of the tests to run for example)
+(with different Backend type / Python version, type of the tests to run for example). The following chapter
+describes the workflows that execute for each run.
+
+Workflows
+=========
+
+CI Build Workflow
+-----------------
+
+This workflow is a regular workflow that performs the regular checks - none of the jobs should fail.
+The tests to run do not contain quarantined tests.
 
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
 | Job                       | Description                                                                                                    | Pull Request Run                   | Direct Push/Merge Run           | Scheduled Run                                                        |
@@ -148,8 +158,6 @@ Those jobs often have matrix run strategy which runs several different variation
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
 | Tests Kubernetes          | Run Kubernetes test                                                                                            | Yes (if tests-triggered)           | Yes                             | Yes *                                                                |
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
-| Quarantined tests         | Those are tests that are flaky and we need to fix them                                                         | Yes (if tests-triggered)           | Yes                             | Yes *                                                                |
-+---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
 | Test OpenAPI client gen   | Tests if OpenAPIClient continues to generate                                                                   | Yes                                | Yes                             | Yes *                                                                |
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
 | Helm tests                | Runs tests for the Helm chart                                                                                  | Yes                                | Yes                             | Yes *                                                                |
@@ -164,3 +172,48 @@ Those jobs often have matrix run strategy which runs several different variation
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
 | Tag Repo nightly          | Tags the repository with nightly tagIt is a lightweight tag that moves nightly                                 | -                                  | -                               | Yes. Triggers DockerHub build for public registry                    |
 +---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
+
+Quarantined build workflow
+--------------------------
+
+This workflow runs only quarantined tests. Those tests do not fail the build even if some tests fail (only if
+the whole pytest execution fails). Instead this workflow updates one of the issues where we keep status
+of quarantined tests. Once the test succeeds in NUM_RUNS subsequent runs, it is marked as stable and
+can be removed from quarantine. You can read more about quarantine in `<TESTING.rst>`_
+
+The issues are only updated if the test is run as direct push or scheduled run and only in the
+``apache/airflow`` repository - so that the issues are not updated in forks.
+
+The issues that gets updated are different for different branches:
+
+* master: `Quarantine tests master <https://github.com/apache/airflow/issues/10118>`_
+* v1-10-stable: `Quarantine tests v1-10-stable <https://github.com/apache/airflow/issues/10127>`_
+* v1-10-test: `Quarantine tests v1-10-test <hhttps://github.com/apache/airflow/issues/10128>`_
+
++---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
+| Job                       | Description                                                                                                    | Pull Request Run                   | Direct Push/Merge Run           | Scheduled Run                                                        |
++===========================+================================================================================================================+====================================+=================================+======================================================================+
+| Cancel previous workflow  | Cancels the previously running workflow run if there is one running                                            | Yes                                | Yes                             | Yes *                                                                |
++---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
+| Trigger tests             | Checks if tests should be triggered                                                                            | Yes                                | Yes                             | Yes *                                                                |
++---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
+| Quarantined tests         | Those are tests that are flaky and we need to fix them                                                         | Yes (if tests-triggered)           | Yes (Updates quarantine issue)  | Yes * (updates quarantine issue)                                     |
++---------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------+---------------------------------+----------------------------------------------------------------------+
+
+Cancel other workflow runs workflow
+-----------------------------------
+
+This workflow is run only on schedule (every 5 minutes) it's only purpose is to cancel other running
+``CI Build`` workflows if important jobs failed in those runs. This is to save runners for other runs
+in case we know that the build will not succeed anyway without some basic fixes to static checks or
+documentation - effectively implementing missing "fail-fast" (on a job level) in Github Actions
+similar to fail-fast in matrix strategy.
+
+The jobs that are considered as "fail-fast" are:
+
+* Static checks
+* Docs
+* Prepare Backport packages
+* Helm tests
+* Build Prod Image
+* TTest OpenAPI client gen

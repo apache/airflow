@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Optional
+
+from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
@@ -49,20 +52,19 @@ class AthenaSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
-                 query_execution_id,
-                 max_retries=None,
-                 aws_conn_id='aws_default',
-                 sleep_time=10,
-                 *args, **kwargs):
+                 query_execution_id: str,
+                 max_retries: Optional[int] = None,
+                 aws_conn_id: str = 'aws_default',
+                 sleep_time: int = 10,
+                 *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.query_execution_id = query_execution_id
         self.sleep_time = sleep_time
         self.max_retries = max_retries
-        self.hook = None
 
-    def poke(self, context):
-        state = self.get_hook().poll_query_status(self.query_execution_id, self.max_retries)
+    def poke(self, context: dict) -> bool:
+        state = self.hook.poll_query_status(self.query_execution_id, self.max_retries)
 
         if state in self.FAILURE_STATES:
             raise AirflowException('Athena sensor failed')
@@ -71,8 +73,7 @@ class AthenaSensor(BaseSensorOperator):
             return False
         return True
 
-    def get_hook(self):
+    @cached_property
+    def hook(self) -> AWSAthenaHook:
         """Create and return an AWSAthenaHook"""
-        if not self.hook:
-            self.hook = AWSAthenaHook(self.aws_conn_id, self.sleep_time)
-        return self.hook
+        return AWSAthenaHook(self.aws_conn_id, self.sleep_time)

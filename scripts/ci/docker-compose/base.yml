@@ -39,12 +39,22 @@ services:
       - RUN_INTEGRATION_TESTS
       - ONLY_RUN_LONG_RUNNING_TESTS
       - ONLY_RUN_QUARANTINED_TESTS
+      - GITHUB_TOKEN
+      - GITHUB_REPOSITORY
+      - ISSUE_ID
+      - NUM_RUNS
       - BREEZE
       - INSTALL_AIRFLOW_VERSION
       - DB_RESET
       - ENABLED_SYSTEMS
       - RUN_SYSTEM_TESTS
       - PYTHON_MAJOR_MINOR_VERSION
+      - HOST_USER_ID
+      - HOST_GROUP_ID
+      - HOST_HOME=${HOME}
+      - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+      - HOST_OS
+      - PYTHONDONTWRITEBYTECODE
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock

@@ -170,16 +170,9 @@ fi
 
 popd
 
-AIRFLOW_PACKAGES_TGZ_FILE="/tmp/airflow-packages-$(date +"%Y%m%d-%H%M%S")-${VERSION_SUFFIX_FOR_SVN}${VERSION_SUFFIX_FOR_PYPI}.tar.gz"
+AIRFLOW_PACKAGES_TGZ_FILE="/files/airflow-packages-$(date +"%Y%m%d-%H%M%S")-${VERSION_SUFFIX_FOR_SVN}${VERSION_SUFFIX_FOR_PYPI}.tar.gz"
 
 tar -cvzf "${AIRFLOW_PACKAGES_TGZ_FILE}" dist/*.whl dist/*.tar.gz
 echo
 echo "Airflow packages are in dist folder and tar-gzipped in ${AIRFLOW_PACKAGES_TGZ_FILE}"
 echo
-if [[ "${CI:=false}" == "true" ]]; then
-    echo
-    echo "Sending all airflow packages to file.io"
-    echo
-    curl -F "file=@${AIRFLOW_PACKAGES_TGZ_FILE}" https://file.io
-    echo
-fi

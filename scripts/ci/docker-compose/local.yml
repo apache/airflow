@@ -45,7 +45,6 @@ services:
       - ../../../dags:/opt/airflow/dags:cached
       - ../../../dev:/opt/airflow/dev:cached
       - ../../../docs:/opt/airflow/docs:cached
-      - ../../../files:/files:cached
       - ../../../dist:/dist:cached
       - ../../../hooks:/opt/airflow/hooks:cached
       - ../../../logs:/root/airflow/logs:cached
@@ -60,12 +59,5 @@ services:
       - ../../../tmp:/tmp:cached
       - ../../../metastore_browser:/opt/airflow/metastore_browser:cached
       # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
-    environment:
-      - HOST_USER_ID
-      - HOST_GROUP_ID
-      - HOST_HOME=${HOME}
-      - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
-      - HOST_OS
-      - PYTHONDONTWRITEBYTECODE
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"

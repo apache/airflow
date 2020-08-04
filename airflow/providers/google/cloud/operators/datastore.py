@@ -19,7 +19,7 @@
 """
 This module contains Google Datastore operators.
 """
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -31,6 +31,10 @@ from airflow.utils.decorators import apply_defaults
 class CloudDatastoreExportEntitiesOperator(BaseOperator):
     """
     Export entities from Google Cloud Datastore to Cloud Storage
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDatastoreExportEntitiesOperator`
 
     :param bucket: name of the cloud storage bucket to backup data
     :type bucket: str
@@ -63,6 +67,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments
+                 *,
                  bucket: str,
                  namespace: Optional[str] = None,
                  datastore_conn_id: str = 'google_cloud_default',
@@ -118,6 +123,10 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
     """
     Import entities from Cloud Storage to Google Cloud Datastore
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDatastoreImportEntitiesOperator`
+
     :param bucket: container in Cloud Storage to store data
     :type bucket: str
     :param file: path of the backup metadata file in the specified Cloud Storage bucket.
@@ -147,6 +156,7 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  bucket: str,
                  file: str,
                  namespace: Optional[str] = None,
@@ -189,3 +199,329 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
             raise AirflowException('Operation failed: result={}'.format(result))
 
         return result
+
+
+class CloudDatastoreAllocateIdsOperator(BaseOperator):
+    """
+    Allocate IDs for incomplete keys. Return list of keys.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDatastoreAllocateIdsOperator`
+
+    .. seealso::
+        https://cloud.google.com/datastore/docs/reference/rest/v1/projects/allocateIds
+
+    :param partial_keys: a list of partial keys.
+    :type partial_keys: list
+    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :type project_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+    template_fields = ("partial_keys",)
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        partial_keys: List,
+        project_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.partial_keys = partial_keys
+        self.gcp_conn_id = gcp_conn_id
+        self.project_id = project_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id)
+        keys = hook.allocate_ids(
+            partial_keys=self.partial_keys,
+            project_id=self.project_id,
+        )
+        return keys
+
+
+class CloudDatastoreBeginTransactionOperator(BaseOperator):
+    """
+    Begins a new transaction. Returns a transaction handle.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDatastoreBeginTransactionOperator`
+
+    .. seealso::
+        https://cloud.google.com/datastore/docs/reference/rest/v1/projects/beginTransaction
+
+    :param transaction_options: Options for a new transaction.
+    :type transaction_options: Dict[str, Any]
+    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :type project_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+    template_fields = ("transaction_options",)
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        transaction_options: Dict[str, Any],
+        project_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.transaction_options = transaction_options
+        self.gcp_conn_id = gcp_conn_id
+        self.project_id = project_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id)
+        handle = hook.begin_transaction(
+            transaction_options=self.transaction_options,
+            project_id=self.project_id,
+        )
+        return handle
+
+
+class CloudDatastoreCommitOperator(BaseOperator):
+    """
+    Commit a transaction, optionally creating, deleting or modifying some entities.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDatastoreCommitOperator`
+
+    .. seealso::
+        https://cloud.google.com/datastore/docs/reference/rest/v1/projects/commit
+
+    :param body: the body of the commit request.
+    :type body: dict
+    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :type project_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+    template_fields = ("body",)
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        body: Dict[str, Any],
+        project_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.body = body
+        self.gcp_conn_id = gcp_conn_id
+        self.project_id = project_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id)
+        response = hook.commit(
+            body=self.body,
+            project_id=self.project_id,
+        )
+        return response
+
+
+class CloudDatastoreRollbackOperator(BaseOperator):
+    """
+    Roll back a transaction.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDatastoreRollbackOperator`
+
+    .. seealso::
+        https://cloud.google.com/datastore/docs/reference/rest/v1/projects/rollback
+
+    :param transaction: the transaction to roll back.
+    :type transaction: str
+    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :type project_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+    template_fields = ("transaction",)
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        transaction: str,
+        project_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.transaction = transaction
+        self.gcp_conn_id = gcp_conn_id
+        self.project_id = project_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id)
+        hook.rollback(
+            transaction=self.transaction,
+            project_id=self.project_id,
+        )
+
+
+class CloudDatastoreRunQueryOperator(BaseOperator):
+    """
+    Run a query for entities. Returns the batch of query results.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDatastoreRunQueryOperator`
+
+    .. seealso::
+        https://cloud.google.com/datastore/docs/reference/rest/v1/projects/runQuery
+
+    :param body: the body of the query request.
+    :type body: dict
+    :param project_id: Google Cloud Platform project ID against which to make the request.
+    :type project_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+    template_fields = ("body",)
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        body: Dict[str, Any],
+        project_id: Optional[str] = None,
+        delegate_to: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.body = body
+        self.gcp_conn_id = gcp_conn_id
+        self.project_id = project_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id)
+        response = hook.run_query(
+            body=self.body,
+            project_id=self.project_id,
+        )
+        return response
+
+
+class CloudDatastoreGetOperationOperator(BaseOperator):
+    """
+    Gets the latest state of a long-running operation.
+
+    .. seealso::
+        https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects.operations/get
+
+    :param name: the name of the operation resource.
+    :type name: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+    template_fields = ("name",)
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        name: str,
+        delegate_to: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.name = name
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id)
+        op = hook.get_operation(name=self.name)
+        return op
+
+
+class CloudDatastoreDeleteOperationOperator(BaseOperator):
+    """
+    Deletes the long-running operation.
+
+    .. seealso::
+        https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects.operations/delete
+
+    :param name: the name of the operation resource.
+    :type name: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+    template_fields = ("name",)
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        name: str,
+        delegate_to: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.name = name
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context):
+        hook = DatastoreHook(gcp_conn_id=self.gcp_conn_id)
+        hook.delete_operation(name=self.name)

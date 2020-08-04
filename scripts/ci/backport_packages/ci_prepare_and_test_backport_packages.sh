@@ -25,15 +25,9 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 "${SCRIPTS_CI_DIR}/backport_packages/ci_test_backport_packages_install_separately.sh"
 "${SCRIPTS_CI_DIR}/backport_packages/ci_test_backport_packages_import_all_classes.sh"
 
-cd "${AIRFLOW_SOURCES}/backport_packages" || exit 1
-
 DUMP_FILE="/tmp/airflow_provider_packages_$(date +"%Y%m%d-%H%M%S").tar.gz"
 
 cd "${AIRFLOW_SOURCES}/dist" || exit 1
 tar -cvzf "${DUMP_FILE}" .
 
 echo "Packages are in dist and also tar-gzipped in ${DUMP_FILE}"
-
-if [[ "${CI:=false}" == "true" ]]; then
-    curl -F "file=@${DUMP_FILE}" https://file.io
-fi

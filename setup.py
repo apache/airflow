@@ -238,7 +238,7 @@ docker = [
     'docker~=3.0',
 ]
 druid = [
-    'pydruid>=0.4.1,<=0.5.8',
+    'pydruid>=0.4.1',
 ]
 elasticsearch = [
     'elasticsearch>7, <7.6.0',
@@ -451,6 +451,7 @@ devel = [
     'flake8-colors',
     'flaky',
     'freezegun',
+    'github3.py',
     'gitpython',
     'ipdb',
     'jira',
@@ -466,7 +467,7 @@ devel = [
     'pytest-cov',
     'pytest-instafail',
     'pytest-rerunfailures',
-    'pytest-timeout',
+    'pytest-timeouts',
     'pytest-xdist',
     'pywinrm',
     'qds-sdk>=1.9.6',
