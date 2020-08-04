@@ -901,3 +901,21 @@ spec:
         PodGenerator(image='k')
         PodGenerator(pod_template_file='tests/kubernetes/pod.yaml')
         PodGenerator(pod=k8s.V1Pod())
+
+    def test_add_custom_label(self):
+        from kubernetes.client import models as k8s
+
+        pod = PodGenerator.construct_pod(
+            namespace="test",
+            worker_uuid="test",
+            pod_id="test",
+            dag_id="test",
+            task_id="test",
+            try_number=1,
+            date="23-07-2020",
+            command="test",
+            kube_executor_config=None,
+            worker_config=k8s.V1Pod(metadata=k8s.V1ObjectMeta(labels={"airflow-test": "airflow-task-pod"},
+                                                              annotations={"my.annotation": "foo"})))
+        self.assertIn("airflow-test", pod.metadata.labels)
+        self.assertIn("my.annotation", pod.metadata.annotations)
