@@ -82,7 +82,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry_id: str,
@@ -185,7 +185,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group_id: str,
         entry_group: Union[Dict, EntryGroup],
@@ -288,7 +288,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry: str,
@@ -404,7 +404,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template_id: str,
         tag_template: Union[Dict, TagTemplate],
@@ -507,7 +507,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template: str,
         tag_template_field_id: str,
@@ -603,7 +603,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry: str,
@@ -674,7 +674,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         project_id: Optional[str] = None,
@@ -754,7 +754,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry: str,
@@ -839,7 +839,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template: str,
         force: bool,
@@ -922,7 +922,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template: str,
         field: str,
@@ -1005,7 +1005,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry: str,
@@ -1086,7 +1086,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         read_mask: Union[Dict, FieldMask],
@@ -1161,7 +1161,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template: str,
         project_id: Optional[str] = None,
@@ -1241,7 +1241,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry: str,
@@ -1321,7 +1321,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         linked_resource: Optional[str] = None,
         sql_resource: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -1400,7 +1400,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template: str,
         field: str,
@@ -1507,7 +1507,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         scope: Union[Dict, SearchCatalogRequest.Scope],
         query: str,
         page_size: int = 100,
@@ -1598,7 +1598,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         entry: Union[Dict, Entry],
         update_mask: Union[Dict, FieldMask],
         location: Optional[str] = None,
@@ -1695,7 +1695,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         tag: Union[Dict, Tag],
         update_mask: Union[Dict, FieldMask],
         location: Optional[str] = None,
@@ -1796,7 +1796,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         tag_template: Union[Dict, TagTemplate],
         update_mask: Union[Dict, FieldMask],
         location: Optional[str] = None,
@@ -1899,7 +1899,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         tag_template_field: Union[Dict, TagTemplateField],
         update_mask: Union[Dict, FieldMask],
         tag_template_field_name: Optional[str] = None,

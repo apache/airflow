@@ -70,7 +70,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         profile_id: str,
         report_name: Optional[str] = None,
         report_id: Optional[str] = None,
@@ -163,7 +163,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         profile_id: str,
         report_id: str,
         file_id: str,
@@ -281,7 +281,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         profile_id: str,
         report: Dict[str, Any],
         api_version: str = "v3.3",
@@ -356,7 +356,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         profile_id: str,
         report_id: str,
         synchronous: bool = False,
@@ -438,7 +438,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         profile_id: str,
         conversions: List[Dict[str, Any]],
         encryption_entity_type: str,
@@ -525,7 +525,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         profile_id: str,
         conversions: List[Dict[str, Any]],
         encryption_entity_type: str,

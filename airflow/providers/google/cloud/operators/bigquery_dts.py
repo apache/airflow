@@ -66,7 +66,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         transfer_config: dict,
         project_id: Optional[str] = None,
         authorization_code: Optional[str] = None,
@@ -132,7 +132,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         transfer_config_id: str,
         project_id: Optional[str] = None,
         retry: Retry = None,
@@ -208,7 +208,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         transfer_config_id: str,
         project_id: Optional[str] = None,
         requested_time_range: Optional[dict] = None,

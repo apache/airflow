@@ -52,6 +52,7 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         body: Dict,
         database_id: str = "(default)",
         project_id: Optional[str] = None,

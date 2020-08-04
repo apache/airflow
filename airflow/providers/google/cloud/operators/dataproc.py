@@ -455,7 +455,7 @@ class DataprocCreateClusterOperator(BaseOperator):
     template_fields = ('project_id', 'region', 'cluster')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  region: str = 'global',
                  project_id: Optional[str] = None,
                  cluster: Optional[Dict] = None,
@@ -570,7 +570,7 @@ class DataprocScaleClusterOperator(BaseOperator):
     template_fields = ['cluster_name', 'project_id', 'region']
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  cluster_name: str,
                  project_id: Optional[str] = None,
                  region: str = 'global',
@@ -695,7 +695,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         project_id: str,
         region: str,
         cluster_name: str,
@@ -779,7 +779,7 @@ class DataprocJobBaseOperator(BaseOperator):
     job_type = ""
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  job_name: str = '{{task.task_id}}_{{ds_nodash}}',
                  cluster_name: str = "cluster-1",
                  dataproc_properties: Optional[Dict] = None,
@@ -911,7 +911,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         query: Optional[str] = None,
         query_uri: Optional[str] = None,
         variables: Optional[Dict] = None,
@@ -976,7 +976,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         query: Optional[str] = None,
         query_uri: Optional[str] = None,
         variables: Optional[Dict] = None,
@@ -1041,7 +1041,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         query: Optional[str] = None,
         query_uri: Optional[str] = None,
         variables: Optional[Dict] = None,
@@ -1113,7 +1113,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         main_jar: Optional[str] = None,
         main_class: Optional[str] = None,
         arguments: Optional[List] = None,
@@ -1185,7 +1185,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         main_jar: Optional[str] = None,
         main_class: Optional[str] = None,
         arguments: Optional[List] = None,
@@ -1284,7 +1284,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         main: str,
         arguments: Optional[List] = None,
         archives: Optional[List] = None,
@@ -1402,7 +1402,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         template_id: str,
         region: str,
         project_id: Optional[str] = None,
@@ -1492,7 +1492,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         template: Dict,
         region: str,
         project_id: Optional[str] = None,
@@ -1563,7 +1563,7 @@ class DataprocSubmitJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         project_id: str,
         location: str,
         job: Dict,
@@ -1651,7 +1651,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         location: str,
         cluster_name: str,
         cluster: Union[Dict, Cluster],

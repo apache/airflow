@@ -100,7 +100,7 @@ class GCSCreateBucketOperator(BaseOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket_name: str,
                  resource: Optional[Dict] = None,
                  storage_class: str = 'MULTI_REGIONAL',
@@ -187,7 +187,7 @@ class GCSListObjectsOperator(BaseOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket: str,
                  prefix: Optional[str] = None,
                  delimiter: Optional[str] = None,
@@ -251,7 +251,7 @@ class GCSDeleteObjectsOperator(BaseOperator):
     template_fields = ('bucket_name', 'prefix', 'objects')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket_name: str,
                  objects: Optional[Iterable[str]] = None,
                  prefix: Optional[str] = None,
@@ -328,7 +328,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         bucket: str,
         entity: str,
         role: str,
@@ -396,7 +396,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
     # [END gcs_object_create_acl_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket: str,
                  object_name: str,
                  entity: str,
@@ -463,7 +463,7 @@ class GCSFileTransformOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         source_bucket: str,
         source_object: str,
         transform_script: Union[str, List[str]],
@@ -548,7 +548,7 @@ class GCSDeleteBucketOperator(BaseOperator):
     template_fields = ('bucket_name', "gcp_conn_id")
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket_name: str,
                  force: bool = True,
                  gcp_conn_id: str = 'google_cloud_default',
@@ -615,7 +615,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         source_bucket: str,
         destination_bucket: str,
         source_object: Optional[str] = None,

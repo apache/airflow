@@ -19,6 +19,7 @@ from typing import Any, Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
+from airflow.utils.decorators import apply_defaults
 
 
 class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
@@ -40,8 +41,9 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
 
     template_fields = ["spreadsheet"]
 
+    @apply_defaults
     def __init__(
-        self,
+        self, *,
         spreadsheet: Dict[str, Any],
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,

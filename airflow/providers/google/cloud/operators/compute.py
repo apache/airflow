@@ -39,7 +39,7 @@ class ComputeEngineBaseOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  zone: str,
                  resource_id: str,
                  project_id: Optional[str] = None,
@@ -96,7 +96,7 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     # [END gce_instance_start_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  zone: str,
                  resource_id: str,
                  project_id: Optional[str] = None,
@@ -144,7 +144,7 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     # [END gce_instance_stop_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  zone: str,
                  resource_id: str,
                  project_id: Optional[str] = None,
@@ -202,7 +202,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     # [END gce_instance_set_machine_type_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  zone: str,
                  resource_id: str,
                  body: dict,
@@ -324,7 +324,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     # [END gce_instance_template_copy_operator_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  resource_id: str,
                  body_patch: dict,
                  project_id: Optional[str] = None,
@@ -434,7 +434,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
     # [END gce_igm_update_template_operator_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  resource_id: str,
                  zone: str,
                  source_template: str,

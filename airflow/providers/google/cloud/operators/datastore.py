@@ -227,8 +227,7 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        *,
+        self, *,
         partial_keys: List,
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -277,8 +276,7 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        *,
+        self, *,
         transaction_options: Dict[str, Any],
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -327,8 +325,7 @@ class CloudDatastoreCommitOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        *,
+        self, *,
         body: Dict[str, Any],
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -377,8 +374,7 @@ class CloudDatastoreRollbackOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        *,
+        self, *,
         transaction: str,
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -426,8 +422,7 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        *,
+        self, *,
         body: Dict[str, Any],
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -470,8 +465,7 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        *,
+        self, *,
         name: str,
         delegate_to: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
@@ -509,8 +503,7 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        *,
+        self, *,
         name: str,
         delegate_to: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',

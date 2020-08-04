@@ -83,7 +83,7 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
                                      body=body,
                                      task_id=PROJECT_TASK_ID)
 
-    # pylint: disable=no-value-for-parameter
+    # pylint: disable=missing-kwoa
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook')
     def test_create_execute_error_project_id(self, mock_hook):
         with self.assertRaises(AirflowException):
@@ -118,7 +118,7 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
                                      name=CLUSTER_NAME,
                                      task_id=PROJECT_TASK_ID)
 
-    # pylint: disable=no-value-for-parameter
+    # pylint: disable=missing-kwoa
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook')
     def test_delete_execute_error_cluster_name(self, mock_hook):
         with self.assertRaises(AirflowException):
@@ -126,7 +126,7 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
                                      location=PROJECT_LOCATION,
                                      task_id=PROJECT_TASK_ID)
 
-    # pylint: disable=no-value-for-parameter
+    # pylint: disable=missing-kwoa
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook')
     def test_delete_execute_error_location(self, mock_hook):
         with self.assertRaises(AirflowException):

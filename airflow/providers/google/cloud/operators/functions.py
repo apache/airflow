@@ -122,7 +122,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
     # [END gcf_function_deploy_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  location: str,
                  body: Dict,
                  project_id: Optional[str] = None,
@@ -314,7 +314,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
     # [END gcf_function_delete_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  name: str,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
@@ -371,7 +371,7 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         function_id: str,
         input_data: Dict,
         location: str,

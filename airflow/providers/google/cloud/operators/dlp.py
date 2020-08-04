@@ -65,7 +65,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dlp_job_id: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -133,7 +133,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
         deidentify_template: Optional[Union[Dict, DeidentifyTemplate]] = None,
@@ -214,7 +214,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         project_id: Optional[str] = None,
         inspect_job: Optional[Union[Dict, InspectJobConfig]] = None,
         risk_job: Optional[Union[Dict, RiskAnalysisJobConfig]] = None,
@@ -301,7 +301,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
         inspect_template: Optional[InspectTemplate] = None,
@@ -377,7 +377,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         project_id: Optional[str] = None,
         job_trigger: Optional[Union[Dict, JobTrigger]] = None,
         trigger_id: Optional[str] = None,
@@ -457,7 +457,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
         config: Optional[StoredInfoTypeConfig] = None,
@@ -553,7 +553,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         project_id: Optional[str] = None,
         deidentify_config: Optional[Union[Dict, DeidentifyConfig]] = None,
         inspect_config: Optional[Union[Dict, InspectConfig]] = None,
@@ -624,7 +624,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -686,7 +686,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dlp_job_id: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -747,7 +747,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -808,7 +808,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         job_trigger_id: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -874,7 +874,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         stored_info_type_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -939,7 +939,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -999,7 +999,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dlp_job_id: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -1059,7 +1059,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -1119,7 +1119,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         job_trigger_id: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -1184,7 +1184,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         stored_info_type_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -1257,7 +1257,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         project_id: Optional[str] = None,
         inspect_config: Optional[Union[Dict, InspectConfig]] = None,
         item: Optional[Union[Dict, ContentItem]] = None,
@@ -1327,7 +1327,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
@@ -1398,7 +1398,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         project_id: Optional[str] = None,
         results_filter: Optional[str] = None,
         page_size: Optional[int] = None,
@@ -1464,7 +1464,7 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         language_code: Optional[str] = None,
         results_filter: Optional[str] = None,
         retry: Optional[Retry] = None,
@@ -1528,7 +1528,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
@@ -1597,7 +1597,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         order_by: Optional[str] = None,
@@ -1667,7 +1667,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
@@ -1748,7 +1748,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         project_id: Optional[str] = None,
         inspect_config: Optional[Union[Dict, InspectConfig]] = None,
         image_redaction_configs: Optional[Union[Dict, RedactImageRequest.ImageRedactionConfig]] = None,
@@ -1834,7 +1834,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         project_id: Optional[str] = None,
         reidentify_config: Optional[Union[Dict, DeidentifyConfig]] = None,
         inspect_config: Optional[Union[Dict, InspectConfig]] = None,
@@ -1917,7 +1917,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -1997,7 +1997,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -2073,7 +2073,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         job_trigger_id,
         project_id: Optional[str] = None,
         job_trigger: Optional[JobTrigger] = None,
@@ -2151,7 +2151,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         stored_info_type_id,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
