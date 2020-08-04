@@ -31,14 +31,22 @@ fi
 function run_airflow_testing_in_docker() {
     set +u
     set +e
-    # shellcheck disable=SC2016
-    docker-compose --log-level INFO \
-      -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-      -f "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml" \
-      "${INTEGRATIONS[@]}" \
-      "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow "${@}"
-    EXIT_CODE=$?
+    for TRY_NUM in {1..3}
+    do
+        docker-compose --log-level INFO \
+          -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+          -f "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml" \
+          "${INTEGRATIONS[@]}" \
+          "${DOCKER_COMPOSE_LOCAL[@]}" \
+             run airflow "${@}"
+        EXIT_CODE=$?
+        if [[ ${EXIT_CODE} == 254 ]]; then
+            echo "Failed on starting integration on ${TRY_NUM} try."
+            continue
+        else
+            break
+        fi
+    done
     if [[ ${ONLY_RUN_QUARANTINED_TESTS:=} == "true" ]]; then
         if [[ ${EXIT_CODE} == "1" ]]; then
             echo "Some Quarantined tests failed. but we recorded it in an issue"
