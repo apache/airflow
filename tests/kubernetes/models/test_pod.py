@@ -111,12 +111,8 @@ class TestPod(unittest.TestCase):
                                       'image': 'foo',
                                       'imagePullPolicy': 'Never',
                                       'name': 'base',
-                                      'resources': {'limits': {'cpu': None,
-                                                               'ephemeral-storage': None,
-                                                               'memory': None,
-                                                               'nvidia.com/gpu': '100G'},
+                                      'resources': {'limits': {'nvidia.com/gpu': '100G'},
                                                     'requests': {'cpu': '100Mi',
-                                                                 'ephemeral-storage': None,
                                                                  'memory': '1G'}},
                                       'volumeMounts': [{'mountPath': '/mnt',
                                                         'name': 'foo',
@@ -127,4 +123,4 @@ class TestPod(unittest.TestCase):
                       'tolerations': [],
                       'volumes': [{'name': 'foo'}]}}
         self.maxDiff = None
-        self.assertEquals(expected, result)
+        self.assertEqual(expected, result)
