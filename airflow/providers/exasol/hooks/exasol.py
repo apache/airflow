@@ -58,7 +58,7 @@ class ExasolHook(DbApiHook):
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(self, sql, parameters=None):
+    def get_pandas_df(self, sql, parameters=None, **kwargs):
         """
         Executes the sql and returns a pandas dataframe
 
@@ -69,7 +69,7 @@ class ExasolHook(DbApiHook):
         :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
-            conn.export_to_pandas(sql, query_params=parameters)
+            conn.export_to_pandas(sql, query_params=parameters, **kwargs)
 
     def get_records(self, sql, parameters=None):
         """
