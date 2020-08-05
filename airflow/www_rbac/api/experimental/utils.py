@@ -241,3 +241,9 @@ def do_save_curve_error_tag(dag_id, task_id, execution_date, error_tags=None):
         error_tags = []
     task = get_task_instance(dag_id, task_id, execution_date)
     task.set_error_tag(json.dumps(error_tags))
+
+
+def get_curve_template_name(key: str) -> str:
+    if '@@' in key:
+        return key.split('@@')[0]
+    return key

@@ -6,12 +6,11 @@ from typing import Dict
 from .entity import ClsEntity
 from airflow.utils.logger import generate_logger
 import os
-import threading
 import signal
 import json
 from redis.client import Pipeline
 import time
-from airflow.www_rbac.api.experimental.utils import trigger_push_template_dag
+from airflow.www_rbac.api.experimental.utils import trigger_push_template_dag, get_curve_template_name
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
@@ -20,6 +19,7 @@ IS_DEBUG = RUNTIME_ENV != 'prod'
 
 
 def gen_template_key(template_name):
+    template_name = get_curve_template_name(template_name)
     return "templates.{}".format(template_name)
 
 
@@ -82,12 +82,14 @@ class ClsRedisConnection(ClsEntity):
 
     def store_templates(self, templates: Dict):
         # 将模板存储到redis中
-        _logger.debug("Recv Template Data: {}".format(pprint.pformat(templates, indent=4)))
+        _logger.debug("storing templates...")
+        _logger.info("Template Data: {}".format(pprint.pformat(templates, indent=4)))
         with self.pipeline as p:
             for key, val in templates.items():
                 channel = gen_template_key(key)
-                p.set(channel, value=json.dumps(val))
+                p.set(channel, value=val)
                 trigger_push_template_dag(channel, val)
+            p.execute()
 
     def run(self):
         self.set_signal_handler()
