@@ -451,7 +451,7 @@ You can configure the credentiaps in three ways:
 
 * By default, Application Default Credentials (ADC) is used obtain credentials.
 * ``gcp_key_path`` option in ``backend_kwargs`` option - allows you to configure authorizations with a service account stored in local file.
-* ``gcp_keyfile_dict`` option in ``backend_kwargs` option` - allows you to configure authorizations with a service account stored in Airflow configuration.
+* ``gcp_keyfile_dict`` option in ``backend_kwargs`` option - allows you to configure authorizations with a service account stored in Airflow configuration.
 
 .. note::
 
