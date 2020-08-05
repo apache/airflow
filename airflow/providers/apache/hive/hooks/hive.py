@@ -1044,9 +1044,10 @@ class HiveServer2Hook(DbApiHook):
         """
         return self.get_results(hql, schema=schema, hive_conf=hive_conf)['data']
 
-    def get_pandas_df(self, hql: Union[str, Text],
+    def get_pandas_df(self, hql: Union[str, Text],  # type: ignore
                       schema: str = 'default',
-                      hive_conf: Optional[Dict[Any, Any]] = None
+                      hive_conf: Optional[Dict[Any, Any]] = None,
+                      **kwargs
                       ) -> pandas.DataFrame:
         """
         Get a pandas dataframe from a Hive query
@@ -1069,6 +1070,6 @@ class HiveServer2Hook(DbApiHook):
         :return: pandas.DateFrame
         """
         res = self.get_results(hql, schema=schema, hive_conf=hive_conf)
-        df = pandas.DataFrame(res['data'])
+        df = pandas.DataFrame(res['data'], **kwargs)
         df.columns = [c[0] for c in res['header']]
         return df
