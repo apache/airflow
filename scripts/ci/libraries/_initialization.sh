@@ -21,10 +21,6 @@ function initialize_common_environment {
     # default python Major/Minor version
     PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
 
-    # extra flags passed to docker run for CI image
-    # shellcheck disable=SC2034
-    EXTRA_DOCKER_FLAGS=()
-
     # extra flags passed to docker run for PROD image
     # shellcheck disable=SC2034
     EXTRA_DOCKER_PROD_BUILD_FLAGS=()
@@ -68,7 +64,8 @@ function initialize_common_environment {
     # Default branch name for triggered builds is the one configured in default branch
     export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
 
-    export GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
+    export GITHUB_ORGANISATION=${GITHUB_ORGANISATION:="apache"}
+    export GITHUB_REPO=${GITHUB_REPO:="airflow"}
     export CACHE_REGISTRY=${CACHE_REGISTRY:="docker.pkg.github.com"}
     export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
 
@@ -121,15 +118,21 @@ function initialize_common_environment {
     HOST_OS="$(uname -s)"
     export HOST_OS
 
+    # Home directory of the host user
+    HOST_HOME="${HOME}"
+    export HOST_HOME
+
+    # Sources of Airflow on the host.
+    HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}"
+    export HOST_AIRFLOW_SOURCES
 
     # Add the right volume mount for sources, depending which mount strategy is used
     if [[ ${MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
         print_info
         print_info "Mount whole airflow source directory for static checks"
         print_info
-        EXTRA_DOCKER_FLAGS=( \
-          "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
-          "--env" "PYTHONDONTWRITEBYTECODE" \
+        EXTRA_DOCKER_FLAGS=(
+            "-v" "${AIRFLOW_SOURCES}:/opt/airflow"
         )
     elif [[ ${MOUNT_HOST_AIRFLOW_VOLUME} == "true" ]]; then
         print_info
@@ -137,24 +140,21 @@ function initialize_common_environment {
         print_info
 
         read -r -a EXTRA_DOCKER_FLAGS <<< "$(convert_local_mounts_to_docker_params)"
+        EXTRA_DOCKER_FLAGS+=(
+            "-v" "${AIRFLOW_SOURCES}/files:/files"
+        )
     else
         print_info
         print_info "Skip mounting host volumes to Docker"
         print_info
-        EXTRA_DOCKER_FLAGS=( \
-            "--env" "PYTHONDONTWRITEBYTECODE" \
-        )
+        EXTRA_DOCKER_FLAGS=()
     fi
 
-    # In case of the CI build get environment variables from codecov.io and
-    # set it as the extra docker flags. As described in https://docs.codecov.io/docs/testing-with-docker
-    if [[ ${CI:=} == "true" ]]; then
-        CI_CODECOV_ENV="$(bash <(curl -s https://codecov.io/env))"
-        for ENV_PARAM in ${CI_CODECOV_ENV}
-        do
-            EXTRA_DOCKER_FLAGS+=("${ENV_PARAM}")
-        done
-    fi
+    EXTRA_DOCKER_FLAGS+=(
+            "--rm"
+            "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env"
+    )
+    export EXTRA_DOCKER_FLAGS
 
     # By default we are not upgrading to latest version of constraints when building Docker CI image
     # This will only be done in cron jobs
@@ -221,10 +221,6 @@ function initialize_common_environment {
     # Namespace where airflow is installed via helm
     export HELM_AIRFLOW_NAMESPACE="airflow"
 
-    COMMIT_SHA="$(git rev-parse HEAD || echo "Unknown")"
-    export COMMIT_SHA
-
-    export CI_BUILD_ID="0"
 }
 
 function set_mysql_encoding() {
@@ -250,7 +246,7 @@ function get_environment_for_builds_on_ci() {
     export CI_TARGET_BRANCH="master"
     export CI_SOURCE_REPO="apache/airflow"
     export CI_SOURCE_BRANCH="master"
-    export CI_BUILD_ID="0"
+    export CI_BUILD_ID="default-build-id"
     export CI_JOB_ID="default-job-id"
     if [[ ${CI:=} != "true" ]]; then
         echo
@@ -302,9 +298,17 @@ function get_environment_for_builds_on_ci() {
             else
                 export CI_EVENT_TYPE="push"
             fi
+        elif [[ "${LOCAL_CI_TESTING:=}" == "true" ]]; then
+            export CI_TARGET_REPO="apache/airflow"
+            export CI_TARGET_BRANCH="${DEFAULT_BRANCH:="master"}"
+            export CI_BUILD_ID="0"
+            export CI_JOB_ID="0"
+            export CI_EVENT_TYPE="pull_request"
+            export CI_SOURCE_REPO="apache/airflow"
+            export CI_SOURCE_BRANCH="${DEFAULT_BRANCH:="master"}"
         else
             echo
-            echo "ERROR! Unknown CI environment. Exiting"
+            echo "ERROR! Unknown CI environment. You can set LOCAL_CI_TESTING=\"true\" to run it locally."
             exit 1
         fi
     fi
