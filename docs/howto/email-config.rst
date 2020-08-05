@@ -16,7 +16,7 @@
     under the License.
 
 Email Configuration
--------------------
+===================
 
 You can configure the email that is being sent in your ``airflow.cfg``
 by setting a ``subject_template`` and/or a ``html_content_template``
