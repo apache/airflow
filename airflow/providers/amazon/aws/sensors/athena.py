@@ -51,13 +51,13 @@ class AthenaSensor(BaseSensorOperator):
     ui_color = '#66c3ff'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  query_execution_id: str,
                  max_retries: Optional[int] = None,
                  aws_conn_id: str = 'aws_default',
                  sleep_time: int = 10,
-                 *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.query_execution_id = query_execution_id
         self.sleep_time = sleep_time

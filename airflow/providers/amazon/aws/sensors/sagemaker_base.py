@@ -32,10 +32,10 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             aws_conn_id='aws_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.hook = None
 
