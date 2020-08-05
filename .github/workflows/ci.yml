@@ -196,13 +196,6 @@ jobs:
         with:
           name: kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           path: /tmp/kind_logs_*
-      - uses: actions/upload-artifact@v2
-        name: Upload Coverage Report
-        if: always()
-        with:
-          name: >
-            coverage-kubernetes-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
-          path: ./files/coverage/
       - uses: codecov/codecov-action@v1
         name: Upload Coverage report to codecov
         with:
@@ -245,13 +238,6 @@ jobs:
         with:
           name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: './files/airflow_logs*'
-      - uses: actions/upload-artifact@v2
-        name: Upload Coverage Report
-        if: always()
-        with:
-          name: >
-            coverage-postgres-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
-          path: ./files/coverage/
       - uses: codecov/codecov-action@v1
         name: Upload Coverage report to codecov
         with:
@@ -293,12 +279,6 @@ jobs:
         with:
           name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: './files/airflow_logs*'
-      - uses: actions/upload-artifact@v2
-        name: Upload Coverage Report
-        if: always()
-        with:
-          name: coverage-mysql-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
-          path: ./files/coverage/
       - uses: codecov/codecov-action@v1
         name: Upload Coverage report to codecov
         with:
@@ -338,12 +318,6 @@ jobs:
         with:
           name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}
           path: './files/airflow_logs*'
-      - uses: actions/upload-artifact@v2
-        name: Upload Coverage Report
-        if: always()
-        with:
-          name: coverage-sqlite-${{matrix.test-type}}-${{matrix.python-version}}
-          path: ./files/coverage/
       - uses: codecov/codecov-action@v1
         name: Upload Coverage report to codecov
         with:
