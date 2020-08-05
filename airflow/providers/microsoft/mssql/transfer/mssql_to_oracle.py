@@ -19,14 +19,14 @@
 from typing import Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+from airflow.providers.odbc.hooks.odbc import OdbcHook
 from airflow.providers.oracle.hooks.oracle import OracleHook
 from airflow.utils.decorators import apply_defaults
 
 
 class MsSqlToOracleOperator(BaseOperator):
     """
-    Moves data from Oracle to MSSQL.
+    Moves data from MSSQL to Oracle.
 
 
     :param oracle_destination_conn_id: destination Oracle connection.
@@ -68,7 +68,7 @@ class MsSqlToOracleOperator(BaseOperator):
         self.rows_chunk = rows_chunk
 
     # pylint: disable=unused-argument
-    def _execute(self, src_hook: MsSqlHook, dest_hook: OracleHook):
+    def _execute(self, src_hook: OdbcHook, dest_hook: OracleHook):
         with src_hook.get_conn() as src_conn:
             cursor = src_conn.cursor()
             self.log.info("Querying data from source: %s", self.mssql_source_conn_id)
@@ -89,6 +89,6 @@ class MsSqlToOracleOperator(BaseOperator):
             cursor.close()
 
     def execute(self, context):
-        src_hook = MsSqlHook(mssql_conn_id=self.mssql_source_conn_id)
+        src_hook = OdbcHook(odbc_conn_id=self.mssql_source_conn_id)
         dest_hook = OracleHook(oracle_conn_id=self.oracle_destination_conn_id)
         self._execute(src_hook, dest_hook)
