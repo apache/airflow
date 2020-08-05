@@ -19,7 +19,7 @@
 import json
 import warnings
 from json import JSONDecodeError
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
@@ -332,15 +332,15 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         return obj
 
     @classmethod
-    def get_connections_from_secrets(cls, conn_id: str) -> List['Connection']:
+    def get_connection_from_secrets(cls, conn_id: str) -> 'Connection':
         """
-        Get all connections as an iterable.
+        Get connection by conn_id.
 
         :param conn_id: connection id
-        :return: array of connections
+        :return: connection
         """
         for secrets_backend in ensure_secrets_loaded():
-            conn_list = secrets_backend.get_connections(conn_id=conn_id)
-            if conn_list:
-                return list(conn_list)
+            conn = secrets_backend.get_connection(conn_id=conn_id)
+            if conn:
+                return conn
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")

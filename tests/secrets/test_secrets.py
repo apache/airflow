@@ -26,19 +26,19 @@ from tests.test_utils.db import clear_db_variables
 
 
 class TestConnectionsFromSecrets(unittest.TestCase):
-    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connections")
-    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connections")
-    def test_get_connections_second_try(self, mock_env_get, mock_meta_get):
-        mock_env_get.side_effect = [[]]  # return empty list
-        Connection.get_connections_from_secrets("fake_conn_id")
+    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
+    def test_get_connection_second_try(self, mock_env_get, mock_meta_get):
+        mock_env_get.side_effect = [None]  # return None
+        Connection.get_connection_from_secrets("fake_conn_id")
         mock_meta_get.assert_called_once_with(conn_id="fake_conn_id")
         mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
 
-    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connections")
-    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connections")
-    def test_get_connections_first_try(self, mock_env_get, mock_meta_get):
-        mock_env_get.side_effect = [["something"]]  # returns nonempty list
-        Connection.get_connections_from_secrets("fake_conn_id")
+    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
+    def test_get_connection_first_try(self, mock_env_get, mock_meta_get):
+        mock_env_get.side_effect = ["something"]  # returns something
+        Connection.get_connection_from_secrets("fake_conn_id")
         mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
         mock_meta_get.not_called()
 
@@ -103,12 +103,12 @@ class TestConnectionsFromSecrets(unittest.TestCase):
         backend_classes = [backend.__class__.__name__ for backend in backends]
         self.assertIn('SystemsManagerParameterStoreBackend', backend_classes)
 
-        uri = Connection.get_connections_from_secrets(conn_id="test_mysql")
+        conn = Connection.get_connection_from_secrets(conn_id="test_mysql")
 
         # Assert that SystemsManagerParameterStoreBackend.get_conn_uri was called
         mock_get_uri.assert_called_once_with(conn_id='test_mysql')
 
-        self.assertEqual('mysql://airflow:airflow@host:5432/airflow', uri[0].get_uri())
+        self.assertEqual('mysql://airflow:airflow@host:5432/airflow', conn.get_uri())
 
 
 class TestVariableFromSecrets(unittest.TestCase):

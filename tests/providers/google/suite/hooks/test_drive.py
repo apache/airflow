@@ -25,14 +25,14 @@ from tests.providers.google.cloud.utils.base_gcp_mock import GCP_CONNECTION_WITH
 
 class TestGoogleDriveHook(unittest.TestCase):
     def setUp(self):
-        self.patcher_get_connections = mock.patch(
-            "airflow.hooks.base_hook.BaseHook.get_connections", return_value=[GCP_CONNECTION_WITH_PROJECT_ID]
+        self.patcher_get_connection = mock.patch(
+            "airflow.hooks.base_hook.BaseHook.get_connection", return_value=GCP_CONNECTION_WITH_PROJECT_ID
         )
-        self.patcher_get_connections.start()
+        self.patcher_get_connection.start()
         self.gdrive_hook = GoogleDriveHook(gcp_conn_id="test")
 
     def tearDown(self) -> None:
-        self.patcher_get_connections.stop()
+        self.patcher_get_connection.stop()
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook._authorize",

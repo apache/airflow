@@ -672,13 +672,13 @@ class TestCloudSql(unittest.TestCase):
 
 class TestCloudSqlQueryValidation(unittest.TestCase):
     @staticmethod
-    def _setup_connections(get_connections, uri):
+    def _setup_connections(get_connection, uri):
         gcp_connection = mock.MagicMock()
         gcp_connection.extra_dejson = mock.MagicMock()
         gcp_connection.extra_dejson.get.return_value = 'empty_project'
         cloudsql_connection = Connection(uri=uri)
         cloudsql_connection2 = Connection(uri=uri)
-        get_connections.side_effect = [[gcp_connection], [cloudsql_connection], [cloudsql_connection2]]
+        get_connection.side_effect = [gcp_connection, cloudsql_connection, cloudsql_connection2]
 
     @parameterized.expand(
         [
@@ -735,7 +735,7 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
             ),
         ]
     )
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connection")
     def test_create_operator_with_wrong_parameters(
         self,
         project_id,
@@ -746,7 +746,7 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         use_ssl,
         sql,
         message,
-        get_connections,
+        get_connection,
     ):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?"
@@ -761,15 +761,15 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
                 use_ssl=use_ssl,
             )
         )
-        self._setup_connections(get_connections, uri)
+        self._setup_connections(get_connection, uri)
         with self.assertRaises(AirflowException) as cm:
             op = CloudSQLExecuteQueryOperator(sql=sql, task_id='task_id')
             op.execute(None)
         err = cm.exception
         self.assertIn(message, str(err))
 
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_create_operator_with_too_long_unix_socket_path(self, get_connections):
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connection")
+    def test_create_operator_with_too_long_unix_socket_path(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&"
             "project_id=example-project&location=europe-west1&"
@@ -778,7 +778,7 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
             "_the_limit_of_UNIX_socket_asdadadasadasd&"
             "use_proxy=True&sql_proxy_use_tcp=False"
         )
-        self._setup_connections(get_connections, uri)
+        self._setup_connections(get_connection, uri)
         operator = CloudSQLExecuteQueryOperator(sql=['SELECT * FROM TABLE'], task_id='task_id')
         with self.assertRaises(AirflowException) as cm:
             operator.execute(None)
