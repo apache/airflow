@@ -34,16 +34,16 @@
 
   {% call panel.panel('二次确认', 'double-check-card','panel-danger base-info-item' if task_instance.final_state =='NOK'
   else ('panel-success base-info-item' if task_instance.final_state =='OK' else 'panel-default base-info-item')) %}
-  <div class="panel-body d-flex flex-column justify-content-center align-items-center" id="double-check-result"
+  <div class="panel-body d-flex flex-column justify-content-center align-items-center"
        style="flex:1">
     <!--      <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>-->
 
     {% if task_instance.final_state %}
     <h2
-      class="{{'text-danger' if task_instance.final_state =='NOK' else ('text-success' if task_instance.final_state =='OK' else '')}}"
+      class="double-check-result {{'text-danger' if task_instance.final_state =='NOK' else ('text-success' if task_instance.final_state =='OK' else '')}}"
       style="font-weight: bolder">{{task_instance.final_state}}</h2>
     {% elif can_verify %}
-    <h2>
+    <h2 class="double-check-result">
       <button id="btn_double_check_success" style="width:110px;padding-top: 5px;padding-bottom: 5px;"
               class="button-double-check btn btn-lg btn-success mr-2 shadow">
         <div>
@@ -60,7 +60,7 @@
       </button>
     </h2>
     {% else %}
-    <h2>未确认</h2>
+    <h2 class="double-check-result">未确认</h2>
     {% endif %}
     <h4 id="error-tags"></h4>
   </div>
@@ -262,10 +262,12 @@
     }).then((resp) => {
       const resultClass = finalState === 'OK' ? 'panel-success' : 'panel-danger';
       $('#double-check-card').addClass(resultClass);
-      $('#double-check-result').html(`<h2>${finalState}</h2>`);
+      $('.double-check-result').html(`${finalState}`)
+        .addClass(finalState === 'OK' ? 'text-success' : 'text-danger')
+        .css({ 'font-weight': 'bolder' });
       $('#doubleCheckModal').modal('hide');
       if (resp && resp.response === 'ok') {
-        $('#double_check_result').html(`二次确认为${finalState}`);
+        $('#error-tags').html(errorTagsArr.map(t => `${t}`).map(getErrorTagText).filter(t => !!t).map(t => t.label).join(','));
       }
     });
   }
@@ -346,16 +348,18 @@
     }
   }
 
+  function getErrorTagText(val) {
+    const tag = errorTags.find(e => e.value === val);
+    if (tag) {
+      return tag;
+    }
+    return null;
+  }
+
   function getTaskErrorTagLabels() {
     try {
       const tagsVal = getTaskErrorTags();
-      return tagsVal.map((val) => {
-        const tag = errorTags.find(e => e.value === val);
-        if (tag) {
-          return tag;
-        }
-        return null;
-      }).filter(t => !!t).map(t => t.label);
+      return tagsVal.map(getErrorTagText).filter(t => !!t).map(t => t.label);
     } catch (e) {
       console.error(e);
       return [];

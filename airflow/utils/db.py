@@ -204,7 +204,7 @@ def create_default_nd_line_controller_map_var(session=None):
         ],
         "E0": [
             "E0-012R-EAD80-650@E0-012R/发动机1工位",
-            "E0-012R-EAD280-370R@E0-012R/发动机2工位",
+            "E0-012R-EAD280-370@E0-012R/发动机2工位",
             "E0-013R@E0-013R/发动机3工位",
             "E0-014R@E0-014R/发动机4工位"
         ],
@@ -226,7 +226,7 @@ def create_default_nd_line_controller_map_var(session=None):
             "CA-008L-EAD160-430-HAD@CA-008L/底盘模块9工位",
             "CA-08L-EAD105-500@CA-08L/底盘模块10工位",
             "CA-008R-EAD160-430-HAD@CA-008R/底盘模块11工位",
-            "CA-010L@CA-010L/底盘模块12工位",
+            "CA-010L-EAD105-500@CA-010L/底盘模块12工位",
             "CA-010R@CA-010R/底盘模块13工位"
         ],
         "D1": [
