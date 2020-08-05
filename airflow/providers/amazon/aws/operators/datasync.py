@@ -107,7 +107,7 @@ class AWSDataSyncOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         aws_conn_id="aws_default",
         wait_interval_seconds=5,
         task_arn=None,

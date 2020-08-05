@@ -57,7 +57,7 @@ class AwsGlueJobOperator(BaseOperator):
     ui_color = '#ededed'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  job_name='aws_glue_default_job',
                  job_desc='AWS Glue Job with Airflow',
                  script_location=None,

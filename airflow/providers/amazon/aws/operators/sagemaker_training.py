@@ -58,7 +58,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     ]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  config,
                  wait_for_completion=True,
                  print_log=True,

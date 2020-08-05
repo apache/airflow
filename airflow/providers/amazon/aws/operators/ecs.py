@@ -113,7 +113,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     template_fields = ('overrides',)
 
     @apply_defaults
-    def __init__(self, task_definition, cluster, overrides,  # pylint: disable=too-many-arguments
+    def __init__(self, *, task_definition, cluster, overrides,  # pylint: disable=too-many-arguments
                  aws_conn_id=None, region_name=None, launch_type='EC2',
                  group=None, placement_constraints=None, platform_version='LATEST',
                  network_configuration=None, tags=None, awslogs_group=None,

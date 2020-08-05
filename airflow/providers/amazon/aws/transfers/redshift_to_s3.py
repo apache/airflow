@@ -71,7 +71,7 @@ class RedshiftToS3Operator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
+            self, *,
             schema: str,
             table: str,
             s3_bucket: str,
@@ -83,8 +83,8 @@ class RedshiftToS3Operator(BaseOperator):
             autocommit: bool = False,
             include_header: bool = False,
             table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+            **kwargs) -> None:
+        super().__init__(**kwargs)
         self.schema = schema
         self.table = table
         self.s3_bucket = s3_bucket

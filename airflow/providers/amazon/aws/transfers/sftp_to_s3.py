@@ -49,15 +49,14 @@ class SFTPToS3Operator(BaseOperator):
     template_fields = ('s3_key', 'sftp_path')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  s3_bucket,
                  s3_key,
                  sftp_path,
                  sftp_conn_id='ssh_default',
                  s3_conn_id='aws_default',
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.sftp_conn_id = sftp_conn_id
         self.sftp_path = sftp_path
         self.s3_bucket = s3_bucket

@@ -39,7 +39,7 @@ class EmrModifyClusterOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             cluster_id: str,
             step_concurrency_level: int,
             aws_conn_id: str = 'aws_default',

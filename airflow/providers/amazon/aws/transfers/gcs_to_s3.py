@@ -78,7 +78,7 @@ class GCSToS3Operator(GCSListObjectsOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments
+    def __init__(self, *,  # pylint: disable=too-many-arguments
                  bucket,
                  prefix=None,
                  delimiter=None,
@@ -89,7 +89,6 @@ class GCSToS3Operator(GCSListObjectsOperator):
                  dest_s3_key=None,
                  dest_verify=None,
                  replace=False,
-                 *args,
                  **kwargs):
 
         if google_cloud_storage_conn_id:
@@ -104,7 +103,6 @@ class GCSToS3Operator(GCSListObjectsOperator):
             delimiter=delimiter,
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
-            *args,
             **kwargs
         )
 

@@ -42,7 +42,7 @@ class SQSPublishOperator(BaseOperator):
     ui_color = '#6ad3fa'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  sqs_queue,
                  message_content,
                  message_attributes=None,

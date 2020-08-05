@@ -41,7 +41,7 @@ class SageMakerBaseOperator(BaseOperator):
     integer_fields = []  # type: Iterable[Iterable[str]]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  config,
                  aws_conn_id='aws_default',
                  **kwargs):

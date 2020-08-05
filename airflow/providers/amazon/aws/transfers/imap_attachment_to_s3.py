@@ -53,7 +53,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
     template_fields = ('imap_attachment_name', 's3_key', 'imap_mail_filter')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  imap_attachment_name,
                  s3_key,
                  imap_check_regex=False,
@@ -62,9 +62,8 @@ class ImapAttachmentToS3Operator(BaseOperator):
                  s3_overwrite=False,
                  imap_conn_id='imap_default',
                  s3_conn_id='aws_default',
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.imap_attachment_name = imap_attachment_name
         self.s3_key = s3_key
         self.imap_check_regex = imap_check_regex
