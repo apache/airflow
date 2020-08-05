@@ -100,10 +100,12 @@ class PodLauncher(LoggingMixin):
                 "Please use `k8s.V1Pod` instead.", DeprecationWarning, stacklevel=2
             )
             dummy_pod = dummy_pod.to_v1_kubernetes_pod()
+            from airflow.kubernetes.pod_generator import PodGenerator
+            new_pod = PodGenerator.reconcile_pods(pod, dummy_pod)
         except AttributeError:
             settings.pod_mutation_hook(pod)
             return pod
-        return dummy_pod
+        return new_pod
 
     def delete_pod(self, pod):
         """Deletes POD"""

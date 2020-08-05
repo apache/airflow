@@ -304,7 +304,9 @@ class LocalSettingsTest(unittest.TestCase):
 
             self.assertEqual(
                 sanitized_pod_post_mutation,
-                {'metadata': {'labels': {'test_label': 'test_value'},
+                {"apiVersion": "v1",
+                 "kind": "Pod",
+                 'metadata': {'labels': {'test_label': 'test_value'},
                               'name': mock.ANY,
                               'namespace': 'airflow-tests'},
                  'spec': {'affinity': {'nodeAffinity': {'requiredDuringSchedulingIgnoredDuringExecution': {

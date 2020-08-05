@@ -36,6 +36,9 @@ from functools import reduce
 import kubernetes.client.models as k8s
 import yaml
 from kubernetes.client.api_client import ApiClient
+from ..contrib.kubernetes.pod import (
+    _extract_volume_mounts,
+)
 
 from airflow.exceptions import AirflowConfigException
 from airflow.version import version as airflow_version
@@ -249,7 +252,7 @@ class PodGenerator(object):
         self.container.image_pull_policy = image_pull_policy
         self.container.ports = ports or []
         self.container.resources = resources
-        self.container.volume_mounts = volume_mounts or []
+        self.container.volume_mounts = [v.to_k8s_client_obj() for v in _extract_volume_mounts(volume_mounts)]
 
         # Pod Spec
         self.spec = k8s.V1PodSpec(containers=[])
@@ -637,6 +640,36 @@ def extend_object_field(base_obj, client_obj, field_name):
         setattr(client_obj_cp, field_name, base_obj_field)
         return client_obj_cp
 
-    appended_fields = base_obj_field + client_obj_field
+    base_obj_set = get_dict_from_list(base_obj_field)
+    client_obj_set = get_dict_from_list(client_obj_field)
+
+    appended_fields = _merge_list_of_objects(base_obj_set, client_obj_set)
+
     setattr(client_obj_cp, field_name, appended_fields)
     return client_obj_cp
+
+
+def _merge_list_of_objects(base_obj_set, client_obj_set):
+    for k, v in base_obj_set.items():
+        if k not in client_obj_set:
+            client_obj_set[k] = v
+        else:
+            client_obj_set[k] = merge_objects(v, client_obj_set[k])
+    appended_fields = list(client_obj_set.values())
+    return appended_fields
+
+
+def get_dict_from_list(base_list):
+    """
+    :param base_list:
+    :type base_list: list(Optional[dict,
+    """
+    result = {}
+    for obj in base_list:
+        if isinstance(obj, dict):
+            result[obj['name']] = obj
+        elif hasattr(obj, "to_dict"):
+            result[obj.name] = obj
+        else:
+            raise AirflowConfigException("Trying to merge invalid object {}".format(obj))
+    return result
