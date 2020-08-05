@@ -67,7 +67,7 @@ class HiveToMySqlOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  sql: str,
                  mysql_table: str,
                  hiveserver2_conn_id: str = 'hiveserver2_default',

@@ -95,7 +95,7 @@ class SqoopOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  conn_id: str = 'sqoop_default',
                  cmd_type: str = 'import',
                  table: Optional[str] = None,

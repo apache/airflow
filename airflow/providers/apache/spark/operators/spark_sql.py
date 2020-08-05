@@ -64,7 +64,7 @@ class SparkSqlOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  sql: str,
                  conf: Optional[str] = None,
                  conn_id: str = 'spark_sql_default',

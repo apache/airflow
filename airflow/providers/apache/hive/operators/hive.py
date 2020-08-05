@@ -70,7 +70,7 @@ class HiveOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             hql: str,
             hive_cli_conn_id: str = 'hive_cli_default',
             schema: str = 'default',

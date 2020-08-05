@@ -74,6 +74,7 @@ class VerticaToHiveOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
+            *,
             sql,
             hive_table,
             create=True,

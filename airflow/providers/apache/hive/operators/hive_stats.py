@@ -63,7 +63,7 @@ class HiveStatsCollectionOperator(BaseOperator):
     ui_color = '#aff7a6'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  table: str,
                  partition: Any,
                  extra_exprs: Optional[Dict[str, Any]] = None,

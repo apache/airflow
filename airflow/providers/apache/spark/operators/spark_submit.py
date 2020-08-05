@@ -102,7 +102,7 @@ class SparkSubmitOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  application: str = '',
                  conf: Optional[Dict[str, Any]] = None,
                  conn_id: str = 'spark_default',

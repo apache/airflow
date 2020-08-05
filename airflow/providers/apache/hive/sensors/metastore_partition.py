@@ -45,7 +45,7 @@ class MetastorePartitionSensor(SqlSensor):
     ui_color = '#8da7be'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  table: str,
                  partition_name: str,
                  schema: str = "default",
