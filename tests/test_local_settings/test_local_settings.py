@@ -22,10 +22,11 @@ import sys
 import tempfile
 import unittest
 from airflow.kubernetes import pod_generator
+from kubernetes.client import ApiClient
+import kubernetes.client.models as k8s
 from tests.compat import MagicMock, Mock, mock, call, patch
 
-from kubernetes.client.api_client import ApiClient
-
+api_client = ApiClient()
 
 SETTINGS_FILE_POLICY = """
 def test_policy(task_instance):
@@ -243,11 +244,9 @@ class LocalSettingsTest(unittest.TestCase):
             from airflow import settings
             settings.import_local_settings()  # pylint: ignore
             from airflow.kubernetes.pod_launcher import PodLauncher
-            from kubernetes.client.models.v1_pod_security_context import V1PodSecurityContext
 
             self.mock_kube_client = Mock()
             self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)
-            self.api_client = ApiClient()
             pod = pod_generator.PodGenerator(
                 image="foo",
                 name="bar",
@@ -264,11 +263,11 @@ class LocalSettingsTest(unittest.TestCase):
                 volume_mounts=[
                     {"name": "foo", "mountPath": "/mnt", "subPath": "/", "readOnly": True}
                 ],
-                security_context=V1PodSecurityContext(fs_group=0, run_as_user=1),
+                security_context=k8s.V1PodSecurityContext(fs_group=0, run_as_user=1),
                 volumes=[{"name": "foo"}]
             ).gen_pod()
 
-            sanitized_pod_pre_mutation = self.api_client.sanitize_for_serialization(pod)
+            sanitized_pod_pre_mutation = api_client.sanitize_for_serialization(pod)
             self.assertEqual(
                 sanitized_pod_pre_mutation,
                 {'apiVersion': 'v1',
@@ -300,7 +299,7 @@ class LocalSettingsTest(unittest.TestCase):
             # Apply Pod Mutation Hook
             pod = self.pod_launcher._mutate_pod_backcompat(pod)
 
-            sanitized_pod_post_mutation = self.api_client.sanitize_for_serialization(pod)
+            sanitized_pod_post_mutation = api_client.sanitize_for_serialization(pod)
 
             self.assertEqual(
                 sanitized_pod_post_mutation,
@@ -356,7 +355,6 @@ class LocalSettingsTest(unittest.TestCase):
             from airflow.kubernetes.pod_launcher import PodLauncher
 
             self.mock_kube_client = Mock()
-            self.api_client = ApiClient()
             self.pod_launcher = PodLauncher(kube_client=self.mock_kube_client)
             pod = pod_generator.PodGenerator(
                 image="myimage",
@@ -368,7 +366,7 @@ class LocalSettingsTest(unittest.TestCase):
                 volumes=[{"name": "foo"}]
             ).gen_pod()
 
-            sanitized_pod_pre_mutation = self.api_client.sanitize_for_serialization(pod)
+            sanitized_pod_pre_mutation = api_client.sanitize_for_serialization(pod)
 
             self.assertEqual(
                 sanitized_pod_pre_mutation,
@@ -394,7 +392,7 @@ class LocalSettingsTest(unittest.TestCase):
             # Apply Pod Mutation Hook
             pod = self.pod_launcher._mutate_pod_backcompat(pod)
 
-            sanitized_pod_post_mutation = self.api_client.sanitize_for_serialization(pod)
+            sanitized_pod_post_mutation = api_client.sanitize_for_serialization(pod)
             self.assertEqual(
                 sanitized_pod_post_mutation,
                 {'apiVersion': 'v1',
