@@ -478,6 +478,7 @@ where:
 
  * ``connections_prefix`` - fixed value defined in the ``connections_prefix`` parameter in backend configuration. Default: ``airflow-connections``.
  * ``variable_prefix`` - fixed value defined in the ``variable_prefix`` parameter in backend configuration. Default: ``airflow-variables``.
+ * ``sep`` - fixed value defined in the ``sep`` parameter in backend configuration. Default: ``-``.
 
 The Cloud Secrets Manager secret name should follow the pattern ``[a-zA-Z0-9-_]``.
 
