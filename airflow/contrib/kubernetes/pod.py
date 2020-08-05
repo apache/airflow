@@ -268,7 +268,10 @@ def _extract_volumes_and_secrets(volumes, volume_mounts):
     result = []
     volumes = volumes or []  # type: List[Union[k8s.V1Volume, dict]]
     secrets = []
-    volume_mount_dict = {volume_mount.name: volume_mount for volume_mount in volume_mounts}
+    volume_mount_dict = {
+        volume_mount.name: volume_mount
+        for volume_mount in _extract_volume_mounts(volume_mounts)
+    }
     for volume in volumes:
         if isinstance(volume, k8s.V1Volume):
             secret = _extract_volume_secret(volume, volume_mount_dict[volume.name])
@@ -276,6 +279,7 @@ def _extract_volumes_and_secrets(volumes, volume_mounts):
                 secrets.append(secret)
                 continue
             volume = api_client.sanitize_for_serialization(volume)
+            volume = Volume(name=volume.get("name"), configs=volume)
         if not isinstance(volume, Volume):
             volume = Volume(name=volume.get("name"), configs=volume)
         result.append(volume)
