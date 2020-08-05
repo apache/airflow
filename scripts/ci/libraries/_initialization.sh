@@ -21,10 +21,6 @@ function initialize_common_environment {
     # default python Major/Minor version
     PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:="3.6"}
 
-    # extra flags passed to docker run for CI image
-    # shellcheck disable=SC2034
-    EXTRA_DOCKER_FLAGS=()
-
     # extra flags passed to docker run for PROD image
     # shellcheck disable=SC2034
     EXTRA_DOCKER_PROD_BUILD_FLAGS=()
@@ -122,15 +118,21 @@ function initialize_common_environment {
     HOST_OS="$(uname -s)"
     export HOST_OS
 
+    # Home directory of the host user
+    HOST_HOME="${HOME}"
+    export HOST_HOME
+
+    # Sources of Airflow on the host.
+    HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}"
+    export HOST_AIRFLOW_SOURCES
 
     # Add the right volume mount for sources, depending which mount strategy is used
     if [[ ${MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
         print_info
         print_info "Mount whole airflow source directory for static checks"
         print_info
-        EXTRA_DOCKER_FLAGS=( \
-          "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
-          "--env" "PYTHONDONTWRITEBYTECODE" \
+        EXTRA_DOCKER_FLAGS=(
+            "-v" "${AIRFLOW_SOURCES}:/opt/airflow"
         )
     elif [[ ${MOUNT_HOST_AIRFLOW_VOLUME} == "true" ]]; then
         print_info
@@ -138,15 +140,21 @@ function initialize_common_environment {
         print_info
 
         read -r -a EXTRA_DOCKER_FLAGS <<< "$(convert_local_mounts_to_docker_params)"
-        EXTRA_DOCKER_FLAGS+=("-v" "${AIRFLOW_SOURCES}/files:/files" )
+        EXTRA_DOCKER_FLAGS+=(
+            "-v" "${AIRFLOW_SOURCES}/files:/files"
+        )
     else
         print_info
         print_info "Skip mounting host volumes to Docker"
         print_info
-        EXTRA_DOCKER_FLAGS=( \
-            "--env" "PYTHONDONTWRITEBYTECODE" \
-        )
+        EXTRA_DOCKER_FLAGS=()
     fi
+
+    EXTRA_DOCKER_FLAGS+=(
+            "--rm"
+            "--env-file" "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env"
+    )
+    export EXTRA_DOCKER_FLAGS
 
     # By default we are not upgrading to latest version of constraints when building Docker CI image
     # This will only be done in cron jobs
@@ -288,7 +296,7 @@ function get_environment_for_builds_on_ci() {
             export CI_SOURCE_BRANCH="${DEFAULT_BRANCH:="master"}"
         else
             echo
-            echo "ERROR! Unknown CI environment. Exiting"
+            echo "ERROR! Unknown CI environment. You can set LOCAL_CI_TESTING=\"true\" to run it locally."
             exit 1
         fi
     fi
