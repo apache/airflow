@@ -31,6 +31,14 @@ in the ``email`` section.
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
 
+If you want to check which email backend is currently set, you can use ``airflow config get-value email email_backend`` command as in
+the example below.
+
+.. code-block:: bash
+
+    $ airflow config get-value email email_backend
+    airflow.utils.email.send_email_smtp
+
 To access the task's information you use `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  in your template files.
 
 For example a ``html_content_template`` file could look like this:
