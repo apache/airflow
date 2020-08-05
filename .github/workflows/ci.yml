@@ -194,8 +194,21 @@ jobs:
         name: Upload KinD logs
         if: always()
         with:
-          name: 'kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}'
-          path: '/tmp/kind_logs_*'
+          name: kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
+          path: /tmp/kind_logs_*
+      - uses: actions/upload-artifact@v2
+        name: Upload Coverage Report
+        if: always()
+        with:
+          name: >
+            coverage-kubernetes-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
+          path: ./files/coverage/
+      - uses: codecov/codecov-action@v1
+        name: Upload Coverage report to codecov
+        with:
+          file: ./files/coverage.xml
+          flags: >
+            kubernetes-tests-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
 
   tests-postgres:
     timeout-minutes: 80
@@ -230,8 +243,20 @@ jobs:
         name: Upload airflow logs
         if: always()
         with:
-          name: 'airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}'
+          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: './files/airflow_logs*'
+      - uses: actions/upload-artifact@v2
+        name: Upload Coverage Report
+        if: always()
+        with:
+          name: >
+            coverage-postgres-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
+          path: ./files/coverage/
+      - uses: codecov/codecov-action@v1
+        name: Upload Coverage report to codecov
+        with:
+          file: ./files/coverage.xml
+          flags: postgres-tests-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
 
   tests-mysql:
     timeout-minutes: 80
@@ -266,8 +291,19 @@ jobs:
         name: Upload airflow logs
         if: always()
         with:
-          name: 'airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}'
+          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: './files/airflow_logs*'
+      - uses: actions/upload-artifact@v2
+        name: Upload Coverage Report
+        if: always()
+        with:
+          name: coverage-mysql-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
+          path: ./files/coverage/
+      - uses: codecov/codecov-action@v1
+        name: Upload Coverage report to codecov
+        with:
+          file: ./files/coverage.xml
+          flags: mysql-tests-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
 
   tests-sqlite:
     timeout-minutes: 80
@@ -300,8 +336,19 @@ jobs:
         name: Upload airflow logs
         if: always()
         with:
-          name: 'airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}'
+          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}
           path: './files/airflow_logs*'
+      - uses: actions/upload-artifact@v2
+        name: Upload Coverage Report
+        if: always()
+        with:
+          name: coverage-sqlite-${{matrix.test-type}}-${{matrix.python-version}}
+          path: ./files/coverage/
+      - uses: codecov/codecov-action@v1
+        name: Upload Coverage report to codecov
+        with:
+          file: ./files/coverage.xml
+          flags: sqlite-tests-${{matrix.test-type}}-${{matrix.python-version}}
 
   helm-tests:
     timeout-minutes: 5

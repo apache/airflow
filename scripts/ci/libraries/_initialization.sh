@@ -148,16 +148,6 @@ function initialize_common_environment {
         )
     fi
 
-    # In case of the CI build get environment variables from codecov.io and
-    # set it as the extra docker flags. As described in https://docs.codecov.io/docs/testing-with-docker
-    if [[ ${CI:=} == "true" ]]; then
-        CI_CODECOV_ENV="$(bash <(curl -s https://codecov.io/env))"
-        for ENV_PARAM in ${CI_CODECOV_ENV}
-        do
-            EXTRA_DOCKER_FLAGS+=("${ENV_PARAM}")
-        done
-    fi
-
     # By default we are not upgrading to latest version of constraints when building Docker CI image
     # This will only be done in cron jobs
     export UPGRADE_TO_LATEST_CONSTRAINTS=${UPGRADE_TO_LATEST_CONSTRAINTS:="false"}
