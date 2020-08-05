@@ -85,13 +85,13 @@ class GoogleApiToS3Operator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         google_api_service_name,
         google_api_service_version,
         google_api_endpoint_path,
         google_api_endpoint_params,
         s3_destination_key,
-        *args,
+
         google_api_response_via_xcom=None,
         google_api_endpoint_params_via_xcom=None,
         google_api_endpoint_params_via_xcom_task_ids=None,
@@ -103,7 +103,7 @@ class GoogleApiToS3Operator(BaseOperator):
         aws_conn_id='aws_default',
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.google_api_service_name = google_api_service_name
         self.google_api_service_version = google_api_service_version
         self.google_api_endpoint_path = google_api_endpoint_path

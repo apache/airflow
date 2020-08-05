@@ -84,7 +84,7 @@ class S3FileTransformOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             source_s3_key: str,
             dest_s3_key: str,
             transform_script: Optional[str] = None,

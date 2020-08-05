@@ -68,7 +68,7 @@ class MySQLToS3Operator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             query: str,
             s3_bucket: str,
             s3_key: str,
@@ -78,8 +78,8 @@ class MySQLToS3Operator(BaseOperator):
             pd_csv_kwargs: Optional[dict] = None,
             index: Optional[bool] = False,
             header: Optional[bool] = False,
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+            **kwargs) -> None:
+        super().__init__(**kwargs)
         self.query = query
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key

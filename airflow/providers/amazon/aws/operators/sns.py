@@ -44,7 +44,7 @@ class SnsPublishOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             target_arn,
             message,
             aws_conn_id='aws_default',

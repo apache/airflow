@@ -50,7 +50,7 @@ class EmrAddStepsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             job_flow_id=None,
             job_flow_name=None,
             cluster_states=None,

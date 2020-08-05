@@ -69,7 +69,7 @@ class S3CopyObjectOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             source_bucket_key,
             dest_bucket_key,
             source_bucket_name=None,

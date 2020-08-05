@@ -44,7 +44,7 @@ class EC2StartInstanceOperator(BaseOperator):
     ui_fgcolor = "#ffffff"
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  aws_conn_id: str = "aws_default",
                  region_name: Optional[str] = None,
