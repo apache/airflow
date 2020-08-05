@@ -655,7 +655,8 @@ def _merge_list_of_objects(base_obj_set, client_obj_set):
             client_obj_set[k] = v
         else:
             client_obj_set[k] = merge_objects(v, client_obj_set[k])
-    appended_fields = list(client_obj_set.values())
+    appended_field_keys = sorted(client_obj_set.keys())
+    appended_fields = [client_obj_set[k] for k in appended_field_keys]
     return appended_fields
 
 
