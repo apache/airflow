@@ -75,11 +75,16 @@ class TestPod(unittest.TestCase):
             }
         }, result)
 
-    def test_to_v1_pod(self):
+    @mock.patch('uuid.uuid4')
+    def test_to_v1_pod(self, mock_uuid):
         from airflow.contrib.kubernetes.pod import Pod as DeprecatedPod
         from airflow.kubernetes.volume import Volume
         from airflow.kubernetes.volume_mount import VolumeMount
+        from airflow.kubernetes.secret import Secret
         from airflow.kubernetes.pod import Resources
+        import uuid
+        static_uuid = uuid.UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
+        mock_uuid.return_value = static_uuid
 
         pod = DeprecatedPod(
             image="foo",
@@ -94,6 +99,10 @@ class TestPod(unittest.TestCase):
                 limit_gpu="100G"
             ),
             volumes=[Volume(name="foo", configs={})],
+            secrets=[
+                Secret('env', "AIRFLOW_SECRET", 'secret_name', "airflow_config"),
+                Secret("volume", "/opt/airflow", "volume-secret", "secret-key")
+            ],
             volume_mounts=[VolumeMount(name="foo", mount_path="/mnt", sub_path="/", read_only=True)]
         )
 
@@ -107,7 +116,10 @@ class TestPod(unittest.TestCase):
              'spec': {'affinity': {},
                       'containers': [{'args': [],
                                       'command': ['airflow'],
-                                      'env': [{'name': 'test_key', 'value': 'test_value'}],
+                                      'env': [{'name': 'test_key', 'value': 'test_value'},
+                                              {'name': 'AIRFLOW_SECRET',
+                                               'valueFrom': {'secretKeyRef': {'key': 'airflow_config',
+                                                                              'name': 'secret_name'}}}],
                                       'image': 'foo',
                                       'imagePullPolicy': 'Never',
                                       'name': 'base',
@@ -117,10 +129,16 @@ class TestPod(unittest.TestCase):
                                       'volumeMounts': [{'mountPath': '/mnt',
                                                         'name': 'foo',
                                                         'readOnly': True,
-                                                        'subPath': '/'}]}],
+                                                        'subPath': '/'},
+                                                       {'mountPath': '/opt/airflow',
+                                                       'name': 'secretvol' + str(static_uuid),
+                                                        'readOnly': True}]}],
                       'hostNetwork': False,
                       'securityContext': {},
                       'tolerations': [],
-                      'volumes': [{'name': 'foo'}]}}
+                      'volumes': [{'name': 'foo'},
+                                  {'name': 'secretvol' + str(static_uuid),
+                                   'secret': {'secretName': 'volume-secret'}}
+                                  ]}}
         self.maxDiff = None
         self.assertEqual(expected, result)

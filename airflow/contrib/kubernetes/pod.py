@@ -26,6 +26,7 @@ from kubernetes.client import models as k8s
 from airflow.kubernetes.pod import Port, Resources  # noqa
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
+from airflow.kubernetes.secret import Secret
 
 from kubernetes.client.api_client import ApiClient
 
@@ -174,7 +175,8 @@ class Pod(object):
         )
         for port in _extract_ports(self.ports):
             pod = port.attach_to_pod(pod)
-        for volume in _extract_volumes(self.volumes):
+        volumes, _ = _extract_volumes_and_secrets(self.volumes, self.volume_mounts)
+        for volume in volumes:
             pod = volume.attach_to_pod(pod)
         for volume_mount in _extract_volume_mounts(self.volume_mounts):
             pod = volume_mount.attach_to_pod(pod)
@@ -195,14 +197,28 @@ class Pod(object):
         return res
 
 
-def _extract_env_vars(env_vars):
+def _extract_env_vars_and_secrets(env_vars):
     result = {}
     env_vars = env_vars or []  # type: List[Union[k8s.V1EnvVar, dict]]
+    secrets = []
     for env_var in env_vars:
         if isinstance(env_var, k8s.V1EnvVar):
+            secret = _extract_env_secret(env_var)
+            if secret:
+                secrets.append(secret)
+                continue
             env_var = api_client.sanitize_for_serialization(env_var)
         result[env_var.get("name")] = env_var.get("value")
-    return result
+    return result, secrets
+
+
+def _extract_env_secret(env_var):
+    if env_var.value_from and env_var.value_from.secret_key_ref:
+        secret = env_var.value_from.secret_key_ref  # type: k8s.V1SecretKeySelector
+        name = secret.name
+        key = secret.key
+        return Secret("env", deploy_target=env_var.name, secret=name, key=key)
+    return None
 
 
 def _extract_ports(ports):
@@ -248,13 +264,25 @@ def _extract_volume_mounts(volume_mounts):
     return result
 
 
-def _extract_volumes(volumes):
+def _extract_volumes_and_secrets(volumes, volume_mounts):
     result = []
     volumes = volumes or []  # type: List[Union[k8s.V1Volume, dict]]
+    secrets = []
+    volume_mount_dict = {volume_mount.name: volume_mount for volume_mount in volume_mounts}
     for volume in volumes:
         if isinstance(volume, k8s.V1Volume):
+            secret = _extract_volume_secret(volume, volume_mount_dict[volume.name])
+            if secret:
+                secrets.append(secret)
+                continue
             volume = api_client.sanitize_for_serialization(volume)
         if not isinstance(volume, Volume):
             volume = Volume(name=volume.get("name"), configs=volume)
         result.append(volume)
-    return result
+    return result, secrets
+
+
+def _extract_volume_secret(volume, volume_mount):
+    if not volume.secret:
+        return None
+    return Secret("volume", volume_mount.mount_path, volume.secret.secret_name)

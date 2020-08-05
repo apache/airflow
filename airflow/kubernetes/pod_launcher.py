@@ -34,7 +34,7 @@ from airflow.utils.state import State
 import kubernetes.client.models as k8s  # noqa
 from .kube_client import get_kube_client
 from ..contrib.kubernetes.pod import (
-    Pod, _extract_env_vars, _extract_volumes, _extract_volume_mounts,
+    Pod, _extract_env_vars_and_secrets, _extract_volumes_and_secrets, _extract_volume_mounts,
     _extract_ports, _extract_security_context
 )
 
@@ -289,21 +289,24 @@ class PodLauncher(LoggingMixin):
 
 def _convert_to_airflow_pod(pod):
     base_container = pod.spec.containers[0]  # type: k8s.V1Container
-
+    env_vars, secrets = _extract_env_vars_and_secrets(base_container.env)
+    volumes, vol_secrets = _extract_volumes_and_secrets(pod.spec.volumes, base_container.volume_mounts)
+    secrets.extend(vol_secrets)
     dummy_pod = Pod(
         image=base_container.image,
-        envs=_extract_env_vars(base_container.env),
+        envs=env_vars,
         cmds=base_container.command,
         args=base_container.args,
         labels=pod.metadata.labels,
         node_selectors=pod.spec.node_selector,
         name=pod.metadata.name,
         ports=_extract_ports(base_container.ports),
-        volumes=_extract_volumes(pod.spec.volumes),
+        volumes=volumes,
         volume_mounts=_extract_volume_mounts(base_container.volume_mounts),
         namespace=pod.metadata.namespace,
         image_pull_policy=base_container.image_pull_policy or 'IfNotPresent',
         tolerations=pod.spec.tolerations,
+        secrets=secrets,
         affinity=pod.spec.affinity,
         security_context=_extract_security_context(pod.spec.security_context)
     )
