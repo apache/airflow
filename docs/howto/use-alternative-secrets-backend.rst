@@ -466,10 +466,8 @@ Managing a secrets
 If you want to configure a connection, you need to save it as a :ref:`connection URI representation <generating_connection_uri>`.
 Variables should be saved as plain text.
 
-In order to manage secrets, you can use the ``gcloud`` tool or other supported tools. For more information on how to use this operator, take a look at:
+In order to manage secrets, you can use the ``gcloud`` tool or other supported tools. For more information, take a look at:
 `Managing secrets <https://cloud.google.com/secret-manager/docs/creating-and-accessing-secrets>`__ in Google Cloud Documentation.
-
-The Cloud Secrets Manager secret ID should follow the pattern ``[a-zA-Z0-9-_]``.
 
 The name of the secret must fit the following formats:
 
@@ -480,6 +478,8 @@ where:
 
  * ``connections_prefix`` - fixed value defined in the ``connections_prefix`` parameter in backend configuration. Default: ``airflow-connections``.
  * ``variable_prefix`` - fixed value defined in the ``variable_prefix`` parameter in backend configuration. Default: ``airflow-variables``.
+
+The Cloud Secrets Manager secret name should follow the pattern ``[a-zA-Z0-9-_]``.
 
 If you have the default backend configuration and you want to create a connection with ``conn_id``
 equals ``first-connection``, you should create secret named ``airflow-connections-first-connection``.
