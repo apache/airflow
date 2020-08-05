@@ -273,7 +273,7 @@ class TestPodLauncherHelper(unittest.TestCase):
                     sub_path=None,
                 )],
             secrets=[Secret("env", "AIRFLOW_SECRET", "ai", "secret_key"),
-                     Secret('volume', '/opt/mount', 'secret-name', None)],
+                     Secret('volume', '/opt/mount', 'airflow-secret', "secret-name")],
             security_context={'fsGroup': 0, 'runAsUser': 0},
             volumes=[Volume(name="myvolume", configs={'name': 'myvolume'}),
                      Volume(name="airflow-config", configs={'configMap': {'data': 'airflow-data'},
@@ -283,7 +283,6 @@ class TestPodLauncherHelper(unittest.TestCase):
         result_dict = result_pod.as_dict()
         parsed_configs = self.pull_out_volumes(result_dict)
         result_dict['volumes'] = parsed_configs
-        self.maxDiff = None
         self.assertDictEqual(expected_dict, result_dict)
 
     @staticmethod
