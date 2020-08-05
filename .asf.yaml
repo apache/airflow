@@ -33,7 +33,7 @@ github:
     # Enable projects for project management boards
     projects: true
     # Enable wiki for documentation
-    wiki: true
+    wiki: false
 
   enabled_merge_buttons:
     squash: true
