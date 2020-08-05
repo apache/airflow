@@ -394,8 +394,8 @@ Before you begin
 
 `Configure Secret Manager and your local environment <https://cloud.google.com/secret-manager/docs/configuring-secret-manager>`__, once per project.
 
-Configure Airflow
-"""""""""""""""""
+Enabling the secret backend
+"""""""""""""""""""""""""""
 
 To enable `Google Cloud Secrets Manager <https://cloud.google.com/secret-manager/docs>`__ to retrieve connection/variables,
 specify :py:class:`~airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend`
@@ -450,8 +450,8 @@ Set-up credentials
 You can configure the credentiaps in three ways:
 
 * By default, Application Default Credentials (ADC) is used obtain credentials.
-* ``gcp_key_path`` option in ``backend_kwargs``. Allows you to configure authorizations with a service account stored in local file.
-* ``gcp_keyfile_dict`` option in ``backend_kwargs``. Allows you to configure authorizations with a service account stored in Airflow configuration.
+* ``gcp_key_path`` option in ``backend_kwargs`` option - allows you to configure authorizations with a service account stored in local file.
+* ``gcp_keyfile_dict`` option in ``backend_kwargs` option` - allows you to configure authorizations with a service account stored in Airflow configuration.
 
 .. note::
 
