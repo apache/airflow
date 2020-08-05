@@ -61,7 +61,7 @@ azure-mgmt-containerinstance==1.5.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
-azure-mgmt-resource==10.1.0
+azure-mgmt-resource==10.2.0
 azure-nspkg==3.0.2
 azure-storage-blob==2.1.0
 azure-storage-common==2.1.0
@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.14.33
+boto3==1.14.35
 boto==2.49.0
-botocore==1.17.33
+botocore==1.17.35
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.1
@@ -84,7 +84,7 @@ celery==4.4.7
 certifi==2020.6.20
 cffi==1.14.1
 cfgv==3.2.0
-cfn-lint==0.34.0
+cfn-lint==0.34.1
 cgroupspy==0.1.6
 chardet==3.0.4
 click==6.7
@@ -119,7 +119,7 @@ email-validator==1.1.1
 entrypoints==0.3
 eventlet==0.26.1
 execnet==1.7.1
-facebook-business==7.0.4
+facebook-business==8.0.0
 fastavro==0.24.0
 filelock==3.0.12
 fissix==20.5.1
@@ -148,7 +148,7 @@ google-cloud-bigquery-datatransfer==1.1.0
 google-cloud-bigquery==1.26.1
 google-cloud-bigtable==1.4.0
 google-cloud-container==1.0.1
-google-cloud-core==1.3.0
+google-cloud-core==1.4.0
 google-cloud-datacatalog==0.7.0
 google-cloud-dataproc==1.1.0
 google-cloud-dlp==1.0.0
@@ -164,7 +164,7 @@ google-cloud-speech==1.3.2
 google-cloud-storage==1.30.0
 google-cloud-tasks==1.5.0
 google-cloud-texttospeech==1.0.1
-google-cloud-translate==2.0.1
+google-cloud-translate==2.0.2
 google-cloud-videointelligence==1.15.0
 google-cloud-vision==1.0.0
 google-crc32c==0.1.0
@@ -208,7 +208,7 @@ jupyter-core==4.6.3
 jwcrypto==0.7
 kombu==4.6.11
 kubernetes==11.0.0
-kylinpy==2.8.1
+kylinpy==2.8.3
 lazy-object-proxy==1.5.1
 ldap3==2.7
 lockfile==0.12.2
@@ -294,7 +294,6 @@ pytest-cov==2.10.0
 pytest-forked==1.3.0
 pytest-instafail==0.4.2
 pytest-rerunfailures==9.0
-pytest-timeout==1.4.2
 pytest-timeouts==1.2.1
 pytest-xdist==1.34.0
 pytest==5.4.3
@@ -335,7 +334,7 @@ six==1.15.0
 slackclient==2.7.3
 smmap==3.0.4
 snowballstemmer==2.0.0
-snowflake-connector-python==2.2.9
+snowflake-connector-python==2.2.10
 snowflake-sqlalchemy==1.2.3
 sortedcontainers==2.2.2
 soupsieve==2.0.1
@@ -381,7 +380,7 @@ uritemplate==3.0.1
 urllib3==1.25.10
 vertica-python==0.11.0
 vine==1.3.0
-virtualenv==20.0.29
+virtualenv==20.0.30
 watchtower==0.7.3
 wcwidth==0.2.5
 websocket-client==0.57.0
