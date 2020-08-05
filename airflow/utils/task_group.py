@@ -30,7 +30,7 @@ class TaskGroup:
     """
     def __init__(self, group_id, parent_group=None):
         self.parent_group = parent_group or TaskGroupContext.get_current_task_group()
-        self.group_id = group_id
+        self._group_id = group_id
         if self.parent_group:
             self.parent_group.add(self)
         self.tasks = set()
@@ -59,12 +59,19 @@ class TaskGroup:
 
         return self._group_id
 
-    @group_id.setter
-    def group_id(self, val):
+    @property
+    def group_ids(self):
         """
-        Setter for group_id.
+        Returns all the group_id of nested TaskGroups as a list, starting from the top.
         """
-        self._group_id = val
+        return list(self._group_ids())
+
+    def _group_ids(self):
+        if self.parent_group:
+            for group_id in self.parent_group._group_ids():  # pylint: disable=protected-access
+                yield group_id
+
+        yield self._group_id
 
     def set_downstream(self, task_or_task_list) -> None:
         """
@@ -93,7 +100,8 @@ class TaskGroup:
         dependencies within the TaskGroup.
         """
         for task in self:
-            if not any(parent.is_in_task_group(self) for parent in task.get_direct_relatives(upstream=True)):
+            if not any(parent.is_in_task_group(self.group_ids)
+                       for parent in task.get_direct_relatives(upstream=True)):
                 yield task
 
     def get_leaves(self):
@@ -102,7 +110,8 @@ class TaskGroup:
         dependencies within the TaskGroup
         """
         for task in self:
-            if not any(child.is_in_task_group(self) for child in task.get_direct_relatives(upstream=False)):
+            if not any(child.is_in_task_group(self.group_ids)
+                       for child in task.get_direct_relatives(upstream=False)):
                 yield task
 
     def __rshift__(self, other):

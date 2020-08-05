@@ -126,6 +126,7 @@
         "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
         "_task_id": { "type": "string" },
+        "task_group_ids": {"type": "array"},
         "owner": { "type": "string" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },

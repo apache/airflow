@@ -383,10 +383,15 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 stacklevel=3
             )
         validate_key(task_id)
-        self.task_group = task_group or TaskGroupContext.get_current_task_group()
         self._task_id = task_id
-        if self.task_group:
-            self.task_group.add(self)
+
+        # Set task_group_ids to identify the TaskGroup this operator belongs to
+        self.task_group_ids = []
+        task_group = task_group or TaskGroupContext.get_current_task_group()
+        if task_group:
+            self.task_group_ids = task_group.group_ids
+            task_group.add(self)
+
         self.owner = owner
         self.email = email
         self.email_on_retry = email_on_retry

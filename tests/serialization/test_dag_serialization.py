@@ -73,6 +73,8 @@ serialized_simple_dag_ground_truth = {
         "tasks": [
             {
                 "task_id": "bash_task",
+                '_task_id': 'bash_task',
+                'task_group_ids': [],
                 "owner": "airflow",
                 "retries": 1,
                 "retry_delay": 300.0,
@@ -95,6 +97,8 @@ serialized_simple_dag_ground_truth = {
             },
             {
                 "task_id": "custom_task",
+                '_task_id': 'custom_task',
+                'task_group_ids': [],
                 "retries": 1,
                 "retry_delay": 300.0,
                 "_downstream_task_ids": [],
@@ -786,7 +790,8 @@ class TestStringifiedDAGs(unittest.TestCase):
                           'start_date': None,
                           'subdag': None,
                           'task_concurrency': None,
-                          'task_id': '10',
+                          '_task_id': '10',
+                          'task_group_ids': [],
                           'trigger_rule': 'all_success',
                           'wait_for_downstream': False,
                           'weight_rule': 'downstream'}, fields,
