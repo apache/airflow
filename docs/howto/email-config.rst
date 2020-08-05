@@ -31,7 +31,7 @@ in the ``email`` section.
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
 
-If you want to check which email is currently set, you can use ``airflow config get-value email email_backend`` command as in
+If you want to check which email backend is currently set, you can use ``airflow config get-value email email_backend`` command as in
 the example below.
 
 .. code-block:: bash
