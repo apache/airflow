@@ -65,6 +65,8 @@ from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from datetime import datetime, timedelta
+
 
 
 def clear_task_instances(tis,
@@ -1625,10 +1627,18 @@ class TaskInstance(Base, LoggingMixin):
     @classmethod
     @provide_session
     def query_tasks(cls, craft_type=None, bolt_number=None, session=None):
-
-        tasks = session.query(TaskInstance).filter(
-            TaskInstance.craft_type == craft_type,
-            TaskInstance.bolt_number == bolt_number,
-        )
-
+        tasks = session.query(TaskInstance)
+        if craft_type:
+            tasks = tasks.filter(TaskInstance.craft_type == craft_type)
+        if bolt_number:
+            tasks = tasks.filter(TaskInstance.bolt_number == bolt_number)
         return tasks
+
+    @classmethod
+    @provide_session
+    def retried_tasks(cls, delta=None, session=None):
+        tasks = session.query(func.count(TaskInstance.task_id)).filter(TaskInstance._try_number > 1)
+        if delta:
+            return tasks.filter(
+                TaskInstance.execution_date > (timezone.utcnow() + delta)).first()[0]
+        return tasks.first()[0]
