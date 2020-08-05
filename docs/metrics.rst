@@ -88,6 +88,7 @@ Name                                    Description
 ``sla_email_notification_failure``      Number of failed SLA miss email notification attempts
 ``ti.start.<dagid>.<taskid>``           Number of started task in a given dag. Similar to <job_name>_start but for task
 ``ti.finish.<dagid>.<taskid>.<state>``  Number of completed task in a given dag. Similar to <job_name>_end but for task
+``dag.callback_exceptions``             Number of exceptions raised from DAG callbacks. When this happens, it means DAG callback is not working.
 ======================================= ================================================================
 
 Gauges
