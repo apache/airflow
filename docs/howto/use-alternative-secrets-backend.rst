@@ -397,7 +397,7 @@ Before you begin
 Enabling the secret backend
 """""""""""""""""""""""""""
 
-To enable `Google Cloud Secrets Manager <https://cloud.google.com/secret-manager/docs>`__ to retrieve connection/variables,
+To enable the secret backend for Google Cloud Secrets Manager to retrieve connection/variables,
 specify :py:class:`~airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
