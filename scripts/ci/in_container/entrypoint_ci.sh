@@ -170,7 +170,6 @@ if [[ "${CI}" == "true" ]]; then
         "--durations=100"
         "--cov=airflow/"
         "--cov-config=.coveragerc"
-        "--cov-report=html:/files/coverage/"
         "--cov-report=xml:/files/coverage.xml"
         "--color=yes"
         "--maxfail=50"
