@@ -84,7 +84,7 @@ class HiveToDruidOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         sql: str,
         druid_datasource: str,
         ts_dim: str,

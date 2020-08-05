@@ -96,7 +96,7 @@ class KylinCubeOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments,inconsistent-return-statements
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  kylin_conn_id: Optional[str] = 'kylin_default',
                  project: Optional[str] = None,
                  cube: Optional[str] = None,

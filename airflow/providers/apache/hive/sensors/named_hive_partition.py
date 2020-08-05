@@ -42,7 +42,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
     ui_color = '#8d99ae'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  partition_names: List[str],
                  metastore_conn_id: str = 'metastore_default',
                  poke_interval: int = 60 * 3,

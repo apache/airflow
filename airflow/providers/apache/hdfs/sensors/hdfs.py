@@ -37,6 +37,7 @@ class HdfsSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  filepath: str,
                  hdfs_conn_id: str = 'hdfs_default',
                  ignored_ext: Optional[List[str]] = None,

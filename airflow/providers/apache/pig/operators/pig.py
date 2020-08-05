@@ -47,7 +47,7 @@ class PigOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             pig: str,
             pig_cli_conn_id: str = 'pig_cli_default',
             pigparams_jinja_translate: bool = False,
