@@ -202,6 +202,12 @@ class TestPodLauncherHelper(unittest.TestCase):
                 volumes=[
                     k8s.V1Volume(
                         name="myvolume"
+                    ),
+                    k8s.V1Volume(
+                        name="airflow-config",
+                        config_map=k8s.V1ConfigMap(
+                            data="airflow-data"
+                        )
                     )
                 ]
             )
@@ -224,7 +230,9 @@ class TestPodLauncherHelper(unittest.TestCase):
                 read_only="True"
             )],
             security_context={'fsGroup': 0, 'runAsUser': 0},
-            volumes=[Volume(name="myvolume", configs={'name': 'myvolume'})]
+            volumes=[Volume(name="myvolume", configs={'name': 'myvolume'}),
+                     Volume(name="airflow-config", configs={'configMap': {'data': 'airflow-data'},
+                                                            'name': 'airflow-config'})]
         )
         expected_dict = expected.as_dict()
         result_dict = result_pod.as_dict()

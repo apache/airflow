@@ -78,7 +78,7 @@ class PodLauncher(LoggingMixin):
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
-        self.log.debug('Pod Creation Request: \n%s', json_pod)
+        self.log.info('Pod Creation Request: \n%s', json_pod)
         try:
             resp = self._client.create_namespaced_pod(body=sanitized_pod,
                                                       namespace=pod.metadata.namespace, **kwargs)

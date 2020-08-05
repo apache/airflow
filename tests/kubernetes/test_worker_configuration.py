@@ -173,6 +173,13 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         self.assertNotIn('AIRFLOW__CORE__DAGS_FOLDER', env)
 
+    @conf_vars({
+        ('kubernetes', 'airflow_configmap'): 'airflow-configmap'})
+    def test_worker_adds_config(self):
+        worker_config = WorkerConfiguration(self.kube_config)
+        volumes = worker_config._get_volumes()
+        print(volumes)
+
     def test_worker_environment_when_dags_folder_specified(self):
         self.kube_config.airflow_configmap = 'airflow-configmap'
         self.kube_config.git_dags_folder_mount_point = ''

@@ -27,6 +27,10 @@ from airflow.kubernetes.pod import Port, Resources  # noqa
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
 
+from kubernetes.client.api_client import ApiClient
+
+api_client = ApiClient()
+
 warnings.warn(
     "This module is deprecated. Please use `airflow.kubernetes.pod`.",
     DeprecationWarning, stacklevel=2
@@ -196,7 +200,7 @@ def _extract_env_vars(env_vars):
     env_vars = env_vars or []  # type: List[Union[k8s.V1EnvVar, dict]]
     for env_var in env_vars:
         if isinstance(env_var, k8s.V1EnvVar):
-            env_var = env_var.to_dict()
+            env_var = api_client.sanitize_for_serialization(env_var)
         result[env_var.get("name")] = env_var.get("value")
     return result
 
@@ -206,8 +210,8 @@ def _extract_ports(ports):
     ports = ports or []  # type: List[Union[k8s.V1ContainerPort, dict]]
     for port in ports:
         if isinstance(port, k8s.V1ContainerPort):
-            port = port.to_dict()
-            port = Port(name=port.get("name"), container_port=port.get("container_port"))
+            port = api_client.sanitize_for_serialization(port)
+            port = Port(name=port.get("name"), container_port=port.get("containerPort"))
         elif not isinstance(port, Port):
             port = Port(name=port.get("name"), container_port=port.get("containerPort"))
         result.append(port)
@@ -215,8 +219,6 @@ def _extract_ports(ports):
 
 
 def _extract_security_context(security_context):
-    from kubernetes.client.api_client import ApiClient
-    api_client = ApiClient()
     if isinstance(security_context, k8s.V1PodSecurityContext):
         security_context = api_client.sanitize_for_serialization(security_context)
     return security_context
@@ -227,12 +229,12 @@ def _extract_volume_mounts(volume_mounts):
     volume_mounts = volume_mounts or []  # type: List[Union[k8s.V1VolumeMount, dict]]
     for volume_mount in volume_mounts:
         if isinstance(volume_mount, k8s.V1VolumeMount):
-            volume_mount = volume_mount.to_dict()
+            volume_mount = api_client.sanitize_for_serialization(volume_mount)
             volume_mount = VolumeMount(
                 name=volume_mount.get("name"),
-                mount_path=volume_mount.get("mount_path"),
-                sub_path=volume_mount.get("sub_path"),
-                read_only=volume_mount.get("read_only")
+                mount_path=volume_mount.get("mountPath"),
+                sub_path=volume_mount.get("subPath"),
+                read_only=volume_mount.get("readOnly")
             )
         elif not isinstance(volume_mount, VolumeMount):
             volume_mount = VolumeMount(
@@ -251,7 +253,7 @@ def _extract_volumes(volumes):
     volumes = volumes or []  # type: List[Union[k8s.V1Volume, dict]]
     for volume in volumes:
         if isinstance(volume, k8s.V1Volume):
-            volume = volume.to_dict()
+            volume = api_client.sanitize_for_serialization(volume)
         if not isinstance(volume, Volume):
             volume = Volume(name=volume.get("name"), configs=volume)
         result.append(volume)
