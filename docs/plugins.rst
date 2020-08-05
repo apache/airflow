@@ -241,7 +241,6 @@ definitions in Airflow.
         flask_blueprints = [bp]
         appbuilder_views = [v_appbuilder_package]
         appbuilder_menu_items = [appbuilder_mitem]
-        stat_name_handler = staticmethod(stat_name_dummy_handler)
         global_operator_extra_links = [GoogleLink(),]
         operator_extra_links = [S3LogLink(), ]
 
