@@ -303,6 +303,7 @@ def _convert_to_airflow_pod(pod):
         cmds=base_container.command,
         args=base_container.args,
         labels=pod.metadata.labels,
+        annotations=pod.metadata.annotations,
         node_selectors=pod.spec.node_selector,
         name=pod.metadata.name,
         ports=_extract_ports(base_container.ports),
@@ -311,9 +312,13 @@ def _convert_to_airflow_pod(pod):
         namespace=pod.metadata.namespace,
         image_pull_policy=base_container.image_pull_policy or 'IfNotPresent',
         tolerations=pod.spec.tolerations,
+        init_containers=pod.spec.init_containers,
+        image_pull_secrets=pod.spec.image_pull_secrets,
         resources=base_container.resources,
+        service_account_name=pod.spec.service_account_name,
         secrets=secrets,
         affinity=pod.spec.affinity,
+        hostnetwork=pod.spec.host_network,
         security_context=_extract_security_context(pod.spec.security_context)
     )
     return dummy_pod
