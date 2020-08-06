@@ -1768,6 +1768,7 @@ class BigQueryInsertJobOperator(BaseOperator):
                 raise AirflowException(
                     f"Job with id: {job_id} already exists and is in {job.state} state. If you "
                     f"want to force rerun it consider setting `force_rerun=True`."
+                    f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
 
         return job.job_id
