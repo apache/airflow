@@ -83,9 +83,10 @@ def _format_connections(conns: List[Connection], fmt: str) -> str:
         connections_dict[conn.conn_id] = {
             'conn_type': conn.conn_type,
             'host': conn.host,
+            'login': conn.login,
+            'password': conn.password,
+            'schema': conn.schema,
             'port': conn.port,
-            'is_encrypted': conn.is_encrypted,
-            'is_extra_encrypted': conn.is_encrypted,
             'extra': conn.extra,
         }
 
@@ -107,15 +108,17 @@ def _is_stdout(fileio: io.TextIOWrapper) -> bool:
 def connections_export(args):
     """Exports all connections to a file"""
     allowed_formats = ['.yaml', '.json', '.env']
-    default_format = '.json' if args.format is None else args.format
+    provided_format = None if args.format is None else f".{args.format.lower()}"
+    default_format = provided_format or '.json'
 
     with create_session() as session:
         if _is_stdout(args.file):
             filetype = default_format
-        elif args.format is not None:
-            filetype = f".{args.format}"
+        elif provided_format is not None:
+            filetype = provided_format
         else:
             _, filetype = os.path.splitext(args.file.name)
+            filetype = filetype.lower()
             if filetype not in allowed_formats:
                 msg = f"Unsupported file format. " \
                       f"The file must have the extension {', '.join(allowed_formats)}"

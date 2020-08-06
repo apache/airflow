@@ -1116,6 +1116,16 @@ CONNECTIONS_COMMANDS = (
     ActionCommand(
         name='export',
         help='Export all connections',
+        description=("All connections can be exported in STDOUT using the following command:\n"
+                     "airflow connections export -\n"
+                     "The file format can be determined by the provided file extension. eg, The following "
+                     "command will export the connections in JSON format:\n"
+                     "airflow connections export /tmp/connections.json\n"
+                     "The --format parameter can be used to mention the connections format. eg, "
+                     "the default format is JSON in STDOUT mode, which can be overridden using: \n"
+                     "airflow connections export - --format yaml\n"
+                     "The --format parameter can also be used for the files, for example:\n"
+                     "airflow connections export /tmp/connections --format json\n"),
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_export'),
         args=(ARG_CONN_EXPORT, ARG_CONN_EXPORT_FORMAT,),
     ),

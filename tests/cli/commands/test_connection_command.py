@@ -122,7 +122,7 @@ class TestCliExportConnections(unittest.TestCase):
                 conn_type="mysql",
                 host="mysql",
                 login="root",
-                password="",
+                password="plainpassword",
                 schema="airflow",
             ),
             session
@@ -271,17 +271,19 @@ class TestCliExportConnections(unittest.TestCase):
             "airflow_db": {
                 "conn_type": "mysql",
                 "host": "mysql",
+                "login": "root",
+                "password": "plainpassword",
+                "schema": "airflow",
                 "port": None,
-                "is_encrypted": False,
-                "is_extra_encrypted": False,
-                "extra": None
+                "extra": None,
             },
             "druid_broker_default": {
                 "conn_type": "druid",
                 "host": "druid-broker",
+                "login": None,
+                "password": None,
+                "schema": None,
                 "port": 8082,
-                "is_encrypted": False,
-                "is_extra_encrypted": False,
                 "extra": "{\"endpoint\": \"druid/v2/sql\"}",
             }
         })
@@ -307,16 +309,18 @@ class TestCliExportConnections(unittest.TestCase):
                                 "  conn_type: mysql\n"
                                 "  extra: null\n"
                                 "  host: mysql\n"
-                                "  is_encrypted: false\n"
-                                "  is_extra_encrypted: false\n"
+                                "  login: root\n"
+                                "  password: plainpassword\n"
                                 "  port: null\n"
+                                "  schema: airflow\n"
                                 "druid_broker_default:\n"
                                 "  conn_type: druid\n"
                                 "  extra: \'{\"endpoint\": \"druid/v2/sql\"}\'\n"
                                 "  host: druid-broker\n"
-                                "  is_encrypted: false\n"
-                                "  is_extra_encrypted: false\n"
-                                "  port: 8082\n")
+                                "  login: null\n"
+                                "  password: null\n"
+                                "  port: 8082\n"
+                                "  schema: null\n")
         mock_splittext.assert_called_once()
         mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
         mock_file_open.return_value.write.assert_called_once_with(expected_connections)
@@ -335,7 +339,29 @@ class TestCliExportConnections(unittest.TestCase):
         connection_command.connections_export(args)
 
         expected_connections = (
-            "airflow_db=mysql://root@mysql/airflow\n"
+            "airflow_db=mysql://root:plainpassword@mysql/airflow\n"
+            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n")
+
+        mock_splittext.assert_called_once()
+        mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
+        mock_file_open.return_value.write.assert_called_once_with(expected_connections)
+
+    @mock.patch('os.path.splitext')
+    @mock.patch('builtins.open', new_callable=mock.mock_open())
+    def test_cli_connections_export_should_export_as_env_for_uppercase_file_extension(self, mock_file_open,
+                                                                                      mock_splittext):
+        output_filepath = '/tmp/connections.ENV'
+        mock_splittext.return_value = (None, '.ENV')
+
+        args = self.parser.parse_args([
+            "connections",
+            "export",
+            output_filepath,
+        ])
+        connection_command.connections_export(args)
+
+        expected_connections = (
+            "airflow_db=mysql://root:plainpassword@mysql/airflow\n"
             "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n")
 
         mock_splittext.assert_called_once()
@@ -361,17 +387,19 @@ class TestCliExportConnections(unittest.TestCase):
             "airflow_db": {
                 "conn_type": "mysql",
                 "host": "mysql",
+                "login": "root",
+                "password": "plainpassword",
+                "schema": "airflow",
                 "port": None,
-                "is_encrypted": False,
-                "is_extra_encrypted": False,
-                "extra": None
+                "extra": None,
             },
             "druid_broker_default": {
                 "conn_type": "druid",
                 "host": "druid-broker",
+                "login": None,
+                "password": None,
+                "schema": None,
                 "port": 8082,
-                "is_encrypted": False,
-                "is_extra_encrypted": False,
                 "extra": "{\"endpoint\": \"druid/v2/sql\"}",
             }
         })
