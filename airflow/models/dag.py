@@ -47,7 +47,8 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
@@ -63,6 +64,8 @@ log = logging.getLogger(__name__)
 ScheduleInterval = Union[str, timedelta, relativedelta]
 DEFAULT_VIEW_PRESETS = ['tree', 'graph', 'duration', 'gantt', 'landing_times']
 ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
+
+DagStateChangeCallback = Callable[[Context], None]
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
@@ -226,8 +229,8 @@ class DAG(BaseDag, LoggingMixin):
         default_view: str = conf.get('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
-        on_success_callback: Optional[Callable] = None,
-        on_failure_callback: Optional[Callable] = None,
+        on_success_callback: Optional[DagStateChangeCallback] = None,
+        on_failure_callback: Optional[DagStateChangeCallback] = None,
         doc_md: Optional[str] = None,
         params: Optional[Dict] = None,
         access_control: Optional[Dict] = None,
@@ -686,7 +689,11 @@ class DAG(BaseDag, LoggingMixin):
             ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
             context.update({'reason': reason})
-            callback(context)
+            try:
+                callback(context)
+            except Exception:
+                self.log.exception("failed to invoke dag state update callback")
+                Stats.incr("dag.callback_exceptions")
 
     def get_active_runs(self):
         """

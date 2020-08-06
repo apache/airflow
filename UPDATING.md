@@ -136,6 +136,7 @@ with third party services to the ``airflow.providers`` package.
 All changes made are backward compatible, but if you use the old import paths you will
 see a deprecation warning. The old import paths can be abandoned in the future.
 
+
 ### Migration Guide from Experimental API to Stable API v1
 In Airflow 2.0, we added the new REST API. Experimental API still works, but support may be dropped in the future.
 If your application is still using the experimental API, you should consider migrating to the stable API.
@@ -174,6 +175,14 @@ can now be handled with filter parameters in the query string.
 Getting information about latest runs can be accomplished with the help of
 filters in the query string of this endpoint(``/api/v1/dags/{dag_id}/dagRuns``). Please check the Stable API
 reference documentation for more information
+
+
+### Changes to Exception handling for from DAG callbacks
+
+Exception from DAG callbacks used to crash scheduler. In order to make
+scheduler more robust, we have changed this behavior to log the exception
+instead. On top of that, a new `dag.callback_exceptions` counter metric has
+been added to help better monitor callback exceptions.
 
 
 ### CLI changes in Airflow 2.0
