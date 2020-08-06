@@ -574,9 +574,10 @@ class TestDagRun(unittest.TestCase):
         self.assertEqual('first_task', first_ti.task_id)
         self.assertEqual(State.NONE, first_ti.state)
 
-        # Lets assume that the above TI was added into DB by webserver, so when
-        # the scheduler queries the DB, it found 0 TIs for the dag and proceeds
-        # further to create TIs.
+        # Lets assume that the above TI was added into DB by webserver, but if scheduler
+        # is running the same method at the same time it would find 0 TIs for this dag
+        # and proceeds further to create TIs. Hence mocking DagRun.get_task_instances
+        # method to return an empty list of TIs.
         with mock.patch.object(DagRun, 'get_task_instances') as mock_gtis:
             mock_gtis.return_value = []
             dagrun.verify_integrity()
