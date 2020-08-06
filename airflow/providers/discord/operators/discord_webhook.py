@@ -57,7 +57,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
     template_fields = ['username', 'message']
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  http_conn_id: Optional[str] = None,
                  webhook_endpoint: Optional[str] = None,
                  message: str = "",

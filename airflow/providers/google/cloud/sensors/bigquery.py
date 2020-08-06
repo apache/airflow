@@ -50,7 +50,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  project_id: str,
                  dataset_id: str,
                  table_id: str,

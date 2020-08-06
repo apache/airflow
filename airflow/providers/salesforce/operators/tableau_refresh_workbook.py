@@ -42,7 +42,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  workbook_name: str,
                  site_id: Optional[str] = None,
                  blocking: bool = True,

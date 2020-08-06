@@ -72,7 +72,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         bucket_name: str,
         object_name: str,
         fields: List[str],

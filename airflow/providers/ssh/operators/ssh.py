@@ -59,6 +59,7 @@ class SSHOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  ssh_hook=None,
                  ssh_conn_id=None,
                  remote_host=None,

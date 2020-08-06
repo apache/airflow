@@ -39,7 +39,7 @@ class RedisPublishOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             channel: str,
             message: str,
             redis_conn_id: str = 'redis_default',

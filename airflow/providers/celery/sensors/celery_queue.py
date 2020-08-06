@@ -37,7 +37,7 @@ class CeleryQueueSensor(BaseSensorOperator):
     """
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             celery_queue: str,
             target_task_id: Optional[str] = None,
             **kwargs) -> None:

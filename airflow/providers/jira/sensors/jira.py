@@ -39,7 +39,7 @@ class JiraSensor(BaseSensorOperator):
     """
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  method_name: str,
                  jira_conn_id: str = 'jira_default',
                  method_params: Optional[dict] = None,
@@ -81,7 +81,7 @@ class JiraTicketSensor(JiraSensor):
     template_fields = ("ticket_id",)
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  jira_conn_id: str = 'jira_default',
                  ticket_id: Optional[str] = None,
                  field: Optional[str] = None,

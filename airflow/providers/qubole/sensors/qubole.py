@@ -35,7 +35,7 @@ class QuboleSensor(BaseSensorOperator):
     template_ext = ('.txt',)
 
     @apply_defaults
-    def __init__(self, data, qubole_conn_id="qubole_default", **kwargs):
+    def __init__(self, *, data, qubole_conn_id="qubole_default", **kwargs):
         self.data = data
         self.qubole_conn_id = qubole_conn_id
 

@@ -60,7 +60,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     template_fields = ('src', 'dst', 'bucket')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  src,
                  dst,
                  bucket,

@@ -157,7 +157,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
     # pylint: disable=too-many-locals,too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket,
                  source_objects,
                  destination_project_dataset_table,

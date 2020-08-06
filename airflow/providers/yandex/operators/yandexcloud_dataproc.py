@@ -83,6 +83,7 @@ class DataprocCreateClusterOperator(BaseOperator):
     # pylint: disable=too-many-locals
     @apply_defaults
     def __init__(self,
+                 *,
                  folder_id: Optional[str] = None,
                  cluster_name: Optional[str] = None,
                  cluster_description: str = '',
@@ -174,7 +175,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  connection_id: Optional[str] = None,
                  cluster_id: Optional[str] = None,
                  **kwargs):
@@ -220,7 +221,7 @@ class DataprocCreateHiveJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  query: Optional[str] = None,
                  query_file_uri: Optional[str] = None,
                  script_variables: Optional[Dict[str, str]] = None,
@@ -291,7 +292,7 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  main_class: Optional[str] = None,
                  main_jar_file_uri: Optional[str] = None,
                  jar_file_uris: Optional[Iterable[str]] = None,
@@ -367,7 +368,7 @@ class DataprocCreateSparkJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  main_class: Optional[str] = None,
                  main_jar_file_uri: Optional[str] = None,
                  jar_file_uris: Optional[Iterable[str]] = None,
@@ -443,7 +444,7 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  main_python_file_uri: Optional[str] = None,
                  python_file_uris: Optional[Iterable[str]] = None,
                  jar_file_uris: Optional[Iterable[str]] = None,

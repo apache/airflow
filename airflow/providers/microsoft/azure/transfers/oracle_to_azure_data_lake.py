@@ -62,7 +62,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             filename: str,
             azure_data_lake_conn_id: str,
             azure_data_lake_path: str,

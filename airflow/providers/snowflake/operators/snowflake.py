@@ -63,7 +63,7 @@ class SnowflakeOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, sql, snowflake_conn_id='snowflake_default', parameters=None,
+            self, *, sql, snowflake_conn_id='snowflake_default', parameters=None,
             autocommit=True, warehouse=None, database=None, role=None,
             schema=None, authenticator=None, **kwargs):
         super().__init__(**kwargs)

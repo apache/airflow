@@ -58,7 +58,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
     }
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  postgres_conn_id='postgres_default',
                  **kwargs):
         super().__init__(**kwargs)

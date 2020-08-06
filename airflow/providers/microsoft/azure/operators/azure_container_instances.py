@@ -122,7 +122,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  ci_conn_id: str,
                  registry_conn_id: Optional[str],
                  resource_group: str,

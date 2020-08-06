@@ -47,7 +47,7 @@ class ExasolOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             sql: str,
             exasol_conn_id: str = 'exasol_default',
             autocommit: bool = False,

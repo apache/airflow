@@ -46,7 +46,7 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             database_name: str,
             collection_name: str,
             document_id: str,

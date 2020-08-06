@@ -132,7 +132,7 @@ class DockerOperator(BaseOperator):
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             image: str,
             api_version: Optional[str] = None,
             command: Optional[Union[str, List[str]]] = None,

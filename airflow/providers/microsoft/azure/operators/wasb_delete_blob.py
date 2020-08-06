@@ -45,7 +45,7 @@ class WasbDeleteBlobOperator(BaseOperator):
     template_fields = ('container_name', 'blob_name')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  container_name: str,
                  blob_name: str,
                  wasb_conn_id: str = 'wasb_default',

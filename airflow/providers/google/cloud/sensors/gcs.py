@@ -50,7 +50,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket: str,
                  object: str,  # pylint: disable=redefined-builtin
                  google_cloud_conn_id: str = 'google_cloud_default',

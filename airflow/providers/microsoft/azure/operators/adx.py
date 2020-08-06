@@ -48,7 +48,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             query: str,
             database: str,
             options: Optional[Dict] = None,

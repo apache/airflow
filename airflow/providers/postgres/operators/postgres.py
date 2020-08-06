@@ -47,7 +47,7 @@ class PostgresOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             sql: str,
             postgres_conn_id: str = 'postgres_default',
             autocommit: bool = False,

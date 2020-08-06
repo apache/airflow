@@ -47,6 +47,7 @@ class S3ToSnowflakeOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  s3_keys,
                  table,
                  stage,

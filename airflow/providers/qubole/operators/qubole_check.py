@@ -81,7 +81,7 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
     ui_fgcolor = '#000'
 
     @apply_defaults
-    def __init__(self, qubole_conn_id="qubole_default", **kwargs):
+    def __init__(self, *, qubole_conn_id="qubole_default", **kwargs):
         sql = get_sql_from_qbol_cmd(kwargs)
         super().__init__(qubole_conn_id=qubole_conn_id, sql=sql, **kwargs)
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry

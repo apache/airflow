@@ -44,7 +44,7 @@ class SlackAPIOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  slack_conn_id: Optional[str] = None,
                  token: Optional[str] = None,
                  method: Optional[str] = None,

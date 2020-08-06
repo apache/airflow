@@ -64,7 +64,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         client_ids: List[str],
         query: str,
         attributes: List[str],

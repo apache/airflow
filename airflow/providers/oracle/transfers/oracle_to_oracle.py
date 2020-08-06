@@ -46,7 +46,7 @@ class OracleToOracleOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             oracle_destination_conn_id,
             destination_table,
             oracle_source_conn_id,

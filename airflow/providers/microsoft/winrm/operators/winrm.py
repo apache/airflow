@@ -51,7 +51,7 @@ class WinRMOperator(BaseOperator):
     template_fields = ('command',)
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  winrm_hook=None,
                  ssh_conn_id=None,
                  remote_host=None,

@@ -64,7 +64,7 @@ class SimpleHttpOperator(BaseOperator):
     ui_color = '#f4a460'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  endpoint: Optional[str] = None,
                  method: str = 'POST',
                  data: Any = None,

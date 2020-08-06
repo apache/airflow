@@ -42,7 +42,7 @@ class SegmentTrackEventOperator(BaseOperator):
     ui_color = '#ffd700'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  user_id: str,
                  event: str,
                  properties: Optional[dict] = None,

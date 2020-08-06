@@ -245,7 +245,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             json=None,
             spark_jar_task=None,
             notebook_task=None,
@@ -457,7 +457,7 @@ class DatabricksRunNowOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             job_id=None,
             json=None,
             notebook_params=None,

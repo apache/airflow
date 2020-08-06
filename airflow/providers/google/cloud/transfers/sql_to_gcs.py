@@ -79,7 +79,7 @@ class BaseSQLToGCSOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments
+    def __init__(self, *,  # pylint: disable=too-many-arguments
                  sql,
                  bucket,
                  filename,

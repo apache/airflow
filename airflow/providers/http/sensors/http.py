@@ -70,7 +70,7 @@ class HttpSensor(BaseSensorOperator):
     template_fields = ('endpoint', 'request_params')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  endpoint: str,
                  http_conn_id: str = 'http_default',
                  method: str = 'GET',

@@ -68,7 +68,7 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         profile_id: str,
         report_id: str,
         file_id: str,

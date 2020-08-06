@@ -46,7 +46,7 @@ class OracleOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             sql: str,
             oracle_conn_id: str = 'oracle_default',
             parameters: Optional[Union[Mapping, Iterable]] = None,
