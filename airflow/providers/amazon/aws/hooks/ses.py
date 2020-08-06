@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=R0913
 """
 This module contains AWS SES Hook
 """
@@ -40,7 +39,7 @@ class SESHook(AwsBaseHook):
         kwargs['client_type'] = 'ses'
         super().__init__(*args, **kwargs)
 
-    def send_email(
+    def send_email(  # pylint: disable=too-many-arguments
         self,
         mail_from: str,
         to: Union[str, Iterable[str]],
