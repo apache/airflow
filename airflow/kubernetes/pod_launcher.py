@@ -311,6 +311,7 @@ def _convert_to_airflow_pod(pod):
         namespace=pod.metadata.namespace,
         image_pull_policy=base_container.image_pull_policy or 'IfNotPresent',
         tolerations=pod.spec.tolerations,
+        resources=base_container.resources,
         secrets=secrets,
         affinity=pod.spec.affinity,
         security_context=_extract_security_context(pod.spec.security_context)

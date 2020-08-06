@@ -288,6 +288,80 @@ class TestPodGenerator(unittest.TestCase):
         }, result)
 
     @mock.patch('uuid.uuid4')
+    def test_from_obj_with_resources_object(self, mock_uuid):
+        mock_uuid.return_value = self.static_uuid
+        result = PodGenerator.from_obj({
+            "KubernetesExecutor": {
+                "annotations": {"test": "annotation"},
+                "volumes": [
+                    {
+                        "name": "example-kubernetes-test-volume",
+                        "hostPath": {"path": "/tmp/"},
+                    },
+                ],
+                "volume_mounts": [
+                    {
+                        "mountPath": "/foo/",
+                        "name": "example-kubernetes-test-volume",
+                    },
+                ],
+                "resources": {
+                    "resources": {
+                        "requests": {
+                            "memory": "256Mi",
+                            "cpu": "500m",
+                            "ephemeral-storage": "2G",
+                            "nvidia.com/gpu": "0"
+                        },
+                        "limits": {
+                            "memory": "512Mi",
+                            "cpu": "1000m",
+                            "ephemeral-storage": "2G",
+                            "nvidia.com/gpu": "0"
+                        }
+                    }
+                }
+            }
+        })
+        result = self.k8s_client.sanitize_for_serialization(result)
+
+        self.assertEqual({
+            'apiVersion': 'v1',
+            'kind': 'Pod',
+            'metadata': {
+                'annotations': {'test': 'annotation'},
+            },
+            'spec': {
+                'containers': [{
+                    'args': [],
+                    'command': [],
+                    'env': [],
+                    'envFrom': [],
+                    'name': 'base',
+                    'ports': [],
+                    'volumeMounts': [{
+                        'mountPath': '/foo/',
+                        'name': 'example-kubernetes-test-volume'
+                    }],
+                    'resources': {'resources': {'limits': {'cpu': '1000m',
+                                                           'ephemeral-storage': '2G',
+                                                           'memory': '512Mi',
+                                                           'nvidia.com/gpu': '0'},
+                                                'requests': {'cpu': '500m',
+                                                             'ephemeral-storage': '2G',
+                                                             'memory': '256Mi',
+                                                             'nvidia.com/gpu': '0'}}},
+                }],
+                'hostNetwork': False,
+                'imagePullSecrets': [],
+                'volumes': [{
+                    'hostPath': {'path': '/tmp/'},
+                    'name': 'example-kubernetes-test-volume'
+                }],
+            }
+        }, result)
+
+    @mock.patch('uuid.uuid4')
     def test_from_obj_with_resources(self, mock_uuid):
         self.maxDiff = None
 
@@ -586,7 +660,7 @@ class TestPodGenerator(unittest.TestCase):
         }, sanitized_result)
 
     @mock.patch('uuid.uuid4')
-    def test_construct_pod_empty_execuctor_config(self, mock_uuid):
+    def test_construct_pod_empty_executor_config(self, mock_uuid):
         mock_uuid.return_value = self.static_uuid
         worker_config = k8s.V1Pod(
             spec=k8s.V1PodSpec(
@@ -647,6 +721,92 @@ class TestPodGenerator(unittest.TestCase):
 
     @mock.patch('uuid.uuid4')
     def test_construct_pod(self, mock_uuid):
+        mock_uuid.return_value = self.static_uuid
+        worker_config = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name='gets-overridden-by-dynamic-args',
+                annotations={
+                    'should': 'stay'
+                }
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name='doesnt-override',
+                        resources=k8s.V1ResourceRequirements(
+                            limits={
+                                'cpu': '1m',
+                                'memory': '1G'
+                            }
+                        ),
+                        security_context=k8s.V1SecurityContext(
+                            run_as_user=1
+                        )
+                    )
+                ]
+            )
+        )
+        executor_config = k8s.V1Pod(
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name='doesnt-override-either',
+                        resources=k8s.V1ResourceRequirements(
+                            limits={
+                                'cpu': '2m',
+                                'memory': '2G'
+                            }
+                        )
+                    )
+                ]
+            )
+        )
+
+        result = PodGenerator.construct_pod(
+            'dag_id',
+            'task_id',
+            'pod_id',
+            3,
+            'date',
+            ['command'],
+            executor_config,
+            worker_config,
+            'namespace',
+            'uuid',
+        )
+        sanitized_result = self.k8s_client.sanitize_for_serialization(result)
+
+        self.metadata.update({'annotations': {'should': 'stay'}})
+
+        self.assertEqual({
+            'apiVersion': 'v1',
+            'kind': 'Pod',
+            'metadata': self.metadata,
+            'spec': {
+                'containers': [{
+                    'args': [],
+                    'command': ['command'],
+                    'env': [],
+                    'envFrom': [],
+                    'name': 'base',
+                    'ports': [],
+                    'resources': {
+                        'limits': {
+                            'cpu': '2m',
+                            'memory': '2G'
+                        }
+                    },
+                    'volumeMounts': [],
+                    'securityContext': {'runAsUser': 1}
+                }],
+                'hostNetwork': False,
+                'imagePullSecrets': [],
+                'volumes': []
+            }
+        }, sanitized_result)
+
+    @mock.patch('uuid.uuid4')
+    def test_construct_pod_with_mutation(self, mock_uuid):
         mock_uuid.return_value = self.static_uuid
         worker_config = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
