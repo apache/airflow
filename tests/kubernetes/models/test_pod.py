@@ -98,7 +98,10 @@ class TestPod(unittest.TestCase):
                 request_cpu="100Mi",
                 limit_gpu="100G"
             ),
-            volumes=[Volume(name="foo", configs={}), {"name": "bar", 'secret': {'secretName': 'volume-secret'} }],
+            volumes=[
+                Volume(name="foo", configs={}),
+                {"name": "bar", 'secret': {'secretName': 'volume-secret'}}
+            ],
             secrets=[
                 Secret('env', "AIRFLOW_SECRET", 'secret_name', "airflow_config"),
                 Secret("volume", "/opt/airflow", "volume-secret", "secret-key")
