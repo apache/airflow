@@ -43,7 +43,7 @@ class FileSensor(BaseSensorOperator):
     ui_color = '#91818a'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  filepath,
                  fs_conn_id='fs_default',
                  **kwargs):

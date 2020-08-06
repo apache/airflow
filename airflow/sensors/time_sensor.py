@@ -30,7 +30,7 @@ class TimeSensor(BaseSensorOperator):
     """
 
     @apply_defaults
-    def __init__(self, target_time, **kwargs):
+    def __init__(self, *, target_time, **kwargs):
         super().__init__(**kwargs)
         self.target_time = target_time
 

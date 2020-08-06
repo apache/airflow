@@ -51,8 +51,8 @@ class EmailOperator(BaseOperator):
     ui_color = '#e6faf9'
 
     @apply_defaults
-    def __init__(
-            self,
+    def __init__(  # pylint: disable=invalid-name
+            self, *,
             to: Union[List[str], str],
             subject: str,
             html_content: str,

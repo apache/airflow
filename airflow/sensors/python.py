@@ -50,7 +50,7 @@ class PythonSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             python_callable: Callable,
             op_args: Optional[List] = None,
             op_kwargs: Optional[Dict] = None,
