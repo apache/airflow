@@ -31,8 +31,8 @@ import warnings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
-from google.api_core.exceptions import AlreadyExists
-from google.api_core.retry import Retry
+from google.api_core.exceptions import AlreadyExists, NotFound
+from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-module
     Cluster, Duration, FieldMask,
 )
@@ -418,9 +418,14 @@ class ClusterGenerator:
 class DataprocCreateClusterOperator(BaseOperator):
     """
     Create a new cluster on Google Cloud Dataproc. The operator will wait until the
-    creation is successful or an error occurs in the creation process.
+    creation is successful or an error occurs in the creation process. If the cluster
+    already exists and ``use_if_exists`` is True then the operator will:
 
-    The parameters allow to configure the cluster. Please refer to
+    - if cluster state is ERROR then delete it if specified and raise error
+    - if cluster state is CREATING wait for it and then check for ERROR state
+    - if cluster state is DELETING wait for it and then create new cluster
+
+    Please refer to
 
     https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters
 
@@ -436,6 +441,11 @@ class DataprocCreateClusterOperator(BaseOperator):
     :type project_id: str
     :param region: leave as 'global', might become relevant in the future. (templated)
     :type region: str
+    :parm delete_on_error: If true the cluster will be deleted if created with ERROR state. Default
+        value is true.
+    :type delete_on_error: bool
+    :parm use_if_exists: If true use existing cluster
+    :type use_if_exists: bool
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``DeleteClusterRequest`` requests with the same id, then the second request will be ignored and the
         first ``google.longrunning.Operation`` created and stored in the backend is returned.
@@ -455,16 +465,21 @@ class DataprocCreateClusterOperator(BaseOperator):
     template_fields = ('project_id', 'region', 'cluster')
 
     @apply_defaults
-    def __init__(self, *,
-                 region: str = 'global',
-                 project_id: Optional[str] = None,
-                 cluster: Optional[Dict] = None,
-                 request_id: Optional[str] = None,
-                 retry: Optional[Retry] = None,
-                 timeout: Optional[float] = None,
-                 metadata: Optional[Sequence[Tuple[str, str]]] = None,
-                 gcp_conn_id: str = "google_cloud_default",
-                 **kwargs) -> None:
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        *,
+        region: str = 'global',
+        project_id: Optional[str] = None,
+        cluster: Optional[Dict] = None,
+        request_id: Optional[str] = None,
+        delete_on_error: bool = True,
+        use_if_exists: bool = True,
+        retry: Optional[Retry] = None,
+        timeout: float = 1 * 60 * 60,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        **kwargs
+    ) -> None:
         # TODO: remove one day
         if cluster is None:
             warnings.warn(
@@ -492,7 +507,10 @@ class DataprocCreateClusterOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.cluster = cluster
-        self.cluster_name = cluster.get('cluster_name')
+        try:
+            self.cluster_name = cluster['cluster_name']
+        except KeyError:
+            raise AirflowException("`config` misses `cluster_name` key")
         self.project_id = project_id
         self.region = region
         self.request_id = request_id
@@ -500,32 +518,113 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.delete_on_error = delete_on_error
+        self.use_if_exists = use_if_exists
+
+    def _create_cluster(self, hook):
+        operation = hook.create_cluster(
+            project_id=self.project_id,
+            region=self.region,
+            cluster=self.cluster,
+            request_id=self.request_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        cluster = operation.result()
+        self.log.info("Cluster created.")
+        return cluster
+
+    def _delete_cluster(self, hook):
+        self.log.info("Deleting the cluster")
+        hook.delete_cluster(
+            region=self.region,
+            cluster_name=self.cluster_name,
+            project_id=self.project_id,
+        )
+
+    def _get_cluster(self, hook: DataprocHook):
+        return hook.get_cluster(
+            project_id=self.project_id,
+            region=self.region,
+            cluster_name=self.cluster_name,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+
+    def _handle_error_state(self, hook: DataprocHook, cluster: Cluster) -> None:
+        if cluster.status.state != cluster.status.ERROR:
+            return
+        self.log.info("Cluster is in ERROR state")
+        gcs_uri = hook.diagnose_cluster(
+            region=self.region,
+            cluster_name=self.cluster_name,
+            project_id=self.project_id,
+        )
+        self.log.info(
+            'Diagnostic information for cluster %s available at: %s',
+            self.cluster_name, gcs_uri
+        )
+        if self.delete_on_error:
+            self._delete_cluster(hook)
+            raise AirflowException("Cluster was created but was in ERROR state.")
+        raise AirflowException("Cluster was created but is in ERROR state")
+
+    def _wait_for_cluster_in_deleting_state(self, hook: DataprocHook) -> None:
+        time_left = self.timeout
+        for time_to_sleep in exponential_sleep_generator(initial=10, maximum=120):
+            if time_left < 0:
+                raise AirflowException(
+                    f"Cluster {self.cluster_name} is still DELETING state, aborting"
+                )
+            time.sleep(time_to_sleep)
+            time_left = time_left - time_to_sleep
+            try:
+                self._get_cluster(hook)
+            except NotFound:
+                break
+
+    def _wait_for_cluster_in_creating_state(self, hook: DataprocHook) -> Cluster:
+        time_left = self.timeout
+        cluster = self._get_cluster(hook)
+        for time_to_sleep in exponential_sleep_generator(initial=10, maximum=120):
+            if cluster.status.state != cluster.status.CREATING:
+                break
+            if time_left < 0:
+                raise AirflowException(
+                    f"Cluster {self.cluster_name} is still CREATING state, aborting"
+                )
+            time.sleep(time_to_sleep)
+            time_left = time_left - time_to_sleep
+            cluster = self._get_cluster(hook)
+        return cluster
 
     def execute(self, context):
         self.log.info('Creating cluster: %s', self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
         try:
-            operation = hook.create_cluster(
-                project_id=self.project_id,
-                region=self.region,
-                cluster=self.cluster,
-                request_id=self.request_id,
-                retry=self.retry,
-                timeout=self.timeout,
-                metadata=self.metadata,
-            )
-            cluster = operation.result()
-            self.log.info("Cluster created.")
+            # First try to create a new cluster
+            cluster = self._create_cluster(hook)
         except AlreadyExists:
-            cluster = hook.get_cluster(
-                project_id=self.project_id,
-                region=self.region,
-                cluster_name=self.cluster_name,
-                retry=self.retry,
-                timeout=self.timeout,
-                metadata=self.metadata,
-            )
+            if not self.use_if_exists:
+                raise
             self.log.info("Cluster already exists.")
+            cluster = self._get_cluster(hook)
+
+        # Check if cluster is not in ERROR state
+        self._handle_error_state(hook, cluster)
+        if cluster.status.state == cluster.status.CREATING:
+            # Wait for cluster to be be created
+            cluster = self._wait_for_cluster_in_creating_state(hook)
+            self._handle_error_state(hook, cluster)
+        elif cluster.status.state == cluster.status.DELETING:
+            # Wait for cluster to be deleted
+            self._wait_for_cluster_in_deleting_state(hook)
+            # Create new cluster
+            cluster = self._create_cluster(hook)
+            self._handle_error_state(hook, cluster)
+
         return MessageToDict(cluster)
 
 
