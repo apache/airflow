@@ -207,8 +207,8 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def list_prefixes(self,
                       bucket_name: Optional[str] = None,
-                      prefix: str = '',
-                      delimiter: str = '',
+                      prefix: Optional[str] = None,
+                      delimiter: Optional[str] = None,
                       page_size: Optional[int] = None,
                       max_items: Optional[int] = None) -> Optional[list]:
         """
@@ -227,6 +227,8 @@ class S3Hook(AwsBaseHook):
         :return: a list of matched prefixes and None if there are none.
         :rtype: list
         """
+        prefix = prefix or ''
+        delimiter = delimiter or ''
         config = {
             'PageSize': page_size,
             'MaxItems': max_items,
@@ -253,8 +255,8 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def list_keys(self,
                   bucket_name: Optional[str] = None,
-                  prefix: str = '',
-                  delimiter: str = '',
+                  prefix: Optional[str] = None,
+                  delimiter: Optional[str] = None,
                   page_size: Optional[int] = None,
                   max_items: Optional[int] = None) -> Optional[list]:
         """
@@ -273,6 +275,8 @@ class S3Hook(AwsBaseHook):
         :return: a list of matched keys and None if there are none.
         :rtype: list
         """
+        prefix = prefix or ''
+        delimiter = delimiter or ''
         config = {
             'PageSize': page_size,
             'MaxItems': max_items,
@@ -357,8 +361,8 @@ class S3Hook(AwsBaseHook):
     def select_key(self,
                    key: str,
                    bucket_name: Optional[str] = None,
-                   expression: str = 'SELECT * FROM S3Object',
-                   expression_type: str = 'SQL',
+                   expression: Optional[str] = None,
+                   expression_type: Optional[str] = None,
                    input_serialization: Optional[Dict[str, Any]] = None,
                    output_serialization: Optional[Dict[str, Any]] = None) -> str:
         """
@@ -383,6 +387,9 @@ class S3Hook(AwsBaseHook):
             For more details about S3 Select parameters:
             http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.select_object_content
         """
+        expression = expression or 'SELECT * FROM S3Object'
+        expression_type = expression_type or 'SQL'
+
         if input_serialization is None:
             input_serialization = {'CSV': {}}
         if output_serialization is None:
@@ -509,7 +516,7 @@ class S3Hook(AwsBaseHook):
                     bucket_name: Optional[str] = None,
                     replace: bool = False,
                     encrypt: bool = False,
-                    encoding: str = 'utf-8',
+                    encoding: Optional[str] = None,
                     acl_policy: Optional[str] = None) -> None:
         """
         Loads a string to S3
@@ -535,6 +542,8 @@ class S3Hook(AwsBaseHook):
             object to be uploaded
         :type acl_policy: str
         """
+        encoding = encoding or 'utf-8'
+
         bytes_data = string_data.encode(encoding)
         file_obj = io.BytesIO(bytes_data)
         self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
@@ -630,7 +639,7 @@ class S3Hook(AwsBaseHook):
                     source_bucket_name: Optional[str] = None,
                     dest_bucket_name: Optional[str] = None,
                     source_version_id: Optional[str] = None,
-                    acl_policy: str = 'private') -> None:
+                    acl_policy: Optional[str] = None) -> None:
         """
         Creates a copy of an object that is already stored in S3.
 
@@ -662,6 +671,7 @@ class S3Hook(AwsBaseHook):
             object to be copied which is private by default.
         :type acl_policy: str
         """
+        acl_policy = acl_policy or 'private'
 
         if dest_bucket_name is None:
             dest_bucket_name, dest_bucket_key = self.parse_s3_url(dest_bucket_key)
