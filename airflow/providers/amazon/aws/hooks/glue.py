@@ -108,14 +108,15 @@ class AwsGlueJobHook(AwsBaseHook):
                 JobName=job_name,
                 Arguments=script_arguments
             )
-            return self.job_completion(job_name, job_run['JobRunId'])
+            return job_run
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
 
     def get_job_state(self, job_name=None, run_id=None):
         """
-        Get state of the Glue job. The job state can be running, finished, failed, stopped or timeout.
+        Get state of the Glue job. The job state can be
+        running, finished, failed, stopped or timeout.
         :param job_name: unique job name per AWS account
         :type job_name: str
         :param run_id: The job-run ID of the predecessor job run
@@ -133,7 +134,8 @@ class AwsGlueJobHook(AwsBaseHook):
 
     def job_completion(self, job_name=None, run_id=None):
         """
-        Waits until Glue job with job_name completes or fails and return final state if finished.
+        Waits until Glue job with job_name completes or
+        fails and return final state if finished.
         Raises AirflowException when the job failed
         :param job_name: unique job name per AWS account
         :type job_name: str
