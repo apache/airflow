@@ -1058,6 +1058,8 @@ class HiveServer2Hook(DbApiHook):
         :type schema: str
         :param hive_conf: hive_conf to execute alone with the hql.
         :type hive_conf: dict
+        :param kwargs: (optional) passed into pandas.DataFrame constructor
+        :type kwargs: dict
         :return: result of hive execution
         :rtype: DataFrame
 

@@ -67,6 +67,8 @@ class ExasolHook(DbApiHook):
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
+        :param kwargs: (optional) passed into pyexasol.ExaConnection.export_to_pandas method
+        :type kwargs: dict
         """
         with closing(self.get_conn()) as conn:
             conn.export_to_pandas(sql, query_params=parameters, **kwargs)

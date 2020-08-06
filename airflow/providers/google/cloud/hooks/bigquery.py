@@ -187,6 +187,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param dialect: Dialect of BigQuery SQL – legacy SQL or standard SQL
             defaults to use `self.use_legacy_sql` if not specified
         :type dialect: str in {'legacy', 'standard'}
+        :param kwargs: (optional) passed into pandas_gbq.read_gbq method
+        :type kwargs: dict
         """
         if dialect is None:
             dialect = 'legacy' if self.use_legacy_sql else 'standard'

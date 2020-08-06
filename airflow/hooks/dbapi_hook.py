@@ -115,6 +115,8 @@ class DbApiHook(BaseHook):
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        :type kwargs: dict
         """
         from pandas.io import sql as psql
 
