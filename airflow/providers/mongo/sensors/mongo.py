@@ -45,9 +45,8 @@ class MongoSensor(BaseSensorOperator):
                  collection: str,
                  query: dict,
                  mongo_conn_id: str = "mongo_default",
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.mongo_conn_id = mongo_conn_id
         self.collection = collection
         self.query = query

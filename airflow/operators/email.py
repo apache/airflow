@@ -61,8 +61,8 @@ class EmailOperator(BaseOperator):
             bcc: Optional[Union[List[str], str]] = None,
             mime_subtype: str = 'mixed',
             mime_charset: str = 'utf-8',
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+            **kwargs) -> None:
+        super().__init__(**kwargs)
         self.to = to  # pylint: disable=invalid-name
         self.subject = subject
         self.html_content = html_content

@@ -59,7 +59,6 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         table_id: str,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
         self.project_id = project_id
@@ -67,7 +66,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         self.table_id = table_id
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def poke(self, context):
         hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)

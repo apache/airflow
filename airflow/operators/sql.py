@@ -157,7 +157,6 @@ class SQLValueCheckOperator(BaseOperator):
         pass_value: Any,
         tolerance: Any = None,
         conn_id: Optional[str] = None,
-        *args,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -280,7 +279,6 @@ class SQLIntervalCheckOperator(BaseOperator):
         ratio_formula: Optional[str] = "max_over_min",
         ignore_zero: Optional[bool] = True,
         conn_id: Optional[str] = None,
-        *args,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -422,7 +420,6 @@ class SQLThresholdCheckOperator(BaseOperator):
         min_threshold: Any,
         max_threshold: Any,
         conn_id: Optional[str] = None,
-        *args,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -517,7 +514,6 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
         conn_id: str = "default_conn_id",
         database: Optional[str] = None,
         parameters: Optional[Union[Mapping, Iterable]] = None,
-        *args,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

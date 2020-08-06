@@ -77,10 +77,9 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         retry: Optional[Retry] = None,
         request_timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.run_id = run_id
         self.transfer_config_id = transfer_config_id
         self.retry = retry

@@ -73,9 +73,8 @@ class OracleToAzureDataLakeOperator(BaseOperator):
             encoding: str = "utf-8",
             quotechar: str = '"',
             quoting: str = csv.QUOTE_MINIMAL,
-            *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if sql_params is None:
             sql_params = {}
         self.filename = filename

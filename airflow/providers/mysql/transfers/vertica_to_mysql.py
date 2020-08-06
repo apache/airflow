@@ -72,8 +72,8 @@ class VerticaToMySqlOperator(BaseOperator):
             mysql_preoperator=None,
             mysql_postoperator=None,
             bulk_load=False,
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
         self.sql = sql
         self.mysql_table = mysql_table
         self.mysql_conn_id = mysql_conn_id

@@ -93,9 +93,8 @@ class BaseSQLToGCSOperator(BaseOperator):
                  gcp_conn_id='google_cloud_default',
                  google_cloud_storage_conn_id=None,
                  delegate_to=None,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(

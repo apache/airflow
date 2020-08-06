@@ -78,9 +78,8 @@ class HttpSensor(BaseSensorOperator):
                  headers: Optional[Dict[str, Any]] = None,
                  response_check: Optional[Callable[..., Any]] = None,
                  extra_options: Optional[Dict[str, Any]] = None,
-                 *args: Any, **kwargs: Any
-                 ) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
         self.request_params = request_params or {}

@@ -81,10 +81,9 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         api_version: str = "v6.0",
         gcp_conn_id: str = "google_cloud_default",
         facebook_conn_id: str = "facebook_default",
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket_name = bucket_name
         self.object_name = object_name
         self.gcp_conn_id = gcp_conn_id

@@ -74,9 +74,8 @@ class ExternalTaskSensor(BaseSensorOperator):
                  execution_delta=None,
                  execution_date_fn=None,
                  check_existence=False,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.allowed_states = allowed_states or [State.SUCCESS]
         self.failed_states = failed_states or []
 
@@ -248,9 +247,8 @@ class ExternalTaskMarker(DummyOperator):
                  external_task_id,
                  execution_date: Optional[Union[str, datetime.datetime]] = "{{ execution_date.isoformat() }}",
                  recursion_depth: int = 10,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
         if isinstance(execution_date, datetime.datetime):

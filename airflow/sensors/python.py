@@ -55,8 +55,8 @@ class PythonSensor(BaseSensorOperator):
             op_args: Optional[List] = None,
             op_kwargs: Optional[Dict] = None,
             templates_dict: Optional[Dict] = None,
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
         self.python_callable = python_callable
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}

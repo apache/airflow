@@ -40,7 +40,7 @@ class AwsGlueJobSensor(BaseSensorOperator):
                  run_id,
                  aws_conn_id='aws_default',
                  **kwargs):
-        super(AwsGlueJobSensor, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.job_name = job_name
         self.run_id = run_id
         self.aws_conn_id = aws_conn_id

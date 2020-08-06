@@ -81,10 +81,9 @@ class GCSToSFTPOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         sftp_conn_id: str = "ssh_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.source_bucket = source_bucket
         self.source_object = source_object

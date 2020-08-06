@@ -50,9 +50,8 @@ class ImapAttachmentSensor(BaseSensorOperator):
                  mail_folder='INBOX',
                  mail_filter='All',
                  conn_id='imap_default',
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.attachment_name = attachment_name
         self.check_regex = check_regex

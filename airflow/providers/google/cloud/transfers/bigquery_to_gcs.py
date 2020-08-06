@@ -85,9 +85,8 @@ class BigQueryToGCSOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  labels: Optional[Dict] = None,
                  location: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if bigquery_conn_id:
             warnings.warn(

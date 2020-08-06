@@ -47,8 +47,8 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
             def __init__(
                     self,
                     name: str,
-                    *args, **kwargs) -> None:
-                super().__init__(*args, **kwargs)
+                    **kwargs) -> None:
+                super().__init__(**kwargs)
                 self.name = name
 
             def execute(self, context):
@@ -104,8 +104,8 @@ Let's extend our previous example to fetch name from MySQL:
                     name: str,
                     mysql_conn_id: str,
                     database: str,
-                    *args, **kwargs) -> None:
-                super().__init__(*args, **kwargs)
+                    **kwargs) -> None:
+                super().__init__(**kwargs)
                 self.name = name
                 self.mysql_conn_id = mysql_conn_id
                 self.database = database
@@ -157,8 +157,8 @@ the operator.
             def __init__(
                     self,
                     name: str,
-                    *args, **kwargs) -> None:
-                super().__init__(*args, **kwargs)
+                    **kwargs) -> None:
+                super().__init__(**kwargs)
                 self.name = name
 
             def execute(self, context):
@@ -193,8 +193,8 @@ with actual value. Note that Jinja substitutes the operator attributes and not t
             def __init__(
                     self,
                     name: str,
-                    *args, **kwargs) -> None:
-                super().__init__(*args, **kwargs)
+                    **kwargs) -> None:
+                super().__init__(**kwargs)
                 self.guest_name = name
 
 In the example, the ``template_fields`` should be ``['guest_name']`` and not  ``['name']``

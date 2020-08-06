@@ -75,7 +75,6 @@ class GCSToLocalFilesystemOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
         # To preserve backward compatibility
         # TODO: Remove one day
@@ -95,7 +94,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
             gcp_conn_id = google_cloud_storage_conn_id
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket = bucket
         self.object = object_name
         self.filename = filename  # noqa

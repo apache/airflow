@@ -35,7 +35,7 @@ class QuboleSensor(BaseSensorOperator):
     template_ext = ('.txt',)
 
     @apply_defaults
-    def __init__(self, data, qubole_conn_id="qubole_default", *args, **kwargs):
+    def __init__(self, data, qubole_conn_id="qubole_default", **kwargs):
         self.data = data
         self.qubole_conn_id = qubole_conn_id
 
@@ -44,7 +44,7 @@ class QuboleSensor(BaseSensorOperator):
                                    "task '{0}' in dag '{1}'."
                                    .format(kwargs['task_id'], kwargs['dag'].dag_id))
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def poke(self, context):
 
@@ -83,9 +83,9 @@ class QuboleFileSensor(QuboleSensor):
     """
 
     @apply_defaults
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self.sensor_class = FileSensor
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
 
 class QubolePartitionSensor(QuboleSensor):
@@ -106,6 +106,6 @@ class QubolePartitionSensor(QuboleSensor):
     """
 
     @apply_defaults
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self.sensor_class = PartitionSensor
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)

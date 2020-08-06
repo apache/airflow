@@ -74,9 +74,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                  soft_fail: bool = False,
                  mode: str = 'poke',
                  exponential_backoff: bool = False,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.timeout = timeout

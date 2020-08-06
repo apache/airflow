@@ -103,7 +103,6 @@ class PubSubPullSensor(BaseSensorOperator):
             messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
             delegate_to: Optional[str] = None,
             project: Optional[str] = None,
-            *args,
             **kwargs
     ) -> None:
         # To preserve backward compatibility
@@ -126,7 +125,7 @@ class PubSubPullSensor(BaseSensorOperator):
                 stacklevel=2
             )
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.project_id = project_id

@@ -121,8 +121,8 @@ class CustomOperator(BaseOperator):
         )
 
     @apply_defaults
-    def __init__(self, bash_command=None, *args, **kwargs):
-        super(CustomOperator, self).__init__(*args, **kwargs)
+    def __init__(self, bash_command=None, **kwargs):
+        super(CustomOperator, self).__init__(**kwargs)
         self.bash_command = bash_command
 
     def execute(self, context):
@@ -170,9 +170,9 @@ class MockHiveOperator(HiveOperator):
 
 class DeprecatedOperator(BaseOperator):
     @apply_defaults
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=4)
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         pass

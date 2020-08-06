@@ -48,8 +48,8 @@ class SparkKubernetesSensor(BaseSensorOperator):
                  application_name: str,
                  namespace: Optional[str] = None,
                  kubernetes_conn_id: str = 'kubernetes_default',
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+                 **kwargs):
+        super().__init__(**kwargs)
         self.application_name = application_name
         self.namespace = namespace
         self.kubernetes_conn_id = kubernetes_conn_id
