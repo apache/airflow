@@ -102,9 +102,12 @@ class PodLauncher(LoggingMixin):
             dummy_pod = dummy_pod.to_v1_kubernetes_pod()
             from airflow.kubernetes.pod_generator import PodGenerator
             new_pod = PodGenerator.reconcile_pods(pod, dummy_pod)
-        except AttributeError:
-            settings.pod_mutation_hook(pod)
-            return pod
+        except AttributeError as e:
+            try:
+                settings.pod_mutation_hook(pod)
+                return pod
+            except AttributeError as e2:
+                raise Exception([e, e2])
         return new_pod
 
     def delete_pod(self, pod):
