@@ -93,7 +93,7 @@ class S3ToGCSOperator(S3ListOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket,
                  prefix='',
                  delimiter='',

@@ -65,6 +65,7 @@ class VerticaToMySqlOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
+            *,
             sql,
             mysql_table,
             vertica_conn_id='vertica_default',

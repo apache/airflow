@@ -40,7 +40,7 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
     ui_color = '#e4f0e8'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  database_name: str,
                  collection_name: str,
                  document: dict,

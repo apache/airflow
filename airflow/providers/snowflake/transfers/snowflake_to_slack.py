@@ -69,6 +69,7 @@ class SnowflakeToSlackOperator(BaseOperator):
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
+        *,
         sql: str,
         slack_message: str,
         snowflake_conn_id: str = 'snowflake_default',

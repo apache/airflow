@@ -33,7 +33,7 @@ class TimeDeltaSensor(BaseSensorOperator):
     """
 
     @apply_defaults
-    def __init__(self, delta, **kwargs):
+    def __init__(self, *, delta, **kwargs):
         super().__init__(**kwargs)
         self.delta = delta
 

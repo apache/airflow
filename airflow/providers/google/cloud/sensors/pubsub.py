@@ -93,7 +93,7 @@ class PubSubPullSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             project_id: str,
             subscription: str,
             max_messages: int = 5,

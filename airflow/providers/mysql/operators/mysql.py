@@ -48,7 +48,7 @@ class MySqlOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             sql: str,
             mysql_conn_id: str = 'mysql_default',
             parameters: Optional[Union[Mapping, Iterable]] = None,

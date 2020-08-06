@@ -68,7 +68,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  poke_interval: float = 60,
                  timeout: float = 60 * 60 * 24 * 7,
                  soft_fail: bool = False,

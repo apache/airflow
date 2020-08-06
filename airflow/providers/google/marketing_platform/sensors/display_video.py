@@ -47,15 +47,14 @@ class GoogleDisplayVideo360ReportSensor(BaseSensorOperator):
     template_fields = ("report_id",)
 
     def __init__(
-        self,
+        self, *,
         report_id: str,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.report_id = report_id
         self.api_version = api_version

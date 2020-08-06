@@ -100,13 +100,12 @@ class JenkinsJobTriggerOperator(BaseOperator):
     ui_color = '#f9ec86'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  jenkins_connection_id: str,
                  job_name: str,
                  parameters: ParamType = "",
                  sleep_time: int = 10,
                  max_try_before_job_appears: int = 10,
-                 *args,
                  **kwargs):
         super().__init__(**kwargs)
         self.job_name = job_name

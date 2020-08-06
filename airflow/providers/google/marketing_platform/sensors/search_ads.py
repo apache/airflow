@@ -52,7 +52,7 @@ class GoogleSearchAdsReportSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         report_id: str,
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",

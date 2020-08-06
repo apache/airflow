@@ -74,7 +74,7 @@ class SFTPToGCSOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         source_path: str,
         destination_bucket: str,
         destination_path: Optional[str] = None,

@@ -75,7 +75,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
     ui_color = '#e6f0e4'
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments
+    def __init__(self, *,  # pylint: disable=too-many-arguments
                  source_project_dataset_tables: Union[List[str], str],
                  destination_project_dataset_table: str,
                  write_disposition: str = 'WRITE_EMPTY',

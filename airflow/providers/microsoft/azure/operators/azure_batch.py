@@ -148,7 +148,7 @@ class AzureBatchOperator(BaseOperator):
     ui_color = '#f0f0e4'
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
+    def __init__(self, *,  # pylint: disable=too-many-arguments,too-many-locals
                  batch_pool_id: str,
                  batch_pool_vm_size: str,
                  batch_job_id: str,

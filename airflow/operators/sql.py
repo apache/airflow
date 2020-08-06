@@ -152,7 +152,7 @@ class SQLValueCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
@@ -271,7 +271,7 @@ class SQLIntervalCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         table: str,
         metrics_thresholds: Dict[str, int],
         date_filter_column: Optional[str] = "ds",
@@ -415,7 +415,7 @@ class SQLThresholdCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         min_threshold: Any,
         max_threshold: Any,
@@ -507,7 +507,7 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         follow_task_ids_if_true: List[str],
         follow_task_ids_if_false: List[str],

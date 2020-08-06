@@ -55,6 +55,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
     @apply_defaults
     def __init__(
         self,
+        *,
         instance_id: str,
         table_id: str,
         project_id: Optional[str] = None,

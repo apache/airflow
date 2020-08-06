@@ -53,7 +53,7 @@ class GrpcOperator(BaseOperator):
     template_fields = ('stub_class', 'call_func', 'data')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  stub_class: Callable,
                  call_func: str,
                  grpc_conn_id: str = "grpc_default",

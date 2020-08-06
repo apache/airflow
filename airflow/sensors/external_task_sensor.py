@@ -66,7 +66,7 @@ class ExternalTaskSensor(BaseSensorOperator):
     ui_color = '#19647e'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  external_dag_id,
                  external_task_id=None,
                  allowed_states=None,
@@ -242,7 +242,7 @@ class ExternalTaskMarker(DummyOperator):
     ui_color = '#19647e'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  external_dag_id,
                  external_task_id,
                  execution_date: Optional[Union[str, datetime.datetime]] = "{{ execution_date.isoformat() }}",

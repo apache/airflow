@@ -50,7 +50,7 @@ class PapermillOperator(BaseOperator):
     supports_lineage = True
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  input_nb: Optional[str] = None,
                  output_nb: Optional[str] = None,
                  parameters: Optional[Dict] = None,

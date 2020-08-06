@@ -53,7 +53,7 @@ class MsSqlOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         mssql_conn_id: str = 'mssql_default',
         parameters: Optional[Union[Mapping, Iterable]] = None,

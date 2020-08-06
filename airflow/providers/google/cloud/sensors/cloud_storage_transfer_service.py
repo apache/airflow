@@ -55,7 +55,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         job_name: str,
         expected_statuses: Union[Set[str], str],
         project_id: Optional[str] = None,

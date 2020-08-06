@@ -56,7 +56,7 @@ class SqlSensor(BaseSensorOperator):
     ui_color = '#7c7287'
 
     @apply_defaults
-    def __init__(self, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False,
+    def __init__(self, *, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False,
                  **kwargs):
         self.conn_id = conn_id
         self.sql = sql

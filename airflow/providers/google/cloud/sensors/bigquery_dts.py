@@ -69,6 +69,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         run_id: str,
         transfer_config_id: str,
         expected_statuses: Union[Set[str], str] = 'SUCCEEDED',

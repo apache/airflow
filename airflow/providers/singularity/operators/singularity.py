@@ -65,7 +65,7 @@ class SingularityOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
+            self, *,
             image: str,
             command: Union[str, List[str]],
             start_command: Optional[Union[str, List[str]]] = None,

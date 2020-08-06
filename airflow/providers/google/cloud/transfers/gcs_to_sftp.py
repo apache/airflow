@@ -73,7 +73,7 @@ class GCSToSFTPOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         source_bucket: str,
         source_object: str,
         destination_path: str,

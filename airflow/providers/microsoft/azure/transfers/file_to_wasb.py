@@ -42,7 +42,7 @@ class FileToWasbOperator(BaseOperator):
     template_fields = ('file_path', 'container_name', 'blob_name')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  file_path: str,
                  container_name: str,
                  blob_name: str,

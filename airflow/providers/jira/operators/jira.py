@@ -45,7 +45,7 @@ class JiraOperator(BaseOperator):
     template_fields = ("jira_method_args",)
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  jira_method: str,
                  jira_conn_id: str = 'jira_default',
                  jira_method_args: Optional[dict] = None,

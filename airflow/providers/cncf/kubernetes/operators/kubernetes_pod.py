@@ -152,6 +152,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
+                 *,
                  namespace: Optional[str] = None,
                  image: Optional[str] = None,
                  name: Optional[str] = None,
