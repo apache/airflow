@@ -663,7 +663,7 @@ def _merge_list_of_objects(base_obj_set, client_obj_set):
 def get_dict_from_list(base_list):
     """
     :param base_list:
-    :type base_list: list(Optional[dict,
+    :type base_list: list(Optional[dict, *to_dict])
     """
     result = {}
     for obj in base_list:
