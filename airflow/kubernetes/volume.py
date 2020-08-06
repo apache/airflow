@@ -37,9 +37,14 @@ class Volume(K8SModel):
         self.configs = configs
 
     def to_k8s_client_obj(self):
-        configs = self.configs
-        configs['name'] = self.name
-        return configs
+        from kubernetes.client import models as k8s
+        resp = k8s.V1Volume(name=self.name)
+        for k, v in self.configs.items():
+            if hasattr(resp, k):
+                setattr(resp, k, v)
+            else:
+                raise AttributeError("V1Volume does not have attribute {}".format(k))
+        return resp
 
     def attach_to_pod(self, pod):
         cp_pod = copy.deepcopy(pod)
