@@ -383,48 +383,76 @@ Note that the secret ``Key`` is ``value``, and secret ``Value`` is ``world`` and
 
 .. _secret_manager_backend:
 
-GCP Secret Manager Backend
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+Google Cloud Secret Manager Backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To enable GCP Secrets Manager to retrieve connection/variables, specify :py:class:`~airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend`
+This topic describes how to configure Airflow to use `Secret Manager <https://cloud.google.com/secret-manager/docs>`__ as
+a secret backend and how to manage secrets.
+
+Before you begin
+""""""""""""""""
+
+`Configure Secret Manager and your local environment <https://cloud.google.com/secret-manager/docs/configuring-secret-manager>`__, once per project.
+
+Enabling the secret backend
+"""""""""""""""""""""""""""
+
+To enable the secret backend for Google Cloud Secrets Manager to retrieve connection/variables,
+specify :py:class:`~airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
-Available parameters to ``backend_kwargs``:
-
-* ``connections_prefix``: Specifies the prefix of the secret to read to get Connections.
-* ``variables_prefix``: Specifies the prefix of the secret to read to get Variables.
-* ``gcp_key_path``: Path to GCP Credential JSON file
-* ``gcp_scopes``: Comma-separated string containing GCP scopes
-* ``sep``: separator used to concatenate connections_prefix and conn_id. Default: "-"
-
-Note: The full GCP Secrets Manager secret id should follow the pattern "[a-zA-Z0-9-_]".
-
-Here is a sample configuration if you want to just retrieve connections:
+Here is a sample configuration if you want to use it:
 
 .. code-block:: ini
 
     [secrets]
     backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
-    backend_kwargs = {"connections_prefix": "airflow-connections", "sep": "-"}
 
-Here is a sample configuration if you want to just retrieve variables:
+You can also set this with environment variables.
+
+.. code-block:: bash
+
+    export AIRFLOW__SECRETS__BACKEND=airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
+
+You can verify the correct setting of the configuration options with the ``airflw config get-value`` command.
+
+.. code-block:: bash
+
+    $ airflow config get-value secrets backend
+    airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
+
+Backend parameters
+""""""""""""""""""
+
+The next step is to configure backend parameters using the ``backend_kwargs`` options. You can pass
+the following parameters:
+
+* ``connections_prefix``: Specifies the prefix of the secret to read to get Connections. Default: ``"airflow-connections"``
+* ``variables_prefix``: Specifies the prefix of the secret to read to get Variables. Default: ``"airflow-variables"``
+* ``gcp_key_path``: Path to GCP Credential JSON file.
+* ``gcp_keyfile_dict``: Dictionary of keyfile parameters.
+* ``gcp_scopes``: Comma-separated string containing GCP scopes.
+* ``sep``: Separator used to concatenate connections_prefix and conn_id. Default: "-"
+* ``project_id``: Project ID to read the secrets from. If not passed, the project ID from credentials will be used.
+
+All options should be passed as a JSON dictionary.
+
+For example, if you want to set parameter ``connections_prefix`` to ``"airflow-tenant-primary"`` and parameter ``variables_prefix`` to ``"variables_prefix"``, your configuration file should look like this:
 
 .. code-block:: ini
 
     [secrets]
     backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
-    backend_kwargs = {"variables_prefix": "airflow-variables", "sep": "-"}
+    backend_kwargs = {"connections_prefix": "airflow-tenant-primary", "variables_prefix": "airflow-tenant-primary"}
 
-and if you want to retrieve both Variables and connections use the following sample config:
+Set-up credentials
+""""""""""""""""""
 
-.. code-block:: ini
+You can configure the credentials in three ways:
 
-    [secrets]
-    backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
-    backend_kwargs = {"connections_prefix": "airflow-connections", "variables_prefix": "airflow-variables", "sep": "-"}
-
-
-When ``gcp_key_path`` is not provided, it will use the Application Default Credentials (ADC) to obtain credentials.
+* By default, Application Default Credentials (ADC) is used obtain credentials.
+* ``gcp_key_path`` option in ``backend_kwargs`` option - allows you to configure authorizations with a service account stored in local file.
+* ``gcp_keyfile_dict`` option in ``backend_kwargs`` option - allows you to configure authorizations with a service account stored in Airflow configuration.
 
 .. note::
 
@@ -433,8 +461,43 @@ When ``gcp_key_path`` is not provided, it will use the Application Default Crede
       * `google.auth.default <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`__
       * `Setting Up Authentication for Server to Server Production Applications <https://cloud.google.com/docs/authentication/production>`__
 
-The value of the Secrets Manager secret id must be the :ref:`connection URI representation <generating_connection_uri>`
-of the connection object.
+Managing secrets
+""""""""""""""""
+
+If you want to configure a connection, you need to save it as a :ref:`connection URI representation <generating_connection_uri>`.
+Variables should be saved as plain text.
+
+In order to manage secrets, you can use the ``gcloud`` tool or other supported tools. For more information, take a look at:
+`Managing secrets <https://cloud.google.com/secret-manager/docs/creating-and-accessing-secrets>`__ in Google Cloud Documentation.
+
+The name of the secret must fit the following formats:
+
+ * for variable: ``[connections_prefix][sep][variable_name]``
+ * for connection: ``[variable_prefix][sep][connection_name]``
+
+where:
+
+ * ``connections_prefix`` - fixed value defined in the ``connections_prefix`` parameter in backend configuration. Default: ``airflow-connections``.
+ * ``variable_prefix`` - fixed value defined in the ``variable_prefix`` parameter in backend configuration. Default: ``airflow-variables``.
+ * ``sep`` - fixed value defined in the ``sep`` parameter in backend configuration. Default: ``-``.
+
+The Cloud Secrets Manager secret name should follow the pattern ``[a-zA-Z0-9-_]``.
+
+If you have the default backend configuration and you want to create a connection with ``conn_id``
+equals ``first-connection``, you should create secret named ``airflow-connections-first-connection``.
+You can do it with the gcloud tools as in the example below.
+
+.. code-block:: bash
+
+    echo "mysql://example.org" | gcloud beta secrets create airflow-connections-first-connection --data-file=-
+
+If you have the default backend configuration and you want to create a variable named ``first-variable``,
+you should create a secret named ``airflow-variables-first-variable``. You can do it with the gcloud
+command as in the example below.
+
+.. code-block:: bash
+
+    echo "content" | gcloud beta secrets create airflow-variables-first-variable --data-file=-
 
 .. _roll_your_own_secrets_backend:
 
