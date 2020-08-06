@@ -326,7 +326,7 @@ papermill = [
     'papermill[all]>=1.0.0',
     'nteract-scrapbook[all]>=0.2.1',
     'pyarrow<1.0.0',
-    'fsspec<0.8.0;python_version<"3.6"'
+    'fsspec<0.8.0;python_version=="3.5"'
 ]
 password = [
     'bcrypt>=2.0.0',
