@@ -103,7 +103,7 @@ class DockerSwarmOperator(DockerOperator):
             image: str,
             enable_logging: bool = True,
             **kwargs) -> None:
-        super().__init__(image=image, **kwargs)  # type: ignore
+        super().__init__(image=image, **kwargs)
 
         self.enable_logging = enable_logging
         self.service = None
