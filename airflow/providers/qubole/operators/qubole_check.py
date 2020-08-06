@@ -101,7 +101,7 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
         if hasattr(self, 'hook') and (self.hook is not None):
             return self.hook
         else:
-            return QuboleCheckHook(context=context, *self.args, **self.kwargs)
+            return QuboleCheckHook(context=context, **self.kwargs)
 
     def __getattribute__(self, name):
         if name in QuboleCheckOperator.template_fields:
@@ -162,7 +162,7 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
     ui_fgcolor = '#000'
 
     @apply_defaults
-    def __init__(self, pass_value, tolerance=None, results_parser_callable=None,
+    def __init__(self, *, pass_value, tolerance=None, results_parser_callable=None,
                  qubole_conn_id="qubole_default", **kwargs):
 
         sql = get_sql_from_qbol_cmd(kwargs)
@@ -191,7 +191,6 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
         else:
             return QuboleCheckHook(
                 context=context,
-                *self.args,
                 results_parser_callable=self.results_parser_callable,
                 **self.kwargs
             )
