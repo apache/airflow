@@ -1759,11 +1759,11 @@ class BigQueryInsertJobOperator(BaseOperator):
                 location=self.location,
                 job_id=job_id,
             )
-            if job.state in self.reattach_states and not job.done():
-                # The job is still running so wait for it to be ready
+            if job.state in self.reattach_states:
+                # We are reattaching to a job
                 job.result()
                 self._handle_job_error(job)
-            elif job.done():
+            else:
                 # Same job configuration so we need force_rerun
                 raise AirflowException(
                     f"Job with id: {job_id} already exists and is in {job.state} state. If you "
