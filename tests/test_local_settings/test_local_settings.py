@@ -264,7 +264,7 @@ class LocalSettingsTest(unittest.TestCase):
                     {"name": "foo", "mountPath": "/mnt", "subPath": "/", "readOnly": True}
                 ],
                 security_context=k8s.V1PodSecurityContext(fs_group=0, run_as_user=1),
-                volumes=[{"name": "foo"}]
+                volumes=[k8s.V1Volume(name="foo")]
             ).gen_pod()
 
             sanitized_pod_pre_mutation = api_client.sanitize_for_serialization(pod)
