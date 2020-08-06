@@ -387,7 +387,7 @@ Google Cloud Secret Manager Backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This topic describes how to configure Airflow to use `Secret Manager <https://cloud.google.com/secret-manager/docs>`__ as
-a secret bakcned and how to manage secrets.
+a secret backend and how to manage secrets.
 
 Before you begin
 """"""""""""""""
@@ -421,10 +421,11 @@ You can verify the correct setting of the configuration options with the ``airfl
     $ airflow config get-value secrets backend
     airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
 
-Additionals options
-"""""""""""""""""""
+Backend parameters
+""""""""""""""""""
 
-The next step is to configure additional configuration options using the ``backend_kwargs`` options.
+The next step is to configure backend parameters using the ``backend_kwargs`` options. You can pass
+the following parameters:
 
 * ``connections_prefix``: Specifies the prefix of the secret to read to get Connections. Default: ``"airflow-connections"``
 * ``variables_prefix``: Specifies the prefix of the secret to read to get Variables. Default: ``"airflow-variables"``
@@ -432,7 +433,7 @@ The next step is to configure additional configuration options using the ``backe
 * ``gcp_keyfile_dict``: Dictionary of keyfile parameters.
 * ``gcp_scopes``: Comma-separated string containing GCP scopes.
 * ``sep``: Separator used to concatenate connections_prefix and conn_id. Default: "-"
-* ``project_id``: Project ID. If not passed, the project ID from credentials will be used.
+* ``project_id``: Project ID to read the secrets from. If not passed, the project ID from credentials will be used.
 
 All options should be passed as a JSON dictionary.
 
@@ -447,7 +448,7 @@ For example, if you want to set parameter ``connections_prefix`` to ``"airflow-t
 Set-up credentials
 """"""""""""""""""
 
-You can configure the credentiaps in three ways:
+You can configure the credentials in three ways:
 
 * By default, Application Default Credentials (ADC) is used obtain credentials.
 * ``gcp_key_path`` option in ``backend_kwargs`` option - allows you to configure authorizations with a service account stored in local file.
@@ -460,8 +461,8 @@ You can configure the credentiaps in three ways:
       * `google.auth.default <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`__
       * `Setting Up Authentication for Server to Server Production Applications <https://cloud.google.com/docs/authentication/production>`__
 
-Managing a secrets
-""""""""""""""""""
+Managing secrets
+""""""""""""""""
 
 If you want to configure a connection, you need to save it as a :ref:`connection URI representation <generating_connection_uri>`.
 Variables should be saved as plain text.

@@ -64,7 +64,8 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     :type gcp_keyfile_dict: dict
     :param gcp_scopes: Comma-separated string containing GCP scopes
     :type gcp_scopes: str
-    :param project_id: Project ID. If not passed, the project ID from credentials will be used.
+    :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
+        will be used.
     :type project_id: str
     :param sep: Separator used to concatenate connections_prefix and conn_id. Default: "-"
     :type sep: str
