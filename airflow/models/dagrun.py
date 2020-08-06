@@ -482,10 +482,10 @@ class DagRun(Base, LoggingMixin):
             session.commit()
         except IntegrityError as err:
             self.log.info(str(err))
-            self.log.info(f'Hit IntegrityError while creating the TIs for {dag.dag_id} - {self.execution_date}.')
+            self.log.info(f'Hit IntegrityError while creating the TIs for '
+                          f'{dag.dag_id} - {self.execution_date}.')
             self.log.info('Doing session rollback.')
             session.rollback()
-
 
     @staticmethod
     def get_run(session, dag_id, execution_date):

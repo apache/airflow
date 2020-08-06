@@ -565,6 +565,24 @@ class TestDagRun(unittest.TestCase):
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
 
+    def test_already_added_task_instances_can_be_ignored(self):
+        dag = DAG('triggered_dag', start_date=DEFAULT_DATE)
+        dag.add_task(DummyOperator(task_id='first_task', owner='test'))
+
+        dagrun = self.create_dag_run(dag)
+        first_ti = dagrun.get_task_instances()[0]
+        self.assertEqual('first_task', first_ti.task_id)
+        self.assertEqual(State.NONE, first_ti.state)
+
+        # Lets assume that the above TI was added into DB by webserver, so when
+        # the scheduler queries the DB, it found 0 TIs for the dag and proceeds
+        # further to create TIs.
+        with mock.patch.object(DagRun, 'get_task_instances') as mock_gtis:
+            mock_gtis.return_value = []
+            dagrun.verify_integrity()
+            first_ti.refresh_from_db()
+            self.assertEqual(State.NONE, first_ti.state)
+
     @parameterized.expand([(state,) for state in State.task_states])
     @mock.patch('airflow.models.dagrun.task_instance_mutation_hook')
     def test_task_instance_mutation_hook(self, state, mock_hook):
