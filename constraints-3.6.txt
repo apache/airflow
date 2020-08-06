@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.14.36
+boto3==1.14.37
 boto==2.49.0
-botocore==1.17.36
+botocore==1.17.37
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.1
@@ -170,7 +170,7 @@ google-cloud-translate==3.0.0
 google-cloud-videointelligence==1.15.0
 google-cloud-vision==1.0.0
 google-crc32c==0.1.0
-google-resumable-media==0.7.0
+google-resumable-media==0.7.1
 googleapis-common-protos==1.52.0
 graphviz==0.14.1
 greenlet==0.4.16
