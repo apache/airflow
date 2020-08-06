@@ -122,7 +122,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 # give it a chance and fail with timeout.
                 # This gives the ability to set up non-blocking AND soft-fail sensors.
                 if self.soft_fail and not context['ti'].is_eligible_to_retry():
-                    self._do_skip_downstream_tasks(context)
                     raise AirflowSkipException(
                         f"Snap. Time is OUT. DAG id: {log_dag_id}")
                 else:
@@ -136,12 +135,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 sleep(self._get_next_poke_interval(started_at, try_number))
                 try_number += 1
         self.log.info("Success criteria met. Exiting.")
-
-    def _do_skip_downstream_tasks(self, context: Dict) -> None:
-        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream task_ids %s", downstream_tasks)
-        if downstream_tasks:
-            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
 
     def _get_next_poke_interval(self, started_at, try_number):
         """
