@@ -18,5 +18,5 @@
 export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
 export REMEMBER_LAST_ANSWER="true"
 
-# shellcheck source=scripts/ci/static_checks/ci_pylint_main.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/ci_pylint_main.sh" "${@}"
+# shellcheck source=scripts/ci/static_checks/ci_pylint.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/ci_pylint.sh" "${@}"

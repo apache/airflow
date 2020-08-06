@@ -32,5 +32,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           workflow: ci.yml
           failFastJobNames: >
-            ["^Static checks$", "^Build docs$", "^Backport packages$",
-             "^Checks: Helm tests$", "^Build prod image .*", "^Test OpenAPI*"]
+            ["^Static checks.*", "^Build docs$", "^Backport packages$",
+             "^Checks: Helm tests$", "^Build prod image .*", "^Test OpenAPI.*"]

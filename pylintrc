@@ -38,7 +38,7 @@ limit-inference-results=100
 
 # List of plugins (as comma separated values of python modules names) to load,
 # usually to register additional checkers.
-load-plugins=tests.airflow_pylint.do_not_use_asserts
+load-plugins=tests.airflow_pylint.do_not_use_asserts,tests.airflow_pylint.disable_checks_for_tests
 
 # Pickle collected data for later comparisons.
 persistent=yes

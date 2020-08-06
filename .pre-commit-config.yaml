@@ -363,20 +363,12 @@ repos:
         exclude: ^dev|^backport_packages
         require_serial: true
       - id: pylint
-        name: Run pylint for main sources
+        name: Run pylint
         language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_pylint_main.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: \.py$
-        exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
+        exclude: ^scripts/.*\.py$|^dev|^backport_packages
         pass_filenames: true
-        require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
-      - id: pylint-tests
-        name: Run pylint for tests
-        language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_pylint_tests.sh"
-        files: ^tests/.*\.py$
-        pass_filenames: true
-        require_serial: true
       - id: flake8
         name: Run flake8
         language: system

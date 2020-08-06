@@ -20,19 +20,19 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-function run_pylint_main() {
+function run_pylint() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
         docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_pylint.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
         docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init" \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" "${FILES[@]}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_pylint.sh" "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
 }
@@ -49,8 +49,8 @@ if [[ "${#@}" != "0" ]]; then
     if [[ "${#FILTERED_FILES[@]}" == "0" ]]; then
         echo "Filtered out all files. Skipping pylint."
     else
-        run_pylint_main "${FILTERED_FILES[@]}"
+        run_pylint "${FILTERED_FILES[@]}"
     fi
 else
-    run_pylint_main
+    run_pylint
 fi
