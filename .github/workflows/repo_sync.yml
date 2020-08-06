@@ -1,0 +1,17 @@
+# File: .github/workflows/repo-sync.yml
+name: Force sync master from apache/airflow
+on:
+  workflow_dispatch:
+jobs:
+  repo-sync:
+    if: github.repository != 'apache/airflow'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: repo-sync
+        uses: repo-sync/github-sync@v2
+        with:
+          source_repo: "apache/airflow"
+          source_branch: "master"
+          destination_branch: "master"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
