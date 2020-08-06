@@ -46,13 +46,13 @@ class AwsGlueJobSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.success_states = ['SUCCEEDED']
         self.errored_states = ['FAILED', 'STOPPED', 'TIMEOUT']
-        self.hook = AwsGlueJobHook(aws_conn_id=self.aws_conn_id)
 
     def poke(self, context):
+        hook = AwsGlueJobHook(aws_conn_id=self.aws_conn_id)
         self.log.info(
             "Poking for job run status :"
             "for Glue Job %s and ID %s", self.job_name, self.run_id)
-        job_state = self.hook.get_job_state(job_name=self.job_name, run_id=self.run_id)
+        job_state = hook.get_job_state(job_name=self.job_name, run_id=self.run_id)
         if job_state in self.success_states:
             self.log.info("Exiting Job %s Run State: %s", self.run_id, job_state)
             return True

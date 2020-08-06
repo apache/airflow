@@ -115,11 +115,12 @@ class AwsGlueJobHook(AwsBaseHook):
 
     def get_job_state(self, job_name=None, run_id=None):
         """
+        Get state of the Glue job. The job state can be running, finished, failed, stopped or timeout.
         :param job_name: unique job name per AWS account
         :type job_name: str
         :param run_id: The job-run ID of the predecessor job run
         :type run_id: str
-        :return: Status of the Job if succeeded or stopped
+        :return: State of the Glue job
         """
         glue_client = self.get_conn()
         job_status = glue_client.get_job_run(
@@ -132,6 +133,8 @@ class AwsGlueJobHook(AwsBaseHook):
 
     def job_completion(self, job_name=None, run_id=None):
         """
+        Waits until Glue job with job_name completes or fails and return final state if finished.
+        Raises AirflowException when the job failed
         :param job_name: unique job name per AWS account
         :type job_name: str
         :param run_id: The job-run ID of the predecessor job run
