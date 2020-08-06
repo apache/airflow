@@ -22,12 +22,25 @@ from urllib.parse import urlunparse
 from sqlalchemy.orm import exc
 from tabulate import tabulate
 
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
+from airflow.secrets.local_filesystem import load_connections
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import create_session
-from airflow.secrets.local_filesystem import load_connections
-from airflow.exceptions import AirflowException
+
+
+def prep_msg(msg, conn):
+    msg = msg.format(conn_id=conn.conn_id,
+                     uri=conn.get_uri() or
+                     urlunparse((conn.conn_type,
+                                '{login}:{password}@{host}:{port}'
+                                 .format(login=conn.conn_login or '',
+                                         password='******' if conn.conn_password else '',
+                                         host=conn.conn_host or '',
+                                         port=conn.conn_port or ''),
+                                 conn.conn_schema or '', '', '', '')))
+    return msg
 
 
 def _tabulate_connection(conns: List[Connection], tablefmt: str):
@@ -113,15 +126,7 @@ def connections_add(args):
                 .filter(Connection.conn_id == new_conn.conn_id).first()):
             session.add(new_conn)
             msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-            msg = msg.format(conn_id=new_conn.conn_id,
-                             uri=args.conn_uri or
-                             urlunparse((args.conn_type,
-                                         '{login}:{password}@{host}:{port}'
-                                             .format(login=args.conn_login or '',
-                                                     password='******' if args.conn_password else '',
-                                                     host=args.conn_host or '',
-                                                     port=args.conn_port or ''),
-                                         args.conn_schema or '', '', '', '')))
+            msg = prep_msg(msg, new_conn)
             print(msg)
         else:
             msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
@@ -167,50 +172,30 @@ DISPOSITIONS = [DIS_RESTRICT, DIS_OVERWRITE, DIS_IGNORE]
 def prep_import_status_msgs(conn_status_map):
     msg = "\n"
     for status, conn_list in conn_status_map.items():
-        if len(conn_list) > 0:
-            msg = msg + status + " : \n\t"
-            for conn in conn_list:
-                msg = msg + '\n\t`conn_id`={conn_id} : {uri}\n'
-                msg = msg.format(conn_id=conn.conn_id,
-                                 uri=conn.get_uri() or
-                                 urlunparse((conn.conn_type,
-                                            '{login}:{password}@{host}:{port}'
-                                             .format(login=conn.conn_login or '',
-                                                     password='******' if conn.conn_password else '',
-                                                     host=conn.conn_host or '',
-                                                     port=conn.conn_port or ''),
-                                             conn.conn_schema or '', '', '', '')))
+        if len(conn_list) == 0:
+            continue
+
+        msg = msg + status + " : \n\t"
+        for conn in conn_list:
+            msg = msg + '\n\t`conn_id`={conn_id} : {uri}\n'
+            msg = prep_msg(msg, conn)
     return msg
 
 
 @cli_utils.action_logging
 def connections_import(args):
     """Import new connections"""
-    # check for the file path in arguments
-    missing_args = []
-    if not args.file:
-        missing_args.append('file')
-
-    if missing_args:
-        msg = ('The following args are required to import connections:' +
-               ' {missing!r}'.format(missing=missing_args))
-        raise SystemExit(msg)
 
     try:
         conns_map = load_connections(args.file)
     except AirflowException as e:
-        return print(e)
+        print(e)
+        return
 
     if not args.conflict_disposition:
         disposition = DIS_RESTRICT
     elif args.conflict_disposition in DISPOSITIONS:
         disposition = args.conflict_disposition
-    else:
-        msg = (
-            'Not a valid argument to --conflict-disposition, please select among ' +
-            '{overwrite}, {ignore}, {restrict}. View help for more ' +
-            'details.').format(overwrite=DIS_OVERWRITE, restrict=DIS_RESTRICT, ignore=DIS_IGNORE)
-        return print(msg)
 
     conn_status_map = {
         DIS_OVERWRITE: [],
