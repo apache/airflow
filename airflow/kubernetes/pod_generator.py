@@ -643,8 +643,8 @@ def extend_object_field(base_obj, client_obj, field_name):
         setattr(client_obj_cp, field_name, base_obj_field)
         return client_obj_cp
 
-    base_obj_set = get_dict_from_list(base_obj_field)
-    client_obj_set = get_dict_from_list(client_obj_field)
+    base_obj_set = _get_dict_from_list(base_obj_field)
+    client_obj_set = _get_dict_from_list(client_obj_field)
 
     appended_fields = _merge_list_of_objects(base_obj_set, client_obj_set)
 
@@ -663,9 +663,8 @@ def _merge_list_of_objects(base_obj_set, client_obj_set):
     return appended_fields
 
 
-def get_dict_from_list(base_list):
+def _get_dict_from_list(base_list):
     """
-    :param base_list:
     :type base_list: list(Optional[dict, *to_dict])
     """
     result = {}

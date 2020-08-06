@@ -27,7 +27,7 @@ from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
 
 from airflow import AirflowException
-from airflow.kubernetes.pod_generator import PodDefaults
+from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
 from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -78,7 +78,7 @@ class PodLauncher(LoggingMixin):
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
-        self.log.info('Pod Creation Request: \n%s', json_pod)
+        self.log.debug('Pod Creation Request: \n%s', json_pod)
         try:
             resp = self._client.create_namespaced_pod(body=sanitized_pod,
                                                       namespace=pod.metadata.namespace, **kwargs)
@@ -100,7 +100,7 @@ class PodLauncher(LoggingMixin):
                 "Please use `k8s.V1Pod` instead.", DeprecationWarning, stacklevel=2
             )
             dummy_pod = dummy_pod.to_v1_kubernetes_pod()
-            from airflow.kubernetes.pod_generator import PodGenerator
+
             new_pod = PodGenerator.reconcile_pods(pod, dummy_pod)
         except AttributeError as e:
             try:
