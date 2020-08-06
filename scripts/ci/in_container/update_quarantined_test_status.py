@@ -88,7 +88,7 @@ def parse_test_history(line: str) -> Optional[TestHistory]:
         http_url = match_url.group(2)
         parsed_url = urlsplit(http_url)
         the_id = parsed_url[3].split("=")[1]
-        comment = values[4] if len(values) >= 5 else ""
+        comment = values[5] if len(values) >= 6 else ""
         # noinspection PyBroadException
         try:
             states = parse_state_history(values[3])

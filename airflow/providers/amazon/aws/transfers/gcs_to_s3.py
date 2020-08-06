@@ -78,7 +78,7 @@ class GCSToS3Operator(GCSListObjectsOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments
+    def __init__(self, *,  # pylint: disable=too-many-arguments
                  bucket,
                  prefix=None,
                  delimiter=None,

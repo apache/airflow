@@ -51,7 +51,7 @@ class AthenaSensor(BaseSensorOperator):
     ui_color = '#66c3ff'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  query_execution_id: str,
                  max_retries: Optional[int] = None,
                  aws_conn_id: str = 'aws_default',

@@ -79,7 +79,7 @@ class CloudTranslateTextOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         values: Union[List[str], str],
         target_language: str,
         format_: str,

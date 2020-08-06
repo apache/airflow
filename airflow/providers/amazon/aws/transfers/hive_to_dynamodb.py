@@ -62,7 +62,7 @@ class HiveToDynamoDBOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
+            self, *,
             sql,
             table_name,
             table_keys,

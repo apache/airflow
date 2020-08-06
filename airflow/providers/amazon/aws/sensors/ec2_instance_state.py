@@ -43,7 +43,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
     valid_states = ["running", "stopped", "terminated"]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  target_state: str,
                  instance_id: str,
                  aws_conn_id: str = "aws_default",

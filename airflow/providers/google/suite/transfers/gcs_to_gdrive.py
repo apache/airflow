@@ -78,7 +78,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         source_bucket: str,
         source_object: str,
         destination_object: Optional[str] = None,

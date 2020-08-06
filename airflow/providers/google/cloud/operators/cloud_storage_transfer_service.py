@@ -197,7 +197,7 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         body: dict,
         aws_conn_id: str = 'aws_default',
         gcp_conn_id: str = 'google_cloud_default',
@@ -255,7 +255,7 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         job_name: str,
         body: dict,
         aws_conn_id: str = 'aws_default',
@@ -311,7 +311,7 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         job_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
@@ -358,7 +358,7 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
@@ -454,7 +454,7 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
@@ -496,7 +496,7 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
@@ -539,7 +539,7 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
@@ -627,7 +627,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         s3_bucket: str,
         gcs_bucket: str,
         project_id: Optional[str] = None,
@@ -769,7 +769,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         source_bucket: str,
         destination_bucket: str,
         project_id: Optional[str] = None,

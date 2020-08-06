@@ -27,6 +27,7 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
+from airflow.utils.decorators import apply_defaults
 
 MetaData = Sequence[Tuple[str, str]]
 
@@ -59,8 +60,9 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
     template_fields = ("document", "gcp_conn_id")
     # [END natural_language_analyze_entities_template_fields]
 
+    @apply_defaults
     def __init__(
-        self,
+        self, *,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
@@ -118,8 +120,9 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
     template_fields = ("document", "gcp_conn_id")
     # [END natural_language_analyze_entity_sentiment_template_fields]
 
+    @apply_defaults
     def __init__(
-        self,
+        self, *,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
@@ -180,8 +183,9 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
     template_fields = ("document", "gcp_conn_id")
     # [END natural_language_analyze_sentiment_template_fields]
 
+    @apply_defaults
     def __init__(
-        self,
+        self, *,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
         retry: Optional[Retry] = None,
@@ -235,8 +239,9 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
     template_fields = ("document", "gcp_conn_id")
     # [END natural_language_classify_text_template_fields]
 
+    @apply_defaults
     def __init__(
-        self,
+        self, *,
         document: Union[dict, Document],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,

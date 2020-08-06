@@ -68,7 +68,7 @@ class MySQLToS3Operator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             query: str,
             s3_bucket: str,
             s3_key: str,

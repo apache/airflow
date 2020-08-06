@@ -69,7 +69,7 @@ class S3ListOperator(BaseOperator):
     ui_color = '#ffd700'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket,
                  prefix='',
                  delimiter='',

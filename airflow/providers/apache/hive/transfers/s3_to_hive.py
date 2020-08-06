@@ -108,6 +108,7 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
             self,
+            *,
             s3_key: str,
             field_dict: Dict,
             hive_table: str,

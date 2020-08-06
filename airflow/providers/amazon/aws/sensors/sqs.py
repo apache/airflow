@@ -44,7 +44,7 @@ class SQSSensor(BaseSensorOperator):
     template_fields = ('sqs_queue', 'max_messages')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  sqs_queue,
                  aws_conn_id='aws_default',
                  max_messages=5,

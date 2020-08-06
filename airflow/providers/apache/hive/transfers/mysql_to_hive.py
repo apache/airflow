@@ -86,6 +86,7 @@ class MySqlToHiveOperator(BaseOperator):
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
             self,
+            *,
             sql: str,
             hive_table: str,
             create: bool = True,

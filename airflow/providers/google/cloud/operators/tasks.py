@@ -76,7 +76,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         task_queue: Queue,
         project_id: Optional[str] = None,
@@ -168,7 +168,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         task_queue: Queue,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
@@ -235,7 +235,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -299,7 +299,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         project_id: Optional[str] = None,
         results_filter: Optional[str] = None,
@@ -362,7 +362,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -422,7 +422,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -483,7 +483,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -544,7 +544,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -621,7 +621,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         location: str,
         queue_name: str,
         task: Union[Dict, Task],
@@ -702,7 +702,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         queue_name: str,
         task_name: str,
@@ -775,7 +775,7 @@ class CloudTasksTasksListOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
@@ -849,7 +849,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         queue_name: str,
         task_name: str,
@@ -923,7 +923,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         queue_name: str,
         task_name: str,

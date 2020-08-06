@@ -64,7 +64,7 @@ class S3ToRedshiftOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             schema: str,
             table: str,
             s3_bucket: str,

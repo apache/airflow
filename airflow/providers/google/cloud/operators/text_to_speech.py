@@ -81,7 +81,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         input_data: Union[Dict, SynthesisInput],
         voice: Union[Dict, VoiceSelectionParams],
         audio_config: Union[Dict, AudioConfig],

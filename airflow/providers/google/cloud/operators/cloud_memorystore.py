@@ -83,7 +83,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance_id: str,
         instance: Union[Dict, Instance],
@@ -149,7 +149,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         project_id: Optional[str] = None,
@@ -226,7 +226,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         output_config: Union[Dict, OutputConfig],
@@ -304,7 +304,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
@@ -368,7 +368,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         project_id: Optional[str] = None,
@@ -447,7 +447,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         input_config: Union[Dict, InputConfig],
@@ -515,7 +515,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         page_size: int,
         project_id: Optional[str] = None,
@@ -606,7 +606,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         update_mask: Union[Dict, FieldMask],
         instance: Union[Dict, Instance],
         location: Optional[str] = None,
@@ -685,7 +685,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         memory_size_gb: int,
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
@@ -783,7 +783,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance_id: str,
         instance: Union[Dict, Instance],
@@ -877,7 +877,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         output_config: Union[Dict, OutputConfig],

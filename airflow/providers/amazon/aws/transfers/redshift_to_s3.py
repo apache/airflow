@@ -71,7 +71,7 @@ class RedshiftToS3Operator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
+            self, *,
             schema: str,
             table: str,
             s3_bucket: str,

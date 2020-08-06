@@ -40,7 +40,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
     ui_color = '#C5CAE9'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  stack_name,
                  aws_conn_id='aws_default',
                  region_name=None,
@@ -75,7 +75,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
     ui_color = '#C5CAE9'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  stack_name,
                  aws_conn_id='aws_default',
                  region_name=None,

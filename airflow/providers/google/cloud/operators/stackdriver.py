@@ -82,7 +82,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         format_: Optional[str] = None,
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
@@ -163,7 +163,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -235,7 +235,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -309,7 +309,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         alerts: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -379,7 +379,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         name: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -469,7 +469,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         format_: Optional[str] = None,
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
@@ -553,7 +553,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -626,7 +626,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -701,7 +701,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         channels: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
@@ -772,7 +772,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         name: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,

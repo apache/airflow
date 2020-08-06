@@ -62,7 +62,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  config,
                  wait_for_completion=True,
                  check_interval=30,

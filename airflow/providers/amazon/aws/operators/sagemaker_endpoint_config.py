@@ -40,7 +40,7 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
     ]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  config,
                  **kwargs):
         super().__init__(config=config,

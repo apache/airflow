@@ -50,6 +50,7 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  body: dict,
                  location: str,
                  project_id: Optional[str] = None,

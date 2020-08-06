@@ -22,6 +22,7 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.utils.decorators import apply_defaults
 
 
 class S3CreateBucketOperator(BaseOperator):
@@ -39,7 +40,8 @@ class S3CreateBucketOperator(BaseOperator):
     :param region_name: AWS region_name. If not specified fetched from connection.
     :type region_name: Optional[str]
     """
-    def __init__(self,
+    @apply_defaults
+    def __init__(self, *,
                  bucket_name,
                  aws_conn_id: Optional[str] = "aws_default",
                  region_name: Optional[str] = None,

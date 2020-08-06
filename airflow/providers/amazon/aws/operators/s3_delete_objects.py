@@ -63,7 +63,7 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             bucket,
             keys=None,
             prefix=None,

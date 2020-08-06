@@ -46,7 +46,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  job_flow_id: str,
                  target_states: Optional[Iterable[str]] = None,
                  failed_states: Optional[Iterable[str]] = None,

@@ -35,7 +35,7 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  job_name,
                  **kwargs):
         super().__init__(**kwargs)

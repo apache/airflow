@@ -49,7 +49,7 @@ class S3ToSFTPOperator(BaseOperator):
     template_fields = ('s3_key', 'sftp_path')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  s3_bucket,
                  s3_key,
                  sftp_path,

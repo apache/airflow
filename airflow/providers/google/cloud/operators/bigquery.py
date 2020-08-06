@@ -141,7 +141,7 @@ class BigQueryCheckOperator(CheckOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         gcp_conn_id: str = 'google_cloud_default',
         bigquery_conn_id: Optional[str] = None,
@@ -196,7 +196,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
@@ -270,7 +270,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         table: str,
         metrics_thresholds: dict,
         date_filter_column: str = 'ds',
@@ -364,7 +364,7 @@ class BigQueryGetDataOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         table_id: str,
         max_results: int = 100,
@@ -528,6 +528,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     # pylint: disable=too-many-arguments, too-many-locals
     @apply_defaults
     def __init__(self,
+                 *,
                  sql: Union[str, Iterable],
                  destination_dataset_table: Optional[str] = None,
                  write_disposition: Optional[str] = 'WRITE_EMPTY',
@@ -783,7 +784,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         table_id: str,
         table_resource: Optional[Dict[str, Any]] = None,
@@ -962,7 +963,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         bucket: str,
         source_objects: List,
         destination_project_dataset_table: str,
@@ -1130,7 +1131,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         project_id: Optional[str] = None,
         delete_contents: bool = False,
@@ -1210,6 +1211,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  dataset_id: Optional[str] = None,
                  project_id: Optional[str] = None,
                  dataset_reference: Optional[Dict] = None,
@@ -1279,6 +1281,7 @@ class BigQueryGetDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  dataset_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
@@ -1329,7 +1332,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         project_id: Optional[str] = None,
         max_results: Optional[int] = None,
@@ -1386,7 +1389,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         dataset_resource: dict,
         project_id: Optional[str] = None,
@@ -1453,7 +1456,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_resource: dict,
         fields: Optional[List[str]] = None,
         dataset_id: Optional[str] = None,
@@ -1518,7 +1521,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         deletion_dataset_table: str,
         gcp_conn_id: str = 'google_cloud_default',
         bigquery_conn_id: Optional[str] = None,
@@ -1589,7 +1592,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         table_resource: dict,
         project_id: Optional[str] = None,

@@ -76,7 +76,7 @@ class MsSqlToHiveOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  sql: str,
                  hive_table: str,
                  create: bool = True,

@@ -31,20 +31,44 @@ fi
 function run_airflow_testing_in_docker() {
     set +u
     set +e
-    # shellcheck disable=SC2016
-    docker-compose --log-level INFO \
-      -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-      -f "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml" \
-      "${INTEGRATIONS[@]}" \
-      "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow "${@}"
-    EXIT_CODE=$?
+    for TRY_NUM in {1..3}
+    do
+        echo
+        echo "Starting try number ${TRY_NUM}"
+        echo
+        docker-compose --log-level INFO \
+          -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+          -f "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml" \
+          "${INTEGRATIONS[@]}" \
+          "${DOCKER_COMPOSE_LOCAL[@]}" \
+             run airflow "${@}"
+        EXIT_CODE=$?
+        if [[ ${EXIT_CODE} == 254 ]]; then
+            echo
+            echo "Failed starting integration on ${TRY_NUM} try. Wiping-out docker-compose remnants"
+            echo
+            docker-compose --log-level INFO \
+                -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+                down --remove-orphans -v --timeout 5
+            echo
+            echo "Sleeping 5 seconds"
+            echo
+            sleep 5
+            continue
+        else
+            break
+        fi
+    done
     if [[ ${ONLY_RUN_QUARANTINED_TESTS:=} == "true" ]]; then
         if [[ ${EXIT_CODE} == "1" ]]; then
+            echo
             echo "Some Quarantined tests failed. but we recorded it in an issue"
+            echo
             EXIT_CODE="0"
         else
+            echo
             echo "All Quarantined tests succeeded"
+            echo
         fi
     fi
     set -u

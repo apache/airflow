@@ -58,7 +58,7 @@ class AWSAthenaOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         query: str,
         database: str,
         output_location: str,

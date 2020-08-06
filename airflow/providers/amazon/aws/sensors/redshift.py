@@ -33,7 +33,7 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
     template_fields = ('cluster_identifier', 'target_status')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  cluster_identifier,
                  target_status='available',
                  aws_conn_id='aws_default',

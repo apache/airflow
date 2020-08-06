@@ -58,7 +58,7 @@ class S3KeySensor(BaseSensorOperator):
     template_fields = ('bucket_key', 'bucket_name')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket_key,
                  bucket_name=None,
                  wildcard_match=False,

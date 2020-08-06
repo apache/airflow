@@ -112,21 +112,21 @@ class PubSubCreateTopicOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-            self,
-            topic: str,
-            project_id: Optional[str] = None,
-            fail_if_exists: bool = False,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            labels: Optional[Dict[str, str]] = None,
-            message_storage_policy: Union[Dict, MessageStoragePolicy] = None,
-            kms_key_name: Optional[str] = None,
-            retry: Optional[Retry] = None,
-            timeout: Optional[float] = None,
-            metadata: Optional[Sequence[Tuple[str, str]]] = None,
-            project: Optional[str] = None,
-            **kwargs) -> None:
-
+        self, *,
+        topic: str,
+        project_id: Optional[str] = None,
+        fail_if_exists: bool = False,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        labels: Optional[Dict[str, str]] = None,
+        message_storage_policy: Union[Dict, MessageStoragePolicy] = None,
+        kms_key_name: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        project: Optional[str] = None,
+        **kwargs
+    ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if project:
@@ -308,30 +308,31 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-            self,
-            topic: str,
-            project_id: Optional[str] = None,
-            subscription: Optional[str] = None,
-            subscription_project_id: Optional[str] = None,
-            ack_deadline_secs: int = 10,
-            fail_if_exists: bool = False,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            push_config: Optional[Union[Dict, PushConfig]] = None,
-            retain_acked_messages: Optional[bool] = None,
-            message_retention_duration: Optional[Union[Dict, Duration]] = None,
-            labels: Optional[Dict[str, str]] = None,
-            enable_message_ordering: bool = False,
-            expiration_policy: Optional[Union[Dict, ExpirationPolicy]] = None,
-            filter_: Optional[str] = None,
-            dead_letter_policy: Optional[Union[Dict, DeadLetterPolicy]] = None,
-            retry_policy: Optional[Union[Dict, RetryPolicy]] = None,
-            retry: Optional[Retry] = None,
-            timeout: Optional[float] = None,
-            metadata: Optional[Sequence[Tuple[str, str]]] = None,
-            topic_project: Optional[str] = None,
-            subscription_project: Optional[str] = None,
-            **kwargs) -> None:
+        self, *,
+        topic: str,
+        project_id: Optional[str] = None,
+        subscription: Optional[str] = None,
+        subscription_project_id: Optional[str] = None,
+        ack_deadline_secs: int = 10,
+        fail_if_exists: bool = False,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        push_config: Optional[Union[Dict, PushConfig]] = None,
+        retain_acked_messages: Optional[bool] = None,
+        message_retention_duration: Optional[Union[Dict, Duration]] = None,
+        labels: Optional[Dict[str, str]] = None,
+        enable_message_ordering: bool = False,
+        expiration_policy: Optional[Union[Dict, ExpirationPolicy]] = None,
+        filter_: Optional[str] = None,
+        dead_letter_policy: Optional[Union[Dict, DeadLetterPolicy]] = None,
+        retry_policy: Optional[Union[Dict, RetryPolicy]] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        topic_project: Optional[str] = None,
+        subscription_project: Optional[str] = None,
+        **kwargs
+    ) -> None:
 
         # To preserve backward compatibility
         # TODO: remove one day
@@ -461,18 +462,18 @@ class PubSubDeleteTopicOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            topic: str,
-            project_id: Optional[str] = None,
-            fail_if_not_exists: bool = False,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            retry: Optional[Retry] = None,
-            timeout: Optional[float] = None,
-            metadata: Optional[Sequence[Tuple[str, str]]] = None,
-            project: Optional[str] = None,
-            **kwargs) -> None:
-
+        self, *,
+        topic: str,
+        project_id: Optional[str] = None,
+        fail_if_not_exists: bool = False,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        project: Optional[str] = None,
+        **kwargs
+    ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if project:
@@ -572,18 +573,18 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            subscription: str,
-            project_id: Optional[str] = None,
-            fail_if_not_exists: bool = False,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            retry: Optional[Retry] = None,
-            timeout: Optional[float] = None,
-            metadata: Optional[Sequence[Tuple[str, str]]] = None,
-            project: Optional[str] = None,
-            **kwargs) -> None:
-
+        self, *,
+        subscription: str,
+        project_id: Optional[str] = None,
+        fail_if_not_exists: bool = False,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        project: Optional[str] = None,
+        **kwargs
+    ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if project:
@@ -676,15 +677,15 @@ class PubSubPublishMessageOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            topic: str,
-            messages: List,
-            project_id: Optional[str] = None,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            project: Optional[str] = None,
-            **kwargs) -> None:
-
+        self, *,
+        topic: str,
+        messages: List,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        project: Optional[str] = None,
+        **kwargs
+    ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if project:
@@ -760,15 +761,15 @@ class PubSubPullOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            project_id: str,
-            subscription: str,
-            max_messages: int = 5,
-            ack_messages: bool = False,
-            messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            **kwargs
+        self, *,
+        project_id: str,
+        subscription: str,
+        max_messages: int = 5,
+        ack_messages: bool = False,
+        messages_callback: Optional[Callable[[List[ReceivedMessage], Dict[str, Any]], Any]] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        **kwargs
     ) -> None:
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -806,9 +807,9 @@ class PubSubPullOperator(BaseOperator):
         return ret
 
     def _default_message_callback(
-            self,
-            pulled_messages: List[ReceivedMessage],
-            context: Dict[str, Any],  # pylint: disable=unused-argument
+        self,
+        pulled_messages: List[ReceivedMessage],
+        context: Dict[str, Any],  # pylint: disable=unused-argument
     ):
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.

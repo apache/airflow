@@ -154,7 +154,7 @@ class CloudSQLBaseOperator(BaseOperator):
     :type api_version: str
     """
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
@@ -236,7 +236,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
     # [END gcp_sql_create_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  body: dict,
                  instance: str,
                  project_id: Optional[str] = None,
@@ -317,7 +317,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
     # [END gcp_sql_patch_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  body: dict,
                  instance: str,
                  project_id: Optional[str] = None,
@@ -373,7 +373,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
     # [END gcp_sql_delete_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
@@ -426,7 +426,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
     # [END gcp_sql_db_create_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance: str,
                  body: dict,
                  project_id: Optional[str] = None,
@@ -505,7 +505,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
     # [END gcp_sql_db_patch_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance: str,
                  database: str,
                  body: dict,
@@ -578,7 +578,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
     # [END gcp_sql_db_delete_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance: str,
                  database: str,
                  project_id: Optional[str] = None,
@@ -644,7 +644,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
     # [END gcp_sql_export_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance: str,
                  body: dict,
                  project_id: Optional[str] = None,
@@ -724,7 +724,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
     # [END gcp_sql_import_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance: str,
                  body: dict,
                  project_id: Optional[str] = None,
@@ -795,7 +795,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     # [END gcp_sql_query_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  sql: Union[List[str], str],
                  autocommit: bool = False,
                  parameters: Optional[Union[Dict, Iterable]] = None,

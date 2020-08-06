@@ -27,7 +27,8 @@ on:
     branches: ['master', 'v1-10-test', 'v1-10-stable']
 
 env:
-  MOUNT_LOCAL_SOURCES: "true"
+  MOUNT_LOCAL_SOURCES: "false"
+  MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   SKIP_CHECK_REMOTE_IMAGE: "true"
   SKIP_CI_IMAGE_CHECK: "true"
@@ -93,7 +94,7 @@ jobs:
       - name: "Set issue id for master"
         if: github.ref == 'refs/heads/master'
         run: |
-          echo "::set-env name=ISSUE_ID::86"
+          echo "::set-env name=ISSUE_ID::10118"
       - name: "Set issue id for v1-10-stable"
         if: github.ref == 'refs/heads/v1-10-stable'
         run: |
@@ -118,5 +119,11 @@ jobs:
         name: Upload airflow logs
         if: always()
         with:
-          name: airflow-logs-quarantined-${{matrix.python-version}}-${{matrix.kubernetes-version}}
+          name: airflow-logs-quarantined-${{matrix.python-version}}-${{ matrix.postgres-version }}
           path: './files/airflow_logs*'
+      - uses: codecov/codecov-action@v1
+        name: Upload Coverage report to codecov
+        with:
+          file: ./files/coverage.xml
+          flags: >
+            kubernetes-tests-${{matrix.python-version}}-${{ matrix.postgres-version }}

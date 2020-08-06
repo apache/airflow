@@ -72,7 +72,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
     template_fields = ('bucket_name', 'prefix')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket_name: str,
                  prefix: str,
                  aws_conn_id: str = 'aws_default',

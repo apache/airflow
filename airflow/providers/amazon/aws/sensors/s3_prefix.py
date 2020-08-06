@@ -54,7 +54,7 @@ class S3PrefixSensor(BaseSensorOperator):
     template_fields = ('prefix', 'bucket_name')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket_name,
                  prefix,
                  delimiter='/',

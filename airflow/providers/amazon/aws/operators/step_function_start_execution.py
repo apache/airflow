@@ -48,7 +48,7 @@ class StepFunctionStartExecutionOperator(BaseOperator):
     ui_color = '#f9c915'
 
     @apply_defaults
-    def __init__(self, state_machine_arn: str, name: Optional[str] = None,
+    def __init__(self, *, state_machine_arn: str, name: Optional[str] = None,
                  state_machine_input: Union[dict, str, None] = None,
                  aws_conn_id='aws_default', region_name=None,
                  **kwargs):

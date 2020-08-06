@@ -51,7 +51,7 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
     ui_color = '#C5CAE9'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  table_name, expression="ds='{{ ds }}'",
                  aws_conn_id='aws_default',
                  region_name=None,

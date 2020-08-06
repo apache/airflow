@@ -42,7 +42,7 @@ class EmrBaseSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             aws_conn_id='aws_default',
             **kwargs):
         super().__init__(**kwargs)

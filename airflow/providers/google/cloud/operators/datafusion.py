@@ -57,7 +57,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
@@ -117,7 +117,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
@@ -180,7 +180,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         instance: Dict[str, Any],
         location: str,
@@ -270,7 +270,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         instance: Dict[str, Any],
         update_mask: str,
@@ -336,7 +336,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
@@ -402,7 +402,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         pipeline_name: str,
         pipeline: Dict[str, Any],
         instance_name: str,
@@ -480,7 +480,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         pipeline_name: str,
         instance_name: str,
         location: str,
@@ -559,7 +559,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         location: str,
         artifact_name: Optional[str] = None,
@@ -644,7 +644,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         pipeline_name: str,
         instance_name: str,
         location: str,
@@ -734,7 +734,7 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         pipeline_name: str,
         instance_name: str,
         location: str,

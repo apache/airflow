@@ -52,7 +52,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  config,
                  aws_conn_id,
                  wait_for_completion=True,

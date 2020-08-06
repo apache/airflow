@@ -55,7 +55,7 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         api_version: str = "v3",
         gcp_conn_id: str = "google_cloud_default",
         **kwargs
@@ -103,7 +103,7 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         account_id: str,
         web_property_ad_words_link_id: str,
         web_property_id: str,
@@ -158,7 +158,7 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         account_id: str,
         web_property_id: str,
         api_version: str = "v3",
@@ -213,7 +213,7 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         storage_bucket: str,
         storage_name_object: str,
         account_id: str,

@@ -680,7 +680,7 @@ class DAG(BaseDag, LoggingMixin):
         """
         callback = self.on_success_callback if success else self.on_failure_callback
         if callback:
-            self.log.info('Executing dag callback function: {}'.format(callback))
+            self.log.info('Executing dag callback function: %s', callback)
             tis = dagrun.get_task_instances()
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
