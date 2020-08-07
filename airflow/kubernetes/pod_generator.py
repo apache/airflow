@@ -373,6 +373,11 @@ class PodGenerator(object):
                     requests=requests,
                     limits=limits
                 )
+        elif isinstance(resources, dict):
+            resources = k8s.V1ResourceRequirements(
+                requests=resources['requests'],
+                limits=resources['limits']
+            )
 
         annotations = namespaced.get('annotations', {})
         gcp_service_account_key = namespaced.get('gcp_service_account_key', None)

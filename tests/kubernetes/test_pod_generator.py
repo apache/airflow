@@ -255,6 +255,20 @@ class TestPodGenerator(unittest.TestCase):
                         "name": "example-kubernetes-test-volume",
                     },
                 ],
+                "resources": {
+                    "requests": {
+                        "memory": "256Mi",
+                        "cpu": "500m",
+                        "ephemeral-storage": "2G",
+                        "nvidia.com/gpu": "0"
+                    },
+                    "limits": {
+                        "memory": "512Mi",
+                        "cpu": "1000m",
+                        "ephemeral-storage": "2G",
+                        "nvidia.com/gpu": "0"
+                    }
+                }
             }
         })
         result = self.k8s_client.sanitize_for_serialization(result)
@@ -277,6 +291,20 @@ class TestPodGenerator(unittest.TestCase):
                         'mountPath': '/foo/',
                         'name': 'example-kubernetes-test-volume'
                     }],
+                    "resources": {
+                        "requests": {
+                            "memory": "256Mi",
+                            "cpu": "500m",
+                            "ephemeral-storage": "2G",
+                            "nvidia.com/gpu": "0"
+                        },
+                        "limits": {
+                            "memory": "512Mi",
+                            "cpu": "1000m",
+                            "ephemeral-storage": "2G",
+                            "nvidia.com/gpu": "0"
+                        }
+                    }
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],

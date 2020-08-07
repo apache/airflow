@@ -184,7 +184,7 @@ class Pod(object):
             pod = secret.attach_to_pod(pod)
         for runtime_info in self.pod_runtime_info_envs:
             pod = runtime_info.attach_to_pod(pod)
-        pod = self.resources.attach_to_pod(pod)
+        pod = _extract_resources(self.resources).attach_to_pod(pod)
         return pod
 
     def as_dict(self):
@@ -232,6 +232,23 @@ def _extract_ports(ports):
             port = Port(name=port.get("name"), container_port=port.get("containerPort"))
         result.append(port)
     return result
+
+
+def _extract_resources(resources):
+    if isinstance(resources, k8s.V1ResourceRequirements):
+        requests = resources.requests
+        limits = resources.limits
+        return Resources(
+            request_memory=requests.get('memory', None),
+            request_cpu=requests.get('cpu', None),
+            request_ephemeral_storage=requests.get('ephemeral-storage', None),
+            limit_memory=limits.get('memory', None),
+            limit_cpu=limits.get('cpu', None),
+            limit_ephemeral_storage=limits.get('ephemeral-storage', None),
+            limit_gpu=limits.get('nvidia.com/gpu')
+        )
+    elif isinstance(resources, Resources):
+        return resources
 
 
 def _extract_security_context(security_context):
