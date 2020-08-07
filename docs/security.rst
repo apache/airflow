@@ -89,6 +89,9 @@ If you wish to have the experimental API work, and aware of the risks of enablin
     [api]
     auth_backend = airflow.api.auth.backend.default
 
+Kerberos authentication
+'''''''''''''''''''''''
+
 Kerberos authentication is currently supported for the API.
 
 To enable Kerberos authentication, set the following in the configuration:
@@ -103,6 +106,9 @@ To enable Kerberos authentication, set the following in the configuration:
 
 The Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
 principal exists in the keytab file.
+
+Google OpenID authentication
+''''''''''''''''''''''''''''
 
 You can also configure
 `Google OpenID <https://developers.google.com/identity/protocols/oauth2/openid-connect>`__
