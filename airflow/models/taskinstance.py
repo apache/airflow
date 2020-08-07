@@ -177,6 +177,7 @@ class TaskInstance(Base, LoggingMixin):
     controller_name = Column(String(100))  # 控制器名称@工位编号/工位名称
     bolt_number = Column(String(1000))  # 螺栓编号
     craft_type = Column(Integer)  # 工艺类型
+    car_code = Column(String(1000))  # 车辆编号
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
