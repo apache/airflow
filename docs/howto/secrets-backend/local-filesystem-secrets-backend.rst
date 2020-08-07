@@ -67,11 +67,11 @@ The following is a sample JSON file.
 .. code-block:: json
 
     {
-        "CONN_A": "mysq://host_a",
+        "CONN_A": "mysql://host_a",
         "CONN_B": {
             "conn_type": "scheme",
             "host": "host",
-            "schema": "lschema",
+            "schema": "schema",
             "login": "Login",
             "password": "None",
             "port": "1234"
@@ -83,11 +83,11 @@ In this format, the connection can be defined as a URI (string) or JSON object.
 
 .. code-block:: yaml
 
-    CONN_A: 'mysq://host_a'
+    CONN_A: 'mysql://host_a'
 
     CONN_B:
-      - 'mysq://host_a'
-      - 'mysq://host_b'
+      - 'mysql://host_a'
+      - 'mysql://host_b'
 
     CONN_C:
       conn_type: scheme
@@ -125,7 +125,7 @@ the variable value. The following is a sample JSON file.
 
     {
         "VAR_A": "some_value",
-        "var_b": "differnet_value"
+        "var_b": "different_value"
     }
 
 The YAML file structure is similar to that of JSON, with key containing the variable key and the value containing

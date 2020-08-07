@@ -48,7 +48,7 @@ You can also set this with environment variables.
 
     export AIRFLOW__SECRETS__BACKEND=airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
 
-You can verify the correct setting of the configuration options with the ``airflw config get-value`` command.
+You can verify the correct setting of the configuration options with the ``airflow config get-value`` command.
 
 .. code-block:: bash
 

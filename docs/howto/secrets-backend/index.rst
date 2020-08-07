@@ -23,7 +23,7 @@ Secrets backend
 
 In addition to retrieving connections & variables from environment variables or the metastore database, you can enable
 an alternative secrets backend to retrieve Airflow connections or Airflow variables,
-such as :ref:`Google Cloud Secret Maanager<google_cloud_secret_manager_backend>`,
+such as :ref:`Google Cloud Secret Manager<google_cloud_secret_manager_backend>`,
 :ref:`Hashicorp Vault Secrets<hashicorp_vault_secrets>` or you can :ref:`roll your own <roll_your_own_secrets_backend>`.
 
 .. note::
