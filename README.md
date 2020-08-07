@@ -121,6 +121,7 @@ pip install apache-airflow[postgres,google]==1.10.11 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 ```
 
+
 ## Official Docker images
 
 In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images
