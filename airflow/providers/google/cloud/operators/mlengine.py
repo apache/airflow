@@ -953,6 +953,8 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         will be printed out. In 'CLOUD' mode, a real MLEngine training job
         creation request will be issued.
     :type mode: str
+    :param labels: a dictionary containing labels for the job; passed to BigQuery
+    :type labels: dict
     """
 
     template_fields = [
@@ -990,6 +992,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  mode: str = 'PRODUCTION',
+                 labels: Optional[dict] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self._project_id = project_id
@@ -1006,6 +1009,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
         self._mode = mode
+        self._labels = labels
 
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
@@ -1056,6 +1060,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
             self.log.info('In dry_run mode.')
             self.log.info('MLEngine Training job request is: %s', training_request)
             return
+
+        if self._labels:
+            training_request['trainingInput']['labels'] = self._labels
 
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
