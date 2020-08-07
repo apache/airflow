@@ -48,16 +48,7 @@ class TestCliGetConnection(unittest.TestCase):
             ))
             stdout = stdout.getvalue()
         self.assertIn(
-            textwrap.dedent("""\
-            Conn ID: google_cloud_default
-            Conn Type: google_cloud_platform
-            Extra: null
-            Host: null
-            Is Encrypted: false
-            Is Extra Encrypted: false
-            Port: null
-            URI: google-cloud-platform:///default
-            """),
+            "URI: google-cloud-platform:///default",
             stdout
         )
 
