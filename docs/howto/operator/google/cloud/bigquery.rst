@@ -338,6 +338,38 @@ tolerance of the ones from ``days_back`` before you can use
     :start-after: [START howto_operator_bigquery_interval_check]
     :end-before: [END howto_operator_bigquery_interval_check]
 
+Sensors
+^^^^^^^
+
+Check that a Table exists
+"""""""""""""""""""""""""
+
+To check that a table exists you can define a sensor operator. This allows delaying execution
+of downstream operators until a table exist. If the table is sharded on dates you can for instance
+use the ``{{ ds_nodash }}`` macro as the table name suffix.
+
+:class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor`.
+
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigquery_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_bigquery_table]
+    :end-before: [END howto_sensor_bigquery_table]
+
+Check that a Table Partition exists
+"""""""""""""""""""""""""""""""""""
+
+To check that a table exists and has a partition you can use.
+:class:`~airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionExistenceSensor`.
+
+.. exampleinclude:: /../airflow/providers/google/cloud/example_dags/example_bigquery_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_bigquery_table_partition]
+    :end-before: [END howto_sensor_bigquery_table_partition]
+
+For DAY partitioned tables, the partition_id parameter is a string on the "%Y%m%d" format
+
 Reference
 ^^^^^^^^^
 
