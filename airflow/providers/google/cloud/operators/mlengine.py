@@ -21,7 +21,7 @@ This module contains GCP MLEngine operators.
 import logging
 import re
 import warnings
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -152,7 +152,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         have domain-wide delegation enabled.
     :type delegate_to: str
     :param labels: a dictionary containing labels for the job; passed to BigQuery
-    :type labels: dict
+    :type labels: Dict[str, str]
     :raises: ``ValueError``: if a unique model/version origin cannot be
         determined.
     """
@@ -185,7 +185,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 labels: Optional[dict] = None,
+                 labels: Optional[Dict[str, str]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -238,9 +238,9 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
                 'region': self._region
             }
         }
-
         if self._labels:
             prediction_request['labels'] = self._labels
+
         if self._uri:
             prediction_request['predictionInput']['uri'] = self._uri
         elif self._model_name:
@@ -960,7 +960,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         creation request will be issued.
     :type mode: str
     :param labels: a dictionary containing labels for the job; passed to BigQuery
-    :type labels: dict
+    :type labels: Dict[str, str]
     """
 
     template_fields = [
@@ -998,7 +998,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  mode: str = 'PRODUCTION',
-                 labels: Optional[dict] = None,
+                 labels: Optional[Dict[str, str]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self._project_id = project_id
@@ -1049,9 +1049,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
                 'args': self._training_args,
             }
         }
-
         if self._labels:
             training_request['labels'] = self._labels
+
         if self._runtime_version:
             training_request['trainingInput']['runtimeVersion'] = self._runtime_version
 
