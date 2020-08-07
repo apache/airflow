@@ -55,7 +55,34 @@ jobs:
 
   static-checks:
     timeout-minutes: 60
-    name: "Static checks"
+    name: "Static checks: no pylint"
+    runs-on: ubuntu-latest
+    needs: [cancel-previous-workflow-run]
+    env:
+      MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
+      SKIP: "pylint"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      - name: Cache pre-commit env
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-pre-commit-no-pylint-v1
+        with:
+          path: ~/.cache/pre-commit
+          key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Build CI image"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Static checks: no pylint"
+        run: ./scripts/ci/static_checks/ci_run_static_checks.sh
+
+  static-checks-pylint:
+    timeout-minutes: 60
+    name: "Static checks: pylint"
     runs-on: ubuntu-latest
     needs: [cancel-previous-workflow-run]
     env:
@@ -68,7 +95,7 @@ jobs:
       - name: Cache pre-commit env
         uses: actions/cache@v2
         env:
-          cache-name: cache-pre-commit-v1
+          cache-name: cache-pre-commit-pylint-v1
         with:
           path: ~/.cache/pre-commit
           key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -76,8 +103,8 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Static checks"
-        run: ./scripts/ci/static_checks/ci_run_static_checks.sh
+      - name: "Static checks: pylint"
+        run: ./scripts/ci/static_checks/ci_run_static_checks.sh pylint
 
   docs:
     timeout-minutes: 60

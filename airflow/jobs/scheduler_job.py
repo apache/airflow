@@ -982,7 +982,7 @@ class DagFileProcessor(LoggingMixin):
         return simple_dags
 
 
-class SchedulerJob(BaseJob):
+class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     """
     This SchedulerJob runs for a specific time interval and schedules the jobs
     that are ready to run. It figures out the latest runs for each
