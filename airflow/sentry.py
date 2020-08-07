@@ -94,6 +94,7 @@ class ConfiguredSentry(DummySentry):
         dsn = None
         sentry_config_opts = conf.getsection("sentry") or {}
         if sentry_config_opts:
+            sentry_config_opts.pop("sentry_on")
             old_way_dsn = sentry_config_opts.pop("sentry_dsn", None)
             new_way_dsn = sentry_config_opts.pop("dsn", None)
             # supported backward compability with old way dsn option
@@ -178,7 +179,7 @@ class ConfiguredSentry(DummySentry):
 
 Sentry = DummySentry()  # type: DummySentry
 
-try:
+if conf.getboolean("sentry", 'sentry_on', fallback=False):
     # Verify blinker installation
     from blinker import signal  # noqa: F401 pylint: disable=unused-import
     from sentry_sdk import add_breadcrumb, capture_exception, configure_scope, init, push_scope
@@ -186,6 +187,3 @@ try:
     from sentry_sdk.integrations.logging import ignore_logger
 
     Sentry = ConfiguredSentry()
-
-except ImportError as e:
-    log.debug("Could not configure Sentry: %s, using DummySentry instead.", e)
