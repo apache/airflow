@@ -46,4 +46,4 @@ configuring an Airflow environment.
     define_extra_link
     tracking-user-activity
     email-config
-    secrets-backends/index
+    secrets-backend/index
