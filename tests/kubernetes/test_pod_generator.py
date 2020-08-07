@@ -334,19 +334,17 @@ class TestPodGenerator(unittest.TestCase):
                     },
                 ],
                 "resources": {
-                    "resources": {
-                        "requests": {
-                            "memory": "256Mi",
-                            "cpu": "500m",
-                            "ephemeral-storage": "2G",
-                            "nvidia.com/gpu": "0"
-                        },
-                        "limits": {
-                            "memory": "512Mi",
-                            "cpu": "1000m",
-                            "ephemeral-storage": "2G",
-                            "nvidia.com/gpu": "0"
-                        }
+                    "requests": {
+                        "memory": "256Mi",
+                        "cpu": "500m",
+                        "ephemeral-storage": "2G",
+                        "nvidia.com/gpu": "0"
+                    },
+                    "limits": {
+                        "memory": "512Mi",
+                        "cpu": "1000m",
+                        "ephemeral-storage": "2G",
+                        "nvidia.com/gpu": "0"
                     }
                 }
             }
@@ -371,14 +369,14 @@ class TestPodGenerator(unittest.TestCase):
                         'mountPath': '/foo/',
                         'name': 'example-kubernetes-test-volume'
                     }],
-                    'resources': {'resources': {'limits': {'cpu': '1000m',
-                                                           'ephemeral-storage': '2G',
-                                                           'memory': '512Mi',
-                                                           'nvidia.com/gpu': '0'},
-                                                'requests': {'cpu': '500m',
-                                                             'ephemeral-storage': '2G',
-                                                             'memory': '256Mi',
-                                                             'nvidia.com/gpu': '0'}}},
+                    'resources': {'limits': {'cpu': '1000m',
+                                             'ephemeral-storage': '2G',
+                                             'memory': '512Mi',
+                                             'nvidia.com/gpu': '0'},
+                                  'requests': {'cpu': '500m',
+                                               'ephemeral-storage': '2G',
+                                               'memory': '256Mi',
+                                               'nvidia.com/gpu': '0'}},
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],

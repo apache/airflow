@@ -332,6 +332,7 @@ class LocalSettingsTest(unittest.TestCase):
                                                             'subPath': '/'}
                                                            ]}],
                           'hostNetwork': False,
+                          'imagePullSecrets': [],
                           'tolerations': [{'effect': 'NoSchedule',
                                            'key': 'static-pods',
                                            'operator': 'Equal',
