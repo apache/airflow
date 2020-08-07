@@ -37,9 +37,15 @@ class Volume(K8SModel):
         self.configs = configs
 
     def to_k8s_client_obj(self):
-        configs = self.configs
-        configs['name'] = self.name
-        return configs
+        from kubernetes.client import models as k8s
+        resp = k8s.V1Volume(name=self.name)
+        for k, v in self.configs.items():
+            snake_key = Volume._convert_to_snake_case(k)
+            if hasattr(resp, snake_key):
+                setattr(resp, snake_key, v)
+            else:
+                raise AttributeError("V1Volume does not have attribute {}".format(k))
+        return resp
 
     def attach_to_pod(self, pod):
         cp_pod = copy.deepcopy(pod)
@@ -47,3 +53,8 @@ class Volume(K8SModel):
         cp_pod.spec.volumes = pod.spec.volumes or []
         cp_pod.spec.volumes.append(volume)
         return cp_pod
+
+    # source: https://www.geeksforgeeks.org/python-program-to-convert-camel-case-string-to-snake-case/
+    @staticmethod
+    def _convert_to_snake_case(str):
+        return ''.join(['_' + i.lower() if i.isupper() else i for i in str]).lstrip('_')

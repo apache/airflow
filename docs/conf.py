@@ -220,6 +220,7 @@ exclude_patterns = [
     '_api/airflow/version',
     '_api/airflow/www',
     '_api/airflow/www_rbac',
+    '_api/kubernetes_executor',
     '_api/main',
     '_api/mesos_executor',
     'autoapi_templates',

@@ -55,7 +55,7 @@ class Secret(K8SModel):
             # if deploying to env, capitalize the deploy target
             self.deploy_target = deploy_target.upper()
 
-        if key is not None and deploy_target is None:
+        if key is not None and deploy_target is None and deploy_type == "env":
             raise AirflowConfigException(
                 'If `key` is set, `deploy_target` should not be None'
             )
@@ -84,6 +84,14 @@ class Secret(K8SModel):
     def to_volume_secret(self):
         import kubernetes.client.models as k8s
         vol_id = 'secretvol{}'.format(uuid.uuid4())
+        if self.deploy_target:
+            volume_mount = k8s.V1VolumeMount(
+                mount_path=self.deploy_target,
+                name=vol_id,
+                read_only=True
+            )
+        else:
+            volume_mount = None
         return (
             k8s.V1Volume(
                 name=vol_id,
@@ -91,11 +99,7 @@ class Secret(K8SModel):
                     secret_name=self.secret
                 )
             ),
-            k8s.V1VolumeMount(
-                mount_path=self.deploy_target,
-                name=vol_id,
-                read_only=True
-            )
+            volume_mount
         )
 
     def attach_to_pod(self, pod):
@@ -104,8 +108,9 @@ class Secret(K8SModel):
             volume, volume_mount = self.to_volume_secret()
             cp_pod.spec.volumes = pod.spec.volumes or []
             cp_pod.spec.volumes.append(volume)
-            cp_pod.spec.containers[0].volume_mounts = pod.spec.containers[0].volume_mounts or []
-            cp_pod.spec.containers[0].volume_mounts.append(volume_mount)
+            if volume_mount:
+                cp_pod.spec.containers[0].volume_mounts = pod.spec.containers[0].volume_mounts or []
+                cp_pod.spec.containers[0].volume_mounts.append(volume_mount)
         if self.deploy_type == 'env' and self.key is not None:
             env = self.to_env_secret()
             cp_pod.spec.containers[0].env = cp_pod.spec.containers[0].env or []
