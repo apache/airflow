@@ -405,10 +405,13 @@ jobs:
       - tests-quarantined
     steps:
       - uses: actions/download-artifact@v2
+        name: Download all artifacts from the current build
         with:
           path: ./coverage-files
+      - name: Removes unnecessary artifacts
+        run: ls ./coverage-files | grep -v coverage | xargs rm -rf
       - uses: codecov/codecov-action@v1
-        name: Upload All coverage reports to codecov
+        name: Upload all coverage reports to codecov
         with:
           directory: ./coverage-files
 
