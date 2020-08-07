@@ -22,13 +22,18 @@ import sys
 from typing import List
 from urllib.parse import urlunparse
 
+import pygments
 import yaml
+from pygments.lexers.data import YamlLexer
 from sqlalchemy.orm import exc
 from tabulate import tabulate
 
+from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
 from airflow.utils import cli as cli_utils
+from airflow.utils.cli import should_use_colors
+from airflow.utils.code_utils import get_terminal_formatter
 from airflow.utils.session import create_session
 
 
@@ -49,22 +54,43 @@ def _tabulate_connection(conns: List[Connection], tablefmt: str):
     return msg
 
 
+def _yamulate_connection(conn: Connection):
+    yaml_data = {
+        'Conn ID': conn.conn_id,
+        'Conn Type': conn.conn_type,
+        'Host': conn.host,
+        'Port': conn.port,
+        'Is Encrypted': conn.is_encrypted,
+        'Is Extra Encrypted': conn.is_encrypted,
+        'Extra': conn.extra_dejson,
+        'URI': conn.get_uri()
+    }
+    return yaml.safe_dump(yaml_data)
+
+
+def connections_get(args):
+    """Get a connection."""
+    try:
+        conn = BaseHook.get_connection(args.conn_id)
+    except AirflowNotFoundException:
+        raise SystemExit("Connection not found.")
+
+    yaml_content = _yamulate_connection(conn)
+    if should_use_colors(args):
+        yaml_content = pygments.highlight(
+            code=yaml_content, formatter=get_terminal_formatter(), lexer=YamlLexer()
+        )
+
+    print(yaml_content)
+
+
 def connections_list(args):
     """Lists all connections at the command line"""
     with create_session() as session:
-        if args.include_secrets:
-            if not args.conn_id:
-                print(
-                    "To use the '--include-secrets' option, you must also pass '--conn-id' option.",
-                    file=sys.stderr
-                )
-                sys.exit(1)
-            conns = BaseHook.get_connections(args.conn_id)
-        else:
-            query = session.query(Connection)
-            if args.conn_id:
-                query = query.filter(Connection.conn_id == args.conn_id)
-            conns = query.all()
+        query = session.query(Connection)
+        if args.conn_id:
+            query = query.filter(Connection.conn_id == args.conn_id)
+        conns = query.all()
 
         tablefmt = args.output
         msg = _tabulate_connection(conns, tablefmt)

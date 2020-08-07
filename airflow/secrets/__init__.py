@@ -29,7 +29,7 @@ from json import JSONDecodeError
 from typing import TYPE_CHECKING, List, Optional
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowNotFoundException
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.module_loading import import_string
 
@@ -56,7 +56,7 @@ def get_connections(conn_id: str) -> List['Connection']:
         if conn_list:
             return list(conn_list)
 
-    raise AirflowException("The conn_id `{0}` isn't defined".format(conn_id))
+    raise AirflowNotFoundException("The conn_id `{0}` isn't defined".format(conn_id))
 
 
 def get_variable(key: str) -> Optional[str]:
