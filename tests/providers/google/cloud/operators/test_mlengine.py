@@ -60,6 +60,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         'inputPaths': ['gs://legal-bucket/fake-input-path/*'],
         'outputPath': 'gs://legal-bucket/fake-output-path',
         'region': 'us-east1',
+        'labels': {'some-key': 'some-value'},
     }
     SUCCESS_MESSAGE_MISSING_INPUT = {
         'jobId': 'test_prediction',
@@ -116,6 +117,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             input_paths=input_with_model['inputPaths'],
             output_path=input_with_model['outputPath'],
             model_name=input_with_model['modelName'].split('/')[-1],
+            labels=input_with_model['labels'],
             dag=self.dag,
             task_id='test-prediction')
         prediction_output = prediction_task.execute(None)
@@ -155,6 +157,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             output_path=input_with_version['outputPath'],
             model_name=input_with_version['versionName'].split('/')[-3],
             version_name=input_with_version['versionName'].split('/')[-1],
+            labels=input_with_version['labels'],
             dag=self.dag,
             task_id='test-prediction')
         prediction_output = prediction_task.execute(None)
@@ -192,6 +195,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             input_paths=input_with_uri['inputPaths'],
             output_path=input_with_uri['outputPath'],
             uri=input_with_uri['uri'],
+            labels=input_with_uri['labels'],
             dag=self.dag,
             task_id='test-prediction')
         prediction_output = prediction_task.execute(None)

@@ -151,6 +151,8 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         For this to work, the service account making the request must
         have domain-wide delegation enabled.
     :type delegate_to: str
+    :param labels: a dictionary containing labels for the job; passed to BigQuery
+    :type labels: dict
     :raises: ``ValueError``: if a unique model/version origin cannot be
         determined.
     """
@@ -183,6 +185,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 labels: Optional[dict] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -200,6 +203,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         self._signature_name = signature_name
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._labels = labels
 
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
@@ -258,6 +262,10 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         if self._signature_name:
             prediction_request['predictionInput'][
                 'signatureName'] = self._signature_name
+
+        if self._labels:
+            prediction_request['predictionInput'][
+                'labels'] = self._labels
 
         hook = MLEngineHook(self._gcp_conn_id, self._delegate_to)
 
