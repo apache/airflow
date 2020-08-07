@@ -239,6 +239,8 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
             }
         }
 
+        if self._labels:
+            prediction_request['labels'] = self._labels
         if self._uri:
             prediction_request['predictionInput']['uri'] = self._uri
         elif self._model_name:
@@ -262,10 +264,6 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         if self._signature_name:
             prediction_request['predictionInput'][
                 'signatureName'] = self._signature_name
-
-        if self._labels:
-            prediction_request['predictionInput'][
-                'labels'] = self._labels
 
         hook = MLEngineHook(self._gcp_conn_id, self._delegate_to)
 
@@ -1052,6 +1050,8 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
             }
         }
 
+        if self._labels:
+            training_request['labels'] = self._labels
         if self._runtime_version:
             training_request['trainingInput']['runtimeVersion'] = self._runtime_version
 
@@ -1068,9 +1068,6 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
             self.log.info('In dry_run mode.')
             self.log.info('MLEngine Training job request is: %s', training_request)
             return
-
-        if self._labels:
-            training_request['trainingInput']['labels'] = self._labels
 
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
