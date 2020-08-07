@@ -36,9 +36,7 @@ from functools import reduce
 import kubernetes.client.models as k8s
 import yaml
 from kubernetes.client.api_client import ApiClient
-from ..contrib.kubernetes.pod import (
-    _extract_volume_mounts,
-)
+from airflow.contrib.kubernetes.pod import _extract_volume_mounts
 
 from airflow.exceptions import AirflowConfigException
 from airflow.version import version as airflow_version

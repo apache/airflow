@@ -22,21 +22,21 @@ from datetime import datetime as dt
 
 import tenacity
 from kubernetes import watch, client
+from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
 
 from airflow import AirflowException
-from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
 from airflow import settings
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
-import kubernetes.client.models as k8s  # noqa
-from .kube_client import get_kube_client
-from ..contrib.kubernetes.pod import (
+from airflow.contrib.kubernetes.pod import (
     Pod, _extract_env_vars_and_secrets, _extract_volumes_and_secrets, _extract_volume_mounts,
     _extract_ports, _extract_security_context
 )
+from airflow.kubernetes.kube_client import get_kube_client
+from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import State
 
 
 class PodStatus:
