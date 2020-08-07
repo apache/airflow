@@ -47,7 +47,11 @@ class TestAwsGlueJobOperator(unittest.TestCase):
     @mock.patch.object(AwsGlueJobHook, 'initialize_job')
     @mock.patch.object(AwsGlueJobHook, "get_conn")
     @mock.patch.object(S3Hook, "load_file")
-    def test_execute_without_failure(self, mock_load_file, mock_get_conn, mock_initialize_job, mock_get_job_state):
+    def test_execute_without_failure(self,
+                                     mock_load_file,
+                                     mock_get_conn,
+                                     mock_initialize_job,
+                                     mock_get_job_state):
         mock_initialize_job.return_value = {'JobRunState': 'RUNNING', 'JobRunId': '11111'}
         mock_get_job_state.return_value = 'SUCCEEDED'
         self.glue.execute(None)
