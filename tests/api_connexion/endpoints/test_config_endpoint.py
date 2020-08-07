@@ -20,6 +20,7 @@ import textwrap
 from mock import patch
 
 from airflow.www import app
+from tests.test_utils.config import conf_vars
 
 MOCK_CONF = {
     'core': {
@@ -39,14 +40,33 @@ MOCK_CONF = {
 class TestGetConfig:
     @classmethod
     def setup_class(cls) -> None:
-        cls.app = app.create_app(testing=True)  # type:ignore
+        with conf_vars(
+            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
+        ):
+            cls.app = app.create_app(testing=True)  # type:ignore
+        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
+        # TODO: Add new role for each view to test permission
+        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
+        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
+        if not tester:
+            cls.appbuilder.sm.add_user(  # type: ignore
+                username="test",
+                first_name="test",
+                last_name="test",
+                email="test@fab.org",
+                role=role_admin,
+                password="test",
+            )
+
         cls.client = None
 
     def setup_method(self) -> None:
         self.client = self.app.test_client()  # type:ignore
 
     def test_should_response_200_text_plain(self, mock_as_dict):
-        response = self.client.get("/api/v1/config", headers={'Accept': 'text/plain'})
+        response = self.client.get(
+            "/api/v1/config", headers={'Accept': 'text/plain'}, environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 200
         expected = textwrap.dedent("""\
         [core]
@@ -59,7 +79,11 @@ class TestGetConfig:
         assert expected == response.data.decode()
 
     def test_should_response_200_application_json(self, mock_as_dict):
-        response = self.client.get("/api/v1/config", headers={'Accept': 'application/json'})
+        response = self.client.get(
+            "/api/v1/config",
+            headers={'Accept': 'application/json'},
+            environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 200
         expected = {
             'sections': [
@@ -81,5 +105,16 @@ class TestGetConfig:
         assert expected == response.json
 
     def test_should_response_406(self, mock_as_dict):
-        response = self.client.get("/api/v1/config", headers={'Accept': 'application/octet-stream'})
+        response = self.client.get(
+            "/api/v1/config",
+            headers={'Accept': 'application/octet-stream'},
+            environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 406
+
+    def test_should_response_403(self, mock_as_dict):
+        response = self.client.get(
+            "/api/v1/config",
+            headers={'Accept': 'application/json'}
+        )
+        assert response.status_code == 403

@@ -31,6 +31,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
@@ -39,8 +40,23 @@ class TestGetExtraLinks(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        with mock.patch.dict("os.environ", SKIP_DAGS_PARSING="True"):
+        with mock.patch.dict("os.environ", SKIP_DAGS_PARSING="True"), conf_vars(
+            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
+        ):
             cls.app = app.create_app(testing=True)  # type:ignore
+        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
+        # TODO: Add new role for each view to test permission.
+        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
+        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
+        if not tester:
+            cls.appbuilder.sm.add_user(  # type: ignore
+                username="test",
+                first_name="test",
+                last_name="test",
+                email="test@fab.org",
+                role=role_admin,
+                password="test",
+            )
 
     @provide_session
     def setUp(self, session) -> None:
@@ -100,7 +116,7 @@ class TestGetExtraLinks(unittest.TestCase):
     )
     def test_should_response_404(self, name, url, expected_title, expected_detail):
         del name
-        response = self.client.get(url)
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
 
         self.assertEqual(404, response.status_code)
         self.assertEqual(
@@ -118,7 +134,8 @@ class TestGetExtraLinks(unittest.TestCase):
             dag_id=self.dag.dag_id,
         )
         response = self.client.get(
-            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links"
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
+            environ_overrides={'REMOTE_USER': "test"}
         )
 
         self.assertEqual(200, response.status_code, response.data)
@@ -129,7 +146,8 @@ class TestGetExtraLinks(unittest.TestCase):
     @mock_plugin_manager(plugins=[])
     def test_should_response_200_missing_xcom(self):
         response = self.client.get(
-            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links"
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
+            environ_overrides={'REMOTE_USER': "test"}
         )
 
         self.assertEqual(200, response.status_code, response.data)
@@ -147,7 +165,8 @@ class TestGetExtraLinks(unittest.TestCase):
             dag_id=self.dag.dag_id,
         )
         response = self.client.get(
-            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links"
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
+            environ_overrides={'REMOTE_USER': "test"}
         )
 
         self.assertEqual(200, response.status_code, response.data)
@@ -162,7 +181,8 @@ class TestGetExtraLinks(unittest.TestCase):
     @mock_plugin_manager(plugins=[])
     def test_should_response_200_multiple_links_missing_xcom(self):
         response = self.client.get(
-            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links"
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
+            environ_overrides={'REMOTE_USER': "test"}
         )
 
         self.assertEqual(200, response.status_code, response.data)
@@ -199,7 +219,8 @@ class TestGetExtraLinks(unittest.TestCase):
 
         with mock_plugin_manager(plugins=[AirflowTestPlugin]):
             response = self.client.get(
-                "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links"
+                "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
+                environ_overrides={'REMOTE_USER': "test"}
             )
 
             self.assertEqual(200, response.status_code, response.data)

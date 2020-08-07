@@ -32,7 +32,23 @@ class TestEventLogEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
+        with conf_vars(
+            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
+        ):
+            cls.app = app.create_app(testing=True)  # type:ignore
+        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
+        # TODO: Add new role for each view to test permission.
+        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
+        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
+        if not tester:
+            cls.appbuilder.sm.add_user(  # type: ignore
+                username="test",
+                first_name="test",
+                last_name="test",
+                email="test@fab.org",
+                role=role_admin,
+                password="test",
+            )
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -65,7 +81,9 @@ class TestGetEventLog(TestEventLogEndpoint):
         session.add(log_model)
         session.commit()
         event_log_id = log_model.id
-        response = self.client.get(f"/api/v1/eventLogs/{event_log_id}")
+        response = self.client.get(
+            f"/api/v1/eventLogs/{event_log_id}", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 200
         self.assertEqual(
             response.json,
@@ -82,7 +100,9 @@ class TestGetEventLog(TestEventLogEndpoint):
         )
 
     def test_should_response_404(self):
-        response = self.client.get("/api/v1/eventLogs/1")
+        response = self.client.get(
+            "/api/v1/eventLogs/1", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 404
         self.assertEqual(
             {'detail': None, 'status': 404, 'title': 'Event Log not found', 'type': 'about:blank'},
@@ -106,7 +126,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         log_model_2.dttm = timezone.parse(self.default_time_2)
         session.add_all([log_model_1, log_model_2])
         session.commit()
-        response = self.client.get("/api/v1/eventLogs")
+        response = self.client.get("/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         self.assertEqual(
             response.json,
@@ -181,7 +201,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.add_all(log_models)
         session.commit()
 
-        response = self.client.get(url)
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
 
         self.assertEqual(response.json["total_entries"], 10)
@@ -194,7 +214,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.add_all(log_models)
         session.commit()
 
-        response = self.client.get("/api/v1/eventLogs")  # default should be 100
+        response = self.client.get("/api/v1/eventLogs", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
 
         self.assertEqual(response.json["total_entries"], 200)
@@ -207,7 +227,7 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         session.add_all(log_models)
         session.commit()
 
-        response = self.client.get("/api/v1/eventLogs?limit=180")
+        response = self.client.get("/api/v1/eventLogs?limit=180", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         self.assertEqual(len(response.json['event_logs']), 150)
 

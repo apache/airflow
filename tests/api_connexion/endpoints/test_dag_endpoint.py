@@ -27,6 +27,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.session import provide_session
 from airflow.www import app
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 
@@ -43,7 +44,23 @@ class TestDagEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
+        with conf_vars(
+            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
+        ):
+            cls.app = app.create_app(testing=True)  # type:ignore
+        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
+        # TODO: Add new role for each view to test permission.
+        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
+        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
+        if not tester:
+            cls.appbuilder.sm.add_user(  # type: ignore
+                username="test",
+                first_name="test",
+                last_name="test",
+                email="test@fab.org",
+                role=role_admin,
+                password="test",
+            )
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
@@ -74,7 +91,7 @@ class TestDagEndpoint(unittest.TestCase):
 class TestGetDag(TestDagEndpoint):
     def test_should_response_200(self):
         self._create_dag_models(1)
-        response = self.client.get("/api/v1/dags/TEST_DAG_1")
+        response = self.client.get("/api/v1/dags/TEST_DAG_1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
 
         current_response = response.json
@@ -92,13 +109,15 @@ class TestGetDag(TestDagEndpoint):
         }, current_response)
 
     def test_should_response_404(self):
-        response = self.client.get("/api/v1/dags/INVALID_DAG")
+        response = self.client.get("/api/v1/dags/INVALID_DAG", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
 
 
 class TestGetDagDetails(TestDagEndpoint):
     def test_should_response_200(self):
-        response = self.client.get(f"/api/v1/dags/{self.dag_id}/details")
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/details", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 200
         expected = {
             'catchup': True,
@@ -157,7 +176,9 @@ class TestGetDagDetails(TestDagEndpoint):
             'tags': None,
             'timezone': "Timezone('UTC')"
         }
-        response = client.get(f"/api/v1/dags/{self.dag_id}/details")
+        response = client.get(
+            f"/api/v1/dags/{self.dag_id}/details", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 200
         assert response.json == expected
 
@@ -167,7 +188,7 @@ class TestGetDags(TestDagEndpoint):
     def test_should_response_200(self):
         self._create_dag_models(2)
 
-        response = self.client.get("api/v1/dags")
+        response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
 
@@ -239,7 +260,7 @@ class TestGetDags(TestDagEndpoint):
     def test_should_response_200_and_handle_pagination(self, url, expected_dag_ids):
         self._create_dag_models(10)
 
-        response = self.client.get(url)
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
 
@@ -251,7 +272,7 @@ class TestGetDags(TestDagEndpoint):
     def test_should_response_200_default_limit(self):
         self._create_dag_models(101)
 
-        response = self.client.get("api/v1/dags")
+        response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
 
@@ -262,5 +283,5 @@ class TestGetDags(TestDagEndpoint):
 class TestPatchDag(TestDagEndpoint):
     @pytest.mark.skip(reason="Not implemented yet")
     def test_should_response_200(self):
-        response = self.client.patch("/api/v1/dags/1")
+        response = self.client.patch("/api/v1/dags/1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200

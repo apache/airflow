@@ -40,7 +40,23 @@ class TestTaskEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
+        with conf_vars(
+            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
+        ):
+            cls.app = app.create_app(testing=True)  # type:ignore
+        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
+        # TODO: Add new role for each view to test permission.
+        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
+        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
+        if not tester:
+            cls.appbuilder.sm.add_user(  # type: ignore
+                username="test",
+                first_name="test",
+                last_name="test",
+                email="test@fab.org",
+                role=role_admin,
+                password="test",
+            )
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
@@ -87,7 +103,9 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
         }
-        response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}")
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 200
         assert response.json == expected
 
@@ -128,13 +146,17 @@ class TestGetTask(TestTaskEndpoint):
             "wait_for_downstream": False,
             "weight_rule": "downstream",
         }
-        response = client.get(f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}")
+        response = client.get(
+            f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 200
         assert response.json == expected
 
     def test_should_response_404(self):
         task_id = "xxxx_not_existing"
-        response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks/{task_id}")
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/tasks/{task_id}", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 404
 
 
@@ -172,11 +194,15 @@ class TestGetTasks(TestTaskEndpoint):
             ],
             "total_entries": 1,
         }
-        response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks")
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 200
         assert response.json == expected
 
     def test_should_response_404(self):
         dag_id = "xxxx_not_existing"
-        response = self.client.get(f"/api/v1/dags/{dag_id}/tasks")
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 404

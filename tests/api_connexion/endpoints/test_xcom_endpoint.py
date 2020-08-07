@@ -23,6 +23,7 @@ from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
 
 
@@ -30,7 +31,23 @@ class TestXComEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
+        with conf_vars(
+            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
+        ):
+            cls.app = app.create_app(testing=True)  # type:ignore
+        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
+        # TODO: Add new role for each view to test permission
+        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
+        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
+        if not tester:
+            cls.appbuilder.sm.add_user(  # type: ignore
+                username="test",
+                first_name="test",
+                last_name="test",
+                email="test@fab.org",
+                role=role_admin,
+                password="test",
+            )
 
     @staticmethod
     def clean_db():
@@ -76,7 +93,8 @@ class TestGetXComEntry(TestXComEndpoint):
         session.add(dagrun)
         session.commit()
         response = self.client.get(
-            f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}"
+            f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+            environ_overrides={'REMOTE_USER': "test"}
         )
         self.assertEqual(200, response.status_code)
         self.assertEqual(
@@ -119,7 +137,8 @@ class TestGetXComEntries(TestXComEndpoint):
         session.add(dagrun)
         session.commit()
         response = self.client.get(
-            f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries"
+            f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
+            environ_overrides={'REMOTE_USER': "test"}
         )
         self.assertEqual(200, response.status_code)
         self.assertEqual(
@@ -221,7 +240,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
         session.add_all(xcom_models)
         session.add(dagrun)
         session.commit()
-        response = self.client.get(url)
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         self.assertEqual(response.json["total_entries"], 10)
         conn_ids = [conn["key"] for conn in response.json["xcom_entries"] if conn]

@@ -30,7 +30,23 @@ class TestBaseImportError(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
+        with conf_vars(
+            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
+        ):
+            cls.app = app.create_app(testing=True)  # type:ignore
+        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
+        # TODO: Add new role for each view to test permission.
+        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
+        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
+        if not tester:
+            cls.appbuilder.sm.add_user(  # type: ignore
+                username="test",
+                first_name="test",
+                last_name="test",
+                email="test@fab.org",
+                role=role_admin,
+                password="test",
+            )
 
     def setUp(self) -> None:
         super().setUp()
@@ -58,7 +74,9 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         session.add(import_error)
         session.commit()
 
-        response = self.client.get(f"/api/v1/importErrors/{import_error.id}")
+        response = self.client.get(
+            f"/api/v1/importErrors/{import_error.id}", environ_overrides={'REMOTE_USER': "test"}
+        )
 
         assert response.status_code == 200
         response_data = response.json
@@ -74,7 +92,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         )
 
     def test_response_404(self):
-        response = self.client.get("/api/v1/importErrors/2")
+        response = self.client.get("/api/v1/importErrors/2", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         self.assertEqual(
             {
@@ -101,7 +119,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         session.add_all(import_error)
         session.commit()
 
-        response = self.client.get("/api/v1/importErrors")
+        response = self.client.get("/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
         response_data = response.json
@@ -154,7 +172,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         session.add_all(import_errors)
         session.commit()
 
-        response = self.client.get(url)
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
 
         assert response.status_code == 200
         import_ids = [
@@ -174,7 +192,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         ]
         session.add_all(import_errors)
         session.commit()
-        response = self.client.get("/api/v1/importErrors")
+        response = self.client.get("/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         self.assertEqual(len(response.json['import_errors']), 100)
 
@@ -191,6 +209,8 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         ]
         session.add_all(import_errors)
         session.commit()
-        response = self.client.get("/api/v1/importErrors?limit=180")
+        response = self.client.get(
+            "/api/v1/importErrors?limit=180", environ_overrides={'REMOTE_USER': "test"}
+        )
         assert response.status_code == 200
         self.assertEqual(len(response.json['import_errors']), 150)
