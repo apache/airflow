@@ -17,7 +17,7 @@
 from connexion import NoContent
 from flask import request
 from marshmallow import ValidationError
-from sqlalchemy import and_, func
+from sqlalchemy import func
 
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
@@ -36,7 +36,7 @@ def delete_dag_run(dag_id, dag_run_id, session):
     """
     if (
         session.query(DagRun)
-            .filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+            .filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
             .delete() == 0
     ):
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
@@ -162,7 +162,7 @@ def post_dag_run(dag_id, session):
     post_body = dagrun_schema.load(request.json, session=session)
     dagrun_instance = (
         session.query(DagRun).filter(
-            and_(DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"])).first()
+            DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"]).first()
     )
     if not dagrun_instance:
         dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL.value, **post_body)

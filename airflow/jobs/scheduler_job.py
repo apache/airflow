@@ -1131,11 +1131,11 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             subq = query.subquery()
             tis_changed = session \
                 .query(models.TaskInstance) \
-                .filter(and_(
+                .filter(
                     models.TaskInstance.dag_id == subq.c.dag_id,
                     models.TaskInstance.task_id == subq.c.task_id,
                     models.TaskInstance.execution_date ==
-                    subq.c.execution_date)) \
+                    subq.c.execution_date) \
                 .update({models.TaskInstance.state: new_state}, synchronize_session=False)
             session.commit()
 

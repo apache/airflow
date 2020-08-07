@@ -74,10 +74,9 @@ def get_xcom_entry(
     """
     Get an XCom entry
     """
-    query = session.query(XCom)
-    query = query.filter(and_(XCom.dag_id == dag_id,
-                              XCom.task_id == task_id,
-                              XCom.key == xcom_key))
+    query = session.query(XCom).filter(XCom.dag_id == dag_id,
+                                       XCom.task_id == task_id,
+                                       XCom.key == xcom_key)
     query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
     query = query.filter(DR.run_id == dag_run_id)
 
