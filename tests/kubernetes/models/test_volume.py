@@ -15,16 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-import uuid
 
-from tests.compat import mock
-from kubernetes.client import ApiClient
-import kubernetes.client.models as k8s
-from airflow.kubernetes.secret import Secret
-from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.kubernetes.k8s_model import append_to_pod
-from airflow.kubernetes.volume import Volume
 from kubernetes.client import models as k8s
+
+from airflow.kubernetes.volume import Volume
 
 
 class TestVolume(unittest.TestCase):
@@ -43,4 +37,4 @@ class TestVolume(unittest.TestCase):
             }
         )
         result = volume.to_k8s_client_obj()
-        self.assertEqual(result,expected_volume)
+        self.assertEqual(result, expected_volume)

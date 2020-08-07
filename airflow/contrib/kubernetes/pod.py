@@ -274,7 +274,7 @@ def _extract_volumes_and_secrets(volumes, volume_mounts):
     }
     for volume in volumes:
         if isinstance(volume, k8s.V1Volume):
-            secret = _extract_volume_secret(volume, volume_mount_dict[volume.name])
+            secret = _extract_volume_secret(volume, volume_mount_dict.get(volume.name, None))
             if secret:
                 secrets.append(secret)
                 continue
