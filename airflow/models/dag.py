@@ -929,7 +929,7 @@ class DAG(BaseDag, LoggingMixin):
             # graph as we move through it. We also keep a flag for
             # checking that that graph is acyclic, which is true if any
             # nodes are resolved during each pass through the graph. If
-            # not, we need to bail out as the graph therefore can't be
+            # not, we need to exit as the graph therefore can't be
             # sorted.
             acyclic = False
             for node in list(graph_unsorted.values()):
@@ -1154,7 +1154,7 @@ class DAG(BaseDag, LoggingMixin):
             )
         else:
             count = 0
-            print("Bail. Nothing was cleared.")
+            print("Cancelled, nothing was cleared.")
 
         session.commit()
         return count
@@ -1215,7 +1215,7 @@ class DAG(BaseDag, LoggingMixin):
                           )
         else:
             count = 0
-            print("Bail. Nothing was cleared.")
+            print("Cancelled, nothing was cleared.")
         return count
 
     def __deepcopy__(self, memo):
