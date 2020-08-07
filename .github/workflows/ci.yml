@@ -48,9 +48,10 @@ jobs:
     name: "Cancel previous workflow run"
     runs-on: ubuntu-latest
     steps:
-      - uses: potiuk/cancel-workflow-runs@v1
+      - name: Cancel other workflow runs
+        uses: potiuk/cancel-workflow-runs@v1
         with:
-          workflow: ci.yaml
+          workflow: ci.yml
           token: ${{ secrets.GITHUB_TOKEN }}
 
   static-checks:
