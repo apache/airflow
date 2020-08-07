@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,23 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
----
-name: Cancel other workflow runs
-on:
-  schedule:
-    - cron: '*/5 * * * *'
-jobs:
-  cancel-other-workflow-runs:
-    if: github.repository == 'apache/airflow'
-    timeout-minutes: 10
-    name: "Cancel other workflow runs"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: potiuk/cancel-workflow-runs@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: ci.yml
-          failFastJobNames: >
-            ["^Static checks.*", "^Build docs$", "^Backport packages$",
-             "^Checks: Helm tests$", "^Build prod image .*", "^Test OpenAPI.*"]
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
+initialize_common_environment
+
+function run_bats_tests() {
+    FILES=("$@")
+    if [[ "${#FILES[@]}" == "0" ]]; then
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r /airflow/tests/bats
+    else
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r "${FILES[@]}"
+    fi
+}
+
+run_bats_tests "$@"

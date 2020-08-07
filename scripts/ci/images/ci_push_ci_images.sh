@@ -15,17 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
-# shellcheck source=common/_default_branch.sh
-. "${AIRFLOW_SOURCES}/common/_default_branch.sh"
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# You can override DOCKERHUB_USER to use your own DockerHub account and play with your
-# own docker images. In this case you can build images locally and push them
-export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
+prepare_ci_build
 
-# You can override DOCKERHUB_REPO to use your own DockerHub repository and play with your
-# own docker images. In this case you can build images locally and push them
-export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
-
-# read branch name from what has been set from sources (It can also be overridden)
-export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
+push_ci_images

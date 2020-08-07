@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
 export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh
@@ -32,8 +31,9 @@ function run_check_license() {
 
     echo "Running license checks. This can take a while."
 
-    if ! docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
+    if ! docker run -v "${AIRFLOW_SOURCES}:/opt/airflow" -t \
             --user "$(id -ur):$(id -gr)" \
+            --rm --env-file "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env" \
             ashb/apache-rat:0.13-1 \
             --exclude-file /opt/airflow/.rat-excludes \
             --d /opt/airflow | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then

@@ -45,7 +45,7 @@ RUN_TESTS=${RUN_TESTS:="false"}
 CI=${CI:="false"}
 INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
-if [[ ${CI} == "false" ]]; then
+if [[ ${GITHUB_ACTIONS} == "false" ]]; then
     # Create links for useful CLI tools
     # shellcheck source=scripts/ci/in_container/run_cli_tool.sh
     source <(bash scripts/ci/in_container/run_cli_tool.sh)
@@ -163,7 +163,7 @@ set -u
 
 export RESULT_LOG_FILE="/files/test_result.xml"
 
-if [[ "${CI}" == "true" ]]; then
+if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
     EXTRA_PYTEST_ARGS=(
         "--verbosity=0"
         "--strict-markers"

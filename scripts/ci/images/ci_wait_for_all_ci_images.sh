@@ -16,5 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-export DEFAULT_BRANCH="master"
-export DEFAULT_CONSTRAINTS_BRANCH="constraints-master"
+# This is hook build used by DockerHub. We are also using it
+# on CI to potentially rebuild (and refresh layers that
+# are not cached) Docker images that are used to run CI jobs
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
+echo
+echo "Waiting for all images to appear: ${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[*]}"
+echo
+
+echo
+echo "Check if jq is installed"
+echo
+command -v jq
+
+jq --version
+for PYTHON_MAJOR_MINOR_VERSION in "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}"
+do
+    export AIRFLOW_CI_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
+    wait_for_github_registry_image "${AIRFLOW_CI_IMAGE_NAME}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+done

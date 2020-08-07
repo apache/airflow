@@ -1,0 +1,4 @@
+{
+  "theme": "default",
+  "themeCSS": ".label foreignObject { overflow: visible; }"
+}

@@ -335,7 +335,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_integrations.sh
         language: system
         pass_filenames: false
-        files: ^common/_common_values.sh$|^breeze-complete$
+        files: ^airflow/scripts/ci/libraries/_initialization.sh$|^breeze-complete$
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
