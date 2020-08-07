@@ -127,7 +127,7 @@ Alternative secrets backend
 ---------------------------
 
 In addition to retrieving connections from environment variables or the metastore database, you can enable
-an alternative secrets backend to retrieve connections. For more details see :doc:`../use-alternative-secrets-backend`
+an alternative secrets backend to retrieve connections. For more details see :doc:`../secrets-backend/index`
 
 Connection URI format
 ---------------------

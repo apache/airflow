@@ -69,3 +69,4 @@ howto/operator/google/firebase/index.rst howto/operator/google/index.rst
 # Other redirects
 howto/operator/http/http.rst howto/operator/http.rst
 docs/howto/operator/http/index.rst howto/operator/http.rst
+docs/howto/use-alternative-secrets-backend.rst howto/altenative-secrets-backends/index.rst
