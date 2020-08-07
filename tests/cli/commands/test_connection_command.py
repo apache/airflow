@@ -16,9 +16,8 @@
 # under the License.
 
 import io
-import re
-import textwrap
 import json
+import re
 import unittest
 from contextlib import redirect_stdout
 from unittest import mock
