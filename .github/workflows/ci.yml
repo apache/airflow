@@ -389,7 +389,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         name: Upload artifact for coverage
         with:
-          name: coveragage-quarantined-${{matrix.test-type}}-${{matrix.python-version}}
+          name: coverage-quarantined-${{matrix.test-type}}-${{matrix.python-version}}
           path: ./files/coverage.xml
 
   upload-coverage:
