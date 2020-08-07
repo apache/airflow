@@ -16,6 +16,7 @@
 # under the License.
 
 import io
+import json
 import unittest
 from contextlib import redirect_stdout
 from unittest import mock
@@ -109,6 +110,302 @@ class TestCliListConnections(unittest.TestCase):
 
         with self.assertRaises(SystemExit):
             connection_command.connections_list(args)
+
+
+class TestCliExportConnections(unittest.TestCase):
+    @provide_session
+    def setUp(self, session=None):
+        clear_db_connections(add_default_connections_back=False)
+        merge_conn(
+            Connection(
+                conn_id="airflow_db",
+                conn_type="mysql",
+                host="mysql",
+                login="root",
+                password="plainpassword",
+                schema="airflow",
+            ),
+            session
+        )
+        merge_conn(
+            Connection(
+                conn_id="druid_broker_default",
+                conn_type="druid",
+                host="druid-broker",
+                port=8082,
+                extra='{"endpoint": "druid/v2/sql"}',
+            ),
+            session
+        )
+
+        self.parser = cli_parser.get_parser()
+
+    def tearDown(self):
+        clear_db_connections()
+
+    def test_cli_connections_export_should_return_error_for_invalid_command(self):
+        with self.assertRaises(SystemExit):
+            self.parser.parse_args([
+                "connections",
+                "export",
+            ])
+
+    def test_cli_connections_export_should_return_error_for_invalid_format(self):
+        with self.assertRaises(SystemExit):
+            self.parser.parse_args([
+                "connections",
+                "export",
+                "--format",
+                "invalid",
+                "/path/to/file"
+            ])
+
+    @mock.patch('os.path.splitext')
+    @mock.patch('builtins.open', new_callable=mock.mock_open())
+    def test_cli_connections_export_should_return_error_for_invalid_export_format(self,
+                                                                                  mock_file_open,
+                                                                                  mock_splittext):
+        output_filepath = '/tmp/connections.invalid'
+        mock_splittext.return_value = (None, '.invalid')
+
+        args = self.parser.parse_args([
+            "connections",
+            "export",
+            output_filepath,
+        ])
+        with self.assertRaisesRegex(
+            SystemExit, r"Unsupported file format. The file must have the extension .yaml, .json, .env"
+        ):
+            connection_command.connections_export(args)
+
+        mock_splittext.assert_called_once()
+        mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
+        mock_file_open.return_value.write.assert_not_called()
+
+    @mock.patch('os.path.splitext')
+    @mock.patch('builtins.open', new_callable=mock.mock_open())
+    @mock.patch.object(connection_command, 'create_session')
+    def test_cli_connections_export_should_return_error_if_create_session_fails(self, mock_session,
+                                                                                mock_file_open,
+                                                                                mock_splittext):
+        output_filepath = '/tmp/connections.json'
+
+        def my_side_effect():
+            raise Exception("dummy exception")
+        mock_session.side_effect = my_side_effect
+        mock_splittext.return_value = (None, '.json')
+
+        args = self.parser.parse_args([
+            "connections",
+            "export",
+            output_filepath,
+        ])
+        with self.assertRaisesRegex(Exception, r"dummy exception"):
+            connection_command.connections_export(args)
+
+        mock_splittext.assert_not_called()
+        mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
+        mock_file_open.return_value.write.assert_not_called()
+
+    @mock.patch('os.path.splitext')
+    @mock.patch('builtins.open', new_callable=mock.mock_open())
+    @mock.patch.object(connection_command, 'create_session')
+    def test_cli_connections_export_should_return_error_if_fetching_connections_fails(self, mock_session,
+                                                                                      mock_file_open,
+                                                                                      mock_splittext):
+        output_filepath = '/tmp/connections.json'
+
+        def my_side_effect():
+            raise Exception("dummy exception")
+        mock_session.return_value.__enter__.return_value.query.return_value.all.side_effect = my_side_effect
+        mock_splittext.return_value = (None, '.json')
+
+        args = self.parser.parse_args([
+            "connections",
+            "export",
+            output_filepath,
+        ])
+        with self.assertRaisesRegex(Exception, r"dummy exception"):
+            connection_command.connections_export(args)
+
+        mock_splittext.assert_called_once()
+        mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
+        mock_file_open.return_value.write.assert_not_called()
+
+    @mock.patch('os.path.splitext')
+    @mock.patch('builtins.open', new_callable=mock.mock_open())
+    @mock.patch.object(connection_command, 'create_session')
+    def test_cli_connections_export_should_not_return_error_if_connections_is_empty(self, mock_session,
+                                                                                    mock_file_open,
+                                                                                    mock_splittext):
+        output_filepath = '/tmp/connections.json'
+
+        mock_session.return_value.__enter__.return_value.query.return_value.all.return_value = []
+        mock_splittext.return_value = (None, '.json')
+
+        args = self.parser.parse_args([
+            "connections",
+            "export",
+            output_filepath,
+        ])
+        connection_command.connections_export(args)
+
+        mock_splittext.assert_called_once()
+        mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
+        mock_file_open.return_value.write.assert_called_once_with('{}')
+
+    @mock.patch('os.path.splitext')
+    @mock.patch('builtins.open', new_callable=mock.mock_open())
+    def test_cli_connections_export_should_export_as_json(self, mock_file_open, mock_splittext):
+        output_filepath = '/tmp/connections.json'
+        mock_splittext.return_value = (None, '.json')
+
+        args = self.parser.parse_args([
+            "connections",
+            "export",
+            output_filepath,
+        ])
+        connection_command.connections_export(args)
+
+        expected_connections = json.dumps({
+            "airflow_db": {
+                "conn_type": "mysql",
+                "host": "mysql",
+                "login": "root",
+                "password": "plainpassword",
+                "schema": "airflow",
+                "port": None,
+                "extra": None,
+            },
+            "druid_broker_default": {
+                "conn_type": "druid",
+                "host": "druid-broker",
+                "login": None,
+                "password": None,
+                "schema": None,
+                "port": 8082,
+                "extra": "{\"endpoint\": \"druid/v2/sql\"}",
+            }
+        })
+
+        mock_splittext.assert_called_once()
+        mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
+        mock_file_open.return_value.write.assert_called_once_with(expected_connections)
+
+    @mock.patch('os.path.splitext')
+    @mock.patch('builtins.open', new_callable=mock.mock_open())
+    def test_cli_connections_export_should_export_as_yaml(self, mock_file_open, mock_splittext):
+        output_filepath = '/tmp/connections.yaml'
+        mock_splittext.return_value = (None, '.yaml')
+
+        args = self.parser.parse_args([
+            "connections",
+            "export",
+            output_filepath,
+        ])
+        connection_command.connections_export(args)
+
+        expected_connections = ("airflow_db:\n"
+                                "  conn_type: mysql\n"
+                                "  extra: null\n"
+                                "  host: mysql\n"
+                                "  login: root\n"
+                                "  password: plainpassword\n"
+                                "  port: null\n"
+                                "  schema: airflow\n"
+                                "druid_broker_default:\n"
+                                "  conn_type: druid\n"
+                                "  extra: \'{\"endpoint\": \"druid/v2/sql\"}\'\n"
+                                "  host: druid-broker\n"
+                                "  login: null\n"
+                                "  password: null\n"
+                                "  port: 8082\n"
+                                "  schema: null\n")
+        mock_splittext.assert_called_once()
+        mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
+        mock_file_open.return_value.write.assert_called_once_with(expected_connections)
+
+    @mock.patch('os.path.splitext')
+    @mock.patch('builtins.open', new_callable=mock.mock_open())
+    def test_cli_connections_export_should_export_as_env(self, mock_file_open, mock_splittext):
+        output_filepath = '/tmp/connections.env'
+        mock_splittext.return_value = (None, '.env')
+
+        args = self.parser.parse_args([
+            "connections",
+            "export",
+            output_filepath,
+        ])
+        connection_command.connections_export(args)
+
+        expected_connections = (
+            "airflow_db=mysql://root:plainpassword@mysql/airflow\n"
+            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n")
+
+        mock_splittext.assert_called_once()
+        mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
+        mock_file_open.return_value.write.assert_called_once_with(expected_connections)
+
+    @mock.patch('os.path.splitext')
+    @mock.patch('builtins.open', new_callable=mock.mock_open())
+    def test_cli_connections_export_should_export_as_env_for_uppercase_file_extension(self, mock_file_open,
+                                                                                      mock_splittext):
+        output_filepath = '/tmp/connections.ENV'
+        mock_splittext.return_value = (None, '.ENV')
+
+        args = self.parser.parse_args([
+            "connections",
+            "export",
+            output_filepath,
+        ])
+        connection_command.connections_export(args)
+
+        expected_connections = (
+            "airflow_db=mysql://root:plainpassword@mysql/airflow\n"
+            "druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql\n")
+
+        mock_splittext.assert_called_once()
+        mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
+        mock_file_open.return_value.write.assert_called_once_with(expected_connections)
+
+    @mock.patch('os.path.splitext')
+    @mock.patch('builtins.open', new_callable=mock.mock_open())
+    def test_cli_connections_export_should_force_export_as_specified_format(self, mock_file_open,
+                                                                            mock_splittext):
+        output_filepath = '/tmp/connections.yaml'
+
+        args = self.parser.parse_args([
+            "connections",
+            "export",
+            output_filepath,
+            "--format",
+            "json",
+        ])
+        connection_command.connections_export(args)
+
+        expected_connections = json.dumps({
+            "airflow_db": {
+                "conn_type": "mysql",
+                "host": "mysql",
+                "login": "root",
+                "password": "plainpassword",
+                "schema": "airflow",
+                "port": None,
+                "extra": None,
+            },
+            "druid_broker_default": {
+                "conn_type": "druid",
+                "host": "druid-broker",
+                "login": None,
+                "password": None,
+                "schema": None,
+                "port": 8082,
+                "extra": "{\"endpoint\": \"druid/v2/sql\"}",
+            }
+        })
+        mock_splittext.assert_not_called()
+        mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
+        mock_file_open.return_value.write.assert_called_once_with(expected_connections)
 
 
 TEST_URL = "postgresql://airflow:airflow@host:5432/airflow"

@@ -629,6 +629,15 @@ ARG_INCLUDE_SECRETS = Arg(
     ),
     action="store_true",
     default=False)
+ARG_CONN_EXPORT = Arg(
+    ('file',),
+    help='Output file path for exporting the connections',
+    type=argparse.FileType('w', encoding='UTF-8'))
+ARG_CONN_EXPORT_FORMAT = Arg(
+    ('--format',),
+    help='Format of the connections data in file',
+    type=str,
+    choices=['json', 'yaml', 'env'])
 # users
 ARG_USERNAME = Arg(
     ('-u', '--username'),
@@ -1106,6 +1115,22 @@ CONNECTIONS_COMMANDS = (
         help='Delete a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
         args=(ARG_CONN_ID,),
+    ),
+    ActionCommand(
+        name='export',
+        help='Export all connections',
+        description=("All connections can be exported in STDOUT using the following command:\n"
+                     "airflow connections export -\n"
+                     "The file format can be determined by the provided file extension. eg, The following "
+                     "command will export the connections in JSON format:\n"
+                     "airflow connections export /tmp/connections.json\n"
+                     "The --format parameter can be used to mention the connections format. eg, "
+                     "the default format is JSON in STDOUT mode, which can be overridden using: \n"
+                     "airflow connections export - --format yaml\n"
+                     "The --format parameter can also be used for the files, for example:\n"
+                     "airflow connections export /tmp/connections --format json\n"),
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_export'),
+        args=(ARG_CONN_EXPORT, ARG_CONN_EXPORT_FORMAT,),
     ),
 )
 USERS_COMMANDS = (

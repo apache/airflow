@@ -15,10 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Connection sub-commands"""
+import io
+import json
+import os
 import sys
 from typing import List
 from urllib.parse import urlunparse
 
+import yaml
 from sqlalchemy.orm import exc
 from tabulate import tabulate
 
@@ -65,6 +69,69 @@ def connections_list(args):
         tablefmt = args.output
         msg = _tabulate_connection(conns, tablefmt)
         print(msg)
+
+
+def _format_connections(conns: List[Connection], fmt: str) -> str:
+    if fmt == '.env':
+        connections_env = ""
+        for conn in conns:
+            connections_env += f"{conn.conn_id}={conn.get_uri()}\n"
+        return connections_env
+
+    connections_dict = {}
+    for conn in conns:
+        connections_dict[conn.conn_id] = {
+            'conn_type': conn.conn_type,
+            'host': conn.host,
+            'login': conn.login,
+            'password': conn.password,
+            'schema': conn.schema,
+            'port': conn.port,
+            'extra': conn.extra,
+        }
+
+    if fmt == '.yaml':
+        return yaml.dump(connections_dict)
+
+    if fmt == '.json':
+        return json.dumps(connections_dict)
+
+    return json.dumps(connections_dict)
+
+
+def _is_stdout(fileio: io.TextIOWrapper) -> bool:
+    if fileio.name == '<stdout>':
+        return True
+    return False
+
+
+def connections_export(args):
+    """Exports all connections to a file"""
+    allowed_formats = ['.yaml', '.json', '.env']
+    provided_format = None if args.format is None else f".{args.format.lower()}"
+    default_format = provided_format or '.json'
+
+    with create_session() as session:
+        if _is_stdout(args.file):
+            filetype = default_format
+        elif provided_format is not None:
+            filetype = provided_format
+        else:
+            _, filetype = os.path.splitext(args.file.name)
+            filetype = filetype.lower()
+            if filetype not in allowed_formats:
+                msg = f"Unsupported file format. " \
+                      f"The file must have the extension {', '.join(allowed_formats)}"
+                raise SystemExit(msg)
+
+        connections = session.query(Connection).all()
+        msg = _format_connections(connections, filetype)
+        args.file.write(msg)
+
+        if _is_stdout(args.file):
+            print("Connections successfully exported.", file=sys.stderr)
+        else:
+            print(f"Connections successfully exported to {args.file.name}")
 
 
 alternative_conn_specs = ['conn_type', 'conn_host',

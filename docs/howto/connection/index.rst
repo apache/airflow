@@ -88,6 +88,93 @@ Alternatively you may specify each parameter individually:
         --conn-schema 'schema' \
         ...
 
+.. _connection/export:
+
+Exporting Connections from the CLI
+----------------------------------
+
+You may export connections from the database using the CLI. The supported formats are ``json``, ``yaml`` and ``env``.
+
+You may mention the target file as the parameter:
+
+.. code-block:: bash
+
+    airflow connections export connections.json
+
+Alternatively you may specify ``format`` parameter for overriding the format:
+
+.. code-block:: bash
+
+    airflow connections export /tmp/connections --format yaml
+
+You may also specify ``-`` for STDOUT:
+
+.. code-block:: bash
+
+    airflow connections export -
+
+The JSON format contains an object where the key contains the connection ID and the value contains the definition of the connection. In this format, the connection is defined as a JSON object. The following is a sample JSON file.
+
+.. code-block:: json
+
+    {
+        "CONN_A": {
+            "conn_type": "mysql",
+            "host": "mysql",
+            "login": "root",
+            "password": "plainpassword",
+            "schema": "airflow",
+            "port": null,
+            "extra": null,
+            "is_encrypted": false,
+            "is_extra_encrypted": false
+        },
+        "CONN_B": {
+            "conn_type": "druid",
+            "host": "druid-broker",
+            "login": null,
+            "password": null,
+            "schema": null,
+            "port": 8082,
+            "extra": "{\"endpoint\": \"druid/v2/sql\"}",
+            "is_encrypted": false,
+            "is_extra_encrypted": false
+        }
+    }
+
+The YAML file structure is similar to that of a JSON. The key-value pair of connection ID and the definitions of one or more connections. In this format, the connection is defined as a YAML object. The following is a sample YAML file.
+
+.. code-block:: yaml
+
+    CONN_A:
+      conn_type: mysql
+      extra:
+      host: mysql
+      is_encrypted: false
+      is_extra_encrypted: false
+      login: root
+      password: plainpassword
+      port:
+      schema: airflow
+
+    CONN_B:
+      conn_type: druid
+      extra: '{"endpoint": "druid/v2/sql"}'
+      host: druid-broker
+      is_encrypted: false
+      is_extra_encrypted: false
+      login:
+      password:
+      port: 8082
+      schema:
+
+You may also export connections in ``.env`` format. The key is the connection ID, and the value describes the connection using the URI. The following is a sample ENV file.
+
+.. code-block:: text
+
+    CONN_A=mysql://root:plainpassword@mysql/airflow
+    CONN_B=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql
+
 .. _environment_variables_secrets_backend:
 
 Storing a Connection in Environment Variables
