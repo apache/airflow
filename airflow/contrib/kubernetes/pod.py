@@ -19,7 +19,18 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.kubernetes.pod import Port, Resources   # noqa
+from typing import List, Union
+
+from kubernetes.client import models as k8s
+
+from airflow.kubernetes.pod import Port, Resources  # noqa
+from airflow.kubernetes.volume import Volume
+from airflow.kubernetes.volume_mount import VolumeMount
+from airflow.kubernetes.secret import Secret
+
+from kubernetes.client.api_client import ApiClient
+
+api_client = ApiClient()
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.kubernetes.pod`.",
@@ -120,7 +131,7 @@ class Pod(object):
         self.affinity = affinity or {}
         self.hostnetwork = hostnetwork or False
         self.tolerations = tolerations or []
-        self.security_context = security_context
+        self.security_context = security_context or {}
         self.configmaps = configmaps or []
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
         self.dnspolicy = dnspolicy
@@ -154,6 +165,7 @@ class Pod(object):
             dns_policy=self.dnspolicy,
             host_network=self.hostnetwork,
             tolerations=self.tolerations,
+            affinity=self.affinity,
             security_context=self.security_context,
         )
 
@@ -161,17 +173,18 @@ class Pod(object):
             spec=spec,
             metadata=meta,
         )
-        for port in self.ports:
+        for port in _extract_ports(self.ports):
             pod = port.attach_to_pod(pod)
-        for volume in self.volumes:
+        volumes, _ = _extract_volumes_and_secrets(self.volumes, self.volume_mounts)
+        for volume in volumes:
             pod = volume.attach_to_pod(pod)
-        for volume_mount in self.volume_mounts:
+        for volume_mount in _extract_volume_mounts(self.volume_mounts):
             pod = volume_mount.attach_to_pod(pod)
         for secret in self.secrets:
             pod = secret.attach_to_pod(pod)
         for runtime_info in self.pod_runtime_info_envs:
             pod = runtime_info.attach_to_pod(pod)
-        pod = self.resources.attach_to_pod(pod)
+        pod = _extract_resources(self.resources).attach_to_pod(pod)
         return pod
 
     def as_dict(self):
@@ -182,3 +195,121 @@ class Pod(object):
         res['volumes'] = [volume.as_dict() for volume in res['volumes']]
 
         return res
+
+
+def _extract_env_vars_and_secrets(env_vars):
+    """
+    Extracts environment variables and Secret objects from V1Pod Environment
+    """
+    result = {}
+    env_vars = env_vars or []  # type: List[Union[k8s.V1EnvVar, dict]]
+    secrets = []
+    for env_var in env_vars:
+        if isinstance(env_var, k8s.V1EnvVar):
+            secret = _extract_env_secret(env_var)
+            if secret:
+                secrets.append(secret)
+                continue
+            env_var = api_client.sanitize_for_serialization(env_var)
+        result[env_var.get("name")] = env_var.get("value")
+    return result, secrets
+
+
+def _extract_env_secret(env_var):
+    if env_var.value_from and env_var.value_from.secret_key_ref:
+        secret = env_var.value_from.secret_key_ref  # type: k8s.V1SecretKeySelector
+        name = secret.name
+        key = secret.key
+        return Secret("env", deploy_target=env_var.name, secret=name, key=key)
+    return None
+
+
+def _extract_ports(ports):
+    result = []
+    ports = ports or []  # type: List[Union[k8s.V1ContainerPort, dict]]
+    for port in ports:
+        if isinstance(port, k8s.V1ContainerPort):
+            port = api_client.sanitize_for_serialization(port)
+            port = Port(name=port.get("name"), container_port=port.get("containerPort"))
+        elif not isinstance(port, Port):
+            port = Port(name=port.get("name"), container_port=port.get("containerPort"))
+        result.append(port)
+    return result
+
+
+def _extract_resources(resources):
+    if isinstance(resources, k8s.V1ResourceRequirements):
+        requests = resources.requests
+        limits = resources.limits
+        return Resources(
+            request_memory=requests.get('memory', None),
+            request_cpu=requests.get('cpu', None),
+            request_ephemeral_storage=requests.get('ephemeral-storage', None),
+            limit_memory=limits.get('memory', None),
+            limit_cpu=limits.get('cpu', None),
+            limit_ephemeral_storage=limits.get('ephemeral-storage', None),
+            limit_gpu=limits.get('nvidia.com/gpu')
+        )
+    elif isinstance(resources, Resources):
+        return resources
+
+
+def _extract_security_context(security_context):
+    if isinstance(security_context, k8s.V1PodSecurityContext):
+        security_context = api_client.sanitize_for_serialization(security_context)
+    return security_context
+
+
+def _extract_volume_mounts(volume_mounts):
+    result = []
+    volume_mounts = volume_mounts or []  # type: List[Union[k8s.V1VolumeMount, dict]]
+    for volume_mount in volume_mounts:
+        if isinstance(volume_mount, k8s.V1VolumeMount):
+            volume_mount = api_client.sanitize_for_serialization(volume_mount)
+            volume_mount = VolumeMount(
+                name=volume_mount.get("name"),
+                mount_path=volume_mount.get("mountPath"),
+                sub_path=volume_mount.get("subPath"),
+                read_only=volume_mount.get("readOnly")
+            )
+        elif not isinstance(volume_mount, VolumeMount):
+            volume_mount = VolumeMount(
+                name=volume_mount.get("name"),
+                mount_path=volume_mount.get("mountPath"),
+                sub_path=volume_mount.get("subPath"),
+                read_only=volume_mount.get("readOnly")
+            )
+
+        result.append(volume_mount)
+    return result
+
+
+def _extract_volumes_and_secrets(volumes, volume_mounts):
+    result = []
+    volumes = volumes or []  # type: List[Union[k8s.V1Volume, dict]]
+    secrets = []
+    volume_mount_dict = {
+        volume_mount.name: volume_mount
+        for volume_mount in _extract_volume_mounts(volume_mounts)
+    }
+    for volume in volumes:
+        if isinstance(volume, k8s.V1Volume):
+            secret = _extract_volume_secret(volume, volume_mount_dict.get(volume.name, None))
+            if secret:
+                secrets.append(secret)
+                continue
+            volume = api_client.sanitize_for_serialization(volume)
+            volume = Volume(name=volume.get("name"), configs=volume)
+        if not isinstance(volume, Volume):
+            volume = Volume(name=volume.get("name"), configs=volume)
+        result.append(volume)
+    return result, secrets
+
+
+def _extract_volume_secret(volume, volume_mount):
+    if not volume.secret:
+        return None
+    if volume_mount:
+        return Secret("volume", volume_mount.mount_path, volume.name, volume.secret.secret_name)
+    else:
+        return Secret("volume", None, volume.name, volume.secret.secret_name)

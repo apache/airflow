@@ -20,7 +20,7 @@ Classes for interacting with Kubernetes API
 
 import copy
 
-import kubernetes.client.models as k8s
+from kubernetes.client import models as k8s
 
 from airflow.kubernetes.k8s_model import K8SModel
 
@@ -87,18 +87,25 @@ class Resources(K8SModel):
             self.request_ephemeral_storage is not None
 
     def to_k8s_client_obj(self):
-        return k8s.V1ResourceRequirements(
-            limits={
-                'cpu': self.limit_cpu,
-                'memory': self.limit_memory,
-                'nvidia.com/gpu': self.limit_gpu,
-                'ephemeral-storage': self.limit_ephemeral_storage
-            },
-            requests={
-                'cpu': self.request_cpu,
-                'memory': self.request_memory,
-                'ephemeral-storage': self.request_ephemeral_storage}
+        limits_raw = {
+            'cpu': self.limit_cpu,
+            'memory': self.limit_memory,
+            'nvidia.com/gpu': self.limit_gpu,
+            'ephemeral-storage': self.limit_ephemeral_storage
+        }
+        requests_raw = {
+            'cpu': self.request_cpu,
+            'memory': self.request_memory,
+            'ephemeral-storage': self.request_ephemeral_storage
+        }
+
+        limits = {k: v for k, v in limits_raw.items() if v}
+        requests = {k: v for k, v in requests_raw.items() if v}
+        resource_req = k8s.V1ResourceRequirements(
+            limits=limits,
+            requests=requests
         )
+        return resource_req
 
     def attach_to_pod(self, pod):
         cp_pod = copy.deepcopy(pod)

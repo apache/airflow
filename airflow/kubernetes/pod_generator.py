@@ -36,6 +36,7 @@ from functools import reduce
 import kubernetes.client.models as k8s
 import yaml
 from kubernetes.client.api_client import ApiClient
+from airflow.contrib.kubernetes.pod import _extract_volume_mounts
 
 from airflow.exceptions import AirflowConfigException
 from airflow.version import version as airflow_version
@@ -249,7 +250,7 @@ class PodGenerator(object):
         self.container.image_pull_policy = image_pull_policy
         self.container.ports = ports or []
         self.container.resources = resources
-        self.container.volume_mounts = volume_mounts or []
+        self.container.volume_mounts = [v.to_k8s_client_obj() for v in _extract_volume_mounts(volume_mounts)]
 
         # Pod Spec
         self.spec = k8s.V1PodSpec(containers=[])
@@ -370,6 +371,11 @@ class PodGenerator(object):
                     requests=requests,
                     limits=limits
                 )
+        elif isinstance(resources, dict):
+            resources = k8s.V1ResourceRequirements(
+                requests=resources['requests'],
+                limits=resources['limits']
+            )
 
         annotations = namespaced.get('annotations', {})
         gcp_service_account_key = namespaced.get('gcp_service_account_key', None)
@@ -402,11 +408,34 @@ class PodGenerator(object):
 
         client_pod_cp = copy.deepcopy(client_pod)
         client_pod_cp.spec = PodGenerator.reconcile_specs(base_pod.spec, client_pod_cp.spec)
-
-        client_pod_cp.metadata = merge_objects(base_pod.metadata, client_pod_cp.metadata)
+        client_pod_cp.metadata = PodGenerator.reconcile_metadata(base_pod.metadata, client_pod_cp.metadata)
         client_pod_cp = merge_objects(base_pod, client_pod_cp)
 
         return client_pod_cp
+
+    @staticmethod
+    def reconcile_metadata(base_meta, client_meta):
+        """
+        :param base_meta: has the base attributes which are overwritten if they exist
+            in the client_meta and remain if they do not exist in the client_meta
+        :type base_meta: k8s.V1ObjectMeta
+        :param client_meta: the spec that the client wants to create.
+        :type client_meta: k8s.V1ObjectMeta
+        :return: the merged specs
+        """
+        if base_meta and not client_meta:
+            return base_meta
+        if not base_meta and client_meta:
+            return client_meta
+        elif client_meta and base_meta:
+            client_meta.labels = merge_objects(base_meta.labels, client_meta.labels)
+            client_meta.annotations = merge_objects(base_meta.annotations, client_meta.annotations)
+            extend_object_field(base_meta, client_meta, 'managed_fields')
+            extend_object_field(base_meta, client_meta, 'finalizers')
+            extend_object_field(base_meta, client_meta, 'owner_references')
+            return merge_objects(base_meta, client_meta)
+
+        return None
 
     @staticmethod
     def reconcile_specs(base_spec,
@@ -580,10 +609,17 @@ def merge_objects(base_obj, client_obj):
 
     client_obj_cp = copy.deepcopy(client_obj)
 
+    if isinstance(base_obj, dict) and isinstance(client_obj_cp, dict):
+        client_obj_cp.update(base_obj)
+        return client_obj_cp
+
     for base_key in base_obj.to_dict().keys():
         base_val = getattr(base_obj, base_key, None)
         if not getattr(client_obj, base_key, None) and base_val:
-            setattr(client_obj_cp, base_key, base_val)
+            if not isinstance(client_obj_cp, dict):
+                setattr(client_obj_cp, base_key, base_val)
+            else:
+                client_obj_cp[base_key] = base_val
     return client_obj_cp
 
 
@@ -610,6 +646,36 @@ def extend_object_field(base_obj, client_obj, field_name):
         setattr(client_obj_cp, field_name, base_obj_field)
         return client_obj_cp
 
-    appended_fields = base_obj_field + client_obj_field
+    base_obj_set = _get_dict_from_list(base_obj_field)
+    client_obj_set = _get_dict_from_list(client_obj_field)
+
+    appended_fields = _merge_list_of_objects(base_obj_set, client_obj_set)
+
     setattr(client_obj_cp, field_name, appended_fields)
     return client_obj_cp
+
+
+def _merge_list_of_objects(base_obj_set, client_obj_set):
+    for k, v in base_obj_set.items():
+        if k not in client_obj_set:
+            client_obj_set[k] = v
+        else:
+            client_obj_set[k] = merge_objects(v, client_obj_set[k])
+    appended_field_keys = sorted(client_obj_set.keys())
+    appended_fields = [client_obj_set[k] for k in appended_field_keys]
+    return appended_fields
+
+
+def _get_dict_from_list(base_list):
+    """
+    :type base_list: list(Optional[dict, *to_dict])
+    """
+    result = {}
+    for obj in base_list:
+        if isinstance(obj, dict):
+            result[obj['name']] = obj
+        elif hasattr(obj, "to_dict"):
+            result[obj.name] = obj
+        else:
+            raise AirflowConfigException("Trying to merge invalid object {}".format(obj))
+    return result
