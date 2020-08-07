@@ -230,12 +230,11 @@ jobs:
         with:
           name: kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
           path: /tmp/kind_logs_*
-      - uses: codecov/codecov-action@v1
-        name: Upload Coverage report to codecov
+      - uses: actions/upload-artifact@v2
+        name: Upload artifact for coverage
         with:
-          file: ./files/coverage.xml
-          flags: >
-            kubernetes-tests-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
+          name: coverage-k8s-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
+          path: ./files/coverage.xml
 
   tests-postgres:
     timeout-minutes: 80
@@ -272,11 +271,12 @@ jobs:
         with:
           name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: './files/airflow_logs*'
-      - uses: codecov/codecov-action@v1
-        name: Upload Coverage report to codecov
+      - uses: actions/upload-artifact@v2
+        name: Upload artifact for coverage
         with:
-          file: ./files/coverage.xml
-          flags: postgres-tests-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
+          name: >
+            coverage-postgres-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
+          path: ./files/coverage.xml
 
   tests-mysql:
     timeout-minutes: 80
@@ -313,11 +313,11 @@ jobs:
         with:
           name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: './files/airflow_logs*'
-      - uses: codecov/codecov-action@v1
-        name: Upload Coverage report to codecov
+      - uses: actions/upload-artifact@v2
+        name: Upload artifact for coverage
         with:
-          file: ./files/coverage.xml
-          flags: mysql-tests-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
+          name: coverage-mysql-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
+          path: ./files/coverage.xml
 
   tests-sqlite:
     timeout-minutes: 80
@@ -352,11 +352,95 @@ jobs:
         with:
           name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}
           path: './files/airflow_logs*'
-      - uses: codecov/codecov-action@v1
-        name: Upload Coverage report to codecov
+      - uses: actions/upload-artifact@v2
+        name: Upload artifact for coverage
         with:
-          file: ./files/coverage.xml
-          flags: sqlite-tests-${{matrix.test-type}}-${{matrix.python-version}}
+          name: coverage-sqlite-${{matrix.test-type}}-${{matrix.python-version}}
+          path: ./files/coverage.xml
+
+  tests-quarantined:
+    timeout-minutes: 80
+    name: "Quarantined tests"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs: [trigger-tests]
+    strategy:
+      matrix:
+        python-version: [3.6]
+        postgres-version: [9.6]
+      fail-fast: false
+    env:
+      BACKEND: postgres
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      POSTGRES_VERSION: ${{ matrix.postgres-version }}
+      RUN_TESTS: "true"
+      TEST_TYPE: Quarantined
+      NUM_RUNS: 10
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      - name: "Set issue id for master"
+        if: github.ref == 'refs/heads/master'
+        run: |
+          echo "::set-env name=ISSUE_ID::10118"
+      - name: "Set issue id for v1-10-stable"
+        if: github.ref == 'refs/heads/v1-10-stable'
+        run: |
+          echo "::set-env name=ISSUE_ID::10127"
+      - name: "Set issue id for v1-10-test"
+        if: github.ref == 'refs/heads/v1-10-test'
+        run: |
+          echo "::set-env name=ISSUE_ID::10128"
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Tests"
+        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload Quarantine test results
+        if: always()
+        with:
+          name: 'quarantined_tests'
+          path: 'files/test_result.xml'
+      - uses: actions/upload-artifact@v2
+        name: Upload airflow logs
+        if: always()
+        with:
+          name: airflow-logs-quarantined-${{matrix.python-version}}-${{ matrix.postgres-version }}
+          path: './files/airflow_logs*'
+      - uses: actions/upload-artifact@v2
+        name: Upload artifact for coverage
+        with:
+          name: coverage-quarantined-${{matrix.test-type}}-${{matrix.python-version}}
+          path: ./files/coverage.xml
+
+  upload-coverage:
+    timeout-minutes: 5
+    name: "Upload coverage"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs:
+      - tests-kubernetes
+      - tests-postgres
+      - tests-sqlite
+      - tests-mysql
+      - tests-quarantined
+    steps:
+      - uses: actions/download-artifact@v2
+        name: Download all artifacts from the current build
+        with:
+          path: ./coverage-files
+      - name: Removes unnecessary artifacts
+        run: ls ./coverage-files | grep -v coverage | xargs rm -rf
+      - uses: codecov/codecov-action@v1
+        name: Upload all coverage reports to codecov
+        with:
+          directory: ./coverage-files
 
   helm-tests:
     timeout-minutes: 5

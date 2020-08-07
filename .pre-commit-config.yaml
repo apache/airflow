@@ -111,6 +111,7 @@ repos:
         name: Add license for all yaml files
         exclude: ^\.github/.*$
         types: [yaml]
+        files: \.yml$|\.yaml$
         args:
           - --comment-style
           - "|#|"

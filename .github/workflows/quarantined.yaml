@@ -21,10 +21,6 @@ on:
   schedule:
     # Run quarantined builds 4 times a day to gather better quarantine stats
     - cron: '35 */6 * * *'
-  push:
-    branches: ['master', 'v1-10-test', 'v1-10-stable']
-  pull_request:
-    branches: ['master', 'v1-10-test', 'v1-10-stable']
 
 env:
   MOUNT_LOCAL_SOURCES: "false"
@@ -43,21 +39,10 @@ env:
 
 jobs:
 
-  cancel-previous-workflow-run:
-    timeout-minutes: 60
-    name: "Cancel previous workflow run"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: potiuk/cancel-workflow-runs@v1
-        with:
-          workflow: quarantined.yaml
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   trigger-tests:
     timeout-minutes: 5
     name: "Checks if tests should be run"
     runs-on: ubuntu-latest
-    needs: [cancel-previous-workflow-run]
     outputs:
       run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
     steps:
@@ -121,9 +106,3 @@ jobs:
         with:
           name: airflow-logs-quarantined-${{matrix.python-version}}-${{ matrix.postgres-version }}
           path: './files/airflow_logs*'
-      - uses: codecov/codecov-action@v1
-        name: Upload Coverage report to codecov
-        with:
-          file: ./files/coverage.xml
-          flags: >
-            kubernetes-tests-${{matrix.python-version}}-${{ matrix.postgres-version }}
