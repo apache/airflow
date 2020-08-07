@@ -18,6 +18,7 @@
 
 """Serialized DAG table in database."""
 
+import hashlib
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -53,7 +54,7 @@ class SerializedDagModel(Base):
       interval of deleting serialized DAGs in DB when the files are deleted, suggest
       to use a smaller interval such as 60
 
-    It is used by webserver to load dagbags when ``store_serialized_dags=True``.
+    It is used by webserver to load dags when ``store_serialized_dags=True``.
     Because reading from database is lightweight compared to importing from files,
     it solves the webserver scalability issue.
     """
@@ -65,6 +66,11 @@ class SerializedDagModel(Base):
     fileloc_hash = Column(BigInteger, nullable=False)
     data = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     last_updated = Column(UtcDateTime, nullable=False)
+    # TODO: Make dag_hash not nullable in Airflow 1.10.13 or Airflow 2.0??
+    # This is done so that dag_hash will be populated for users who upgrade to
+    # Airflow 1.10.12. So the number of DAGs fetched for which the dag_hash is None
+    # should be small in number.
+    dag_hash = Column(String(32), nullable=True)
 
     __table_args__ = (
         Index('idx_fileloc_hash', fileloc_hash, unique=False),
@@ -76,6 +82,7 @@ class SerializedDagModel(Base):
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()
+        self.dag_hash = hashlib.md5(json.dumps(self.data, sort_keys=True).encode("utf-8")).hexdigest()
 
     def __repr__(self):
         return f"<SerializedDag: {self.dag_id}>"
@@ -102,9 +109,11 @@ class SerializedDagModel(Base):
                 return
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
-        serialized_dag_from_db: SerializedDagModel = session.query(cls).get(dag.dag_id)
         new_serialized_dag = cls(dag)
-        if serialized_dag_from_db and (serialized_dag_from_db.data == new_serialized_dag.data):
+        serialized_dag_hash_from_db = session.query(
+            cls.dag_hash).filter(cls.dag_id == dag.dag_id).scalar()
+
+        if serialized_dag_hash_from_db and (serialized_dag_hash_from_db == new_serialized_dag.dag_hash):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return
 
