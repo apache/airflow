@@ -869,7 +869,7 @@ How to sync your fork
 =====================
 
 When you have your fork, you should periodically synchronize the master of your fork with the
-Apache Airflow master. In order to do that you can ``git pull`` to your local git repository from
+Apache Airflow master. In order to do that you can ``git pull --rebase`` to your local git repository from
 apache remote and push the master (often with ``--force`` to your fork). There is also an easy
 way using ``Force sync master from apache/airflow`` workflow. You can go to "Actions" in your repository and
 choose the workflow and manually trigger the workflow using "Run workflow" command.
