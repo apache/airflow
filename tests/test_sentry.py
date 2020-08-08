@@ -17,6 +17,7 @@
 # under the License.
 
 import datetime
+import importlib
 import unittest
 from unittest.mock import MagicMock, Mock
 
@@ -24,10 +25,10 @@ from freezegun import freeze_time
 from sentry_sdk import configure_scope
 
 from airflow.models import TaskInstance
-from airflow.sentry import ConfiguredSentry
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
+from tests.test_utils.config import conf_vars
 
 EXECUTION_DATE = timezone.utcnow()
 DAG_ID = "test_dag"
@@ -60,9 +61,11 @@ CRUMB = {
 
 
 class TestSentryHook(unittest.TestCase):
+    @conf_vars({('sentry', 'sentry_on'): 'True'})
     def setUp(self):
-
-        self.sentry = ConfiguredSentry()
+        from airflow import sentry
+        importlib.reload(sentry)
+        self.sentry = sentry.ConfiguredSentry()
 
         # Mock the Dag
         self.dag = Mock(dag_id=DAG_ID, params=[])
