@@ -137,6 +137,8 @@ Here's the list of the subpackages and what they enable:
 +=====================+=====================================================+======================================================================+
 | atlas               | ``pip install 'apache-airflow[apache.atlas]'``      | Apache Atlas to use Data Lineage feature                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| beam                | ``pip install 'apache-airflow[apache.beam]'``       | Apache Beam operators & hooks                                        |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | cassandra           | ``pip install 'apache-airflow[apache.cassandra]'``  | Cassandra related operators & hooks                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | druid               | ``pip install 'apache-airflow[apache.druid]'``      | Druid related operators & hooks                                      |
