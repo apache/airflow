@@ -47,3 +47,4 @@ configuring an Airflow environment.
     tracking-user-activity
     email-config
     secrets-backend/index
+    cluster-policy
