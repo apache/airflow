@@ -274,16 +274,19 @@ convenience method :py:meth:`~airflow.models.connection.Connection.get_uri`.  It
     >>> print(f"AIRFLOW_CONN_{c.conn_id.upper()}='{c.get_uri()}'")
     AIRFLOW_CONN_SOME_CONN='mysql://myname:mypassword@myhost.com?this_param=some+val&that_param=other+val%2A'
 
-Additionally, if you have created a connection via the UI, and you need to switch to an environment variable,
-you can get the URI like so:
+Additionally, if you have created a connection, you can use ``airflow connections get`` command.
 
-.. code-block:: python
+.. code-block:: bash
 
-    from airflow.hooks.base_hook import BaseHook
-
-    conn = BaseHook.get_connection('postgres_default')
-    print(f"AIRFLOW_CONN_{conn.conn_id.upper()}='{conn.get_uri()}'")
-
+    $ airflow connections get sqlite_default
+    Conn ID: sqlite_default
+    Conn Type: sqlite
+    Extra: {}
+    Host: /tmp/sqlite_default.db
+    Is Encrypted: false
+    Is Extra Encrypted: false
+    Port: null
+    URI: sqlite://%2Ftmp%2Fsqlite_default.db
 
 .. _manage-connections-connection-types:
 

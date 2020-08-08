@@ -19,11 +19,11 @@ import io
 import sys
 
 import pygments
-from pygments.formatters.terminal import TerminalFormatter
 from pygments.lexers.configs import IniLexer
 
 from airflow.configuration import conf
 from airflow.utils.cli import should_use_colors
+from airflow.utils.code_utils import get_terminal_formatter
 
 
 def show_config(args):
@@ -33,7 +33,7 @@ def show_config(args):
         code = output.getvalue()
         if should_use_colors(args):
             code = pygments.highlight(
-                code=code, formatter=TerminalFormatter(), lexer=IniLexer()
+                code=code, formatter=get_terminal_formatter(), lexer=IniLexer()
             )
         print(code)
 

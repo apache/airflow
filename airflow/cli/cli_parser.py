@@ -582,7 +582,7 @@ ARG_ENV_VARS = Arg(
 # connections
 ARG_CONN_ID = Arg(
     ('conn_id',),
-    help='Connection id, required to add/delete a connection',
+    help='Connection id, required to get/add/delete a connection',
     type=str)
 ARG_CONN_ID_FILTER = Arg(
     ('--conn-id',),
@@ -620,15 +620,6 @@ ARG_CONN_EXTRA = Arg(
     ('--conn-extra',),
     help='Connection `Extra` field, optional when adding a connection',
     type=str)
-ARG_INCLUDE_SECRETS = Arg(
-    ('--include-secrets',),
-    help=(
-        "If passed, the connection in the secret backend will also be displayed."
-        "To use this option you must pass `--conn_id` option."
-        ""
-    ),
-    action="store_true",
-    default=False)
 ARG_CONN_EXPORT = Arg(
     ('file',),
     help='Output file path for exporting the connections',
@@ -1099,10 +1090,16 @@ DB_COMMANDS = (
 )
 CONNECTIONS_COMMANDS = (
     ActionCommand(
+        name='get',
+        help='Get a connection',
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_get'),
+        args=(ARG_CONN_ID, ARG_COLOR),
+    ),
+    ActionCommand(
         name='list',
         help='List connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
-        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER, ARG_INCLUDE_SECRETS),
+        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER),
     ),
     ActionCommand(
         name='add',
