@@ -40,7 +40,7 @@ def resetdb(args):
                          "(y/n)").upper() == "Y":
         db.resetdb()
     else:
-        print("Bail.")
+        print("Cancelled")
 
 
 @cli_utils.action_logging

@@ -176,7 +176,7 @@ def dag_delete(args):
         except OSError as err:
             raise AirflowException(err)
     else:
-        print("Bail.")
+        print("Cancelled")
 
 
 @cli_utils.action_logging
