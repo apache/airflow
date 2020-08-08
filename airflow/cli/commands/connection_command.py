@@ -43,6 +43,7 @@ def prep_msg(msg, conn):
     return msg
 
 
+
 def _tabulate_connection(conns: List[Connection], tablefmt: str):
     tabulate_data = [
         {
@@ -196,7 +197,7 @@ def connections_import(args):
         disposition = DIS_RESTRICT
     elif args.conflict_disposition in DISPOSITIONS:
         disposition = args.conflict_disposition
-
+        
     conn_status_map = {
         DIS_OVERWRITE: [],
         DIS_IGNORE: [],
