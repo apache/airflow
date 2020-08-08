@@ -555,7 +555,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'all_dbs': all_dbs,
     'amazon': amazon,
     'apache.atlas': atlas,
-    'apache_beam': apache_beam,
+    'apache.beam': apache_beam,
     "apache.cassandra": cassandra,
     "apache.druid": druid,
     "apache.hdfs": hdfs,
