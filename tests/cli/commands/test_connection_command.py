@@ -287,7 +287,7 @@ class TestCliExportConnections(unittest.TestCase):
                 "port": 8082,
                 "extra": "{\"endpoint\": \"druid/v2/sql\"}",
             }
-        })
+        }, indent=2)
 
         mock_splittext.assert_called_once()
         mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
