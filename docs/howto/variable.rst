@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Managing Connections
+Managing Variables
 ====================
 
 Variables are a generic way to store and retrieve arbitrary content or
