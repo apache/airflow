@@ -198,7 +198,7 @@ class S3Hook(AwsBaseHook):
         prefix_split = re.split(r'(\w+[{d}])$'.format(d=delimiter), prefix, 1)
         previous_level = prefix_split[0]
         plist = self.list_prefixes(bucket_name, previous_level, delimiter)
-        return False if plist is None else prefix in plist
+        return prefix in plist
 
     @provide_bucket_name
     def list_prefixes(
@@ -208,7 +208,7 @@ class S3Hook(AwsBaseHook):
         delimiter: Optional[str] = None,
         page_size: Optional[int] = None,
         max_items: Optional[int] = None,
-    ) -> Optional[list]:
+    ) -> list:
         """
         Lists prefixes in a bucket under prefix
 
@@ -222,7 +222,7 @@ class S3Hook(AwsBaseHook):
         :type page_size: int
         :param max_items: maximum items to return
         :type max_items: int
-        :return: a list of matched prefixes and None if there are none.
+        :return: a list of matched prefixes
         :rtype: list
         """
         prefix = prefix or ''
@@ -237,17 +237,13 @@ class S3Hook(AwsBaseHook):
             Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
 
-        has_results = False
         prefixes = []
         for page in response:
             if 'CommonPrefixes' in page:
-                has_results = True
                 for common_prefix in page['CommonPrefixes']:
                     prefixes.append(common_prefix['Prefix'])
 
-        if has_results:
-            return prefixes
-        return None
+        return prefixes
 
     @provide_bucket_name
     def list_keys(
@@ -257,7 +253,7 @@ class S3Hook(AwsBaseHook):
         delimiter: Optional[str] = None,
         page_size: Optional[int] = None,
         max_items: Optional[int] = None,
-    ) -> Optional[list]:
+    ) -> list:
         """
         Lists keys in a bucket under prefix and not containing delimiter
 
@@ -271,7 +267,7 @@ class S3Hook(AwsBaseHook):
         :type page_size: int
         :param max_items: maximum items to return
         :type max_items: int
-        :return: a list of matched keys and None if there are none.
+        :return: a list of matched keys
         :rtype: list
         """
         prefix = prefix or ''
@@ -286,17 +282,13 @@ class S3Hook(AwsBaseHook):
             Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
 
-        has_results = False
         keys = []
         for page in response:
             if 'Contents' in page:
-                has_results = True
                 for k in page['Contents']:
                     keys.append(k['Key'])
 
-        if has_results:
-            return keys
-        return None
+        return keys
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -450,10 +442,9 @@ class S3Hook(AwsBaseHook):
 
         prefix = re.split(r'[*]', wildcard_key, 1)[0]
         key_list = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
-        if key_list:
-            key_matches = [k for k in key_list if fnmatch.fnmatch(k, wildcard_key)]
-            if key_matches:
-                return self.get_key(key_matches[0], bucket_name)
+        key_matches = [k for k in key_list if fnmatch.fnmatch(k, wildcard_key)]
+        if key_matches:
+            return self.get_key(key_matches[0], bucket_name)
         return None
 
     @provide_bucket_name
