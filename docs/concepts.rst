@@ -686,27 +686,6 @@ need to supply an explicit connection ID. For example, the default
 
 See :doc:`howto/connection/index` for details on creating and managing connections.
 
-Queues
-======
-
-When using the CeleryExecutor, the Celery queues that tasks are sent to
-can be specified. ``queue`` is an attribute of BaseOperator, so any
-task can be assigned to any queue. The default queue for the environment
-is defined in the ``airflow.cfg``'s ``celery -> default_queue``. This defines
-the queue that tasks get assigned to when not specified, as well as which
-queue Airflow workers listen to when started.
-
-Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow celery worker``), a set of comma-delimited
-queue names can be specified (e.g. ``airflow celery worker -q spark``). This worker
-will then only pick up tasks wired to the specified queue(s).
-
-This can be useful if you need specialized workers, either from a
-resource perspective (for say very lightweight tasks where one worker
-could take thousands of tasks without a problem), or from an environment
-perspective (you want a worker running from within the Spark cluster
-itself because it needs a very specific environment and security rights).
-
 .. _concepts:xcom:
 
 XComs
