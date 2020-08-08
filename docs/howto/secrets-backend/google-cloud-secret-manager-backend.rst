@@ -66,7 +66,7 @@ the following parameters:
 * ``gcp_key_path``: Path to GCP Credential JSON file.
 * ``gcp_keyfile_dict``: Dictionary of keyfile parameters.
 * ``gcp_scopes``: Comma-separated string containing GCP scopes.
-* ``sep``: Separator used to concatenate connections_prefix and conn_id. Default: "-"
+* ``sep``: Separator used to concatenate connections_prefix and conn_id. Default: ``"-"``
 * ``project_id``: Project ID to read the secrets from. If not passed, the project ID from credentials will be used.
 
 All options should be passed as a JSON dictionary.
@@ -115,7 +115,7 @@ where:
  * ``variable_prefix`` - fixed value defined in the ``variable_prefix`` parameter in backend configuration. Default: ``airflow-variables``.
  * ``sep`` - fixed value defined in the ``sep`` parameter in backend configuration. Default: ``-``.
 
-The Cloud Secrets Manager secret name should follow the pattern ``[a-zA-Z0-9-_]``.
+The Cloud Secrets Manager secret name should follow the pattern ``^[a-zA-Z0-9-_]*$``.
 
 If you have the default backend configuration and you want to create a connection with ``conn_id``
 equals ``first-connection``, you should create secret named ``airflow-connections-first-connection``.
