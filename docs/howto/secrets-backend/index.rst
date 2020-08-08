@@ -57,6 +57,14 @@ Set ``backend`` to the fully qualified class name of the backend you want to ena
 You can provide ``backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
 your secrets backend.
 
+If you want to check which secret backend is currently set, you can use ``airflow config get-value secrets backend`` command as in
+the example below.
+
+.. code-block:: bash
+
+    $ airflow config get-value secrets backend
+    airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
+
 Supported backends
 ^^^^^^^^^^^^^^^^^^
 
