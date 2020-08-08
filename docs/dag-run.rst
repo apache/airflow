@@ -31,7 +31,7 @@ a ``str``, or a ``datetime.timedelta`` object.
 Alternatively, you can also use one of these cron "presets".
 
 Cron Presets
-------------
+''''''''''''
 
 +----------------+----------------------------------------------------------------+-----------------+
 | preset         | meaning                                                        | cron            |
