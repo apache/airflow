@@ -629,7 +629,7 @@ ARG_INCLUDE_SECRETS = Arg(
 ARG_CONN_IMPORT = Arg(
     ('file',),
     help='Import connections from a file. Acceptable file formats .json, .yaml, .env',
-    type=str)
+    type=argparse.FileType('r'))
 ARG_CONFLICT_DISPOSITION = Arg(
     ('--conflict-disposition',),
     help=("Specifies the action that occurs if the connection already exists. Default value : restrict"),
