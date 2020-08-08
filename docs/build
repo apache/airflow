@@ -404,7 +404,7 @@ def check_google_guides():
         build_errors.append(DocBuildError(file_path=__file__, line_no=None, message=message))
 
 
-def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int=5) -> str:
+def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:
     def guess_lexer_for_filename(filename):
         from pygments.lexers import get_lexer_for_filename
         from pygments.util import ClassNotFound
