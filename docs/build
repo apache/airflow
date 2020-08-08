@@ -347,7 +347,7 @@ def check_enforce_code_block():
         )
 
 
-MISSING_GOOGLLE_DOC_GUIDES = {
+MISSING_GOOGLE_DOC_GUIDES = {
     "ads_to_gcs",
     'adls_to_gcs',
     'bigquery_to_bigquery',
@@ -379,7 +379,7 @@ def check_google_guides():
 
     # Detect missing docs:
     missing_guide = operator_names - doc_names
-    missing_guide -= MISSING_GOOGLLE_DOC_GUIDES
+    missing_guide -= MISSING_GOOGLE_DOC_GUIDES
     if missing_guide:
         missing_guide_text = " * " + "\n * ".join(missing_guide)
         message = (
@@ -391,7 +391,7 @@ def check_google_guides():
         build_errors.append(DocBuildError(file_path=None, line_no=None, message=message))
 
     # Keep update missing missing guide list
-    new_guides = set(doc_names).intersection(set(MISSING_GOOGLLE_DOC_GUIDES))
+    new_guides = set(doc_names).intersection(set(MISSING_GOOGLE_DOC_GUIDES))
     if new_guides:
         new_guides_text = " * " + "\n * ".join(new_guides)
         message = (
