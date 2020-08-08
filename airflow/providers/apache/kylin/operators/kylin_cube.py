@@ -110,7 +110,7 @@ class KylinCubeOperator(BaseOperator):
                  is_track_job: Optional[bool] = False,
                  interval: int = 60,
                  timeout: int = 60 * 60 * 24,
-                 eager_error_status=tuple(["ERROR", "DISCARDED", "KILLED", "SUICIDAL", "STOPPED"]),
+                 eager_error_status=("ERROR", "DISCARDED", "KILLED", "SUICIDAL", "STOPPED"),
                  **kwargs):
         super().__init__(**kwargs)
         self.kylin_conn_id = kylin_conn_id
