@@ -20,4 +20,4 @@ REST API Reference
 ==================
 
 It's a stub file. It will be converted automatically during the build process
-to the valid documentation by the shpinx plugin. See: /docs/exts/sphinx_redoc.py
+to the valid documentation by the Sphinx plugin. See: /docs/exts/sphinx_redoc.py
