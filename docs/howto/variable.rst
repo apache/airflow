@@ -23,6 +23,8 @@ settings as a simple key value store within Airflow. Variables can be
 listed, created, updated and deleted from the UI (``Admin -> Variables``),
 code or CLI.
 
+.. image:: ../img/variable_hidden.png
+
 See the :ref:`Variables Concepts <concepts-variables>` documentation for
 more information.
 

@@ -37,7 +37,7 @@ configuring an Airflow environment.
     customize-state-colors-ui
     custom-operator
     connection/index
-    variables
+    variable
     write-logs
     run-behind-proxy
     run-with-systemd
