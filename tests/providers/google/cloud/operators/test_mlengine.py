@@ -63,6 +63,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
     }
     SUCCESS_MESSAGE_MISSING_INPUT = {
         'jobId': 'test_prediction',
+        'labels': {'some': 'labels'},
         'predictionOutput': {
             'outputPath': 'gs://fake-output-path',
             'predictionCount': 5000,
@@ -74,6 +75,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
     BATCH_PREDICTION_DEFAULT_ARGS = {
         'project_id': 'test-project',
         'job_id': 'test_prediction',
+        'labels': {'some': 'labels'},
         'region': 'us-east1',
         'data_format': 'TEXT',
         'input_paths': ['gs://legal-bucket-dash-Capital/legal-input-path/*'],
@@ -116,6 +118,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             input_paths=input_with_model['inputPaths'],
             output_path=input_with_model['outputPath'],
             model_name=input_with_model['modelName'].split('/')[-1],
+            labels={'some': 'labels'},
             dag=self.dag,
             task_id='test-prediction')
         prediction_output = prediction_task.execute(None)
@@ -125,6 +128,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             project_id='test-project',
             job={
                 'jobId': 'test_prediction',
+                'labels': {'some': 'labels'},
                 'predictionInput': input_with_model
             },
             use_existing_job_fn=ANY
@@ -308,11 +312,13 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         'training_args': '--some_arg=\'aaa\'',
         'region': 'us-east1',
         'scale_tier': 'STANDARD_1',
+        'labels': {'some': 'labels'},
         'task_id': 'test-training',
         'start_date': days_ago(1)
     }
     TRAINING_INPUT = {
         'jobId': 'test_training',
+        'labels': {'some': 'labels'},
         'trainingInput': {
             'scaleTier': 'STANDARD_1',
             'packageUris': ['gs://some-bucket/package1'],
