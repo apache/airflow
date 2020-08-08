@@ -31,5 +31,4 @@ class TestDataprepGetJobsForJobGroupOperator(TestCase):
         op = DataprepGetJobsForJobGroupOperator(job_id=JOB_ID, task_id=TASK_ID)
         op.execute(context={})
         hook_mock.assert_called_once_with(dataprep_conn_id='dataprep_conn_id')
-        hook_mock.return_value.get_jobs_for_job_group.assert_called_once()
         hook_mock.return_value.get_jobs_for_job_group.assert_called_once_with(job_id=JOB_ID)

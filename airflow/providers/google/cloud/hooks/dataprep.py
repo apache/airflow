@@ -58,7 +58,6 @@ class GoogleDataprepHook(BaseHook):
                 "Dataprep token is missing or has invalid format. "
                 "Please make sure that Dataprep token is added to the Airflow Connections."
             )
-
         return token
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))

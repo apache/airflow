@@ -49,7 +49,7 @@ Set values for these fields:
 .. code-block::
 
   Conn Id: "your_conn_id"
-  Extra: {"token": TOKEN}
+  Extra: "{\"token\": \"TOKEN\"}
 
 Example usage:
 
