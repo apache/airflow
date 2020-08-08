@@ -71,10 +71,10 @@ If you’re using ``zsh``, add the following to your ``.zshrc``:
   bashcompinit
   eval "$(register-python-argcomplete airflow)"
 
-Creating a Connection
+Managing connections
 ---------------------
 
-For information on creating connection using CLI, see :ref:`connection/cli`
+For information on managing connections using CLI, see :doc:`howto/connection/index`
 
 Exporting DAGs structure to images
 ----------------------------------
