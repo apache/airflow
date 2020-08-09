@@ -309,9 +309,8 @@ Securing Connections
 --------------------
 
 Airflow uses `Fernet <https://github.com/fernet/spec/>`__ to encrypt passwords in the connection
-configurations stored the metastore database. It guarantees that without the encryption password, Connection Passwords cannot be manipulated or read without the key.
-
-For information on configuring Fernet, look at :ref:`security/fernet`.
+configurations stored the metastore database. It guarantees that without the encryption password, Connection
+Passwords cannot be manipulated or read without the key. For information on configuring Fernet, look at :ref:`security/fernet`.
 
 In addition to retrieving connections from environment variables or the metastore database, you can enable
 an secrets backend to retrieve connections. For more details see :doc:`../secrets-backend/index`
