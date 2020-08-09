@@ -16,7 +16,7 @@
     under the License.
 
 Managing Variables
-====================
+==================
 
 Variables are a generic way to store and retrieve arbitrary content or
 settings as a simple key value store within Airflow. Variables can be
