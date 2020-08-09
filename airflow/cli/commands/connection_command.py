@@ -120,7 +120,7 @@ def _format_connections(conns: List[Connection], fmt: str) -> str:
         return yaml.dump(connections_dict)
 
     if fmt == '.json':
-        return json.dumps(connections_dict)
+        return json.dumps(connections_dict, indent=2)
 
     return json.dumps(connections_dict)
 
