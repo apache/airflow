@@ -26,7 +26,15 @@ a secret backend and how to manage secrets.
 Before you begin
 """"""""""""""""
 
-`Configure Secret Manager and your local environment <https://cloud.google.com/secret-manager/docs/configuring-secret-manager>`__, once per project.
+Before you start, make sure you have performed the following tasks:
+
+1.  Include sendgrid subpackage as part of your Airflow installation
+
+    .. code-block:: bash
+
+        pip install apache-airflow[google]
+
+2. `Configure Secret Manager and your local environment <https://cloud.google.com/secret-manager/docs/configuring-secret-manager>`__, once per project.
 
 Enabling the secret backend
 """""""""""""""""""""""""""
@@ -50,7 +58,7 @@ You can also set this with environment variables.
 
 You can verify the correct setting of the configuration options with the ``airflow config get-value`` command.
 
-.. code-block:: bash
+.. code-block:: console
 
     $ airflow config get-value secrets backend
     airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
