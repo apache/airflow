@@ -316,6 +316,7 @@ def webserver(args):
 
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
     error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
+    access_logformat = args.access_logformat or conf.get('webserver', 'access_logformat')
     num_workers = args.workers or conf.get('webserver', 'workers')
     worker_timeout = (args.worker_timeout or
                       conf.get('webserver', 'web_server_worker_timeout'))
@@ -356,11 +357,13 @@ def webserver(args):
                 Host: {hostname}:{port}
                 Timeout: {worker_timeout}
                 Logfiles: {access_logfile} {error_logfile}
+                Access Logformat: {access_logformat}
                 =================================================================\
             '''.format(num_workers=num_workers, workerclass=args.workerclass,
                        hostname=args.hostname, port=args.port,
                        worker_timeout=worker_timeout, access_logfile=access_logfile,
-                       error_logfile=error_logfile)))
+                       error_logfile=error_logfile,
+                       access_logformat=access_logformat)))
 
         run_args = [
             'gunicorn',
@@ -378,6 +381,9 @@ def webserver(args):
 
         if args.error_logfile:
             run_args += ['--error-logfile', str(args.error_logfile)]
+
+        if args.access_logformat:
+            run_args += ['--access-logformat', str(args.access_logformat)]
 
         if args.daemon:
             run_args += ['--daemon']

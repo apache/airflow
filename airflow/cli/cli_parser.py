@@ -520,6 +520,10 @@ ARG_ERROR_LOGFILE = Arg(
     default=conf.get('webserver', 'ERROR_LOGFILE'),
     help="The logfile to store the webserver error log. Use '-' to print to "
          "stderr")
+ARG_ACCESS_LOGFORMAT = Arg(
+    ("-L", "--access-logformat"),
+    default=conf.get('webserver', 'ACCESS_LOGFORMAT'),
+    help="The access log format for gunicorn logs")
 
 # scheduler
 ARG_DAG_ID_OPT = Arg(
@@ -1323,8 +1327,8 @@ airflow_commands: List[CLICommand] = [
         func=lazy_load_command('airflow.cli.commands.webserver_command.webserver'),
         args=(
             ARG_PORT, ARG_WORKERS, ARG_WORKERCLASS, ARG_WORKER_TIMEOUT, ARG_HOSTNAME, ARG_PID,
-            ARG_DAEMON, ARG_STDOUT, ARG_STDERR, ARG_ACCESS_LOGFILE, ARG_ERROR_LOGFILE, ARG_LOG_FILE,
-            ARG_SSL_CERT, ARG_SSL_KEY, ARG_DEBUG
+            ARG_DAEMON, ARG_STDOUT, ARG_STDERR, ARG_ACCESS_LOGFILE, ARG_ERROR_LOGFILE, ARG_ACCESS_LOGFORMAT,
+            ARG_LOG_FILE, ARG_SSL_CERT, ARG_SSL_KEY, ARG_DEBUG
         ),
     ),
     ActionCommand(
