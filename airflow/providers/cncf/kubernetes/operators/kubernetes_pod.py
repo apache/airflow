@@ -277,7 +277,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
             pod_list = client.list_namespaced_pod(self.namespace, label_selector=label_selector)
 
-            if len(pod_list.items) > 1:
+            if len(pod_list.items) > 1 and self.reattach_on_restart:
                 raise AirflowException(
                     'More than one pod running with labels: '
                     '{label_selector}'.format(label_selector=label_selector))
@@ -302,7 +302,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
         In cases where the Scheduler restarts while a KubernetsPodOperator task is running,
         this function will either continue to monitor the existing pod or launch a new pod
-        based on the `reattach_on_restart` config.
+        based on the `reattach_on_restart` parameter.
 
         :param labels: labels used to determine if a pod is repeated
         :type labels: dict
