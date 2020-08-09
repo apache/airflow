@@ -243,7 +243,7 @@ The decorated function can be called once to set the arguments and key arguments
 
 Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default, returned
 value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True`` to unroll dictionaries,
-lists or tuples into seprate XCom values. This can be used with regular operators to create
+lists or tuples into separate XCom values. This can be used with regular operators to create
 :ref:`functional DAGs <concepts:functional_dags>`.
 
 Calling a decorated function returns an ``XComArg`` instance. You can use it to set templated fields on downstream
@@ -743,7 +743,7 @@ Custom XCom backend
 
 It is possible to change ``XCom`` behaviour os serialization and deserialization of tasks' result.
 To do this one have to change ``xcom_backend`` parameter in Airflow config. Provided value should point
-to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter the serialaization /
+to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter the serialization /
 deserialization mechanism the custom class should override ``serialize_value`` and ``deserialize_value``
 methods.
 

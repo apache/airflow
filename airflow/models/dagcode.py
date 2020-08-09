@@ -97,11 +97,11 @@ class DagCode(Base):
         existing_orm_dag_codes_by_fileloc_hashes = {
             orm.fileloc_hash: orm for orm in existing_orm_dag_codes
         }
-        exisitng_orm_filelocs = {
+        existing_orm_filelocs = {
             orm.fileloc for orm in existing_orm_dag_codes_by_fileloc_hashes.values()
         }
-        if not exisitng_orm_filelocs.issubset(filelocs):
-            conflicting_filelocs = exisitng_orm_filelocs.difference(filelocs)
+        if not existing_orm_filelocs.issubset(filelocs):
+            conflicting_filelocs = existing_orm_filelocs.difference(filelocs)
             hashes_to_filelocs = {
                 DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs
             }

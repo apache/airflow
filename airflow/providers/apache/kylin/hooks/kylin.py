@@ -55,7 +55,7 @@ class KylinHook(BaseHook):
 
     def cube_run(self, datasource_name, op, **op_args):
         """
-        run CubeSource command whitch in CubeSource.support_invoke_command
+        run CubeSource command which in CubeSource.support_invoke_command
         :param datasource_name:
         :param op: command
         :param op_args: command args

@@ -143,13 +143,13 @@ class CloudDLPHook(GoogleBaseHook):
         de-identifying content, images, and storage.
 
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
             a project instead of an organzation.
         :type project_id: str
-        :param deidentify_template: (Optional) The deidentify template to create.
+        :param deidentify_template: (Optional) The de-identify template to create.
         :type deidentify_template: dict or google.cloud.dlp_v2.types.DeidentifyTemplate
         :param template_id: (Optional) The template ID.
         :type template_id: str
