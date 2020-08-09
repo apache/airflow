@@ -147,6 +147,8 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | hive                | ``pip install 'apache-airflow[apache.hive]'``       | All Hive related operators                                           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| kylin               | ``pip install 'apache-airflow[apache.kylin]'``      | All Kylin related operators & hooks                                  |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | presto              | ``pip install 'apache-airflow[apache.presto]'``     | All Presto related operators & hooks                                 |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | spark               | ``pip install 'apache-airflow[apache.spark]'``      | All Spark related operators & hooks                                  |
