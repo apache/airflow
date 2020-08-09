@@ -151,13 +151,13 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | livy                | ``pip install 'apache-airflow[apache.livy]'``       | All Livy related operators & hooks                                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| pig                 | ``pip install 'apache-airflow[apache.pih]'``        | All Pig related operators & hooks                                    |
+| pig                 | ``pip install 'apache-airflow[apache.pig]'``        | All Pig related operators & hooks                                    |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | presto              | ``pip install 'apache-airflow[apache.presto]'``     | All Presto related operators & hooks                                 |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | spark               | ``pip install 'apache-airflow[apache.spark]'``      | All Spark related operators & hooks                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| sqoop               | ``pip install 'apache-airflow[sqoop]'``             | All Sqoop related operators & hooks                                  |
+| sqoop               | ``pip install 'apache-airflow[apache.sqoop]'``      | All Sqoop related operators & hooks                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | webhdfs             | ``pip install 'apache-airflow[webhdfs]'``           | HDFS hooks and operators                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
