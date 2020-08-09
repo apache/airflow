@@ -300,13 +300,12 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod_list):
         """
 
-        @param labels: labels used to determine if a pod is repeated
-        @type labels: dict
-        @param try_numbers_match: do the try numbers match? Only needed for logging purposes
-        @type try_numbers_match: bool
-        @param launcher: PodLauncher
-        @param pod_list: list of pods found
-        @return:
+        :param labels: labels used to determine if a pod is repeated
+        :type labels: dict
+        :param try_numbers_match: do the try numbers match? Only needed for logging purposes
+        :type try_numbers_match: bool
+        :param launcher: PodLauncher
+        :param pod_list: list of pods found
         """
         if try_numbers_match:
             log_line = "found a running pod with labels {} and the same try_number.".format(labels)
