@@ -70,7 +70,7 @@ class HttpHook(BaseHook):
                 self.base_url = conn.host
             else:
                 # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
+                schema = conn.conn_type if conn.conn_type else "http"
                 host = conn.host if conn.host else ""
                 self.base_url = schema + "://" + host
 
