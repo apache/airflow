@@ -18,6 +18,7 @@
 """
 This module contains Google Dataprep hook.
 """
+from typing import Any, Dict
 
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -42,7 +43,7 @@ class GoogleDataprepHook(BaseHook):
         self._url = "https://api.clouddataprep.com/v4/jobGroups"
 
     @property
-    def _headers(self):
+    def _headers(self) -> Dict[str, str]:
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._token}",
@@ -61,7 +62,7 @@ class GoogleDataprepHook(BaseHook):
         return token
 
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
-    def get_jobs_for_job_group(self, job_id: int):
+    def get_jobs_for_job_group(self, job_id: int) -> Dict[str, Any]:
         """
         Get information about the batch jobs within a Cloud Dataprep job.
 

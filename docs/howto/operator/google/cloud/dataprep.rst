@@ -16,7 +16,7 @@
     under the License.
 
 Google Dataprep Operators
-=======================================
+=========================
 `Google Dataprep API documentation is available here <https://cloud.google.com/dataprep/docs/html/API-Reference_145281441>`__
 
 .. contents::
