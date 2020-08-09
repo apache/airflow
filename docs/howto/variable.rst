@@ -64,9 +64,9 @@ You can use them in your DAGs as:
 Securing Variables
 ------------------
 
-Airflow uses `Fernet <https://github.com/fernet/spec/>`__ to encrypt variables stored the metastore database.
+Airflow uses `Fernet <https://github.com/fernet/spec/>`__ to encrypt variables stored in the metastore database.
 It guarantees that without the encryption password, content cannot be manipulated or read
 without the key. For information on configuring Fernet, look at :ref:`security/fernet`.
 
 In addition to retrieving variables from environment variables or the metastore database, you can enable
-an secrets backend to retrieve variablles. For more details see :doc:`../secrets-backend/index`
+a secrets backend to retrieve variables. For more details see :doc:`../secrets-backend/index`
