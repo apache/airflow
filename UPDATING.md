@@ -556,6 +556,11 @@ Change DAG file loading duration metric from
 `dag.loading-duration.<dag_id>` to `dag.loading-duration.<dag_file>`. This is to
 better handle the case when a DAG file has multiple DAGs.
 
+#### Sentry is disabled by default
+
+Sentry is disabled by default. To enable these integrations, you need set ``sentry_on`` option
+in ``[sentry]`` section to ``"True"``.
+
 ### Changes to the core operators/hooks
 
 We strive to ensure that there are no changes that may affect the end user and your files, but this

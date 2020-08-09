@@ -1163,6 +1163,12 @@
     Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,
     ``ignore_errors``, ``before_breadcrumb``, ``before_send``, ``transport``.
   options:
+    - name: sentry_on
+      description: Enable error repoting to Sentry
+      version_added: ~
+      type: string
+      example: ~
+      default: "false"
     - name: sentry_dsn
       description: ~
       version_added: 1.10.6
