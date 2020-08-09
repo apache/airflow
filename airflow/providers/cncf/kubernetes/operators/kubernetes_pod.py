@@ -300,6 +300,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod_list):
         """
 
+        In cases where the Scheduler restarts while a KubernetsPodOperator task is running,
+        this function will either continue to monitor the existing pod or launch a new pod
+        based on the `reattach_on_restart` config.
+
         :param labels: labels used to determine if a pod is repeated
         :type labels: dict
         :param try_numbers_match: do the try numbers match? Only needed for logging purposes
