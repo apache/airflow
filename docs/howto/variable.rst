@@ -25,7 +25,7 @@ code or CLI.
 
 .. image:: ../img/variable_hidden.png
 
-See the :ref:`Variables Concepts <concepts-variables>` documentation for
+See the :ref:`Variables Concepts <concepts:variables>` documentation for
 more information.
 
 Storing Variables in Environment Variables
@@ -69,4 +69,4 @@ It guarantees that without the encryption password, content cannot be manipulate
 without the key. For information on configuring Fernet, look at :ref:`security/fernet`.
 
 In addition to retrieving variables from environment variables or the metastore database, you can enable
-a secrets backend to retrieve variables. For more details see :doc:`../secrets-backend/index`
+a secrets backend to retrieve variables. For more details see :doc:`secrets-backend/index`
