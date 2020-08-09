@@ -1005,11 +1005,11 @@ class DAG(BaseDag, LoggingMixin):
         :type dry_run: bool
         :param session: The sqlalchemy session to use
         :type session: sqlalchemy.orm.session.Session
-        :param get_tis: Return the sqlachemy query for finding the TaskInstance without clearing the tasks
+        :param get_tis: Return the sqlalchemy query for finding the TaskInstance without clearing the tasks
         :type get_tis: bool
         :param recursion_depth: The recursion depth of nested calls to DAG.clear().
         :type recursion_depth: int
-        :param max_recursion_depth: The maximum recusion depth allowed. This is determined by the
+        :param max_recursion_depth: The maximum recursion depth allowed. This is determined by the
             first encountered ExternalTaskMarker. Default is None indicating no ExternalTaskMarker
             has been encountered.
         :type max_recursion_depth: int

@@ -107,7 +107,7 @@ class HiveCliHook(BaseHook):
 
     def _get_proxy_user(self) -> str:
         """
-        This function set the proper proxy_user value in case the user overwtire the default.
+        This function set the proper proxy_user value in case the user overwrite the default.
         """
         conn = self.conn
 

@@ -79,7 +79,7 @@ def copy_helper_py_file(target_file_path: str) -> None:
 
     The helper has two methods (chain, cross_downstream) that are moved from the original helper to
     'airflow.models.baseoperator'. so in 1.10 they should reimport the original 'airflow.utils.helper'
-    methods. Those deprecated methods use importe with import_string("<IMPORT>") so it is easier to
+    methods. Those deprecated methods use import with import_string("<IMPORT>") so it is easier to
     replace them as strings rather than with Bowler
 
     :param target_file_path: target path name for the helpers.py
