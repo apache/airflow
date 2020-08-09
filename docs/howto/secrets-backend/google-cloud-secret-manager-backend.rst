@@ -32,7 +32,7 @@ Before you start, make sure you have performed the following tasks:
 
     .. code-block:: bash
 
-        pip install airflow[google]
+        pip install apache-airflow[google]
 
 2. `Configure Secret Manager and your local environment <https://cloud.google.com/secret-manager/docs/configuring-secret-manager>`__, once per project.
 
