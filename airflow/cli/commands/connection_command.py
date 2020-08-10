@@ -56,16 +56,20 @@ def _tabulate_connection(conns: List[Connection], tablefmt: str):
 
 def _yamulate_connection(conn: Connection):
     yaml_data = {
-        'Conn ID': conn.conn_id,
+        'Id': conn.id,
+        'Conn Id': conn.conn_id,
         'Conn Type': conn.conn_type,
         'Host': conn.host,
+        'Schema': conn.schema,
+        'Login': conn.login,
+        'Password': conn.password,
         'Port': conn.port,
         'Is Encrypted': conn.is_encrypted,
         'Is Extra Encrypted': conn.is_encrypted,
         'Extra': conn.extra_dejson,
         'URI': conn.get_uri()
     }
-    return yaml.safe_dump(yaml_data)
+    return yaml.safe_dump(yaml_data, sort_keys=False)
 
 
 def connections_get(args):
