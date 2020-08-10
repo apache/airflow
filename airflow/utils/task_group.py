@@ -29,11 +29,22 @@ class TaskGroup:
     TaskGroup, it is applied across all tasks within the group if necessary.
     """
     def __init__(self, group_id, parent_group=None):
-        self.parent_group = parent_group or TaskGroupContext.get_current_task_group()
+        if group_id:
+            self.parent_group = parent_group or TaskGroupContext.get_current_task_group()
+        else:
+            self.parent_group = None
+
         self._group_id = group_id
         if self.parent_group:
             self.parent_group.add(self)
         self.children = {}
+
+    @property
+    def is_root(self):
+        """
+        Returns True if this TaskGroup is the root TaskGroup. Otherwise False
+        """
+        return not self.parent_group
 
     def __iter__(self):
         for child in self.children.values():
@@ -73,7 +84,7 @@ class TaskGroup:
         """
         Returns all the group_id of nested TaskGroups as a list, starting from the top.
         """
-        return list(self._group_ids())
+        return list(self._group_ids())[1:]
 
     def _group_ids(self):
         if self.parent_group:
@@ -153,6 +164,22 @@ class TaskGroup:
         self.__rshift__(other)
         return self
 
+    @classmethod
+    def build_task_group(cls, tasks):
+        """
+        Put tasks into TaskGroup.
+        """
+        root = TaskGroup(group_id="")
+        for task in tasks:
+            current = root
+            for label in task.task_group_ids:
+                if label not in current.children:
+                    child_group = TaskGroup(group_id=label, parent_group=current)
+                    current.add(child_group)
+                    current = child_group
+            current.add(task)
+        return root
+
 
 class TaskGroupContext:
     """
@@ -188,4 +215,6 @@ class TaskGroupContext:
         """
         Get the current TaskGroup.
         """
+        if not cls._context_managed_task_group:
+            return TaskGroup(group_id="")
         return cls._context_managed_task_group
