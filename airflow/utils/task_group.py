@@ -29,15 +29,27 @@ class TaskGroup:
     TaskGroup, it is applied across all tasks within the group if necessary.
     """
     def __init__(self, group_id, parent_group=None):
-        if group_id:
-            self.parent_group = parent_group or TaskGroupContext.get_current_task_group()
-        else:
+        if group_id is None:
+            # This creates a root TaskGroup.
             self.parent_group = None
+        else:
+            if not isinstance(group_id, str):
+                raise ValueError("group_id must be str")
+            if not group_id:
+                raise ValueError("group_id must not be empty")
+            self.parent_group = parent_group or TaskGroupContext.get_current_task_group()
 
         self._group_id = group_id
         if self.parent_group:
             self.parent_group.add(self)
         self.children = {}
+
+    @classmethod
+    def create_root(cls):
+        """
+        Create a root TaskGroup with no group_id or parent.
+        """
+        return cls(group_id=None)
 
     @property
     def is_root(self):
@@ -74,10 +86,7 @@ class TaskGroup:
         """
         group_id is prefixed with parent group_id if applicable.
         """
-        if self.parent_group:
-            return f"{self.parent_group.group_id}.{self._group_id}"
-
-        return self._group_id
+        return ".".join(self.group_ids)
 
     @property
     def group_ids(self):
@@ -169,14 +178,15 @@ class TaskGroup:
         """
         Put tasks into TaskGroup.
         """
-        root = TaskGroup(group_id="")
+        root = TaskGroup.create_root()
         for task in tasks:
             current = root
             for label in task.task_group_ids:
                 if label not in current.children:
                     child_group = TaskGroup(group_id=label, parent_group=current)
-                    current.add(child_group)
-                    current = child_group
+                else:
+                    child_group = current.children[label]
+                current = child_group
             current.add(task)
         return root
 
@@ -216,5 +226,5 @@ class TaskGroupContext:
         Get the current TaskGroup.
         """
         if not cls._context_managed_task_group:
-            return TaskGroup(group_id="")
+            return TaskGroup.create_root()
         return cls._context_managed_task_group
