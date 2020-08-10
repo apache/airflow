@@ -70,6 +70,7 @@ def get_pools(session, limit, offset=None):
     )
 
 
+@security.requires_authentication
 @provide_session
 def patch_pool(pool_name, session, update_mask=None):
     """
@@ -120,6 +121,7 @@ def patch_pool(pool_name, session, update_mask=None):
     return pool_schema.dump(pool)
 
 
+@security.requires_authentication
 @provide_session
 def post_pool(session):
     """

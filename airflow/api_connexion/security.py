@@ -18,7 +18,9 @@
 from functools import wraps
 from typing import Callable, TypeVar, cast
 
-from flask import current_app
+from flask import Response, current_app
+
+from airflow.api_connexion.exceptions import Unauthenticated
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
@@ -27,6 +29,9 @@ def requires_authentication(function: T):
     """Decorator for functions that require authentication"""
     @wraps(function)
     def decorated(*args, **kwargs):
-        return current_app.api_auth.requires_authentication(function)(*args, **kwargs)
+        response = current_app.api_auth.requires_authentication(lambda: Response(status=200))()
+        if response.status_code != 200:
+            raise Unauthenticated()
+        return function(*args, **kwargs)
 
     return cast(T, decorated)

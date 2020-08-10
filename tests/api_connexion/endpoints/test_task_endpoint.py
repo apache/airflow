@@ -159,6 +159,20 @@ class TestGetTask(TestTaskEndpoint):
         )
         assert response.status_code == 404
 
+    def test_raises_401_unauthenticated(self):
+        response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
+
 
 class TestGetTasks(TestTaskEndpoint):
     def test_should_response_200(self):
@@ -206,3 +220,17 @@ class TestGetTasks(TestTaskEndpoint):
             f"/api/v1/dags/{dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 404
+
+    def test_raises_401_unauthenticated(self):
+        response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )

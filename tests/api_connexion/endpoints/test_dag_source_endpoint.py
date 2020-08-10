@@ -156,3 +156,26 @@ class TestGetSource(unittest.TestCase):
             )
 
             self.assertEqual(404, response.status_code)
+
+    def test_raises_401_unauthenticated(self):
+        serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+        dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
+        dagbag.sync_to_db()
+        first_dag: DAG = next(iter(dagbag.dags.values()))
+
+        url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
+        response = self.client.get(
+            url,
+            headers={"Accept": "text/plain"},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )

@@ -109,6 +109,28 @@ class TestGetEventLog(TestEventLogEndpoint):
             response.json
         )
 
+    @provide_session
+    def test_raises_401_unauthenticated(self, session):
+        log_model = Log(
+            event='TEST_EVENT',
+            task_instance=self._create_task_instance(),
+        )
+        log_model.dttm = timezone.parse(self.default_time)
+        session.add(log_model)
+        session.commit()
+        event_log_id = log_model.id
+        response = self.client.get(f"/api/v1/eventLogs/{event_log_id}")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
+
 
 class TestGetEventLogs(TestEventLogEndpoint):
 
@@ -156,6 +178,32 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     }
                 ],
                 "total_entries": 2
+            }
+        )
+
+    @provide_session
+    def test_raises_401_unauthenticated(self, session):
+        log_model_1 = Log(
+            event='TEST_EVENT_1',
+            task_instance=self._create_task_instance(),
+        )
+        log_model_2 = Log(
+            event='TEST_EVENT_2',
+            task_instance=self._create_task_instance(),
+        )
+        log_model_1.dttm = timezone.parse(self.default_time)
+        log_model_2.dttm = timezone.parse(self.default_time_2)
+        session.add_all([log_model_1, log_model_2])
+        session.commit()
+        response = self.client.get("/api/v1/eventLogs")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
             }
         )
 

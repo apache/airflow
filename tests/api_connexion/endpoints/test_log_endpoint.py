@@ -104,7 +104,10 @@ class TestGetLog(unittest.TestCase):
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)
 
-        with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
+        with conf_vars({
+            ('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG',
+            ("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"
+        }):
             self.app = app.create_app(testing=True)
             self.client = self.app.test_client()
             settings.configure_logging()
@@ -289,6 +292,27 @@ class TestGetLog(unittest.TestCase):
                 'detail': None,
                 'status': 404,
                 'title': "DAG Run not found",
+                'type': 'about:blank'
+            }
+        )
+
+    def test_raises_401_unauthenticated(self):
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": False})
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            headers={'Accept': 'application/json'},
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
                 'type': 'about:blank'
             }
         )

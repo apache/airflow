@@ -129,6 +129,23 @@ class TestDeleteDagRun(TestDagRunEndpoint):
             },
         )
 
+    @provide_session
+    def test_raises_401_unauthenticated(self, session):
+        session.add_all(self._create_test_dag_run())
+        session.commit()
+        response = self.client.delete(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
+        )
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
+
 
 class TestGetDagRun(TestDagRunEndpoint):
     @provide_session
@@ -174,6 +191,32 @@ class TestGetDagRun(TestDagRunEndpoint):
             'type': 'about:blank'
         }
         assert expected_resp == response.json
+
+    @provide_session
+    def test_raises_401_unauthenticated(self, session):
+        dagrun_model = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.MANUAL.value,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+        )
+        session.add(dagrun_model)
+        session.commit()
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID"
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
 
 
 class TestGetDagRuns(TestDagRunEndpoint):
@@ -223,6 +266,22 @@ class TestGetDagRuns(TestDagRunEndpoint):
         assert response.status_code == 200
         dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
+
+    def test_raises_401_unauthenticated(self):
+        self._create_test_dag_run()
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns"
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
 
 
 class TestGetDagRunsPagination(TestDagRunEndpoint):
@@ -471,6 +530,25 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "api/v1/dags/~/dagRuns/list", json=payload, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 400
         assert error == response.json.get("detail")
+
+    def test_raises_401_unauthenticated(self):
+        self._create_test_dag_run()
+        response = self.client.post(
+            "api/v1/dags/~/dagRuns/list",
+            json={
+                "dag_ids": ["TEST_DAG_ID"]
+            }
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
 
 
 class TestGetDagRunBatchPagination(TestDagRunEndpoint):
@@ -758,4 +836,24 @@ class TestPostDagRun(TestDagRunEndpoint):
                 "title": "Object already exists",
                 "type": "about:blank",
             },
+        )
+
+    def test_raises_401_unauthenticated(self):
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={
+                "dag_run_id": "TEST_DAG_RUN_ID_1",
+                "execution_date": self.default_time,
+            },
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
         )

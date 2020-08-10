@@ -112,6 +112,21 @@ class TestGetDag(TestDagEndpoint):
         response = self.client.get("/api/v1/dags/INVALID_DAG", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
 
+    def test_raises_401_unauthenticated(self):
+        self._create_dag_models(1)
+        response = self.client.get("/api/v1/dags/TEST_DAG_1")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
+
 
 class TestGetDagDetails(TestDagEndpoint):
     def test_should_response_200(self):
@@ -181,6 +196,48 @@ class TestGetDagDetails(TestDagEndpoint):
         )
         assert response.status_code == 200
         assert response.json == expected
+
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/details", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        expected = {
+            'catchup': True,
+            'concurrency': 16,
+            'dag_id': 'test_dag',
+            'dag_run_timeout': None,
+            'default_view': 'tree',
+            'description': None,
+            'doc_md': 'details',
+            'fileloc': __file__,
+            'is_paused': None,
+            'is_subdag': False,
+            'orientation': 'LR',
+            'owners': [],
+            'schedule_interval': {
+                '__type': 'TimeDelta',
+                'days': 1,
+                'microseconds': 0,
+                'seconds': 0
+            },
+            'start_date': '2020-06-15T00:00:00+00:00',
+            'tags': None,
+            'timezone': "Timezone('UTC')"
+        }
+        assert response.json == expected
+
+    def test_raises_401_unauthenticated(self):
+        response = self.client.get(f"/api/v1/dags/{self.dag_id}/details")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
 
 
 class TestGetDags(TestDagEndpoint):
@@ -279,9 +336,36 @@ class TestGetDags(TestDagEndpoint):
         self.assertEqual(100, len(response.json['dags']))
         self.assertEqual(101, response.json['total_entries'])
 
+    def test_raises_401_unauthenticated(self):
+        response = self.client.get("api/v1/dags")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
+
 
 class TestPatchDag(TestDagEndpoint):
     @pytest.mark.skip(reason="Not implemented yet")
     def test_should_response_200(self):
         response = self.client.patch("/api/v1/dags/1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
+
+    @pytest.mark.skip(reason="Not implemented yet")
+    def test_raises_401_unauthenticated(self):
+        response = self.client.patch("/api/v1/dags/1")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )

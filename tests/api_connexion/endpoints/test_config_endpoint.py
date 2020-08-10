@@ -112,9 +112,16 @@ class TestGetConfig:
         )
         assert response.status_code == 406
 
-    def test_should_response_403(self, mock_as_dict):
+    def test_raises_401_unauthenticated(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
             headers={'Accept': 'application/json'}
         )
-        assert response.status_code == 403
+
+        assert response.status_code == 401
+        assert response.json == {
+            'detail': None,
+            'status': 401,
+            'title': 'Unauthorized',
+            'type': 'about:blank'
+        }

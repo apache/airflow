@@ -95,6 +95,21 @@ class TestDeleteConnection(TestConnectionEndpoint):
             }
         )
 
+    def test_raises_401_unauthenticated(self):
+        response = self.client.delete(
+            "/api/v1/connections/test-connection"
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
+
 
 class TestGetConnection(TestConnectionEndpoint):
 
@@ -142,6 +157,19 @@ class TestGetConnection(TestConnectionEndpoint):
             response.json
         )
 
+    def test_raises_401_unauthenticated(self):
+        response = self.client.get("/api/v1/connections/test-connection-id")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
+
 
 class TestGetConnections(TestConnectionEndpoint):
 
@@ -182,6 +210,19 @@ class TestGetConnections(TestConnectionEndpoint):
                     }
                 ],
                 'total_entries': 2
+            }
+        )
+
+    def test_raises_401_unauthenticated(self):
+        response = self.client.get("/api/v1/connections")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
             }
         )
 
@@ -463,6 +504,28 @@ class TestPatchConnection(TestConnectionEndpoint):
             response.json
         )
 
+    @provide_session
+    def test_raises_401_unauthenticated(self, session):
+        self._create_connection(session)
+        response = self.client.patch(
+            "/api/v1/connections/test-connection-id",
+            json={
+                "connection_id": "test-connection-id",
+                "conn_type": 'test_type',
+                "extra": "{'key': 'var'}"
+            }
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
+
 
 class TestPostConnection(TestConnectionEndpoint):
 
@@ -517,6 +580,26 @@ class TestPostConnection(TestConnectionEndpoint):
                 'detail': None,
                 'status': 409,
                 'title': 'Connection already exist. ID: test-connection-id',
+                'type': 'about:blank'
+            }
+        )
+
+    def test_raises_401_unauthenticated(self):
+        payload = {
+            "connection_id": "test-connection-id",
+            "conn_type": 'test_type'
+        }
+        response = self.client.post(
+            "/api/v1/connections",
+            json=payload
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
                 'type': 'about:blank'
             }
         )

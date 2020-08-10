@@ -104,6 +104,30 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
             response.json,
         )
 
+    @provide_session
+    def test_raises_401_unauthenticated(self, session):
+        import_error = ImportError(
+            filename="Lorem_ipsum.py",
+            stacktrace="Lorem ipsum",
+            timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+        )
+        session.add(import_error)
+        session.commit()
+
+        response = self.client.get(
+            f"/api/v1/importErrors/{import_error.id}"
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
+        )
+
 
 class TestGetImportErrorsEndpoint(TestBaseImportError):
     @provide_session
@@ -143,6 +167,32 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
                 "total_entries": 2,
             },
             response_data,
+        )
+
+    @provide_session
+    def test_raises_401_unauthenticated(self, session):
+        import_error = [
+            ImportError(
+                filename="Lorem_ipsum.py",
+                stacktrace="Lorem ipsum",
+                timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+            )
+            for _ in range(2)
+        ]
+        session.add_all(import_error)
+        session.commit()
+
+        response = self.client.get("/api/v1/importErrors")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json,
+            {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank'
+            }
         )
 
 
