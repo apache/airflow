@@ -55,12 +55,12 @@
               </h4>
               <p class="list-group-item-text ml-4"><span>时间：</span>{{ task.execution_date }}</p>
               <p class="list-group-item-text ml-4"><span>车号：</span>{{ task.car_code }}</p>
-              <p class="list-group-item-text ml-4"><span>控制器结果：</span>
-                {{ task.measure_result if task.measure_result else '无结果' }}</p>
+              <p class="list-group-item-text ml-4 "><span>控制器结果：</span>
+                <a class="badge {{'badge-success' if task.measure_result=='OK' else 'badge-danger' if task.measure_result=='NOK' else 'badge-secondary'}}">{{ task.measure_result if task.measure_result else '无结果' }}</a></p>
               <p class="list-group-item-text ml-4"><span>分析结果：</span>
-                {{ task.result if task.result else '未分析'}}</p>
+                <a class="badge {{'badge-success' if task.result=='OK' else 'badge-danger' if task.result=='NOK' else 'badge-secondary'}}">{{ task.result if task.result else '未分析'}}</a></p>
               <p class="list-group-item-text ml-4"><span>最终结果：</span>
-                {{ task.final_state if task.final_state else '未确认' }}</p>
+                <a class="badge {{'badge-success' if task.final_state=='OK' else 'badge-danger' if task.final_state=='NOK' else 'badge-secondary'}}">{{ task.final_state if task.final_state else '未确认' }}</a></p>
             </button>
           </td>
         </tr>
