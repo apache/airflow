@@ -22,6 +22,7 @@ KubernetesExecutor
     :ref:`executor:KubernetesExecutor`
 """
 import base64
+import functools
 import json
 import multiprocessing
 import time
@@ -162,6 +163,7 @@ class KubeConfig:
         # cluster has RBAC enabled, your scheduler may need service account permissions to
         # create, watch, get, and delete pods in this namespace.
         self.kube_namespace = conf.get(self.kubernetes_section, 'namespace')
+        self.multi_namespace_mode = conf.get(self.kubernetes_section, 'multi_namespace_mode')
         # The Kubernetes Namespace in which pods will be created by the executor. Note
         # that if your
         # cluster has RBAC enabled, your workers may need service account permissions to
@@ -254,9 +256,17 @@ class KubeConfig:
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     """Watches for Kubernetes jobs"""
-    def __init__(self, namespace, watcher_queue, resource_version, worker_uuid, kube_config):
+
+    def __init__(self,
+                 namespace,
+                 mult_namespace_mode,
+                 watcher_queue,
+                 resource_version,
+                 worker_uuid,
+                 kube_config):
         multiprocessing.Process.__init__(self)
         self.namespace = namespace
+        self.multi_namespace_mode = mult_namespace_mode
         self.worker_uuid = worker_uuid
         self.watcher_queue = watcher_queue
         self.resource_version = resource_version
@@ -295,8 +305,16 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 kwargs[key] = value
 
         last_resource_version = None
-        for event in watcher.stream(kube_client.list_namespaced_pod, self.namespace,
-                                    **kwargs):
+        if self.multi_namespace_mode:
+            list_worker_pods = functools.partial(watcher.stream,
+                                                 kube_client.list_pod_for_all_namespaces,
+                                                 **kwargs)
+        else:
+            list_worker_pods = functools.partial(watcher.stream,
+                                                 kube_client.list_namespaced_pod,
+                                                 self.namespace,
+                                                 **kwargs)
+        for event in list_worker_pods():
             task = event['object']
             self.log.info(
                 'Event: %s had an event of type %s',
@@ -377,8 +395,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def _make_kube_watcher(self):
         resource_version = KubeResourceVersion.get_current_resource_version()
-        watcher = KubernetesJobWatcher(self.namespace, self.watcher_queue,
-                                       resource_version, self.worker_uuid, self.kube_config)
+        watcher = KubernetesJobWatcher(watcher_queue=self.watcher_queue,
+                                       namespace=self.kube_config.kube_namespace,
+                                       mult_namespace_mode=self.kube_config.multi_namespace_mode,
+                                       resource_version=resource_version,
+                                       worker_uuid=self.worker_uuid,
+                                       kube_config=self.kube_config)
         watcher.start()
         return watcher
 
