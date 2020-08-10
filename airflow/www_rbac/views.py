@@ -43,6 +43,8 @@ from flask import (
 )
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access, permission_name
+from flask_appbuilder.baseviews import BaseCRUDView
+from flask_appbuilder.urltools import get_filter_args, get_page_args
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
@@ -53,7 +55,6 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
-from flask_paginate import Pagination, get_page_parameter
 
 import airflow
 from airflow import models, jobs
@@ -429,20 +430,6 @@ class Airflow(AirflowBaseView):
                                     can_verify=can_verify,
                                     controller=controller,
                                     errorTags=error_tags)
-
-    @expose('/curves/<string:bolt_no>/<string:craft_type>')
-    @has_access
-    def view_curves(self, bolt_no, craft_type):
-        _has_access = self.appbuilder.sm.has_access
-        page = request.args.get(get_page_parameter(), type=int, default=1)
-        tasks = get_analysis_tasks(bolt_number=bolt_no, craft_type=craft_type)
-
-        pagination = Pagination(page=page, total=tasks.count(), css_framework='foundation', search=False,
-                                record_name='curves', per_page=PAGE_SIZE)
-        start = (page - 1) * PAGE_SIZE
-        stop = page * PAGE_SIZE
-        return self.render_template('airflow/curves.html', tasks=tasks.slice(start, stop),
-                                    pagination=pagination)
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
     @has_access
@@ -2211,6 +2198,42 @@ class Airflow(AirflowBaseView):
             for ti in dag.get_task_instances(dttm, dttm, session=session)}
 
         return json.dumps(task_instances)
+
+
+class CurvesView(BaseCRUDView):
+    list_template = "airflow/curves.html"
+    CustomSQLAInterface = wwwutils.CustomSQLAInterface
+    route_base = '/curves'
+    datamodel = CustomSQLAInterface(models.TaskInstance)
+    search_columns = ['execution_date', 'car_code', 'measure_result', 'result', 'final_state' ]
+
+    @expose('/<string:bolt_no>/<string:craft_type>')
+    @has_access
+    def view_curves(self, bolt_no, craft_type):
+        view_name = 'curves'
+
+        _has_access = self.appbuilder.sm.has_access
+        pages = get_page_args()
+        page = pages.get(view_name, 0)
+        get_filter_args(self._filters)
+        self._filters.add_filter(column_name='bolt_number', filter_class=self.datamodel.FilterEqual, value=bolt_no)
+        self._filters.add_filter(column_name='craft_type', filter_class=self.datamodel.FilterEqual,
+                                 value=int(craft_type))
+        joined_filters = self._filters.get_joined_filters(self._base_filters)
+        order_column, order_direction = "execution_date", "desc"
+        page_size = PAGE_SIZE
+        count, lst = self.datamodel.query(
+            joined_filters,
+            order_column,
+            order_direction,
+            page=page,
+            page_size=page_size,
+        )
+        widgets = self._list()
+
+        return self.render_template('airflow/curves.html', tasks=lst, page=page, page_size=page_size, count=count,
+                                    modelview_name=view_name,
+                                    widgets=widgets)
 
 
 class VersionView(AirflowBaseView):

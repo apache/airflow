@@ -131,6 +131,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.session.remove()
             appbuilder.add_view_no_menu(views.Airflow())
             appbuilder.add_view_no_menu(views.DagModelView())
+            appbuilder.add_view_no_menu(views.CurvesView())
             appbuilder.add_view(views.DagRunModelView,
                                 gettext("DAG Runs"),
                                 category=gettext("Browse"),

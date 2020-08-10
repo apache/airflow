@@ -1,6 +1,6 @@
 {% extends "appbuilder/base.html" %}
 {% import 'airflow/panel.html' as panel %}
-
+{% import 'appbuilder/general/lib.html' as lib %}
 
 {% block head_css %}
 {{ super() }}
@@ -10,72 +10,75 @@
       href="{{ url_for('static', filename='css/curves.css') }}">
 <link rel="stylesheet" type="text/css"
       href="{{ url_for('static', filename='css/bootstrap-treeview.min.css') }}">
-<script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
 {% endblock %}
 
 {% block body %}
 <div id="root">
-  {% call panel.panel('曲线列表') %}
   <div class="d-flex w-100 h-100 flex-column overflow-hidden">
-    <div class="panel-body flex-grow-1 overflow-auto p-0">
-      <!--      <div id="tree" class=""></div>-->
-      <table class="table position-relative" style="width: 100%; ">
-        <thead>
-        <tr class="result-content-row active">
-          <th class="position-sticky " style="top:0;z-index: 1;">
-            <input id="check_all" class="action_check_all" name="check_all" type="checkbox">
-          </th>
-          <th class="position-sticky " style="top:0;z-index: 1;">{{_('curve')}}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for task in tasks %}
-        <!--        <tr>-->
-        <!--          <td>-->
-        <!--            <input id="{{ task.entity_id }}" class="action_check" name="rowid" value="{{ task.entity_id }}"-->
-        <!--                   type="checkbox">-->
-        <!--          </td>-->
-        <!--          <td>{{ loop.index + pagination.skip }}</td>-->
-        <!--          <td>{{ task.entity_id }}</td>-->
-        <!--        </tr>-->
-        <tr>
-          <td class="h-100" style="text-align: center;vertical-align: middle;">
-            <div class="d-flex flex-column justify-content-center align-items-center">
-              <input id="{{ task.entity_id }}" class="action_check m-2" name="rowid" value="{{ task.entity_id }}"
-                     type="checkbox">
-              <a type="button" class="btn btn-sm btn-default"
-                 href="/view_curve/{{ task.dag_id }}/dag_runs/{{ task.execution_date }}/tasks/{{ task.task_id }}"
-                 target="_blank">
-                <i class="glyphicon glyphicon-new-window"></i>
-              </a>
-            </div>
-          </td>
-          <td>
-            <button class="btn list-group-item" value="{{ task.entity_id }}">
-              <h4 class="list-group-item-heading">
-                {{ task.entity_id }}
-              </h4>
-              <p class="list-group-item-text ml-4"><span>时间：</span>{{ task.execution_date }}</p>
-              <p class="list-group-item-text ml-4"><span>控制器结果：</span>
-                {{ task.measure_result if task.measure_result else '无结果' }}</p>
-              <p class="list-group-item-text ml-4"><span>分析结果：</span>
-                {{ task.result if task.result else '未分析'}}</p>
-              <p class="list-group-item-text ml-4"><span>最终结果：</span>
-                {{ task.final_state if task.final_state else '未确认' }}</p>
-            </button>
-          </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-      </table>
+    <div class="p-0 m-1 ">
+      {% call lib.accordion_tag("accordion1",_("Search"), False) %}
+      {{ widgets.get('search')()|safe }}
+      {% endcall %}
+    </div>
+    {% call panel.panel('曲线列表') %}
+    <div class="d-flex w-100 h-100 flex-column overflow-hidden">
 
+      <div class="panel-body flex-grow-1 overflow-auto p-0">
+        <!--      <div id="tree" class=""></div>-->
+
+        <table class="table position-relative" style="width: 100%; ">
+          <thead>
+          <tr class="result-content-row active">
+            <th class="position-sticky " style="top:0;z-index: 1;">
+              <input id="check_all" class="action_check_all" name="check_all" type="checkbox">
+            </th>
+            <th class="position-sticky " style="top:0;z-index: 1;">{{_('curve')}}</th>
+          </tr>
+          </thead>
+          <tbody>
+          {% for task in tasks %}
+          <tr>
+            <td class="h-100" style="text-align: center;vertical-align: middle;">
+              <div class="d-flex flex-column justify-content-center align-items-center">
+                <input id="{{ task.entity_id }}" class="action_check m-2" name="rowid" value="{{ task.entity_id }}"
+                       type="checkbox">
+                <a type="button" class="btn btn-sm btn-default"
+                   href="/view_curve/{{ task.dag_id }}/dag_runs/{{ task.execution_date }}/tasks/{{ task.task_id }}"
+                   target="_blank">
+                  <i class="glyphicon glyphicon-new-window"></i>
+                </a>
+              </div>
+            </td>
+            <td>
+              <button class="btn list-group-item" value="{{ task.entity_id }}">
+                <h4 class="list-group-item-heading">
+                  {{ task.entity_id }}
+                </h4>
+                <p class="list-group-item-text ml-4"><span>时间：</span>{{ task.execution_date }}</p>
+                <p class="list-group-item-text ml-4"><span>车号：</span>{{ task.car_code }}</p>
+                <p class="list-group-item-text ml-4"><span>控制器结果：</span>
+                  {{ task.measure_result if task.measure_result else '无结果' }}</p>
+                <p class="list-group-item-text ml-4"><span>分析结果：</span>
+                  {{ task.result if task.result else '未分析'}}</p>
+                <p class="list-group-item-text ml-4"><span>最终结果：</span>
+                  {{ task.final_state if task.final_state else '未确认' }}</p>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+
+      </div>
+      <div class="panel-body" style="display:inline-block !important">
+        {{ lib.render_pagination(page, page_size, count, modelview_name) }}
+        <button id="btn-view-curves" class="btn btn-primary btn-block mt-1">查看</button>
+      </div>
     </div>
-    <div class="panel-body">
-      {{ pagination.links }}
-      <button id="btn-view-curves" class="btn btn-primary btn-block">查看</button>
-    </div>
+    {% endcall %}
   </div>
-  {% endcall %}
+  <script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
+
   {% include 'airflow/curve_chart.html' %}
 </div>
 

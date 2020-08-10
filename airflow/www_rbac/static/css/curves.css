@@ -93,3 +93,17 @@ body {
   padding: .1em .25em;
   font-size: 150%;
 }
+
+.panel-group {
+  margin-bottom: 0 !important;
+}
+
+.pagination {
+  margin: 5px 0 5px 0 !important;
+}
+
+.pagination::after {
+  display: block;
+  clear: both;
+  content:''
+}
