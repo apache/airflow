@@ -266,7 +266,7 @@ if REMOTE_LOGGING:
         LAWS_ACCESS_KEY: str = conf.get('azlaws', 'ACCESS_KEY')
         LAWS_TABLE_NAME: str = conf.get('azlaws', 'TABLE_NAME')
 
-        LAWS_REMOTE_HANDLERS: Dict{str, Dict[str, Union[str, bool]]] = {
+        LAWS_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
             'task': {
                 'class': 'airflow.providers.microsoft.azure.log.laws_task_handler.LawsTaskHandler',
                 'formatter': 'airflow',
