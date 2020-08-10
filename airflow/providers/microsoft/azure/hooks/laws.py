@@ -50,7 +50,6 @@ class LawsHook(BaseHook):
         self.account_id = account_id
         self.access_key = access_key
         self.table_name = table_name
-        self.pushed = False
 
     def build_signature(self, date, content_length, method, content_type, resource):
         x_headers = 'x-ms-date:' + date
@@ -79,8 +78,14 @@ class LawsHook(BaseHook):
         Post data to Azure Log Analytics
         """
         ts = self._clean_execution_date(ti.execution_date)
-        body = {"dag_id":ti.dag_id, "task_id":ti.task_id, "execution_date": ts, "try_number": ti.try_number, "raw_data": log} 
-
+        body = {"dag_id":ti.dag_id, 
+                "task_id":ti.task_id, 
+                "execution_date": ts, 
+                "try_number": ti.try_number,
+                "part": 1,
+                "raw_data": log
+                } 
+        # TODO: Break content into said size like 20M. 
         custom_table_name = self.table_name
         method = 'POST'
         content_type = 'application/json'
@@ -96,13 +101,10 @@ class LawsHook(BaseHook):
             'Log-Type': custom_table_name,
             'x-ms-date': rfc1123date
         }
-        print("="*40)
-        print(uri)
+        # TODO: Option to print to console instead API.
         try:
             response = requests.post(uri,data=body, headers=headers, verify=ssl_verify)
-            print(response.status_code)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:  # This is the correct syntax
-            print("Logs Submit Error")
             raise Exception("AZ-LAWS:Log not submitted")
         return True
