@@ -24,192 +24,66 @@ Airflow connection of type `wasb` exists. Authorization can be done by supplying
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
 field (see connection `wasb_default` for an example).
 """
-from azure.storage.blob import BlockBlobService
+import requests
+import datetime
+import hashlib
+import hmac
+import base64
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
-class WasbHook(BaseHook):
+class LawsHook(BaseHook):
     """
-    Interacts with Azure Blob Storage through the ``wasb://`` protocol.
+    Interacts with Azure LAWS through api.
 
-    Additional options passed in the 'extra' field of the connection will be
-    passed to the `BlockBlockService()` constructor. For example, authenticate
-    using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
-
-    :param wasb_conn_id: Reference to the wasb connection.
-    :type wasb_conn_id: str
+    :param remote_conn_id: Not Used
+    :type remote_conn_id: str
+    :param account_id: Laws Account Id
+    :type account_id: str
+    :param access_key: Access Key
+    :type access_key: str
+    :param table_name: <Table Name>_CL
+    :type table_name: str
     """
 
-    def __init__(self, wasb_conn_id='wasb_default'):
+    def __init__(self,remote_conn_id,account_id,access_key,table_name):
         super().__init__()
-        self.conn_id = wasb_conn_id
-        self.connection = self.get_conn()
+        self.conn_id = remote_conn_id
+        self.account_id = account_id
+        self.access_key = access_key
+        self.table_name = table_name
 
-    def get_conn(self):
-        """Return the BlockBlobService object."""
-        conn = self.get_connection(self.conn_id)
-        service_options = conn.extra_dejson
-        return BlockBlobService(account_name=conn.login,
-                                account_key=conn.password, **service_options)
+    def build_signature(self, date, content_length, method, content_type, resource):
+        x_headers = 'x-ms-date:' + date
+        string_to_hash = method + "\n" + str(content_length) + "\n" + content_type + "\n" + x_headers + "\n" + resource
+        bytes_to_hash = bytes(string_to_hash, encoding="utf-8")
+        decoded_key = base64.b64decode(self.access_key)
+        encoded_hash = base64.b64encode(
+            hmac.new(decoded_key, bytes_to_hash, digestmod=hashlib.sha256).digest()
+        ).decode()
+        authorization = "SharedKey {}:{}".format(self.account_id, encoded_hash)
+        return authorization
 
-    def check_for_blob(self, container_name, blob_name, **kwargs):
+    def post_log(self, body):
         """
-        Check if a blob exists on Azure Blob Storage.
-
-        :param container_name: Name of the container.
-        :type container_name: str
-        :param blob_name: Name of the blob.
-        :type blob_name: str
-        :param kwargs: Optional keyword arguments that
-            `BlockBlobService.exists()` takes.
-        :type kwargs: object
-        :return: True if the blob exists, False otherwise.
-        :rtype: bool
+        Post data to Azure Log Analytics
         """
-        return self.connection.exists(container_name, blob_name, **kwargs)
+        custom_table_name = self.table_name
+        method = 'POST'
+        content_type = 'application/json'
+        resource = '/api/logs'
+        rfc1123date = datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
+        content_length = len(body)
+        signature = self.build_signature(rfc1123date, content_length, method, content_type, resource)
+        uri = 'https://' + self.account_id + '.ods.opinsights.azure.com' + resource + '?api-version=2016-04-01'
 
-    def check_for_prefix(self, container_name, prefix, **kwargs):
-        """
-        Check if a prefix exists on Azure Blob storage.
+        headers = {
+            'content-type': content_type,
+            'Authorization': signature,
+            'Log-Type': custom_table_name,
+            'x-ms-date': rfc1123date
+        }
 
-        :param container_name: Name of the container.
-        :type container_name: str
-        :param prefix: Prefix of the blob.
-        :type prefix: str
-        :param kwargs: Optional keyword arguments that
-            `BlockBlobService.list_blobs()` takes.
-        :type kwargs: object
-        :return: True if blobs matching the prefix exist, False otherwise.
-        :rtype: bool
-        """
-        matches = self.connection.list_blobs(container_name, prefix,
-                                             num_results=1, **kwargs)
-        return len(list(matches)) > 0
-
-    def get_blobs_list(self, container_name: str, prefix: str, **kwargs):
-        """
-        Return a list of blobs from path defined in prefix param
-
-        :param container_name: Name of the container.
-        :type container_name: str
-        :param prefix: Prefix of the blob.
-        :type prefix: str
-        :param kwargs: Optional keyword arguments that
-            `BlockBlobService.list_blobs()` takes (num_results, include,
-            delimiter, marker, timeout)
-        :type kwargs: object
-        :return: List of blobs.
-        :rtype: list(azure.storage.common.models.ListGenerator)
-        """
-        return self.connection.list_blobs(container_name, prefix, **kwargs)
-
-    def load_file(self, file_path, container_name, blob_name, **kwargs):
-        """
-        Upload a file to Azure Blob Storage.
-
-        :param file_path: Path to the file to load.
-        :type file_path: str
-        :param container_name: Name of the container.
-        :type container_name: str
-        :param blob_name: Name of the blob.
-        :type blob_name: str
-        :param kwargs: Optional keyword arguments that
-            `BlockBlobService.create_blob_from_path()` takes.
-        :type kwargs: object
-        """
-        # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_file.
-        self.connection.create_blob_from_path(container_name, blob_name,
-                                              file_path, **kwargs)
-
-    def load_string(self, string_data, container_name, blob_name, **kwargs):
-        """
-        Upload a string to Azure Blob Storage.
-
-        :param string_data: String to load.
-        :type string_data: str
-        :param container_name: Name of the container.
-        :type container_name: str
-        :param blob_name: Name of the blob.
-        :type blob_name: str
-        :param kwargs: Optional keyword arguments that
-            `BlockBlobService.create_blob_from_text()` takes.
-        :type kwargs: object
-        """
-        # Reorder the argument order from airflow.providers.amazon.aws.hooks.s3.load_string.
-        self.connection.create_blob_from_text(container_name, blob_name,
-                                              string_data, **kwargs)
-
-    def get_file(self, file_path, container_name, blob_name, **kwargs):
-        """
-        Download a file from Azure Blob Storage.
-
-        :param file_path: Path to the file to download.
-        :type file_path: str
-        :param container_name: Name of the container.
-        :type container_name: str
-        :param blob_name: Name of the blob.
-        :type blob_name: str
-        :param kwargs: Optional keyword arguments that
-            `BlockBlobService.create_blob_from_path()` takes.
-        :type kwargs: object
-        """
-        return self.connection.get_blob_to_path(container_name, blob_name,
-                                                file_path, **kwargs)
-
-    def read_file(self, container_name, blob_name, **kwargs):
-        """
-        Read a file from Azure Blob Storage and return as a string.
-
-        :param container_name: Name of the container.
-        :type container_name: str
-        :param blob_name: Name of the blob.
-        :type blob_name: str
-        :param kwargs: Optional keyword arguments that
-            `BlockBlobService.create_blob_from_path()` takes.
-        :type kwargs: object
-        """
-        return self.connection.get_blob_to_text(container_name,
-                                                blob_name,
-                                                **kwargs).content
-
-    def delete_file(self, container_name, blob_name, is_prefix=False,
-                    ignore_if_missing=False, **kwargs):
-        """
-        Delete a file from Azure Blob Storage.
-
-        :param container_name: Name of the container.
-        :type container_name: str
-        :param blob_name: Name of the blob.
-        :type blob_name: str
-        :param is_prefix: If blob_name is a prefix, delete all matching files
-        :type is_prefix: bool
-        :param ignore_if_missing: if True, then return success even if the
-            blob does not exist.
-        :type ignore_if_missing: bool
-        :param kwargs: Optional keyword arguments that
-            `BlockBlobService.create_blob_from_path()` takes.
-        :type kwargs: object
-        """
-
-        if is_prefix:
-            blobs_to_delete = [
-                blob.name for blob in self.connection.list_blobs(
-                    container_name, prefix=blob_name, **kwargs
-                )
-            ]
-        elif self.check_for_blob(container_name, blob_name):
-            blobs_to_delete = [blob_name]
-        else:
-            blobs_to_delete = []
-
-        if not ignore_if_missing and len(blobs_to_delete) == 0:
-            raise AirflowException('Blob(s) not found: {}'.format(blob_name))
-
-        for blob_uri in blobs_to_delete:
-            self.log.info("Deleting blob: %s", blob_uri)
-            self.connection.delete_blob(container_name,
-                                        blob_uri,
-                                        delete_snapshots='include',
-                                        **kwargs)
+        return requests.post(uri,data=body, headers=headers)

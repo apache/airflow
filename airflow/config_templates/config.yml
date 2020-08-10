@@ -1754,6 +1754,27 @@
       type: string
       example: ~
       default: ""
+- name: azlaws
+  description: "Microsoft Azure Log Analytics Workspace"
+  options:
+    - name: account_id
+      description: "LAWS Account ID"
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: access_key
+      description: "LAWS Access Key"
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: table_name
+      description: "<Table_Name>_CL"
+      version_added: ~
+      type: string
+      example: "airflowLogs"
+      default: "airflowLogs"
 - name: elasticsearch
   description: ~
   options:

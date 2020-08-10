@@ -162,7 +162,7 @@ REMOTE_LOGGING: bool = conf.getboolean('logging', 'remote_logging')
 if REMOTE_LOGGING:
 
     ELASTICSEARCH_HOST: str = conf.get('elasticsearch', 'HOST')
-
+    LAWS_ACCOUNT_ID: str = conf.get('azlaws','ACCOUNT_ID')
     # Storage bucket URL for remote logging
     # S3 buckets should start with "s3://"
     # Cloudwatch log groups should start with "cloudwatch://"
@@ -262,6 +262,21 @@ if REMOTE_LOGGING:
         }
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(ELASTIC_REMOTE_HANDLERS)
+    elif LAWS_ACCOUNT_ID:
+        LAWS_ACCESS_KEY: str = conf.get('azlaws', 'ACCESS_KEY')
+        LAWS_TABLE_NAME: str = conf.get('azlaws', 'TABLE_NAME')
+
+        LAWS_REMOTE_HANDLERS: Dict{str, Dict[str, Union[str, bool]]] = {
+            'task': {
+                'class': 'airflow.providers.microsoft.azure.log.laws_task_handler.LawsTaskHandler',
+                'formatter': 'airflow',
+                'account_id': LAWS_ACCOUNT_ID,
+                'access_key': LAWS_ACCESS_KEY,
+                'table_name': LAWS_TABLE_NAME
+            },
+        }
+
+        DEFAULT_LOGGING_CONFIG['handlers'].update(LAWS_REMOTE_HANDLERS)
     else:
         raise AirflowException(
             "Incorrect remote log configuration. Please check the configuration of option 'host' in "
