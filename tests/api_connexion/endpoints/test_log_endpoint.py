@@ -187,7 +187,8 @@ class TestGetLog(unittest.TestCase):
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
-            headers={'Accept': 'text/plain'}
+            headers={'Accept': 'text/plain'},
+            environ_overrides={'REMOTE_USER': "test"}
         )
         expected_filename = "{}/{}/{}/{}/1.log".format(
             self.log_dir,

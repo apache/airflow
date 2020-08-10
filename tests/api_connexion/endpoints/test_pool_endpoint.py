@@ -525,7 +525,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
     )
     def test_patch(self, name, status_code, url, json, expected_response):
         del name
-        response = self.client.patch(url, json=json)
+        response = self.client.patch(url, json=json, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == status_code
         self.assertEqual(response.json, expected_response)
 
@@ -566,7 +566,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
         pool = Pool(pool="test_pool", slots=3)
         session.add(pool)
         session.commit()
-        response = self.client.patch(url, json=patch_json)
+        response = self.client.patch(url, json=patch_json, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         self.assertEqual(
             {
@@ -614,7 +614,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
         pool = Pool(pool="test_pool", slots=3)
         session.add(pool)
         session.commit()
-        response = self.client.patch(url, json=patch_json)
+        response = self.client.patch(url, json=patch_json, environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 400
         self.assertEqual
         (
