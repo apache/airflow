@@ -17,22 +17,18 @@
 # under the License.
 #
 """
-This module contains integration with Azure Blob Storage.
+This module contains integration with Azure LAWS.
 
-It communicate via the Window Azure Storage Blob protocol. Make sure that a
-Airflow connection of type `wasb` exists. Authorization can be done by supplying a
-login (=Storage account name) and password (=KEY), or login and SAS token in the extra
-field (see connection `wasb_default` for an example).
 """
 import requests
 import datetime
 import hashlib
 import hmac
 import base64
+from datetime import datetime
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-
 
 class LawsHook(BaseHook):
     """
@@ -54,6 +50,7 @@ class LawsHook(BaseHook):
         self.account_id = account_id
         self.access_key = access_key
         self.table_name = table_name
+        self.pushed = False
 
     def build_signature(self, date, content_length, method, content_type, resource):
         x_headers = 'x-ms-date:' + date
@@ -66,15 +63,29 @@ class LawsHook(BaseHook):
         authorization = "SharedKey {}:{}".format(self.account_id, encoded_hash)
         return authorization
 
-    def post_log(self, body):
+    @staticmethod
+    def _clean_execution_date(execution_date: datetime) -> str:
+        """
+        Clean up an execution date so that it is safe to query in log analytics
+        by formatting it correctly
+        # 
+
+        :param execution_date: execution date of the dag run.
+        """
+        return execution_date.strftime("%Y-%m-%d %H:%M:%S")
+
+    def post_log(self, log, ti, ssl_verify = True):
         """
         Post data to Azure Log Analytics
         """
+        ts = self._clean_execution_date(ti.execution_date)
+        body = {"dag_id":ti.dag_id, "task_id":ti.task_id, "execution_date": ts, "try_number": ti.try_number, "raw_data": log} 
+
         custom_table_name = self.table_name
         method = 'POST'
         content_type = 'application/json'
         resource = '/api/logs'
-        rfc1123date = datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
+        rfc1123date = datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
         content_length = len(body)
         signature = self.build_signature(rfc1123date, content_length, method, content_type, resource)
         uri = 'https://' + self.account_id + '.ods.opinsights.azure.com' + resource + '?api-version=2016-04-01'
@@ -85,5 +96,13 @@ class LawsHook(BaseHook):
             'Log-Type': custom_table_name,
             'x-ms-date': rfc1123date
         }
-
-        return requests.post(uri,data=body, headers=headers)
+        print("="*40)
+        print(uri)
+        try:
+            response = requests.post(uri,data=body, headers=headers, verify=ssl_verify)
+            print(response.status_code)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:  # This is the correct syntax
+            print("Logs Submit Error")
+            raise Exception("AZ-LAWS:Log not submitted")
+        return True

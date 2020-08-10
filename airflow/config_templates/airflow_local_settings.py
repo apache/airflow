@@ -270,6 +270,8 @@ if REMOTE_LOGGING:
             'task': {
                 'class': 'airflow.providers.microsoft.azure.log.laws_task_handler.LawsTaskHandler',
                 'formatter': 'airflow',
+                'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
+                'filename_template': FILENAME_TEMPLATE,
                 'account_id': LAWS_ACCOUNT_ID,
                 'access_key': LAWS_ACCESS_KEY,
                 'table_name': LAWS_TABLE_NAME

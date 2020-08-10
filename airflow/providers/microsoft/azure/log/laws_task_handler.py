@@ -33,12 +33,11 @@ class LawsTaskHandler(FileTaskHandler, LoggingMixin):
     uploads to LAWS.
     """
 
-    def __init__(self, account_id, access_key, table_name,
+    def __init__(self, account_id, access_key, table_name, base_log_folder,
                  filename_template):
         super().__init__(base_log_folder, filename_template)
-        self.wasb_container = wasb_container
-        self.remote_base = wasb_log_folder
         self.log_relative_path = ''
+        self._ti = None
         self._hook = None
         self.closed = False
         self.upload_on_close = True
@@ -66,6 +65,7 @@ class LawsTaskHandler(FileTaskHandler, LoggingMixin):
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to Laws.
+        self._ti = ti
         self.log_relative_path = self._render_filename(ti, ti.try_number)
         self.upload_on_close = not ti.raw
 
@@ -87,7 +87,7 @@ class LawsTaskHandler(FileTaskHandler, LoggingMixin):
         if os.path.exists(local_loc):
             with open(local_loc, 'r') as logfile:
                 log = logfile.read()
-            self.laws_write(log, append=True)
+            self.laws_write(log, self._ti)
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -98,7 +98,7 @@ class LawsTaskHandler(FileTaskHandler, LoggingMixin):
         """
         return super()._read(ti, try_number)
 
-    def laws_write(self, log):
+    def laws_write(self, log, ti):
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
@@ -106,5 +106,4 @@ class LawsTaskHandler(FileTaskHandler, LoggingMixin):
         :param log: the log to write to the LAWS
         :type log: str
         """
-        print("LAWS Write Called")
-        self.hook.post_log(log)
+        result=self.hook.post_log(log, ti)
