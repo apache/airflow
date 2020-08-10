@@ -122,7 +122,6 @@ class TestGetXComEntry(TestXComEndpoint):
             }
         )
 
-
     @provide_session
     def _create_xcom_entry(self, dag_id, dag_run_id, execution_date, task_id, xcom_key, session=None):
         XCom.set(key=xcom_key,
