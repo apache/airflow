@@ -33,21 +33,30 @@ class TaskGroup:
         self._group_id = group_id
         if self.parent_group:
             self.parent_group.add(self)
-        self.tasks = set()
+        self.children = {}
 
     def __iter__(self):
-        for task in self.tasks:
-            if isinstance(task, TaskGroup):
-                for inner_task in task:
+        for child in self.children.values():
+            if isinstance(child, TaskGroup):
+                for inner_task in child:
                     yield inner_task
             else:
-                yield task
+                yield child
 
     def add(self, task):
         """
         Add a task to this TaskGroup.
         """
-        self.tasks.add(task)
+        if task.label in self.children:
+            raise ValueError(f"Duplicate label {task.label} in {self.group_id}")
+        self.children[task.label] = task
+
+    @property
+    def label(self):
+        """
+        group_id excluding parent's group_id.
+        """
+        return self._group_id
 
     @property
     def group_id(self):
