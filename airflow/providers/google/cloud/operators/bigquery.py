@@ -1684,7 +1684,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         project_id: Optional[str] = None,
         location: Optional[str] = None,
         job_id: Optional[str] = None,
-        force_rerun: bool = False,
+        force_rerun: bool = True,
         reattach_states: Optional[Set[str]] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
