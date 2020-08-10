@@ -22,6 +22,8 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, call
 
+from airflow.exceptions import AirflowClusterPolicyViolation
+
 SETTINGS_FILE_POLICY = """
 def test_policy(task_instance):
     task_instance.run_as_user = "myself"
@@ -40,6 +42,18 @@ def not_policy():
 SETTINGS_FILE_POD_MUTATION_HOOK = """
 def pod_mutation_hook(pod):
     pod.namespace = 'airflow-tests'
+"""
+
+SETTINGS_FILE_CUSTOM_POLICY = """
+from airflow.models.baseoperator import BaseOperator
+from airflow.exceptions import AirflowClusterPolicyViolation
+
+def task_must_have_owners(task: BaseOperator):
+    if not task.owner or task.owner.lower() == "airflow":
+        raise AirflowClusterPolicyViolation(
+            f'''Task must have non-None non-'airflow' owner.
+            Current value: {task.owner}'''
+        )
 """
 
 
@@ -149,3 +163,13 @@ class TestLocalSettings(unittest.TestCase):
             settings.pod_mutation_hook(pod)
 
             assert pod.namespace == 'airflow-tests'
+
+    def test_custom_policy(self):
+        with SettingsContext(SETTINGS_FILE_CUSTOM_POLICY, "airflow_local_settings"):
+            from airflow import settings
+            settings.import_local_settings()
+
+            task_instance = MagicMock()
+            task_instance.owner = 'airflow'
+            with self.assertRaises(AirflowClusterPolicyViolation):
+                settings.task_must_have_owners(task_instance)  # pylint: disable=no-member
