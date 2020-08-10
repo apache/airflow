@@ -1156,7 +1156,11 @@ state.
 
 Cluster Policy
 ==============
+Cluster policies provide a interface for taking action on every Airflow task
+either at DAG load time or just before task execution.
 
+Cluster Policies for Task Mutation
+-----------------------------
 In case you want to apply cluster-wide mutations to the Airflow tasks,
 you can either mutate the task right after the DAG is loaded or
 mutate the task instance before task execution.
@@ -1205,6 +1209,62 @@ queue during retries:
     def task_instance_mutation_hook(ti):
         if ti.try_number >= 1:
             ti.queue = 'retry_queue'
+
+
+Cluster Policies for Custom Task Checks
+-----------------------------
+You may also use Cluster Policies to  apply cluster-wide checks on Airflow
+tasks. You can raise `AirflowClusterPolicyViolation` in a policy or
+task mutation hook (described below) to prevent a DAG from being imported or
+prevent a task from being executed if the task is not compliant with your check.
+
+These checks are intended to help teams using Airflow to protect against common
+newbie errors that may get past a code reviewer, rather than as technical
+security controls.
+
+For example, don't run tasks without airflow owners:
+
+.. code-block:: python
+    def task_must_have_owners(task: BaseOperator):
+        if not task.owner or task.owner.lower() == "airflow":
+            raise AirflowClusterPolicyViolation(
+                f'''Task must have non-None non-'airflow' owner.
+                Current value: {task.owner}''')
+
+If you have multiple checks to apply, it is best practice to curate these rules
+in a separate python module and have a single policy / task mutation hook that
+performs multiple of these custom checks and aggregates the various error
+messages so that a single `AirflowClusterPolicyViolation` can be reported in
+the UI (and import errors table in the database).
+
+For Example in ``airflow_local_settings.py``:
+
+.. code-block:: python
+    from my_cluster_policies import rules
+
+    TASK_RULES: List[Callable[[BaseOperator], None]] = [
+        rules.task_must_have_owners,
+    ]
+
+    def _check_task_rule(current_task: BaseOperator):
+        """Check task rules for given task."""
+        notices = []
+        for rule in TASK_RULES:
+            try:
+                rule(current_task)
+            except ClusterPolicyViolation as ex:
+                notices.append(str(ex))
+
+        if notices:
+            current_dag = current_task.dag
+            notices_list = " * " + "\n * ".join(notices)
+            # AirflowDagCycleException is only supported exception type by Airflow.
+            raise AirflowDagCycleException(
+                f"Task policy violation "
+                f"(DAG ID: {current_dag.dag_id}, Task ID: {current_task.task_id}, "
+                f"Path: {current_dag.filepath}):\n"
+                f"Notices:\n"
+                f"{notices_list}")
 
 
 Where to put ``airflow_local_settings.py``?
