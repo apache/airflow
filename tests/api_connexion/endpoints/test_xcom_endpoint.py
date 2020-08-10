@@ -71,57 +71,44 @@ class TestXComEndpoint(unittest.TestCase):
 
 class TestGetXComEntry(TestXComEndpoint):
 
-    @provide_session
-    def test_should_response_200(self, session):
+    def test_should_response_200(self):
         dag_id = 'test-dag-id'
         task_id = 'test-task-id'
         execution_date = '2005-04-02T00:00:00+00:00'
         xcom_key = 'test-xcom-key'
         execution_date_parsed = parse_execution_date(execution_date)
         dag_run_id = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
-        self.create_xcom(dag_id, dag_run_id, execution_date_parsed, task_id, xcom_key, session)
+        self._create_xcom_entry(dag_id, dag_run_id, execution_date_parsed, task_id, xcom_key)
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
             environ_overrides={'REMOTE_USER': "test"}
         )
         self.assertEqual(200, response.status_code)
+
+        current_data = response.json
+        current_data['timestamp'] = 'TIMESTAMP'
         self.assertEqual(
-            response.json,
+            current_data,
             {
                 'dag_id': dag_id,
                 'execution_date': execution_date,
                 'key': xcom_key,
                 'task_id': task_id,
-                'timestamp': execution_date
+                'timestamp': 'TIMESTAMP'
             }
         )
 
-    def create_xcom(self, dag_id, dag_run_id, execution_date, task_id, xcom_key, session):
-        xcom_model = XCom(key=xcom_key,
-                          execution_date=execution_date,
-                          task_id=task_id,
-                          dag_id=dag_id,
-                          timestamp=execution_date)
-        dagrun = DR(dag_id=dag_id,
-                    run_id=dag_run_id,
-                    execution_date=execution_date,
-                    start_date=execution_date,
-                    run_type=DagRunType.MANUAL.value)
-        session.add(xcom_model)
-        session.add(dagrun)
-        session.commit()
-
-    @provide_session
-    def test_raises_401_unauthenticated(self, session):
+    def test_raises_401_unauthenticated(self):
         dag_id = 'test-dag-id'
         task_id = 'test-task-id'
         execution_date = '2005-04-02T00:00:00+00:00'
         xcom_key = 'test-xcom-key'
         execution_date_parsed = parse_execution_date(execution_date)
         dag_run_id = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
-        self.create_xcom(dag_id, dag_run_id, execution_date_parsed, task_id, xcom_key, session)
+        self._create_xcom_entry(dag_id, dag_run_id, execution_date_parsed, task_id, xcom_key)
+
         response = self.client.get(
-            f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+            f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}"
         )
 
         self.assertEqual(response.status_code, 401)
@@ -136,20 +123,39 @@ class TestGetXComEntry(TestXComEndpoint):
         )
 
 
-class TestGetXComEntries(TestXComEndpoint):
     @provide_session
-    def test_should_response_200(self, session):
+    def _create_xcom_entry(self, dag_id, dag_run_id, execution_date, task_id, xcom_key, session=None):
+        XCom.set(key=xcom_key,
+                 value="TEST_VALUE",
+                 execution_date=execution_date,
+                 task_id=task_id,
+                 dag_id=dag_id,)
+        dagrun = DR(dag_id=dag_id,
+                    run_id=dag_run_id,
+                    execution_date=execution_date,
+                    start_date=execution_date,
+                    run_type=DagRunType.MANUAL.value)
+        session.add(dagrun)
+
+
+class TestGetXComEntries(TestXComEndpoint):
+    def test_should_response_200(self):
         dag_id = 'test-dag-id'
         task_id = 'test-task-id'
         execution_date = '2005-04-02T00:00:00+00:00'
         execution_date_parsed = parse_execution_date(execution_date)
         dag_run_id = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
-        self.create_xcom_entries(dag_id, dag_run_id, execution_date_parsed, session, task_id)
+
+        self._create_xcom_entries(dag_id, dag_run_id, execution_date_parsed, task_id)
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
             environ_overrides={'REMOTE_USER': "test"}
         )
+
         self.assertEqual(200, response.status_code)
+        response_data = response.json
+        for xcom_entry in response_data['xcom_entries']:
+            xcom_entry['timestamp'] = "TIMESTAMP"
         self.assertEqual(
             response.json,
             {
@@ -159,52 +165,30 @@ class TestGetXComEntries(TestXComEndpoint):
                         'execution_date': execution_date,
                         'key': 'test-xcom-key-1',
                         'task_id': task_id,
-                        'timestamp': execution_date
+                        'timestamp': "TIMESTAMP"
                     },
                     {
                         'dag_id': dag_id,
                         'execution_date': execution_date,
                         'key': 'test-xcom-key-2',
                         'task_id': task_id,
-                        'timestamp': execution_date
+                        'timestamp': "TIMESTAMP"
                     }
                 ],
                 'total_entries': 2,
             }
         )
 
-    def create_xcom_entries(self, dag_id, dag_run_id, execution_date_parsed, session, task_id):
-        xcom_model_1 = XCom(key='test-xcom-key-1',
-                            execution_date=execution_date_parsed,
-                            task_id=task_id,
-                            dag_id=dag_id,
-                            timestamp=execution_date_parsed)
-        xcom_model_2 = XCom(key='test-xcom-key-2',
-                            execution_date=execution_date_parsed,
-                            task_id=task_id,
-                            dag_id=dag_id,
-                            timestamp=execution_date_parsed)
-        dagrun = DR(dag_id=dag_id,
-                    run_id=dag_run_id,
-                    execution_date=execution_date_parsed,
-                    start_date=execution_date_parsed,
-                    run_type=DagRunType.MANUAL.value)
-        xcom_models = [xcom_model_1, xcom_model_2]
-        session.add_all(xcom_models)
-        session.add(dagrun)
-        session.commit()
-
-    @provide_session
-    def test_raises_401_unauthenticated(self, session):
+    def test_raises_401_unauthenticated(self):
         dag_id = 'test-dag-id'
         task_id = 'test-task-id'
         execution_date = '2005-04-02T00:00:00+00:00'
         execution_date_parsed = parse_execution_date(execution_date)
         dag_run_id = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
-        self.create_xcom_entries(dag_id, dag_run_id, execution_date_parsed, session, task_id)
 
+        self._create_xcom_entries(dag_id, dag_run_id, execution_date_parsed, task_id)
         response = self.client.get(
-            f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
+            f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries"
         )
 
         self.assertEqual(response.status_code, 401)
@@ -217,6 +201,23 @@ class TestGetXComEntries(TestXComEndpoint):
                 'type': 'about:blank'
             }
         )
+
+    @provide_session
+    def _create_xcom_entries(self, dag_id, dag_run_id, execution_date, task_id, session=None):
+        for i in [1, 2]:
+            XCom.set(
+                key=f'test-xcom-key-{i}',
+                value="TEST",
+                execution_date=execution_date,
+                task_id=task_id,
+                dag_id=dag_id,
+            )
+        dagrun = DR(dag_id=dag_id,
+                    run_id=dag_run_id,
+                    execution_date=execution_date,
+                    start_date=execution_date,
+                    run_type=DagRunType.MANUAL.value)
+        session.add(dagrun)
 
 
 class TestPaginationGetXComEntries(TestXComEndpoint):
