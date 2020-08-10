@@ -154,21 +154,25 @@ Checking configuration
 
 You can use the ``airflow connections get`` command to check if the connection is correctly read from the backend secret:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ airflow connections get first-connection
-    Conn ID: first-connection
+    Id: null
+    Conn Id: first-connection
     Conn Type: mysql
-    Extra: {}
     Host: example.org
+    Schema: ''
+    Login: null
+    Password: null
+    Port: null
     Is Encrypted: null
     Is Extra Encrypted: null
-    Port: null
+    Extra: {}
     URI: mysql://example.org
 
 To check the variables is correctly read from the backend secret, you can use ``airflow variables get``:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ airflow variables get first-variable
     secret_content

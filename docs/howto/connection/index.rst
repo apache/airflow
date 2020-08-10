@@ -267,16 +267,20 @@ convenience method :py:meth:`~airflow.models.connection.Connection.get_uri`.  It
 
 Additionally, if you have created a connection, you can use ``airflow connections get`` command.
 
-.. code-block:: bash
+.. code-block:: console
 
     $ airflow connections get sqlite_default
-    Conn ID: sqlite_default
+    Id: 40
+    Conn Id: sqlite_default
     Conn Type: sqlite
-    Extra: {}
     Host: /tmp/sqlite_default.db
+    Schema: null
+    Login: null
+    Password: null
+    Port: null
     Is Encrypted: false
     Is Extra Encrypted: false
-    Port: null
+    Extra: {}
     URI: sqlite://%2Ftmp%2Fsqlite_default.db
 
 .. _manage-connections-connection-types:
