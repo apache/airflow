@@ -36,6 +36,14 @@ svg {
   stroke-width: 1px;
 }
 
+g.cluster rect {
+  stroke: white;
+  stroke-dasharray: 5;
+  rx: 5;
+  ry: 5;
+  opacity: 0.5;
+}
+
 g.node rect {
   stroke: #fff;
   stroke-width: 3px;

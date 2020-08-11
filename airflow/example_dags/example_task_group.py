@@ -18,10 +18,9 @@
 
 """Example DAG demonstrating the usage of the TaskGroup."""
 
-import datetime
-
 from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.dates import days_ago
 from airflow.utils.task_group import TaskGroup
 
 
@@ -41,7 +40,7 @@ def create_section():
     dummies[-2] >> inside_section_2
 
 
-with DAG(dag_id="example_task_group", start_date=datetime.datetime(2020, 1, 1)) as dag:
+with DAG(dag_id="example_task_group", start_date=days_ago(2)) as dag:
     start = DummyOperator(task_id="start")
 
     with TaskGroup("section_1") as section_1:

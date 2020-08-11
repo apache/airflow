@@ -1625,6 +1625,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @provide_session
     def graph(self, session=None):
         """Get DAG as Graph."""
+        from airflow.utils.task_group import TaskGroup
+
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = current_app.dag_bag.get_dag(dag_id)
@@ -1641,19 +1643,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         arrange = request.args.get('arrange', dag.orientation)
 
-        nodes = []
+        root_group = TaskGroup.build_task_group(dag.tasks)
+        nodes = task_group_to_dict(root_group)
         edges = []
-        for dag_task in dag.tasks:
-            nodes.append({
-                'id': dag_task.task_id,
-                'value': {
-                    'label': dag_task.task_id,
-                    'labelStyle': "fill:{0};".format(dag_task.ui_fgcolor),
-                    'style': "fill:{0};".format(dag_task.ui_color),
-                    'rx': 5,
-                    'ry': 5,
-                }
-            })
 
         def get_downstream(task):
             for downstream_task in task.downstream_list:
