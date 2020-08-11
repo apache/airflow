@@ -150,6 +150,7 @@ imagesize==1.2.0
 importlib-metadata==1.7.0
 importlib-resources==3.0.0
 inflection==0.5.0
+iniconfig==1.0.1
 ipdb==0.13.3
 ipython-genutils==0.2.0
 ipython==7.9.0
