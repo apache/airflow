@@ -1214,12 +1214,13 @@ queue during retries:
 Cluster Policies for Custom Task Checks
 -----------------------------
 You may also use Cluster Policies to  apply cluster-wide checks on Airflow
-tasks. You can raise `AirflowClusterPolicyViolation` in a policy or
-task mutation hook (described below) to prevent a DAG from being imported or
-prevent a task from being executed if the task is not compliant with your check.
+tasks. You can raise :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
+in a policy or task mutation hook (described below) to prevent a DAG from being
+imported or prevent a task from being executed if the task is not compliant with
+your check.
 
 These checks are intended to help teams using Airflow to protect against common
-newbie errors that may get past a code reviewer, rather than as technical
+beginner errors that may get past a code reviewer, rather than as technical
 security controls.
 
 For example, don't run tasks without airflow owners:
@@ -1246,7 +1247,7 @@ For Example in ``airflow_local_settings.py``:
         rules.task_must_have_owners,
     ]
 
-    def _check_task_rule(current_task: BaseOperator):
+    def _check_task_rules(current_task: BaseOperator):
         """Check task rules for given task."""
         notices = []
         for rule in TASK_RULES:
@@ -1258,13 +1259,16 @@ For Example in ``airflow_local_settings.py``:
         if notices:
             current_dag = current_task.dag
             notices_list = " * " + "\n * ".join(notices)
-            # AirflowDagCycleException is only supported exception type by Airflow.
-            raise AirflowDagCycleException(
+            raise AirflowClusterPolicyViolation(
                 f"Task policy violation "
                 f"(DAG ID: {current_dag.dag_id}, Task ID: {current_task.task_id}, "
                 f"Path: {current_dag.filepath}):\n"
                 f"Notices:\n"
                 f"{notices_list}")
+
+    def cluster_policy(current_task: BaseOperator):
+        """Main entrypoint for Airflow"""
+        _check_task_rules(current_task)
 
 
 Where to put ``airflow_local_settings.py``?

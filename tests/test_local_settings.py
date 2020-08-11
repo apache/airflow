@@ -43,11 +43,13 @@ def pod_mutation_hook(pod):
     pod.namespace = 'airflow-tests'
 """
 
-SETTINGS_FILE_CUSTOM_POLICY = """
+SETTINGS_FILE_MUST_HAVE_OWNER_POLICY = """
 def task_must_have_owners(task: BaseOperator):
-    if not task.owner or task.owner.lower() == "airflow":
+    from airflow.configuration import conf
+    if not task.owner or \
+      task.owner.lower() == conf.get('operators', 'default_owner'):
         raise AirflowClusterPolicyViolation(
-            f'''Task must have non-None non-'airflow' owner.
+            f'''Task must have non-None non-default owner.
             Current value: {task.owner}'''
         )
 """
@@ -161,7 +163,7 @@ class TestLocalSettings(unittest.TestCase):
             assert pod.namespace == 'airflow-tests'
 
     def test_custom_policy(self):
-        with SettingsContext(SETTINGS_FILE_CUSTOM_POLICY, "airflow_local_settings"):
+        with SettingsContext(SETTINGS_FILE_MUST_HAVE_OWNER_POLICY, "airflow_local_settings"):
             from airflow import settings
             settings.import_local_settings()
 
