@@ -43,6 +43,8 @@ spec:
         component: create-user-job
         release: {{ .Release.Name }}
     spec:
+      securityContext:
+          runAsUser: {{ .Values.uid }}
       restartPolicy: OnFailure
       nodeSelector:
 {{ toYaml .Values.nodeSelector | indent 8 }}
