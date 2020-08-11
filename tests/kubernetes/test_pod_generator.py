@@ -328,6 +328,7 @@ class TestPodGenerator(unittest.TestCase):
                 'hostPath': {'path': '/tmp/'},
                 'name': 'example-kubernetes-test-volume1'
             }],
+            labels={"foo": "bar"},
             volume_mounts=[{
                 'mountPath': '/foo/',
                 'name': 'example-kubernetes-test-volume1'
@@ -338,6 +339,7 @@ class TestPodGenerator(unittest.TestCase):
             envs={'key2': 'val2'},
             image='',
             name='name2',
+            labels={"bar": "baz"},
             cmds=['/bin/command2.sh', 'arg2'],
             volumes=[{
                 'hostPath': {'path': '/tmp/'},
@@ -354,7 +356,8 @@ class TestPodGenerator(unittest.TestCase):
         self.assertEqual({
             'apiVersion': 'v1',
             'kind': 'Pod',
-            'metadata': {'name': 'name2-' + self.static_uuid.hex},
+            'metadata': {'name': 'name2-' + self.static_uuid.hex,
+                         'labels': {'foo': 'bar', "bar": "baz"}},
             'spec': {
                 'containers': [{
                     'args': [],
