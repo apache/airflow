@@ -20,6 +20,7 @@ from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import func
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.connection_schema import (
@@ -29,6 +30,7 @@ from airflow.models import Connection
 from airflow.utils.session import provide_session
 
 
+@security.requires_authentication
 @provide_session
 def delete_connection(connection_id, session):
     """
@@ -41,6 +43,7 @@ def delete_connection(connection_id, session):
     return NoContent, 204
 
 
+@security.requires_authentication
 @provide_session
 def get_connection(connection_id, session):
     """
@@ -52,6 +55,7 @@ def get_connection(connection_id, session):
     return connection_collection_item_schema.dump(connection)
 
 
+@security.requires_authentication
 @format_parameters({
     'limit': check_limit
 })
@@ -67,6 +71,7 @@ def get_connections(session, limit, offset=0):
                                                                   total_entries=total_entries))
 
 
+@security.requires_authentication
 @provide_session
 def patch_connection(connection_id, session, update_mask=None):
     """
@@ -99,6 +104,7 @@ def patch_connection(connection_id, session, update_mask=None):
     return connection_schema.dump(connection)
 
 
+@security.requires_authentication
 @provide_session
 def post_connection(session):
     """

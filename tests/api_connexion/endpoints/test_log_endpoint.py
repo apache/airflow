@@ -34,6 +34,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 
@@ -47,7 +48,16 @@ class TestGetLog(unittest.TestCase):
     def setUpClass(cls):
         settings.configure_orm()
         cls.session = settings.Session
-        cls.app = app.create_app(testing=True)
+        with conf_vars(
+            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
+        ):
+            cls.app = app.create_app(testing=True)
+        # TODO: Add new role for each view to test permission.
+        create_user(cls.app, username="test", role="Admin")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")
 
     def setUp(self) -> None:
         self.default_time = "2020-06-10T20:00:00+00:00"
@@ -88,7 +98,10 @@ class TestGetLog(unittest.TestCase):
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)
 
-        with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
+        with conf_vars({
+            ('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG',
+            ("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"
+        }):
             self.app = app.create_app(testing=True)
             self.client = self.app.test_client()
             settings.configure_logging()
@@ -135,11 +148,11 @@ class TestGetLog(unittest.TestCase):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
-        headers = {'Accept': 'application/json'}
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
-            headers=headers
+            headers={'Accept': 'application/json'},
+            environ_overrides={'REMOTE_USER': "test"}
         )
         expected_filename = "{}/{}/{}/{}/1.log".format(
             self.log_dir,
@@ -168,7 +181,8 @@ class TestGetLog(unittest.TestCase):
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
-            headers={'Accept': 'text/plain'}
+            headers={'Accept': 'text/plain'},
+            environ_overrides={'REMOTE_USER': "test"}
         )
         expected_filename = "{}/{}/{}/{}/1.log".format(
             self.log_dir,
@@ -192,6 +206,7 @@ class TestGetLog(unittest.TestCase):
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/Invalid-Task-ID/logs/1?token={token}",
+            environ_overrides={'REMOTE_USER': "test"}
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json['detail'], "Task instance did not exist in the DB")
@@ -209,7 +224,8 @@ class TestGetLog(unittest.TestCase):
             response = self.client.get(
                 f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
                 f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
-                headers={"Accept": 'text/plain'}
+                headers={"Accept": 'text/plain'},
+                environ_overrides={'REMOTE_USER': "test"}
             )
 
             self.assertIn('1st line', response.data.decode('utf-8'))
@@ -224,11 +240,13 @@ class TestGetLog(unittest.TestCase):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
-        headers = {'Content-Type': 'application/jso'}  # check guessing
+
+        # check guessing
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
-            headers=headers
+            headers={'Content-Type': 'application/jso'},
+            environ_overrides={'REMOTE_USER': "test"}
         )
         self.assertEqual(400, response.status_code)
         self.assertIn(
@@ -239,11 +257,12 @@ class TestGetLog(unittest.TestCase):
     def test_bad_signature_raises(self, session):
         self._create_dagrun(session)
         token = {"download_logs": False}
-        headers = {'Accept': 'application/json'}
+
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
-            headers=headers
+            headers={'Accept': 'application/json'},
+            environ_overrides={'REMOTE_USER': "test"}
         )
         self.assertEqual(
             response.json,
@@ -256,11 +275,11 @@ class TestGetLog(unittest.TestCase):
         )
 
     def test_raises_404_for_invalid_dag_run_id(self):
-        headers = {'Accept': 'application/json'}
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN/"  # invalid dagrun_id
             f"taskInstances/{self.TASK_ID}/logs/1?",
-            headers=headers
+            headers={'Accept': 'application/json'},
+            environ_overrides={'REMOTE_USER': "test"}
         )
         self.assertEqual(
             response.json,
@@ -271,3 +290,16 @@ class TestGetLog(unittest.TestCase):
                 'type': 'about:blank'
             }
         )
+
+    def test_should_raises_401_unauthenticated(self):
+        key = self.app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"download_logs": False})
+
+        response = self.client.get(
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
+            f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
+            headers={'Accept': 'application/json'},
+        )
+
+        assert_401(response)

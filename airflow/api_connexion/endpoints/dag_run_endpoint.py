@@ -19,6 +19,7 @@ from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import func
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dag_run_schema import (
@@ -29,6 +30,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 
+@security.requires_authentication
 @provide_session
 def delete_dag_run(dag_id, dag_run_id, session):
     """
@@ -43,6 +45,7 @@ def delete_dag_run(dag_id, dag_run_id, session):
     return NoContent, 204
 
 
+@security.requires_authentication
 @provide_session
 def get_dag_run(dag_id, dag_run_id, session):
     """
@@ -55,6 +58,7 @@ def get_dag_run(dag_id, dag_run_id, session):
     return dagrun_schema.dump(dag_run)
 
 
+@security.requires_authentication
 @format_parameters({
     'start_date_gte': format_datetime,
     'start_date_lte': format_datetime,
@@ -126,6 +130,7 @@ def _apply_date_filters_to_query(query, end_date_gte, end_date_lte, execution_da
     return query
 
 
+@security.requires_authentication
 @provide_session
 def get_dag_runs_batch(session):
     """
@@ -151,6 +156,7 @@ def get_dag_runs_batch(session):
                                                           total_entries=total_entries))
 
 
+@security.requires_authentication
 @provide_session
 def post_dag_run(dag_id, session):
     """

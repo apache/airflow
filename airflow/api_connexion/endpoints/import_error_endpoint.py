@@ -17,6 +17,7 @@
 
 from sqlalchemy import func
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.error_schema import (
@@ -26,6 +27,7 @@ from airflow.models.errors import ImportError  # pylint: disable=redefined-built
 from airflow.utils.session import provide_session
 
 
+@security.requires_authentication
 @provide_session
 def get_import_error(import_error_id, session):
     """
@@ -38,6 +40,7 @@ def get_import_error(import_error_id, session):
     return import_error_schema.dump(error)
 
 
+@security.requires_authentication
 @format_parameters({
     'limit': check_limit
 })

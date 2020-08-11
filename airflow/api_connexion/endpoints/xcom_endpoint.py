@@ -19,6 +19,7 @@ from typing import Optional
 from sqlalchemy import and_, func
 from sqlalchemy.orm.session import Session
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.xcom_schema import (
@@ -29,6 +30,7 @@ from airflow.models import DagRun as DR, XCom
 from airflow.utils.session import provide_session
 
 
+@security.requires_authentication
 @format_parameters({
     'limit': check_limit
 })
@@ -63,6 +65,7 @@ def get_xcom_entries(
     return xcom_collection_schema.dump(XComCollection(xcom_entries=query.all(), total_entries=total_entries))
 
 
+@security.requires_authentication
 @provide_session
 def get_xcom_entry(
     dag_id: str,
