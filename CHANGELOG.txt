@@ -317,7 +317,6 @@ Misc/Internal
 - Requirements now depend on python version (#7841)
 - Bring back reset db explicitly called at CI entry (#7798)
 - Fixes unclean installation of Airflow 1.10 (#7796)
-- Change name of the common environment initialization function (#7805)
 - [AIRFLOW-7029] Use separate docker image for running license check (#7678)
 - [AIRFLOW-5842] Swtch to Debian buster image as a base (#7647)
 - [AIRFLOW-5828] Move build logic out from hooks/build (#7618)
