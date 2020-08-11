@@ -145,10 +145,12 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
 {{- end }}
-{{- if .Values.dags.gitSync.enabled }}
+{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
             - name: dags
               mountPath: {{ template "airflow_dags_mount_path" . }}
+  {{- if or .Values.dags.gitSync.enabled }}
         {{- include "git_sync_container" . | indent 8 }}
+  {{- end }}
 {{- end }}
         # Always start the garbage collector sidecar.
         - name: scheduler-gc
