@@ -115,6 +115,9 @@
     var edges = {{ edges|tojson }};
     var execution_date = "{{ execution_date }}";
     var arrange = "{{ arrange }}";
+    // This maps the actual task_id to the node_id that contains the task (because tasks may
+    // be grouped into a group node)
+    var map_task_to_node = new Map()
 
     // Below variables are being used in dag.js
     var tasks = {{ tasks|tojson }};
@@ -153,43 +156,71 @@
       svg = d3.select("svg"),
       innerSvg = d3.select("svg g");
 
-    // Update the page to show the latest DAG.
-    function draw() {
-      innerSvg = svg.select("svg g");
-      innerSvg.remove()
-      innerSvg = svg.append("g")
-      // Run the renderer. This is what draws the final graph.
-      innerSvg.call(render, g);
-      innerSvg.call(taskTip)
+      // Update the page to show the latest DAG.
+      function draw() {
+        innerSvg = svg.select("svg g");
+        innerSvg.remove()
+        innerSvg = svg.append("g")
+        // Run the renderer. This is what draws the final graph.
+        innerSvg.call(render, g);
+        innerSvg.call(taskTip)
 
-      // When an expanded group is clicked, collapse it.
-      d3.selectAll("g.cluster").on("click", function(node_id) {
-        node = g.node(node_id)
-        collapse_group(node_id, node)
-      })
-      // When a node is clicked, action depends on the node type.
-      d3.selectAll("g.node").on("click", function(node_id){
-        node = g.node(node_id)
-        if (node.children != undefined && Object.keys(node.children).length > 0) {
-          // A group node
-          expand_group(node_id, node)
-        } else {
-          // A task node
-          task = tasks[node_id];
-          if (node_id in task_instances)
-            try_number = task_instances[node_id].try_number;
-          else
-            try_number = 0;
+        // When an expanded group is clicked, collapse it.
+        d3.selectAll("g.cluster").on("click", function (node_id) {
+          node = g.node(node_id)
+          collapse_group(node_id, node)
+        })
+        // When a node is clicked, action depends on the node type.
+        d3.selectAll("g.node").on("click", function (node_id) {
+          node = g.node(node_id)
+          if (node.children != undefined && Object.keys(node.children).length > 0) {
+            // A group node
+            expand_group(node_id, node)
+          } else {
+            // A task node
+            task = tasks[node_id];
+            if (node_id in task_instances)
+              try_number = task_instances[node_id].try_number;
+            else
+              try_number = 0;
 
-          if (task.task_type == "SubDagOperator")
+            if (task.task_type == "SubDagOperator")
               call_modal(node_id, execution_date, task.extra_links, try_number, true);
-          else
+            else
               call_modal(node_id, execution_date, task.extra_links, try_number, undefined);
-        }
-      });
-      updateNodesStates(task_instances);
-      setUpZoomSupport(innerSvg);
-    }
+          }
+        });
+
+        d3.selectAll("g.node").on("mouseover", function (d) {
+          d3.select(this).selectAll("rect").style("stroke", highlight_color);
+          highlight_nodes(g.predecessors(d), upstream_color, highlightStrokeWidth);
+          highlight_nodes(g.successors(d), downstream_color, highlightStrokeWidth)
+          adjacent_node_names = [d, ...g.predecessors(d), ...g.successors(d)]
+          d3.selectAll("g.nodes g.node")
+            .filter(x => !adjacent_node_names.includes(x))
+            .style("opacity", 0.2);
+          adjacent_edges = g.nodeEdges(d)
+          d3.selectAll("g.edgePath")[0]
+            .filter(x => !adjacent_edges.includes(x.__data__))
+            .forEach(function (x) {
+              d3.select(x).style('opacity', .2)
+            })
+        });
+
+        d3.selectAll("g.node").on("mouseout", function (d) {
+          d3.select(this).selectAll("rect").style("stroke", null);
+          highlight_nodes(g.predecessors(d), null, initialStrokeWidth)
+          highlight_nodes(g.successors(d), null, initialStrokeWidth)
+          d3.selectAll("g.node")
+            .style("opacity", 1);
+          d3.selectAll("g.node rect")
+            .style("stroke-width", initialStrokeWidth);
+          d3.selectAll("g.edgePath")
+            .style("opacity", 1);
+        });
+        updateNodesStates(task_instances);
+        setUpZoomSupport(innerSvg);
+      }
 
     function setUpZoomSupport(innerSvg) {
       // Set up zoom support for Graph
@@ -229,34 +260,6 @@
                 .style("stroke-width", stroke_width) ;
         })
     }
-
-    d3.selectAll("g.node").on("mouseover", function(d){
-        d3.select(this).selectAll("rect").style("stroke", highlight_color) ;
-        highlight_nodes(g.predecessors(d), upstream_color, highlightStrokeWidth);
-        highlight_nodes(g.successors(d), downstream_color, highlightStrokeWidth)
-        adjacent_node_names = [d, ...g.predecessors(d), ...g.successors(d)]
-        d3.selectAll("g.nodes g.node")
-            .filter(x => !adjacent_node_names.includes(x))
-            .style("opacity", 0.2);
-        adjacent_edges = g.nodeEdges(d)
-        d3.selectAll("g.edgePath")[0]
-            .filter(x => !adjacent_edges.includes(x.__data__))
-            .forEach(function(x) {
-                d3.select(x).style('opacity', .2)
-            })
-    });
-
-    d3.selectAll("g.node").on("mouseout", function(d){
-        d3.select(this).selectAll("rect").style("stroke", null) ;
-        highlight_nodes(g.predecessors(d), null, initialStrokeWidth)
-        highlight_nodes(g.successors(d), null, initialStrokeWidth)
-        d3.selectAll("g.node")
-            .style("opacity", 1);
-        d3.selectAll("g.node rect")
-            .style("stroke-width", initialStrokeWidth);
-        d3.selectAll("g.edgePath")
-            .style("opacity", 1);
-    });
 
 
     {% if blur %}
@@ -469,28 +472,6 @@
     }
 
 
-    // Returns list of edges belonging to the group's children and replace the id with
-    // the group's id
-    function get_children_edges_as_group(group) {
-      var children = new Set(get_children_ids(group))
-
-      var results = []
-      for(const edge of edges) {
-        source_id = edge.source_id
-        target_id = edge.target_id
-        if(children.has(source_id))
-          source_id = group.id
-        else if (children.has(target_id))
-          target_id = group.id
-        else
-          continue
-
-        if (source_id != target_id)
-          results.push([source_id, target_id])
-      }
-      return results
-    }
-
     // Return the state for the node based on the state of its taskinstance or that of its
     // children if it's a group node
     function get_node_state(node_id, tis) {
@@ -525,28 +506,29 @@
 
     // Expands a group node
     function expand_group(node_id, node) {
-      var group_edges = []
-
       node.children.forEach(function (val) {
         // Set children nodes
         g.setNode(val.id, val.value)
+        map_task_to_node.set(val.id, val.id)
         g.node(val.id).id = val.id
         if (val.children != undefined) {
           // Set children attribute so that the group can be expanded later when needed.
           group_node = g.node(val.id)
           group_node.children = val.children
-          // Convert edges of the group's children to group edges.
-          for(const edge of get_children_edges_as_group(val))
-            group_edges.push(edge)
+          // Map task that are under this node to this node's id
+          for(const child_id of get_children_ids(val))
+            map_task_to_node.set(child_id, val.id)
         }
         // Only call setParent if node is not the root node.
         if (node_id != null)
           g.setParent(val.id, node_id)
       })
 
-      // Add edges that goes in/out of groups
-      group_edges.forEach(function([source_id, target_id]) {
-        if(g.hasNode(source_id) && g.hasNode(target_id))
+      // Add edges
+      edges.forEach(function(edge) {
+        source_id = map_task_to_node.get(edge.source_id)
+        target_id = map_task_to_node.get(edge.target_id)
+        if(source_id != target_id)
           g.setEdge(source_id, target_id)
       })
 
@@ -554,13 +536,6 @@
         // Remove edges that were associated with the expanded group node..
         if(node_id == edge.v || node_id == edge.w)
           g.removeEdge(edge.v, edge.w)
-      })
-
-      var children = new Set(g.nodes())
-      edges.forEach(function(edge) {
-        // Add edges for expanded children.
-        if(children.has(edge.source_id) && children.has(edge.target_id))
-          g.setEdge(edge.source_id, edge.target_id)
       })
 
       draw()
@@ -586,14 +561,20 @@
       node.children.forEach(function(child) {
         remove_node(child.id)
       })
+      // Map task that are under this node to this node's id
+      for(const child_id of get_children_ids(node))
+        map_task_to_node.set(child_id, node_id)
 
       node = g.node(node_id)
 
       // Set children edges onto the group edge
-      get_children_edges_as_group(node).forEach(function([source_id, target_id]){
-        if(g.hasNode(source_id) && g.hasNode(target_id))
+      edges.forEach(function(edge) {
+        source_id = map_task_to_node.get(edge.source_id)
+        target_id = map_task_to_node.get(edge.target_id)
+        if(source_id != target_id)
           g.setEdge(source_id, target_id)
       })
+
 
       draw()
     }
