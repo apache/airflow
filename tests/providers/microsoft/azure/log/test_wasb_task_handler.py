@@ -23,6 +23,7 @@ from azure.common import AzureHttpError
 
 from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbTaskHandler
 from airflow.utils.state import State
 from tests.test_utils.config import conf_vars
@@ -53,10 +54,10 @@ class TestWasbTaskHandler(unittest.TestCase):
         self.ti.state = State.RUNNING
         self.addCleanup(self.dag.clear)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
-    def test_hook(self, mock_hook):
-        self.wasb_task_handler.hook
-        mock_hook.return_value.assert_called()
+    @conf_vars({('logging', 'remote_log_conn_id'): 'wasb_default'})
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlockBlobService")
+    def test_hook(self, mock_service):
+        self.assertIsInstance(self.wasb_task_handler.hook, WasbHook)
 
     @conf_vars({('logging', 'remote_log_conn_id'): 'wasb_default'})
     def test_hook_raises(self):
