@@ -34,6 +34,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 
@@ -51,19 +52,12 @@ class TestGetLog(unittest.TestCase):
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
         ):
             cls.app = app.create_app(testing=True)
-        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
         # TODO: Add new role for each view to test permission.
-        role_admin = cls.appbuilder.sm.find_role("Admin")
-        tester = cls.appbuilder.sm.find_user(username="test")
-        if not tester:
-            cls.appbuilder.sm.add_user(
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+        create_user(cls.app, username="test", role="Admin")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")
 
     def setUp(self) -> None:
         self.default_time = "2020-06-10T20:00:00+00:00"
@@ -297,7 +291,7 @@ class TestGetLog(unittest.TestCase):
             }
         )
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
@@ -307,13 +301,5 @@ class TestGetLog(unittest.TestCase):
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'application/json'},
         )
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+
+        assert_401(response)

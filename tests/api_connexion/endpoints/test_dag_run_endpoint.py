@@ -24,6 +24,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -37,19 +38,12 @@ class TestDagRunEndpoint(unittest.TestCase):
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
-        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
         # TODO: Add new role for each view to test permission.
-        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
-        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
-        if not tester:
-            cls.appbuilder.sm.add_user(  # type: ignore
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+        create_user(cls.app, username="test", role="Admin")  # type: ignore
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -130,21 +124,15 @@ class TestDeleteDagRun(TestDagRunEndpoint):
         )
 
     @provide_session
-    def test_raises_401_unauthenticated(self, session):
+    def test_should_raises_401_unauthenticated(self, session):
         session.add_all(self._create_test_dag_run())
         session.commit()
+
         response = self.client.delete(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
         )
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+
+        assert_401(response)
 
 
 class TestGetDagRun(TestDagRunEndpoint):
@@ -193,7 +181,7 @@ class TestGetDagRun(TestDagRunEndpoint):
         assert expected_resp == response.json
 
     @provide_session
-    def test_raises_401_unauthenticated(self, session):
+    def test_should_raises_401_unauthenticated(self, session):
         dagrun_model = DagRun(
             dag_id="TEST_DAG_ID",
             run_id="TEST_DAG_RUN_ID",
@@ -204,19 +192,12 @@ class TestGetDagRun(TestDagRunEndpoint):
         )
         session.add(dagrun_model)
         session.commit()
+
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID"
         )
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+
+        assert_401(response)
 
 
 class TestGetDagRuns(TestDagRunEndpoint):
@@ -267,21 +248,14 @@ class TestGetDagRuns(TestDagRunEndpoint):
         dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         self._create_test_dag_run()
+
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns"
         )
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+
+        assert_401(response)
 
 
 class TestGetDagRunsPagination(TestDagRunEndpoint):
@@ -531,24 +505,17 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         assert response.status_code == 400
         assert error == response.json.get("detail")
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         self._create_test_dag_run()
+
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
             json={
                 "dag_ids": ["TEST_DAG_ID"]
             }
         )
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+
+        assert_401(response)
 
 
 class TestGetDagRunBatchPagination(TestDagRunEndpoint):
@@ -838,7 +805,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             },
         )
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={
@@ -847,13 +814,4 @@ class TestPostDagRun(TestDagRunEndpoint):
             },
         )
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)

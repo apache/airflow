@@ -21,6 +21,7 @@ from parameterized import parameterized
 from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 
@@ -33,19 +34,12 @@ class TestBasePoolEndpoints(unittest.TestCase):
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
-        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
         # TODO: Add new role for each view to test permission.
-        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
-        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
-        if not tester:
-            cls.appbuilder.sm.add_user(  # type: ignore
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+        create_user(cls.app, username="test", role="Admin")  # type: ignore
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -91,19 +85,10 @@ class TestGetPools(TestBasePoolEndpoints):
             response.json,
         )
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/pools")
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
 
 class TestGetPoolsPagination(TestBasePoolEndpoints):
@@ -200,19 +185,10 @@ class TestGetPool(TestBasePoolEndpoints):
             response.json,
         )
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/pools/default_pool")
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
 
 class TestDeletePool(TestBasePoolEndpoints):
@@ -243,7 +219,7 @@ class TestDeletePool(TestBasePoolEndpoints):
         )
 
     @provide_session
-    def test_raises_401_unauthenticated(self, session):
+    def test_should_raises_401_unauthenticated(self, session):
         pool_name = "test_pool"
         pool_instance = Pool(pool=pool_name, slots=3)
         session.add(pool_instance)
@@ -251,16 +227,7 @@ class TestDeletePool(TestBasePoolEndpoints):
 
         response = self.client.delete(f"api/v1/pools/{pool_name}")
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
         # Should still exists
         response = self.client.get(
@@ -344,22 +311,13 @@ class TestPostPool(TestBasePoolEndpoints):
             response.json,
         )
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
             "api/v1/pools",
             json={"name": "test_pool_a", "slots": 3}
         )
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
 
 class TestPatchPool(TestBasePoolEndpoints):
@@ -418,7 +376,7 @@ class TestPatchPool(TestBasePoolEndpoints):
         )
 
     @provide_session
-    def test_raises_401_unauthenticated(self, session):
+    def test_should_raises_401_unauthenticated(self, session):
         pool = Pool(pool="test_pool", slots=2)
         session.add(pool)
         session.commit()
@@ -427,16 +385,7 @@ class TestPatchPool(TestBasePoolEndpoints):
             "api/v1/pools/test_pool", json={"name": "test_pool_a", "slots": 3},
         )
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
 
 class TestModifyDefaultPool(TestBasePoolEndpoints):

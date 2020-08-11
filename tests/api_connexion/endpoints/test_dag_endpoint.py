@@ -27,6 +27,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.session import provide_session
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -48,19 +49,8 @@ class TestDagEndpoint(unittest.TestCase):
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
-        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
         # TODO: Add new role for each view to test permission.
-        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
-        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
-        if not tester:
-            cls.appbuilder.sm.add_user(  # type: ignore
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+        create_user(cls.app, username="test", role="Admin")  # type: ignore
 
         with DAG(cls.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
             DummyOperator(task_id=cls.task_id)
@@ -69,6 +59,10 @@ class TestDagEndpoint(unittest.TestCase):
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {dag.dag_id: dag}
         cls.app.dag_bag = dag_bag  # type:ignore
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
 
     def setUp(self) -> None:
         self.clean_db()
@@ -112,20 +106,12 @@ class TestGetDag(TestDagEndpoint):
         response = self.client.get("/api/v1/dags/INVALID_DAG", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         self._create_dag_models(1)
+
         response = self.client.get("/api/v1/dags/TEST_DAG_1")
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
 
 class TestGetDagDetails(TestDagEndpoint):
@@ -226,18 +212,10 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         response = self.client.get(f"/api/v1/dags/{self.dag_id}/details")
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+
+        assert_401(response)
 
 
 class TestGetDags(TestDagEndpoint):
@@ -336,18 +314,10 @@ class TestGetDags(TestDagEndpoint):
         self.assertEqual(100, len(response.json['dags']))
         self.assertEqual(101, response.json['total_entries'])
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         response = self.client.get("api/v1/dags")
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+
+        assert_401(response)
 
 
 class TestPatchDag(TestDagEndpoint):
@@ -357,15 +327,7 @@ class TestPatchDag(TestDagEndpoint):
         assert response.status_code == 200
 
     @pytest.mark.skip(reason="Not implemented yet")
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         response = self.client.patch("/api/v1/dags/1")
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+
+        assert_401(response)

@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from airflow.models import Variable
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_variables
 
@@ -32,19 +33,12 @@ class TestVariableEndpoint(unittest.TestCase):
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
-        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
-        # TODO: Add new role with permission for each view.
-        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
-        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
-        if not tester:
-            cls.appbuilder.sm.add_user(  # type: ignore
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+        # TODO: Add new role for each view to test permission.
+        create_user(cls.app, username="test", role="Admin")  # type: ignore
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -80,23 +74,14 @@ class TestDeleteVariable(TestVariableEndpoint):
         )
         assert response.status_code == 404
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         Variable.set("delete_var1", 1)
         # make sure variable is added
         response = self.client.delete(
             "/api/v1/variables/delete_var1"
         )
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
         # make sure variable is not deleted
         response = self.client.get(
@@ -122,23 +107,14 @@ class TestGetVariable(TestVariableEndpoint):
         )
         assert response.status_code == 404
 
-    def test_raises_401_unauthenticated(self):
-        expected_value = '{"foo": 1}'
-        Variable.set("TEST_VARIABLE_KEY", expected_value)
+    def test_should_raises_401_unauthenticated(self):
+        Variable.set("TEST_VARIABLE_KEY", '{"foo": 1}')
+
         response = self.client.get(
             "/api/v1/variables/TEST_VARIABLE_KEY"
         )
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
 
 class TestGetVariables(TestVariableEndpoint):
@@ -190,20 +166,12 @@ class TestGetVariables(TestVariableEndpoint):
         assert response.status_code == 200
         self.assertEqual(len(response.json['variables']), 150)
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         Variable.set("var1", 1)
+
         response = self.client.get("/api/v1/variables?limit=2&offset=0")
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
 
 class TestPatchVariable(TestVariableEndpoint):
@@ -256,8 +224,9 @@ class TestPatchVariable(TestVariableEndpoint):
             "detail": "{'value': ['Missing data for required field.']}",
         }
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         Variable.set("var1", "foo")
+
         response = self.client.patch(
             "/api/v1/variables/var1",
             json={
@@ -266,16 +235,7 @@ class TestPatchVariable(TestVariableEndpoint):
             },
         )
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
 
 class TestPostVariables(TestVariableEndpoint):
@@ -314,7 +274,7 @@ class TestPostVariables(TestVariableEndpoint):
             "detail": "{'value': ['Missing data for required field.'], 'v': ['Unknown field.']}",
         }
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
             "/api/v1/variables",
             json={
@@ -323,13 +283,4 @@ class TestPostVariables(TestVariableEndpoint):
             },
         )
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)

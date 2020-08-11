@@ -26,6 +26,7 @@ from airflow import DAG
 from airflow.configuration import conf
 from airflow.models import DagBag
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
 
@@ -41,19 +42,12 @@ class TestGetSource(unittest.TestCase):
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
-        cls.appbuilder = cls.app.appbuilder  # type: ignore # pylint: disable=no-member
         # TODO: Add new role for each view to test permission.
-        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
-        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
-        if not tester:
-            cls.appbuilder.sm.add_user(  # type: ignore
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+        create_user(cls.app, username="test", role="Admin")  # type: ignore
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -157,25 +151,15 @@ class TestGetSource(unittest.TestCase):
 
             self.assertEqual(404, response.status_code)
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
         dagbag.sync_to_db()
         first_dag: DAG = next(iter(dagbag.dags.values()))
 
-        url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
         response = self.client.get(
-            url,
+            f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}",
             headers={"Accept": "text/plain"},
         )
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)

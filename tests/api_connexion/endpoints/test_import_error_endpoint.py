@@ -22,6 +22,7 @@ from airflow.models.errors import ImportError  # pylint: disable=redefined-built
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_import_errors
 
@@ -34,19 +35,12 @@ class TestBaseImportError(unittest.TestCase):
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
-        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
         # TODO: Add new role for each view to test permission.
-        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
-        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
-        if not tester:
-            cls.appbuilder.sm.add_user(  # type: ignore
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+        create_user(cls.app, username="test", role="Admin")  # type: ignore
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
 
     def setUp(self) -> None:
         super().setUp()
@@ -105,7 +99,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         )
 
     @provide_session
-    def test_raises_401_unauthenticated(self, session):
+    def test_should_raises_401_unauthenticated(self, session):
         import_error = ImportError(
             filename="Lorem_ipsum.py",
             stacktrace="Lorem ipsum",
@@ -117,16 +111,8 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         response = self.client.get(
             f"/api/v1/importErrors/{import_error.id}"
         )
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+
+        assert_401(response)
 
 
 class TestGetImportErrorsEndpoint(TestBaseImportError):
@@ -170,7 +156,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         )
 
     @provide_session
-    def test_raises_401_unauthenticated(self, session):
+    def test_should_raises_401_unauthenticated(self, session):
         import_error = [
             ImportError(
                 filename="Lorem_ipsum.py",
@@ -184,16 +170,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
 
         response = self.client.get("/api/v1/importErrors")
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
 
 class TestGetImportErrorsEndpointPagination(TestBaseImportError):

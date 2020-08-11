@@ -23,6 +23,7 @@ from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
 
@@ -35,19 +36,12 @@ class TestXComEndpoint(unittest.TestCase):
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
-        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
-        # TODO: Add new role for each view to test permission
-        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
-        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
-        if not tester:
-            cls.appbuilder.sm.add_user(  # type: ignore
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+        # TODO: Add new role for each view to test permission.
+        create_user(cls.app, username="test", role="Admin")  # type: ignore
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
 
     @staticmethod
     def clean_db():
@@ -98,7 +92,7 @@ class TestGetXComEntry(TestXComEndpoint):
             }
         )
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         dag_id = 'test-dag-id'
         task_id = 'test-task-id'
         execution_date = '2005-04-02T00:00:00+00:00'
@@ -111,16 +105,7 @@ class TestGetXComEntry(TestXComEndpoint):
             f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}"
         )
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
     @provide_session
     def _create_xcom_entry(self, dag_id, dag_run_id, execution_date, task_id, xcom_key, session=None):
@@ -178,28 +163,19 @@ class TestGetXComEntries(TestXComEndpoint):
             }
         )
 
-    def test_raises_401_unauthenticated(self):
+    def test_should_raises_401_unauthenticated(self):
         dag_id = 'test-dag-id'
         task_id = 'test-task-id'
         execution_date = '2005-04-02T00:00:00+00:00'
         execution_date_parsed = parse_execution_date(execution_date)
         dag_run_id = DR.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
-
         self._create_xcom_entries(dag_id, dag_run_id, execution_date_parsed, task_id)
+
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries"
         )
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.json,
-            {
-                'detail': None,
-                'status': 401,
-                'title': 'Unauthorized',
-                'type': 'about:blank'
-            }
-        )
+        assert_401(response)
 
     @provide_session
     def _create_xcom_entries(self, dag_id, dag_run_id, execution_date, task_id, session=None):

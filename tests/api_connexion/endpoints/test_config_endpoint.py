@@ -20,6 +20,7 @@ import textwrap
 from mock import patch
 
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 
 MOCK_CONF = {
@@ -44,21 +45,14 @@ class TestGetConfig:
             {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
         ):
             cls.app = app.create_app(testing=True)  # type:ignore
-        cls.appbuilder = cls.app.appbuilder  # type: ignore  # pylint: disable=no-member
         # TODO: Add new role for each view to test permission
-        role_admin = cls.appbuilder.sm.find_role("Admin")  # type: ignore
-        tester = cls.appbuilder.sm.find_user(username="test")  # type: ignore
-        if not tester:
-            cls.appbuilder.sm.add_user(  # type: ignore
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+        create_user(cls.app, username="test", role="Admin")  # type: ignore
 
         cls.client = None
+
+    @classmethod
+    def teardown_class(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
 
     def setup_method(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -112,16 +106,10 @@ class TestGetConfig:
         )
         assert response.status_code == 406
 
-    def test_raises_401_unauthenticated(self, mock_as_dict):
+    def test_should_raises_401_unauthenticated(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
             headers={'Accept': 'application/json'}
         )
 
-        assert response.status_code == 401
-        assert response.json == {
-            'detail': None,
-            'status': 401,
-            'title': 'Unauthorized',
-            'type': 'about:blank'
-        }
+        assert_401(response)
