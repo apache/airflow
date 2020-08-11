@@ -106,8 +106,9 @@ class S3Hook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(client_type='s3', *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs['client_type'] = 's3'
+        super().__init__(*args, **kwargs)
 
     @staticmethod
     def parse_s3_url(s3url: str) -> Tuple[str, str]:
