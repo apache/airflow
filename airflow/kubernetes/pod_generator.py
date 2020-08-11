@@ -365,6 +365,7 @@ class PodGenerator:
     @staticmethod
     def reconcile_metadata(base_meta, client_meta):
         """
+        Merge kubernetes Metadata objects
         :param base_meta: has the base attributes which are overwritten if they exist
             in the client_meta and remain if they do not exist in the client_meta
         :type base_meta: k8s.V1ObjectMeta
