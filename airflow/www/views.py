@@ -147,6 +147,39 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
+def task_group_to_dict(task_group):
+    """
+    Create a nested dict representation of this TaskGroup and its children used for
+    rendering web UI.
+    """
+    from airflow.models.baseoperator import BaseOperator
+
+    if isinstance(task_group, BaseOperator):
+        return {
+            'id': task_group.task_id,
+            'value': {
+                'label': task_group.label,
+                'labelStyle': "fill:{0};".format(task_group.ui_fgcolor),
+                'style': "fill:{0};".format(task_group.ui_color),
+                'rx': 5,
+                'ry': 5,
+            }
+        }
+
+    return {
+        "id": task_group.group_id,
+        'value': {
+            'label': task_group.label,
+            'labelStyle': "fill:{0};".format(BaseOperator.ui_fgcolor),
+            'style': "fill:CornflowerBlue",
+            'rx': 5,
+            'ry': 5,
+            'clusterLabelPos': 'top'
+        },
+        'children': [task_group_to_dict(child) for child in task_group.children.values()]
+    }
+
+
 ######################################################################################
 #                                    Error handlers
 ######################################################################################

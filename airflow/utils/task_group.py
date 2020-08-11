@@ -86,6 +86,9 @@ class TaskGroup:
         """
         group_id is prefixed with parent group_id if applicable.
         """
+        if not self.group_ids:
+            return None
+
         return ".".join(self.group_ids)
 
     @property
