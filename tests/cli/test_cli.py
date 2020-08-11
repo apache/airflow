@@ -380,7 +380,7 @@ class TestCLI(unittest.TestCase):
         )
         mock_run.reset_mock()
 
-    
+
     @mock.patch.object(DAG, "sync_to_db", autospec=True)
     def test_cli_sync_to_db(self, mock_sync):
         all_dags_called = []
