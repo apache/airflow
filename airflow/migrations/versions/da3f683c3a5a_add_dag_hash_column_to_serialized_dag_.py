@@ -36,7 +36,9 @@ depends_on = None
 
 def upgrade():
     """Apply Add dag_hash Column to serialized_dag table"""
-    op.add_column('serialized_dag', sa.Column('dag_hash', sa.String(32), nullable=True))
+    op.add_column(
+        'serialized_dag',
+        sa.Column('dag_hash', sa.String(32), nullable=False, server_default='Hash not calculated yet'))
 
 
 def downgrade():

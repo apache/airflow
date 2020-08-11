@@ -66,11 +66,7 @@ class SerializedDagModel(Base):
     fileloc_hash = Column(BigInteger, nullable=False)
     data = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     last_updated = Column(UtcDateTime, nullable=False)
-    # TODO: Make dag_hash not nullable in Airflow 1.10.13 or Airflow 2.0??
-    # This is done so that dag_hash will be populated for users who upgrade to
-    # Airflow 1.10.12. So the number of DAGs fetched for which the dag_hash is None
-    # should be small in number.
-    dag_hash = Column(String(32), nullable=True)
+    dag_hash = Column(String(32), nullable=False)
 
     __table_args__ = (
         Index('idx_fileloc_hash', fileloc_hash, unique=False),
@@ -113,7 +109,7 @@ class SerializedDagModel(Base):
         serialized_dag_hash_from_db = session.query(
             cls.dag_hash).filter(cls.dag_id == dag.dag_id).scalar()
 
-        if serialized_dag_hash_from_db and (serialized_dag_hash_from_db == new_serialized_dag.dag_hash):
+        if serialized_dag_hash_from_db == new_serialized_dag.dag_hash:
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return
 
