@@ -18,7 +18,7 @@
 
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-from typing import Dict, Optional
+from typing import Optional
 
 import MySQLdb
 import unicodecsv as csv
@@ -66,28 +66,15 @@ class VerticaToMySqlOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-<<<<<<< HEAD
-            *,
-            sql,
-            mysql_table,
-            vertica_conn_id='vertica_default',
-            mysql_conn_id='mysql_default',
-            mysql_preoperator=None,
-            mysql_postoperator=None,
-            bulk_load=False,
-            **kwargs):
-        super().__init__(**kwargs)
-=======
             sql: str,
             mysql_table: str,
             vertica_conn_id: str = 'vertica_default',
             mysql_conn_id: str = 'mysql_default',
-            mysql_preoperator: str = None,
-            mysql_postoperator: str = None,
+            mysql_preoperator: Optional[str] = None,
+            mysql_postoperator: Optional[str] = None,
             bulk_load: bool = False,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
->>>>>>> 1cbbae022... add typing coverage to mysql providers package
         self.sql = sql
         self.mysql_table = mysql_table
         self.mysql_conn_id = mysql_conn_id

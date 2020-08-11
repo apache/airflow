@@ -20,7 +20,7 @@
 This module allows to connect to a MySQL database.
 """
 import json
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.models import Connection
@@ -183,7 +183,8 @@ class MySqlHook(DbApiHook):
         conn.commit()
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: Connection = None) -> object:  # pylint: disable=signature-differs
+    def _serialize_cell(cell: object,
+                        conn: Optional[Connection] = None) -> object:  # pylint: disable=signature-differs
         """
         MySQLdb converts an argument to a literal
         when passing those separately to execute. Hence, this method does nothing.
