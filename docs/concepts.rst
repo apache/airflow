@@ -1160,7 +1160,7 @@ Cluster policies provide a interface for taking action on every Airflow task
 either at DAG load time or just before task execution.
 
 Cluster Policies for Task Mutation
------------------------------
+-----------------------------------
 In case you want to apply cluster-wide mutations to the Airflow tasks,
 you can either mutate the task right after the DAG is loaded or
 mutate the task instance before task execution.
