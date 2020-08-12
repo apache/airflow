@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 
 def generate_redirects(app):
-    """Generaate redirects files."""
+    """Generate redirects files."""
     redirect_file_path = os.path.join(app.srcdir, app.config.redirects_file)
     if not os.path.exists(redirect_file_path):
         raise ExtensionError(f"Could not find redirects file at '{redirect_file_path}'")
@@ -38,7 +38,7 @@ def generate_redirects(app):
 
     if not isinstance(app.builder, builders.StandaloneHTMLBuilder):
         log.warning(
-            "The plugin is support only 'html' builder, but you are using '{type(app.builder)}'. Skipping..."
+            f"The plugin supports only 'html' builder, but you are using '{type(app.builder)}'. Skipping..."
         )
         return
 

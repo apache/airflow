@@ -18,6 +18,7 @@ from flask import current_app
 from sqlalchemy import func
 
 from airflow import DAG
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_schema import (
@@ -27,6 +28,7 @@ from airflow.models.dag import DagModel
 from airflow.utils.session import provide_session
 
 
+@security.requires_authentication
 @provide_session
 def get_dag(dag_id, session):
     """
@@ -40,6 +42,7 @@ def get_dag(dag_id, session):
     return dag_schema.dump(dag)
 
 
+@security.requires_authentication
 def get_dag_details(dag_id):
     """
     Get details of DAG.
@@ -50,6 +53,7 @@ def get_dag_details(dag_id):
     return dag_detail_schema.dump(dag)
 
 
+@security.requires_authentication
 @format_parameters({
     'limit': check_limit
 })
@@ -65,6 +69,7 @@ def get_dags(session, limit, offset=0):
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
+@security.requires_authentication
 def patch_dag():
     """
     Update the specific DAG

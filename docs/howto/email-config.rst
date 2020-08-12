@@ -22,12 +22,10 @@ You can configure the email that is being sent in your ``airflow.cfg``
 by setting a ``subject_template`` and/or a ``html_content_template``
 in the ``email`` section.
 
-.. code-block::
+.. code-block:: ini
 
   [email]
-
   email_backend = airflow.utils.email.send_email_smtp
-
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
 

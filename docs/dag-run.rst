@@ -28,7 +28,10 @@ a ``str``, or a ``datetime.timedelta`` object.
 .. tip::
     You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
 
-Alternatively, you can also use one of these cron "presets":
+Alternatively, you can also use one of these cron "presets".
+
+Cron Presets
+''''''''''''
 
 +----------------+----------------------------------------------------------------+-----------------+
 | preset         | meaning                                                        | cron            |
@@ -52,7 +55,7 @@ Alternatively, you can also use one of these cron "presets":
 +----------------+----------------------------------------------------------------+-----------------+
 
 Your DAG will be instantiated for each schedule along with a corresponding
-DAG Run entry in the database backend.
+DAG Run entry in the database backend.
 
 .. note::
 

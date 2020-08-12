@@ -26,7 +26,15 @@ a secret backend and how to manage secrets.
 Before you begin
 """"""""""""""""
 
-`Configure Secret Manager and your local environment <https://cloud.google.com/secret-manager/docs/configuring-secret-manager>`__, once per project.
+Before you start, make sure you have performed the following tasks:
+
+1.  Include sendgrid subpackage as part of your Airflow installation
+
+    .. code-block:: bash
+
+        pip install apache-airflow[google]
+
+2. `Configure Secret Manager and your local environment <https://cloud.google.com/secret-manager/docs/configuring-secret-manager>`__, once per project.
 
 Enabling the secret backend
 """""""""""""""""""""""""""
@@ -48,9 +56,9 @@ You can also set this with environment variables.
 
     export AIRFLOW__SECRETS__BACKEND=airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
 
-You can verify the correct setting of the configuration options with the ``airflw config get-value`` command.
+You can verify the correct setting of the configuration options with the ``airflow config get-value`` command.
 
-.. code-block:: bash
+.. code-block:: console
 
     $ airflow config get-value secrets backend
     airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
@@ -66,7 +74,7 @@ the following parameters:
 * ``gcp_key_path``: Path to GCP Credential JSON file.
 * ``gcp_keyfile_dict``: Dictionary of keyfile parameters.
 * ``gcp_scopes``: Comma-separated string containing GCP scopes.
-* ``sep``: Separator used to concatenate connections_prefix and conn_id. Default: "-"
+* ``sep``: Separator used to concatenate connections_prefix and conn_id. Default: ``"-"``
 * ``project_id``: Project ID to read the secrets from. If not passed, the project ID from credentials will be used.
 
 All options should be passed as a JSON dictionary.
@@ -106,8 +114,8 @@ In order to manage secrets, you can use the ``gcloud`` tool or other supported t
 
 The name of the secret must fit the following formats:
 
- * for variable: ``[connections_prefix][sep][variable_name]``
  * for connection: ``[variable_prefix][sep][connection_name]``
+ * for variable: ``[connections_prefix][sep][variable_name]``
 
 where:
 
@@ -115,7 +123,7 @@ where:
  * ``variable_prefix`` - fixed value defined in the ``variable_prefix`` parameter in backend configuration. Default: ``airflow-variables``.
  * ``sep`` - fixed value defined in the ``sep`` parameter in backend configuration. Default: ``-``.
 
-The Cloud Secrets Manager secret name should follow the pattern ``[a-zA-Z0-9-_]``.
+The Cloud Secrets Manager secret name should follow the pattern ``^[a-zA-Z0-9-_]*$``.
 
 If you have the default backend configuration and you want to create a connection with ``conn_id``
 equals ``first-connection``, you should create secret named ``airflow-connections-first-connection``.
@@ -123,7 +131,11 @@ You can do it with the gcloud tools as in the example below.
 
 .. code-block:: bash
 
-    echo "mysql://example.org" | gcloud beta secrets create airflow-connections-first-connection --data-file=-
+    $ echo "mysql://example.org" | gcloud beta secrets create \
+        airflow-connections-first-connection \
+        --data-file=- \
+        --replication-policy=automatic
+    Created version [1] of the secret [airflow-variables-first-connection].
 
 If you have the default backend configuration and you want to create a variable named ``first-variable``,
 you should create a secret named ``airflow-variables-first-variable``. You can do it with the gcloud
@@ -131,4 +143,47 @@ command as in the example below.
 
 .. code-block:: bash
 
-    echo "content" | gcloud beta secrets create airflow-variables-first-variable --data-file=
+    $ echo "secret_content" | gcloud beta secrets create \
+        airflow-variables-first-variable \
+        --data-file=-\
+        --replication-policy=automatic
+    Created version [1] of the secret [airflow-variables-first-variable].
+
+Checking configuration
+======================
+
+You can use the ``airflow connections get`` command to check if the connection is correctly read from the backend secret:
+
+.. code-block:: console
+
+    $ airflow connections get first-connection
+    Id: null
+    Conn Id: first-connection
+    Conn Type: mysql
+    Host: example.org
+    Schema: ''
+    Login: null
+    Password: null
+    Port: null
+    Is Encrypted: null
+    Is Extra Encrypted: null
+    Extra: {}
+    URI: mysql://example.org
+
+To check the variables is correctly read from the backend secret, you can use ``airflow variables get``:
+
+.. code-block:: console
+
+    $ airflow variables get first-variable
+    secret_content
+
+Clean up
+========
+
+To avoid incurring charges to your Google Cloud account for the resources used in this guide,
+delete secrets by running ``gcloud beta secrets delete``:
+
+.. code-block:: bash
+
+    gcloud beta secrets delete airflow-connections-first-connection
+    gcloud beta secrets delete airflow-variables-first-variable

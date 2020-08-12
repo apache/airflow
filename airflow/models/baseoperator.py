@@ -891,7 +891,7 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         if not jinja_env:
             jinja_env = self.get_template_env()
 
-        # Imported here to avoid ciruclar dependency
+        # Imported here to avoid circular dependency
         from airflow.models.xcom_arg import XComArg
 
         if isinstance(content, str):

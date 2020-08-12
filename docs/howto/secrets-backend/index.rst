@@ -23,7 +23,7 @@ Secrets backend
 
 In addition to retrieving connections & variables from environment variables or the metastore database, you can enable
 an alternative secrets backend to retrieve Airflow connections or Airflow variables,
-such as :ref:`Google Cloud Secret Maanager<google_cloud_secret_manager_backend>`,
+such as :ref:`Google Cloud Secret Manager<google_cloud_secret_manager_backend>`,
 :ref:`Hashicorp Vault Secrets<hashicorp_vault_secrets>` or you can :ref:`roll your own <roll_your_own_secrets_backend>`.
 
 .. note::
@@ -56,6 +56,14 @@ Set ``backend`` to the fully qualified class name of the backend you want to ena
 
 You can provide ``backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
 your secrets backend.
+
+If you want to check which secret backend is currently set, you can use ``airflow config get-value secrets backend`` command as in
+the example below.
+
+.. code-block:: bash
+
+    $ airflow config get-value secrets backend
+    airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
 
 Supported backends
 ^^^^^^^^^^^^^^^^^^

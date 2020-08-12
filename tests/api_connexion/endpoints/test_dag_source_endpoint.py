@@ -26,6 +26,8 @@ from airflow import DAG
 from airflow.configuration import conf
 from airflow.models import DagBag
 from airflow.www import app
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
@@ -36,7 +38,16 @@ class TestGetSource(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
+        with conf_vars(
+            {("api", "auth_backend"): "tests.test_utils.remote_user_api_auth_backend"}
+        ):
+            cls.app = app.create_app(testing=True)  # type:ignore
+        # TODO: Add new role for each view to test permission.
+        create_user(cls.app, username="test", role="Admin")  # type: ignore
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        delete_user(cls.app, username="test")  # type: ignore
 
     def setUp(self) -> None:
         self.client = self.app.test_client()  # type:ignore
@@ -71,9 +82,11 @@ class TestGetSource(unittest.TestCase):
             dag_docstring = self._get_dag_file_docstring(first_dag.fileloc)
 
             url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
-            response = self.client.get(url, headers={
-                "Accept": "text/plain"
-            })
+            response = self.client.get(
+                url,
+                headers={"Accept": "text/plain"},
+                environ_overrides={'REMOTE_USER': "test"}
+            )
 
             self.assertEqual(200, response.status_code)
             self.assertIn(dag_docstring, response.data.decode())
@@ -91,9 +104,11 @@ class TestGetSource(unittest.TestCase):
             dag_docstring = self._get_dag_file_docstring(first_dag.fileloc)
 
             url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
-            response = self.client.get(url, headers={
-                "Accept": 'application/json'
-            })
+            response = self.client.get(
+                url,
+                headers={"Accept": 'application/json'},
+                environ_overrides={'REMOTE_USER': "test"}
+            )
 
             self.assertEqual(200, response.status_code)
             self.assertIn(
@@ -113,9 +128,11 @@ class TestGetSource(unittest.TestCase):
             first_dag: DAG = next(iter(dagbag.dags.values()))
 
             url = f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}"
-            response = self.client.get(url, headers={
-                "Accept": 'image/webp'
-            })
+            response = self.client.get(
+                url,
+                headers={"Accept": 'image/webp'},
+                environ_overrides={'REMOTE_USER': "test"}
+            )
 
             self.assertEqual(406, response.status_code)
 
@@ -126,8 +143,23 @@ class TestGetSource(unittest.TestCase):
         ), mock.patch("airflow.models.dagcode.STORE_DAG_CODE", store_dag_code):
             wrong_fileloc = "abcd1234"
             url = f"/api/v1/dagSources/{wrong_fileloc}"
-            response = self.client.get(url, headers={
-                "Accept": 'application/json'
-            })
+            response = self.client.get(
+                url,
+                headers={"Accept": 'application/json'},
+                environ_overrides={'REMOTE_USER': "test"}
+            )
 
             self.assertEqual(404, response.status_code)
+
+    def test_should_raises_401_unauthenticated(self):
+        serializer = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+        dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
+        dagbag.sync_to_db()
+        first_dag: DAG = next(iter(dagbag.dags.values()))
+
+        response = self.client.get(
+            f"/api/v1/dagSources/{serializer.dumps(first_dag.fileloc)}",
+            headers={"Accept": "text/plain"},
+        )
+
+        assert_401(response)

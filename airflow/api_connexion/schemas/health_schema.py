@@ -19,7 +19,7 @@ from marshmallow import Schema, fields
 
 
 class BaseInfoSchema(Schema):
-    """Base status field for metadabase and scheduler"""
+    """Base status field for metadatabase and scheduler"""
     status = fields.String(dump_only=True)
 
 

@@ -391,7 +391,7 @@ class SQLIntervalCheckOperator(BaseOperator):
 
 class SQLThresholdCheckOperator(BaseOperator):
     """
-    Performs a value check using sql code against a mininmum threshold
+    Performs a value check using sql code against a minimum threshold
     and a maximum threshold. Thresholds can be in the form of a numeric
     value OR a sql statement that results a numeric.
 

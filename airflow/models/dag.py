@@ -929,7 +929,7 @@ class DAG(BaseDag, LoggingMixin):
             # graph as we move through it. We also keep a flag for
             # checking that that graph is acyclic, which is true if any
             # nodes are resolved during each pass through the graph. If
-            # not, we need to bail out as the graph therefore can't be
+            # not, we need to exit as the graph therefore can't be
             # sorted.
             acyclic = False
             for node in list(graph_unsorted.values()):
@@ -987,7 +987,7 @@ class DAG(BaseDag, LoggingMixin):
 
         :param start_date: The minimum execution_date to clear
         :type start_date: datetime.datetime or None
-        :param end_date: The maximum exeuction_date to clear
+        :param end_date: The maximum execution_date to clear
         :type end_date: datetime.datetime or None
         :param only_failed: Only clear failed tasks
         :type only_failed: bool
@@ -1005,11 +1005,11 @@ class DAG(BaseDag, LoggingMixin):
         :type dry_run: bool
         :param session: The sqlalchemy session to use
         :type session: sqlalchemy.orm.session.Session
-        :param get_tis: Return the sqlachemy query for finding the TaskInstance without clearing the tasks
+        :param get_tis: Return the sqlalchemy query for finding the TaskInstance without clearing the tasks
         :type get_tis: bool
         :param recursion_depth: The recursion depth of nested calls to DAG.clear().
         :type recursion_depth: int
-        :param max_recursion_depth: The maximum recusion depth allowed. This is determined by the
+        :param max_recursion_depth: The maximum recursion depth allowed. This is determined by the
             first encountered ExternalTaskMarker. Default is None indicating no ExternalTaskMarker
             has been encountered.
         :type max_recursion_depth: int
@@ -1154,7 +1154,7 @@ class DAG(BaseDag, LoggingMixin):
             )
         else:
             count = 0
-            print("Bail. Nothing was cleared.")
+            print("Cancelled, nothing was cleared.")
 
         session.commit()
         return count
@@ -1215,7 +1215,7 @@ class DAG(BaseDag, LoggingMixin):
                           )
         else:
             count = 0
-            print("Bail. Nothing was cleared.")
+            print("Cancelled, nothing was cleared.")
         return count
 
     def __deepcopy__(self, memo):

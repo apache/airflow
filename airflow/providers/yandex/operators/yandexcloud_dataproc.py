@@ -45,7 +45,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         HDFS, YARN, MAPREDUCE, HIVE, TEZ, ZOOKEEPER, HBASE, SQOOP, FLUME, SPARK, SPARK, ZEPPELIN, OOZIE
     :type services: Iterable[str]
     :param s3_bucket: Yandex.Cloud S3 bucket to store cluster logs.
-                      Jobs will not work if the bicket is not specified.
+                      Jobs will not work if the bucket is not specified.
     :type s3_bucket: Optional[str]
     :param zone: Availability zone to create cluster in.
                  Currently there are ru-central1-a, ru-central1-b and ru-central1-c.

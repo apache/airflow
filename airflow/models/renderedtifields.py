@@ -120,10 +120,10 @@ class RenderedTaskInstanceFields(Base):
             subq1 = tis_to_keep_query.subquery('subq1')
 
             session.query(cls) \
-                .filter(and_(
+                .filter(
                     cls.dag_id == dag_id,
                     cls.task_id == task_id,
-                    tuple_(cls.dag_id, cls.task_id, cls.execution_date).notin_(subq1))) \
+                    tuple_(cls.dag_id, cls.task_id, cls.execution_date).notin_(subq1)) \
                 .delete(synchronize_session=False)
         elif session.bind.dialect.name in ["mysql"]:
             # Fetch Top X records given dag_id & task_id ordered by Execution Date
@@ -140,10 +140,10 @@ class RenderedTaskInstanceFields(Base):
             )
 
             session.query(cls) \
-                .filter(and_(
+                .filter(
                     cls.dag_id == dag_id,
                     cls.task_id == task_id,
-                    tuple_(cls.dag_id, cls.task_id, cls.execution_date).notin_(subq2))) \
+                    tuple_(cls.dag_id, cls.task_id, cls.execution_date).notin_(subq2)) \
                 .delete(synchronize_session=False)
         else:
             # Fetch Top X records given dag_id & task_id ordered by Execution Date

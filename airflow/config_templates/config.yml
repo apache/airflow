@@ -404,7 +404,7 @@
       default: ""
     - name: stackdriver_key_path
       description: |
-        Path to GCP Credential JSON file. If ommited, authorization based on `the Application Default
+        Path to GCP Credential JSON file. If omitted, authorization based on `the Application Default
         Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
@@ -623,7 +623,7 @@
       default: ""
     - name: google_key_path
       description: |
-        Path to GCP Credential JSON file. If ommited, authorization based on `the Application Default
+        Path to GCP Credential JSON file. If omitted, authorization based on `the Application Default
         Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
@@ -1163,6 +1163,12 @@
     Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,
     ``ignore_errors``, ``before_breadcrumb``, ``before_send``, ``transport``.
   options:
+    - name: sentry_on
+      description: Enable error reporting to Sentry
+      version_added: ~
+      type: string
+      example: ~
+      default: "false"
     - name: sentry_dsn
       description: ~
       version_added: 1.10.6
@@ -1881,6 +1887,13 @@
       type: string
       example: ~
       default: "default"
+    - name: multi_namespace_mode
+      description: |
+        Allows users to launch pods in multiple namespaces.
+        Will require creating a cluster-role for the scheduler
+      type: boolean
+      example: ~
+      default: "False"
     - name: airflow_configmap
       description: |
         The name of the Kubernetes ConfigMap containing ``airflow.cfg`` file.

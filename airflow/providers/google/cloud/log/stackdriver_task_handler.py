@@ -53,7 +53,7 @@ class StackdriverTaskHandler(logging.Handler):
     This handler supports both an asynchronous and synchronous transport.
 
     :param gcp_key_path: Path to GCP Credential JSON file.
-        If ommited, authorization based on `the Application Default Credentials
+        If omitted, authorization based on `the Application Default Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
     :type gcp_key_path: str

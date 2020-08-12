@@ -357,11 +357,35 @@ class PodGenerator:
 
         client_pod_cp = copy.deepcopy(client_pod)
         client_pod_cp.spec = PodGenerator.reconcile_specs(base_pod.spec, client_pod_cp.spec)
-
-        client_pod_cp.metadata = merge_objects(base_pod.metadata, client_pod_cp.metadata)
+        client_pod_cp.metadata = PodGenerator.reconcile_metadata(base_pod.metadata, client_pod_cp.metadata)
         client_pod_cp = merge_objects(base_pod, client_pod_cp)
 
         return client_pod_cp
+
+    @staticmethod
+    def reconcile_metadata(base_meta, client_meta):
+        """
+        Merge kubernetes Metadata objects
+        :param base_meta: has the base attributes which are overwritten if they exist
+            in the client_meta and remain if they do not exist in the client_meta
+        :type base_meta: k8s.V1ObjectMeta
+        :param client_meta: the spec that the client wants to create.
+        :type client_meta: k8s.V1ObjectMeta
+        :return: the merged specs
+        """
+        if base_meta and not client_meta:
+            return base_meta
+        if not base_meta and client_meta:
+            return client_meta
+        elif client_meta and base_meta:
+            client_meta.labels = merge_objects(base_meta.labels, client_meta.labels)
+            client_meta.annotations = merge_objects(base_meta.annotations, client_meta.annotations)
+            extend_object_field(base_meta, client_meta, 'managed_fields')
+            extend_object_field(base_meta, client_meta, 'finalizers')
+            extend_object_field(base_meta, client_meta, 'owner_references')
+            return merge_objects(base_meta, client_meta)
+
+        return None
 
     @staticmethod
     def reconcile_specs(base_spec: Optional[k8s.V1PodSpec],
@@ -553,10 +577,17 @@ def merge_objects(base_obj, client_obj):
 
     client_obj_cp = copy.deepcopy(client_obj)
 
+    if isinstance(base_obj, dict) and isinstance(client_obj_cp, dict):
+        client_obj_cp.update(base_obj)
+        return client_obj_cp
+
     for base_key in base_obj.to_dict().keys():
         base_val = getattr(base_obj, base_key, None)
         if not getattr(client_obj, base_key, None) and base_val:
-            setattr(client_obj_cp, base_key, base_val)
+            if not isinstance(client_obj_cp, dict):
+                setattr(client_obj_cp, base_key, base_val)
+            else:
+                client_obj_cp[base_key] = base_val
     return client_obj_cp
 
 

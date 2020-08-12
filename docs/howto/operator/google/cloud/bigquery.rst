@@ -276,7 +276,7 @@ language as follow:
     :start-after: [START howto_operator_bigquery_select_job]
     :end-before: [END howto_operator_bigquery_select_job]
 
-The included file can also use Jinaj templates which can be useful in case of ``.sql`` files.
+The included file can also use Jinja templates which can be useful in case of ``.sql`` files.
 
 Additionally you can use ``job_id`` parameter of
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator` to improve

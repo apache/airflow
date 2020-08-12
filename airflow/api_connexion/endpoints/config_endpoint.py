@@ -17,6 +17,7 @@
 
 from flask import Response, request
 
+from airflow.api_connexion import security
 from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
 from airflow.configuration import conf
 from airflow.settings import json
@@ -62,6 +63,7 @@ def _config_to_json(config: Config) -> str:
     return json.dumps(config_schema.dump(config), indent=4)
 
 
+@security.requires_authentication
 def get_config() -> Response:
     """
     Get current configuration.

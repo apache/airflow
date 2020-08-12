@@ -139,6 +139,7 @@ extensions = [
     'sphinxcontrib.redoc',
     # Second, update redoc script
     "sphinx_script_update",
+    "sphinxcontrib.spelling",
 ]
 
 autodoc_default_options = {

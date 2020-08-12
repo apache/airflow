@@ -720,6 +720,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.dataflow`
      -
 
+   * - `Dataprep <https://cloud.google.com/dataprep/>`__
+     - :doc:`How to use <howto/operator/google/cloud/dataprep>`
+     - :mod:`airflow.providers.google.cloud.hooks.dataprep`
+     - :mod:`airflow.providers.google.cloud.operators.dataprep`
+     -
+
    * - `Dataproc <https://cloud.google.com/dataproc/>`__
      - :doc:`How to use <howto/operator/google/cloud/dataproc>`
      - :mod:`airflow.providers.google.cloud.hooks.dataproc`

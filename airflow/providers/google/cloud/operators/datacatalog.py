@@ -1442,7 +1442,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
     Searches Data Catalog for multiple resources like entries, tags that match a query.
 
     This does not return the complete resource, only the resource identifier and high level fields.
-    Clients can subsequentally call ``Get`` methods.
+    Clients can subsequently call ``Get`` methods.
 
     Note that searches do not have full recall. There may be results that match your query but are not
     returned, even in subsequent pages of results. These missing results may vary across repeated calls to

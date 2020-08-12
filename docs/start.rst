@@ -35,7 +35,6 @@ The installation is quick and straightforward.
     # initialize the database
     airflow db init
 
-    # if you build with master
     airflow users create \
         --username admin \
         --firstname Peter \
@@ -53,8 +52,8 @@ The installation is quick and straightforward.
     # created to login. Enable the example_bash_operator dag in the home page
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
-and lay an "airflow.cfg" file with defaults that get you going fast. You can
-inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
+and create the "airflow.cfg" file with defaults that will get you going fast.
+You can inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
 the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
 in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``
 if started by systemd.

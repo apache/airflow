@@ -18,6 +18,7 @@
 from flask import current_app
 
 from airflow import DAG
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagbag import DagBag
@@ -25,6 +26,7 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.utils.session import provide_session
 
 
+@security.requires_authentication
 @provide_session
 def get_extra_links(dag_id: str, dag_run_id: str, task_id: str, session):
     """

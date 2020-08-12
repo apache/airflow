@@ -29,7 +29,9 @@ First you must install sentry requirement:
 
    pip install 'apache-airflow[sentry]'
 
-Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` under ``[sentry]``. Its template resembles the following: ``'{PROTOCOL}://{PUBLIC_KEY}@{HOST}/{PROJECT_ID}'``
+After that, you need to enable the integration by set ``sentry_on`` option in ``[sentry]`` section to ``"True"``.
+
+Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` in ``[sentry]`` section. Its template resembles the following: ``'{PROTOCOL}://{PUBLIC_KEY}@{HOST}/{PROJECT_ID}'``
 
 .. code-block:: ini
 

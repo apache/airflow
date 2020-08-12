@@ -17,6 +17,7 @@
 
 import io
 import json
+import re
 import unittest
 from contextlib import redirect_stdout
 from unittest import mock
@@ -29,6 +30,32 @@ from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
+
+
+class TestCliGetConnection(unittest.TestCase):
+    def setUp(self):
+        self.parser = cli_parser.get_parser()
+        clear_db_connections()
+
+    def tearDown(self):
+        clear_db_connections()
+
+    def test_cli_connection_get(self):
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_get(self.parser.parse_args(
+                ["connections", "get", "google_cloud_default"]
+            ))
+            stdout = stdout.getvalue()
+        self.assertIn(
+            "URI: google-cloud-platform:///default",
+            stdout
+        )
+
+    def test_cli_connection_get_invalid(self):
+        with self.assertRaisesRegex(SystemExit, re.escape("Connection not found.")):
+            connection_command.connections_get(self.parser.parse_args(
+                ["connections", "get", "INVALID"]
+            ))
 
 
 class TestCliListConnections(unittest.TestCase):
@@ -84,32 +111,6 @@ class TestCliListConnections(unittest.TestCase):
 
         conn_ids = [line.split("\t", 2)[0].strip() for line in lines[1:] if line]
         self.assertEqual(conn_ids, ['http_default'])
-
-    @mock.patch('airflow.cli.commands.connection_command.BaseHook.get_connections', return_value=[
-        Connection(conn_id="http_default", host="host1"),
-        Connection(conn_id="http_default", host="host2"),
-    ])
-    def test_cli_connections_filter_conn_id_include_secrets(self, mock_get_connections):
-        args = self.parser.parse_args([
-            "connections", "list", "--output", "tsv", '--conn-id', 'http_default', '--include-secrets'
-        ])
-
-        with redirect_stdout(io.StringIO()) as stdout:
-            connection_command.connections_list(args)
-            stdout = stdout.getvalue()
-            lines = stdout.split("\n")
-
-        conn_ids = [line.split("\t", 2)[0].strip() for line in lines[1:] if line]
-        self.assertEqual(conn_ids, ['http_default', 'http_default'])
-        mock_get_connections.assert_called_once_with('http_default')
-
-    def test_cli_connections_include_secrets(self):
-        args = self.parser.parse_args([
-            "connections", "list", "--output", "tsv", '--include-secrets',
-        ])
-
-        with self.assertRaises(SystemExit):
-            connection_command.connections_list(args)
 
 
 class TestCliExportConnections(unittest.TestCase):
@@ -286,7 +287,7 @@ class TestCliExportConnections(unittest.TestCase):
                 "port": 8082,
                 "extra": "{\"endpoint\": \"druid/v2/sql\"}",
             }
-        })
+        }, indent=2)
 
         mock_splittext.assert_called_once()
         mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
@@ -402,7 +403,7 @@ class TestCliExportConnections(unittest.TestCase):
                 "port": 8082,
                 "extra": "{\"endpoint\": \"druid/v2/sql\"}",
             }
-        })
+        }, indent=2)
         mock_splittext.assert_not_called()
         mock_file_open.assert_called_once_with(output_filepath, 'w', -1, 'UTF-8', None)
         mock_file_open.return_value.write.assert_called_once_with(expected_connections)
