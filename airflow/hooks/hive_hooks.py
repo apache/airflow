@@ -983,7 +983,7 @@ class HiveServer2Hook(BaseHook):
         """
         return self.get_results(hql, schema=schema)['data']
 
-    def get_pandas_df(self, hql, schema='default'):
+    def get_pandas_df(self, hql, schema='default', **kwargs):
         """
         Get a pandas dataframe from a Hive query
 
@@ -991,6 +991,8 @@ class HiveServer2Hook(BaseHook):
         :type hql: str or list
         :param schema: target schema, default to 'default'.
         :type schema: str
+        :param kwargs: (optional) passed into pandas.DataFrame constructor
+        :type kwargs: dict
         :return: result of hql execution
         :rtype: DataFrame
 
@@ -1004,6 +1006,6 @@ class HiveServer2Hook(BaseHook):
         """
         import pandas as pd
         res = self.get_results(hql, schema=schema)
-        df = pd.DataFrame(res['data'])
+        df = pd.DataFrame(res['data'], **kwargs)
         df.columns = [c[0] for c in res['header']]
         return df

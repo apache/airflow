@@ -82,7 +82,7 @@ class DbApiHook(BaseHook):
             engine_kwargs = {}
         return create_engine(self.get_uri(), **engine_kwargs)
 
-    def get_pandas_df(self, sql, parameters=None):
+    def get_pandas_df(self, sql, parameters=None, **kwargs):
         """
         Executes the sql and returns a pandas dataframe
 
@@ -90,14 +90,16 @@ class DbApiHook(BaseHook):
             sql statements to execute
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: mapping or iterable
+        :type parameters: dict or iterable
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        :type kwargs: dict
         """
         if sys.version_info[0] < 3:
             sql = sql.encode('utf-8')
         import pandas.io.sql as psql
 
         with closing(self.get_conn()) as conn:
-            return psql.read_sql(sql, con=conn, params=parameters)
+            return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
     def get_records(self, sql, parameters=None):
         """
