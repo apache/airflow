@@ -1212,7 +1212,7 @@ queue during retries:
 
 
 Cluster Policies for Custom Task Checks
------------------------------
+-------------------------------------------
 You may also use Cluster Policies to  apply cluster-wide checks on Airflow
 tasks. You can raise :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
 in a policy or task mutation hook (described below) to prevent a DAG from being
