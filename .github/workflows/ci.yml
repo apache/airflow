@@ -55,7 +55,7 @@ jobs:
       - name: Cache pre-commit env
         uses: actions/cache@v2
         env:
-          cache-name: cache-pre-commit-v2
+          cache-name: cache-pre-commit-v1-10-stable-v2
         with:
           path: ~/.cache/pre-commit
           key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
