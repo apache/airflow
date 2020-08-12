@@ -22,8 +22,6 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, call
 
-from airflow.exceptions import AirflowClusterPolicyViolation
-
 SETTINGS_FILE_POLICY = """
 def test_policy(task_instance):
     task_instance.run_as_user = "myself"
