@@ -731,7 +731,6 @@ class TestDagBag(unittest.TestCase):
                                 "test_with_non_default_owner.py")
 
         dagbag = DagBag(dag_folder=dag_file)
-        self.assertEqual({"test_with_non_default_owner"},
-                         set(dagbag.dag_ids))
+        self.assertEqual({"test_with_non_default_owner"}, set(dagbag.dag_ids))
 
         self.assertEqual({}, dagbag.import_errors)
