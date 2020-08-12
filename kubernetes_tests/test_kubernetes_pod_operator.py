@@ -405,7 +405,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             )
             context = create_context(k)
             k.execute(context=context)
-            mock_logger.info.assert_any_call(b"retrieved from mount\n")
+            mock_logger.info.assert_any_call("retrieved from mount\n")
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
             self.expected_pod['spec']['containers'][0]['args'] = args
             self.expected_pod['spec']['containers'][0]['volumeMounts'] = [{
