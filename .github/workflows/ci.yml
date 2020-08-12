@@ -70,7 +70,7 @@ jobs:
       - name: Cache pre-commit env
         uses: actions/cache@v2
         env:
-          cache-name: cache-pre-commit-no-pylint-v1
+          cache-name: cache-pre-commit-master-no-pylint-v1
         with:
           path: ~/.cache/pre-commit
           key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -96,7 +96,7 @@ jobs:
       - name: Cache pre-commit env
         uses: actions/cache@v2
         env:
-          cache-name: cache-pre-commit-pylint-v1
+          cache-name: cache-pre-commit-master-pylint-v1
         with:
           path: ~/.cache/pre-commit
           key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
