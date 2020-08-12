@@ -93,7 +93,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         """
         raise NotImplementedError()
 
-    def get_pandas_df(self, sql, parameters=None, dialect=None):
+    def get_pandas_df(self, sql, parameters=None, dialect=None, **kwargs):
         """
         Returns a Pandas DataFrame for the results produced by a BigQuery
         query. The DbApiHook method must be overridden because Pandas
@@ -110,6 +110,8 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         :param dialect: Dialect of BigQuery SQL – legacy SQL or standard SQL
             defaults to use `self.use_legacy_sql` if not specified
         :type dialect: str in {'legacy', 'standard'}
+        :param kwargs: (optional) passed into pandas_gbq.read_gbq method
+        :type kwargs: dict
         """
         private_key = self._get_field('key_path', None) or self._get_field('keyfile_dict', None)
 
@@ -120,7 +122,8 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
                         project_id=self._get_field('project'),
                         dialect=dialect,
                         verbose=False,
-                        private_key=private_key)
+                        private_key=private_key,
+                        **kwargs)
 
     def table_exists(self, project_id, dataset_id, table_id):
         """
