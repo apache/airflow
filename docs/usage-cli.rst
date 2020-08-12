@@ -74,7 +74,7 @@ If you’re using ``zsh``, add the following to your ``.zshrc``:
 Creating a Connection
 ---------------------
 
-For information on creating connection using CLI, see :ref:`connection/cli`
+For information on creating connections using the CLI, see :ref:`connection/cli`
 
 Exporting DAG structure as an image
 -----------------------------------
