@@ -94,7 +94,7 @@ def closest_ds_partition(
     :type before: bool or None
     :param schema: table schema
     :type schema: str
-    :param metastore_conn_id: which matastore connection to use
+    :param metastore_conn_id: which metastore connection to use
     :type metastore_conn_id: str
     :returns: The closest date
     :rtype: str or None

@@ -155,7 +155,7 @@ class GKEHook(GoogleBaseHook):
         worker nodes. Firewalls and routes that were configured during
         cluster creation are also deleted. Other Google Compute Engine
         resources that might be in use by the cluster (e.g. load balancer
-        resources) will not be deleted if they weren’t present at the
+        resources) will not be deleted if they were not present at the
         initial create time.
 
         :param name: The name of the cluster to delete

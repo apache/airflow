@@ -186,7 +186,7 @@ class TriggerRuleDep(BaseTIDep):
                 yield self._failing_status(
                     reason="Task's trigger rule '{0}' requires all upstream "
                     "tasks to have completed, but found {1} task(s) that "
-                    "weren't done. upstream_tasks_state={2}, "
+                    "were not done. upstream_tasks_state={2}, "
                     "upstream_task_ids={3}"
                     .format(trigger_rule, upstream_done, upstream_tasks_state,
                             task.upstream_task_ids))

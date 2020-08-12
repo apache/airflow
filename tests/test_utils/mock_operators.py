@@ -60,7 +60,7 @@ class AirflowLink(BaseOperatorLink):
 class Dummy2TestOperator(BaseOperator):
     """
     Example of an Operator that has an extra operator link
-    and will be overriden by the one defined in tests/plugins/test_plugin.py
+    and will be overridden by the one defined in tests/plugins/test_plugin.py
     """
     operator_extra_links = (
         AirflowLink(),

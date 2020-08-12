@@ -256,7 +256,7 @@ operator delete the entry group.
     :start-after: [START howto_operator_gcp_datacatalog_delete_entry_group]
     :end-before: [END howto_operator_gcp_datacatalog_delete_entry_group]
 
-vYou can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryGroupOperator`
 parameters which allows you to dynamically determine values.
 

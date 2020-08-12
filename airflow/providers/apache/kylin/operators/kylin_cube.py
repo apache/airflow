@@ -39,7 +39,7 @@ class KylinCubeOperator(BaseOperator):
 
     :param kylin_conn_id: The connection id as configured in Airflow administration.
     :type kylin_conn_id: str
-    :param project: kylin porject name, this param will overwrite the project in kylin_conn_id:
+    :param project: kylin project name, this param will overwrite the project in kylin_conn_id:
     :type project: str
     :param cube: kylin cube name
     :type cube: str
@@ -57,7 +57,7 @@ class KylinCubeOperator(BaseOperator):
         and you should give offset_start and offset_end
         refresh_streaming - use build2 rest api,and buildType is ‘REFRESH’
         merge_streaming - use build2 rest api,and buildType is ‘MERGE’
-        delete - delete segment, and you shoulf give segment_name value
+        delete - delete segment, and you should give segment_name value
         disable - disable cube
         enable - enable cube
         purge - purge cube

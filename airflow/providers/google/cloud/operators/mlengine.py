@@ -413,7 +413,7 @@ class MLEngineGetModelOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:MLEngineGetModelOperator`
 
-    The name of model shold be specified in `model_name`.
+    The name of model should be specified in `model_name`.
 
     :param model_name: The name of the model.
     :type model_name: str

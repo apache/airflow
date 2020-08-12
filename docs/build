@@ -463,6 +463,44 @@ def parse_sphinx_warnings(warning_text: str) -> List[DocBuildError]:
     return sphinx_build_errors
 
 
+def check_spelling() -> None:
+    build_cmd = [
+        "sphinx-build",
+        "-W",
+        "-b",  # builder to use
+        "spelling",
+        "-d",  # path for the cached environment and doctree files
+        "_build/doctrees",
+        "-D", # override the extensions because one of them throws an error on the spelling builder
+        """extensions=sphinxarg.ext\
+,autoapi.extension\
+,sphinxcontrib.spelling\
+,exampleinclude\
+,sphinx.ext.autodoc\
+,sphinx.ext.coverage\
+,sphinx.ext.viewcode\
+,sphinx.ext.graphviz\
+,sphinxcontrib.httpdomain\
+,sphinxcontrib.jinja\
+,docroles\
+,removemarktransform\
+""",
+        ".",  # path to documentation source files
+        "_build/spelling"
+    ]
+    print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
+
+    completed_proc = run(build_cmd)
+    if completed_proc.returncode != 0:
+        build_errors.append(
+            DocBuildError(
+                file_path=None,
+                line_no=None,
+                message=f"Sphinx spellcheck returned non-zero exit status: {completed_proc.returncode}.",
+            )
+        )
+
+
 def build_sphinx_docs() -> None:
     with NamedTemporaryFile() as tmp_file:
         build_cmd = [
@@ -496,6 +534,16 @@ def build_sphinx_docs() -> None:
         build_errors.extend(sphinx_build_errors)
 
 
+def print_build_errors_and_exit(message) -> None:
+    if build_errors:
+        display_errors_summary()
+        print()
+        print(message)
+        print()
+        print(CHANNEL_INVITATION)
+        sys.exit(1)
+
+
 print("Current working directory: ", os.getcwd())
 
 prepare_directories()
@@ -514,20 +562,12 @@ Channel link: https://apache-airflow.slack.com/archives/CJ1LVREHX
 Invitation link: https://apache-airflow-slack.herokuapp.com/\
 """
 
-if build_errors:
-    display_errors_summary()
-    print()
-    print("The documentation has errors. Fix them to build documentation.")
-    print()
-    print(CHANNEL_INVITATION)
-    sys.exit(1)
+print_build_errors_and_exit("The documentation has errors. Fix them to build documentation.")
+
+check_spelling()
+
+print_build_errors_and_exit("The documentation has spelling errors. Fix them to build documentation.")
 
 build_sphinx_docs()
 
-if build_errors:
-    display_errors_summary()
-    print()
-    print("The documentation has errors.")
-    print()
-    print(CHANNEL_INVITATION)
-    sys.exit(1)
+print_build_errors_and_exit("The documentation has errors.")

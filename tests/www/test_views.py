@@ -2626,7 +2626,7 @@ class TestExtraLinks(TestBase):
     def test_operator_extra_link_override_plugin(self):
         """
         This tests checks if Operator Link (AirflowLink) defined in the Dummy2TestOperator
-        is overriden by Airflow Plugin (AirflowLink2).
+        is overridden by Airflow Plugin (AirflowLink2).
 
         AirflowLink returns 'https://airflow.apache.org/' link
         AirflowLink2 returns 'https://airflow.apache.org/1.10.5/' link

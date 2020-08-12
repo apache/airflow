@@ -88,7 +88,7 @@ class AWSDataSyncOperator(BaseOperator):
     :raises AirflowException: If ``task_arn`` was not specified, or if
         either ``source_location_uri`` or ``destination_location_uri`` were
         not specified.
-    :raises AirflowException: If source or destination Location weren't found
+    :raises AirflowException: If source or destination Location were not found
         and could not be created.
     :raises AirflowException: If ``choose_task`` or ``choose_location`` fails.
     :raises AirflowException: If Task creation, update, execution or delete fails.

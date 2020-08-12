@@ -97,7 +97,7 @@ StackdriverUpsertAlertOperator
 
 Use the :class:`~airflow.providers.google.cloud.operators.stackdriver.StackdriverUpsertAlertOperator`
 to upsert Alert Policies identified by given filter JSON string. If the alert with the give name already
-exists, then the opertaor updates the existing policy otherwise creates a new one.
+exists, then the operator updates the existing policy otherwise creates a new one.
 
 Using the operator
 """"""""""""""""""
@@ -197,7 +197,7 @@ StackdriverUpsertNotificationChannelOperator
 
 Use the :class:`~airflow.providers.google.cloud.operators.stackdriver.StackdriverUpsertNotificationChannelOperator`
 to upsert Notification Channels identified by given channel JSON string. If the channel with the give name already
-exists, then the opertaor updates the existing channel otherwise creates a new one.
+exists, then the operator updates the existing channel otherwise creates a new one.
 
 Using the operator
 """"""""""""""""""

@@ -49,6 +49,9 @@ _images/*
 searchindex.js
 _api/*
 
+# the word list for checking spellings
+spelling_wordlist.txt
+
 # Apache Rat does not detect BSD-2 clause properly
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
 kerberos_auth.py
