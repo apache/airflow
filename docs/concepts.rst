@@ -1225,12 +1225,10 @@ security controls.
 
 For example, don't run tasks without airflow owners:
 
-.. code-block:: python
-    def task_must_have_owners(task: BaseOperator):
-        if not task.owner or task.owner.lower() == "airflow":
-            raise AirflowClusterPolicyViolation(
-                f'''Task must have non-None non-'airflow' owner.
-                Current value: {task.owner}''')
+.. literalinclude:: /../tests/cluster_policies/__init__.py
+      :language: python
+      :start-after: [START example_cluster_policy_rule]
+      :end-before: [END example_cluster_policy_rule]
 
 If you have multiple checks to apply, it is best practice to curate these rules
 in a separate python module and have a single policy / task mutation hook that
@@ -1240,36 +1238,10 @@ the UI (and import errors table in the database).
 
 For Example in ``airflow_local_settings.py``:
 
-.. code-block:: python
-    from my_cluster_policies import rules
-
-    TASK_RULES: List[Callable[[BaseOperator], None]] = [
-        rules.task_must_have_owners,
-    ]
-
-    def _check_task_rules(current_task: BaseOperator):
-        """Check task rules for given task."""
-        notices = []
-        for rule in TASK_RULES:
-            try:
-                rule(current_task)
-            except ClusterPolicyViolation as ex:
-                notices.append(str(ex))
-
-        if notices:
-            current_dag = current_task.dag
-            notices_list = " * " + "\n * ".join(notices)
-            raise AirflowClusterPolicyViolation(
-                f"Task policy violation "
-                f"(DAG ID: {current_dag.dag_id}, Task ID: {current_task.task_id}, "
-                f"Path: {current_dag.filepath}):\n"
-                f"Notices:\n"
-                f"{notices_list}")
-
-    def cluster_policy(current_task: BaseOperator):
-        """Main entrypoint for Airflow"""
-        _check_task_rules(current_task)
-
+.. literalinclude:: /../tests/cluster_policies/__init__.py
+      :language: python
+      :start-after: [START example_list_of_cluster_policy_rules]
+      :end-before: [END example_list_of_cluster_policy_rules]
 
 Where to put ``airflow_local_settings.py``?
 -------------------------------------------
