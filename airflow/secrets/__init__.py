@@ -19,7 +19,7 @@
 Secrets framework provides means of getting connection objects from various sources, e.g. the following:
 
     * Environment variables
-    * Metatsore database
+    * Metastore database
     * AWS SSM Parameter store
 """
 __all__ = ['BaseSecretsBackend', 'get_connections', 'get_variable', 'get_custom_secret_backend']

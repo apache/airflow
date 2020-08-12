@@ -548,7 +548,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             The missing values are treated as nulls. If false, records with missing
             trailing columns are treated as bad records, and if there are too many bad
             records, an invalid error is returned in the job result. Only applicable when
-            soure_format is CSV.
+            source_format is CSV.
         :type allow_jagged_rows: bool
         :param encoding: The character encoding of the data. See:
 
@@ -709,7 +709,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                     encryption_configuration: Optional[Dict] = None) -> None:
         """
         Patch information in an existing table.
-        It only updates fileds that are provided in the request object.
+        It only updates fields that are provided in the request object.
 
         Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
 
@@ -1590,7 +1590,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             The missing values are treated as nulls. If false, records with missing
             trailing columns are treated as bad records, and if there are too many bad
             records, an invalid error is returned in the job result. Only applicable when
-            soure_format is CSV.
+            source_format is CSV.
         :type allow_jagged_rows: bool
         :param encoding: The character encoding of the data.
 

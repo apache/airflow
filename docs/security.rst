@@ -41,7 +41,7 @@ following CLI commands to create an account:
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
 
-Be sure to checkout :doc:`api` for securing the API.
+Be sure to checkout :doc:`rest-api-ref` for securing the API.
 
 .. note::
 
@@ -135,7 +135,7 @@ You can also configure the CLI to send request to a remote API instead of making
     api_client = airflow.api.client.json_client
     endpoint_url = http://remote-host.example.org/
 
-You can also set up a service account key. If ommited, authorization based on `the Application Default
+You can also set up a service account key. If omitted, authorization based on `the Application Default
 Credentials <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__
 will be used.
 

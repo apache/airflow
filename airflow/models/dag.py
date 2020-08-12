@@ -987,7 +987,7 @@ class DAG(BaseDag, LoggingMixin):
 
         :param start_date: The minimum execution_date to clear
         :type start_date: datetime.datetime or None
-        :param end_date: The maximum exeuction_date to clear
+        :param end_date: The maximum execution_date to clear
         :type end_date: datetime.datetime or None
         :param only_failed: Only clear failed tasks
         :type only_failed: bool

@@ -213,7 +213,7 @@ helm install --name my-release \
 KEDA stands for Kubernetes Event Driven Autoscaling. [KEDA](https://github.com/kedacore/keda) is a custom controller that allows users to create custom bindings
 to the Kubernetes [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/).
 We've built an experimental scaler that allows users to create scalers based on postgreSQL queries. For the moment this exists
-on a seperate branch, but will be merged upstream soon. To install our custom version of KEDA on your cluster, please run
+on a separate branch, but will be merged upstream soon. To install our custom version of KEDA on your cluster, please run
 
 ```bash
 helm repo add kedacore https://kedacore.github.io/charts

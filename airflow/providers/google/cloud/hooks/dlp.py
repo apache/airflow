@@ -147,7 +147,7 @@ class CloudDLPHook(GoogleBaseHook):
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param deidentify_template: (Optional) The de-identify template to create.
         :type deidentify_template: dict or google.cloud.dlp_v2.types.DeidentifyTemplate
@@ -286,11 +286,11 @@ class CloudDLPHook(GoogleBaseHook):
         inspecting content, images, and storage.
 
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param inspect_template: (Optional) The inspect template to create.
         :type inspect_template: dict or google.cloud.dlp_v2.types.InspectTemplate
@@ -389,11 +389,11 @@ class CloudDLPHook(GoogleBaseHook):
         Creates a pre-built stored info type to be used for inspection.
 
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param config: (Optional) The config for the stored info type.
         :type config: dict or google.cloud.dlp_v2.types.StoredInfoTypeConfig
@@ -505,11 +505,11 @@ class CloudDLPHook(GoogleBaseHook):
         :param template_id: The ID of deidentify template to be deleted.
         :type template_id: str
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -592,11 +592,11 @@ class CloudDLPHook(GoogleBaseHook):
         :param template_id: The ID of the inspect template to be deleted.
         :type template_id: str
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -678,11 +678,11 @@ class CloudDLPHook(GoogleBaseHook):
         :param stored_info_type_id: The ID of the stored info type to be deleted.
         :type stored_info_type_id: str
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -727,11 +727,11 @@ class CloudDLPHook(GoogleBaseHook):
         :param template_id: The ID of deidentify template to be read.
         :type template_id: str
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -815,11 +815,11 @@ class CloudDLPHook(GoogleBaseHook):
         :param template_id: The ID of inspect template to be read.
         :type template_id: str
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -903,11 +903,11 @@ class CloudDLPHook(GoogleBaseHook):
         :param stored_info_type_id: The ID of the stored info type to be read.
         :type stored_info_type_id: str
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
@@ -1004,11 +1004,11 @@ class CloudDLPHook(GoogleBaseHook):
         Lists deidentify templates.
 
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param page_size: (Optional) The maximum number of resources contained in the
             underlying API response.
@@ -1160,11 +1160,11 @@ class CloudDLPHook(GoogleBaseHook):
         Lists inspect templates.
 
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param page_size: (Optional) The maximum number of resources contained in the
             underlying API response.
@@ -1272,11 +1272,11 @@ class CloudDLPHook(GoogleBaseHook):
         Lists stored info types.
 
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param page_size: (Optional) The maximum number of resources contained in the
             underlying API response.
@@ -1456,11 +1456,11 @@ class CloudDLPHook(GoogleBaseHook):
         :param template_id: The ID of deidentify template to be updated.
         :type template_id: str
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param deidentify_template: New deidentify template value.
         :type deidentify_template: dict or google.cloud.dlp_v2.types.DeidentifyTemplate
@@ -1519,11 +1519,11 @@ class CloudDLPHook(GoogleBaseHook):
         :param template_id: The ID of the inspect template to be updated.
         :type template_id: str
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param inspect_template: New inspect template value.
         :type inspect_template: dict or google.cloud.dlp_v2.types.InspectTemplate
@@ -1632,11 +1632,11 @@ class CloudDLPHook(GoogleBaseHook):
         :param stored_info_type_id: The ID of the stored info type to be updated.
         :type stored_info_type_id: str
         :param organization_id: (Optional) The organization ID. Required to set this
-            field if parent resource is an organzation.
+            field if parent resource is an organization.
         :type organization_id: str
         :param project_id: (Optional) Google Cloud Platform project ID where the
             DLP Instance exists. Only set this field if the parent resource is
-            a project instead of an organzation.
+            a project instead of an organization.
         :type project_id: str
         :param config: Updated configuration for the stored info type. If not provided, a new
             version of the stored info type will be created with the existing configuration.

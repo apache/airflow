@@ -102,7 +102,7 @@ class CloudKMSHook(GoogleBaseHook):
         Encrypts a plaintext message using Google Cloud KMS.
 
         :param key_name: The Resource Name for the key (or key version)
-                         to be used for encyption. Of the form
+                         to be used for encryption. Of the form
                          ``projects/*/locations/*/keyRings/*/cryptoKeys/**``
         :type key_name: str
         :param plaintext: The message to be encrypted.

@@ -524,7 +524,7 @@ class CloudAutoMLHook(GoogleBaseHook):
     ) -> Operation:
         """
         Deploys a model. If a model is already deployed, deploying it with the same parameters
-        has no effect. Deploying with different parametrs (as e.g. changing node_number) will
+        has no effect. Deploying with different parameters (as e.g. changing node_number) will
         reset the deployment state without pausing the model_id’s availability.
 
         Only applicable for Text Classification, Image Object Detection and Tables; all other

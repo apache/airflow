@@ -644,7 +644,7 @@ The `chain` method and `cross_downstream` method both use BaseOperator. If any o
 any classes or functions from helpers module, then it automatically has an
 implicit dependency to BaseOperator. That can often lead to cyclic dependencies.
 
-More information in [AIFLOW-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
+More information in [Airflow-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
 
 In Airflow <2.0 you imported those two methods like this:
 
@@ -1443,7 +1443,7 @@ you should write `@GoogleBaseHook.provide_gcp_credential_file`
 It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
 https://cloud.google.com/compute/docs/disks/performance
 
-Hence, the default value for `master_disk_size` in DataprocCreateClusterOperator has beeen changes from 500GB to 1TB.
+Hence, the default value for `master_disk_size` in DataprocCreateClusterOperator has been changes from 500GB to 1TB.
 
 #### `<airflow class="providers google c"></airflow>loud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 
@@ -1610,7 +1610,7 @@ See the [docs](https://python-cloudant.readthedocs.io/en/latest/) for more infor
 
 #### `airflow.providers.snowflake`
 
-When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overriden when specified.
+When initializing a Snowflake hook or operator, the value used for `snowflake_conn_id` was always `snowflake_conn_id`, regardless of whether or not you specified a value for it. The default `snowflake_conn_id` value is now switched to `snowflake_default` for consistency and will be properly overridden when specified.
 
 ### Other changes
 

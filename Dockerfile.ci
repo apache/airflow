@@ -76,6 +76,7 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            libsasl2-dev \
            libsasl2-modules \
            libssl-dev \
+           libenchant-dev \
            locales  \
            netcat \
            nodejs \
