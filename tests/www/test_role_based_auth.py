@@ -31,7 +31,6 @@ from tests.test_utils.config import conf_vars
 
 class RoleBasedAuthTest(unittest.TestCase):
 
-    # @classmethod
     def setUp(self):
         self.tearDownClass()
         with conf_vars(
