@@ -49,8 +49,7 @@ def task_must_have_owners(task: BaseOperator):
     if not task.owner or \
       task.owner.lower() == conf.get('operators', 'default_owner'):
         raise AirflowClusterPolicyViolation(
-            f'''Task must have non-None non-default owner.
-            Current value: {task.owner}'''
+            f'Task must have non-None non-default owner. Current value: {task.owner}'
         )
 """
 
@@ -171,4 +170,3 @@ class TestLocalSettings(unittest.TestCase):
             task_instance.owner = 'airflow'
             with self.assertRaises(AirflowClusterPolicyViolation):
                 settings.task_must_have_owners(task_instance)  # pylint: disable=no-member
-
