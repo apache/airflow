@@ -404,6 +404,7 @@ quotas: {}
 limits: []
 
 # Config Settings for pod_mutation_hook
+# podMutation values will not apply if `scheduler.airflowLocalSettings` have been modified
 podMutation:
   # Tolerations provided here would be applied using pod_mutation_hook
   # So any pods spun up using KubernetesExecutor or KubernetesPodOperator will contain these tolerations.

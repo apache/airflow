@@ -50,6 +50,12 @@ data:
 {{- if .Values.scheduler.airflowLocalSettings }}
   airflow_local_settings.py: |
     {{ .Values.scheduler.airflowLocalSettings | nindent 4 }}
+{{- else if or (.Values.podMutation.tolerations) (.Values.podMutation.affinity)}}
+  airflow_local_settings.py: |
+    from airflow.contrib.kubernetes.pod import Pod
+    def pod_mutation_hook(pod: Pod):
+        pod.tolerations += {{ toJson .Values.podMutation.tolerations }}
+        pod.affinity.update({{ toJson .Values.podMutation.affinity }})
 {{- end }}
 {{- if and .Values.dags.gitSync.enabled  .Values.dags.gitSync.knownHosts }}
   known_hosts: |
