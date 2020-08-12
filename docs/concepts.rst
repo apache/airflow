@@ -1156,7 +1156,7 @@ state.
 
 Cluster Policy
 ==============
-Cluster policies provide a interface for taking action on every Airflow task
+Cluster policies provide an interface for taking action on every Airflow task
 either at DAG load time or just before task execution.
 
 Cluster Policies for Task Mutation
