@@ -76,30 +76,28 @@ Creating a Connection
 
 For information on creating connection using CLI, see :ref:`connection/cli`
 
-Exporting DAGs structure to images
-----------------------------------
+Exporting DAG structure as an image
+-----------------------------------
 
-The application has the functionality of saving DAG to image file. You can attach them to the documentation
-for the documentation, or send another without having to send the DAG file and install the application at
-the other person. However, you need to have `Graphviz <https://graphviz.gitlab.io/download/>`_ installed.
+Airflow lets you print or save your DAG structure as an image. This is useful for documenting or sharing your DAG structure. You'll need to have `Graphviz <https://graphviz.gitlab.io/download/>`_ installed.
 
-For example, if you want to export ``example_complex`` DAG then you can use the following command:
+For example, to print the ``example_complex`` DAG to the terminal:
 
 .. code-block:: bash
 
   airflow dag show example_complex
 
-After passing the ``dag_id`` parameter itself, the command will print rendered DAG structure (similar to :ref:`Graph View <ui:graph-view>`)
-to the screen in the DOT format.
+This will print the rendered DAG structure (similar to :ref:`Graph View <ui:graph-view>`) to the screen in DOT format.
 
-It is possible to save the file in a different format. To do this, add the switch ``--save [filename].[format]``.
-If you want to save files as PNG, you can use the following command:
+Multiple file formats are supported. To use them, add the argument ``--save [filename].[format]``.
+
+To save the ``example_complex`` DAG as a PNG file:
 
 .. code-block:: bash
 
   airflow dags show example_complex --save example_complex.png
 
-An example image file may look as follow:
+This will save the following image as a file:
 
 .. figure:: img/usage_cli_export.png
     :width: 100%
@@ -108,46 +106,46 @@ An example image file may look as follow:
 
 The following file formats are supported:
 
- * ``bmp``,
- * ``canon``, ``dot``, ``gv``, ``xdot``, ``xdot1.2``, ``xdot1.4``,
- * ``cgimage``,
- * ``cmap``,
- * ``eps``,
- * ``exr``,
- * ``fig``,
- * ``gd``, ``gd2``,
- * ``gif``,
- * ``gtk``,
- * ``ico``,
- * ``imap``, ``cmapx``,
- * ``imap_np``, ``cmapx_np``,
- * ``ismap``,
- * ``jp2``,
- * ``jpg``, ``jpeg``, ``jpe``,
- * ``json``, ``json0``, ``dot_json``, ``xdot_json``,
- * ``pct``, ``pict``,
- * ``pdf``,
- * ``pic``,
- * ``plain``, ``plain-ext``,
- * ``png``,
- * ``pov``,
- * ``ps``,
- * ``ps2``,
- * ``psd``,
- * ``sgi``,
- * ``svg``, ``svgz``,
- * ``tga``,
- * ``tif``, ``tiff``,
- * ``tk``,
- * ``vml``, ``vmlz``,
- * ``vrml``,
- * ``wbmp``,
- * ``webp``,
- * ``xlib``,
- * ``x11``.
+ * ``bmp``
+ * ``canon``, ``dot``, ``gv``, ``xdot``, ``xdot1.2``, ``xdot1.4``
+ * ``cgimage``
+ * ``cmap``
+ * ``eps``
+ * ``exr``
+ * ``fig``
+ * ``gd``, ``gd2``
+ * ``gif``
+ * ``gtk``
+ * ``ico``
+ * ``imap``, ``cmapx``
+ * ``imap_np``, ``cmapx_np``
+ * ``ismap``
+ * ``jp2``
+ * ``jpg``, ``jpeg``, ``jpe``
+ * ``json``, ``json0``, ``dot_json``, ``xdot_json``
+ * ``pct``, ``pict``
+ * ``pdf``
+ * ``pic``
+ * ``plain``, ``plain-ext``
+ * ``png``
+ * ``pov``
+ * ``ps``
+ * ``ps2``
+ * ``psd``
+ * ``sgi``
+ * ``svg``, ``svgz``
+ * ``tga``
+ * ``tif``, ``tiff``
+ * ``tk``
+ * ``vml``, ``vmlz``
+ * ``vrml``
+ * ``wbmp``
+ * ``webp``
+ * ``xlib``
+ * ``x11``
 
-By default, the application search for DAGs in the directory specified in ``dags_folder`` option in
-``[core]`` section specified in the file ``airflow.cfg``. You can change it with the ``--subdir`` switch.
+By default, Airflow looks for DAGs in the directory specified by the ``dags_folder`` option in the
+``[core]`` section of the ``airflow.cfg`` file. You can select a new directory with the ``--subdir`` argument.
 
 Display DAGs structure
 ----------------------
