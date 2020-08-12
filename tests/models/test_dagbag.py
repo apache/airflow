@@ -716,8 +716,8 @@ class TestDagBag(unittest.TestCase):
         self.assertEqual(set(), set(dagbag.dag_ids))
         expected_import_errors = {
             dag_file: (
-                f'''Task must have non-None non-default owner.'''
-                ''' Current value: {task.owner}'''
+                'Task must have non-None non-default owner.'
+                f' Current value: {task.owner}'
             )
         }
         self.assertEqual(expected_import_errors, dagbag.import_errors)
