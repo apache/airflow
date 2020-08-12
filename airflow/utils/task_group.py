@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-TaskGroup
+A TaskGroup is a collection of closely related tasks on the same DAG that should be grouped
+together when the DAG is displayed graphically.
 """
 
 from typing import List, Optional
+
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 
 
 class TaskGroup:
@@ -28,8 +31,12 @@ class TaskGroup:
     group_id of the TaskGroup. When set_downstream() or set_upstream() are called on the
     TaskGroup, it is applied across all tasks within the group if necessary.
     """
-    def __init__(self, group_id, parent_group=None):
+    def __init__(self, group_id, parent_group=None, dag=None):
+        from airflow.models.dag import DagContext
+
         if group_id is None:
+            if parent_group:
+                raise AirflowException("Root TaskGroup cannot have parent_group")
             # This creates a root TaskGroup.
             self.parent_group = None
         else:
@@ -37,19 +44,25 @@ class TaskGroup:
                 raise ValueError("group_id must be str")
             if not group_id:
                 raise ValueError("group_id must not be empty")
-            self.parent_group = parent_group or TaskGroupContext.get_current_task_group()
+
+            dag = dag or DagContext.get_current_dag()
+
+            if not parent_group and not dag:
+                raise AirflowException("TaskGroup can only be used inside a dag")
+
+            self.parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
 
         self._group_id = group_id
+        self.children = {}
         if self.parent_group:
             self.parent_group.add(self)
-        self.children = {}
 
     @classmethod
-    def create_root(cls):
+    def create_root(cls, dag):
         """
         Create a root TaskGroup with no group_id or parent.
         """
-        return cls(group_id=None)
+        return cls(group_id=None, dag=dag)
 
     @property
     def is_root(self):
@@ -70,9 +83,16 @@ class TaskGroup:
         """
         Add a task to this TaskGroup.
         """
-        if task.label in self.children:
-            raise ValueError(f"Duplicate label {task.label} in {self.group_id}")
-        self.children[task.label] = task
+        key = task.group_id if isinstance(task, TaskGroup) else task.task_id
+
+        if key in self.children:
+            raise DuplicateTaskIdFound(f"Task id '{key}' has already been added to the DAG")
+
+        if isinstance(task, TaskGroup):
+            if task.children:
+                raise AirflowException("Cannot add a non-empty TaskGroup")
+
+        self.children[key] = task
 
     @property
     def label(self):
@@ -86,17 +106,11 @@ class TaskGroup:
         """
         group_id is prefixed with parent group_id if applicable.
         """
-        if not self.group_ids:
+        ids = list(self._group_ids())[1:]
+        if not ids:
             return None
 
-        return ".".join(self.group_ids)
-
-    @property
-    def group_ids(self):
-        """
-        Returns all the group_id of nested TaskGroups as a list, starting from the top.
-        """
-        return list(self._group_ids())[1:]
+        return ".".join(ids)
 
     def _group_ids(self):
         if self.parent_group:
@@ -126,13 +140,22 @@ class TaskGroup:
     def __exit__(self, _type, _value, _tb):
         TaskGroupContext.pop_context_managed_task_group()
 
+    def has_task(self, task):
+        """
+        Returns True if this TaskGroup or its children TaskGroups contains the given task.
+        """
+        if task.task_id in self.children:
+            return True
+
+        return any(child.has_task(task) for child in self.children.values() if isinstance(child, TaskGroup))
+
     def get_roots(self):
         """
         Returns a generator of tasks that are root tasks, i.e. those with no upstream
         dependencies within the TaskGroup.
         """
         for task in self:
-            if not any(parent.is_in_task_group(self.group_ids)
+            if not any(self.has_task(parent)
                        for parent in task.get_direct_relatives(upstream=True)):
                 yield task
 
@@ -142,7 +165,7 @@ class TaskGroup:
         dependencies within the TaskGroup
         """
         for task in self:
-            if not any(child.is_in_task_group(self.group_ids)
+            if not any(self.has_task(child)
                        for child in task.get_direct_relatives(upstream=False)):
                 yield task
 
@@ -176,23 +199,6 @@ class TaskGroup:
         self.__rshift__(other)
         return self
 
-    @classmethod
-    def build_task_group(cls, tasks):
-        """
-        Put tasks into TaskGroup.
-        """
-        root = TaskGroup.create_root()
-        for task in tasks:
-            current = root
-            for label in task.task_group_ids:
-                if label not in current.children:
-                    child_group = TaskGroup(group_id=label, parent_group=current)
-                else:
-                    child_group = current.children[label]
-                current = child_group
-            current.add(task)
-        return root
-
 
 class TaskGroupContext:
     """
@@ -224,10 +230,16 @@ class TaskGroupContext:
         return old_task_group
 
     @classmethod
-    def get_current_task_group(cls) -> Optional[TaskGroup]:
+    def get_current_task_group(cls, dag) -> Optional[TaskGroup]:
         """
         Get the current TaskGroup.
         """
+        from airflow.models.dag import DagContext
+
         if not cls._context_managed_task_group:
-            return TaskGroup.create_root()
+            dag = dag or DagContext.get_current_dag()
+            if dag:
+                # If there's currently a DAG but no TaskGroup, return the root TaskGroup of the dag.
+                return dag.task_group
+
         return cls._context_managed_task_group

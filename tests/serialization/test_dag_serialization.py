@@ -67,6 +67,9 @@ serialized_simple_dag_ground_truth = {
             }
         },
         "start_date": 1564617600.0,
+        'task_group': {'_group_id': None,
+                       'children': {'bash_task': ('operator', 'bash_task'),
+                                    'custom_task': ('operator', 'custom_task')}},
         "is_paused_upon_creation": False,
         "_dag_id": "simple_dag",
         "fileloc": None,
@@ -74,10 +77,10 @@ serialized_simple_dag_ground_truth = {
             {
                 "task_id": "bash_task",
                 '_task_id': 'bash_task',
-                'task_group_ids': [],
                 "owner": "airflow",
                 "retries": 1,
                 "retry_delay": 300.0,
+                'task_group_id': None,
                 "_downstream_task_ids": [],
                 "_inlets": [],
                 "_outlets": [],
@@ -98,9 +101,9 @@ serialized_simple_dag_ground_truth = {
             {
                 "task_id": "custom_task",
                 '_task_id': 'custom_task',
-                'task_group_ids': [],
                 "retries": 1,
                 "retry_delay": 300.0,
+                'task_group_id': None,
                 "_downstream_task_ids": [],
                 "_inlets": [],
                 "_outlets": [],
@@ -333,6 +336,7 @@ class TestStringifiedDAGs(unittest.TestCase):
 
             # Need to check fields in it, to exclude functions
             'default_args',
+            "task_group"
         }
         for field in fields_to_check:
             assert getattr(serialized_dag, field) == getattr(dag, field), \
@@ -791,7 +795,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                           'subdag': None,
                           'task_concurrency': None,
                           '_task_id': '10',
-                          'task_group_ids': [],
+                          'task_group_id': None,
                           'trigger_rule': 'all_success',
                           'wait_for_downstream': False,
                           'weight_rule': 'downstream'}, fields,
@@ -809,3 +813,52 @@ class TestStringifiedDAGs(unittest.TestCase):
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                          """
                          )
+
+    def test_task_group_serialization(self):
+        """
+        Test TaskGroup serialization/deserialization.
+        """
+        from airflow.operators.dummy_operator import DummyOperator
+        from airflow.utils.task_group import TaskGroup
+
+        execution_date = datetime(2020, 1, 1)
+        with DAG("test_task_group_serialization", start_date=execution_date) as dag:
+            task1 = DummyOperator(task_id="task1")
+            with TaskGroup("group234") as group234:
+                task2 = DummyOperator(task_id="task2")
+
+                with TaskGroup("group34") as group34:
+                    task3 = DummyOperator(task_id="task3")
+                    task4 = DummyOperator(task_id="task4")
+
+            task5 = DummyOperator(task_id="task5")
+            task1 >> group234
+            group34 >> task5
+
+        dag_dict = SerializedDAG.to_dict(dag)
+        SerializedDAG.validate_schema(dag_dict)
+        json_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        self.validate_deserialized_dag(json_dag, dag)
+
+        serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+
+        assert serialized_dag.task_group.children
+        assert serialized_dag.task_group.children.keys() == dag.task_group.children.keys()
+
+        def check_task_group(node):
+            try:
+                children = node.children.values()
+            except AttributeError:
+                # Round-trip serialization and check the result
+                expected_serialized = SerializedBaseOperator.serialize_operator(dag.get_task(node.task_id))
+                expected_deserialized = SerializedBaseOperator.deserialize_operator(expected_serialized)
+                expected_dict = SerializedBaseOperator.serialize_operator(expected_deserialized)
+                assert node
+                assert SerializedBaseOperator.serialize_operator(node) == expected_dict
+                return
+
+            for child in children:
+                check_task_group(child)
+
+
+        check_task_group(serialized_dag.task_group)

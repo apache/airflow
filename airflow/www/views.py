@@ -176,7 +176,7 @@ def task_group_to_dict(task_group):
             'ry': 5,
             'clusterLabelPos': 'top'
         },
-        'children': [task_group_to_dict(child) for child in task_group.children.values()]
+        'children': [task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)]
     }
 
 
@@ -1643,8 +1643,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         arrange = request.args.get('arrange', dag.orientation)
 
-        root_group = TaskGroup.build_task_group(dag.tasks)
-        nodes = task_group_to_dict(root_group)
+        nodes = task_group_to_dict(dag.task_group)
         edges = []
 
         def get_downstream(task):

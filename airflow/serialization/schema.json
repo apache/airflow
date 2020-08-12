@@ -96,7 +96,11 @@
         "_default_view": { "type" : "string"},
         "_access_control": {"$ref": "#/definitions/dict" },
         "is_paused_upon_creation":  { "type": "boolean" },
-        "tags": { "type": "array" }
+        "tags": { "type": "array" },
+        "task_group": {"anyOf": [
+          { "type": "null" },
+          { "$ref": "#/definitions/task_group" }
+        ]}
       },
       "required": [
         "_dag_id",
@@ -126,7 +130,7 @@
         "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
         "_task_id": { "type": "string" },
-        "task_group_ids": {"type": "array"},
+        "task_group_id": {"type": "string"},
         "owner": { "type": "string" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
@@ -158,6 +162,19 @@
         }
       },
       "additionalProperties": true
+    },
+    "task_group": {
+      "$comment": "A TaskGroup containing tasks",
+      "type": "object",
+      "required": [
+        "_group_id",
+        "children"
+      ],
+      "properties": {
+        "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
+        "children":  { "$ref": "#/definitions/dict" }
+      },
+      "additionalProperties": false
     }
   },
 

@@ -44,6 +44,7 @@ from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.module_loading import import_string
+from airflow.utils.task_group import TaskGroup
 
 log = logging.getLogger(__name__)
 FAILED = 'serialization_failed'
@@ -221,6 +222,8 @@ class BaseSerialization:
                 # FIXME: casts tuple to list in customized serialization in future.
                 return cls._encode(
                     [cls._serialize(v) for v in var], type_=DAT.TUPLE)
+            elif isinstance(var, TaskGroup):
+                return SerializedTaskGroup.serialize_task_group(var)
             else:
                 log.debug('Cast type %s to str in serialization.', type(var))
                 return str(var)
@@ -347,6 +350,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         """
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         serialize_op["task_id"] = op.task_id
+        serialize_op['task_group_id'] = op.task_group_id
         serialize_op['_task_type'] = op.__class__.__name__
         serialize_op['_task_module'] = op.__class__.__module__
         if op.operator_extra_links:
@@ -578,6 +582,7 @@ class SerializedDAG(DAG, BaseSerialization):
         serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
         serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
+        serialize_dag['task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
         return serialize_dag
 
     @classmethod
@@ -605,6 +610,16 @@ class SerializedDAG(DAG, BaseSerialization):
             # else use v as it is
 
             setattr(dag, k, v)
+
+        # Set task_group
+        if "task_group" in encoded_dag:
+            dag.task_group = SerializedTaskGroup.deserialize_task_group(encoded_dag["task_group"], None, dag.task_dict)
+        else:
+            # This must be old data that had no task_group. Create a root TaskGroup and add
+            # all tasks to it.
+            dag.task_group = TaskGroup.create_root(dag)
+            for task in dag.tasks:
+                dag.task_group.add(task)
 
         keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:
@@ -649,3 +664,43 @@ class SerializedDAG(DAG, BaseSerialization):
         if ver != cls.SERIALIZER_VERSION:
             raise ValueError("Unsure how to deserialize version {!r}".format(ver))
         return cls.deserialize_dag(serialized_obj['dag'])
+
+
+class SerializedTaskGroup(TaskGroup, BaseSerialization):
+    """
+    A JSON serializable representation of TaskGroup.
+    """
+    @classmethod
+    def serialize_task_group(cls, task_group: TaskGroup) -> dict:
+        """Serializes TaskGroup into a JSON object.
+        """
+        if not task_group:
+            return None
+
+        serialize_group = {}
+        serialize_group["_group_id"] = task_group._group_id
+
+        serialize_group['children'] = {
+            label: (DAT.OP, child.task_id)
+                   if isinstance(child, BaseOperator) else
+                   (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
+            for label, child in task_group.children.items()
+        }
+        return serialize_group
+
+    @classmethod
+    def deserialize_task_group(cls, encoded_group: Dict[str, Any], parent_group, task_dict) -> TaskGroup:
+        """Deserializes a TaskGroup from a JSON object.
+        """
+        if not encoded_group:
+            return None
+
+        _group_id = cls._deserialize(encoded_group["_group_id"])
+        group = SerializedTaskGroup(group_id=_group_id, parent_group=parent_group)
+        group.children = {
+            label: task_dict[val] if _type == DAT.OP
+            else SerializedTaskGroup.deserialize_task_group(val, group, task_dict) for label, (_type, val)
+            in encoded_group["children"].items()
+        }
+
+        return group

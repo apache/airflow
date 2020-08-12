@@ -238,6 +238,8 @@ class DAG(BaseDag, LoggingMixin):
         jinja_environment_kwargs: Optional[Dict] = None,
         tags: Optional[List[str]] = None
     ):
+        from airflow.utils.task_group import TaskGroup
+
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
         self.default_args = copy.deepcopy(default_args or {})
@@ -329,6 +331,7 @@ class DAG(BaseDag, LoggingMixin):
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.tags = tags
+        self.task_group = TaskGroup.create_root(self)
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -1240,7 +1243,6 @@ class DAG(BaseDag, LoggingMixin):
         based on a regex that should match one or many tasks, and includes
         upstream and downstream neighbours based on the flag passed.
         """
-
         # deep-copying self.task_dict takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
         task_dict = self.task_dict
@@ -1261,6 +1263,23 @@ class DAG(BaseDag, LoggingMixin):
         # Make sure to not recursively deepcopy the dag while copying the task
         dag.task_dict = {t.task_id: copy.deepcopy(t, {id(t.dag): dag})
                          for t in regex_match + also_include}
+
+        # Remove tasks not included in the subdag from task_group
+        def remove_excluded(group):
+            for child in list(group.children.values()):
+                if isinstance(child, BaseOperator):
+                    if child.task_id not in dag.task_dict:
+                        group.children.pop(child.task_id)
+                else:
+                    remove_excluded(child)
+
+            # Remove this TaskGroup if it doesn't contain any tasks in this subdag
+            if not group.children:
+                if group.parent_group:
+                    group.parent_group.children.pop(group.group_id)
+
+        remove_excluded(dag.task_group)
+
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
             # made the cut
