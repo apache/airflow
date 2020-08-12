@@ -1235,7 +1235,7 @@ For example, don't run tasks without airflow owners:
 If you have multiple checks to apply, it is best practice to curate these rules
 in a separate python module and have a single policy / task mutation hook that
 performs multiple of these custom checks and aggregates the various error
-messages so that a single `AirflowClusterPolicyViolation` can be reported in
+messages so that a single ``AirflowClusterPolicyViolation`` can be reported in
 the UI (and import errors table in the database).
 
 For Example in ``airflow_local_settings.py``:
