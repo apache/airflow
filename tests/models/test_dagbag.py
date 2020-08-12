@@ -2,6 +2,8 @@
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
+# TODO: This license is not consistent with license used in the project.
+#       Delete the inconsistent license and above line and rerun pre-commit to insert a good license.
 # regarding copyright ownership.  The ASF licenses this file
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
@@ -24,20 +26,18 @@ from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest.mock import patch
 
-from airflow.exceptions import AirflowClusterPolicyViolation
 from freezegun import freeze_time
 from sqlalchemy import func
 
 import airflow.example_dags
 from airflow import models
+from airflow.exceptions import AirflowClusterPolicyViolation
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
-from tests.models import TEST_DAGS_FOLDER
 from tests import cluster_policies
-from tests.test_local_settings import SETTINGS_FILE_MUST_HAVE_OWNER_POLICY
-from tests.test_local_settings import SettingsContext
+from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
@@ -716,8 +716,9 @@ class TestDagBag(unittest.TestCase):
         self.assertEqual(set(), set(dagbag.dag_ids))
         expected_import_errors = {
             dag_file: (
-                'Task must have non-None non-default owner.'
-                f' Current value: {task.owner}'
+                f"""DAG policy violation (DAG ID: test_missing_owner, Path: {dag_file}):\n"""
+                """Notices:\n"""
+                """ * Task must have non-None non-default owner. Current value: airflow"""
             )
         }
         self.assertEqual(expected_import_errors, dagbag.import_errors)
