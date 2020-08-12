@@ -652,7 +652,7 @@ class DataflowHook(GoogleBaseHook):
             return ['--labels={}={}'.format(key, value)
                     for key, value in labels_dict.items()]
 
-        if py_requirements is not None:
+        if py_requirements:
             with TemporaryDirectory(prefix='dataflow-venv') as tmp_dir:
                 py_interpreter = prepare_virtualenv(
                     venv_directory=tmp_dir,

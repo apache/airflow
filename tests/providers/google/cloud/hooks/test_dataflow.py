@@ -314,6 +314,63 @@ class TestDataflowHook(unittest.TestCase):
         self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]),
                              sorted(expected_cmd))
 
+    @mock.patch(DATAFLOW_STRING.format('prepare_virtualenv'))
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_start_python_dataflow_with_non_empty_py_requirements(
+        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid, mock_virtualenv
+    ):
+        mock_uuid.return_value = MOCK_UUID
+        mock_conn.return_value = None
+        dataflow_instance = mock_dataflow.return_value
+        dataflow_instance.wait_for_done.return_value = None
+        dataflowjob_instance = mock_dataflowjob.return_value
+        dataflowjob_instance.wait_for_done.return_value = None
+        mock_virtualenv.return_value = '/dummy_dir/bin/python'
+        self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_PY,
+            dataflow=PY_FILE, py_options=PY_OPTIONS,
+            py_requirements=['foo-bar']
+        )
+        expected_cmd = ['/dummy_dir/bin/python', '-m', PY_FILE,
+                        '--region=us-central1',
+                        '--runner=DataflowRunner', '--project=test',
+                        '--labels=foo=bar',
+                        '--staging_location=gs://test/staging',
+                        '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID)]
+        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]),
+                             sorted(expected_cmd))
+
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
+    def test_start_python_dataflow_with_empty_py_requirements(
+        self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
+    ):
+        mock_uuid.return_value = MOCK_UUID
+        mock_conn.return_value = None
+        dataflow_instance = mock_dataflow.return_value
+        dataflow_instance.wait_for_done.return_value = None
+        dataflowjob_instance = mock_dataflowjob.return_value
+        dataflowjob_instance.wait_for_done.return_value = None
+        self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+            job_name=JOB_NAME, variables=DATAFLOW_VARIABLES_PY,
+            dataflow=PY_FILE, py_options=PY_OPTIONS,
+            py_requirements=[]
+        )
+        expected_cmd = ['python3', '-m', PY_FILE,
+                        '--region=us-central1',
+                        '--runner=DataflowRunner',
+                        '--project=test',
+                        '--labels=foo=bar',
+                        '--staging_location=gs://test/staging',
+                        '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID)]
+        self.assertListEqual(sorted(mock_dataflow.call_args[1]["cmd"]),
+                             sorted(expected_cmd))
+
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
