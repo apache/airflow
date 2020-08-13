@@ -50,7 +50,7 @@ async-generator==1.10
 async-timeout==3.0.1
 atlasclient==1.0.0
 attrs==19.3.0
-aws-sam-translator==1.25.0
+aws-sam-translator==1.26.0
 aws-xray-sdk==2.6.0
 azure-batch==9.0.0
 azure-common==1.1.25
@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.14.38
+boto3==1.14.41
 boto==2.49.0
-botocore==1.17.38
+botocore==1.17.41
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.1
@@ -138,7 +138,7 @@ gevent==20.6.2
 gitdb==4.0.5
 github3.py==1.3.0
 google-ads==6.0.0
-google-api-core==1.22.0
+google-api-core==1.22.1
 google-api-python-client==1.10.0
 google-auth-httplib2==0.0.4
 google-auth-oauthlib==0.4.1
@@ -150,7 +150,7 @@ google-cloud-bigtable==1.4.0
 google-cloud-container==1.0.1
 google-cloud-core==1.4.1
 google-cloud-datacatalog==0.7.0
-google-cloud-dataproc==1.1.0
+google-cloud-dataproc==1.1.1
 google-cloud-dlp==1.0.0
 google-cloud-kms==1.4.0
 google-cloud-language==1.3.0
@@ -164,7 +164,7 @@ google-cloud-speech==1.3.2
 google-cloud-storage==1.30.0
 google-cloud-tasks==1.5.0
 google-cloud-texttospeech==1.0.1
-google-cloud-translate==3.0.0
+google-cloud-translate==3.0.1
 google-cloud-videointelligence==1.15.0
 google-cloud-vision==1.0.0
 google-crc32c==0.1.0
@@ -208,7 +208,7 @@ jupyter-core==4.6.3
 jwcrypto==0.7
 kombu==4.6.11
 kubernetes==11.0.0
-kylinpy==2.8.3
+kylinpy==2.8.4
 lazy-object-proxy==1.5.1
 ldap3==2.8
 libcst==0.3.9
@@ -263,7 +263,7 @@ pre-commit==2.6.0
 presto-python-client==0.7.0
 prison==0.1.3
 prometheus-client==0.8.0
-prompt-toolkit==3.0.5
+prompt-toolkit==3.0.6
 proto-plus==1.7.0
 protobuf==3.12.4
 psutil==5.7.2
@@ -281,7 +281,8 @@ pycparser==2.20
 pycryptodomex==3.9.8
 pydata-google-auth==1.1.0
 pydruid==0.6.1
-pyexasol==0.14.0
+pyenchant==3.1.1
+pyexasol==0.14.1
 pyflakes==2.2.0
 pykerberos==1.2.1
 pylint==2.5.3
@@ -321,7 +322,7 @@ requests-ntlm==1.1.0
 requests-oauthlib==1.1.0
 requests-toolbelt==0.9.1
 requests==2.24.0
-responses==0.10.15
+responses==0.10.16
 rsa==4.6
 s3transfer==0.3.3
 sasl==0.2.1
@@ -355,6 +356,7 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.4
+sphinxcontrib-spelling==5.2.1
 spython==0.0.84
 sshpubkeys==3.1.0
 sshtunnel==0.1.5
