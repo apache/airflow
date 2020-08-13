@@ -24,6 +24,8 @@ This document is meant to give an overview of all common tasks while using the C
 .. note::
     For more information on CLI commands, see :doc:`cli-ref`
 
+.. _cli-remote:
+
 Set Up connection to a remote Airflow instance
 ----------------------------------------------
 
