@@ -638,6 +638,15 @@ ARG_CONN_EXPORT_FORMAT = Arg(
     help='Format of the connections data in file',
     type=str,
     choices=['json', 'yaml', 'env'])
+ARG_CONN_IMPORT = Arg(
+    ('file',),
+    help='Import connections from a file. Acceptable file formats .json, .yaml, .env',
+    type=argparse.FileType('r'))
+ARG_CONFLICT_DISPOSITION = Arg(
+    ('--conflict-disposition',),
+    help=("Specifies the action that occurs if the connection already exists. Default value : restrict"),
+    choices=['overwrite', 'ignore', 'restrict'],
+    type=str)
 
 # users
 ARG_USERNAME = Arg(
@@ -1127,8 +1136,8 @@ CONNECTIONS_COMMANDS = (
         name='import',
         help='Import connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_import'),
-        args=(ARG_CONN_FILE_PATH,),
-    },
+        args=(ARG_CONN_IMPORT, ARG_CONFLICT_DISPOSITION),
+    ),
     ActionCommand(
         name='export',
         help='Export all connections',

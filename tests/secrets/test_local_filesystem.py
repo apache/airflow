@@ -18,7 +18,10 @@
 import json
 import re
 import unittest
+import io
 from contextlib import contextmanager
+from io import TextIOWrapper as _TextIOWrapper
+from io import StringIO
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
@@ -28,6 +31,12 @@ from airflow.exceptions import AirflowException, AirflowFileParseException, Conn
 from airflow.secrets import local_filesystem
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 
+class TextIOWrapper(_TextIOWrapper):
+    name = ''
+    def __init__(self, buffer, name=None, **kwargs):
+        self.name = name
+        print()
+        super().__init__(buffer, **kwargs)
 
 @contextmanager
 def mock_local_file(content):
@@ -45,9 +54,8 @@ class FileParsers(unittest.TestCase):
         )
     )
     def test_env_file_invalid_format(self, content, expected_message):
-        with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
-                local_filesystem.load_variables("a.env")
+        with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
+            local_filesystem.load_variables(TextIOWrapper(io.BytesIO(content.encode('ascii')), name='a.env'))
 
     @parameterized.expand(
         (
@@ -57,9 +65,8 @@ class FileParsers(unittest.TestCase):
         )
     )
     def test_json_file_invalid_format(self, content, expected_message):
-        with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
-                local_filesystem.load_variables("a.json")
+        with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
+            local_filesystem.load_variables(TextIOWrapper(io.BytesIO(content.encode('ascii')), name="a.json"))
 
 
 class TestLoadVariables(unittest.TestCase):
@@ -73,36 +80,25 @@ class TestLoadVariables(unittest.TestCase):
         )
     )
     def test_env_file_should_load_variables(self, file_content, expected_variables):
-        with mock_local_file(file_content):
-            variables = local_filesystem.load_variables("a.env")
-            self.assertEqual(expected_variables, variables)
+        variables = local_filesystem.load_variables(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.env"))
+        self.assertEqual(expected_variables, variables)
 
     @parameterized.expand((("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),))
     def test_env_file_invalid_logic(self, content, expected_message):
-        with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
-                local_filesystem.load_variables("a.env")
+        with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
+            local_filesystem.load_variables(TextIOWrapper(io.BytesIO(content.encode('ascii')), name="a.env"))
 
     @parameterized.expand(
         (
-            ({}, {}),
-            ({"KEY": "AAA"}, {"KEY": "AAA"}),
-            ({"KEY_A": "AAA", "KEY_B": "BBB"}, {"KEY_A": "AAA", "KEY_B": "BBB"}),
-            ({"KEY_A": "AAA", "KEY_B": "BBB"}, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ('{}', {}),
+            ('{"KEY": "AAA"}', {"KEY": "AAA"}),
+            ('{"KEY_A": "AAA", "KEY_B": "BBB"}', {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ('{"KEY_A": "AAA", "KEY_B": "BBB"}', {"KEY_A": "AAA", "KEY_B": "BBB"}),
         )
     )
     def test_json_file_should_load_variables(self, file_content, expected_variables):
-        with mock_local_file(json.dumps(file_content)):
-            variables = local_filesystem.load_variables("a.json")
-            self.assertEqual(expected_variables, variables)
-
-    @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
-    def test_missing_file(self, mock_exists):
-        with self.assertRaisesRegex(
-            AirflowException,
-            re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
-        ):
-            local_filesystem.load_variables("a.json")
+        variables = local_filesystem.load_variables(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.json"))
+        self.assertEqual(expected_variables, variables)
 
     @parameterized.expand(
         (
@@ -114,9 +110,8 @@ class TestLoadVariables(unittest.TestCase):
         )
     )
     def test_yaml_file_should_load_variables(self, file_content, expected_variables):
-        with mock_local_file(file_content):
-            variables = local_filesystem.load_variables('a.yaml')
-            self.assertEqual(expected_variables, variables)
+        variables = local_filesystem.load_variables(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name='a.yaml'))
+        self.assertEqual(expected_variables, variables)
 
 
 class TestLoadConnection(unittest.TestCase):
@@ -138,14 +133,13 @@ class TestLoadConnection(unittest.TestCase):
         )
     )
     def test_env_file_should_load_connection(self, file_content, expected_connection_uris):
-        with mock_local_file(file_content):
-            connections_by_conn_id = local_filesystem.load_connections("a.env")
-            connection_uris_by_conn_id = {
-                conn_id: [connection.get_uri() for connection in connections]
-                for conn_id, connections in connections_by_conn_id.items()
-            }
+        connections_by_conn_id = local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.env"))
+        connection_uris_by_conn_id = {
+            conn_id: [connection.get_uri() for connection in connections]
+            for conn_id, connections in connections_by_conn_id.items()
+        }
 
-            self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
+        self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
 
     @parameterized.expand(
         (
@@ -154,50 +148,39 @@ class TestLoadConnection(unittest.TestCase):
         )
     )
     def test_env_file_invalid_format(self, content, expected_message):
-        with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
-                local_filesystem.load_connections("a.env")
+        with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
+            local_filesystem.load_variables(TextIOWrapper(io.BytesIO(content.encode('ascii')), name='a.env'))
 
     @parameterized.expand(
         (
-            ({"CONN_ID": "mysql://host_1"}, {"CONN_ID": ["mysql://host_1"]}),
-            ({"CONN_ID": ["mysql://host_1"]}, {"CONN_ID": ["mysql://host_1"]}),
-            ({"CONN_ID": {"uri": "mysql://host_1"}}, {"CONN_ID": ["mysql://host_1"]}),
-            ({"CONN_ID": [{"uri": "mysql://host_1"}]}, {"CONN_ID": ["mysql://host_1"]}),
+            ('{"CONN_ID": "mysql://host_1"}', {"CONN_ID": ["mysql://host_1"]}),
+            ('{"CONN_ID": ["mysql://host_1"]}', {"CONN_ID": ["mysql://host_1"]}),
+            ('{"CONN_ID": {"uri": "mysql://host_1"}}', {"CONN_ID": ["mysql://host_1"]}),
+            ('{"CONN_ID": [{"uri": "mysql://host_1"}]}', {"CONN_ID": ["mysql://host_1"]}),
         )
     )
     def test_json_file_should_load_connection(self, file_content, expected_connection_uris):
-        with mock_local_file(json.dumps(file_content)):
-            connections_by_conn_id = local_filesystem.load_connections("a.json")
-            connection_uris_by_conn_id = {
-                conn_id: [connection.get_uri() for connection in connections]
-                for conn_id, connections in connections_by_conn_id.items()
-            }
+        connections_by_conn_id = local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.json"))
+        connection_uris_by_conn_id = {
+            conn_id: [connection.get_uri() for connection in connections]
+            for conn_id, connections in connections_by_conn_id.items()
+        }
 
-            self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
+        self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
 
     @parameterized.expand(
         (
-            ({"CONN_ID": None}, "Unexpected value type: <class 'NoneType'>."),
-            ({"CONN_ID": 1}, "Unexpected value type: <class 'int'>."),
-            ({"CONN_ID": [2]}, "Unexpected value type: <class 'int'>."),
-            ({"CONN_ID": ["mysql://host_1", None]}, "Unexpected value type: <class 'NoneType'>."),
-            ({"CONN_ID": {"AAA": "mysql://host_1"}}, "The object have illegal keys: AAA."),
-            ({"CONN_ID": {"conn_id": "BBBB"}}, "Mismatch conn_id."),
+            ('{"CONN_ID": None}', "Failed to load the secret file."),
+            ('{"CONN_ID": 1}', "Unexpected value type: <class 'int'>."),
+            ('{"CONN_ID": [2]}', "Unexpected value type: <class 'int'>."),
+            ('{"CONN_ID": ["mysql://host_1", None]}', "Failed to load the secret file."),
+            ('{"CONN_ID": {"AAA": "mysql://host_1"}}', "The object have illegal keys: AAA."),
+            ('{"CONN_ID": {"conn_id": "BBBB"}}', "Mismatch conn_id."),
         )
     )
     def test_env_file_invalid_input(self, file_content, expected_connection_uris):
-        with mock_local_file(json.dumps(file_content)):
-            with self.assertRaisesRegex(AirflowException, re.escape(expected_connection_uris)):
-                local_filesystem.load_connections("a.json")
-
-    @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
-    def test_missing_file(self, mock_exists):
-        with self.assertRaisesRegex(
-            AirflowException,
-            re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
-        ):
-            local_filesystem.load_connections("a.json")
+        with self.assertRaisesRegex(AirflowException, re.escape(expected_connection_uris)):
+            local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.json"))
 
     @parameterized.expand(
         (
@@ -222,14 +205,14 @@ class TestLoadConnection(unittest.TestCase):
         )
     )
     def test_yaml_file_should_load_connection(self, file_content, expected_connection_uris):
-        with mock_local_file(file_content):
-            connections_by_conn_id = local_filesystem.load_connections("a.yaml")
-            connection_uris_by_conn_id = {
-                conn_id: [connection.get_uri() for connection in connections]
-                for conn_id, connections in connections_by_conn_id.items()
-            }
+        # with mock_local_file(file_content):
+        connections_by_conn_id = local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.yaml"))
+        connection_uris_by_conn_id = {
+            conn_id: [connection.get_uri() for connection in connections]
+            for conn_id, connections in connections_by_conn_id.items()
+        }
 
-            self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
+        self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
 
     @parameterized.expand(
         (
@@ -270,13 +253,12 @@ class TestLoadConnection(unittest.TestCase):
         )
     )
     def test_yaml_file_should_load_connection_extras(self, file_content, expected_extras):
-        with mock_local_file(file_content):
-            connections_by_conn_id = local_filesystem.load_connections("a.yaml")
-            connection_uris_by_conn_id = {
-                conn_id: [connection.extra_dejson for connection in connections]
-                for conn_id, connections in connections_by_conn_id.items()
-            }
-            self.assertEqual(expected_extras, connection_uris_by_conn_id)
+        connections_by_conn_id = local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.yaml"))
+        connection_uris_by_conn_id = {
+            conn_id: [connection.extra_dejson for connection in connections]
+            for conn_id, connections in connections_by_conn_id.items()
+        }
+        self.assertEqual(expected_extras, connection_uris_by_conn_id)
 
     @parameterized.expand(
         (
@@ -296,9 +278,8 @@ class TestLoadConnection(unittest.TestCase):
         )
     )
     def test_yaml_invalid_extra(self, file_content, expected_message):
-        with mock_local_file(file_content):
-            with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
-                local_filesystem.load_connections("a.yaml")
+        with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
+            local_filesystem.load_connections(TextIOWrapper(io.BytesIO(file_content.encode('ascii')), name="a.yaml"))
 
     @parameterized.expand(
         (
