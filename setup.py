@@ -464,7 +464,7 @@ devel = [
     'pre-commit',
     'pylint==2.5.3',
     'pysftp',
-    'pytest<6.0.0',  # FIXME: pylint complaining for pytest.mark.* on v6.0
+    'pytest',
     'pytest-cov',
     'pytest-instafail',
     'pytest-rerunfailures',
