@@ -179,13 +179,14 @@ gunicorn==19.10.0
 hdfs==2.5.8
 hmsclient==0.1.1
 httplib2==0.18.1
-humanize==2.5.0
+humanize==2.6.0
 hvac==0.10.5
 identify==1.4.25
 idna==2.10
 imagesize==1.2.0
 importlib-metadata==1.7.0
 inflection==0.5.0
+iniconfig==1.0.1
 ipdb==0.13.3
 ipython-genutils==0.2.0
 ipython==7.17.0
@@ -300,7 +301,7 @@ pytest-instafail==0.4.2
 pytest-rerunfailures==9.0
 pytest-timeouts==1.2.1
 pytest-xdist==1.34.0
-pytest==5.4.3
+pytest==6.0.1
 python-daemon==2.2.4
 python-dateutil==2.8.1
 python-editor==1.0.4
@@ -330,7 +331,7 @@ sasl==0.2.1
 semver==2.10.2
 sendgrid==6.4.5
 sentinels==1.0.0
-sentry-sdk==0.16.3
+sentry-sdk==0.16.4
 setproctitle==1.1.10
 sh==1.13.1
 simple-salesforce==1.10.1
