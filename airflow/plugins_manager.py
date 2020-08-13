@@ -28,7 +28,7 @@ import inspect
 import logging
 import os
 import re
-from typing import Any, Dict, List, Set, Type
+from typing import Any, Dict, List, Type
 
 import pkg_resources
 
@@ -112,33 +112,6 @@ def load_entrypoint_plugins(entry_points, airflow_plugins):
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module_name] = str(e)
     return airflow_plugins
-
-
-def register_inbuilt_operator_links():
-    """
-    Register all the Operators Links that are already defined for the operators
-    in the "airflow" project. Example: QDSLink (Operator Link for Qubole Operator)
-
-    This is required to populate the "allowed list" of allowed classes when deserializing operator links
-    """
-    inbuilt_operator_links = set()  # type: Set[Type]
-
-    try:
-        from airflow.contrib.operators.bigquery_operator import BigQueryConsoleLink, BigQueryConsoleIndexableLink  # noqa E501 # pylint: disable=R0401,line-too-long
-        inbuilt_operator_links.update([BigQueryConsoleLink, BigQueryConsoleIndexableLink])
-    except ImportError:
-        pass
-
-    try:
-        from airflow.contrib.operators.qubole_operator import QDSLink   # pylint: disable=R0401
-        inbuilt_operator_links.update([QDSLink])
-    except ImportError:
-        pass
-
-    registered_operator_link_classes.update({
-        "{}.{}".format(link.__module__, link.__name__): link
-        for link in inbuilt_operator_links
-    })
 
 
 def is_valid_plugin(plugin_obj, existing_plugins):
