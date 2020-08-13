@@ -51,15 +51,15 @@ class S3ToMySqlOperator(BaseOperator):
     ui_color = '#f4a460'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  s3_source_key: str,
                  mysql_table: str,
                  mysql_duplicate_key_handling: str = 'IGNORE',
                  mysql_extra_options: Optional[str] = None,
                  aws_conn_id: str = 'aws_default',
                  mysql_conn_id: str = 'mysql_default',
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.s3_source_key = s3_source_key
         self.mysql_table = mysql_table
         self.mysql_duplicate_key_handling = mysql_duplicate_key_handling

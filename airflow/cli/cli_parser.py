@@ -28,6 +28,7 @@ from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Un
 from tabulate import tabulate_formats
 
 from airflow import settings
+from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -51,7 +52,7 @@ def lazy_load_command(import_path: str) -> Callable:
         func = import_string(import_path)
         return func(*args, **kwargs)
 
-    command.__name__ = name  # type: ignore
+    command.__name__ = name
 
     return command
 
@@ -65,6 +66,8 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if value == 'celery' and executor != ExecutorLoader.CELERY_EXECUTOR:
             message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
             raise ArgumentError(action, message)
+        if action.choices is not None and value not in action.choices:
+            check_legacy_command(action, value)
 
         super()._check_value(action, value)
 
@@ -579,7 +582,7 @@ ARG_ENV_VARS = Arg(
 # connections
 ARG_CONN_ID = Arg(
     ('conn_id',),
-    help='Connection id, required to add/delete a connection',
+    help='Connection id, required to get/add/delete a connection',
     type=str)
 ARG_CONN_ID_FILTER = Arg(
     ('--conn-id',),
@@ -626,10 +629,15 @@ ARG_INCLUDE_SECRETS = Arg(
     ),
     action="store_true",
     default=False)
-ARG_CONN_FILE_PATH = Arg(
-    ('--file-path',),
-    help='Import connections from a file. Acceptable file formats .json or .env',
-    type=str)
+ARG_CONN_EXPORT = Arg(
+    ('file',),
+    help='Output file path for exporting the connections',
+    type=argparse.FileType('w', encoding='UTF-8'))
+ARG_CONN_EXPORT_FORMAT = Arg(
+    ('--format',),
+    help='Format of the connections data in file',
+    type=str,
+    choices=['json', 'yaml', 'env'])
 
 # users
 ARG_USERNAME = Arg(
@@ -734,6 +742,17 @@ ARG_FILE_IO = Arg(
     ),
     action='store_true'
 )
+
+# config
+ARG_SECTION = Arg(
+    ("section",),
+    help="The section name",
+)
+ARG_OPTION = Arg(
+    ("option",),
+    help="The option name",
+)
+
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE, ARG_CONN_HOST, ARG_CONN_LOGIN, ARG_CONN_PASSWORD, ARG_CONN_SCHEMA, ARG_CONN_PORT
@@ -1081,10 +1100,16 @@ DB_COMMANDS = (
 )
 CONNECTIONS_COMMANDS = (
     ActionCommand(
+        name='get',
+        help='Get a connection',
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_get'),
+        args=(ARG_CONN_ID, ARG_COLOR),
+    ),
+    ActionCommand(
         name='list',
         help='List connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
-        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER, ARG_INCLUDE_SECRETS),
+        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER),
     ),
     ActionCommand(
         name='add',
@@ -1103,8 +1128,25 @@ CONNECTIONS_COMMANDS = (
         help='Import connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_import'),
         args=(ARG_CONN_FILE_PATH,),
+    },
+    ActionCommand(
+        name='export',
+        help='Export all connections',
+        description=("All connections can be exported in STDOUT using the following command:\n"
+                     "airflow connections export -\n"
+                     "The file format can be determined by the provided file extension. eg, The following "
+                     "command will export the connections in JSON format:\n"
+                     "airflow connections export /tmp/connections.json\n"
+                     "The --format parameter can be used to mention the connections format. eg, "
+                     "the default format is JSON in STDOUT mode, which can be overridden using: \n"
+                     "airflow connections export - --format yaml\n"
+                     "The --format parameter can also be used for the files, for example:\n"
+                     "airflow connections export /tmp/connections --format json\n"),
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_export'),
+        args=(ARG_CONN_EXPORT, ARG_CONN_EXPORT_FORMAT,),
     ),
 )
+
 USERS_COMMANDS = (
     ActionCommand(
         name='list',
@@ -1193,6 +1235,21 @@ CELERY_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
         args=(),
     )
+)
+
+CONFIG_COMMANDS = (
+    ActionCommand(
+        name='get-value',
+        help='Print the value of the configuration',
+        func=lazy_load_command('airflow.cli.commands.config_command.get_value'),
+        args=(ARG_SECTION, ARG_OPTION, ),
+    ),
+    ActionCommand(
+        name='list',
+        help='List options for the configuration.',
+        func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
+        args=(ARG_COLOR, ),
+    ),
 )
 
 airflow_commands: List[CLICommand] = [
@@ -1284,11 +1341,10 @@ airflow_commands: List[CLICommand] = [
         ),
         args=(),
     ),
-    ActionCommand(
-        name='config',
-        help='Show current application configuration',
-        func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
-        args=(ARG_COLOR, ),
+    GroupCommand(
+        name="config",
+        help='View the configuration options.',
+        subcommands=CONFIG_COMMANDS
     ),
     ActionCommand(
         name='info',
@@ -1334,13 +1390,13 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
 
             self._indent()
             subactions = action._get_subactions()  # pylint: disable=protected-access
-            action_subcommnads, group_subcommnands = partition(
+            action_subcommands, group_subcommands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
             )
             parts.append("\n")
             parts.append('%*s%s:\n' % (self._current_indent, '', "Groups"))
             self._indent()
-            for subaction in group_subcommnands:
+            for subaction in group_subcommands:
                 parts.append(self._format_action(subaction))
             self._dedent()
 
@@ -1348,7 +1404,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
             parts.append('%*s%s:\n' % (self._current_indent, '', "Commands"))
             self._indent()
 
-            for subaction in action_subcommnads:
+            for subaction in action_subcommands:
                 parts.append(self._format_action(subaction))
             self._dedent()
             self._dedent()

@@ -50,15 +50,15 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  project_id: str,
                  dataset_id: str,
                  table_id: str,
                  bigquery_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id

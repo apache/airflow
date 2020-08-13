@@ -141,19 +141,18 @@ class BigQueryCheckOperator(CheckOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         gcp_conn_id: str = 'google_cloud_default',
         bigquery_conn_id: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(sql=sql, *args, **kwargs)
+        super().__init__(sql=sql, **kwargs)
         if bigquery_conn_id:
             warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
-            gcp_conn_id = bigquery_conn_id  # type: ignore
+            gcp_conn_id = bigquery_conn_id
 
         self.gcp_conn_id = gcp_conn_id
         self.sql = sql
@@ -197,7 +196,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
@@ -205,14 +204,13 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
         bigquery_conn_id: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
         super().__init__(
             sql=sql,
             pass_value=pass_value,
             tolerance=tolerance,
-            *args, **kwargs
+            **kwargs
         )
 
         if bigquery_conn_id:
@@ -272,7 +270,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         table: str,
         metrics_thresholds: dict,
         date_filter_column: str = 'ds',
@@ -281,7 +279,6 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
         bigquery_conn_id: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -289,7 +286,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
             metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column,
             days_back=days_back,
-            *args, **kwargs
+            **kwargs
         )
 
         if bigquery_conn_id:
@@ -335,7 +332,7 @@ class BigQueryGetDataOperator(BaseOperator):
             task_id='get_data_from_bq',
             dataset_id='test_dataset',
             table_id='Transaction_partitions',
-            max_results='100',
+            max_results=100,
             selected_fields='DATE',
             gcp_conn_id='airflow-conn-id'
         )
@@ -367,7 +364,7 @@ class BigQueryGetDataOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         table_id: str,
         max_results: int = 100,
@@ -376,10 +373,9 @@ class BigQueryGetDataOperator(BaseOperator):
         bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         location: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if bigquery_conn_id:
             warnings.warn(
@@ -532,6 +528,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     # pylint: disable=too-many-arguments, too-many-locals
     @apply_defaults
     def __init__(self,
+                 *,
                  sql: Union[str, Iterable],
                  destination_dataset_table: Optional[str] = None,
                  write_disposition: Optional[str] = 'WRITE_EMPTY',
@@ -554,9 +551,8 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                  cluster_fields: Optional[List[str]] = None,
                  location: Optional[str] = None,
                  encryption_configuration: Optional[dict] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if bigquery_conn_id:
             warnings.warn(
@@ -788,7 +784,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         table_id: str,
         table_resource: Optional[Dict[str, Any]] = None,
@@ -804,9 +800,9 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         encryption_configuration: Optional[Dict] = None,
         location: Optional[str] = None,
         cluster_fields: Optional[List[str]] = None,
-        *args, **kwargs
+        **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.project_id = project_id
         self.dataset_id = dataset_id
@@ -967,7 +963,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         bucket: str,
         source_objects: List,
         destination_project_dataset_table: str,
@@ -989,9 +985,9 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         labels: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
         location: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         # GCS config
         self.bucket = bucket
@@ -1135,14 +1131,14 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         project_id: Optional[str] = None,
         delete_contents: bool = False,
         gcp_conn_id: str = 'google_cloud_default',
         bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ) -> None:
         if bigquery_conn_id:
             warnings.warn(
@@ -1156,7 +1152,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
@@ -1215,6 +1211,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  dataset_id: Optional[str] = None,
                  project_id: Optional[str] = None,
                  dataset_reference: Optional[Dict] = None,
@@ -1222,7 +1219,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  bigquery_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
 
         if bigquery_conn_id:
             warnings.warn(
@@ -1237,7 +1234,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         self.dataset_reference = dataset_reference if dataset_reference else {}
         self.delegate_to = delegate_to
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(
@@ -1284,16 +1281,17 @@ class BigQueryGetDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  dataset_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
@@ -1334,20 +1332,20 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         project_id: Optional[str] = None,
         max_results: Optional[int] = None,
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ) -> None:
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.max_results = max_results
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(
@@ -1391,13 +1389,13 @@ class BigQueryPatchDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         dataset_resource: dict,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
-        *args, **kwargs,
+        **kwargs,
     ) -> None:
 
         warnings.warn(
@@ -1409,7 +1407,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.dataset_resource = dataset_resource
         self.delegate_to = delegate_to
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(
@@ -1458,14 +1456,14 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_resource: dict,
         fields: Optional[List[str]] = None,
         dataset_id: Optional[str] = None,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ) -> None:
         self.dataset_id = dataset_id
         self.project_id = project_id
@@ -1473,7 +1471,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.dataset_resource = dataset_resource
         self.delegate_to = delegate_to
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(
@@ -1523,17 +1521,16 @@ class BigQueryDeleteTableOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         deletion_dataset_table: str,
         gcp_conn_id: str = 'google_cloud_default',
         bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         ignore_if_missing: bool = False,
         location: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if bigquery_conn_id:
             warnings.warn(
@@ -1595,7 +1592,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         dataset_id: str,
         table_resource: dict,
         project_id: Optional[str] = None,
@@ -1603,10 +1600,9 @@ class BigQueryUpsertTableOperator(BaseOperator):
         bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         location: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if bigquery_conn_id:
             warnings.warn(
@@ -1675,10 +1671,9 @@ class BigQueryInsertJobOperator(BaseOperator):
         job_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.configuration = configuration
         self.location = location
         self.job_id = job_id

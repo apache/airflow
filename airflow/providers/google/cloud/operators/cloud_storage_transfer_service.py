@@ -197,15 +197,14 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         body: dict,
         aws_conn_id: str = 'aws_default',
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.body = deepcopy(body)
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
@@ -256,16 +255,15 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         job_name: str,
         body: dict,
         aws_conn_id: str = 'aws_default',
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.job_name = job_name
         self.body = body
         self.gcp_conn_id = gcp_conn_id
@@ -313,15 +311,14 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         job_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         project_id: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.job_name = job_name
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -361,14 +358,13 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -410,7 +406,6 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
                  request_filter: Optional[Dict] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
-                 *args,
                  **kwargs) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
@@ -421,7 +416,7 @@ class CloudDataTransferServiceListOperationsOperator(BaseOperator):
             else:
                 TypeError("__init__() missing 1 required positional argument: 'request_filter'")
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.filter = request_filter
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -459,14 +454,13 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -502,18 +496,17 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        *args,
         **kwargs
     ) -> None:
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if not self.operation_name:
@@ -546,14 +539,13 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.operation_name = operation_name
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
@@ -635,7 +627,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         s3_bucket: str,
         gcs_bucket: str,
         project_id: Optional[str] = None,
@@ -648,11 +640,10 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         transfer_options: Optional[Dict] = None,
         wait: bool = True,
         timeout: Optional[float] = None,
-        *args,
         **kwargs
     ) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.gcs_bucket = gcs_bucket
         self.project_id = project_id
@@ -778,7 +769,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         source_bucket: str,
         destination_bucket: str,
         project_id: Optional[str] = None,
@@ -790,11 +781,10 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         transfer_options: Optional[Dict] = None,
         wait: bool = True,
         timeout: Optional[float] = None,
-        *args,
         **kwargs
     ) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.destination_bucket = destination_bucket
         self.project_id = project_id

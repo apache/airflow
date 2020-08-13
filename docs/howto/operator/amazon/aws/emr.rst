@@ -48,7 +48,7 @@ Two example_dags are provided which showcase these operators in action.
  - example_emr_job_flow_manual_steps.py
 
 .. note::
-    In order to run the 2 examples sucessfully, you need to create the IAM Service Roles (``EMR_EC2_DefaultRole`` and ``EMR_DefaultRole``) for Amazon EMR.
+    In order to run the 2 examples successfully, you need to create the IAM Service Roles (``EMR_EC2_DefaultRole`` and ``EMR_DefaultRole``) for Amazon EMR.
 
     You can create these roles using the AWS CLI: ``aws emr create-default-roles``
 
@@ -71,7 +71,7 @@ To create a job flow at EMR, you need to specify the configuration for the EMR c
     :start-after: [START howto_operator_emr_automatic_steps_config]
     :end-before: [END howto_operator_emr_automatic_steps_config]
 
-Here we create a EMR single-node Cluster *PiCalc*. It only has a single step *calculate_pi* which calculates the vlaue of ``Pi`` using Spark.
+Here we create a EMR single-node Cluster *PiCalc*. It only has a single step *calculate_pi* which calculates the value of ``Pi`` using Spark.
 The config ``'KeepJobFlowAliveWhenNoSteps': False`` tells the cluster to shut down after the step is finished.
 For more config information, please refer to `Boto3 EMR client <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html#EMR.Client.run_job_flow>`__.
 
@@ -117,5 +117,5 @@ Reference
 For further information, look at:
 
 * `Boto3 Library Documetation for EMR <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html>`__
-* `AWS CLI - create-default-rolse <https://docs.aws.amazon.com/cli/latest/reference/emr/create-default-roles.html>`__
+* `AWS CLI - create-default-roles <https://docs.aws.amazon.com/cli/latest/reference/emr/create-default-roles.html>`__
 * `Configure IAM Service Roles for Amazon EMR Permissions <https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles.html>`__

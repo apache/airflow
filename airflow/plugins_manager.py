@@ -29,8 +29,8 @@ from typing import Any, Dict, List, Optional, Type
 
 import pkg_resources
 
-from airflow import settings  # type: ignore
-from airflow.utils.file import find_path_from_directory  # type: ignore
+from airflow import settings
+from airflow.utils.file import find_path_from_directory
 
 log = logging.getLogger(__name__)
 

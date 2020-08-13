@@ -22,7 +22,7 @@ This module contains a Google Kubernetes Engine Hook.
 
 import time
 import warnings
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Sequence, Union
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
@@ -49,12 +49,16 @@ class GKEHook(GoogleBaseHook):
 
     def __init__(
         self,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         location: Optional[str] = None
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self._client = None
         self.location = location
 
@@ -151,7 +155,7 @@ class GKEHook(GoogleBaseHook):
         worker nodes. Firewalls and routes that were configured during
         cluster creation are also deleted. Other Google Compute Engine
         resources that might be in use by the cluster (e.g. load balancer
-        resources) will not be deleted if they weren’t present at the
+        resources) will not be deleted if they were not present at the
         initial create time.
 
         :param name: The name of the cluster to delete

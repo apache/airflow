@@ -29,16 +29,6 @@ function run_test_package_import_all_classes() {
         -v "${AIRFLOW_SOURCES}/airflow/__init__.py:/airflow_sources/airflow/__init__.py:cached" \
         -v "${AIRFLOW_SOURCES}/airflow/version.py:/airflow_sources/airflow/version.py:cached" \
         -v "${AIRFLOW_SOURCES}/backport_packages/import_all_provider_classes.py:/import_all_provider_classes.py:cached" \
-        --env PYTHONDONTWRITEBYTECODE \
-        --env INSTALL_AIRFLOW_VERSION \
-        --env VERBOSE \
-        --env VERBOSE_COMMANDS \
-        --env HOST_USER_ID="$(id -ur)" \
-        --env HOST_GROUP_ID="$(id -gr)" \
-        --env HOST_OS="$(uname -s)" \
-        --env HOST_HOME="${HOME}" \
-        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-        --rm \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/ci/in_container/run_test_package_import_all_classes.sh" \
         | tee -a "${OUTPUT_LOG}"

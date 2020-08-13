@@ -43,13 +43,13 @@ class EmrCreateJobFlowOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             aws_conn_id='aws_default',
             emr_conn_id='emr_default',
             job_flow_overrides=None,
             region_name=None,
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
         if job_flow_overrides is None:

@@ -264,7 +264,8 @@ To output task logs to stdout in JSON format, the following config could be used
 Writing Logs to Elasticsearch over TLS
 ----------------------------------------
 
-To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, adding a custom self-signed cert, etc.) use the ``elasticsearch_configs`` setting in your ``airfow.cfg``
+To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, adding a custom self-signed
+cert, etc.) use the ``elasticsearch_configs`` setting in your ``airflow.cfg``
 
 .. code-block:: ini
 
@@ -312,7 +313,7 @@ logs under the name ``airflow-tasks``.
 
 You can set ``stackdriver_key_path`` option in the ``[logging]`` section to specify the path to `the service
 account key file <https://cloud.google.com/iam/docs/service-accounts>`__.
-If ommited, authorization based on `the Application Default Credentials
+If omitted, authorization based on `the Application Default Credentials
 <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
 be used.
 

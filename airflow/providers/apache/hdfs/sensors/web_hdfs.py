@@ -29,11 +29,11 @@ class WebHdfsSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  filepath: str,
                  webhdfs_conn_id: str = 'webhdfs_default',
-                 *args: Any,
                  **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.filepath = filepath
         self.webhdfs_conn_id = webhdfs_conn_id
 

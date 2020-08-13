@@ -55,15 +55,14 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         job_name: str,
         expected_statuses: Union[Set[str], str],
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.job_name = job_name
         self.expected_statuses = (
             {expected_statuses} if isinstance(expected_statuses, str) else expected_statuses

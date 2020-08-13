@@ -64,14 +64,13 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         audio: RecognitionAudio,
         config: RecognitionConfig,
         project_id: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        *args,
         **kwargs
     ) -> None:
         self.audio = audio
@@ -81,7 +80,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.audio == "":

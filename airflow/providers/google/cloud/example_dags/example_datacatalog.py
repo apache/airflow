@@ -39,8 +39,6 @@ from airflow.providers.google.cloud.operators.datacatalog import (
 from airflow.utils.dates import days_ago
 from airflow.utils.helpers import chain
 
-default_args = {"start_date": days_ago(1)}
-
 PROJECT_ID = "polidea-airflow"
 LOCATION = "us-central1"
 ENTRY_GROUP_ID = "important_data_jan_2019"
@@ -50,7 +48,7 @@ FIELD_NAME_1 = "first"
 FIELD_NAME_2 = "second"
 FIELD_NAME_3 = "first-rename"
 
-with models.DAG("example_gcp_datacatalog", default_args=default_args, schedule_interval=None) as dag:
+with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_interval=None) as dag:
     # Create
     # [START howto_operator_gcp_datacatalog_create_entry_group]
     create_entry_group = CloudDataCatalogCreateEntryGroupOperator(

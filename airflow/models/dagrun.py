@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
-from typing import Any, List, Optional, Tuple, Union, cast
+from typing import Any, List, Optional, Tuple, Union
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 from sqlalchemy.orm.session import Session
@@ -266,8 +267,6 @@ class DagRun(Base, LoggingMixin):
     def get_previous_dagrun(self, state: Optional[str] = None, session: Session = None) -> Optional['DagRun']:
         """The previous DagRun, if there is one"""
 
-        session = cast(Session, session)  # mypy
-
         filters = [
             DagRun.dag_id == self.dag_id,
             DagRun.execution_date < self.execution_date,
@@ -441,10 +440,10 @@ class DagRun(Base, LoggingMixin):
         tis = self.get_task_instances(session=session)
 
         # check for removed or restored tasks
-        task_ids = []
+        task_ids = set()
         for ti in tis:
             task_instance_mutation_hook(ti)
-            task_ids.append(ti.task_id)
+            task_ids.add(ti.task_id)
             task = None
             try:
                 task = dag.get_task(ti.task_id)
@@ -452,16 +451,16 @@ class DagRun(Base, LoggingMixin):
                 if ti.state == State.REMOVED:
                     pass  # ti has already been removed, just ignore it
                 elif self.state is not State.RUNNING and not dag.partial:
-                    self.log.warning("Failed to get task '{}' for dag '{}'. "
-                                     "Marking it as removed.".format(ti, dag))
+                    self.log.warning("Failed to get task '%s' for dag '%s'. "
+                                     "Marking it as removed.", ti, dag)
                     Stats.incr(
                         "task_removed_from_dag.{}".format(dag.dag_id), 1, 1)
                     ti.state = State.REMOVED
 
             should_restore_task = (task is not None) and ti.state == State.REMOVED
             if should_restore_task:
-                self.log.info("Restoring task '{}' which was previously "
-                              "removed from DAG '{}'".format(ti, dag))
+                self.log.info("Restoring task '%s' which was previously "
+                              "removed from DAG '%s'", ti, dag)
                 Stats.incr("task_restored_to_dag.{}".format(dag.dag_id), 1, 1)
                 ti.state = State.NONE
             session.merge(ti)
@@ -479,7 +478,14 @@ class DagRun(Base, LoggingMixin):
                 task_instance_mutation_hook(ti)
                 session.add(ti)
 
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError as err:
+            self.log.info(str(err))
+            self.log.info('Hit IntegrityError while creating the TIs for '
+                          f'{dag.dag_id} - {self.execution_date}.')
+            self.log.info('Doing session rollback.')
+            session.rollback()
 
     @staticmethod
     def get_run(session, dag_id, execution_date):

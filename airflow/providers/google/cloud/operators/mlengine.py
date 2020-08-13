@@ -21,7 +21,7 @@ This module contains GCP MLEngine operators.
 import logging
 import re
 import warnings
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -151,6 +151,8 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         For this to work, the service account making the request must
         have domain-wide delegation enabled.
     :type delegate_to: str
+    :param labels: a dictionary containing labels for the job; passed to BigQuery
+    :type labels: Dict[str, str]
     :raises: ``ValueError``: if a unique model/version origin cannot be
         determined.
     """
@@ -168,6 +170,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments
+                 *,
                  job_id: str,
                  region: str,
                  data_format: str,
@@ -182,9 +185,9 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args,
+                 labels: Optional[Dict[str, str]] = None,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self._project_id = project_id
         self._job_id = job_id
@@ -200,6 +203,7 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         self._signature_name = signature_name
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self._labels = labels
 
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
@@ -234,6 +238,8 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
                 'region': self._region
             }
         }
+        if self._labels:
+            prediction_request['labels'] = self._labels
 
         if self._uri:
             prediction_request['predictionInput']['uri'] = self._uri
@@ -318,14 +324,14 @@ class MLEngineManageModelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  model: dict,
                  operation: str = 'create',
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         warnings.warn(
             "This operator is deprecated. Consider using operators for specific operations: "
@@ -381,13 +387,13 @@ class MLEngineCreateModelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  model: dict,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._project_id = project_id
         self._model = model
         self._gcp_conn_id = gcp_conn_id
@@ -407,7 +413,7 @@ class MLEngineGetModelOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:MLEngineGetModelOperator`
 
-    The name of model shold be specified in `model_name`.
+    The name of model should be specified in `model_name`.
 
     :param model_name: The name of the model.
     :type model_name: str
@@ -429,13 +435,13 @@ class MLEngineGetModelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  model_name: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
         self._gcp_conn_id = gcp_conn_id
@@ -480,14 +486,14 @@ class MLEngineDeleteModelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  model_name: str,
                  delete_contents: bool = False,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
         self._delete_contents = delete_contents
@@ -565,6 +571,7 @@ class MLEngineManageVersionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  model_name: str,
                  version_name: Optional[str] = None,
                  version: Optional[dict] = None,
@@ -572,9 +579,8 @@ class MLEngineManageVersionOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
         self._version_name = version_name
@@ -661,15 +667,15 @@ class MLEngineCreateVersionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  model_name: str,
                  version: dict,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
         self._version = version
@@ -728,15 +734,15 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  model_name: str,
                  version_name: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
         self._version_name = version_name
@@ -791,14 +797,14 @@ class MLEngineListVersionsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  model_name: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
         self._gcp_conn_id = gcp_conn_id
@@ -852,15 +858,15 @@ class MLEngineDeleteVersionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  model_name: str,
                  version_name: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
         self._version_name = version_name
@@ -953,6 +959,8 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         will be printed out. In 'CLOUD' mode, a real MLEngine training job
         creation request will be issued.
     :type mode: str
+    :param labels: a dictionary containing labels for the job; passed to BigQuery
+    :type labels: Dict[str, str]
     """
 
     template_fields = [
@@ -975,6 +983,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments
+                 *,
                  job_id: str,
                  package_uris: List[str],
                  training_python_module: str,
@@ -989,9 +998,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  mode: str = 'PRODUCTION',
-                 *args,
+                 labels: Optional[Dict[str, str]] = None,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._project_id = project_id
         self._job_id = job_id
         self._package_uris = package_uris
@@ -1006,6 +1015,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
         self._mode = mode
+        self._labels = labels
 
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
@@ -1039,6 +1049,8 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
                 'args': self._training_args,
             }
         }
+        if self._labels:
+            training_request['labels'] = self._labels
 
         if self._runtime_version:
             training_request['trainingInput']['runtimeVersion'] = self._runtime_version
@@ -1114,13 +1126,13 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  job_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._project_id = project_id
         self._job_id = job_id
         self._gcp_conn_id = gcp_conn_id

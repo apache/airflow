@@ -71,15 +71,15 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  config,
                  wait_for_completion=True,
                  check_interval=30,
                  max_ingestion_time=None,
                  operation='create',
-                 *args, **kwargs):
+                 **kwargs):
         super().__init__(config=config,
-                         *args, **kwargs)
+                         **kwargs)
 
         self.config = config
         self.wait_for_completion = wait_for_completion

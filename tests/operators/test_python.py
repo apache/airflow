@@ -68,13 +68,16 @@ def build_recording_function(calls_collection):
     Then using this custom function recording custom Call objects for further testing
     (replacing Mock.assert_called_with assertion method)
     """
+
     def recording_function(*args, **kwargs):
         calls_collection.append(Call(*args, **kwargs))
+
     return recording_function
 
 
 class TestPythonBase(unittest.TestCase):
     """Base test class for TestPythonOperator and TestPythonSensor classes"""
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -326,9 +329,11 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
     def test_fails_bad_signature(self):
         """Tests that @task will fail if signature is not binding."""
+
         @task_decorator
         def add_number(num: int) -> int:
             return num + 2
+
         with pytest.raises(TypeError):
             add_number(2, 3)  # pylint: disable=too-many-function-args
         with pytest.raises(TypeError):
@@ -345,12 +350,14 @@ class TestAirflowTaskDecorator(TestPythonBase):
                 @task_decorator
                 def add_number(self, num: int) -> int:
                     return self.num + num
+
             Test().add_number(2)
 
     def test_fail_multiple_outputs_key_type(self):
         @task_decorator(multiple_outputs=True)
         def add_number(num: int):
             return {2: num}
+
         with self.dag:
             ret = add_number(2)
         self.dag.create_dagrun(
@@ -450,6 +457,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         @task_decorator(task_id='some_name')
         def do_run():
             return 4
+
         with self.dag:
             do_run()
             assert ['some_name'] == self.dag.task_ids
@@ -460,6 +468,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         @task_decorator
         def do_run():
             return 4
+
         with self.dag:
             do_run()
             assert ['do_run'] == self.dag.task_ids
@@ -472,6 +481,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
     def test_call_20(self):
         """Test calling decorated function 21 times in a DAG"""
+
         @task_decorator
         def __do_run():
             return 4
@@ -513,6 +523,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
     def test_default_args(self):
         """Test that default_args are captured when calling the function correctly"""
+
         @task_decorator
         def do_run():
             return 4
@@ -1060,22 +1071,21 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             dag=self.dag,
             **kwargs)
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        return task
 
-    def test_dill_warning(self):
+    def test_add_dill(self):
         def f():
             pass
-        with self.assertRaises(AirflowException):
-            PythonVirtualenvOperator(
-                python_callable=f,
-                task_id='task',
-                dag=self.dag,
-                use_dill=True,
-                system_site_packages=False)
+
+        task = self._run_as_operator(f, use_dill=True, system_site_packages=False)
+        assert 'dill' in task.requirements
 
     def test_no_requirements(self):
         """Tests that the python callable is invoked on task run."""
+
         def f():
             pass
+
         self._run_as_operator(f)
 
     def test_no_system_site_packages(self):
@@ -1085,11 +1095,13 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             except ImportError:
                 return True
             raise Exception
+
         self._run_as_operator(f, system_site_packages=False, requirements=['dill'])
 
     def test_system_site_packages(self):
         def f():
             import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+
         self._run_as_operator(f, requirements=['funcsigs'], system_site_packages=True)
 
     def test_with_requirements_pinned(self):
@@ -1106,30 +1118,35 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_unpinned_requirements(self):
         def f():
             import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+
         self._run_as_operator(
             f, requirements=['funcsigs', 'dill'], system_site_packages=False)
 
     def test_range_requirements(self):
         def f():
             import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+
         self._run_as_operator(
             f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
 
     def test_fail(self):
         def f():
             raise Exception
+
         with self.assertRaises(CalledProcessError):
             self._run_as_operator(f)
 
     def test_python_2(self):
         def f():
             {}.iteritems()  # pylint: disable=no-member
+
         self._run_as_operator(f, python_version=2, requirements=['dill'])
 
     def test_python_2_7(self):
         def f():
             {}.iteritems()  # pylint: disable=no-member
             return True
+
         self._run_as_operator(f, python_version='2.7', requirements=['dill'])
 
     def test_python_3(self):
@@ -1141,6 +1158,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             except AttributeError:
                 return
             raise Exception
+
         self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
 
     @staticmethod
@@ -1165,6 +1183,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_without_dill(self):
         def f(a):
             return a
+
         self._run_as_operator(f, system_site_packages=False, use_dill=False, op_args=[4])
 
     def test_string_args(self):
@@ -1173,6 +1192,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             print(virtualenv_string_args)
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise Exception
+
         self._run_as_operator(
             f, python_version=self._invert_python_major_version(), string_args=[1, 2, 1])
 
@@ -1182,11 +1202,13 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
                 return True
             else:
                 raise Exception
+
         self._run_as_operator(f, op_args=[0, 1], op_kwargs={'c': True})
 
     def test_return_none(self):
         def f():
             return None
+
         self._run_as_operator(f)
 
     def test_lambda(self):
@@ -1199,12 +1221,131 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_nonimported_as_arg(self):
         def f(_):
             return None
+
         self._run_as_operator(f, op_args=[datetime.utcnow()])
 
     def test_context(self):
         def f(templates_dict):
             return templates_dict['ds']
+
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
+
+    def test_airflow_context(self):
+        def f(
+            # basic
+            ds_nodash,
+            inlets,
+            next_ds,
+            next_ds_nodash,
+            outlets,
+            params,
+            prev_ds,
+            prev_ds_nodash,
+            run_id,
+            task_instance_key_str,
+            test_mode,
+            tomorrow_ds,
+            tomorrow_ds_nodash,
+            ts,
+            ts_nodash,
+            ts_nodash_with_tz,
+            yesterday_ds,
+            yesterday_ds_nodash,
+            # pendulum-specific
+            execution_date,
+            next_execution_date,
+            prev_execution_date,
+            prev_execution_date_success,
+            prev_start_date_success,
+            # airflow-specific
+            macros,
+            conf,
+            dag,
+            dag_run,
+            task,
+            # other
+            **context
+        ):  # pylint: disable=unused-argument,too-many-arguments,too-many-locals
+            pass
+
+        self._run_as_operator(
+            f,
+            use_dill=True,
+            system_site_packages=True,
+            requirements=None
+        )
+
+    def test_pendulum_context(self):
+        def f(
+            # basic
+            ds_nodash,
+            inlets,
+            next_ds,
+            next_ds_nodash,
+            outlets,
+            params,
+            prev_ds,
+            prev_ds_nodash,
+            run_id,
+            task_instance_key_str,
+            test_mode,
+            tomorrow_ds,
+            tomorrow_ds_nodash,
+            ts,
+            ts_nodash,
+            ts_nodash_with_tz,
+            yesterday_ds,
+            yesterday_ds_nodash,
+            # pendulum-specific
+            execution_date,
+            next_execution_date,
+            prev_execution_date,
+            prev_execution_date_success,
+            prev_start_date_success,
+            # other
+            **context
+        ):  # pylint: disable=unused-argument,too-many-arguments,too-many-locals
+            pass
+
+        self._run_as_operator(
+            f,
+            use_dill=True,
+            system_site_packages=False,
+            requirements=['pendulum', 'lazy_object_proxy']
+        )
+
+    def test_base_context(self):
+        def f(
+            # basic
+            ds_nodash,
+            inlets,
+            next_ds,
+            next_ds_nodash,
+            outlets,
+            params,
+            prev_ds,
+            prev_ds_nodash,
+            run_id,
+            task_instance_key_str,
+            test_mode,
+            tomorrow_ds,
+            tomorrow_ds_nodash,
+            ts,
+            ts_nodash,
+            ts_nodash_with_tz,
+            yesterday_ds,
+            yesterday_ds_nodash,
+            # other
+            **context
+        ):  # pylint: disable=unused-argument,too-many-arguments,too-many-locals
+            pass
+
+        self._run_as_operator(
+            f,
+            use_dill=True,
+            system_site_packages=False,
+            requirements=None
+        )
 
 
 DEFAULT_ARGS = {

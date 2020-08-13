@@ -20,7 +20,7 @@ import struct
 from datetime import datetime
 from typing import Iterable, Optional
 
-from sqlalchemy import BigInteger, Column, String, UnicodeText, and_, exists
+from sqlalchemy import BigInteger, Column, String, UnicodeText, exists
 
 from airflow.exceptions import AirflowException, DagCodeNotFound
 from airflow.models.base import Base
@@ -97,11 +97,11 @@ class DagCode(Base):
         existing_orm_dag_codes_by_fileloc_hashes = {
             orm.fileloc_hash: orm for orm in existing_orm_dag_codes
         }
-        exisitng_orm_filelocs = {
+        existing_orm_filelocs = {
             orm.fileloc for orm in existing_orm_dag_codes_by_fileloc_hashes.values()
         }
-        if not exisitng_orm_filelocs.issubset(filelocs):
-            conflicting_filelocs = exisitng_orm_filelocs.difference(filelocs)
+        if not existing_orm_filelocs.issubset(filelocs):
+            conflicting_filelocs = existing_orm_filelocs.difference(filelocs)
             hashes_to_filelocs = {
                 DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs
             }
@@ -151,8 +151,8 @@ class DagCode(Base):
         log.debug("Deleting code from %s table ", cls.__tablename__)
 
         session.query(cls).filter(
-            and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
-                 cls.fileloc.notin_(alive_dag_filelocs))).delete(synchronize_session='fetch')
+            cls.fileloc_hash.notin_(alive_fileloc_hashes),
+            cls.fileloc.notin_(alive_dag_filelocs)).delete(synchronize_session='fetch')
 
     @classmethod
     @provide_session

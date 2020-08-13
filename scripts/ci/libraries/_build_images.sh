@@ -312,11 +312,17 @@ function print_build_info() {
     print_info
 }
 
+function get_base_image_version() {
+    # python image version to use
+    PYTHON_BASE_IMAGE_VERSION=${PYTHON_BASE_IMAGE_VERSION:=${PYTHON_MAJOR_MINOR_VERSION}}
+}
+
 
 
 # Prepares all variables needed by the CI build. Depending on the configuration used (python version
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function prepare_ci_build() {
+    get_base_image_version
     # We use pulled docker image cache by default for CI images to  speed up the builds
     export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
     echo
@@ -588,6 +594,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
 # Prepares all variables needed by the CI build. Depending on the configuration used (python version
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function prepare_prod_build() {
+    get_base_image_version
     # We use local docker image cache by default for Production images
     export DOCKER_CACHE=${DOCKER_CACHE:="local"}
     echo

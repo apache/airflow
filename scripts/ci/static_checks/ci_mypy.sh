@@ -28,16 +28,7 @@ function run_mypy() {
 
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
-        --env PYTHONDONTWRITEBYTECODE \
-        --env VERBOSE \
-        --env VERBOSE_COMMANDS \
-        --env HOST_USER_ID="$(id -ur)" \
-        --env HOST_GROUP_ID="$(id -gr)" \
-        --env HOST_OS="$(uname -s)" \
-        --env HOST_HOME="${HOME}" \
-        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
         "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache" \
-        --rm \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "${FILES[@]}" \
         | tee -a "${OUTPUT_LOG}"

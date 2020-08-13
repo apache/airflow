@@ -19,6 +19,7 @@ from marshmallow import ValidationError
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
@@ -26,6 +27,7 @@ from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
 
 
+@security.requires_authentication
 @provide_session
 def delete_pool(pool_name: str, session):
     """
@@ -39,6 +41,7 @@ def delete_pool(pool_name: str, session):
         return Response(status=204)
 
 
+@security.requires_authentication
 @provide_session
 def get_pool(pool_name, session):
     """
@@ -50,6 +53,7 @@ def get_pool(pool_name, session):
     return pool_schema.dump(obj)
 
 
+@security.requires_authentication
 @format_parameters({
     'limit': check_limit
 })
@@ -66,6 +70,7 @@ def get_pools(session, limit, offset=None):
     )
 
 
+@security.requires_authentication
 @provide_session
 def patch_pool(pool_name, session, update_mask=None):
     """
@@ -116,6 +121,7 @@ def patch_pool(pool_name, session, update_mask=None):
     return pool_schema.dump(pool)
 
 
+@security.requires_authentication
 @provide_session
 def post_pool(session):
     """

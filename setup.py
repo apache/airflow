@@ -232,13 +232,14 @@ doc = [
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
-    "sphinxcontrib-redoc>=1.6.0"
+    "sphinxcontrib-redoc>=1.6.0",
+    "sphinxcontrib-spelling==5.2.1"
 ]
 docker = [
     'docker~=3.0',
 ]
 druid = [
-    'pydruid>=0.4.1,<=0.5.8',
+    'pydruid>=0.4.1',
 ]
 elasticsearch = [
     'elasticsearch>7, <7.6.0',
@@ -267,9 +268,9 @@ google = [
     'google-cloud-bigtable>=1.0.0',
     'google-cloud-container>=0.1.1,<2.0',
     'google-cloud-datacatalog>=0.5.0,<0.8',
-    'google-cloud-dataproc>=0.5.0',
+    'google-cloud-dataproc>=1.0.1',
     'google-cloud-dlp>=0.11.0',
-    'google-cloud-kms>=1.2.1',
+    'google-cloud-kms>=1.2.1,<2.0.0',
     'google-cloud-language>=1.1.1',
     'google-cloud-logging>=1.14.0',
     'google-cloud-monitoring>=0.34.0',
@@ -409,7 +410,7 @@ statsd = [
     'statsd>=3.3.0, <4.0',
 ]
 tableau = [
-    'tableauserverclient==0.9',
+    'tableauserverclient~=0.12',
 ]
 vertica = [
     'vertica-python>=0.5.1',
@@ -451,6 +452,7 @@ devel = [
     'flake8-colors',
     'flaky',
     'freezegun',
+    'github3.py',
     'gitpython',
     'ipdb',
     'jira',
@@ -462,11 +464,11 @@ devel = [
     'pre-commit',
     'pylint==2.5.3',
     'pysftp',
-    'pytest',
+    'pytest<6.0.0',  # FIXME: pylint complaining for pytest.mark.* on v6.0
     'pytest-cov',
     'pytest-instafail',
     'pytest-rerunfailures',
-    'pytest-timeout',
+    'pytest-timeouts',
     'pytest-xdist',
     'pywinrm',
     'qds-sdk>=1.9.6',
@@ -510,7 +512,6 @@ PROVIDERS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "discord": [],
     "docker": docker,
     "elasticsearch": [],
-    "email": [],
     "exasol": exasol,
     "facebook": facebook,
     "ftp": [],
@@ -555,7 +556,7 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     'all_dbs': all_dbs,
     'amazon': amazon,
     'apache.atlas': atlas,
-    'apache_beam': apache_beam,
+    'apache.beam': apache_beam,
     "apache.cassandra": cassandra,
     "apache.druid": druid,
     "apache.hdfs": hdfs,
@@ -702,7 +703,7 @@ INSTALL_REQUIREMENTS = [
     'dill>=0.2.2, <0.4',
     'flask>=1.1.0, <2.0',
     'flask-appbuilder>2.3.4,~=3.0',
-    'flask-caching>=1.3.3, <1.4.0',
+    'flask-caching>=1.3.3, <2.0.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger==0.2.13',
     'flask-wtf>=0.14.2, <0.15',
@@ -710,7 +711,7 @@ INSTALL_REQUIREMENTS = [
     'graphviz>=0.12',
     'gunicorn>=19.5.0, <20.0',
     'iso8601>=0.1.12',
-    'jinja2>=2.10.1, <2.11.0',
+    'jinja2>=2.10.1, <2.12.0',
     'json-merge-patch==0.2',
     'jsonschema~=3.0',
     'lazy_object_proxy~=1.3',
@@ -732,7 +733,7 @@ INSTALL_REQUIREMENTS = [
     'sqlalchemy~=1.3',
     'sqlalchemy_jsonfield~=0.9',
     'tabulate>=0.7.5, <0.9',
-    'tenacity==4.12.0',
+    'tenacity>=4.12.0, <5.2',
     'thrift>=0.9.2',
     'typing;python_version<"3.6"',
     'typing-extensions>=3.7.4;python_version<"3.8"',

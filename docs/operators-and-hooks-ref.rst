@@ -57,10 +57,14 @@ Fundamentals
 
    * - :mod:`airflow.operators.branch_operator`
      -
+
    * - :mod:`airflow.operators.dagrun_operator`
      -
 
    * - :mod:`airflow.operators.dummy_operator`
+     -
+
+   * - :mod:`airflow.operators.email`
      -
 
    * - :mod:`airflow.operators.generic_transfer`
@@ -96,6 +100,9 @@ Fundamentals
      -
 
    * - :mod:`airflow.sensors.time_sensor`
+     -
+
+   * - :mod:`airflow.sensors.date_time_sensor`
      -
 
 
@@ -469,9 +476,10 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_endpoint_config`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_endpoint`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_model`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_processing`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_training`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_transform`,
-       :mod:`airflow.providers.amazon.aws.operators.sagemaker_tuning`
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_tuning`,
      - :mod:`airflow.providers.amazon.aws.sensors.sagemaker_base`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_endpoint`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_training`,
@@ -499,7 +507,8 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.operators.s3_delete_objects`,
        :mod:`airflow.providers.amazon.aws.operators.s3_list`
      - :mod:`airflow.providers.amazon.aws.sensors.s3_key`,
-       :mod:`airflow.providers.amazon.aws.sensors.s3_prefix`
+       :mod:`airflow.providers.amazon.aws.sensors.s3_prefix`,
+       :mod:`airflow.providers.amazon.aws.sensors.s3_keys_unchanged`
 
    * - `AWS Step Functions <https://aws.amazon.com/step-functions/>`__
      -
@@ -711,6 +720,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.dataflow`
      -
 
+   * - `Dataprep <https://cloud.google.com/dataprep/>`__
+     - :doc:`How to use <howto/operator/google/cloud/dataprep>`
+     - :mod:`airflow.providers.google.cloud.hooks.dataprep`
+     - :mod:`airflow.providers.google.cloud.operators.dataprep`
+     -
+
    * - `Dataproc <https://cloud.google.com/dataproc/>`__
      - :doc:`How to use <howto/operator/google/cloud/dataproc>`
      - :mod:`airflow.providers.google.cloud.hooks.dataproc`
@@ -718,7 +733,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Datastore <https://cloud.google.com/datastore/>`__
-     -
+     - :doc:`How to use <howto/operator/google/cloud/datastore>`
      - :mod:`airflow.providers.google.cloud.hooks.datastore`
      - :mod:`airflow.providers.google.cloud.operators.datastore`
      -
@@ -1593,12 +1608,6 @@ communication protocols or interface.
      -
      - :mod:`airflow.providers.ssh.hooks.ssh`
      - :mod:`airflow.providers.ssh.operators.ssh`
-     -
-
-   * - `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc821>`__
-     -
-     -
-     - :mod:`airflow.providers.email.operators.email`
      -
 
    * - `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-gb/windows/win32/winrm/portal>`__

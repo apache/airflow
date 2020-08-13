@@ -22,6 +22,7 @@ from typing import Any, List, Optional
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
+from airflow.utils.decorators import apply_defaults
 
 
 class GoogleSheetsToGCSOperator(BaseOperator):
@@ -51,18 +52,18 @@ class GoogleSheetsToGCSOperator(BaseOperator):
 
     template_fields = ["spreadsheet_id", "destination_bucket", "destination_path", "sheet_filter"]
 
+    @apply_defaults
     def __init__(
-        self,
+        self, *,
         spreadsheet_id: str,
         destination_bucket: str,
         sheet_filter: Optional[List[str]] = None,
         destination_path: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.spreadsheet_id = spreadsheet_id
         self.sheet_filter = sheet_filter

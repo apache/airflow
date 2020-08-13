@@ -17,7 +17,7 @@
 # under the License.
 #
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient.discovery import build
 
@@ -31,8 +31,17 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
     This allows for scheduled and programatic inspection and deletion fo resources managed by GDM.
     """
 
-    def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
-        super(GoogleDeploymentManagerHook, self).__init__(gcp_conn_id, delegate_to=delegate_to)
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
+        super(GoogleDeploymentManagerHook, self).__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
 
     def get_conn(self):
         """

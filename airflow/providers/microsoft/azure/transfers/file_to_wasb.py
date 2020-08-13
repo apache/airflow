@@ -42,15 +42,14 @@ class FileToWasbOperator(BaseOperator):
     template_fields = ('file_path', 'container_name', 'blob_name')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  file_path: str,
                  container_name: str,
                  blob_name: str,
                  wasb_conn_id: str = 'wasb_default',
                  load_options: Optional[dict] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if load_options is None:
             load_options = {}
         self.file_path = file_path

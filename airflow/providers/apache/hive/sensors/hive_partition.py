@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -46,16 +46,15 @@ class HivePartitionSensor(BaseSensorOperator):
     ui_color = '#C5CAE9'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  table: str,
                  partition: Optional[str] = "ds='{{ ds }}'",
                  metastore_conn_id: str = 'metastore_default',
                  schema: str = 'default',
                  poke_interval: int = 60 * 3,
-                 *args: Tuple[Any, ...],
                  **kwargs: Any):
         super().__init__(
-            poke_interval=poke_interval, *args, **kwargs)
+            poke_interval=poke_interval, **kwargs)
         if not partition:
             partition = "ds='{{ ds }}'"
         self.metastore_conn_id = metastore_conn_id

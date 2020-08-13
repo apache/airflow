@@ -34,7 +34,30 @@ from airflow.hooks.base_hook import BaseHook
 
 class GoogleAdsHook(BaseHook):
     """
-    Hook for the Google Ads API
+    Hook for the Google Ads API.
+
+    This hook requires two connections:
+
+        - gcp_conn_id - provides service account details (like any other GCP connection)
+        - google_ads_conn_id - which contains information from Google Ads config.yaml file
+          in the ``extras``. Example of the ``extras``:
+
+        .. code-block:: json
+
+            {
+                "google_ads_client": {
+                    "developer_token": "{{ INSERT_TOKEN }}",
+                    "path_to_private_key_file": null,
+                    "delegated_account": "{{ INSERT_DELEGATED_ACCOUNT }}"
+                }
+            }
+
+        The ``path_to_private_key_file`` is resolved by the hook using credentials from gcp_conn_id.
+        https://developers.google.com/google-ads/api/docs/client-libs/python/oauth-service
+
+    .. seealso::
+        For more information on how Google Ads authentication flow works take a look at:
+        https://developers.google.com/google-ads/api/docs/client-libs/python/oauth-service
 
     .. seealso::
         For more information on the Google Ads API, take a look at the API docs:

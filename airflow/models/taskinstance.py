@@ -66,13 +66,14 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
 TR = TaskReschedule
+Context = Dict[str, Any]
 
-_CURRENT_CONTEXT = []
+_CURRENT_CONTEXT: List[Context] = []
 log = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager
-def set_current_context(context: Dict[str, Any]):
+def set_current_context(context: Context):
     """
     Sets the current execution context to the provided context object.
     This method should be called once per Task execution, before calling operator.execute.
@@ -1166,8 +1167,8 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
         self.render_templates(context=context)
         if STORE_SERIALIZED_DAGS:
-            RTIF.write(RTIF(ti=self, render_templates=False), session=session)
-            RTIF.delete_old_records(self.task_id, self.dag_id, session=session)
+            RTIF.write(RTIF(ti=self, render_templates=False))
+            RTIF.delete_old_records(self.task_id, self.dag_id)
 
         # Export context to make it available for operators to use.
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
@@ -1391,7 +1392,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
         return ''
 
     @provide_session
-    def get_template_context(self, session=None) -> Dict[str, Any]:  # pylint: disable=too-many-locals
+    def get_template_context(self, session=None) -> Context:  # pylint: disable=too-many-locals
         """Return TI Context"""
         task = self.task
         from airflow import macros
@@ -1583,7 +1584,7 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
             self.log.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
             params.update(dag_run.conf)
 
-    def render_templates(self, context: Optional[Dict] = None) -> None:
+    def render_templates(self, context: Optional[Context] = None) -> None:
         """Render templates in the operator fields."""
         if not context:
             context = self.get_template_context()
@@ -1771,9 +1772,9 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
                                for tik in tis])
             return or_(*filter_for_tis)
         if all(isinstance(t, TaskInstance) for t in tis):
-            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,  # type: ignore
-                                    TI.task_id == ti.task_id,  # type: ignore
-                                    TI.execution_date == ti.execution_date)  # type: ignore
+            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
+                                    TI.task_id == ti.task_id,
+                                    TI.execution_date == ti.execution_date)
                                for ti in tis])
             return or_(*filter_for_tis)
 

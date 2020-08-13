@@ -140,7 +140,7 @@ def register_source(app, env, modname):
     :param modname: name of the module to load
     :return: True if the code is registered successfully, False otherwise
     """
-    entry = env._viewcode_modules.get(modname, None)  # type: ignore
+    entry = env._viewcode_modules.get(modname, None)
     if entry is False:
         print("[%s] Entry is false for " % modname)
         return False
@@ -153,7 +153,7 @@ def register_source(app, env, modname):
         except Exception as ex:  # pylint: disable=broad-except
             logger.info("Module \"%s\" could not be loaded. Full source will not be available. \"%s\"",
                         modname, ex)
-            env._viewcode_modules[modname] = False  # type: ignore
+            env._viewcode_modules[modname] = False
             return False
 
         if not isinstance(analyzer.code, str):
@@ -169,7 +169,7 @@ def register_source(app, env, modname):
 
     if entry is None or entry[0] != code:
         entry = code, tags, {}, ""
-        env._viewcode_modules[modname] = entry  # type: ignore
+        env._viewcode_modules[modname] = entry
 
     return True
 # pylint: enable=protected-access
@@ -222,7 +222,7 @@ def doctree_read(app, doctree):
     """
     env = app.builder.env
     if not hasattr(env, "_viewcode_modules"):
-        env._viewcode_modules = {}  # type: ignore
+        env._viewcode_modules = {}
 
     if app.builder.name == "singlehtml":
         return

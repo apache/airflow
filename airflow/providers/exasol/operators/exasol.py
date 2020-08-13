@@ -47,14 +47,14 @@ class ExasolOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             sql: str,
             exasol_conn_id: str = 'exasol_default',
             autocommit: bool = False,
             parameters: Optional[Mapping] = None,
             schema: Optional[str] = None,
-            *args, **kwargs):
-        super(ExasolOperator, self).__init__(*args, **kwargs)
+            **kwargs):
+        super(ExasolOperator, self).__init__(**kwargs)
         self.exasol_conn_id = exasol_conn_id
         self.sql = sql
         self.autocommit = autocommit

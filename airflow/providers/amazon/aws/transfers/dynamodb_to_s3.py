@@ -31,6 +31,7 @@ from uuid import uuid4
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.aws_dynamodb import AwsDynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.utils.decorators import apply_defaults
 
 
 def _convert_item_to_json_bytes(item):
@@ -90,15 +91,16 @@ class DynamoDBToS3Operator(BaseOperator):
     :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
     """
 
-    def __init__(self,
+    @apply_defaults
+    def __init__(self, *,
                  dynamodb_table_name: str,
                  s3_bucket_name: str,
                  file_size: int,
                  dynamodb_scan_kwargs: Optional[Dict[str, Any]] = None,
                  s3_key_prefix: str = '',
                  process_func: Callable[[Dict[str, Any]], bytes] = _convert_item_to_json_bytes,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+                 **kwargs):
+        super().__init__(**kwargs)
         self.file_size = file_size
         self.process_func = process_func
         self.dynamodb_table_name = dynamodb_table_name

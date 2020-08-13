@@ -64,7 +64,7 @@ class SparkSqlOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  sql: str,
                  conf: Optional[str] = None,
                  conn_id: str = 'spark_sql_default',
@@ -78,9 +78,8 @@ class SparkSqlOperator(BaseOperator):
                  num_executors: Optional[int] = None,
                  verbose: bool = True,
                  yarn_queue: str = 'default',
-                 *args: Any,
                  **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._sql = sql
         self._conf = conf
         self._conn_id = conn_id

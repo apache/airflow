@@ -22,15 +22,6 @@ export FORCE_ANSWER_TO_QUESTIONS=quit
 
 function refresh_pylint_todo() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --env PYTHONDONTWRITEBYTECODE \
-        --env VERBOSE \
-        --env VERBOSE_COMMANDS \
-        --env HOST_USER_ID="$(id -ur)" \
-        --env HOST_GROUP_ID="$(id -gr)" \
-        --env HOST_OS="$(uname -s)" \
-        --env HOST_HOME="${HOME}" \
-        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-        --rm \
         "${AIRFLOW_CI_IMAGE}" \
         /opt/airflow/scripts/ci/in_container/refresh_pylint_todo.sh \
         | tee -a "${OUTPUT_LOG}"

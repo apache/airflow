@@ -31,7 +31,7 @@ class SnowflakeToSlackOperator(BaseOperator):
     """
     Executes an SQL statement in Snowflake and sends the results to Slack. The results of the query are
     rendered into the 'slack_message' parameter as a Pandas dataframe using a JINJA variable called '{{
-    results_df }}'. The 'results_df' variable name can be changed by specifing a different
+    results_df }}'. The 'results_df' variable name can be changed by specifying a different
     'results_df_name' parameter. The Tabulate library is added to the JINJA environment as a filter to
     allow the dataframe to be rendered nicely. For example, set 'slack_message' to {{ results_df |
     tabulate(tablefmt="pretty", headers="keys") }} to send the results to Slack as an ascii rendered table.
@@ -69,6 +69,7 @@ class SnowflakeToSlackOperator(BaseOperator):
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
+        *,
         sql: str,
         slack_message: str,
         snowflake_conn_id: str = 'snowflake_default',
@@ -80,9 +81,9 @@ class SnowflakeToSlackOperator(BaseOperator):
         schema: Optional[str] = None,
         role: Optional[str] = None,
         slack_token: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ) -> None:
-        super(SnowflakeToSlackOperator, self).__init__(*args, **kwargs)
+        super(SnowflakeToSlackOperator, self).__init__(**kwargs)
 
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql

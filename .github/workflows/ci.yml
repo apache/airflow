@@ -28,6 +28,7 @@ on:
 env:
 
   MOUNT_LOCAL_SOURCES: "false"
+  MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   SKIP_CHECK_REMOTE_IMAGE: "true"
   SKIP_CI_IMAGE_CHECK: "true"
@@ -47,36 +48,29 @@ jobs:
     name: "Cancel previous workflow run"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
-      - name: Get ci workflow id
-        run: "scripts/ci/cancel/get_workflow_id.sh"
-        env:
-          WORKFLOW: ci
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repositoru }}
-      - name: Cancel workflow ${{ github.workflow }}
-        uses: styfle/cancel-workflow-action@0.3.2
+      - name: Cancel other workflow runs
+        uses: potiuk/cancel-workflow-runs@v1
         with:
-          workflow_id: ${{ env.WORKFLOW_ID }}
-          access_token: ${{ github.token }}
+          workflow: ci.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   static-checks:
     timeout-minutes: 60
-    name: "Static checks"
+    name: "Static checks: no pylint"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     env:
       MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
+      SKIP: "pylint"
     steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: Cache pre-commit env
         uses: actions/cache@v2
         env:
-          cache-name: cache-pre-commit-v1
+          cache-name: cache-pre-commit-master-no-pylint-v1
         with:
           path: ~/.cache/pre-commit
           key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -84,52 +78,96 @@ jobs:
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Static checks"
+      - name: "Static checks: no pylint"
         run: ./scripts/ci/static_checks/ci_run_static_checks.sh
+
+  static-checks-pylint:
+    timeout-minutes: 60
+    name: "Static checks: pylint"
+    runs-on: ubuntu-latest
+    needs: [cancel-previous-workflow-run]
+    env:
+      MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS: "true"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      - name: Cache pre-commit env
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-pre-commit-master-pylint-v1
+        with:
+          path: ~/.cache/pre-commit
+          key: ${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Build CI image"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Static checks: pylint"
+        run: ./scripts/ci/static_checks/ci_run_static_checks.sh pylint
+
   docs:
     timeout-minutes: 60
     name: "Build docs"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Build CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Build docs"
         run: ./scripts/ci/docs/ci_docs.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload documentation
+        if: always()
+        with:
+          name: airflow-documentation
+          path: './files/documentation'
 
   prepare-backport-packages:
     timeout-minutes: 60
     name: "Backport packages"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     env:
       INSTALL_AIRFLOW_VERSION: "1.10.10"
       PYTHON_MAJOR_MINOR_VERSION: 3.6
     steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Prepare & test backport packages"
         run: "./scripts/ci/backport_packages/ci_prepare_and_test_backport_packages.sh"
+      - uses: actions/upload-artifact@v2
+        name: Upload packages
+        if: always()
+        with:
+          name: >
+            airflow-backport-packages
+          path: './files/airflow-packages-*'
+      - uses: actions/upload-artifact@v2
+        name: Upload readmes
+        if: always()
+        with:
+          name: >
+            airflow-backport-readmes
+          path: './files/airflow-backport-readme*'
 
   trigger-tests:
     timeout-minutes: 5
     name: "Checks if tests should be run"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     outputs:
       run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Check if tests should be run"
         run: "./scripts/ci/tools/ci_check_if_tests_should_be_run.sh"
         id: trigger-tests
@@ -144,8 +182,7 @@ jobs:
         python-version: [3.6, 3.7]
         kube-mode:
           - image
-        kubernetes-version:
-          - "v1.18.2"
+        kubernetes-version: [v1.18.6, v1.17.5, v1.16.9]
         kind-version:
           - "v0.8.0"
         helm-version:
@@ -165,10 +202,10 @@ jobs:
       HELM_VERSION: "${{ matrix.helm-version }}"
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - uses: engineerd/setup-kind@v0.4.0
@@ -182,7 +219,7 @@ jobs:
       - name: Cache virtualenv for kubernetes testing
         uses: actions/cache@v2
         env:
-          cache-name: cache-kubernetes-tests-virtualenv-v2
+          cache-name: cache-kubernetes-tests-virtualenv-v3
         with:
           path: .build/.kubernetes_venv
           key: "${{ env.cache-name }}-${{ github.job }}-v1"
@@ -190,11 +227,15 @@ jobs:
         run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
       - uses: actions/upload-artifact@v2
         name: Upload KinD logs
-        # Always run this, even if one of th previous steps failed.
         if: always()
         with:
-          name: 'kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}'
-          path: '/tmp/kind_logs_*'
+          name: kind-logs-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
+          path: /tmp/kind_logs_*
+      - uses: actions/upload-artifact@v2
+        name: Upload artifact for coverage
+        with:
+          name: coverage-k8s-${{matrix.kube-mode}}-${{matrix.python-version}}-${{matrix.kubernetes-version}}
+          path: ./files/coverage.xml
 
   tests-postgres:
     timeout-minutes: 80
@@ -213,18 +254,30 @@ jobs:
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: "true"
       TEST_TYPE: ${{ matrix.test-type }}
-    if: needs.trigger-tests.outputs.count == 'true' || github.event_name != 'pull_request'
+    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload airflow logs
+        if: always()
+        with:
+          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
+          path: './files/airflow_logs*'
+      - uses: actions/upload-artifact@v2
+        name: Upload artifact for coverage
+        with:
+          name: >
+            coverage-postgres-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
+          path: ./files/coverage.xml
 
   tests-mysql:
     timeout-minutes: 80
@@ -245,16 +298,27 @@ jobs:
       TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload airflow logs
+        if: always()
+        with:
+          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
+          path: './files/airflow_logs*'
+      - uses: actions/upload-artifact@v2
+        name: Upload artifact for coverage
+        with:
+          name: coverage-mysql-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
+          path: ./files/coverage.xml
 
   tests-sqlite:
     timeout-minutes: 80
@@ -269,24 +333,35 @@ jobs:
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      TEST_TYPE: ${{ matrix.test-type }}
       RUN_TESTS: "true"
+      TEST_TYPE: ${{ matrix.test-type }}
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload airflow logs
+        if: always()
+        with:
+          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}
+          path: './files/airflow_logs*'
+      - uses: actions/upload-artifact@v2
+        name: Upload artifact for coverage
+        with:
+          name: coverage-sqlite-${{matrix.test-type}}-${{matrix.python-version}}
+          path: ./files/coverage.xml
 
   tests-quarantined:
     timeout-minutes: 80
-    name: "${{matrix.test-type}}:Pg${{matrix.postgres-version}},Py${{matrix.python-version}}"
+    name: "Quarantined tests"
     runs-on: ubuntu-latest
     continue-on-error: true
     needs: [trigger-tests]
@@ -294,35 +369,87 @@ jobs:
       matrix:
         python-version: [3.6]
         postgres-version: [9.6]
-        test-type: [Quarantined]
       fail-fast: false
     env:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: "true"
-      TEST_TYPE: ${{ matrix.test-type }}
+      TEST_TYPE: Quarantined
+      NUM_RUNS: 20
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
     steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
+      - name: "Set issue id for master"
+        if: github.ref == 'refs/heads/master'
+        run: |
+          echo "::set-env name=ISSUE_ID::10118"
+      - name: "Set issue id for v1-10-stable"
+        if: github.ref == 'refs/heads/v1-10-stable'
+        run: |
+          echo "::set-env name=ISSUE_ID::10127"
+      - name: "Set issue id for v1-10-test"
+        if: github.ref == 'refs/heads/v1-10-test'
+        run: |
+          echo "::set-env name=ISSUE_ID::10128"
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload Quarantine test results
+        if: always()
+        with:
+          name: 'quarantined_tests'
+          path: 'files/test_result.xml'
+      - uses: actions/upload-artifact@v2
+        name: Upload airflow logs
+        if: always()
+        with:
+          name: airflow-logs-quarantined-${{matrix.python-version}}-${{ matrix.postgres-version }}
+          path: './files/airflow_logs*'
+      - uses: actions/upload-artifact@v2
+        name: Upload artifact for coverage
+        with:
+          name: coverage-quarantined-${{matrix.test-type}}-${{matrix.python-version}}
+          path: ./files/coverage.xml
+
+  upload-coverage:
+    timeout-minutes: 5
+    name: "Upload coverage"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs:
+      - tests-kubernetes
+      - tests-postgres
+      - tests-sqlite
+      - tests-mysql
+      - tests-quarantined
+    steps:
+      - uses: actions/download-artifact@v2
+        name: Download all artifacts from the current build
+        with:
+          path: ./coverage-files
+      - name: Removes unnecessary artifacts
+        run: ls ./coverage-files | grep -v coverage | xargs rm -rf
+      - uses: codecov/codecov-action@v1
+        name: Upload all coverage reports to codecov
+        with:
+          directory: ./coverage-files
 
   helm-tests:
     timeout-minutes: 5
     name: "Checks: Helm tests"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Helm Tests"
         run: ./scripts/ci/kubernetes/ci_run_helm_testing.sh
 
@@ -330,15 +457,14 @@ jobs:
     timeout-minutes: 60
     name: "Build prod image Py${{ matrix.python-version }}"
     runs-on: ubuntu-latest
+    needs: [cancel-previous-workflow-run]
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
-    needs:
-      - cancel-previous-workflow-run
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Build PROD image ${{ matrix.python-version }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
 
@@ -362,7 +488,7 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build PROD images ${{ matrix.python-version }}"
@@ -390,7 +516,7 @@ jobs:
       PULL_PYTHON_BASE_IMAGES_FROM_CACHE: "false"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image"
@@ -407,7 +533,6 @@ jobs:
         python-version: [3.6, 3.7, 3.8]
       fail-fast: false
     needs:
-      - cancel-previous-workflow-run
       - tests-sqlite
       - tests-mysql
       - tests-postgres
@@ -415,11 +540,11 @@ jobs:
     env:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: |
-      github.event_name == 'push' &&
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test')
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
+      github.event_name != 'pull'
     steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI image ${{ matrix.python-version }}"
@@ -430,7 +555,7 @@ jobs:
         name: Upload constraint artifacts
         with:
           name: 'constraints-${{matrix.python-version}}'
-          path: 'files/constraints-${{matrix.python-version}}/constraints-${{matrix.python-version}}.txt'
+          path: './files/constraints-${{matrix.python-version}}/constraints-${{matrix.python-version}}.txt'
 
   constraints-push:
     timeout-minutes: 10
@@ -439,8 +564,8 @@ jobs:
     needs:
       - constraints
     if: |
-      github.event_name == 'push' &&
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test')
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
+      github.event_name != 'pull'
     steps:
       - name: "Set constraints branch name"
         id: constraints-branch
@@ -471,9 +596,9 @@ jobs:
           git config --local user.name "Automated Github Actions commit"
           git diff --exit-code || git commit --all --message "Updating constraints. GH run id:${GITHUB_RUN_ID}
 
-          This update in constraints is automatically committed by CI pushing
-          reference '${GITHUB_REF}' to ${GITHUB_REPOSITORY} with commit sha
-          ${GITHUB_SHA}.
+          This update in constraints is automatically committed by the CI 'constraints-push' step based on
+          HEAD of '${GITHUB_REF}' in '${GITHUB_REPOSITORY}'
+          with commit sha ${GITHUB_SHA}.
 
           All tests passed in this build so we determined we can push the updated constraints.
 
@@ -500,7 +625,7 @@ jobs:
       - docs
     if: github.event_name == 'schedule'
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Tag commit"
@@ -519,20 +644,8 @@ jobs:
   test-openapi-client-generation:
     name: "Test OpenAPI client generation"
     runs-on: ubuntu-latest
-    needs:
-      - cancel-previous-workflow-run
+    needs: [cancel-previous-workflow-run]
     steps:
-      - uses: actions/checkout@master
-      - name: Get workflow id
-        run: "scripts/ci/cancel/get_workflow_id.sh"
-        env:
-          WORKFLOW: openapi
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repositoru }}
-      - name: Cancel workflow ${{ github.workflow }}
-        uses: styfle/cancel-workflow-action@0.3.2
-        with:
-          workflow_id: ${{ env.WORKFLOW_ID }}
-          access_token: ${{ github.token }}
+      - uses: actions/checkout@v2
       - name: "Generate client codegen diff"
         run: ./scripts/ci/openapi/client_codegen_diff.sh

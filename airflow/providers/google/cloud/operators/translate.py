@@ -18,7 +18,7 @@
 """
 This module contains Google Translate operators.
 """
-from typing import List, Union
+from typing import List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -79,17 +79,16 @@ class CloudTranslateTextOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         values: Union[List[str], str],
         target_language: str,
         format_: str,
-        source_language: str,
+        source_language: Optional[str],
         model: str,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.values = values
         self.target_language = target_language
         self.format_ = format_

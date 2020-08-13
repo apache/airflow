@@ -36,8 +36,6 @@ from airflow.providers.google.cloud.operators.video_intelligence import (
 )
 from airflow.utils.dates import days_ago
 
-default_args = {"start_date": days_ago(1)}
-
 # [START howto_operator_video_intelligence_os_args]
 GCP_BUCKET_NAME = os.environ.get(
     "GCP_VIDEO_INTELLIGENCE_BUCKET_NAME", "test-bucket-name"
@@ -52,8 +50,8 @@ INPUT_URI = "gs://{}/video.mp4".format(GCP_BUCKET_NAME)
 
 with models.DAG(
     "example_gcp_video_intelligence",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
 

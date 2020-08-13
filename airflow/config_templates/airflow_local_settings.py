@@ -18,12 +18,12 @@
 """Airflow logging settings"""
 
 import os
+from pathlib import Path
 from typing import Any, Dict, Union
 from urllib.parse import urlparse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.utils.file import mkdirs
 
 # TODO: Logging format and level should be configured
 # in this file instead of from airflow.cfg. Currently
@@ -100,11 +100,6 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'handler': ['console'],
             'level': FAB_LOG_LEVEL,
             'propagate': True,
-        },
-        'connexion': {
-            'handler': ['console'],
-            'level': LOG_LEVEL,
-            'propagate': True,
         }
     },
     'root': {
@@ -112,6 +107,15 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
         'level': LOG_LEVEL,
     }
 }
+
+EXTRA_LOGGER_NAMES: str = conf.get('logging', 'EXTRA_LOGGER_NAMES', fallback=None)
+if EXTRA_LOGGER_NAMES:
+    new_loggers = {
+        logger_name.strip(): {
+            'handler': ['console'], 'level': LOG_LEVEL, 'propagate': True, }
+        for logger_name in EXTRA_LOGGER_NAMES.split(",")
+    }
+    DEFAULT_LOGGING_CONFIG['loggers'].update(new_loggers)
 
 DEFAULT_DAG_PARSING_LOGGING_CONFIG: Dict[str, Dict[str, Dict[str, Any]]] = {
     'handlers': {
@@ -147,7 +151,7 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
     processor_manager_handler_config: Dict[str, Any] = \
         DEFAULT_DAG_PARSING_LOGGING_CONFIG['handlers']['processor_manager']
     directory: str = os.path.dirname(processor_manager_handler_config['filename'])
-    mkdirs(directory, 0o755)
+    Path(directory).mkdir(parents=True, exist_ok=True, mode=0o755)
 
 ##################
 # Remote logging #

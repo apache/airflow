@@ -157,7 +157,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
     # pylint: disable=too-many-locals,too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket,
                  source_objects,
                  destination_project_dataset_table,
@@ -187,9 +187,9 @@ class GCSToBigQueryOperator(BaseOperator):
                  autodetect=True,
                  encryption_configuration=None,
                  location=None,
-                 *args, **kwargs):
+                 **kwargs):
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         # GCS config
         if src_fmt_configs is None:

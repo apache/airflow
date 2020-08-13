@@ -34,7 +34,7 @@ from tabulate import tabulate
 from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
-from airflow.exceptions import AirflowDagCycleException
+from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException
 from airflow.plugins_manager import integrate_dag_plugins
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -343,9 +343,10 @@ class DagBag(BaseDagBag, LoggingMixin):
                 self.import_errors[dag.full_filepath] = f"Invalid Cron expression: {cron_e}"
                 self.file_last_changed[dag.full_filepath] = \
                     file_last_changed_on_disk
-            except AirflowDagCycleException as cycle_exception:
+            except (AirflowDagCycleException,
+                    AirflowClusterPolicyViolation) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                self.import_errors[dag.full_filepath] = str(cycle_exception)
+                self.import_errors[dag.full_filepath] = str(exception)
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
         return found_dags
 

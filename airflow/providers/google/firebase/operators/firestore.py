@@ -52,15 +52,15 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         body: Dict,
         database_id: str = "(default)",
         project_id: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.database_id = database_id
         self.body = body
         self.project_id = project_id

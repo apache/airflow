@@ -35,11 +35,15 @@ The installation is quick and straightforward.
     # initialize the database
     airflow db init
 
-    # if you build with master
-    airflow users create --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
+    airflow users create \
+        --username admin \
+        --firstname Peter \
+        --lastname Parker \
+        --role Admin \
+        --email spiderman@superhero.org
 
     # start the web server, default port is 8080
-    airflow webserver -p 8080
+    airflow webserver --port 8080
 
     # start the scheduler
     airflow scheduler
@@ -48,8 +52,8 @@ The installation is quick and straightforward.
     # created to login. Enable the example_bash_operator dag in the home page
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
-and lay an "airflow.cfg" file with defaults that get you going fast. You can
-inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
+and create the "airflow.cfg" file with defaults that will get you going fast.
+You can inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
 the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
 in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``
 if started by systemd.
@@ -70,7 +74,9 @@ run the commands below.
     # run your first task instance
     airflow tasks run example_bash_operator runme_0 2015-01-01
     # run a backfill over 2 days
-    airflow dags backfill example_bash_operator -s 2015-01-01 -e 2015-01-02
+    airflow dags backfill example_bash_operator \
+        --start-date 2015-01-01 \
+        --end-date 2015-01-02
 
 What's Next?
 ''''''''''''

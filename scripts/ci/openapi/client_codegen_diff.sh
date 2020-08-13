@@ -22,22 +22,30 @@ SCRIPTS_CI_DIR=$(dirname "${BASH_SOURCE[0]}")
 . "${SCRIPTS_CI_DIR}"/../libraries/_initialization.sh
 get_environment_for_builds_on_ci
 
-git remote add target "https://github.com/${CI_TARGET_REPO}"
-git fetch target "${CI_TARGET_BRANCH}:${CI_TARGET_BRANCH}" --depth=1
+set -e
+TARGET_REMOTE=origin
+if [ "${CI_TARGET_REPO}" != "${CI_SOURCE_REPO}" ]; then
+    TARGET_REMOTE=target
+    git remote add target "https://github.com/${CI_TARGET_REPO}"
+    git fetch target "${CI_TARGET_BRANCH}" --depth=1
+fi
 
-echo "Diffing openapi spec against ${CI_TARGET_BRANCH}..."
+echo "Diffing openapi spec against ${TARGET_REMOTE}/${CI_TARGET_BRANCH}..."
 
 SPEC_FILE=airflow/api_connexion/openapi/v1.yaml
-if ! git diff --name-only "${CI_TARGET_BRANCH}" HEAD | grep "${SPEC_FILE}" ; then
-    echo "no openapi spec change detected, going to skip client code gen validation."
+if ! git diff --name-only "${TARGET_REMOTE}/${CI_TARGET_BRANCH}" HEAD | grep "${SPEC_FILE}\|clients/gen" ; then
+    echo "No openapi spec change detected, going to skip client code gen validation."
     exit 0
 fi
 
-echo "openapi spec change detected. comparing codegen diff..."
+echo "OpenAPI spec change detected. comparing codegen diff..."
 
+# generate client for current patch
 mkdir -p ./clients/go/airflow
 ./clients/gen/go.sh ./airflow/api_connexion/openapi/v1.yaml ./clients/go/airflow
+# generate client for target patch
 mkdir -p ./clients/go_target_branch/airflow
-git checkout "${CI_TARGET_BRANCH}" ./airflow/api_connexion/openapi/v1.yaml
+git reset --hard "${TARGET_REMOTE}/${CI_TARGET_BRANCH}"
 ./clients/gen/go.sh ./airflow/api_connexion/openapi/v1.yaml ./clients/go_target_branch/airflow
-diff ./clients/go_target_branch/airflow ./clients/go/airflow || true
+
+diff -u ./clients/go_target_branch/airflow ./clients/go/airflow || true

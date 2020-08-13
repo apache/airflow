@@ -23,7 +23,12 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gdm import GoogleDeploymentManagerHook
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
+def mock_init(
+    self,
+    gcp_conn_id,
+    delegate_to=None,
+    impersonation_chain=None,
+):  # pylint: disable=unused-argument
     pass
 
 

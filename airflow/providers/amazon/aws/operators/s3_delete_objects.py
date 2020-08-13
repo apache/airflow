@@ -63,18 +63,18 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             bucket,
             keys=None,
             prefix=None,
             aws_conn_id='aws_default',
             verify=None,
-            *args, **kwargs):
+            **kwargs):
 
         if not bool(keys) ^ bool(prefix):
             raise ValueError("Either keys or prefix should be set.")
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket = bucket
         self.keys = keys
         self.prefix = prefix

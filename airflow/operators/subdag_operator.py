@@ -65,11 +65,12 @@ class SubDagOperator(BaseSensorOperator):
     @provide_session
     @apply_defaults
     def __init__(self,
+                 *,
                  subdag: DAG,
                  session: Optional[Session] = None,
                  propagate_skipped_state: Optional[SkippedStatePropagationOptions] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.subdag = subdag
         self.propagate_skipped_state = propagate_skipped_state
 

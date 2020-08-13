@@ -43,12 +43,10 @@ REPORT = {
 }
 # [END howto_search_ads_env_variables]
 
-default_args = {"start_date": dates.days_ago(1)}
-
 with models.DAG(
     "example_search_ads",
-    default_args=default_args,
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval=None,  # Override to match your needs,
+    start_date=dates.days_ago(1)
 ) as dag:
     # [START howto_search_ads_generate_report_operator]
     generate_report = GoogleSearchAdsInsertReportOperator(

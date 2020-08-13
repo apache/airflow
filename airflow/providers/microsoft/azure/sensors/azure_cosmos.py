@@ -46,14 +46,13 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             database_name: str,
             collection_name: str,
             document_id: str,
             azure_cosmos_conn_id: str = "azure_cosmos_default",
-            *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.azure_cosmos_conn_id = azure_cosmos_conn_id
         self.database_name = database_name
         self.collection_name = collection_name

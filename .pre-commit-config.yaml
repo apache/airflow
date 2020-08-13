@@ -111,6 +111,7 @@ repos:
         name: Add license for all yaml files
         exclude: ^\.github/.*$
         types: [yaml]
+        files: \.yml$|\.yaml$
         args:
           - --comment-style
           - "|#|"
@@ -194,7 +195,7 @@ repos:
       - id: lint-openapi
         name: Lint OpenAPI using speccy
         language: docker_image
-        entry: wework/speccy lint
+        entry: wework/speccy lint -r default -r ./scripts/ci/speccy_rules/connexion.yml
         files: ^airflow/api_connexion/openapi/
       - id: lint-openapi
         name: Lint OpenAPI using openapi-spec-validator
@@ -323,6 +324,12 @@ repos:
         entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
         pass_filenames: true
+      - id: restrict-start_date-in-default_args-in-example_dags
+        language: pygrep
+        name: "'start_date' should not be defined in default_args in example_dags"
+        entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
+        files: \.*example_dags.*.py$
+        pass_filenames: true
       - id: check-integrations
         name: Check if integration list is aligned
         entry: ./scripts/ci/pre_commit/pre_commit_check_integrations.sh
@@ -357,20 +364,12 @@ repos:
         exclude: ^dev|^backport_packages
         require_serial: true
       - id: pylint
-        name: Run pylint for main sources
+        name: Run pylint
         language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_pylint_main.sh"
+        entry: "./scripts/ci/pre_commit/pre_commit_pylint.sh"
         files: \.py$
-        exclude: ^tests/.*\.py$|^scripts/.*\.py$|^dev|^backport_packages|^kubernetes_tests
+        exclude: ^scripts/.*\.py$|^dev|^backport_packages
         pass_filenames: true
-        require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
-      - id: pylint-tests
-        name: Run pylint for tests
-        language: system
-        entry: "./scripts/ci/pre_commit/pre_commit_pylint_tests.sh"
-        files: ^tests/.*\.py$
-        pass_filenames: true
-        require_serial: true
       - id: flake8
         name: Run flake8
         language: system

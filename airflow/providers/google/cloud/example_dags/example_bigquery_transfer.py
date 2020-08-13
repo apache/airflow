@@ -37,12 +37,10 @@ DATA_EXPORT_BUCKET_NAME = os.environ.get(
 ORIGIN = "origin"
 TARGET = "target"
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_bigquery_transfer",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
     copy_selected_data = BigQueryToBigQueryOperator(

@@ -23,6 +23,7 @@ import base64
 import logging
 import mimetypes
 import os
+from typing import Dict, Iterable, Optional, Union
 
 import sendgrid
 from sendgrid.helpers.mail import (
@@ -33,9 +34,17 @@ from airflow.utils.email import get_email_address_list
 
 log = logging.getLogger(__name__)
 
+AddressesType = Union[str, Iterable[str]]
 
-def send_email(to, subject, html_content, files=None, cc=None,
-               bcc=None, sandbox_mode=False, **kwargs):
+
+def send_email(to: AddressesType,
+               subject: str,
+               html_content: str,
+               files: Optional[AddressesType] = None,
+               cc: Optional[AddressesType] = None,
+               bcc: Optional[AddressesType] = None,
+               sandbox_mode: bool = False,
+               **kwargs) -> None:
     """
     Send an email with html content using `Sendgrid <https://sendgrid.com/>`__.
 
@@ -102,7 +111,7 @@ def send_email(to, subject, html_content, files=None, cc=None,
     _post_sendgrid_mail(mail.get())
 
 
-def _post_sendgrid_mail(mail_data):
+def _post_sendgrid_mail(mail_data: Dict) -> None:
     sendgrid_client = sendgrid.SendGridAPIClient(api_key=os.environ.get('SENDGRID_API_KEY'))
     response = sendgrid_client.client.mail.send.post(request_body=mail_data)
     # 2xx status code.

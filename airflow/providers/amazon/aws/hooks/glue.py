@@ -17,6 +17,7 @@
 # under the License.
 
 import time
+from typing import Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -26,6 +27,8 @@ class AwsGlueJobHook(AwsBaseHook):
     """
     Interact with AWS Glue - create job, trigger, crawler
 
+    :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
+    :type s3_bucket: Optional[str]
     :param job_name: unique job name per AWS account
     :type job_name: Optional[str]
     :param desc: job description
@@ -42,21 +45,19 @@ class AwsGlueJobHook(AwsBaseHook):
     :type region_name: Optional[str]
     :param iam_role_name: AWS IAM Role for Glue Job
     :type iam_role_name: Optional[str]
-    :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
-    :type s3_bucket: Optional[str]
     """
     JOB_POLL_INTERVAL = 6  # polls job status after every JOB_POLL_INTERVAL seconds
 
     def __init__(self,
-                 s3_bucket=None,
-                 job_name=None,
-                 desc=None,
-                 concurrent_run_limit=1,
-                 script_location=None,
-                 retry_limit=0,
-                 num_of_dpus=10,
-                 region_name=None,
-                 iam_role_name=None,
+                 s3_bucket: Optional[str] = None,
+                 job_name: Optional[str] = None,
+                 desc: Optional[str] = None,
+                 concurrent_run_limit: int = 1,
+                 script_location: Optional[str] = None,
+                 retry_limit: int = 0,
+                 num_of_dpus: int = 10,
+                 region_name: Optional[str] = None,
+                 iam_role_name: Optional[str] = None,
                  *args, **kwargs):
         self.job_name = job_name
         self.desc = desc
@@ -68,16 +69,17 @@ class AwsGlueJobHook(AwsBaseHook):
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
         self.s3_glue_logs = 'logs/glue-logs/'
-        super(AwsGlueJobHook, self).__init__(client_type='glue', *args, **kwargs)
+        kwargs['client_type'] = 'glue'
+        super().__init__(*args, **kwargs)
 
-    def list_jobs(self):
+    def list_jobs(self) -> List:
         """
         :return: Lists of Jobs
         """
         conn = self.get_conn()
         return conn.get_jobs()
 
-    def get_iam_execution_role(self):
+    def get_iam_execution_role(self) -> Dict:
         """
         :return: iam role for job execution
         """
@@ -91,13 +93,14 @@ class AwsGlueJobHook(AwsBaseHook):
             self.log.error("Failed to create aws glue job, error: %s", general_error)
             raise
 
-    def initialize_job(self, script_arguments=None):
+    def initialize_job(self, script_arguments: Optional[List] = None) -> Dict[str, str]:
         """
         Initializes connection with AWS Glue
         to run job
         :return:
         """
         glue_client = self.get_conn()
+        script_arguments = script_arguments or []
 
         try:
             job_name = self.get_or_create_glue_job()
@@ -110,7 +113,7 @@ class AwsGlueJobHook(AwsBaseHook):
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
 
-    def job_completion(self, job_name=None, run_id=None):
+    def job_completion(self, job_name: str, run_id: str) -> Dict[str, str]:
         """
         :param job_name: unique job name per AWS account
         :type job_name: str
@@ -141,7 +144,7 @@ class AwsGlueJobHook(AwsBaseHook):
                     job_name, job_run_state)
                 time.sleep(self.JOB_POLL_INTERVAL)
 
-    def get_or_create_glue_job(self):
+    def get_or_create_glue_job(self) -> str:
         """
         Creates(or just returns) and returns the Job name
         :return:Name of the Job

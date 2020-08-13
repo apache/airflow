@@ -45,7 +45,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         HDFS, YARN, MAPREDUCE, HIVE, TEZ, ZOOKEEPER, HBASE, SQOOP, FLUME, SPARK, SPARK, ZEPPELIN, OOZIE
     :type services: Iterable[str]
     :param s3_bucket: Yandex.Cloud S3 bucket to store cluster logs.
-                      Jobs will not work if the bicket is not specified.
+                      Jobs will not work if the bucket is not specified.
     :type s3_bucket: Optional[str]
     :param zone: Availability zone to create cluster in.
                  Currently there are ru-central1-a, ru-central1-b and ru-central1-c.
@@ -83,6 +83,7 @@ class DataprocCreateClusterOperator(BaseOperator):
     # pylint: disable=too-many-locals
     @apply_defaults
     def __init__(self,
+                 *,
                  folder_id: Optional[str] = None,
                  cluster_name: Optional[str] = None,
                  cluster_description: str = '',
@@ -105,9 +106,8 @@ class DataprocCreateClusterOperator(BaseOperator):
                  computenode_disk_type: str = 'network-ssd',
                  computenode_count: int = 0,
                  connection_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.folder_id = folder_id
         self.connection_id = connection_id
         self.cluster_name = cluster_name
@@ -175,12 +175,11 @@ class DataprocDeleteClusterOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  connection_id: Optional[str] = None,
                  cluster_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.connection_id = connection_id
         self.cluster_id = cluster_id
         self.hook = None
@@ -222,7 +221,7 @@ class DataprocCreateHiveJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  query: Optional[str] = None,
                  query_file_uri: Optional[str] = None,
                  script_variables: Optional[Dict[str, str]] = None,
@@ -231,9 +230,8 @@ class DataprocCreateHiveJobOperator(BaseOperator):
                  name: str = 'Hive job',
                  cluster_id: Optional[str] = None,
                  connection_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.query = query
         self.query_file_uri = query_file_uri
         self.script_variables = script_variables
@@ -294,7 +292,7 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  main_class: Optional[str] = None,
                  main_jar_file_uri: Optional[str] = None,
                  jar_file_uris: Optional[Iterable[str]] = None,
@@ -305,9 +303,8 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
                  name: str = 'Mapreduce job',
                  cluster_id: Optional[str] = None,
                  connection_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
         self.jar_file_uris = jar_file_uris
@@ -371,7 +368,7 @@ class DataprocCreateSparkJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  main_class: Optional[str] = None,
                  main_jar_file_uri: Optional[str] = None,
                  jar_file_uris: Optional[Iterable[str]] = None,
@@ -382,9 +379,8 @@ class DataprocCreateSparkJobOperator(BaseOperator):
                  name: str = 'Spark job',
                  cluster_id: Optional[str] = None,
                  connection_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
         self.jar_file_uris = jar_file_uris
@@ -448,7 +444,7 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  main_python_file_uri: Optional[str] = None,
                  python_file_uris: Optional[Iterable[str]] = None,
                  jar_file_uris: Optional[Iterable[str]] = None,
@@ -459,9 +455,8 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
                  name: str = 'Pyspark job',
                  cluster_id: Optional[str] = None,
                  connection_id: Optional[str] = None,
-                 *arguments,
                  **kwargs):
-        super().__init__(*arguments, **kwargs)
+        super().__init__(**kwargs)
         self.main_python_file_uri = main_python_file_uri
         self.python_file_uris = python_file_uris
         self.jar_file_uris = jar_file_uris

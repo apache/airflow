@@ -30,11 +30,36 @@ RES=$?
 set +x
 if [[ "${RES}" == "0" && ${CI:="false"} == "true" ]]; then
     echo "All tests successful"
-    bash <(curl -s https://codecov.io/bash)
+    cp .coverage /files
+fi
+
+MAIN_GITHUB_REPOSITORY="apache/airflow"
+
+if [[ ${ONLY_RUN_QUARANTINED_TESTS:=} = "true" ]]; then
+    if [[ ${GITHUB_REPOSITORY} == "${MAIN_GITHUB_REPOSITORY}" ]]; then
+        if [[ ${RES} == "1" || ${RES} == "0" ]]; then
+            echo
+            echo "Pytest exited with ${RES} result. Updating Quarantine Issue!"
+            echo
+            "${IN_CONTAINER_DIR}/update_quarantined_test_status.py" "${RESULT_LOG_FILE}"
+        else
+            echo
+            echo "Pytest exited with ${RES} result. NOT Updating Quarantine Issue!"
+            echo
+        fi
+    else
+        echo
+        echo "Github repository '${GITHUB_REPOSITORY}'. NOT Updating Quarantine Issue!"
+        echo
+    fi
+else
+    echo
+    echo "Regular tests. NOT Updating Quarantine Issue!"
+    echo
 fi
 
 if [[ ${CI:=} == "true" ]]; then
-    send_airflow_logs_to_file_io
+    dump_airflow_logs
 fi
 
 exit "${RES}"

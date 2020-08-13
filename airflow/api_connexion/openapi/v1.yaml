@@ -289,7 +289,8 @@ paths:
 
     post:
       summary: Trigger a DAG Run
-      operationId: airflow.api_connexion.endpoints.dag_run_endpoint.post_dag_run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: post_dag_run
       tags: [DAGRun]
       requestBody:
         required: true
@@ -1882,7 +1883,7 @@ components:
           description: >
             Returns objects greater or equal the specified date.
 
-            This can be combined with startd_ate_lte parameter to receive only the selected period.
+            This can be combined with start_date_lte parameter to receive only the selected period.
         start_date_lte:
           type: string
           format: date-time
@@ -2269,7 +2270,7 @@ components:
       description: >
         Returns objects greater or equal the specified date.
 
-        This can be combined with startd_ate_lte parameter to receive only the selected period.
+        This can be combined with start_date_lte parameter to receive only the selected period.
     FilterStartDateLTE:
       in: query
       name: start_date_lte

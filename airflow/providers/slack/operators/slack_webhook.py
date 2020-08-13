@@ -63,7 +63,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  http_conn_id=None,
                  webhook_token=None,
                  message="",
@@ -75,10 +75,8 @@ class SlackWebhookOperator(SimpleHttpOperator):
                  icon_url=None,
                  link_names=False,
                  proxy=None,
-                 *args,
                  **kwargs):
         super().__init__(endpoint=webhook_token,
-                         *args,
                          **kwargs)
         self.http_conn_id = http_conn_id
         self.webhook_token = webhook_token

@@ -72,7 +72,8 @@ Then add connection like so:
 
 .. code-block:: bash
 
-    airflow connections add 'my_prod_db' --conn-uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
+    airflow connections add 'my_prod_db' \
+        --conn-uri 'my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
 
 Alternatively you may specify each parameter individually:
 
@@ -86,6 +87,84 @@ Alternatively you may specify each parameter individually:
         --conn-port 'port' \
         --conn-schema 'schema' \
         ...
+
+.. _connection/export:
+
+Exporting Connections from the CLI
+----------------------------------
+
+You may export connections from the database using the CLI. The supported formats are ``json``, ``yaml`` and ``env``.
+
+You may mention the target file as the parameter:
+
+.. code-block:: bash
+
+    airflow connections export connections.json
+
+Alternatively you may specify ``format`` parameter for overriding the format:
+
+.. code-block:: bash
+
+    airflow connections export /tmp/connections --format yaml
+
+You may also specify ``-`` for STDOUT:
+
+.. code-block:: bash
+
+    airflow connections export -
+
+The JSON format contains an object where the key contains the connection ID and the value contains the definition of the connection. In this format, the connection is defined as a JSON object. The following is a sample JSON file.
+
+.. code-block:: json
+
+    {
+      "airflow_db": {
+        "conn_type": "mysql",
+        "host": "mysql",
+        "login": "root",
+        "password": "plainpassword",
+        "schema": "airflow",
+        "port": null,
+        "extra": null
+      },
+      "druid_broker_default": {
+        "conn_type": "druid",
+        "host": "druid-broker",
+        "login": null,
+        "password": null,
+        "schema": null,
+        "port": 8082,
+        "extra": "{\"endpoint\": \"druid/v2/sql\"}"
+      }
+    }
+
+The YAML file structure is similar to that of a JSON. The key-value pair of connection ID and the definitions of one or more connections. In this format, the connection is defined as a YAML object. The following is a sample YAML file.
+
+.. code-block:: yaml
+
+    airflow_db:
+      conn_type: mysql
+      extra: null
+      host: mysql
+      login: root
+      password: plainpassword
+      port: null
+      schema: airflow
+    druid_broker_default:
+      conn_type: druid
+      extra: '{"endpoint": "druid/v2/sql"}'
+      host: druid-broker
+      login: null
+      password: null
+      port: 8082
+      schema: null
+
+You may also export connections in ``.env`` format. The key is the connection ID, and the value describes the connection using the URI. The following is a sample ENV file.
+
+.. code-block:: text
+
+    airflow_db=mysql://root:plainpassword@mysql/airflow
+    druid_broker_default=druid://druid-broker:8082?endpoint=druid%2Fv2%2Fsql
 
 .. _environment_variables_secrets_backend:
 
@@ -121,12 +200,6 @@ If using with a docker ``.env`` file, you may need to remove the single quotes.
 .. code-block::
 
     AIRFLOW_CONN_MY_PROD_DATABASE=my-conn-type://login:password@host:port/schema?param1=val1&param2=val2
-
-Alternative secrets backend
----------------------------
-
-In addition to retrieving connections from environment variables or the metastore database, you can enable
-an alternative secrets backend to retrieve connections. For more details see :doc:`../use-alternative-secrets-backend`
 
 Connection URI format
 ---------------------
@@ -192,16 +265,23 @@ convenience method :py:meth:`~airflow.models.connection.Connection.get_uri`.  It
     >>> print(f"AIRFLOW_CONN_{c.conn_id.upper()}='{c.get_uri()}'")
     AIRFLOW_CONN_SOME_CONN='mysql://myname:mypassword@myhost.com?this_param=some+val&that_param=other+val%2A'
 
-Additionally, if you have created a connection via the UI, and you need to switch to an environment variable,
-you can get the URI like so:
+Additionally, if you have created a connection, you can use ``airflow connections get`` command.
 
-.. code-block:: python
+.. code-block:: console
 
-    from airflow.hooks.base_hook import BaseHook
-
-    conn = BaseHook.get_connection('postgres_default')
-    print(f"AIRFLOW_CONN_{conn.conn_id.upper()}='{conn.get_uri()}'")
-
+    $ airflow connections get sqlite_default
+    Id: 40
+    Conn Id: sqlite_default
+    Conn Type: sqlite
+    Host: /tmp/sqlite_default.db
+    Schema: null
+    Login: null
+    Password: null
+    Port: null
+    Is Encrypted: false
+    Is Extra Encrypted: false
+    Extra: {}
+    URI: sqlite://%2Ftmp%2Fsqlite_default.db
 
 .. _manage-connections-connection-types:
 
@@ -233,9 +313,11 @@ Securing Connections
 --------------------
 
 Airflow uses `Fernet <https://github.com/fernet/spec/>`__ to encrypt passwords in the connection
-configuration. It guarantees that without the encryption password, Connection Passwords cannot be manipulated or read without the key.
+configurations stored the metastore database. It guarantees that without the encryption password, Connection
+Passwords cannot be manipulated or read without the key. For information on configuring Fernet, look at :ref:`security/fernet`.
 
-For information on configuring Fernet, look at :ref:`security/fernet`.
+In addition to retrieving connections from environment variables or the metastore database, you can enable
+an secrets backend to retrieve connections. For more details see :doc:`../secrets-backend/index`
 
 Connection Types
 ----------------

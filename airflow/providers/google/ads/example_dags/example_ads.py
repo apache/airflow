@@ -64,12 +64,10 @@ FIELDS_TO_EXTRACT = [
 
 # [END howto_google_ads_env_variables]
 
-default_args = {"start_date": dates.days_ago(1)}
-
 with models.DAG(
     "example_google_ads",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_google_ads_to_gcs_operator]
     run_operator = GoogleAdsToGcsOperator(

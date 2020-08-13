@@ -68,7 +68,7 @@ class OpsgenieAlertOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  message,
                  opsgenie_conn_id='opsgenie_default',
                  alias=None,
@@ -83,10 +83,9 @@ class OpsgenieAlertOperator(BaseOperator):
                  priority=None,
                  user=None,
                  note=None,
-                 *args,
                  **kwargs
                  ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.message = message
         self.opsgenie_conn_id = opsgenie_conn_id

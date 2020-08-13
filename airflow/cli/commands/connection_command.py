@@ -15,16 +15,25 @@
 # specific language governing permissions and limitations
 # under the License.
 """Connection sub-commands"""
+import io
+import json
+import os
 import sys
 from typing import List
 from urllib.parse import urlunparse
 
+import pygments
+import yaml
+from pygments.lexers.data import YamlLexer
 from sqlalchemy.orm import exc
 from tabulate import tabulate
 
+from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
 from airflow.utils import cli as cli_utils
+from airflow.utils.cli import should_use_colors
+from airflow.utils.code_utils import get_terminal_formatter
 from airflow.utils.session import create_session
 from airflow.secrets.local_filesystem import load_connections
 from airflow.exceptions import AirflowException
@@ -46,26 +55,114 @@ def _tabulate_connection(conns: List[Connection], tablefmt: str):
     return msg
 
 
+def _yamulate_connection(conn: Connection):
+    yaml_data = {
+        'Id': conn.id,
+        'Conn Id': conn.conn_id,
+        'Conn Type': conn.conn_type,
+        'Host': conn.host,
+        'Schema': conn.schema,
+        'Login': conn.login,
+        'Password': conn.password,
+        'Port': conn.port,
+        'Is Encrypted': conn.is_encrypted,
+        'Is Extra Encrypted': conn.is_encrypted,
+        'Extra': conn.extra_dejson,
+        'URI': conn.get_uri()
+    }
+    return yaml.safe_dump(yaml_data, sort_keys=False)
+
+
+def connections_get(args):
+    """Get a connection."""
+    try:
+        conn = BaseHook.get_connection(args.conn_id)
+    except AirflowNotFoundException:
+        raise SystemExit("Connection not found.")
+
+    yaml_content = _yamulate_connection(conn)
+    if should_use_colors(args):
+        yaml_content = pygments.highlight(
+            code=yaml_content, formatter=get_terminal_formatter(), lexer=YamlLexer()
+        )
+
+    print(yaml_content)
+
+
 def connections_list(args):
     """Lists all connections at the command line"""
     with create_session() as session:
-        if args.include_secrets:
-            if not args.conn_id:
-                print(
-                    "To use the '--include-secrets' option, you must also pass '--conn-id' option.",
-                    file=sys.stderr
-                )
-                sys.exit(1)
-            conns = BaseHook.get_connections(args.conn_id)
-        else:
-            query = session.query(Connection)
-            if args.conn_id:
-                query = query.filter(Connection.conn_id == args.conn_id)
-            conns = query.all()
+        query = session.query(Connection)
+        if args.conn_id:
+            query = query.filter(Connection.conn_id == args.conn_id)
+        conns = query.all()
 
         tablefmt = args.output
         msg = _tabulate_connection(conns, tablefmt)
         print(msg)
+
+
+def _format_connections(conns: List[Connection], fmt: str) -> str:
+    if fmt == '.env':
+        connections_env = ""
+        for conn in conns:
+            connections_env += f"{conn.conn_id}={conn.get_uri()}\n"
+        return connections_env
+
+    connections_dict = {}
+    for conn in conns:
+        connections_dict[conn.conn_id] = {
+            'conn_type': conn.conn_type,
+            'host': conn.host,
+            'login': conn.login,
+            'password': conn.password,
+            'schema': conn.schema,
+            'port': conn.port,
+            'extra': conn.extra,
+        }
+
+    if fmt == '.yaml':
+        return yaml.dump(connections_dict)
+
+    if fmt == '.json':
+        return json.dumps(connections_dict, indent=2)
+
+    return json.dumps(connections_dict)
+
+
+def _is_stdout(fileio: io.TextIOWrapper) -> bool:
+    if fileio.name == '<stdout>':
+        return True
+    return False
+
+
+def connections_export(args):
+    """Exports all connections to a file"""
+    allowed_formats = ['.yaml', '.json', '.env']
+    provided_format = None if args.format is None else f".{args.format.lower()}"
+    default_format = provided_format or '.json'
+
+    with create_session() as session:
+        if _is_stdout(args.file):
+            filetype = default_format
+        elif provided_format is not None:
+            filetype = provided_format
+        else:
+            _, filetype = os.path.splitext(args.file.name)
+            filetype = filetype.lower()
+            if filetype not in allowed_formats:
+                msg = f"Unsupported file format. " \
+                      f"The file must have the extension {', '.join(allowed_formats)}"
+                raise SystemExit(msg)
+
+        connections = session.query(Connection).all()
+        msg = _format_connections(connections, filetype)
+        args.file.write(msg)
+
+        if _is_stdout(args.file):
+            print("Connections successfully exported.", file=sys.stderr)
+        else:
+            print(f"Connections successfully exported to {args.file.name}")
 
 
 alternative_conn_specs = ['conn_type', 'conn_host',

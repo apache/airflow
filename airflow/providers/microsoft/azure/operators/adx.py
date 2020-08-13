@@ -48,14 +48,13 @@ class AzureDataExplorerQueryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             query: str,
             database: str,
             options: Optional[Dict] = None,
             azure_data_explorer_conn_id: str = 'azure_data_explorer_default',
-            *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.query = query
         self.database = database
         self.options = options

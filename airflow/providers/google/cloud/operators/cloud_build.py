@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Operators that integrat with Google Cloud Build service."""
+"""Operators that integrate with Google Cloud Build service."""
 import json
 import re
 from copy import deepcopy
-from typing import Any, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Optional, Union
 from urllib.parse import unquote, urlparse
 
 import yaml
@@ -180,17 +180,17 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     :type api_version: str
     """
 
-    template_fields = ("body", "gcp_conn_id", "api_version")  # type: Iterable[str]
+    template_fields = ("body", "gcp_conn_id", "api_version")
     template_ext = ['.yml', '.yaml', '.json']
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  body: Union[dict, str],
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = "google_cloud_default",
                  api_version: str = "v1",
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.body = body
         # Not template fields to keep original value
         self.body_raw = body

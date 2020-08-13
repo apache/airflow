@@ -17,6 +17,7 @@
 # under the License.
 import warnings
 from tempfile import NamedTemporaryFile
+from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -87,12 +88,12 @@ class S3ToGCSOperator(S3ListOperator):
     templated, so you can use variables in them if you wish.
     """
 
-    template_fields = ('bucket', 'prefix', 'delimiter', 'dest_gcs')
+    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter', 'dest_gcs')
     ui_color = '#e09411'
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket,
                  prefix='',
                  delimiter='',
@@ -104,7 +105,6 @@ class S3ToGCSOperator(S3ListOperator):
                  delegate_to=None,
                  replace=False,
                  gzip=False,
-                 *args,
                  **kwargs):
 
         super().__init__(
@@ -112,7 +112,6 @@ class S3ToGCSOperator(S3ListOperator):
             prefix=prefix,
             delimiter=delimiter,
             aws_conn_id=aws_conn_id,
-            *args,
             **kwargs)
 
         if dest_gcs_conn_id:

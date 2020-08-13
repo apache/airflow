@@ -19,6 +19,7 @@ from flask import Response, current_app, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
 from airflow.models import DagRun
@@ -26,6 +27,7 @@ from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
 
 
+@security.requires_authentication
 @provide_session
 def get_log(session, dag_id, dag_run_id, task_id, task_try_number,
             full_content=False, token=None):

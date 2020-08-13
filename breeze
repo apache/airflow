@@ -97,6 +97,9 @@ function setup_default_breeze_variables() {
     # By default we mount local Airflow sources
     MOUNT_LOCAL_SOURCES="true"
 
+    # By default we mount files folder
+    MOUNT_FILES="true"
+
     # Holds last sub-command used - this is used by --help flag to print help for the command entered
     LAST_SUBCOMMAND=""
 
@@ -146,7 +149,7 @@ function setup_default_breeze_variables() {
 
     _BREEZE_DEFAULT_BACKEND="sqlite"
     _BREEZE_DEFAULT_KUBERNETES_MODE="image"
-    _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.18.2"
+    _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.18.6"
     _BREEZE_DEFAULT_KIND_VERSION="v0.8.0"
     _BREEZE_DEFAULT_HELM_VERSION="v3.2.4"
     _BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
@@ -492,6 +495,7 @@ function prepare_command_files() {
     MAIN_PROD_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     BACKEND_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
     LOCAL_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/local.yml
+    FILES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/files.yml
     LOCAL_PROD_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/local-prod.yml
     REMOVE_SOURCES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
     FORWARD_CREDENTIALS_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml
@@ -502,6 +506,11 @@ function prepare_command_files() {
     if [[ "${MOUNT_LOCAL_SOURCES}" != "false" ]]; then
         COMPOSE_CI_FILE=${COMPOSE_CI_FILE}:${LOCAL_DOCKER_COMPOSE_FILE}
         COMPOSE_PROD_FILE=${COMPOSE_PROD_FILE}:${LOCAL_PROD_DOCKER_COMPOSE_FILE}
+    fi
+
+    if [[ "${MOUNT_FILES}" != "false" ]]; then
+        COMPOSE_CI_FILE=${COMPOSE_CI_FILE}:${FILES_DOCKER_COMPOSE_FILE}
+        COMPOSE_PROD_FILE=${COMPOSE_PROD_FILE}:${FILES_DOCKER_COMPOSE_FILE}
     fi
 
     if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
@@ -526,6 +535,7 @@ function prepare_command_files() {
     export COMPOSE_CI_FILE
     export COMPOSE_PROD_FILE
 
+    get_base_image_version
     # Base python image for the build
     export PYTHON_BASE_IMAGE=python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
@@ -2088,6 +2098,8 @@ function run_build_command {
               echo "Stops KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "restart" ]] ; then
               echo "Restarts KinD cluster"
+            elif [[ ${KIND_CLUSTER_OPERATION} == "recreate" ]] ; then
+              echo "Recreates KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "status" ]] ; then
               echo "Checks status of KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "deploy" ]] ; then
@@ -2122,8 +2134,11 @@ function run_breeze_command {
         enter_breeze)
             if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
                 "${BUILD_CACHE_DIR}/${LAST_DC_PROD_FILE}" run --service-ports --rm airflow "${@}"
+                "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
             else
                 "${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE}" run --service-ports --rm airflow "${@}"
+                "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
+                "${SCRIPTS_CI_DIR}/tools/ci_clear_tmp.sh"
             fi
             ;;
         run_exec)

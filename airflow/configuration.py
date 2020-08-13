@@ -467,7 +467,7 @@ class AirflowConfigParser(ConfigParser):
         if (section not in self._sections and section not in self.airflow_defaults._sections):  # type: ignore
             return None
 
-        _section = copy.deepcopy(self.airflow_defaults._sections[section])  # type: ignore
+        _section = copy.deepcopy(self.airflow_defaults._sections[section])
 
         if section in self._sections:  # type: ignore
             _section.update(copy.deepcopy(self._sections[section]))  # type: ignore
@@ -481,7 +481,7 @@ class AirflowConfigParser(ConfigParser):
                 key = key.lower()
                 _section[key] = self._get_env_var_option(section, key)
 
-        for key, val in _section.items():  # type: ignore
+        for key, val in _section.items():
             try:
                 val = int(val)
             except ValueError:
@@ -499,13 +499,13 @@ class AirflowConfigParser(ConfigParser):
         # This is based on the configparser.RawConfigParser.write method code to add support for
         # reading options from environment variables.
         if space_around_delimiters:
-            d = " {} ".format(self._delimiters[0])  # type: ignore
+            d = " {} ".format(self._delimiters[0])
         else:
-            d = self._delimiters[0]  # type: ignore
+            d = self._delimiters[0]
         if self._defaults:
-            self._write_section(fp, self.default_section, self._defaults.items(), d)  # type: ignore
+            self._write_section(fp, self.default_section, self._defaults.items(), d)
         for section in self._sections:
-            self._write_section(fp, section, self.getsection(section).items(), d)  # type: ignore
+            self._write_section(fp, section, self.getsection(section).items(), d)
 
     def as_dict(
             self, display_source=False, display_sensitive=False, raw=False,

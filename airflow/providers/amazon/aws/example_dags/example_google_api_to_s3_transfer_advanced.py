@@ -51,8 +51,6 @@ YOUTUBE_VIDEO_PARTS = getenv("YOUTUBE_VIDEO_PARTS", "snippet")
 YOUTUBE_VIDEO_FIELDS = getenv("YOUTUBE_VIDEO_FIELDS", "items(id,snippet(description,publishedAt,tags,title))")
 # [END howto_operator_google_api_to_s3_transfer_advanced_env_variables]
 
-default_args = {"start_date": days_ago(1)}
-
 
 # pylint: disable=unused-argument
 # [START howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
@@ -74,8 +72,8 @@ s3_file_name, _ = s3_file.rsplit('.', 1)
 
 with DAG(
     dag_id="example_google_api_to_s3_transfer_advanced",
-    default_args=default_args,
     schedule_interval=None,
+    start_date=days_ago(1),
     tags=['example']
 ) as dag:
     # [START howto_operator_google_api_to_s3_transfer_advanced_task_1]

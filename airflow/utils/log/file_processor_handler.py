@@ -19,6 +19,7 @@
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 
 from airflow import settings
 from airflow.utils.helpers import parse_template_string
@@ -43,15 +44,7 @@ class FileProcessorHandler(logging.Handler):
             parse_template_string(filename_template)
 
         self._cur_date = datetime.today()
-        if not os.path.exists(self._get_log_directory()):
-            try:
-                os.makedirs(self._get_log_directory())
-            except OSError:
-                # only ignore case where the directory already exist
-                if not os.path.isdir(self._get_log_directory()):
-                    raise
-
-                logging.warning("%s already exists", self._get_log_directory())
+        Path(self._get_log_directory()).mkdir(parents=True, exist_ok=True)
 
         self._symlink_latest_log_directory()
 
@@ -137,12 +130,7 @@ class FileProcessorHandler(logging.Handler):
         log_file_path = os.path.abspath(relative_log_file_path)
         directory = os.path.dirname(log_file_path)
 
-        if not os.path.exists(directory):
-            try:
-                os.makedirs(directory)
-            except OSError:
-                if not os.path.isdir(directory):
-                    raise
+        Path(directory).mkdir(parents=True, exist_ok=True)
 
         if not os.path.exists(log_file_path):
             open(log_file_path, "a").close()

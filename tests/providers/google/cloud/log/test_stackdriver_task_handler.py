@@ -150,7 +150,7 @@ class TestStackdriverLoggingHandlerTask(unittest.TestCase):
         self.assertEqual([{'end_of_log': True}], metadata)
 
     @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
-    @mock.patch(  # type: ignore
+    @mock.patch(
         'airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client',
         **{'return_value.project': 'asf-project'}  # type: ignore
     )

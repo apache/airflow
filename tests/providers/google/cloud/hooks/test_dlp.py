@@ -261,7 +261,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn"
     )
     def test_create_job_trigger_without_parent(self, mock_get_conn, mock_project_id):
@@ -308,7 +308,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn"
     )
     def test_create_stored_info_type_without_parent(self, mock_get_conn, mock_project_id):
@@ -338,7 +338,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn"
     )
     def test_deidentify_content_without_parent(self, mock_get_conn, mock_project_id):
@@ -350,7 +350,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn"
     )
     def test_delete_deidentify_template_with_org_id(self, get_conn, mock_project_id):
@@ -999,7 +999,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn"
     )
     def test_reidentify_content_without_parent(self, mock_get_conn, mock_project_id):
@@ -1189,7 +1189,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn"
     )
     def test_update_stored_info_type_without_stored_info_type_id(self, _):
@@ -1203,7 +1203,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.dlp.CloudDLPHook.get_conn"
     )
     def test_update_stored_info_type_without_parent(self, mock_get_conn, mock_project_id):

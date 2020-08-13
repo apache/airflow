@@ -43,12 +43,12 @@ SNOWFLAKE_CREATE_TABLE_SQL = f"CREATE TRANSIENT TABLE IF NOT EXISTS {SNOWFLAKE_L
 
 default_args = {
     'owner': 'airflow',
-    'start_date': days_ago(2),
 }
 
 dag = DAG(
     'example_snowflake',
     default_args=default_args,
+    start_date=days_ago(2),
     tags=['example'],
 )
 

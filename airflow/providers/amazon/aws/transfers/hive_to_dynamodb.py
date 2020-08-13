@@ -62,7 +62,7 @@ class HiveToDynamoDBOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
+            self, *,
             sql,
             table_name,
             table_keys,
@@ -73,8 +73,8 @@ class HiveToDynamoDBOperator(BaseOperator):
             schema='default',
             hiveserver2_conn_id='hiveserver2_default',
             aws_conn_id='aws_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
         self.sql = sql
         self.table_name = table_name
         self.table_keys = table_keys

@@ -99,7 +99,7 @@ class AwsBatchOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         job_name,
         job_definition,
         job_queue,

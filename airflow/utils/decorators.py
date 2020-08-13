@@ -21,14 +21,16 @@ import inspect
 import os
 from copy import copy
 from functools import wraps
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, TypeVar, cast
 
 from airflow.exceptions import AirflowException
 
 signature = inspect.signature
 
+T = TypeVar('T', bound=Callable)  # pylint: disable=invalid-name
 
-def apply_defaults(func: Callable[..., Any]) -> Any:
+
+def apply_defaults(func: T) -> T:
     """
     Function decorator that Looks for an argument named "default_args", and
     fills the unspecified arguments from it.
@@ -90,8 +92,7 @@ def apply_defaults(func: Callable[..., Any]) -> Any:
 
         result = func(*args, **kwargs)
         return result
-
-    return wrapper
+    return cast(T, wrapper)
 
 
 if 'BUILDING_AIRFLOW_DOCS' in os.environ:

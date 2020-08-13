@@ -42,15 +42,14 @@ class NamedHivePartitionSensor(BaseSensorOperator):
     ui_color = '#8d99ae'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  partition_names: List[str],
                  metastore_conn_id: str = 'metastore_default',
                  poke_interval: int = 60 * 3,
                  hook: Any = None,
-                 *args: Tuple[Any, ...],
                  **kwargs: Any):
         super().__init__(
-            poke_interval=poke_interval, *args, **kwargs)
+            poke_interval=poke_interval, **kwargs)
 
         self.next_index_to_poke = 0
         if isinstance(partition_names, str):

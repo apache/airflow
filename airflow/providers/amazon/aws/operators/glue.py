@@ -57,7 +57,7 @@ class AwsGlueJobOperator(BaseOperator):
     ui_color = '#ededed'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  job_name='aws_glue_default_job',
                  job_desc='AWS Glue Job with Airflow',
                  script_location=None,
@@ -69,9 +69,9 @@ class AwsGlueJobOperator(BaseOperator):
                  region_name=None,
                  s3_bucket=None,
                  iam_role_name=None,
-                 *args, **kwargs
+                 **kwargs
                  ):  # pylint: disable=too-many-arguments
-        super(AwsGlueJobOperator, self).__init__(*args, **kwargs)
+        super(AwsGlueJobOperator, self).__init__(**kwargs)
         self.job_name = job_name
         self.job_desc = job_desc
         self.script_location = script_location

@@ -148,7 +148,7 @@ class AzureBatchOperator(BaseOperator):
     ui_color = '#f0f0e4'
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
+    def __init__(self, *,  # pylint: disable=too-many-arguments,too-many-locals
                  batch_pool_id: str,
                  batch_pool_vm_size: str,
                  batch_job_id: str,
@@ -178,10 +178,9 @@ class AzureBatchOperator(BaseOperator):
                  timeout: int = 25,
                  should_delete_job: bool = False,
                  should_delete_pool: bool = False,
-                 *args,
                  **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.batch_pool_id = batch_pool_id
         self.batch_pool_vm_size = batch_pool_vm_size
         self.batch_job_id = batch_job_id

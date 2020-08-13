@@ -357,8 +357,8 @@ class DataprocHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
-        Gets cluster diagnostic information. After the operation completes, the Operation.response field
-        contains ``DiagnoseClusterOutputLocation``.
+        Gets cluster diagnostic information. After the operation completes GCS uri to
+        diagnose is returned
 
         :param project_id: Required. The ID of the Google Cloud Platform project that the cluster belongs to.
         :type project_id: str
@@ -376,7 +376,7 @@ class DataprocHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_cluster_client(location=region)
-        result = client.diagnose_cluster(
+        operation = client.diagnose_cluster(
             project_id=project_id,
             region=region,
             cluster_name=cluster_name,
@@ -384,7 +384,9 @@ class DataprocHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        return result
+        operation.result()
+        gcs_uri = str(operation.operation.response.value)
+        return gcs_uri
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_cluster(

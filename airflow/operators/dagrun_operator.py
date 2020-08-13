@@ -44,13 +44,13 @@ class TriggerDagRunOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         trigger_dag_id: str,
         conf: Optional[Dict] = None,
         execution_date: Optional[Union[str, datetime.datetime]] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.trigger_dag_id = trigger_dag_id
         self.conf = conf
 

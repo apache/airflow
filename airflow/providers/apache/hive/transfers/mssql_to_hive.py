@@ -76,7 +76,7 @@ class MsSqlToHiveOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  sql: str,
                  hive_table: str,
                  create: bool = True,
@@ -86,8 +86,8 @@ class MsSqlToHiveOperator(BaseOperator):
                  mssql_conn_id: str = 'mssql_default',
                  hive_cli_conn_id: str = 'hive_cli_default',
                  tblproperties: Optional[Dict] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.sql = sql
         self.hive_table = hive_table
         self.partition = partition
@@ -119,7 +119,7 @@ class MsSqlToHiveOperator(BaseOperator):
                 cursor.execute(self.sql)
                 with NamedTemporaryFile("w") as tmp_file:
                     csv_writer = csv.writer(tmp_file, delimiter=self.delimiter, encoding='utf-8')
-                    field_dict = OrderedDict()  # type:ignore
+                    field_dict = OrderedDict()
                     col_count = 0
                     for field in cursor.description:
                         col_count += 1

@@ -50,7 +50,6 @@ SUMMARY_TMP = os.environ.get("GCP_MLENGINE_DATAFLOW_TMP", "gs://test-airflow-mle
 SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://test-airflow-mlengine/staging/")
 
 default_args = {
-    "start_date": days_ago(1),
     "params": {
         "model_name": MODEL_NAME
     }
@@ -58,8 +57,8 @@ default_args = {
 
 with models.DAG(
     "example_gcp_mlengine",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     # [START howto_operator_gcp_mlengine_training]
@@ -74,6 +73,7 @@ with models.DAG(
         package_uris=[TRAINER_URI],
         training_python_module=TRAINER_PY_MODULE,
         training_args=[],
+        labels={"job_type": "training"},
     )
     # [END howto_operator_gcp_mlengine_training]
 
@@ -170,6 +170,7 @@ with models.DAG(
         data_format="TEXT",
         input_paths=[PREDICTION_INPUT],
         output_path=PREDICTION_OUTPUT,
+        labels={"job_type": "prediction"},
     )
     # [END howto_operator_gcp_mlengine_get_prediction]
 

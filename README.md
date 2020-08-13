@@ -19,14 +19,16 @@
 # Apache Airflow
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
-![Airflow](https://github.com/apache/airflow/workflows/Airflow/badge.svg)
+[![GitHub Build](https://github.com/apache/airflow/workflows/CI%20Build/badge.svg)](https://github.com/apache/airflow/actions)
 [![Coverage Status](https://img.shields.io/codecov/c/github/apache/airflow/master.svg)](https://codecov.io/github/apache/airflow?branch=master)
 [![Documentation Status](https://readthedocs.org/projects/airflow/badge/?version=latest)](https://airflow.readthedocs.io/en/latest/?badge=latest)
 [![License](http://img.shields.io/:license-Apache%202-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
+[![Docker Stars](https://img.shields.io/docker/stars/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
-[![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://apache-airflow-slack.herokuapp.com/)
+[![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
 
 [Apache Airflow](https://airflow.apache.org/docs/stable/) (or simply Airflow) is a platform to programmatically author, schedule, and monitor
  workflows.
@@ -43,7 +45,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
-- [Building customized production images](#building-customized-production-images)
+- [Official Docker images](#official-docker-images)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
 - [User Interface](#user-interface)
@@ -119,12 +121,12 @@ pip install apache-airflow[postgres,google]==1.10.11 \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 ```
 
-## Building customized production images
+## Official Docker images
 
 In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images
 of Apache Airflow. The community provides two types of support for the production images:
 
-* We provide pre-build relesed version of production image in PyPI build from released
+* We provide pre-build released version of production image in PyPI build from released
   sources of Apache Airflow - shortly after release. Those images are available in the DockerHub.
   You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the
   version number (for example 1.10.11). Additionally `docker pull apache/airflow` will pull latest
@@ -210,13 +212,13 @@ those packages can only be used in python3.6+ environment.
 ### Installing Airflow 2.0 operators in Airflow 1.10
 
 We released backport packages that can be installed for older Airflow versions.
-Those backport packages are going to be released more frequently that main Airflow 1.10.& releases.
+Those backport packages are going to be released more frequently that main Airflow 1.10.* releases.
 
 You will not have to upgrade your Airflow version to use those packages. You can find those packages in the
 [PyPI](https://pypi.org/search/?q=apache-airflow-backport-providers&o=) and install them separately for each
 provider.
 
-Those packages are available now and can be used in the latest Airflow 1.10* version. Most of those
+Those packages are available now and can be used in the latest Airflow 1.10.* version. Most of those
 packages are also installable and usable in most Airflow 1.10.* releases but there is no extensive testing
 done beyond the latest released version, so you might expect more problems in earlier Airflow versions.
 
@@ -393,6 +395,7 @@ Currently **officially** using Airflow:
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
 1. [Dynata](https://www.dynata.com) [[@neil3handari](https://github.com/neil3handari)]
 1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@diraol](https://github.com/diraol)]
+1. [EBANX](https://www.ebanx.com/) [[@estevammr](https://github.com/estevammr) & [@nathangngencissk](https://github.com/nathangngencissk) & [@raafaadg](https://github.com/raafaadg) & [@whrocha](https://github.com/whrocha)]
 1. [EllisDon](http://www.ellisdon.com/) [[@d2kalra](https://github.com/d2kalra) & [@zbasama](https://github.com/zbasama)]
 1. [Endesa](https://www.endesa.com) [[@drexpp](https://github.com/drexpp)]
 1. [Enigma](https://www.enigma.com) [[@hydrosquall](https://github.com/hydrosquall)]
@@ -420,7 +423,7 @@ Currently **officially** using Airflow:
 1. [Glassdoor](https://github.com/Glassdoor) [[@syvineckruyk](https://github.com/syvineckruyk) & [@sid88in](https://github.com/sid88in)]
 1. [Global Fashion Group](http://global-fashion-group.com) [[@GFG](https://github.com/GFG)]
 1. [GoDataDriven](https://godatadriven.com/) [[@BasPH](https://github.com/basph), [@danielvdende](https://github.com/danielvdende), [@ffinfo](https://github.com/ffinfo), [@Fokko](https://github.com/Fokko), [@gglanzani](https://github.com/gglanzani), [@hgrif](https://github.com/hgrif), [@jrderuiter](https://github.com/jrderuiter), [@NielsZeilemaker](https://github.com/NielsZeilemaker)]
-1. [Gojek](https://gojek.com/) [[@gojek](https://github.com/gojek)]
+1. [Gojek](https://gojek.com/) [[@gojek](https://github.com/gojek), [@rootcss](https://github.com/rootcss)]
 1. [GovTech GDS](https://gds-gov.tech) [[@chrissng](https://github.com/chrissng) & [@datagovsg](https://github.com/datagovsg)]
 1. [Grab](https://www.grab.com/sg/) [[@calvintran](https://github.com/canhtran)]
 1. [Gradeup](https://gradeup.co) [[@gradeup](https://github.com/gradeup)]
@@ -491,6 +494,7 @@ Currently **officially** using Airflow:
 1. [Markovian](https://markovian.com/) [[@al-xv](https://github.com/al-xv), [@skogsbaeck](https://github.com/skogsbaeck), [@waltherg](https://github.com/waltherg)]
 1. [Mercadoni](https://www.mercadoni.com.co) [[@demorenoc](https://github.com/demorenoc)]
 1. [Mercari](http://www.mercari.com/) [[@yu-iskw](https://github.com/yu-iskw)]
+1. [MeuVendoo](https://www.meuvendoo.com.br) [[@CarlosDutra](https://github.com/CarlosDutra)]
 1. [MFG Labs](https://github.com/MfgLabs)
 1. [Ministry of Economy of Brazil](https://www.gov.br/economia/) [[@nitaibezerra](https://github.com/nitaibezerra), [@vitorbellini](https://github.com/vitorbellini)]
 1. [MiNODES](https://www.minodes.com) [[@dice89](https://github.com/dice89), [@diazcelsa](https://github.com/diazcelsa)]
@@ -504,6 +508,7 @@ Currently **officially** using Airflow:
 1. [Newzoo](https://www.newzoo.com) [[@newzoo-nexus](https://github.com/newzoo-nexus)]
 1. [NEXT Trucking](https://www.nexttrucking.com/) [[@earthmancash2](https://github.com/earthmancash2), [@kppullin](https://github.com/kppullin)]
 1. [Nextdoor](https://nextdoor.com) [[@SivaPandeti](https://github.com/SivaPandeti), [@zshapiro](https://github.com/zshapiro) & [@jthomas123](https://github.com/jthomas123)]
+1. [Nielsen](https://www.nielsen.com) [[@roitvt](https://github.com/roitvt) & [@itaiy](https://github.com/itaiy)]
 1. [Nine](https://nine.com.au) [[@TheZepto](https://github.com/TheZepto)]
 1. [OdysseyPrime](https://www.goprime.io/) [[@davideberdin](https://github.com/davideberdin)]
 1. [OfferUp](https://offerupnow.com)
@@ -525,6 +530,7 @@ Currently **officially** using Airflow:
 1. [Pernod-Ricard](https://www.pernod-ricard.com/) [[@romain-nio](https://github.com/romain-nio)]
 1. [Plaid](https://www.plaid.com/) [[@plaid](https://github.com/plaid), [@AustinBGibbons](https://github.com/AustinBGibbons) & [@jeeyoungk](https://github.com/jeeyoungk)]
 1. [Playbuzz](https://www.playbuzz.com/) [[@clintonboys](https://github.com/clintonboys) & [@dbn](https://github.com/dbn)]
+1. [Playsimple Games](https://playsimple.in/) [[@joshi95](https://github.com/joshi95)]
 1. [PMC](https://pmc.com/) [[@andrewm4894](https://github.com/andrewm4894)]
 1. [Polidea](https://www.polidea.com/) [[@potiuk](https://github.com/potiuk), [@mschickensoup](https://github.com/mschickensoup), [@mik-laj](https://github.com/mik-laj), [@turbaszek](https://github.com/turbaszek), [@michalslowikowski00](https://github.com/michalslowikowski00), [@olchas](https://github.com/olchas)], [@debek](https://github.com/debek)
 1. [Poshmark](https://www.poshmark.com)
@@ -590,6 +596,7 @@ Currently **officially** using Airflow:
 1. [Thinking Machines](https://thinkingmachin.es) [[@marksteve](https://github.com/marksteve)]
 1. [Thinknear](https://www.thinknear.com/) [[@d3cay1](https://github.com/d3cay1), [@ccson](https://github.com/ccson), & [@ababian](https://github.com/ababian)]
 1. [ThoughtWorks](https://www.thoughtworks.com/) [[@sann3](https://github.com/sann3)]
+1. [ThredUP](https://www.thredup.com/) [[@kosteev](https://github.com/kosteev)]
 1. [Thumbtack](https://www.thumbtack.com/) [[@kamalacharya](https://github.com/kamalacharya), [@dwjoss](https://github.com/dwjoss)]
 1. [Tictail](https://tictail.com/)
 1. [Tile](https://tile.com/) [[@ranjanmanish](https://github.com/ranjanmanish)]
@@ -649,5 +656,5 @@ Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.
 ## Links
 
 - [Documentation](https://airflow.apache.org/docs/stable/)
-- [Chat](https://apache-airflow-slack.herokuapp.com/)
+- [Chat](https://s.apache.org/airflow-slack)
 - [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)

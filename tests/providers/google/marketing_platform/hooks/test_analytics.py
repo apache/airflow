@@ -26,7 +26,9 @@ WEB_PROPERTY_ID = "web_property_id"
 ACCOUNT_ID = "the_knight_who_says_ni!"
 DATA_SOURCE = "Monthy Python"
 API_VERSION = "v3"
-GCP_CONN_ID = "google_cloud_default"
+GCP_CONN_ID = "test_gcp_conn_id"
+DELEGATE_TO = "TEST_DELEGATE_TO"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestGoogleAnalyticsHook(unittest.TestCase):
@@ -36,6 +38,21 @@ class TestGoogleAnalyticsHook(unittest.TestCase):
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = GoogleAnalyticsHook(API_VERSION, GCP_CONN_ID)
+
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__")
+    def test_init(self, mock_base_init):
+        hook = GoogleAnalyticsHook(
+            API_VERSION,
+            GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_base_init.assert_called_once_with(
+            GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        self.assertEqual(hook.api_version, API_VERSION)
 
     @mock.patch(
         "airflow.providers.google.marketing_platform.hooks."

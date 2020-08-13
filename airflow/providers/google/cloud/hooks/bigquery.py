@@ -61,6 +61,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def __init__(self,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  use_legacy_sql: bool = True,
                  location: Optional[str] = None,
                  bigquery_conn_id: Optional[str] = None,
@@ -73,7 +74,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
             gcp_conn_id = bigquery_conn_id
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self.use_legacy_sql = use_legacy_sql
         self.location = location
         self.running_job_id = None  # type: Optional[str]
@@ -164,7 +168,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         raise NotImplementedError()
 
     def get_pandas_df(
-        self, sql: str, parameters: Optional[Union[Iterable, Mapping]] = None, dialect: Optional[str] = None
+        self, sql: str, parameters: Optional[Union[Iterable, Mapping]] = None, dialect: Optional[str] = None,
+        **kwargs
     ) -> DataFrame:
         """
         Returns a Pandas DataFrame for the results produced by a BigQuery
@@ -182,6 +187,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param dialect: Dialect of BigQuery SQL – legacy SQL or standard SQL
             defaults to use `self.use_legacy_sql` if not specified
         :type dialect: str in {'legacy', 'standard'}
+        :param kwargs: (optional) passed into pandas_gbq.read_gbq method
+        :type kwargs: dict
         """
         if dialect is None:
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
@@ -192,7 +199,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                         project_id=project_id,
                         dialect=dialect,
                         verbose=False,
-                        credentials=credentials)
+                        credentials=credentials,
+                        **kwargs)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:
@@ -211,7 +219,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         table_reference = TableReference(DatasetReference(project_id, dataset_id), table_id)
         try:
-            self.get_client().get_table(table_reference)
+            self.get_client(project_id=project_id).get_table(table_reference)
             return True
         except NotFound:
             return False
@@ -540,7 +548,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             The missing values are treated as nulls. If false, records with missing
             trailing columns are treated as bad records, and if there are too many bad
             records, an invalid error is returned in the job result. Only applicable when
-            soure_format is CSV.
+            source_format is CSV.
         :type allow_jagged_rows: bool
         :param encoding: The character encoding of the data. See:
 
@@ -701,7 +709,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                     encryption_configuration: Optional[Dict] = None) -> None:
         """
         Patch information in an existing table.
-        It only updates fileds that are provided in the request object.
+        It only updates fields that are provided in the request object.
 
         Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
 
@@ -1582,7 +1590,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             The missing values are treated as nulls. If false, records with missing
             trailing columns are treated as bad records, and if there are too many bad
             records, an invalid error is returned in the job result. Only applicable when
-            soure_format is CSV.
+            source_format is CSV.
         :type allow_jagged_rows: bool
         :param encoding: The character encoding of the data.
 

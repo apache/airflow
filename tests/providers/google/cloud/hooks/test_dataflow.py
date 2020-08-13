@@ -142,7 +142,12 @@ class TestFallbackToVariables(unittest.TestCase):
             FixutureFallback().test_fn({'project': "TEST"}, "TEST2")
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
+def mock_init(
+    self,
+    gcp_conn_id,
+    delegate_to=None,
+    impersonation_chain=None,
+):  # pylint: disable=unused-argument
     pass
 
 

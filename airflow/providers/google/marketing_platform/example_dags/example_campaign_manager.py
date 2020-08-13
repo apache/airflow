@@ -34,9 +34,9 @@ from airflow.utils import dates
 from airflow.utils.state import State
 
 PROFILE_ID = os.environ.get("MARKETING_PROFILE_ID", "123456789")
-FLOODLIGHT_ACTIVITY_ID = os.environ.get("FLOODLIGHT_ACTIVITY_ID", 12345)
-FLOODLIGHT_CONFIGURATION_ID = os.environ.get("FLOODLIGHT_CONFIGURATION_ID", 12345)
-ENCRYPTION_ENTITY_ID = os.environ.get("ENCRYPTION_ENTITY_ID", 12345)
+FLOODLIGHT_ACTIVITY_ID = int(os.environ.get("FLOODLIGHT_ACTIVITY_ID", 12345))
+FLOODLIGHT_CONFIGURATION_ID = int(os.environ.get("FLOODLIGHT_CONFIGURATION_ID", 12345))
+ENCRYPTION_ENTITY_ID = int(os.environ.get("ENCRYPTION_ENTITY_ID", 12345))
 DEVICE_ID = os.environ.get("DEVICE_ID", "12345")
 BUCKET = os.environ.get("MARKETING_BUCKET", "test-cm-bucket")
 REPORT_NAME = "test-report"
@@ -83,12 +83,10 @@ CONVERSION_UPDATE = {
     "value": 123.4,
 }
 
-default_args = {"start_date": dates.days_ago(1)}
-
 with models.DAG(
     "example_campaign_manager",
-    default_args=default_args,
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval=None,  # Override to match your needs,
+    start_date=dates.days_ago(1)
 ) as dag:
     # [START howto_campaign_manager_insert_report_operator]
     create_report = GoogleCampaignManagerInsertReportOperator(

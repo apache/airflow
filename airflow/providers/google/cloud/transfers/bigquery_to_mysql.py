@@ -78,7 +78,7 @@ class BigQueryToMySqlOperator(BaseOperator):
     template_fields = ('dataset_id', 'table_id', 'mysql_table')
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments
+    def __init__(self, *,  # pylint: disable=too-many-arguments
                  dataset_table: str,
                  mysql_table: str,
                  selected_fields: Optional[str] = None,
@@ -89,9 +89,8 @@ class BigQueryToMySqlOperator(BaseOperator):
                  replace: bool = False,
                  batch_size: int = 1000,
                  location: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
         self.mysql_conn_id = mysql_conn_id

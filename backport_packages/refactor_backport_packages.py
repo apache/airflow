@@ -54,9 +54,16 @@ def copy_provider_sources() -> None:
                     ignored_names.append(file_name)
         return ignored_names
 
+    def ignore_google_auth_backend(src: str, names: List[str]) -> List[str]:
+        del names
+        if src.endswith("google" + os.path.sep + "common"):
+            return ["auth_backend"]
+        return []
+
     def ignore_some_files(src: str, names: List[str]) -> List[str]:
         ignored_list = []
         ignored_list.extend(ignore_kubernetes_files(src=src, names=names))
+        ignored_list.extend(ignore_google_auth_backend(src=src, names=names))
         return ignored_list
 
     rm_build_dir()
@@ -72,7 +79,7 @@ def copy_helper_py_file(target_file_path: str) -> None:
 
     The helper has two methods (chain, cross_downstream) that are moved from the original helper to
     'airflow.models.baseoperator'. so in 1.10 they should reimport the original 'airflow.utils.helper'
-    methods. Those deprecated methods use importe with import_string("<IMPORT>") so it is easier to
+    methods. Those deprecated methods use import with import_string("<IMPORT>") so it is easier to
     replace them as strings rather than with Bowler
 
     :param target_file_path: target path name for the helpers.py

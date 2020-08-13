@@ -62,12 +62,11 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
     }
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  mysql_conn_id='mysql_default',
                  ensure_utc=False,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.mysql_conn_id = mysql_conn_id
         self.ensure_utc = ensure_utc
 

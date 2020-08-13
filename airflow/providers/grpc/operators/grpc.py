@@ -53,7 +53,7 @@ class GrpcOperator(BaseOperator):
     template_fields = ('stub_class', 'call_func', 'data')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  stub_class: Callable,
                  call_func: str,
                  grpc_conn_id: str = "grpc_default",
@@ -63,8 +63,8 @@ class GrpcOperator(BaseOperator):
                  streaming: bool = False,
                  response_callback: Optional[Callable] = None,
                  log_response: bool = False,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.stub_class = stub_class
         self.call_func = call_func
         self.grpc_conn_id = grpc_conn_id

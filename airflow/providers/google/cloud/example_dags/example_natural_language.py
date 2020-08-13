@@ -47,12 +47,10 @@ document_gcs = Document(gcs_content_uri=GCS_CONTENT_URI, type="PLAIN_TEXT")
 # [END howto_operator_gcp_natural_language_document_gcs]
 
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_gcp_natural_language",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1)
 ) as dag:
 
     # [START howto_operator_gcp_natural_language_analyze_entities]

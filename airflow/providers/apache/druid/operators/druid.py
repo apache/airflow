@@ -38,11 +38,11 @@ class DruidOperator(BaseOperator):
     template_ext = ('.json',)
 
     @apply_defaults
-    def __init__(self, json_index_file: str,
+    def __init__(self, *, json_index_file: str,
                  druid_ingest_conn_id: str = 'druid_ingest_default',
                  max_ingestion_time: Optional[int] = None,
-                 *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.json_index_file = json_index_file
         self.conn_id = druid_ingest_conn_id
         self.max_ingestion_time = max_ingestion_time
