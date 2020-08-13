@@ -1115,6 +1115,7 @@ setMachineType
 setdefault
 setted
 sftp
+sharded
 shellcheck
 shellcmd
 shm
