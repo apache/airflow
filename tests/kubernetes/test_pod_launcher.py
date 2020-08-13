@@ -93,6 +93,44 @@ class TestPodLauncher(unittest.TestCase):
             ),
         ])
 
+    def test_read_pod_status_successfully_returns_statuses(self):
+        mock.sentinel.metadata = mock.MagicMock()
+        self.mock_kube_client.read_namespaced_pod_status.return_value = mock.sentinel.statuses
+        statuses = self.pod_launcher.read_pod_status(mock.sentinel)
+        self.assertEqual(mock.sentinel.statuses, statuses)
+
+    def test_read_pod_status_retries_successfully(self):
+        mock.sentinel.metadata = mock.MagicMock()
+        self.mock_kube_client.read_namespaced_pod_status.side_effect = [
+            BaseHTTPError('Boom'),
+            mock.sentinel.statuses
+        ]
+        statuses = self.pod_launcher.read_pod_status(mock.sentinel)
+        self.assertEqual(mock.sentinel.statuses, statuses)
+        self.mock_kube_client.read_namespaced_pod_status.assert_has_calls([
+            mock.call(
+                namespace=mock.sentinel.metadata.namespace,
+                name=mock.sentinel.metadata.name
+            ),
+            mock.call(
+                namespace=mock.sentinel.metadata.namespace,
+                name=mock.sentinel.metadata.name
+            )
+        ])
+
+    def test_read_pod_status_retries_fails(self):
+        mock.sentinel.metadata = mock.MagicMock()
+        self.mock_kube_client.read_namespaced_pod_status.side_effect = [
+            BaseHTTPError('Boom'),
+            BaseHTTPError('Boom'),
+            BaseHTTPError('Boom')
+        ]
+        self.assertRaises(
+            AirflowException,
+            self.pod_launcher.read_pod_status,
+            mock.sentinel
+        )
+
     def test_read_pod_events_successfully_returns_events(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.list_namespaced_event.return_value = mock.sentinel.events

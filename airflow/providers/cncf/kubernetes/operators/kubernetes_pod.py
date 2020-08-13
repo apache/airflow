@@ -138,6 +138,13 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type init_containers: list[kubernetes.client.models.V1Container]
     :param log_events_on_failure: Log the pod's events if a failure occurs
     :type log_events_on_failure: bool
+    :param retry_only_on_pod_launching_failure: retry logic is only effective if pod launching fails. This
+        prevents retries when image failures occurs. Useful for non-idempotent tasks.
+    :type retry_only_on_pod_launching_failure: bool
+    :param log_container_statuses_on_failure: Log the pod's containers statuses if a failure occurs.
+        This is particularly useful if the container runs out of memory. The pod will fail silently
+        if we do not log container statuses to surface OOMKilled status of the container.
+    :type log_container_statuses_on_failure: bool
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
@@ -188,6 +195,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  full_pod_spec: Optional[k8s.V1Pod] = None,
                  init_containers: Optional[List[k8s.V1Container]] = None,
                  log_events_on_failure: bool = False,
+                 retry_only_on_pod_launching_failure = False,
+                 log_container_statuses_on_failure: bool = False,
                  do_xcom_push: bool = False,
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
@@ -232,6 +241,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.full_pod_spec = full_pod_spec
         self.init_containers = init_containers or []
         self.log_events_on_failure = log_events_on_failure
+        self.retry_only_on_pod_launching_failure = retry_only_on_pod_launching_failure
+        self.log_container_statuses_on_failure = log_container_statuses_on_failure
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
         self.name = self._set_name(name)
@@ -291,6 +302,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
             if final_state != State.SUCCESS:
+                if self.retry_only_on_pod_launching_failure:
+                    self.log.info('Task failure due to task image, avoiding retries and failing the task.')
+                    ti = context.get('task_instance')
+                    ti.error()
                 raise AirflowException(
                     'Pod returned a failure: {state}'.format(state=final_state))
             return result
@@ -346,6 +361,20 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             return None
         validate_key(name, max_length=220)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
+
+    def _log_pod_events_on_failure(self, pod, launcher):
+        if self.log_events_on_failure:
+            for event in launcher.read_pod_events(pod).items:
+                self.log.error("Pod Event: %s - %s", event.reason, event.message)
+
+    def _log_pod_status_on_failure(self, pod, launcher):
+        if self.log_container_statuses_on_failure:
+            try:
+                pod_status = launcher.read_pod_status(pod)
+                self.log.error('Pod not succeeded, look for OOMKilled in containers statuses.')
+                self.log.error(pod_status.status.container_statuses)
+            except AirflowException as ex:
+                self.log.exception('Failed to get container statuses: %s', ex)
 
     def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:
         """
@@ -406,17 +435,18 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
         self.pod = pod
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod.to_dict()))
+        final_state, result = None, None
         try:
             launcher.start_pod(
                 pod,
                 startup_timeout=self.startup_timeout_seconds)
             final_state, result = launcher.monitor_pod(pod=pod, get_logs=self.get_logs)
-        except AirflowException:
-            if self.log_events_on_failure:
-                for event in launcher.read_pod_events(pod).items:
-                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            raise
         finally:
+            if final_state != State.SUCCESS:
+                # Before deleting the pod we get events and status of the pod (events can be fetched
+                # after pod deletion but not statuses). For consistency both are fetched before deletion.
+                self._log_pod_events_on_failure(pod, launcher)
+                self._log_pod_status_on_failure(pod, launcher)
             if self.is_delete_operator_pod:
                 launcher.delete_pod(pod)
         return final_state, pod, result
@@ -435,9 +465,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             if self.is_delete_operator_pod:
                 launcher.delete_pod(pod)
         if final_state != State.SUCCESS:
-            if self.log_events_on_failure:
-                for event in launcher.read_pod_events(pod).items:
-                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
+            self._log_pod_events_on_failure(pod, launcher)
+            self._log_pod_status_on_failure(pod, launcher)
             raise AirflowException(
                 'Pod returned a failure: {state}'.format(state=final_state)
             )
