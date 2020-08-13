@@ -40,7 +40,7 @@ MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = 'return_value'
 
 
-class XCom(Base, LoggingMixin):
+class BaseXCom(Base, LoggingMixin):
     """
     Base class for XCom objects.
     """
@@ -232,3 +232,37 @@ class XCom(Base, LoggingMixin):
                       "for XCOM, then you need to enable pickle "
                       "support for XCOM in your airflow config.")
             raise
+
+    @staticmethod
+    def deserialize_value(result):
+        # TODO: "pickling" has been deprecated and JSON is preferred.
+        # "pickling" will be removed in Airflow 2.0.
+        enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
+        if enable_pickling:
+            return pickle.loads(result.value)
+
+        try:
+            return json.loads(result.value.decode('UTF-8'))
+        except ValueError:
+            log.error("Could not deserialize the XCOM value from JSON. "
+                      "If you are using pickles instead of JSON "
+                      "for XCOM, then you need to enable pickle "
+                      "support for XCOM in your airflow config.")
+            raise
+
+
+def resolve_xcom_backend():
+    """Resolves custom XCom class"""
+    clazz = conf.getimport("core", "xcom_backend", fallback="airflow.models.xcom.{}"
+                           .format(BaseXCom.__name__))
+    if clazz:
+        if not issubclass(clazz, BaseXCom):
+            raise TypeError(
+                "Your custom XCom class `{class_name}` is not a subclass of `{base_name}`."
+                .format(class_name=clazz.__name__, base_name=BaseXCom.__name__)
+            )
+        return clazz
+    return BaseXCom
+
+
+XCom = resolve_xcom_backend()

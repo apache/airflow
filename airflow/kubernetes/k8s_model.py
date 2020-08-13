@@ -29,6 +29,7 @@ else:
 
 
 class K8SModel(ABC):
+
     """
     These Airflow Kubernetes models are here for backwards compatibility
     reasons only. Ideally clients should use the kubernetes api
@@ -39,6 +40,7 @@ class K8SModel(ABC):
     can be avoided. All of these models implement the
     `attach_to_pod` method so that they integrate with the kubernetes client.
     """
+
     @abc.abstractmethod
     def attach_to_pod(self, pod):
         """
@@ -47,9 +49,23 @@ class K8SModel(ABC):
         :return: The pod with the object attached
         """
 
+    def as_dict(self):
+        res = {}
+        if hasattr(self, "__slots__"):
+            for s in self.__slots__:
+                if hasattr(self, s):
+                    res[s] = getattr(self, s)
+        if hasattr(self, "__dict__"):
+            res_dict = self.__dict__.copy()
+            res_dict.update(res)
+            return res_dict
+        return res
+
 
 def append_to_pod(pod, k8s_objects):
     """
+    Attach Kubernetes objects to the given POD
+
     :param pod: A pod to attach a list of Kubernetes objects to
     :type pod: kubernetes.client.models.V1Pod
     :param k8s_objects: a potential None list of K8SModels

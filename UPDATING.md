@@ -67,6 +67,16 @@ https://developers.google.com/style/inclusive-documentation
 Previously, when tasks skipped by SkipMixin (such as BranchPythonOperator, BaseBranchOperator and ShortCircuitOperator) are cleared, they execute. Since 1.10.12, when such skipped tasks are cleared,
 they will be skipped again by the newly introduced NotPreviouslySkippedDep.
 
+### The pod_mutation_hook function will now accept a kubernetes V1Pod object
+
+As of airflow 1.10.12, using the `airflow.contrib.kubernetes.Pod` class in the `pod_mutation_hook` is now deprecated. Instead we recommend that users
+treat the `pod` parameter as a `kubernetes.client.models.V1Pod` object. This means that users now have access to the full Kubernetes API
+when modifying airflow pods
+
+### pod_template_file option now available in the KubernetesPodOperator
+
+Users can now offer a path to a yaml for the KubernetesPodOperator using the `pod_template_file` parameter.
+
 ## Airflow 1.10.11
 
 ### Use NULL as default value for dag.description

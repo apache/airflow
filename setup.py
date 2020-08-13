@@ -307,7 +307,7 @@ ldap = [
 ]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
-    'pymongo>=3.6.0',
+    'pymongo>=3.6.0,<3.11.0',
 ]
 mssql = [
     'pymssql~=2.1.1',
@@ -325,6 +325,8 @@ pagerduty = [
 papermill = [
     'papermill[all]>=1.0.0',
     'nteract-scrapbook[all]>=0.2.1',
+    'pyarrow<1.0.0',
+    'fsspec<0.8.0;python_version=="3.5"'
 ]
 password = [
     'bcrypt>=2.0.0',
@@ -422,7 +424,7 @@ devel = [
     'paramiko',
     'pre-commit',
     'pysftp',
-    'pytest',
+    'pytest<6.0.0',  # FIXME: pylint complaining for pytest.mark.* on v6.0
     'pytest-cov',
     'pytest-instafail',
     'pytest-rerunfailures',

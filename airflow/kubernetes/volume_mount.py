@@ -19,11 +19,11 @@ Classes for interacting with Kubernetes API
 """
 
 import copy
-import kubernetes.client.models as k8s
 from airflow.kubernetes.k8s_model import K8SModel
 
 
 class VolumeMount(K8SModel):
+    __slots__ = ('name', 'mount_path', 'sub_path', 'read_only')
     """
     Initialize a Kubernetes Volume Mount. Used to mount pod level volumes to
     running container.
@@ -48,8 +48,8 @@ class VolumeMount(K8SModel):
         Converts to k8s object.
 
         :return Volume Mount k8s object
-
         """
+        import kubernetes.client.models as k8s
         return k8s.V1VolumeMount(
             name=self.name,
             mount_path=self.mount_path,
