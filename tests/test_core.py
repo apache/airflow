@@ -1098,6 +1098,7 @@ class CliTests(unittest.TestCase):
             self.assertIn('user{}'.format(i), stdout)
 
     @mock.patch("airflow.settings.RBAC", True)
+    @mock.patch("airflow.settings.STORE_SERIALIZED_DAGS", True)
     @mock.patch("airflow.bin.cli.DagBag")
     def test_cli_sync_perm(self, dagbag_mock):
         self.expect_dagbag_contains([
@@ -1115,9 +1116,8 @@ class CliTests(unittest.TestCase):
         cli.sync_perm(args)
 
         self.appbuilder.sm.sync_roles.assert_called_once()
-
-        self.assertEqual(2,
-                         len(self.appbuilder.sm.sync_perm_for_dag.mock_calls))
+        dagbag_mock.assert_called_once_with(store_serialized_dags=True)
+        self.assertEqual(2, len(self.appbuilder.sm.sync_perm_for_dag.mock_calls))
         self.appbuilder.sm.sync_perm_for_dag.assert_any_call(
             'has_access_control',
             {'Public': {'can_dag_read'}}
