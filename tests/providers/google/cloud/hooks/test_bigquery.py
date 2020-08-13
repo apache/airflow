@@ -34,6 +34,7 @@ PROJECT_ID = "bq-project"
 CREDENTIALS = "bq-credentials"
 DATASET_ID = "bq_dataset"
 TABLE_ID = "bq_table"
+PARTITION_ID = "20200101"
 VIEW_ID = 'bq_view'
 JOB_ID = "1234"
 LOCATION = 'europe-north1'
@@ -116,6 +117,45 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         mock_client.return_value.get_table.side_effect = NotFound("Dataset not found")
         result = self.hook.table_exists(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID)
         mock_client.return_value.get_table.assert_called_once_with(TABLE_REFERENCE)
+        mock_client.assert_called_once_with(project_id=PROJECT_ID)
+        assert result is False
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_bigquery_table_partition_exists_true(self, mock_client):
+        mock_client.return_value.list_partitions.return_value = [PARTITION_ID]
+        result = self.hook.table_partition_exists(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            partition_id=PARTITION_ID
+        )
+        mock_client.return_value.list_partitions.assert_called_once_with(TABLE_REFERENCE)
+        mock_client.assert_called_once_with(project_id=PROJECT_ID)
+        assert result is True
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_bigquery_table_partition_exists_false_no_table(self, mock_client):
+        mock_client.return_value.get_table.side_effect = NotFound("Dataset not found")
+        result = self.hook.table_partition_exists(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            partition_id=PARTITION_ID
+        )
+        mock_client.return_value.list_partitions.assert_called_once_with(TABLE_REFERENCE)
+        mock_client.assert_called_once_with(project_id=PROJECT_ID)
+        assert result is False
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    def test_bigquery_table_partition_exists_false_no_partition(self, mock_client):
+        mock_client.return_value.list_partitions.return_value = []
+        result = self.hook.table_partition_exists(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            partition_id=PARTITION_ID
+        )
+        mock_client.return_value.list_partitions.assert_called_once_with(TABLE_REFERENCE)
         mock_client.assert_called_once_with(project_id=PROJECT_ID)
         assert result is False
 

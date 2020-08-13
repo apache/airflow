@@ -225,6 +225,35 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             return False
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def table_partition_exists(
+        self,
+        dataset_id: str,
+        table_id: str,
+        partition_id: str,
+        project_id: str
+    ) -> bool:
+        """
+        Checks for the existence of a partition in a table in Google BigQuery.
+
+        :param project_id: The Google cloud project in which to look for the
+            table. The connection supplied to the hook must provide access to
+            the specified project.
+        :type project_id: str
+        :param dataset_id: The name of the dataset in which to look for the
+            table.
+        :type dataset_id: str
+        :param table_id: The name of the table to check the existence of.
+        :type table_id: str
+        :param partition_id: The name of the partition to check the existence of.
+        :type partition_id: str
+        """
+        table_reference = TableReference(DatasetReference(project_id, dataset_id), table_id)
+        try:
+            return partition_id in self.get_client(project_id=project_id).list_partitions(table_reference)
+        except NotFound:
+            return False
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_table(  # pylint: disable=too-many-arguments
         self,
         project_id: Optional[str] = None,
