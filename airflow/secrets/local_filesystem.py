@@ -21,6 +21,7 @@ Objects relating to retrieving connections and variables from local file
 import json
 import logging
 import os
+import _io
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
@@ -43,7 +44,7 @@ def get_connection_parameter_names() -> Set[str]:
     return {k for k in signature(Connection.__init__).parameters.keys() if k != "self"}
 
 
-def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
+def _parse_env_file(file: _io.TextIOWrapper) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
     """
     Parse a file in the ``.env '' format.
 
@@ -51,13 +52,12 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
 
         MY_CONN_ID=my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2
 
-    :param file_path: The location of the file that will be processed.
-    :type file_path: str
+    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :type file: _io.TextIOWrapper
     :return: Tuple with mapping of key and list of values and list of syntax errors
     """
-    with open(file_path) as f:
-        content = f.read()
 
+    content = file.read()
     secrets: Dict[str, List[str]] = defaultdict(list)
     errors: List[FileSyntaxError] = []
     for line_no, line in enumerate(content.splitlines(), 1):
@@ -86,17 +86,16 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
     return secrets, errors
 
 
-def _parse_yaml_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
+def _parse_yaml_file(file: _io.TextIOWrapper) -> Tuple[Dict[str, List[str]], List[FileSyntaxError]]:
     """
     Parse a file in the YAML format.
 
-    :param file_path: The location of the file that will be processed.
-    :type file_path: str
+    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :type file: _io.TextIOWrapper
     :return: Tuple with mapping of key and list of values and list of syntax errors
     """
-    with open(file_path) as f:
-        content = f.read()
 
+    content = file.read()
     if not content:
         return {}, [FileSyntaxError(line_no=1, message="The file is empty.")]
     try:
@@ -110,17 +109,16 @@ def _parse_yaml_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyn
     return secrets, []
 
 
-def _parse_json_file(file_path: str) -> Tuple[Dict[str, Any], List[FileSyntaxError]]:
+def _parse_json_file(file: _io.TextIOWrapper) -> Tuple[Dict[str, Any], List[FileSyntaxError]]:
     """
     Parse a file in the JSON format.
 
-    :param file_path: The location of the file that will be processed.
-    :type file_path: str
+    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :type file: _io.TextIOWrapper
     :return: Tuple with mapping of key and list of values and list of syntax errors
     """
-    with open(file_path) as f:
-        content = f.read()
 
+    content = file.read()
     if not content:
         return {}, [FileSyntaxError(line_no=1, message="The file is empty.")]
     try:
@@ -140,33 +138,29 @@ FILE_PARSERS = {
 }
 
 
-def _parse_secret_file(file_path: str) -> Dict[str, Any]:
+def _parse_secret_file(file: _io.TextIOWrapper) -> Dict[str, Any]:
     """
     Based on the file extension format, selects a parser, and parses the file.
 
-    :param file_path: The location of the file that will be processed.
-    :type file_path: str
+    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :type file: _io.TextIOWrapper
     :return: Map of secret key (e.g. connection ID) and value.
     """
-    if not os.path.exists(file_path):
-        raise AirflowException(
-            f"File {file_path} was not found. Check the configuration of your Secrets backend."
-        )
 
-    log.debug("Parsing file: %s", file_path)
+    log.debug("Parsing file: %s", file.name)
 
-    ext = file_path.rsplit(".", 2)[-1].lower()
+    ext = file.name.rsplit(".", 2)[-1].lower()
 
     if ext not in FILE_PARSERS:
         raise AirflowException("Unsupported file format. The file must have the extension .env or .json")
 
-    secrets, parse_errors = FILE_PARSERS[ext](file_path)
+    secrets, parse_errors = FILE_PARSERS[ext](file)
 
     log.debug("Parsed file: len(parse_errors)=%d, len(secrets)=%d", len(parse_errors), len(secrets))
 
     if parse_errors:
         raise AirflowFileParseException(
-            "Failed to load the secret file.", file_path=file_path, parse_errors=parse_errors
+            "Failed to load the secret file.", file_path=file.name, parse_errors=parse_errors
         )
 
     return secrets
@@ -212,39 +206,42 @@ def _create_connection(conn_id: str, value: Any):
     )
 
 
-def load_variables(file_path: str) -> Dict[str, str]:
+def load_variables(file: _io.TextIOWrapper) -> Dict[str, str]:
     """
     Load variables from a text file.
 
     Both ``JSON`` and ``.env`` files are supported.
 
-    :param file_path: The location of the file that will be processed.
-    :type file_path: str
+    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :type file: _io.TextIOWrapper
     :rtype: Dict[str, List[str]]
     """
     log.debug("Loading variables from a text file")
 
-    secrets = _parse_secret_file(file_path)
+    secrets = _parse_secret_file(file)
     invalid_keys = [key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1]
     if invalid_keys:
-        raise AirflowException(f'The "{file_path}" file contains multiple values for keys: {invalid_keys}')
+        raise AirflowException(f'The "{file.name}" file contains multiple values for keys: {invalid_keys}')
     variables = {key: values[0] if isinstance(values, list) else values for key, values in secrets.items()}
     log.debug("Loaded %d variables: ", len(variables))
     return variables
 
 
-def load_connections(file_path: str):
+def load_connections(file: _io.TextIOWrapper):
     """
     Load connection from text file.
 
     Both ``JSON`` and ``.env`` files are supported.
+
+    :param file: _io.TextIOWrapper object of the file that will be processed.
+    :type file: _io.TextIOWrapper
 
     :return: A dictionary where the key contains a connection ID and the value contains a list of connections.
     :rtype: Dict[str, List[airflow.models.connection.Connection]]
     """
     log.debug("Loading connection")
 
-    secrets: Dict[str, Any] = _parse_secret_file(file_path)
+    secrets: Dict[str, Any] = _parse_secret_file(file)
     connections_by_conn_id = defaultdict(list)
     for key, secret_values in list(secrets.items()):
         if isinstance(secret_values, list):
