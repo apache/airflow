@@ -75,8 +75,10 @@ def execute_command(command_to_exec: CommandType) -> None:
     log.info("Executing command in Celery: %s", command_to_exec)
     env = os.environ.copy()
     try:
-        subprocess.check_call(command_to_exec, stderr=subprocess.STDOUT,
-                              close_fds=True, env=env)
+        # pylint: disable=unexpected-keyword-arg
+        subprocess.check_output(command_to_exec, stderr=subprocess.STDOUT,
+                                close_fds=True, env=env)
+        # pylint: disable=unexpected-keyword-arg
     except subprocess.CalledProcessError as e:
         log.exception('execute_command encountered a CalledProcessError')
         log.error(e.output)
