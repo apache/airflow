@@ -406,8 +406,17 @@ limits: []
 # Config Settings for pod_mutation_hook
 # podMutation values will not apply if `scheduler.airflowLocalSettings` have been modified
 podMutation:
-  # Tolerations provided here would be applied using pod_mutation_hook
-  # So any pods spun up using KubernetesExecutor or KubernetesPodOperator will contain these tolerations.
+  enabled: false
+  # You can just add `tolerations` and `affinity` below
+  # or define this podMutationHookTpl however you like.
+  # Anything can be templated here since it is using `tpl` helm function
+  podMutationHookTpl: |
+    from airflow.contrib.kubernetes.pod import Pod
+    def pod_mutation_hook(pod: Pod):
+        pod.tolerations += {{ toJson .Values.podMutation.tolerations }}
+        pod.affinity.update({{ toJson .Values.podMutation.affinity }})
+
+  # Any pods spun up using KubernetesExecutor or KubernetesPodOperator will contain these tolerations.
   tolerations: []
   #  - key: "dynamic-pods"
   #    operator: "Equal"
