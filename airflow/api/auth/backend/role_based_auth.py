@@ -20,10 +20,8 @@
 from functools import wraps
 from typing import Callable, Optional, Tuple, TypeVar, Union
 
-from flask import Response
+from flask import Response, current_app
 from requests.auth import AuthBase
-
-from airflow.www.app import cached_app
 
 CLIENT_AUTH: Optional[Union[Tuple[str, str], AuthBase]] = None
 
@@ -40,7 +38,7 @@ def requires_authentication(function):
 
     @wraps(function)
     def decorated(*args, **kwargs):
-        appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+        appbuilder = current_app.appbuilder
         view_permissions = {
             "trigger_dag": [("can_trigger", "Airflow")],
             "delete_dag": [("can_delete", "Airflow")],
