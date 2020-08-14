@@ -163,7 +163,7 @@ spec:
         # we don't have elasticsearch enabled.
         - name: scheduler-logs
           image: {{ template "airflow_image" . }}
-          args: ["airflow", "serve_logs"]
+          args: ["serve_logs"]
           ports:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
