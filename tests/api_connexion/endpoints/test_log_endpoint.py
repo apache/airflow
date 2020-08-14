@@ -27,6 +27,7 @@ from unittest.mock import PropertyMock
 from itsdangerous.url_safe import URLSafeSerializer
 
 from airflow import DAG, settings
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
@@ -256,7 +257,7 @@ class TestGetLog(unittest.TestCase):
                 'detail': None,
                 'status': 400,
                 'title': "Bad Signature. Please use only the tokens provided by the API.",
-                'type': 'about:blank',
+                'type': EXCEPTIONS_LINK_MAP[400],
             },
         )
 
@@ -269,7 +270,7 @@ class TestGetLog(unittest.TestCase):
         )
         self.assertEqual(
             response.json,
-            {'detail': None, 'status': 404, 'title': "DAG Run not found", 'type': 'about:blank'},
+            {'detail': None, 'status': 404, 'title': "DAG Run not found", 'type': EXCEPTIONS_LINK_MAP[404]},
         )
 
     def test_should_raises_401_unauthenticated(self):
