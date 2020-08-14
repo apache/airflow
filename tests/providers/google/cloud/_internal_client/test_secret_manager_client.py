@@ -18,7 +18,7 @@
 
 from unittest import TestCase, mock
 
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import NotFound, PermissionDenied
 from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
 
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient  # noqa
@@ -55,6 +55,21 @@ class TestSecretManagerClient(TestCase):
         mock_client.secret_version_path.return_value = "full-path"
         # The requested secret id or secret version does not exist
         mock_client.access_secret_version.side_effect = NotFound('test-msg')
+        secrets_client = _SecretManagerClient(credentials="credentials")
+        secret = secrets_client.get_secret(secret_id="missing", project_id="project_id")
+        mock_client.secret_version_path.assert_called_once_with("project_id", 'missing', 'latest')
+        self.assertIsNone(secret)
+        mock_client.access_secret_version.assert_called_once_with('full-path')
+
+    @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
+    @mock.patch(INTERNAL_CLIENT_MODULE + ".ClientInfo")
+    def test_get_no_permissions(self, mock_client_info, mock_secrets_client):
+        mock_client = mock.MagicMock()
+        mock_client_info.return_value = mock.MagicMock()
+        mock_secrets_client.return_value = mock_client
+        mock_client.secret_version_path.return_value = "full-path"
+        # No permissions for requested secret id
+        mock_client.access_secret_version.side_effect = PermissionDenied('test-msg')
         secrets_client = _SecretManagerClient(credentials="credentials")
         secret = secrets_client.get_secret(secret_id="missing", project_id="project_id")
         mock_client.secret_version_path.assert_called_once_with("project_id", 'missing', 'latest')
