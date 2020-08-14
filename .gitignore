@@ -149,8 +149,6 @@ tramp
 # Spark
 rat-results.txt
 
-# Git stuff
-.gitattributes
 # Kubernetes generated templated files
 *.generated
 *.tar.gz
