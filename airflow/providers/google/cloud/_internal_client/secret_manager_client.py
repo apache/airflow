@@ -20,7 +20,7 @@ from typing import Optional
 
 import google
 from cached_property import cached_property
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import NotFound, PermissionDenied
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient
 
@@ -90,5 +90,11 @@ class _SecretManagerClient(LoggingMixin):
         except NotFound:
             self.log.error(
                 "GCP API Call Error (NotFound): Secret ID %s not found.", secret_id
+            )
+            return None
+        except PermissionDenied:
+            self.log.error(
+                """GCP API Call Error (PermissionDenied): No access for Secret ID %s.
+                Did you add 'secretmanager.versions.access' permission?""", secret_id
             )
             return None
