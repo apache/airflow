@@ -34,9 +34,7 @@ function check_integration {
         return
     fi
 
-    echo "-----------------------------------------------------------------------------------------------"
-    echo "             Checking integration ${INTEGRATION_NAME}"
-    echo "-----------------------------------------------------------------------------------------------"
+    echo -n "${INTEGRATION_NAME}: "
     while true
     do
         set +e
@@ -44,31 +42,27 @@ function check_integration {
         RES=$?
         set -e
         if [[ ${RES} == 0 ]]; then
-            echo
-            echo "             Integration ${INTEGRATION_NAME} OK!"
-            echo
+            echo -e " \e[32mOK!\e[0m"
             break
         else
             echo -n "."
             MAX_CHECK=$((MAX_CHECK-1))
         fi
         if [[ ${MAX_CHECK} == 0 ]]; then
-            echo
-            echo "ERROR! Maximum number of retries while checking ${INTEGRATION_NAME} integration. Exiting"
-            echo
+            echo -e " \e[31mERROR!\e[30m"
+            echo "Maximum number of retries while checking integration. Exiting"
             break
         else
             sleep 1
         fi
     done
     if [[ ${RES} != 0 ]]; then
-        echo "        ERROR: Integration ${INTEGRATION_NAME} could not be started!"
+        echo "Integration could not be started!"
         echo
         echo "${LAST_CHECK_RESULT}"
         echo
         EXIT_CODE=${RES}
     fi
-    echo "-----------------------------------------------------------------------------------------------"
 }
 
 function check_db_connection {
@@ -83,9 +77,7 @@ function check_db_connection {
     else
         return
     fi
-    echo "-----------------------------------------------------------------------------------------------"
-    echo "             Checking DB ${BACKEND}"
-    echo "-----------------------------------------------------------------------------------------------"
+    echo -n "${BACKEND}: "
     while true
     do
         set +e
@@ -93,31 +85,27 @@ function check_db_connection {
         RES=$?
         set -e
         if [[ ${RES} == 0 ]]; then
-            echo
-            echo "             Backend ${BACKEND} OK!"
-            echo
+            echo -e " \e[32mOK!\e[0m"
             break
         else
             echo -n "."
             MAX_CHECK=$((MAX_CHECK-1))
         fi
         if [[ ${MAX_CHECK} == 0 ]]; then
-            echo
-            echo "ERROR! Maximum number of retries while checking ${BACKEND} db. Exiting"
-            echo
+            echo -e " \e[31mERROR!\e[0m"
+            echo "Maximum number of retries while checking db. Exiting"
             break
         else
             sleep 1
         fi
     done
     if [[ ${RES} != 0 ]]; then
-        echo "        ERROR: ${BACKEND} db could not be reached!"
+        echo "Database could not be reached!"
         echo
         echo "${LAST_CHECK_RESULT}"
         echo
         EXIT_CODE=${RES}
     fi
-    echo "-----------------------------------------------------------------------------------------------"
 }
 
 function resetdb_if_requested() {
@@ -131,34 +119,21 @@ function resetdb_if_requested() {
     return $?
 }
 
+
+echo "==============================================================================================="
+echo "             Checking integrations and backends"
+echo "==============================================================================================="
 if [[ -n ${BACKEND:=} ]]; then
-    echo "==============================================================================================="
-    echo "             Checking backend: ${BACKEND}"
-    echo "==============================================================================================="
-
-    set +e
     check_db_connection 20
-    set -e
-
-    if [[ ${EXIT_CODE} == 0 ]]; then
-        echo "==============================================================================================="
-        echo "             Backend database is sane"
-        echo "==============================================================================================="
-        echo
-    fi
-else
-    echo "==============================================================================================="
-    echo "             Skip checking backend - BACKEND not set"
-    echo "==============================================================================================="
-    echo
+    echo "-----------------------------------------------------------------------------------------------"
 fi
-
 check_integration kerberos "nc -zvv kerberos 88" 30
 check_integration mongo "nc -zvv mongo 27017" 20
 check_integration redis "nc -zvv redis 6379" 20
 check_integration rabbitmq "nc -zvv rabbitmq 5672" 20
 check_integration cassandra "nc -zvv cassandra 9042" 20
 check_integration openldap "nc -zvv openldap 389" 20
+echo "-----------------------------------------------------------------------------------------------"
 
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo
