@@ -49,7 +49,7 @@ Committers are responsible for:
 * Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__
 * Reviewing & Merging Pull-Requests
 * Scanning and responding to JIRAs
-* Responding to questions on the dev mailing list ( dev@airflow.incubator.apache.org )
+* Responding to questions on the dev mailing list (dev@airflow.incubator.apache.org)
 
 Becoming a Committer
 --------------------
