@@ -84,27 +84,26 @@ class SerializedDagModelTest(unittest.TestCase):
         SDM.write_dag(dag=example_bash_op_dag)
 
         with create_session() as session:
-            last_updated = session.query(
-                SDM.last_updated).filter(SDM.dag_id == example_bash_op_dag.dag_id).one_or_none()
+            s_dag = session.query(SDM).get(example_bash_op_dag.dag_id)
 
             # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
             # column is not updated
             SDM.write_dag(dag=example_bash_op_dag)
-            last_updated_1 = session.query(
-                SDM.last_updated).filter(SDM.dag_id == example_bash_op_dag.dag_id).one_or_none()
+            s_dag_1 = session.query(SDM).get(example_bash_op_dag.dag_id)
 
-            self.assertEqual(last_updated, last_updated_1)
+            self.assertEqual(s_dag_1.dag_hash, s_dag.dag_hash)
+            self.assertEqual(s_dag.last_updated, s_dag_1.last_updated)
 
             # Update DAG
             example_bash_op_dag.tags += ["new_tag"]
             self.assertCountEqual(example_bash_op_dag.tags, ["example", "new_tag"])
 
             SDM.write_dag(dag=example_bash_op_dag)
-            new_s_dag = session.query(SDM.last_updated, SDM.data).filter(
-                SDM.dag_id == example_bash_op_dag.dag_id).one_or_none()
+            s_dag_2 = session.query(SDM).get(example_bash_op_dag.dag_id)
 
-            self.assertNotEqual(last_updated, new_s_dag.last_updated)
-            self.assertEqual(new_s_dag.data["dag"]["tags"], ["example", "new_tag"])
+            self.assertNotEqual(s_dag.last_updated, s_dag_2.last_updated)
+            self.assertNotEqual(s_dag.dag_hash, s_dag_2.dag_hash)
+            self.assertEqual(s_dag_2.data["dag"]["tags"], ["example", "new_tag"])
 
     def test_read_dags(self):
         """DAGs can be read from database."""

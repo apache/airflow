@@ -17,8 +17,9 @@
 from connexion import NoContent
 from flask import request
 from marshmallow import ValidationError
-from sqlalchemy import and_, func
+from sqlalchemy import func
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dag_run_schema import (
@@ -29,6 +30,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 
+@security.requires_authentication
 @provide_session
 def delete_dag_run(dag_id, dag_run_id, session):
     """
@@ -36,13 +38,14 @@ def delete_dag_run(dag_id, dag_run_id, session):
     """
     if (
         session.query(DagRun)
-            .filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+            .filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
             .delete() == 0
     ):
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
     return NoContent, 204
 
 
+@security.requires_authentication
 @provide_session
 def get_dag_run(dag_id, dag_run_id, session):
     """
@@ -55,6 +58,7 @@ def get_dag_run(dag_id, dag_run_id, session):
     return dagrun_schema.dump(dag_run)
 
 
+@security.requires_authentication
 @format_parameters({
     'start_date_gte': format_datetime,
     'start_date_lte': format_datetime,
@@ -126,6 +130,7 @@ def _apply_date_filters_to_query(query, end_date_gte, end_date_lte, execution_da
     return query
 
 
+@security.requires_authentication
 @provide_session
 def get_dag_runs_batch(session):
     """
@@ -151,6 +156,7 @@ def get_dag_runs_batch(session):
                                                           total_entries=total_entries))
 
 
+@security.requires_authentication
 @provide_session
 def post_dag_run(dag_id, session):
     """
@@ -162,7 +168,7 @@ def post_dag_run(dag_id, session):
     post_body = dagrun_schema.load(request.json, session=session)
     dagrun_instance = (
         session.query(DagRun).filter(
-            and_(DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"])).first()
+            DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"]).first()
     )
     if not dagrun_instance:
         dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL.value, **post_body)

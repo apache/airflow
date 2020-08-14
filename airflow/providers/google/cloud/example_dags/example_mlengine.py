@@ -73,6 +73,7 @@ with models.DAG(
         package_uris=[TRAINER_URI],
         training_python_module=TRAINER_PY_MODULE,
         training_args=[],
+        labels={"job_type": "training"},
     )
     # [END howto_operator_gcp_mlengine_training]
 
@@ -169,6 +170,7 @@ with models.DAG(
         data_format="TEXT",
         input_paths=[PREDICTION_INPUT],
         output_path=PREDICTION_OUTPUT,
+        labels={"job_type": "prediction"},
     )
     # [END howto_operator_gcp_mlengine_get_prediction]
 

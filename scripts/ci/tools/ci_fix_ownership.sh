@@ -41,6 +41,7 @@ export BACKEND="sqlite"
 docker-compose \
     -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
     -f "${SCRIPTS_CI_DIR}/docker-compose/local.yml" \
+    -f "${SCRIPTS_CI_DIR}/docker-compose/files.yml" \
     -f "${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml" \
     run --entrypoint /bin/bash \
     airflow -c /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh

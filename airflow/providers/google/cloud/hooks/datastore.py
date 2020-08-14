@@ -100,7 +100,7 @@ class DatastoreHook(GoogleBaseHook):
         return resp['keys']
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def begin_transaction(self, project_id: str) -> str:
+    def begin_transaction(self, project_id: str, transaction_options: Dict[str, Any]) -> str:
         """
         Begins a new transaction.
 
@@ -109,6 +109,8 @@ class DatastoreHook(GoogleBaseHook):
 
         :param project_id: Google Cloud Platform project ID against which to make the request.
         :type project_id: str
+        :param transaction_options: Options for a new transaction.
+        :type transaction_options: Dict[str, Any]
         :return: a transaction handle.
         :rtype: str
         """
@@ -116,7 +118,7 @@ class DatastoreHook(GoogleBaseHook):
 
         resp = (conn  # pylint: disable=no-member
                 .projects()
-                .beginTransaction(projectId=project_id, body={})
+                .beginTransaction(projectId=project_id, body={"transactionOptions": transaction_options})
                 .execute(num_retries=self.num_retries))
 
         return resp['transaction']

@@ -19,12 +19,12 @@ import os
 import shutil
 import sys
 from datetime import datetime
+from pathlib import Path
 from unittest import TestCase
 
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
 from airflow.exceptions import AirflowException
 from airflow.models.dagbag import DagBag
-from airflow.utils.file import mkdirs
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
@@ -94,7 +94,7 @@ class SystemTest(TestCase, LoggingMixin):
         print(f"Saving all log files to {logs_folder}/previous_runs/{date_str}")
         print()
         target_dir = os.path.join(logs_folder, "previous_runs", date_str)
-        mkdirs(target_dir, 0o755)
+        Path(target_dir).mkdir(parents=True, exist_ok=True, mode=0o755)
         files = os.listdir(logs_folder)
         for file in files:
             if file != "previous_runs":

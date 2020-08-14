@@ -98,7 +98,7 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  src_adls: str,
                  dest_gcs: str,
                  azure_data_lake_conn_id: str,

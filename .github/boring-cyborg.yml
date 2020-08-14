@@ -168,11 +168,13 @@ labelPRBasedOnFilePath:
     - airflow/providers/**/secrets/*
     - tests/secrets/*
     - tests/providers/**/secrets/*
-    - docs/howto/use-alternative-secrets-backend.rst
+    - docs/howto/secrets-backend/*
 
   area:Serialization:
     - airflow/serialization/*
+    - airflow/models/serialized_dag.py
     - tests/serialization/*
+    - tests/models/test_serialized_dag.py
     - docs/dag-serialization.rst
 
 # Various Flags to control behaviour of the "Labeler"

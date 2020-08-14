@@ -50,12 +50,11 @@ class AzureDataLakeStorageListOperator(BaseOperator):
     ui_color = '#901dd2'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  path: str,
                  azure_data_lake_conn_id: str = 'azure_data_lake_default',
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.path = path
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
 

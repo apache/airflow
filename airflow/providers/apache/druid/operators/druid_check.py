@@ -59,6 +59,7 @@ class DruidCheckOperator(CheckOperator):
     @apply_defaults
     def __init__(
         self,
+        *,
         sql: str,
         druid_broker_conn_id: str = 'druid_broker_default',
         **kwargs: Any

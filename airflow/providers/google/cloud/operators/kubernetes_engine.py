@@ -74,14 +74,14 @@ class GKEDeleteClusterOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  name: str,
                  location: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v2',
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -153,14 +153,14 @@ class GKECreateClusterOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  location: str,
                  body: Optional[Union[Dict, Cluster]],
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v2',
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -226,6 +226,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
     @apply_defaults
     def __init__(self,
+                 *,
                  location: str,
                  cluster_name: str,
                  use_internal_ip: bool = False,

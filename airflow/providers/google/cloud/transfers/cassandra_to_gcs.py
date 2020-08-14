@@ -82,7 +82,7 @@ class CassandraToGCSOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments
+    def __init__(self, *,  # pylint: disable=too-many-arguments
                  cql: str,
                  bucket: str,
                  filename: str,
@@ -93,9 +93,8 @@ class CassandraToGCSOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(

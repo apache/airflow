@@ -70,17 +70,16 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         profile_id: str,
         report_name: Optional[str] = None,
         report_id: Optional[str] = None,
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if not (report_name or report_id):
             raise AirflowException("Please provide `report_name` or `report_id`.")
         if report_name and report_id:
@@ -164,7 +163,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         profile_id: str,
         report_id: str,
         file_id: str,
@@ -175,10 +174,9 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.profile_id = profile_id
         self.report_id = report_id
         self.file_id = file_id
@@ -283,16 +281,15 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         profile_id: str,
         report: Dict[str, Any],
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.profile_id = profile_id
         self.report = report
         self.api_version = api_version
@@ -359,17 +356,16 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         profile_id: str,
         report_id: str,
         synchronous: bool = False,
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.profile_id = profile_id
         self.report_id = report_id
         self.synchronous = synchronous
@@ -442,7 +438,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         profile_id: str,
         conversions: List[Dict[str, Any]],
         encryption_entity_type: str,
@@ -452,10 +448,9 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.profile_id = profile_id
         self.conversions = conversions
         self.encryption_entity_type = encryption_entity_type
@@ -530,7 +525,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         profile_id: str,
         conversions: List[Dict[str, Any]],
         encryption_entity_type: str,
@@ -540,10 +535,9 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         api_version: str = "v3.3",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.profile_id = profile_id
         self.conversions = conversions
         self.encryption_entity_type = encryption_entity_type

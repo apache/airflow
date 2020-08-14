@@ -19,6 +19,7 @@ import logging
 from flask import Response, current_app, request
 from itsdangerous import BadSignature, URLSafeSerializer
 
+from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.dag_source_schema import dag_source_schema
 from airflow.models.dagcode import DagCode
@@ -26,6 +27,7 @@ from airflow.models.dagcode import DagCode
 log = logging.getLogger(__name__)
 
 
+@security.requires_authentication
 def get_dag_source(file_token: str):
     """
     Get source code using file token

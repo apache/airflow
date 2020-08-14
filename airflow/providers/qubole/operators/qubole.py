@@ -184,13 +184,12 @@ class QuboleOperator(BaseOperator):
     )
 
     @apply_defaults
-    def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
-        self.args = args
+    def __init__(self, *, qubole_conn_id="qubole_default", **kwargs):
         self.kwargs = kwargs
         self.kwargs['qubole_conn_id'] = qubole_conn_id
         self.hook = None
         filtered_base_kwargs = self._get_filtered_args(kwargs)
-        super().__init__(*args, **filtered_base_kwargs)
+        super().__init__(**filtered_base_kwargs)
 
         if self.on_failure_callback is None:
             self.on_failure_callback = QuboleHook.handle_failure_retry
@@ -226,7 +225,7 @@ class QuboleOperator(BaseOperator):
 
     def get_hook(self):
         """Reinitialising the hook, as some template fields might have changed"""
-        return QuboleHook(*self.args, **self.kwargs)
+        return QuboleHook(**self.kwargs)
 
     def __getattribute__(self, name):
         if name in QuboleOperator.template_fields:

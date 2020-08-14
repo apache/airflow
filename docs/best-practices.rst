@@ -261,7 +261,7 @@ Once you have changed the backend, airflow needs to create all the tables requir
 Create an empty DB and give airflow's user the permission to ``CREATE/ALTER`` it.
 Once that is done, you can run -
 
-.. code-block::
+.. code-block:: bash
 
  airflow db upgrade
 
@@ -305,14 +305,14 @@ Airflow comes bundled with a default ``airflow.cfg`` configuration file.
 You should use environment variables for configurations that change across deployments
 e.g. metadata DB, password, etc. You can accomplish this using the format :envvar:`AIRFLOW__{SECTION}__{KEY}`
 
-.. code-block::
+.. code-block:: bash
 
  AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_id
  AIRFLOW__WEBSERVER__BASE_URL=http://host:port
 
 Some configurations such as the Airflow Backend connection URI can be derived from bash commands as well:
 
-.. code-block::
+.. code-block:: ini
 
  sql_alchemy_conn_cmd = bash_command_to_run
 

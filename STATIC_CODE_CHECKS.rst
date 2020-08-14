@@ -230,13 +230,11 @@ To fix a pylint issue, do the following:
 1.  Remove module/modules from the
     `scripts/ci/static_checks/pylint_todo.txt <scripts/ci/pylint_todo.txt>`__.
 
-2.  Run `scripts/ci/static_checks/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
-    `scripts/ci/ci_pylint_tests.sh <scripts/ci/static_checks/ci_pylint_tests.sh>`__.
+2.  Run `scripts/ci/static_checks/ci_pylint.sh <scripts/ci/ci_pylint.sh>`__.
 
 3.  Fix all the issues reported by pylint.
 
-4.  Re-run `scripts/ci/static_checks/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
-    `scripts/ci/ci_pylint_tests.sh <scripts/ci/static_checks/ci_pylint_tests.sh>`__.
+4.  Re-run `scripts/ci/static_checks/ci_pylint.sh <scripts/ci/ci_pylint.sh>`__.
 
 5.  If you see "success", submit a PR following
     `Pull Request guidelines <#pull-request-guidelines>`__.
@@ -375,8 +373,7 @@ this, run the following scripts:
 * `<scripts/ci/static_checks/ci_flake8.sh>`_ - runs Flake8 source code style enforcement tool.
 * `<scripts/ci/static_checks/ci_lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
 * `<scripts/ci/static_checks/ci_mypy.sh>`_ - runs a check for mypy type annotation consistency.
-* `<scripts/ci/static_checks/ci_pylint_main.sh>`_ - runs pylint static code checker for main files.
-* `<scripts/ci/static_checks/ci_pylint_tests.sh>`_ - runs pylint static code checker for tests.
+* `<scripts/ci/static_checks/ci_pylint.sh>`_ - runs pylint static code checker.
 
 The scripts may ask you to rebuild the images, if needed.
 
@@ -393,8 +390,7 @@ If you are already in the Breeze Docker environment (by running the ``./breeze``
 you can also run the same static checks via run_scripts:
 
 * Mypy: ``./scripts/ci/in_container/run_mypy.sh airflow tests``
-* Pylint for main files: ``./scripts/ci/in_container/run_pylint_main.sh``
-* Pylint for test files: ``./scripts/ci/in_container/run_pylint_tests.sh``
+* Pylint: ``./scripts/ci/in_container/run_pylint.sh``
 * Flake8: ``./scripts/ci/in_container/run_flake8.sh``
 * License check: ``./scripts/ci/in_container/run_check_licence.sh``
 * Documentation: ``./scripts/ci/in_container/run_docs_build.sh``

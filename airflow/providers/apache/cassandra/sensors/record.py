@@ -56,7 +56,7 @@ class CassandraRecordSensor(BaseSensorOperator):
     template_fields = ('table', 'keys')
 
     @apply_defaults
-    def __init__(self, table: str, keys: Dict[str, str], cassandra_conn_id: str, **kwargs: Any) -> None:
+    def __init__(self, *, table: str, keys: Dict[str, str], cassandra_conn_id: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table

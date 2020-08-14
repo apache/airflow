@@ -122,7 +122,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
     # [END gcf_function_deploy_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  location: str,
                  body: Dict,
                  project_id: Optional[str] = None,
@@ -130,7 +130,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
                  api_version: str = 'v1',
                  zip_path: Optional[str] = None,
                  validate_body: bool = True,
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.project_id = project_id
         self.location = location
         self.body = body
@@ -143,7 +143,7 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
             self._field_validator = GcpBodyFieldValidator(CLOUD_FUNCTION_VALIDATION,
                                                           api_version=api_version)
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if not self.location:
@@ -314,16 +314,16 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
     # [END gcf_function_delete_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  name: str,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.name = name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if not self.name:
@@ -371,17 +371,16 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         function_id: str,
         input_data: Dict,
         location: str,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.function_id = function_id
         self.input_data = input_data
         self.location = location

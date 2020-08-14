@@ -60,14 +60,14 @@ class SpannerDeployInstanceOperator(BaseOperator):
     # [END gcp_spanner_deploy_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  configuration_name: str,
                  node_count: int,
                  display_name: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.configuration_name = configuration_name
@@ -75,7 +75,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
         self.display_name = display_name
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -121,16 +121,16 @@ class SpannerDeleteInstanceOperator(BaseOperator):
     # [END gcp_spanner_delete_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -177,20 +177,20 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
     # [END gcp_spanner_query_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  database_id: str,
                  query: Union[str, List[str]],
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
         self.query = query
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -260,20 +260,20 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
     # [END gcp_spanner_database_deploy_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  database_id: str,
                  ddl_statements: List[str],
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
         self.ddl_statements = ddl_statements
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -334,14 +334,14 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
     # [END gcp_spanner_database_update_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  database_id: str,
                  ddl_statements: List[str],
                  project_id: Optional[str] = None,
                  operation_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
@@ -349,7 +349,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         self.operation_id = operation_id
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -406,18 +406,18 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
     # [END gcp_spanner_database_delete_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  database_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':

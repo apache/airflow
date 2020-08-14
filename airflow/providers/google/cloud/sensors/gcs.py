@@ -50,14 +50,14 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket: str,
                  object: str,  # pylint: disable=redefined-builtin
                  google_cloud_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket = bucket
         self.object = object
         self.google_cloud_conn_id = google_cloud_conn_id
@@ -111,9 +111,9 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
                  ts_func: Callable = ts_function,
                  google_cloud_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket = bucket
         self.object = object
         self.ts_func = ts_func
@@ -158,8 +158,8 @@ class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
                  prefix: str,
                  google_cloud_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.bucket = bucket
         self.prefix = prefix
         self.google_cloud_conn_id = google_cloud_conn_id
@@ -239,9 +239,9 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
                  allow_delete: bool = True,
                  google_cloud_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.bucket = bucket
         self.prefix = prefix
@@ -259,7 +259,10 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
 
     def _get_gcs_hook(self):
         if not self.hook:
-            self.hook = GCSHook()
+            self.hook = GCSHook(
+                gcp_conn_id=self.google_cloud_conn_id,
+                delegate_to=self.delegate_to,
+            )
         return self.hook
 
     def is_bucket_updated(self, current_objects: Set[str]) -> bool:

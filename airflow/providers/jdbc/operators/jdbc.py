@@ -46,13 +46,13 @@ class JdbcOperator(BaseOperator):
     ui_color = '#ededed'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  sql: str,
                  jdbc_conn_id: str = 'jdbc_default',
                  autocommit: bool = False,
                  parameters: Optional[Union[Mapping, Iterable]] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
         self.parameters = parameters
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id

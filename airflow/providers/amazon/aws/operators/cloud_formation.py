@@ -45,12 +45,12 @@ class CloudFormationCreateStackOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             stack_name,
             params,
             aws_conn_id='aws_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
         self.stack_name = stack_name
         self.params = params
         self.aws_conn_id = aws_conn_id
@@ -83,12 +83,12 @@ class CloudFormationDeleteStackOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             stack_name,
             params=None,
             aws_conn_id='aws_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
         self.params = params or {}
         self.stack_name = stack_name
         self.params = params

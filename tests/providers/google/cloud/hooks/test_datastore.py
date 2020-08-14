@@ -86,12 +86,17 @@ class TestDatastoreHook(unittest.TestCase):
     def test_begin_transaction(self, mock_get_conn):
         self.datastore_hook.connection = mock_get_conn.return_value
 
-        transaction = self.datastore_hook.begin_transaction(project_id=GCP_PROJECT_ID)
+        transaction = self.datastore_hook.begin_transaction(
+            project_id=GCP_PROJECT_ID,
+            transaction_options={},
+        )
 
         projects = self.datastore_hook.connection.projects
         projects.assert_called_once_with()
         begin_transaction = projects.return_value.beginTransaction
-        begin_transaction.assert_called_once_with(projectId=GCP_PROJECT_ID, body={})
+        begin_transaction.assert_called_once_with(
+            projectId=GCP_PROJECT_ID, body={'transactionOptions': {}}
+        )
         execute = begin_transaction.return_value.execute
         execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(transaction, execute.return_value['transaction'])

@@ -39,7 +39,7 @@ class LivySensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         batch_id: Union[int, str],
         livy_conn_id: str = 'livy_default',
         **kwargs: Any

@@ -20,15 +20,6 @@
 function run_docs() {
     verbose_docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env VERBOSE \
-            --env VERBOSE_COMMANDS \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --env HOST_OS="$(uname -s)" \
-            --env HOST_HOME="${HOME}" \
-            --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-            --rm \
             "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/docs/build" \
             | tee -a "${OUTPUT_LOG}"
@@ -38,16 +29,6 @@ function run_docs() {
 function run_generate_constraints() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
-        --env PYTHONDONTWRITEBYTECODE \
-        --env VERBOSE \
-        --env VERBOSE_COMMANDS \
-        --env HOST_USER_ID="$(id -ur)" \
-        --env HOST_GROUP_ID="$(id -gr)" \
-        --env HOST_OS="$(uname -s)" \
-        --env HOST_HOME="${HOME}" \
-        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-        --env PYTHON_MAJOR_MINOR_VERSION \
-        --rm \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/ci/in_container/run_generate_constraints.sh" \
         | tee -a "${OUTPUT_LOG}"
@@ -57,20 +38,8 @@ function run_generate_constraints() {
 function run_prepare_backport_packages() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
-        --env PYTHONDONTWRITEBYTECODE \
-        --env VERBOSE \
-        --env VERBOSE_COMMANDS \
-        --env HOST_USER_ID="$(id -ur)" \
-        --env HOST_GROUP_ID="$(id -gr)" \
-        --env HOST_OS="$(uname -s)" \
-        --env HOST_HOME="${HOME}" \
-        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-        --env PYTHON_MAJOR_MINOR_VERSION \
-        --env VERSION_SUFFIX_FOR_PYPI \
-        --env VERSION_SUFFIX_FOR_SVN \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
-        --rm \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/ci/in_container/run_prepare_backport_packages.sh" "${@}" \
         | tee -a "${OUTPUT_LOG}"
@@ -80,18 +49,8 @@ function run_prepare_backport_packages() {
 function run_prepare_backport_readme() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
-        --env PYTHONDONTWRITEBYTECODE \
-        --env VERBOSE \
-        --env VERBOSE_COMMANDS \
-        --env HOST_USER_ID="$(id -ur)" \
-        --env HOST_GROUP_ID="$(id -gr)" \
-        --env HOST_OS="$(uname -s)" \
-        --env HOST_HOME="${HOME}" \
-        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-        --env PYTHON_MAJOR_MINOR_VERSION \
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
-        --rm \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/ci/in_container/run_prepare_backport_readme.sh" "${@}" \
         | tee -a "${OUTPUT_LOG}"

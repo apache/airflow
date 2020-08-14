@@ -82,7 +82,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         format_: Optional[str] = None,
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
@@ -93,9 +93,9 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.format_ = format_
         self.filter_ = filter_
         self.order_by = order_by
@@ -163,7 +163,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -171,9 +171,9 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
@@ -235,7 +235,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -243,9 +243,9 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
         self.delegate_to = delegate_to
@@ -309,7 +309,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         alerts: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -317,9 +317,9 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.alerts = alerts
         self.retry = retry
         self.timeout = timeout
@@ -379,7 +379,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         name: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -387,9 +387,9 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.name = name
         self.retry = retry
         self.timeout = timeout
@@ -469,7 +469,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
     # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         format_: Optional[str] = None,
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
@@ -480,9 +480,9 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.format_ = format_
         self.filter_ = filter_
         self.order_by = order_by
@@ -553,7 +553,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -561,9 +561,9 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.filter_ = filter_
         self.retry = retry
         self.timeout = timeout
@@ -626,7 +626,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         filter_: Optional[str] = None,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -634,9 +634,9 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.filter_ = filter_
         self.retry = retry
         self.timeout = timeout
@@ -701,7 +701,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         channels: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[str] = DEFAULT,
@@ -709,9 +709,9 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.channels = channels
         self.retry = retry
         self.timeout = timeout
@@ -772,7 +772,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         name: str,
         retry: Optional[str] = DEFAULT,
         timeout: Optional[float] = DEFAULT,
@@ -780,9 +780,9 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         gcp_conn_id: Optional[str] = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.name = name
         self.retry = retry
         self.timeout = timeout

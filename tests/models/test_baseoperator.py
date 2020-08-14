@@ -363,8 +363,8 @@ class CustomOp(DummyOperator):
     template_fields = ("field", "field2")
 
     @apply_defaults
-    def __init__(self, field=None, field2=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, field=None, field2=None, **kwargs):
+        super().__init__(**kwargs)
         self.field = field
         self.field2 = field2
 

@@ -73,7 +73,7 @@ class BigQueryToGCSOperator(BaseOperator):
     ui_color = '#e4e6f0'
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments
+    def __init__(self, *,  # pylint: disable=too-many-arguments
                  source_project_dataset_table: str,
                  destination_cloud_storage_uris: List[str],
                  compression: str = 'NONE',
@@ -85,9 +85,8 @@ class BigQueryToGCSOperator(BaseOperator):
                  delegate_to: Optional[str] = None,
                  labels: Optional[Dict] = None,
                  location: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if bigquery_conn_id:
             warnings.warn(

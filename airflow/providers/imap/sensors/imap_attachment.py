@@ -44,15 +44,14 @@ class ImapAttachmentSensor(BaseSensorOperator):
     template_fields = ('attachment_name', 'mail_filter')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  attachment_name,
                  check_regex=False,
                  mail_folder='INBOX',
                  mail_filter='All',
                  conn_id='imap_default',
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.attachment_name = attachment_name
         self.check_regex = check_regex

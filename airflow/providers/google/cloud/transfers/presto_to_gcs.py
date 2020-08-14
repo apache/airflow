@@ -180,12 +180,11 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         presto_conn_id: str = "presto_default",
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.presto_conn_id = presto_conn_id
 
     def query(self):

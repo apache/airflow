@@ -179,23 +179,21 @@ class DataflowCreateJavaJobOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments
     @apply_defaults
-    def __init__(
-            self,
-            jar: str,
-            job_name: str = '{{task.task_id}}',
-            dataflow_default_options: Optional[dict] = None,
-            options: Optional[dict] = None,
-            project_id: Optional[str] = None,
-            location: str = DEFAULT_DATAFLOW_LOCATION,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            poll_sleep: int = 10,
-            job_class: Optional[str] = None,
-            check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
-            multiple_jobs: Optional[bool] = None,
-            *args,
-            **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, *,
+                 jar: str,
+                 job_name: str = '{{task.task_id}}',
+                 dataflow_default_options: Optional[dict] = None,
+                 options: Optional[dict] = None,
+                 project_id: Optional[str] = None,
+                 location: str = DEFAULT_DATAFLOW_LOCATION,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 poll_sleep: int = 10,
+                 job_class: Optional[str] = None,
+                 check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
+                 multiple_jobs: Optional[bool] = None,
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
         options = options or {}
@@ -365,7 +363,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
+            self, *,
             template: str,
             job_name: str = '{{task.task_id}}',
             options: Optional[Dict[str, Any]] = None,
@@ -376,9 +374,8 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
-            *args,
             **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.template = template
         self.job_name = job_name
         self.options = options or {}
@@ -494,7 +491,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
+            self, *,
             py_file: str,
             job_name: str = '{{task.task_id}}',
             dataflow_default_options: Optional[dict] = None,
@@ -508,10 +505,9 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
-            *args,
             **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         self.py_file = py_file
         self.job_name = job_name

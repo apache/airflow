@@ -74,7 +74,7 @@ class LivyOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         file: str,
         class_name: Optional[str] = None,
         args: Optional[Sequence[Union[str, int, float]]] = None,

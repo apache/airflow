@@ -24,20 +24,9 @@ function run_test_package_installation_separately() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         -v "${AIRFLOW_SOURCES}/dist:/dist:cached" \
-        --env PYTHONDONTWRITEBYTECODE \
-        --env INSTALL_AIRFLOW_VERSION \
-        --env VERBOSE \
-        --env VERBOSE_COMMANDS \
-        --env HOST_USER_ID="$(id -ur)" \
-        --env HOST_GROUP_ID="$(id -gr)" \
-        --env HOST_OS="$(uname -s)" \
-        --env HOST_HOME="${HOME}" \
-        --env HOST_AIRFLOW_SOURCES="${AIRFLOW_SOURCES}" \
-        --rm \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/ci/in_container/run_test_package_installation_separately.sh" \
         | tee -a "${OUTPUT_LOG}"
-
 }
 
 get_environment_for_builds_on_ci

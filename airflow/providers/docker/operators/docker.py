@@ -132,7 +132,7 @@ class DockerOperator(BaseOperator):
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             image: str,
             api_version: Optional[str] = None,
             command: Optional[Union[str, List[str]]] = None,
@@ -152,7 +152,7 @@ class DockerOperator(BaseOperator):
             tls_ssl_version: Optional[str] = None,
             tmp_dir: str = '/tmp/airflow',
             user: Optional[Union[str, int]] = None,
-            volumes: Optional[Iterable[str]] = None,
+            volumes: Optional[List[str]] = None,
             working_dir: Optional[str] = None,
             xcom_all: bool = False,
             docker_conn_id: Optional[str] = None,
@@ -162,10 +162,9 @@ class DockerOperator(BaseOperator):
             shm_size: Optional[int] = None,
             tty: Optional[bool] = False,
             cap_add: Optional[Iterable[str]] = None,
-            *args,
             **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.api_version = api_version
         self.auto_remove = auto_remove
         self.command = command
@@ -214,7 +213,7 @@ class DockerOperator(BaseOperator):
             tls=self.__get_tls_config()
         )
 
-    def _run_image(self):
+    def _run_image(self) -> Optional[str]:
         """
         Run a Docker container with the provided image
         """
@@ -223,6 +222,8 @@ class DockerOperator(BaseOperator):
         with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
+            if not self.cli:
+                raise Exception("The 'cli' should be initialized before!")
             self.container = self.cli.create_container(
                 command=self.get_command(),
                 name=self.container_name,
@@ -254,6 +255,7 @@ class DockerOperator(BaseOperator):
             for line in lines:
                 line = line.strip()
                 if hasattr(line, 'decode'):
+                    # Note that lines returned can also be byte sequences so we have to handle decode here
                     line = line.decode('utf-8')
                 self.log.info(line)
 
@@ -272,8 +274,10 @@ class DockerOperator(BaseOperator):
 
             return ret
 
-    def execute(self, context):
+    def execute(self, context) -> Optional[str]:
         self.cli = self._get_cli()
+        if not self.cli:
+            raise Exception("The 'cli' should be initialized before!")
 
         # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or not self.cli.images(name=self.image):
@@ -285,10 +289,9 @@ class DockerOperator(BaseOperator):
                     self.log.info("%s", output['status'])
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
-
         return self._run_image()
 
-    def _get_cli(self):
+    def _get_cli(self) -> APIClient:
         if self.docker_conn_id:
             return self.get_hook().get_conn()
         else:
@@ -299,7 +302,7 @@ class DockerOperator(BaseOperator):
                 tls=tls_config
             )
 
-    def get_command(self):
+    def get_command(self) -> Union[List[str], str]:
         """
         Retrieve command(s). if command string starts with [, it returns the command list)
 
@@ -312,12 +315,12 @@ class DockerOperator(BaseOperator):
             commands = self.command
         return commands
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         if self.cli is not None:
             self.log.info('Stopping docker container')
             self.cli.stop(self.container['Id'])
 
-    def __get_tls_config(self):
+    def __get_tls_config(self) -> Optional[tls.TLSConfig]:
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
             # Ignore type error on SSL version here - it is deprecated and type annotation is wrong

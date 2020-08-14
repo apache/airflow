@@ -94,7 +94,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     template_fields: Iterable[str] = ['project_id', 'instance_id', 'main_cluster_id', 'main_cluster_zone']
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments
+    def __init__(self, *,   # pylint: disable=too-many-arguments
                  instance_id: str,
                  main_cluster_id: str,
                  main_cluster_zone: str,
@@ -108,7 +108,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
                  cluster_storage_type: Optional[enums.StorageType] = None,
                  timeout: Optional[float] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self.main_cluster_id = main_cluster_id
@@ -123,7 +123,7 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         self.timeout = timeout
         self._validate_inputs()
         self.gcp_conn_id = gcp_conn_id
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)
@@ -181,16 +181,16 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
     template_fields = ['project_id', 'instance_id']  # type: Iterable[str]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self._validate_inputs()
         self.gcp_conn_id = gcp_conn_id
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)
@@ -241,14 +241,14 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
     template_fields = ['project_id', 'instance_id', 'table_id']  # type: Iterable[str]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  table_id: str,
                  project_id: Optional[str] = None,
                  initial_split_keys: Optional[List] = None,
                  column_families: Optional[Dict[str, GarbageCollectionRule]] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self.table_id = table_id
@@ -256,7 +256,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         self.column_families = column_families or {}
         self._validate_inputs()
         self.gcp_conn_id = gcp_conn_id
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _compare_column_families(self, hook, instance):
         table_column_families = hook.get_column_families_for_table(instance, self.table_id)
@@ -331,20 +331,20 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
     template_fields = ['project_id', 'instance_id', 'table_id']  # type: Iterable[str]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  table_id: str,
                  project_id: Optional[str] = None,
                  app_profile_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self.table_id = table_id
         self.app_profile_id = app_profile_id
         self._validate_inputs()
         self.gcp_conn_id = gcp_conn_id
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)
@@ -396,20 +396,20 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
     template_fields = ['project_id', 'instance_id', 'cluster_id', 'nodes']  # type: Iterable[str]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  instance_id: str,
                  cluster_id: str,
                  nodes: int,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self.cluster_id = cluster_id
         self.nodes = nodes
         self._validate_inputs()
         self.gcp_conn_id = gcp_conn_id
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)

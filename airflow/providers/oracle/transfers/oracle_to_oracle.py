@@ -46,15 +46,15 @@ class OracleToOracleOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             oracle_destination_conn_id,
             destination_table,
             oracle_source_conn_id,
             source_sql,
             source_sql_params=None,
             rows_chunk=5000,
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
+            **kwargs):
+        super().__init__(**kwargs)
         if source_sql_params is None:
             source_sql_params = {}
         self.oracle_destination_conn_id = oracle_destination_conn_id

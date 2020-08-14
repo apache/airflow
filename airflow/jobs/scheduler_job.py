@@ -982,7 +982,7 @@ class DagFileProcessor(LoggingMixin):
         return simple_dags
 
 
-class SchedulerJob(BaseJob):
+class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     """
     This SchedulerJob runs for a specific time interval and schedules the jobs
     that are ready to run. It figures out the latest runs for each
@@ -1131,11 +1131,11 @@ class SchedulerJob(BaseJob):
             subq = query.subquery()
             tis_changed = session \
                 .query(models.TaskInstance) \
-                .filter(and_(
+                .filter(
                     models.TaskInstance.dag_id == subq.c.dag_id,
                     models.TaskInstance.task_id == subq.c.task_id,
                     models.TaskInstance.execution_date ==
-                    subq.c.execution_date)) \
+                    subq.c.execution_date) \
                 .update({models.TaskInstance.state: new_state}, synchronize_session=False)
             session.commit()
 

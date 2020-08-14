@@ -70,7 +70,7 @@ class HttpSensor(BaseSensorOperator):
     template_fields = ('endpoint', 'request_params')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  endpoint: str,
                  http_conn_id: str = 'http_default',
                  method: str = 'GET',
@@ -78,9 +78,8 @@ class HttpSensor(BaseSensorOperator):
                  headers: Optional[Dict[str, Any]] = None,
                  response_check: Optional[Callable[..., Any]] = None,
                  extra_options: Optional[Dict[str, Any]] = None,
-                 *args: Any, **kwargs: Any
-                 ) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
         self.request_params = request_params or {}

@@ -243,7 +243,7 @@ The decorated function can be called once to set the arguments and key arguments
 
 Task decorator captures returned values and sends them to the :ref:`XCom backend <concepts:xcom>`. By default, returned
 value is saved as a single XCom value. You can set ``multiple_outputs`` key argument to ``True`` to unroll dictionaries,
-lists or tuples into seprate XCom values. This can be used with regular operators to create
+lists or tuples into separate XCom values. This can be used with regular operators to create
 :ref:`functional DAGs <concepts:functional_dags>`.
 
 Calling a decorated function returns an ``XComArg`` instance. You can use it to set templated fields on downstream
@@ -675,11 +675,6 @@ managed in the UI (``Menu -> Admin -> Connections``).  A ``conn_id`` is defined 
 password / schema information attached to it.  Airflow pipelines retrieve centrally-managed connections
 information by specifying the relevant ``conn_id``.
 
-You may add more than one connection with the same ``conn_id``.  When there is more than one connection
-with the same ``conn_id``, the :py:meth:`~airflow.hooks.base_hook.BaseHook.get_connection` method on
-:py:class:`~airflow.hooks.base_hook.BaseHook` will choose one connection randomly. This can be be used to
-provide basic load balancing and fault tolerance, when used in conjunction with retries.
-
 Airflow also provides a mechanism to store connections outside the database, e.g. in :ref:`environment variables <environment_variables_secrets_backend>`.
 Additional sources may be enabled, e.g. :ref:`AWS SSM Parameter Store <ssm_parameter_store_secrets>`, or you may
 :ref:`roll your own secrets backend <roll_your_own_secrets_backend>`.
@@ -690,27 +685,6 @@ need to supply an explicit connection ID. For example, the default
 ``postgres_default``.
 
 See :doc:`howto/connection/index` for details on creating and managing connections.
-
-Queues
-======
-
-When using the CeleryExecutor, the Celery queues that tasks are sent to
-can be specified. ``queue`` is an attribute of BaseOperator, so any
-task can be assigned to any queue. The default queue for the environment
-is defined in the ``airflow.cfg``'s ``celery -> default_queue``. This defines
-the queue that tasks get assigned to when not specified, as well as which
-queue Airflow workers listen to when started.
-
-Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow celery worker``), a set of comma-delimited
-queue names can be specified (e.g. ``airflow celery worker -q spark``). This worker
-will then only pick up tasks wired to the specified queue(s).
-
-This can be useful if you need specialized workers, either from a
-resource perspective (for say very lightweight tasks where one worker
-could take thousands of tasks without a problem), or from an environment
-perspective (you want a worker running from within the Spark cluster
-itself because it needs a very specific environment and security rights).
 
 .. _concepts:xcom:
 
@@ -769,7 +743,7 @@ Custom XCom backend
 
 It is possible to change ``XCom`` behaviour os serialization and deserialization of tasks' result.
 To do this one have to change ``xcom_backend`` parameter in Airflow config. Provided value should point
-to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter the serialaization /
+to a class that is subclass of :class:`~airflow.models.xcom.BaseXCom`. To alter the serialization /
 deserialization mechanism the custom class should override ``serialize_value`` and ``deserialize_value``
 methods.
 
@@ -814,38 +788,7 @@ or if you need to deserialize a json object from the variable :
 
     echo {{ var.json.<variable_name> }}
 
-Storing Variables in Environment Variables
-------------------------------------------
-
-.. versionadded:: 1.10.10
-
-Airflow Variables can also be created and managed using Environment Variables. The environment variable
-naming convention is :envvar:`AIRFLOW_VAR_{VARIABLE_NAME}`, all uppercase.
-So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VAR_FOO``.
-
-For example,
-
-.. code-block:: bash
-
-    export AIRFLOW_VAR_FOO=BAR
-
-    # To use JSON, store them as JSON strings
-    export AIRFLOW_VAR_FOO_BAZ='{"hello":"world"}'
-
-You can use them in your DAGs as:
-
-.. code-block:: python
-
-    from airflow.models import Variable
-    foo = Variable.get("foo")
-    foo_json = Variable.get("foo_baz", deserialize_json=True)
-
-.. note::
-
-    Single underscores surround ``VAR``.  This is in contrast with the way ``airflow.cfg``
-    parameters are stored, where double underscores surround the config section name.
-    Variables set using Environment Variables would not appear in the Airflow UI but you will
-    be able to use it in your DAG file.
+See :doc:`howto/variable` for details on managing variables.
 
 Branching
 =========
@@ -1161,7 +1104,11 @@ state.
 
 Cluster Policy
 ==============
+Cluster policies provide an interface for taking action on every Airflow task
+either at DAG load time or just before task execution.
 
+Cluster Policies for Task Mutation
+-----------------------------------
 In case you want to apply cluster-wide mutations to the Airflow tasks,
 you can either mutate the task right after the DAG is loaded or
 mutate the task instance before task execution.
@@ -1211,6 +1158,38 @@ queue during retries:
         if ti.try_number >= 1:
             ti.queue = 'retry_queue'
 
+
+Cluster Policies for Custom Task Checks
+-------------------------------------------
+You may also use Cluster Policies to apply cluster-wide checks on Airflow
+tasks. You can raise :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
+in a policy or task mutation hook (described below) to prevent a DAG from being
+imported or prevent a task from being executed if the task is not compliant with
+your check.
+
+These checks are intended to help teams using Airflow to protect against common
+beginner errors that may get past a code reviewer, rather than as technical
+security controls.
+
+For example, don't run tasks without airflow owners:
+
+.. literalinclude:: /../tests/cluster_policies/__init__.py
+      :language: python
+      :start-after: [START example_cluster_policy_rule]
+      :end-before: [END example_cluster_policy_rule]
+
+If you have multiple checks to apply, it is best practice to curate these rules
+in a separate python module and have a single policy / task mutation hook that
+performs multiple of these custom checks and aggregates the various error
+messages so that a single ``AirflowClusterPolicyViolation`` can be reported in
+the UI (and import errors table in the database).
+
+For Example in ``airflow_local_settings.py``:
+
+.. literalinclude:: /../tests/cluster_policies/__init__.py
+      :language: python
+      :start-after: [START example_list_of_cluster_policy_rules]
+      :end-before: [END example_list_of_cluster_policy_rules]
 
 Where to put ``airflow_local_settings.py``?
 -------------------------------------------

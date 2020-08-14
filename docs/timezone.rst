@@ -55,11 +55,11 @@ The users' selected timezone is stored in LocalStorage so is a pre-browser setti
 
   If you have configured your Airflow install to use a different default timezone and want the UI to use this same timezone, set ``default_ui_timezone`` under the ``webserver`` section to either an empty string, or the same value.
 
-  (It currently defaults to UTC to keep behavoiur of the UI consistent by default between point-releases.)
+  (It currently defaults to UTC to keep behaviour of the UI consistent by default between point-releases.)
 
 Concepts
 --------
-Naïve and aware datetime objects
+Naive and aware datetime objects
 ''''''''''''''''''''''''''''''''
 
 Python’s datetime.datetime objects have a tzinfo attribute that can be used to store time zone information,

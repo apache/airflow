@@ -46,14 +46,13 @@ class EmrStepSensor(EmrBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  job_flow_id: str,
                  step_id: str,
                  target_states: Optional[Iterable[str]] = None,
                  failed_states: Optional[Iterable[str]] = None,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.step_id = step_id
         self.target_states = target_states or ['COMPLETED']

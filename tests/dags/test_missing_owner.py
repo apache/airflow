@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,8 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
-export REMEMBER_LAST_ANSWER="true"
 
-# shellcheck source=scripts/ci/static_checks/ci_pylint_tests.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/ci_pylint_tests.sh" "${@}"
+from datetime import timedelta
+
+from airflow import DAG
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.dates import days_ago
+
+with DAG(
+    dag_id="test_missing_owner",
+    schedule_interval="0 0 * * *",
+    start_date=days_ago(2),
+    dagrun_timeout=timedelta(minutes=60),
+    tags=["example"],
+) as dag:
+    run_this_last = DummyOperator(task_id="test_task",)

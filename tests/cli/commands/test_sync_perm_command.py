@@ -33,6 +33,7 @@ class TestCliSyncPerm(unittest.TestCase):
 
     @mock.patch("airflow.cli.commands.sync_perm_command.cached_app")
     @mock.patch("airflow.cli.commands.sync_perm_command.DagBag")
+    @mock.patch("airflow.settings.STORE_SERIALIZED_DAGS", True)
     def test_cli_sync_perm(self, dagbag_mock, mock_cached_app):
         self.expect_dagbag_contains([
             DAG('has_access_control',
@@ -51,6 +52,7 @@ class TestCliSyncPerm(unittest.TestCase):
 
         assert appbuilder.sm.sync_roles.call_count == 1
 
+        dagbag_mock.assert_called_once_with(store_serialized_dags=True)
         self.assertEqual(2, len(appbuilder.sm.sync_perm_for_dag.mock_calls))
         appbuilder.sm.sync_perm_for_dag.assert_any_call(
             'has_access_control',

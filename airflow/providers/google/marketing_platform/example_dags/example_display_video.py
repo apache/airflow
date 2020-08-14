@@ -84,7 +84,7 @@ with models.DAG(
     "example_display_video",
     schedule_interval=None,  # Override to match your needs,
     start_date=dates.days_ago(1)
-) as dag:
+) as dag1:
     # [START howto_google_display_video_createquery_report_operator]
     create_report = GoogleDisplayVideo360CreateReportOperator(
         body=REPORT, task_id="create_report"
@@ -119,6 +119,13 @@ with models.DAG(
     )
     # [END howto_google_display_video_deletequery_report_operator]
 
+    create_report >> run_report >> wait_for_report >> get_report >> delete_report
+
+with models.DAG(
+    "example_display_video_misc",
+    schedule_interval=None,  # Override to match your needs,
+    start_date=dates.days_ago(1)
+) as dag2:
     # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
     upload_erf_to_bq = GCSToBigQueryOperator(
         task_id='upload_erf_to_bq',
@@ -126,7 +133,7 @@ with models.DAG(
         source_objects=ERF_SOURCE_OBJECT,
         destination_project_dataset_table=f"{BQ_DATA_SET}.gcs_to_bq_table",
         write_disposition='WRITE_TRUNCATE',
-        dag=dag)
+    )
     # [END howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
 
     # [START howto_google_display_video_download_line_items_operator]
@@ -147,6 +154,11 @@ with models.DAG(
     )
     # [END howto_google_display_video_upload_line_items_operator]
 
+with models.DAG(
+    "example_display_video_sdf",
+    schedule_interval=None,  # Override to match your needs,
+    start_date=dates.days_ago(1)
+) as dag3:
     # [START howto_google_display_video_create_sdf_download_task_operator]
     create_sdf_download_task = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(
         task_id="create_sdf_download_task", body_request=CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST
@@ -181,9 +193,7 @@ with models.DAG(
             {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"},
         ],
         write_disposition="WRITE_TRUNCATE",
-        dag=dag,
     )
     # [END howto_google_display_video_gcs_to_big_query_operator]
 
-    create_report >> run_report >> wait_for_report >> get_report >> delete_report
     create_sdf_download_task >> wait_for_operation >> save_sdf_in_gcs >> upload_sdf_to_big_query

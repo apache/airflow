@@ -50,12 +50,12 @@ class PapermillOperator(BaseOperator):
     supports_lineage = True
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  input_nb: Optional[str] = None,
                  output_nb: Optional[str] = None,
                  parameters: Optional[Dict] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
 
         if input_nb:
             self.inlets.append(NoteBook(url=input_nb,

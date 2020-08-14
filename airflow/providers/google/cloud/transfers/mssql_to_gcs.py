@@ -58,11 +58,10 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
     }
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  mssql_conn_id='mssql_default',
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id
 
     def query(self):

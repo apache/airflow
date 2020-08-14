@@ -152,12 +152,11 @@ class SQLValueCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
         conn_id: Optional[str] = None,
-        *args,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -272,7 +271,7 @@ class SQLIntervalCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         table: str,
         metrics_thresholds: Dict[str, int],
         date_filter_column: Optional[str] = "ds",
@@ -280,7 +279,6 @@ class SQLIntervalCheckOperator(BaseOperator):
         ratio_formula: Optional[str] = "max_over_min",
         ignore_zero: Optional[bool] = True,
         conn_id: Optional[str] = None,
-        *args,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -393,7 +391,7 @@ class SQLIntervalCheckOperator(BaseOperator):
 
 class SQLThresholdCheckOperator(BaseOperator):
     """
-    Performs a value check using sql code against a mininmum threshold
+    Performs a value check using sql code against a minimum threshold
     and a maximum threshold. Thresholds can be in the form of a numeric
     value OR a sql statement that results a numeric.
 
@@ -417,12 +415,11 @@ class SQLThresholdCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         min_threshold: Any,
         max_threshold: Any,
         conn_id: Optional[str] = None,
-        *args,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -510,14 +507,13 @@ class BranchSQLOperator(BaseOperator, SkipMixin):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         sql: str,
         follow_task_ids_if_true: List[str],
         follow_task_ids_if_false: List[str],
         conn_id: str = "default_conn_id",
         database: Optional[str] = None,
         parameters: Optional[Union[Mapping, Iterable]] = None,
-        *args,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

@@ -248,30 +248,17 @@ function setup_kerberos() {
 }
 
 function dump_airflow_logs() {
+    DUMP_FILE=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}.log.tar.gz
     echo "###########################################################################################"
     echo "                   Dumping logs from all the airflow tasks"
     echo "###########################################################################################"
-    pushd /root/airflow/ || exit 1
-    tar -czf "${1}" logs
+    pushd "${AIRFLOW_HOME}" || exit 1
+    tar -czf "${DUMP_FILE}" logs
+    echo "                   Logs dumped to ${DUMP_FILE}"
     popd || exit 1
     echo "###########################################################################################"
 }
 
-
-function send_airflow_logs_to_file_io() {
-    echo "##############################################################################"
-    echo
-    echo "   DUMPING LOG FILES FROM AIRFLOW AND SENDING THEM TO file.io"
-    echo
-    echo "##############################################################################"
-    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_airflow_${CI_BUILD_ID:="default"}_${CI_JOB_ID:="default"}.log.tar.gz
-    dump_airflow_logs "${DUMP_FILE}"
-    echo
-    echo "   Logs saved to ${DUMP_FILE}"
-    echo
-    echo "##############################################################################"
-    curl -F "file=@${DUMP_FILE}" https://file.io
-}
 
 function install_released_airflow_version() {
     pip uninstall -y apache-airflow || true

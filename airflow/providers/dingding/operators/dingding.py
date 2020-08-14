@@ -46,15 +46,14 @@ class DingdingOperator(BaseOperator):
     ui_color = '#4ea4d4'  # Dingding icon color
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  dingding_conn_id='dingding_default',
                  message_type='text',
                  message=None,
                  at_mobiles=None,
                  at_all=False,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.dingding_conn_id = dingding_conn_id
         self.message_type = message_type
         self.message = message

@@ -507,7 +507,8 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.operators.s3_delete_objects`,
        :mod:`airflow.providers.amazon.aws.operators.s3_list`
      - :mod:`airflow.providers.amazon.aws.sensors.s3_key`,
-       :mod:`airflow.providers.amazon.aws.sensors.s3_prefix`
+       :mod:`airflow.providers.amazon.aws.sensors.s3_prefix`,
+       :mod:`airflow.providers.amazon.aws.sensors.s3_keys_unchanged`
 
    * - `AWS Step Functions <https://aws.amazon.com/step-functions/>`__
      -
@@ -719,6 +720,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.dataflow`
      -
 
+   * - `Dataprep <https://cloud.google.com/dataprep/>`__
+     - :doc:`How to use <howto/operator/google/cloud/dataprep>`
+     - :mod:`airflow.providers.google.cloud.hooks.dataprep`
+     - :mod:`airflow.providers.google.cloud.operators.dataprep`
+     -
+
    * - `Dataproc <https://cloud.google.com/dataproc/>`__
      - :doc:`How to use <howto/operator/google/cloud/dataproc>`
      - :mod:`airflow.providers.google.cloud.hooks.dataproc`
@@ -726,7 +733,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Datastore <https://cloud.google.com/datastore/>`__
-     -
+     - :doc:`How to use <howto/operator/google/cloud/datastore>`
      - :mod:`airflow.providers.google.cloud.hooks.datastore`
      - :mod:`airflow.providers.google.cloud.operators.datastore`
      -

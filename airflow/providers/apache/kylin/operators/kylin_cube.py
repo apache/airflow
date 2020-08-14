@@ -39,7 +39,7 @@ class KylinCubeOperator(BaseOperator):
 
     :param kylin_conn_id: The connection id as configured in Airflow administration.
     :type kylin_conn_id: str
-    :param project: kylin porject name, this param will overwrite the project in kylin_conn_id:
+    :param project: kylin project name, this param will overwrite the project in kylin_conn_id:
     :type project: str
     :param cube: kylin cube name
     :type cube: str
@@ -57,7 +57,7 @@ class KylinCubeOperator(BaseOperator):
         and you should give offset_start and offset_end
         refresh_streaming - use build2 rest api,and buildType is ‘REFRESH’
         merge_streaming - use build2 rest api,and buildType is ‘MERGE’
-        delete - delete segment, and you shoulf give segment_name value
+        delete - delete segment, and you should give segment_name value
         disable - disable cube
         enable - enable cube
         purge - purge cube
@@ -96,7 +96,7 @@ class KylinCubeOperator(BaseOperator):
 
     # pylint: disable=too-many-arguments,inconsistent-return-statements
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  kylin_conn_id: Optional[str] = 'kylin_default',
                  project: Optional[str] = None,
                  cube: Optional[str] = None,
@@ -110,7 +110,7 @@ class KylinCubeOperator(BaseOperator):
                  is_track_job: Optional[bool] = False,
                  interval: int = 60,
                  timeout: int = 60 * 60 * 24,
-                 eager_error_status=tuple(["ERROR", "DISCARDED", "KILLED", "SUICIDAL", "STOPPED"]),
+                 eager_error_status=("ERROR", "DISCARDED", "KILLED", "SUICIDAL", "STOPPED"),
                  **kwargs):
         super().__init__(**kwargs)
         self.kylin_conn_id = kylin_conn_id

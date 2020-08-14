@@ -64,7 +64,7 @@ class SimpleHttpOperator(BaseOperator):
     ui_color = '#f4a460'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  endpoint: Optional[str] = None,
                  method: str = 'POST',
                  data: Any = None,
@@ -74,8 +74,8 @@ class SimpleHttpOperator(BaseOperator):
                  extra_options: Optional[Dict[str, Any]] = None,
                  http_conn_id: str = 'http_default',
                  log_response: bool = False,
-                 *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.http_conn_id = http_conn_id
         self.method = method
         self.endpoint = endpoint

@@ -73,10 +73,10 @@ class DayOfWeekSensor(BaseSensorOperator):
     """
 
     @apply_defaults
-    def __init__(self, week_day,
+    def __init__(self, *, week_day,
                  use_task_execution_day=False,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+                 **kwargs):
+        super().__init__(**kwargs)
         self.week_day = week_day
         self.use_task_execution_day = use_task_execution_day
         if isinstance(self.week_day, str):

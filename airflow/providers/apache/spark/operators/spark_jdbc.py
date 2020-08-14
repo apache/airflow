@@ -120,7 +120,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
 
     # pylint: disable=too-many-arguments,too-many-locals
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  spark_app_name: str = 'airflow-spark-jdbc',
                  spark_conn_id: str = 'spark-default',
                  spark_conf: Optional[Dict[str, Any]] = None,

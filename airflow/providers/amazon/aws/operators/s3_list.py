@@ -69,15 +69,14 @@ class S3ListOperator(BaseOperator):
     ui_color = '#ffd700'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket,
                  prefix='',
                  delimiter='',
                  aws_conn_id='aws_default',
                  verify=None,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bucket = bucket
         self.prefix = prefix
         self.delimiter = delimiter

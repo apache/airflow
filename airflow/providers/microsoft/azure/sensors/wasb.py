@@ -41,14 +41,13 @@ class WasbBlobSensor(BaseSensorOperator):
     template_fields = ('container_name', 'blob_name')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  container_name: str,
                  blob_name: str,
                  wasb_conn_id: str = 'wasb_default',
                  check_options: Optional[dict] = None,
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if check_options is None:
             check_options = {}
         self.wasb_conn_id = wasb_conn_id
@@ -83,14 +82,13 @@ class WasbPrefixSensor(BaseSensorOperator):
     template_fields = ('container_name', 'prefix')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  container_name: str,
                  prefix: str,
                  wasb_conn_id: str = 'wasb_default',
                  check_options: Optional[dict] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         if check_options is None:
             check_options = {}
         self.wasb_conn_id = wasb_conn_id

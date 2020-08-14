@@ -41,13 +41,12 @@ class MongoSensor(BaseSensorOperator):
     template_fields = ('collection', 'query')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  collection: str,
                  query: dict,
                  mongo_conn_id: str = "mongo_default",
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.mongo_conn_id = mongo_conn_id
         self.collection = collection
         self.query = query

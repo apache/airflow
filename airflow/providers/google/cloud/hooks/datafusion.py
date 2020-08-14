@@ -112,13 +112,15 @@ class DataFusionHook(GoogleBaseHook):
         start_time = monotonic()
         current_state = None
         while monotonic() - start_time < timeout:
-            current_state = self._get_workflow_state(
-                pipeline_name=pipeline_name,
-                pipeline_id=pipeline_id,
-                instance_url=instance_url,
-                namespace=namespace,
-            )
-
+            try:
+                current_state = self._get_workflow_state(
+                    pipeline_name=pipeline_name,
+                    pipeline_id=pipeline_id,
+                    instance_url=instance_url,
+                    namespace=namespace,
+                )
+            except AirflowException:
+                pass  # Because the pipeline may not be visible in system yet
             if current_state in success_states:
                 return
             if current_state in failure_states:

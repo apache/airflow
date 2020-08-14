@@ -19,6 +19,8 @@
 Interact with AWS Redshift, using the boto3 library.
 """
 
+from typing import List, Optional
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -37,7 +39,7 @@ class RedshiftHook(AwsBaseHook):
         super().__init__(client_type='redshift', *args, **kwargs)
 
     # TODO: Wrap create_cluster_snapshot
-    def cluster_status(self, cluster_identifier):
+    def cluster_status(self, cluster_identifier: str) -> str:
         """
         Return status of a cluster
 
@@ -53,9 +55,9 @@ class RedshiftHook(AwsBaseHook):
 
     def delete_cluster(  # pylint: disable=invalid-name
             self,
-            cluster_identifier,
-            skip_final_cluster_snapshot=True,
-            final_cluster_snapshot_identifier=''):
+            cluster_identifier: str,
+            skip_final_cluster_snapshot: bool = True,
+            final_cluster_snapshot_identifier: Optional[str] = None):
         """
         Delete a cluster and optionally create a snapshot
 
@@ -66,6 +68,8 @@ class RedshiftHook(AwsBaseHook):
         :param final_cluster_snapshot_identifier: name of final cluster snapshot
         :type final_cluster_snapshot_identifier: str
         """
+        final_cluster_snapshot_identifier = final_cluster_snapshot_identifier or ''
+
         response = self.get_conn().delete_cluster(
             ClusterIdentifier=cluster_identifier,
             SkipFinalClusterSnapshot=skip_final_cluster_snapshot,
@@ -73,7 +77,7 @@ class RedshiftHook(AwsBaseHook):
         )
         return response['Cluster'] if response['Cluster'] else None
 
-    def describe_cluster_snapshots(self, cluster_identifier):
+    def describe_cluster_snapshots(self, cluster_identifier: str) -> Optional[List[str]]:
         """
         Gets a list of snapshots for a cluster
 
@@ -90,7 +94,10 @@ class RedshiftHook(AwsBaseHook):
         snapshots.sort(key=lambda x: x['SnapshotCreateTime'], reverse=True)
         return snapshots
 
-    def restore_from_cluster_snapshot(self, cluster_identifier, snapshot_identifier):
+    def restore_from_cluster_snapshot(
+            self,
+            cluster_identifier: str,
+            snapshot_identifier: str) -> str:
         """
         Restores a cluster from its snapshot
 
@@ -105,7 +112,10 @@ class RedshiftHook(AwsBaseHook):
         )
         return response['Cluster'] if response['Cluster'] else None
 
-    def create_cluster_snapshot(self, snapshot_identifier, cluster_identifier):
+    def create_cluster_snapshot(
+            self,
+            snapshot_identifier: str,
+            cluster_identifier: str) -> str:
         """
         Creates a snapshot of a cluster
 

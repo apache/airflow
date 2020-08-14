@@ -57,17 +57,16 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.instance_name = instance_name
         self.location = location
         self.project_id = project_id
@@ -118,17 +117,16 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.instance_name = instance_name
         self.location = location
         self.project_id = project_id
@@ -182,7 +180,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         instance: Dict[str, Any],
         location: str,
@@ -190,10 +188,9 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.instance_name = instance_name
         self.instance = instance
         self.location = location
@@ -273,7 +270,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         instance: Dict[str, Any],
         update_mask: str,
@@ -282,10 +279,9 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.update_mask = update_mask
         self.instance_name = instance_name
         self.instance = instance
@@ -340,17 +336,16 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         location: str,
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.instance_name = instance_name
         self.location = location
         self.project_id = project_id
@@ -407,7 +402,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         pipeline_name: str,
         pipeline: Dict[str, Any],
         instance_name: str,
@@ -417,10 +412,9 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
         self.pipeline = pipeline
         self.namespace = namespace
@@ -486,7 +480,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         pipeline_name: str,
         instance_name: str,
         location: str,
@@ -496,10 +490,9 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
         self.version_id = version_id
         self.namespace = namespace
@@ -566,7 +559,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         instance_name: str,
         location: str,
         artifact_name: Optional[str] = None,
@@ -576,10 +569,9 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.artifact_version = artifact_version
         self.artifact_name = artifact_name
         self.namespace = namespace
@@ -652,7 +644,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         pipeline_name: str,
         instance_name: str,
         location: str,
@@ -664,10 +656,9 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
         self.success_states = success_states
         self.runtime_args = runtime_args
@@ -743,7 +734,7 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         pipeline_name: str,
         instance_name: str,
         location: str,
@@ -752,10 +743,9 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
         self.namespace = namespace
         self.instance_name = instance_name

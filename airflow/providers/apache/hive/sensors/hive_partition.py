@@ -46,7 +46,7 @@ class HivePartitionSensor(BaseSensorOperator):
     ui_color = '#C5CAE9'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  table: str,
                  partition: Optional[str] = "ds='{{ ds }}'",
                  metastore_conn_id: str = 'metastore_default',

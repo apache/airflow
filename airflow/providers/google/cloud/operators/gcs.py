@@ -100,7 +100,7 @@ class GCSCreateBucketOperator(BaseOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket_name: str,
                  resource: Optional[Dict] = None,
                  storage_class: str = 'MULTI_REGIONAL',
@@ -110,9 +110,8 @@ class GCSCreateBucketOperator(BaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
@@ -188,16 +187,15 @@ class GCSListObjectsOperator(BaseOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket: str,
                  prefix: Optional[str] = None,
                  delimiter: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
@@ -253,14 +251,14 @@ class GCSDeleteObjectsOperator(BaseOperator):
     template_fields = ('bucket_name', 'prefix', 'objects')
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket_name: str,
                  objects: Optional[Iterable[str]] = None,
                  prefix: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
 
         if google_cloud_storage_conn_id:
             warnings.warn(
@@ -277,7 +275,7 @@ class GCSDeleteObjectsOperator(BaseOperator):
         if not objects and not prefix:
             raise ValueError("Either object or prefix should be set. Both are None")
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, context):
         hook = GCSHook(
@@ -330,17 +328,16 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         bucket: str,
         entity: str,
         role: str,
         user_project: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         google_cloud_storage_conn_id: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
@@ -399,7 +396,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
     # [END gcs_object_create_acl_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket: str,
                  object_name: str,
                  entity: str,
@@ -408,8 +405,8 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
                  user_project: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  google_cloud_storage_conn_id: Optional[str] = None,
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
@@ -466,17 +463,16 @@ class GCSFileTransformOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         source_bucket: str,
         source_object: str,
         transform_script: Union[str, List[str]],
         destination_bucket: Optional[str] = None,
         destination_object: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.source_object = source_object
         self.destination_bucket = destination_bucket or self.source_bucket
@@ -552,12 +548,12 @@ class GCSDeleteBucketOperator(BaseOperator):
     template_fields = ('bucket_name', "gcp_conn_id")
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  bucket_name: str,
                  force: bool = True,
                  gcp_conn_id: str = 'google_cloud_default',
-                 *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
 
         self.bucket_name = bucket_name
         self.force: bool = force
@@ -619,7 +615,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         source_bucket: str,
         destination_bucket: str,
         source_object: Optional[str] = None,
@@ -629,10 +625,9 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         allow_overwrite: bool = False,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.destination_bucket = destination_bucket
         self.source_object = source_object

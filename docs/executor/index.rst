@@ -28,6 +28,14 @@ full path to the module e.g. ``my_acme_company.executors.MyCustomExecutor``.
 .. note::
     For more information on setting the configuration, see :doc:`../howto/set-config`.
 
+If you want to check which executor is currently set, you can use ``airflow config get-value core executor`` command as in
+the example below.
+
+.. code-block:: bash
+
+    $ airflow config get-value core executor
+    SequentialExecutor
+
 .. toctree::
     :maxdepth: 1
 

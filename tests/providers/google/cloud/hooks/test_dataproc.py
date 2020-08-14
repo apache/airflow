@@ -148,6 +148,7 @@ class TestDataprocHook(unittest.TestCase):
             retry=None,
             timeout=None,
         )
+        mock_client.return_value.diagnose_cluster.return_value.result.assert_called_once_with()
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
     def test_get_cluster(self, mock_client):

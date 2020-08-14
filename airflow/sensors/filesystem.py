@@ -37,18 +37,17 @@ class FileSensor(BaseSensorOperator):
     :type fs_conn_id: str
     :param filepath: File or folder name (relative to
         the base path set within the connection), can be a glob.
-    :type fs_conn_id: str
+    :type filepath: str
     """
     template_fields = ('filepath',)
     ui_color = '#91818a'
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  filepath,
                  fs_conn_id='fs_default',
-                 *args,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.filepath = filepath
         self.fs_conn_id = fs_conn_id
 

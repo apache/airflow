@@ -39,14 +39,13 @@ class JiraSensor(BaseSensorOperator):
     """
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  method_name: str,
                  jira_conn_id: str = 'jira_default',
                  method_params: Optional[dict] = None,
                  result_processor: Optional[Callable] = None,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.jira_conn_id = jira_conn_id
         self.result_processor = None
         if result_processor is not None:
@@ -82,7 +81,7 @@ class JiraTicketSensor(JiraSensor):
     template_fields = ("ticket_id",)
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  jira_conn_id: str = 'jira_default',
                  ticket_id: Optional[str] = None,
                  field: Optional[str] = None,

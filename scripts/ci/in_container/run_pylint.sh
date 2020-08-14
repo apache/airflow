@@ -38,8 +38,6 @@ if [[ ${#@} == "0" ]]; then
     -path "./.eggs" -prune -o \
     -path "./docs/_build" -prune -o \
     -path "./build" -prune -o \
-    -path "./tests" -prune -o \
-    -path "./kubernetes_tests" -prune -o \
     -name "*.py" \
     -not -name 'webserver_config.py' | \
         grep  ".*.py$" | \

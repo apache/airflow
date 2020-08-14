@@ -41,7 +41,7 @@ class MongoToS3Operator(BaseOperator):
     # pylint: disable=too-many-instance-attributes
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  mongo_conn_id,
                  s3_conn_id,
                  mongo_collection,
@@ -50,8 +50,8 @@ class MongoToS3Operator(BaseOperator):
                  s3_key,
                  mongo_db=None,
                  replace=False,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+                 **kwargs):
+        super().__init__(**kwargs)
         # Conn Ids
         self.mongo_conn_id = mongo_conn_id
         self.s3_conn_id = s3_conn_id
