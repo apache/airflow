@@ -1740,6 +1740,21 @@ class TestTriggerDag(TestBase):
         self.assertIsNotNone(run)
         self.assertIn("manual__", run.run_id)
 
+    @parameterized.expand([
+        ("javascript:alert(1)", "/home"),
+        ("http://google.com", "/home"),
+        ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
+        ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
+        ("", ""),
+    ])
+    def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
+        test_dag_id = "example_bash_operator"
+
+        resp = self.client.post('trigger?dag_id={}&origin={}'.format(test_dag_id, test_origin))
+        self.check_content_in_response(
+            'target URL: <a href="{0}">{0}</a>'.format(expected_origin),
+            resp, 302)
+
 
 class TestExtraLinks(TestBase):
     def setUp(self):

@@ -20,13 +20,14 @@
 import io
 import copy
 import logging.config
-import mock
 import os
 import shutil
 import tempfile
 import unittest
 import sys
 import json
+from parameterized import parameterized
+from tests.compat import mock
 
 from six.moves.urllib.parse import quote_plus
 from werkzeug.test import Client
@@ -910,6 +911,27 @@ class TestTriggerDag(unittest.TestCase):
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
         self.assertIn("manual__", run.run_id)
+
+    @parameterized.expand([
+        ("javascript:alert(1)", "/admin/"),
+        ("http://google.com", "/admin/"),
+        (
+            "%2Fadmin%2Fairflow%2Ftree%3Fdag_id%3Dexample_bash_operator&dag_id=example_bash_operator",
+            "/admin/airflow/tree?dag_id=example_bash_operator"
+        ),
+        (
+            "%2Fadmin%2Fairflow%2Fgraph%3Fdag_id%3Dexample_bash_operator&dag_id=example_bash_operator",
+            "/admin/airflow/graph?dag_id=example_bash_operator"
+        ),
+        ("", ""),
+    ])
+    def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
+        test_dag_id = "example_bash_operator"
+        response = self.app.post(
+            '/admin/airflow/trigger?dag_id={}&origin={}'.format(test_dag_id, test_origin))
+        self.assertIn(
+            'target URL: <a href="{0}">{0}</a>'.format(expected_origin),
+            response.data.decode('utf-8'))
 
 
 class HelpersTest(unittest.TestCase):
