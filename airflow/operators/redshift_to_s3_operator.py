@@ -112,13 +112,14 @@ class RedshiftToS3Transfer(BaseOperator):
                     UNLOAD ('{select_query}')
                     TO 's3://{s3_bucket}/{s3_key}'
                     with credentials
-                    'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
+                    'aws_access_key_id={access_key};aws_secret_access_key={secret_key};token={token}'
                     {unload_options};
                     """.format(select_query=select_query,
                                s3_bucket=self.s3_bucket,
                                s3_key=s3_key,
                                access_key=credentials.access_key,
                                secret_key=credentials.secret_key,
+                               token=credentials.token,
                                unload_options=unload_options)
 
         self.log.info('Executing UNLOAD command...')
