@@ -42,6 +42,59 @@ tolerations: []
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
 
+# Ingress configuration
+ingress:
+  # Enable ingress resource
+  enabled: false
+
+  # Configs for the Ingress of the web Service
+  web:
+    # Annotations for the web Ingress
+    annotations: {}
+
+    # The path for the web Ingress
+    path: ""
+
+    # The hostname for the web Ingress
+    host: ""
+
+    # configs for web Ingress TLS
+    tls:
+      # Enable TLS termination for the web Ingress
+      enabled: false
+      # the name of a pre-created Secret containing a TLS private key and certificate
+      secretName: ""
+
+    # HTTP paths to add to the web Ingress before the default path
+    precedingPaths: []
+
+    # Http paths to add to the web Ingress after the default path
+    succeedingPaths: []
+
+  # Configs for the Ingress of the flower Service
+  flower:
+    # Annotations for the flower Ingress
+    annotations: {}
+
+    # The path for the flower Ingress
+    path: ""
+
+    # The hostname for the flower Ingress
+    host: ""
+
+    # configs for web Ingress TLS
+    tls:
+      # Enable TLS termination for the flower Ingress
+      enabled: false
+      # the name of a pre-created Secret containing a TLS private key and certificate
+      secretName: ""
+
+    # HTTP paths to add to the flower Ingress before the default path
+    precedingPaths: []
+
+    # Http paths to add to the flower Ingress after the default path
+    succeedingPaths: []
+
 # Network policy configuration
 networkPolicies:
   # Enabled network policies
