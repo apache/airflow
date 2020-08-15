@@ -123,7 +123,8 @@ class TestGCSTaskHandler(unittest.TestCase):
     @mock.patch.object(GCSTaskHandler, "gcs_read")
     def test_gcs_write_fail_remote(self, mock_remote_read, mock_hook):
         with mock.patch.object(self.gcs_task_handler.log, "error") as mock_error:
-            ex = Exception("Failed to connect")
+            ex = Exception("Failed to connect",)
+            mock_hook.upload.side_effect = ex
             mock_remote_read.return_value = "Old log"
             self.gcs_task_handler.gcs_write("New log", self.remote_log_location)
             mock_error.assert_called_once_with(
