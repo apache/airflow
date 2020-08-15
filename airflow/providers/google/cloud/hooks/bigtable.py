@@ -18,6 +18,7 @@
 """
 This module contains a Google Cloud Bigtable Hook.
 """
+import enum
 from typing import Dict, List, Optional, Sequence, Union
 
 from google.cloud.bigtable import Client
@@ -182,6 +183,51 @@ class BigtableHook(GoogleBaseHook):
             clusters=clusters
         )
         operation.result(timeout)
+        return instance
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_instance(
+        self,
+        instance_id: str,
+        project_id: str,
+        instance_display_name: Optional[str] = None,
+        instance_type: Optional[Union[enums.Instance.Type, enum.IntEnum]] = None,
+        instance_labels: Optional[Dict] = None,
+        timeout: Optional[float] = None
+    ) -> Instance:
+        """
+        Update an existing instance.
+
+        :type instance_id: str
+        :param instance_id: The ID for the existing instance.
+        :type project_id: str
+        :param project_id: Optional, Google Cloud Platform project ID where the
+            BigTable exists. If set to None or missing,
+            the default project_id from the GCP connection is used.
+        :type instance_display_name: str
+        :param instance_display_name: (optional) Human-readable name of the instance.
+        :type instance_type: enums.Instance.Type or enum.IntEnum
+        :param instance_type: (optional) The type of the instance.
+        :type instance_labels: dict
+        :param instance_labels: (optional) Dictionary of labels to associate with the
+            instance.
+        :type timeout: int
+        :param timeout: (optional) timeout (in seconds) for instance update.
+            If None is not specified, Operator will wait indefinitely.
+        """
+        instance_type = enums.Instance.Type(instance_type)
+
+        instance = Instance(
+            instance_id=instance_id,
+            client=self._get_client(project_id=project_id),
+            display_name=instance_display_name,
+            instance_type=instance_type,
+            labels=instance_labels,
+        )
+
+        operation = instance.update()
+        operation.result(timeout)
+
         return instance
 
     @staticmethod

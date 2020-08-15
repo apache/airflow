@@ -18,7 +18,8 @@
 """
 This module contains Google Cloud Bigtable operators.
 """
-from typing import Dict, Iterable, List, Optional
+import enum
+from typing import Dict, Iterable, List, Optional, Union
 
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import GarbageCollectionRule
@@ -151,6 +152,82 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
                 instance_labels=self.instance_labels,
                 cluster_nodes=self.cluster_nodes,
                 cluster_storage_type=self.cluster_storage_type,
+                timeout=self.timeout,
+            )
+        except google.api_core.exceptions.GoogleAPICallError as e:
+            self.log.error('An error occurred. Exiting.')
+            raise e
+
+
+class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
+    """
+    Updates an existing Cloud Bigtable instance.
+
+    For more details about instance creation have a look at the reference:
+    https://googleapis.dev/python/bigtable/latest/instance.html#google.cloud.bigtable.instance.Instance.update
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableUpdateInstanceOperator`
+
+    :type instance_id: str
+    :param instance_id: The ID of the Cloud Bigtable instance to update.
+    :type project_id: str
+    :param project_id: Optional, the ID of the GCP project. If set to None or missing,
+            the default project_id from the GCP connection is used.
+    :type instance_display_name: str
+    :param instance_display_name: (optional) Human-readable name of the instance.
+    :type instance_type: enums.Instance.Type or enum.IntEnum
+    :param instance_type: (optional) The type of the instance.
+    :type instance_labels: dict
+    :param instance_labels: (optional) Dictionary of labels to associate
+        with the instance.
+    :type timeout: int
+    :param timeout: (optional) timeout (in seconds) for instance update.
+                    If None is not specified, Operator will wait indefinitely.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+
+    REQUIRED_ATTRIBUTES: Iterable[str] = ['instance_id']
+    template_fields: Iterable[str] = ['project_id', 'instance_id']
+
+    @apply_defaults
+    def __init__(self, *,
+                 instance_id: str,
+                 project_id: Optional[str] = None,
+                 instance_display_name: Optional[str] = None,
+                 instance_type: Optional[Union[enums.Instance.Type, enum.IntEnum]] = None,
+                 instance_labels: Optional[Dict] = None,
+                 timeout: Optional[float] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 **kwargs) -> None:
+        self.project_id = project_id
+        self.instance_id = instance_id
+        self.instance_display_name = instance_display_name
+        self.instance_type = instance_type
+        self.instance_labels = instance_labels
+        self.timeout = timeout
+        self._validate_inputs()
+        self.gcp_conn_id = gcp_conn_id
+        super().__init__(**kwargs)
+
+    def execute(self, context):
+        hook = BigtableHook(gcp_conn_id=self.gcp_conn_id)
+        instance = hook.get_instance(project_id=self.project_id,
+                                     instance_id=self.instance_id)
+        if not instance:
+            raise AirflowException(
+                f"Dependency: instance '{self.instance_id}' does not exist."
+            )
+
+        try:
+            hook.update_instance(
+                project_id=self.project_id,
+                instance_id=self.instance_id,
+                instance_display_name=self.instance_display_name,
+                instance_type=self.instance_type,
+                instance_labels=self.instance_labels,
                 timeout=self.timeout,
             )
         except google.api_core.exceptions.GoogleAPICallError as e:

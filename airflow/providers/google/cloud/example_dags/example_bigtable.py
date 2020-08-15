@@ -51,7 +51,7 @@ from os import getenv
 from airflow import models
 from airflow.providers.google.cloud.operators.bigtable import (
     BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
-    BigtableDeleteTableOperator, BigtableUpdateClusterOperator,
+    BigtableDeleteTableOperator, BigtableUpdateClusterOperator, BigtableUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 from airflow.utils.dates import days_ago
@@ -59,8 +59,13 @@ from airflow.utils.dates import days_ago
 GCP_PROJECT_ID = getenv('GCP_PROJECT_ID', 'example-project')
 CBT_INSTANCE_ID = getenv('CBT_INSTANCE_ID', 'some-instance-id')
 CBT_INSTANCE_DISPLAY_NAME = getenv('CBT_INSTANCE_DISPLAY_NAME', 'Human-readable name')
+CBT_INSTANCE_DISPLAY_NAME_UPDATED = getenv(
+    "CBT_INSTANCE_DISPLAY_NAME_UPDATED", "Human-readable name - updated"
+)
 CBT_INSTANCE_TYPE = getenv('CBT_INSTANCE_TYPE', '2')
+CBT_INSTANCE_TYPE_PROD = getenv('CBT_INSTANCE_TYPE_PROD', '1')
 CBT_INSTANCE_LABELS = getenv('CBT_INSTANCE_LABELS', '{}')
+CBT_INSTANCE_LABELS_UPDATED = getenv('CBT_INSTANCE_LABELS', '{"env": "prod"}')
 CBT_CLUSTER_ID = getenv('CBT_CLUSTER_ID', 'some-cluster-id')
 CBT_CLUSTER_ZONE = getenv('CBT_CLUSTER_ZONE', 'europe-west1-b')
 CBT_CLUSTER_NODES = getenv('CBT_CLUSTER_NODES', '3')
@@ -102,6 +107,16 @@ with models.DAG(
     )
     create_instance_task >> create_instance_task2
     # [END howto_operator_gcp_bigtable_instance_create]
+
+    # [START howto_operator_gcp_bigtable_instance_update]
+    update_instance_task = BigtableUpdateInstanceOperator(
+        instance_id=CBT_INSTANCE_ID,
+        instance_display_name=CBT_INSTANCE_DISPLAY_NAME_UPDATED,
+        instance_type=int(CBT_INSTANCE_TYPE_PROD),
+        instance_labels=json.loads(CBT_INSTANCE_LABELS_UPDATED),
+        task_id='update_instance_task',
+    )
+    # [END howto_operator_gcp_bigtable_instance_update]
 
     # [START howto_operator_gcp_bigtable_cluster_update]
     cluster_update_task = BigtableUpdateClusterOperator(
@@ -186,6 +201,7 @@ with models.DAG(
     create_instance_task \
         >> create_table_task \
         >> cluster_update_task \
+        >> update_instance_task \
         >> delete_table_task
     create_instance_task2 \
         >> create_table_task2 \
