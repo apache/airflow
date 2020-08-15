@@ -1644,7 +1644,7 @@ class BigQueryInsertJobOperator(BaseOperator):
     - if job with given id already exists then it tries to reattach to the job if its not done and its
         state is in ``reattach_states``. If the job is done the operator will raise ``AirflowException``.
 
-    Using ``force_rerun`` will submit a new job everytime without attaching to already existing ones.
+    Using ``force_rerun`` will submit a new job every time without attaching to already existing ones.
 
     For job definition see here:
 
