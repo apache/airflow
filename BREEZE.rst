@@ -463,7 +463,7 @@ Launching Breeze integrations
 
 When Breeze starts, it can start additional integrations. Those are additional docker containers
 that are started in the same docker-compose command. Those are required by some of the tests
-as described in `TESTING <TESTING.rst#airflow-integration-tests>`_.
+as described in `TESTING.rst <TESTING.rst#airflow-integration-tests>`_.
 
 By default Breeze starts only airflow container without any integration enabled. If you selected
 ``postgres`` or ``mysql`` backend, the container for the selected backend is also started (but only the one
@@ -1237,7 +1237,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           GitHub repository used to pull, push images when cache is used. Default: airflow.
 
   -v, --verbose
-          Show verbose information about executed commands (enabled by default for running test).
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
@@ -1267,7 +1270,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Use production image for entering the environment and builds (not for tests).
 
   -v, --verbose
-          Show verbose information about executed commands (enabled by default for running test).
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
@@ -1312,7 +1318,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  2.7 3.5 3.6 3.7 3.8
 
   -v, --verbose
-          Show verbose information about executed commands (enabled by default for running test).
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
@@ -1362,7 +1371,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           GitHub repository used to pull, push images when cache is used. Default: airflow.
 
   -v, --verbose
-          Show verbose information about executed commands (enabled by default for running test).
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
@@ -1498,7 +1510,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  5.6 5.7
 
   -v, --verbose
-          Show verbose information about executed commands (enabled by default for running test).
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
@@ -1906,7 +1921,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
    Increase verbosity of the scripts
 
   -v, --verbose
-          Show verbose information about executed commands (enabled by default for running test).
+          Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+          debugging - when you run breeze with --verbose flags you will be able to see the commands
+          executed under the hood and copy&paste them to your terminal to debug them more easily.
+
           Note that you can further increase verbosity and see all the commands executed by breeze
           by running 'export VERBOSE_COMMANDS="true"' before running breeze.
 
