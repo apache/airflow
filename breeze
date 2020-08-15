@@ -56,9 +56,9 @@ function setup_default_breeze_variables() {
     export TMP_DIR="${AIRFLOW_SOURCES}/tmp"
 
     # Create those folders above in case they do not exist
-    mkdir -pv "${BUILD_CACHE_DIR}"
-    mkdir -pv "${TMP_DIR}"
-    mkdir -pv "${FILES_DIR}"
+    mkdir -p "${BUILD_CACHE_DIR}" >/dev/null
+    mkdir -p "${TMP_DIR}" >/dev/null
+    mkdir -p "${FILES_DIR}" >/dev/null
 
     # load all the common functions here - those are the functions that are shared between Breeze
     # and CI scripts (CI scripts do not use Breeze as execution environment)
