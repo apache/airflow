@@ -94,7 +94,7 @@ class S3ToRedshiftTransfer(BaseOperator):
             COPY {schema}.{table}
             FROM 's3://{s3_bucket}/{s3_key}/{table}'
             with credentials
-            'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
+            'aws_access_key_id={access_key};aws_secret_access_key={secret_key};token={token}'
             {copy_options};
         """.format(schema=self.schema,
                    table=self.table,
@@ -102,6 +102,7 @@ class S3ToRedshiftTransfer(BaseOperator):
                    s3_key=self.s3_key,
                    access_key=credentials.access_key,
                    secret_key=credentials.secret_key,
+                   token=credentials.token,
                    copy_options=copy_options)
 
         self.log.info('Executing COPY command...')
