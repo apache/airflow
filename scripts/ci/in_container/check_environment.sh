@@ -23,16 +23,10 @@ EXIT_CODE=0
 
 DISABLED_INTEGRATIONS=""
 
-function check_integration {
+function check_service {
     INTEGRATION_NAME=$1
     CALL=$2
     MAX_CHECK=${3:=1}
-
-    ENV_VAR_NAME=INTEGRATION_${INTEGRATION_NAME^^}
-    if [[ ${!ENV_VAR_NAME:=} != "true" ]]; then
-        DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${INTEGRATION_NAME}"
-        return
-    fi
 
     echo -n "${INTEGRATION_NAME}: "
     while true
@@ -42,7 +36,7 @@ function check_integration {
         RES=$?
         set -e
         if [[ ${RES} == 0 ]]; then
-            echo -e " \e[32mOK!\e[0m"
+            echo -e " \e[32mOK.\e[0m"
             break
         else
             echo -n "."
@@ -50,14 +44,14 @@ function check_integration {
         fi
         if [[ ${MAX_CHECK} == 0 ]]; then
             echo -e " \e[31mERROR!\e[30m"
-            echo "Maximum number of retries while checking integration. Exiting"
+            echo "Maximum number of retries while checking service. Exiting"
             break
         else
             sleep 1
         fi
     done
     if [[ ${RES} != 0 ]]; then
-        echo "Integration could not be started!"
+        echo "Service could not be started!"
         echo
         echo "${LAST_CHECK_RESULT}"
         echo
@@ -65,55 +59,38 @@ function check_integration {
     fi
 }
 
-function check_db_connection {
-    MAX_CHECK=${1:=3}
+function check_integration {
+    INTEGRATION_NAME=$1
 
-    if [[ ${BACKEND} == "postgres" ]]; then
-        HOSTNAME=postgres
-        PORT=5432
-    elif [[ ${BACKEND} == "mysql" ]]; then
-        HOSTNAME=mysql
-        PORT=3306
-    else
+    ENV_VAR_NAME=INTEGRATION_${INTEGRATION_NAME^^}
+    if [[ ${!ENV_VAR_NAME:=} != "true" ]]; then
+        DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${INTEGRATION_NAME}"
         return
     fi
-    echo -n "${BACKEND}: "
-    while true
-    do
-        set +e
-        LAST_CHECK_RESULT=$(nc -zvv ${HOSTNAME} ${PORT} 2>&1)
-        RES=$?
-        set -e
-        if [[ ${RES} == 0 ]]; then
-            echo -e " \e[32mOK!\e[0m"
-            break
-        else
-            echo -n "."
-            MAX_CHECK=$((MAX_CHECK-1))
-        fi
-        if [[ ${MAX_CHECK} == 0 ]]; then
-            echo -e " \e[31mERROR!\e[0m"
-            echo "Maximum number of retries while checking db. Exiting"
-            break
-        else
-            sleep 1
-        fi
-    done
-    if [[ ${RES} != 0 ]]; then
-        echo "Database could not be reached!"
-        echo
-        echo "${LAST_CHECK_RESULT}"
-        echo
-        EXIT_CODE=${RES}
+    check_service "${@}"
+}
+
+function check_db_backend {
+    MAX_CHECK=${1:=1}
+
+    if [[ ${BACKEND} == "postgres" ]]; then
+        check_service "postgres" "nc -zvv postgres 5432" "${MAX_CHECK}"
+    elif [[ ${BACKEND} == "mysql" ]]; then
+        check_service "mysql" "nc -zvv mysql 3306" "${MAX_CHECK}"
+    elif [[ ${BACKEND} == "sqlite" ]]; then
+        return
+    else
+        echo "Unknown backend. Supported values: [postgres,mysql,sqlite]. Current value: [${BACKEND}]"
+        exit 1
     fi
 }
 
 function resetdb_if_requested() {
     if [[ ${DB_RESET:="false"} == "true" ]]; then
         if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
-                airflow resetdb -y
+            airflow resetdb -y
         else
-                airflow db reset -y
+            airflow db reset -y
         fi
     fi
     return $?
@@ -124,7 +101,7 @@ echo "==========================================================================
 echo "             Checking integrations and backends"
 echo "==============================================================================================="
 if [[ -n ${BACKEND:=} ]]; then
-    check_db_connection 20
+    check_db_backend 20
     echo "-----------------------------------------------------------------------------------------------"
 fi
 check_integration kerberos "nc -zvv kerberos 88" 30
@@ -133,6 +110,7 @@ check_integration redis "nc -zvv redis 6379" 20
 check_integration rabbitmq "nc -zvv rabbitmq 5672" 20
 check_integration cassandra "nc -zvv cassandra 9042" 20
 check_integration openldap "nc -zvv openldap 389" 20
+check_integration presto "nc -zvv presto 8080" 40
 echo "-----------------------------------------------------------------------------------------------"
 
 if [[ ${EXIT_CODE} != 0 ]]; then
