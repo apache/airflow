@@ -54,7 +54,7 @@ from past.builtins import basestring
 from pygments import highlight, lexers
 import six
 from pygments.formatters.html import HtmlFormatter
-from six.moves.urllib.parse import quote, unquote
+from six.moves.urllib.parse import quote, unquote, urlparse
 
 from sqlalchemy import or_, desc, and_, union_all
 from wtforms import (
@@ -326,6 +326,23 @@ def get_chart_height(dag):
     charts, that is charts that take up space based on the size of the components within.
     """
     return 600 + len(dag.tasks) * 10
+
+
+def get_safe_url(url):
+    """Given a user-supplied URL, ensure it points to our web server"""
+    try:
+        valid_schemes = ['http', 'https', '']
+        valid_netlocs = [request.host, '']
+
+        parsed = urlparse(url)
+        if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
+            return url
+    except Exception as e:  # pylint: disable=broad-except
+        log.debug("Error validating value in origin parameter passed to URL: %s", url)
+        log.debug("Error: %s", e)
+        pass
+
+    return "/admin/"
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
@@ -1108,7 +1125,7 @@ class Airflow(AirflowViewMixin, BaseView):
     def run(self):
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
 
         dag = dagbag.get_dag(dag_id)
         task = dag.get_task(task_id)
@@ -1179,7 +1196,7 @@ class Airflow(AirflowViewMixin, BaseView):
         from airflow.exceptions import DagNotFound, DagFileExists
 
         dag_id = request.values.get('dag_id')
-        origin = request.values.get('origin') or "/admin/"
+        origin = get_safe_url(request.values.get('origin'))
 
         try:
             delete_dag.delete_dag(dag_id)
@@ -1203,7 +1220,7 @@ class Airflow(AirflowViewMixin, BaseView):
     @provide_session
     def trigger(self, session=None):
         dag_id = request.values.get('dag_id')
-        origin = request.values.get('origin') or "/admin/"
+        origin = get_safe_url(request.values.get('origin'))
 
         if request.method == 'GET':
             return self.render(
@@ -1304,7 +1321,7 @@ class Airflow(AirflowViewMixin, BaseView):
     def clear(self):
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         dag = dagbag.get_dag(dag_id)
 
         execution_date = request.form.get('execution_date')
@@ -1334,7 +1351,7 @@ class Airflow(AirflowViewMixin, BaseView):
     @wwwutils.notify_owner
     def dagrun_clear(self):
         dag_id = request.form.get('dag_id')
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         execution_date = request.form.get('execution_date')
         confirmed = request.form.get('confirmed') == "true"
 
@@ -1437,7 +1454,7 @@ class Airflow(AirflowViewMixin, BaseView):
         dag_id = request.form.get('dag_id')
         execution_date = request.form.get('execution_date')
         confirmed = request.form.get('confirmed') == 'true'
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         return self._mark_dagrun_state_as_failed(dag_id, execution_date,
                                                  confirmed, origin)
 
@@ -1449,7 +1466,7 @@ class Airflow(AirflowViewMixin, BaseView):
         dag_id = request.form.get('dag_id')
         execution_date = request.form.get('execution_date')
         confirmed = request.form.get('confirmed') == 'true'
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         return self._mark_dagrun_state_as_success(dag_id, execution_date,
                                                   confirmed, origin)
 
@@ -1502,7 +1519,7 @@ class Airflow(AirflowViewMixin, BaseView):
     def failed(self):
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         execution_date = request.form.get('execution_date')
 
         confirmed = request.form.get('confirmed') == "true"
@@ -1522,7 +1539,7 @@ class Airflow(AirflowViewMixin, BaseView):
     def success(self):
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         execution_date = request.form.get('execution_date')
 
         confirmed = request.form.get('confirmed') == "true"

@@ -37,6 +37,7 @@ from flask._compat import PY2
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils import timezone
 from airflow.utils.db import create_session
+from parameterized import parameterized
 from tests.compat import mock
 
 from six.moves.urllib.parse import quote_plus
@@ -1113,6 +1114,28 @@ class TestTriggerDag(unittest.TestCase):
             '/admin/airflow/trigger?dag_id={}'.format(test_dag_id), data={}, follow_redirects=True)
         self.assertIn(
             'Triggered example_bash_operator, it should start any moment now.',
+            response.data.decode('utf-8'))
+
+    @parameterized.expand([
+        ("javascript:alert(1)", "/admin/"),
+        ("http://google.com", "/admin/"),
+        (
+            "%2Fadmin%2Fairflow%2Ftree%3Fdag_id%3Dexample_bash_operator&dag_id=example_bash_operator",
+            "/admin/airflow/tree?dag_id=example_bash_operator"
+        ),
+        (
+            "%2Fadmin%2Fairflow%2Fgraph%3Fdag_id%3Dexample_bash_operator&dag_id=example_bash_operator",
+            "/admin/airflow/graph?dag_id=example_bash_operator"
+        ),
+        ("", ""),
+    ])
+    def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
+        test_dag_id = "example_bash_operator"
+        response = self.app.get(
+            '/admin/airflow/trigger?dag_id={}&origin={}'.format(test_dag_id, test_origin))
+        self.assertIn(
+            '<button class="btn" onclick="location.href = \'{}\'; return false">'.format(
+                expected_origin),
             response.data.decode('utf-8'))
 
 
