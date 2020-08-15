@@ -44,7 +44,6 @@ from airflow.utils.decorators import apply_defaults
 
 # pylint: disable=line-too-long
 DATAPROC_JOB_LOG_LINK = "https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}"      # noqa: E501
-DATAPROC_CLUSTER_JOBS_LINK = "https://console.cloud.google.com/dataproc/clusters/{cluster_name}/jobs?region={region}&project={project_id}"      # noqa: E501
 
 
 class DataprocJobLink(BaseOperatorLink):
@@ -55,19 +54,19 @@ class DataprocJobLink(BaseOperatorLink):
 
     def get_link(self, operator, dttm):
         ti = TaskInstance(task=operator, execution_date=dttm)
-        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
-        if job_id:
+        if isinstance(operator, DataprocJobBaseOperator):
+            job_conf = ti.xcom_pull(task_ids=operator.task_id, key='job_conf')
             return DATAPROC_JOB_LOG_LINK.format(
-                job_id=job_id,
-                region=operator.location,
-                project=operator.project_id
-            )
+                job_id=job_conf['job_id'],
+                region=operator.region,
+                project_id=job_conf['project_id']) if job_conf else ''
 
-        return DATAPROC_CLUSTER_JOBS_LINK.format(
-            cluster_name=operator.cluster_name,
+        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        return DATAPROC_JOB_LOG_LINK.format(
+            job_id=job_id,
             region=operator.location,
-            project=operator.project_id
-        )
+            project_id=operator.project_id
+        ) if job_id else ''
 
 
 # pylint: disable=too-many-instance-attributes
@@ -959,6 +958,10 @@ class DataprocJobBaseOperator(BaseOperator):
 
     job_type = ""
 
+    operator_extra_links = (
+        DataprocJobLink(),
+    )
+
     @apply_defaults
     def __init__(
         self,
@@ -1033,12 +1036,17 @@ class DataprocJobBaseOperator(BaseOperator):
             )
             job_id = job_object.reference.job_id
             self.log.info('Job %s submitted successfully.', job_id)
+            context['task_instance'].xcom_push(key='job_conf', value={
+                'job_id': job_id,
+                'project_id': self.project_id
+            })
 
             if not self.asynchronous:
                 self.log.info('Waiting for job %s to complete', job_id)
                 self.hook.wait_for_job(job_id=job_id, location=self.region, project_id=self.project_id)
                 self.log.info('Job %s completed successfully.', job_id)
             return job_id
+
         else:
             raise AirflowException("Create a job template before")
 

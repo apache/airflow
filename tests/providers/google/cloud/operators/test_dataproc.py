@@ -19,6 +19,7 @@ import inspect
 import unittest
 from datetime import datetime
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -565,6 +566,7 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
         })
+        self.mock_context = MagicMock()
 
     def tearDown(self):
         session = Session()
@@ -592,7 +594,7 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             request_id=REQUEST_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={})
+        op.execute(context=self.mock_context)
 
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
@@ -687,11 +689,10 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             location=GCP_LOCATION,
             project_id=GCP_PROJECT,
             job=job,
-            gcp_conn_id=GCP_CONN_ID,
-            cluster_name=CLUSTER_NAME
+            gcp_conn_id=GCP_CONN_ID
         )
         self.dag.clear()
-        session.query(XCom).deete()
+        session.query(XCom).delete()
 
         ti = TaskInstance(
             task=op,
@@ -699,25 +700,19 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
         )
 
         self.assertEqual(
-            # pylint: disable=line-too-long
-            'https://console.cloud.google.com/dataproc/clusters/{cluster_name}/job?region={region}&project={project_id}'.format(    # noqa: E501
-                cluster_name=CLUSTER_NAME,
-                region=GCP_LOCATION,
-                project_id=GCP_PROJECT
-            ),
-            op.get_extra_links(execution_date, DataprocJobLink.name)
+            op.get_extra_links(execution_date, DataprocJobLink.name), ''
         )
 
         ti.xcom_push(key='job_id', value=job_id)
 
         self.assertEqual(
+            op.get_extra_links(execution_date, DataprocJobLink.name),
             # pylint: disable=line-too-long
-            'https://console.cloud.google.com/dataproc/jobs/{job_id}/?region={region}&project={project_id}'.format(     # noqa: E501
+            'https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}'.format(     # noqa: E501
                 job_id=job_id,
                 region=GCP_LOCATION,
                 project_id=GCP_PROJECT
-            ),
-            op.get_extra_links(execution_date, DataprocJobLink.name)
+            )
         )
 
 
@@ -854,8 +849,10 @@ class TestDataProcHiveOperator(unittest.TestCase):
             variables=self.variables,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        op.execute(context=MagicMock())
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -913,8 +910,10 @@ class TestDataProcPigOperator(unittest.TestCase):
             variables=self.variables,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        op.execute(context=MagicMock())
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -978,8 +977,10 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
             variables=self.variables,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        op.execute(context=MagicMock())
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
