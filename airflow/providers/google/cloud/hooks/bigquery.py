@@ -49,6 +49,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = logging.getLogger(__name__)
 
+BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
+
 
 # pylint: disable=too-many-public-methods
 class BigQueryHook(GoogleBaseHook, DbApiHook):
@@ -1468,7 +1470,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id: Optional[str] = None,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
-    ) -> Union[CopyJob, QueryJob, LoadJob, ExtractJob]:
+    ) -> BigQueryJob:
         """
         Executes a BigQuery job. Waits for the job to complete and returns job id.
         See here:

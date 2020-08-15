@@ -21,6 +21,7 @@ from datetime import datetime
 from unittest.mock import MagicMock
 
 import mock
+import pytest
 from google.cloud.exceptions import Conflict
 from parameterized import parameterized
 
@@ -792,16 +793,21 @@ class TestBigQueryUpsertTableOperator(unittest.TestCase):
 
 
 class TestBigQueryInsertJobOperator:
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_execute(self, mock_hook):
+    def test_execute_success(self, mock_hook, mock_md5):
         job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+        mock_md5.return_value.hexdigest.return_value = hash_
+
         configuration = {
             "query": {
                 "query": "SELECT * FROM any",
                 "useLegacySql": False,
             }
         }
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=job_id)
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
         op = BigQueryInsertJobOperator(
             task_id="insert_query_job",
@@ -815,16 +821,19 @@ class TestBigQueryInsertJobOperator:
         mock_hook.return_value.insert_job.assert_called_once_with(
             configuration=configuration,
             location=TEST_DATASET_LOCATION,
-            job_id=job_id,
+            job_id=real_job_id,
             project_id=TEST_GCP_PROJECT_ID,
         )
 
-        assert result == job_id
+        assert result == real_job_id
 
-    @mock.patch('airflow.providers.google.cloud.operators.bigquery.exponential_sleep_generator')
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_execute_idempotency(self, mock_hook, mock_sleep_generator):
+    def test_execute_failure(self, mock_hook, mock_md5):
         job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+        mock_md5.return_value.hexdigest.return_value = hash_
 
         configuration = {
             "query": {
@@ -832,30 +841,7 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             }
         }
-
-        class MockJob:
-            _call_no = 0
-            _done = False
-
-            def __init__(self):
-                pass
-
-            def reload(self):
-                if MockJob._call_no == 3:
-                    MockJob._done = True
-                else:
-                    MockJob._call_no += 1
-
-            def done(self):
-                return MockJob._done
-
-            @property
-            def job_id(self):
-                return job_id
-
-        mock_hook.return_value.insert_job.return_value.result.side_effect = Conflict("any")
-        mock_sleep_generator.return_value = [0, 0, 0, 0, 0]
-        mock_hook.return_value.get_job.return_value = MockJob()
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=True)
 
         op = BigQueryInsertJobOperator(
             task_id="insert_query_job",
@@ -864,14 +850,119 @@ class TestBigQueryInsertJobOperator:
             job_id=job_id,
             project_id=TEST_GCP_PROJECT_ID
         )
-        result = op.execute({})
+        with pytest.raises(AirflowException):
+            op.execute({})
 
-        assert MockJob._call_no == 3
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_execute_reattach(self, mock_hook, mock_md5):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+        mock_md5.return_value.hexdigest.return_value = hash_
 
-        mock_hook.return_value.get_job.assert_called_once_with(
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        mock_hook.return_value.insert_job.return_value.result.side_effect = Conflict("any")
+        job = MagicMock(
+            job_id=real_job_id, error_result=False, state="PENDING", done=lambda: False,
+        )
+        mock_hook.return_value.get_job.return_value = job
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
             location=TEST_DATASET_LOCATION,
             job_id=job_id,
             project_id=TEST_GCP_PROJECT_ID,
+            reattach_states={"PENDING"}
+        )
+        result = op.execute({})
+
+        mock_hook.return_value.get_job.assert_called_once_with(
+            location=TEST_DATASET_LOCATION,
+            job_id=real_job_id,
+            project_id=TEST_GCP_PROJECT_ID,
         )
 
-        assert result == job_id
+        job.result.assert_called_once_with()
+
+        assert result == real_job_id
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.uuid')
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_execute_force_rerun(self, mock_hook, mock_uuid, mock_md5):
+        job_id = "123456"
+        hash_ = mock_uuid.uuid4.return_value.encode.return_value
+        real_job_id = f"{job_id}_{hash_}"
+        mock_md5.return_value.hexdigest.return_value = hash_
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        job = MagicMock(
+            job_id=real_job_id, error_result=False,
+        )
+        mock_hook.return_value.insert_job.return_value = job
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+            force_rerun=True,
+        )
+        result = op.execute({})
+
+        mock_hook.return_value.insert_job.assert_called_once_with(
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=real_job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        assert result == real_job_id
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_execute_no_force_rerun(self, mock_hook, mock_md5):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+        mock_md5.return_value.hexdigest.return_value = hash_
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        mock_hook.return_value.insert_job.return_value.result.side_effect = Conflict("any")
+        job = MagicMock(
+            job_id=real_job_id, error_result=False, state="DONE", done=lambda: True,
+        )
+        mock_hook.return_value.get_job.return_value = job
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+            reattach_states={"PENDING"}
+        )
+        # No force rerun
+        with pytest.raises(AirflowException):
+            op.execute({})
