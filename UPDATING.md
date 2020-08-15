@@ -569,15 +569,14 @@ release may contain changes that will require changes to your DAG files.
 This section describes the changes that have been made, and what you need to do to update your DAG File,
 if you use core operators or any other.
 
-#### BaseSensorOperator to make respect the trigger_rule of downstream tasks
+#### BaseSensorOperator now respects the trigger_rule of downstream tasks
 
-Previously, BaseSensorOperator with setting soft_fail=True becomes skipped itself
-and skips all its downstream tasks unconditionally, when it fails.
-The point is not respect the trigger_rule of downstream tasks, when it fails.
-In the new behavior, the trigger_rule of downstream tasks are respected.
-User can preserve/achieve the original behaviour by setting every downstream task to all_success,
-because downstream tasks with trigger_rule all_success (i.e. the default) are skipped
-when upstream task is skipped.
+Previously, BaseSensorOperator with setting `soft_fail=True` skips itself
+and skips all its downstream tasks unconditionally, when it fails i.e the trigger_rule of downstream tasks is not
+respected.
+
+In the new behavior, the trigger_rule of downstream tasks is respected.
+User can preserve/achieve the original behaviour by setting the trigger_rule of each downstream task to `all_success`.
 
 #### BaseOperator uses metaclass
 
