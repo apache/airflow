@@ -23,11 +23,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.elasticache_replication_group import ElastiCacheReplicationGroupHook
 
 
-class TestElastiCacheHook(TestCase):
-    """
-    Test ElastiCacheHook
-    """
-    REPLICATION_GROUP_ID = "test-elasticache-hook"
+class TestElastiCacheReplicationGroupHook(TestCase):
+    REPLICATION_GROUP_ID = "test-elasticache-replication-group-hook"
 
     REPLICATION_GROUP_CONFIG = {
         'ReplicationGroupId': REPLICATION_GROUP_ID,
@@ -52,7 +49,8 @@ class TestElastiCacheHook(TestCase):
 
     def setUp(self):
         self.hook = ElastiCacheReplicationGroupHook()
-        setattr(self.hook, 'conn', Mock())
+        # noinspection PyPropertyAccess
+        self.hook.conn = Mock()
 
         # We need this for every test
         self.hook.conn.create_replication_group.return_value = {
@@ -65,24 +63,15 @@ class TestElastiCacheHook(TestCase):
     def _create_replication_group(self):
         return self.hook.create_replication_group(config=self.REPLICATION_GROUP_CONFIG)
 
-    def test_get_conn_not_none(self):
-        """
-        Test connection is not None
-        """
-        self.assertIsNotNone(self.hook.conn)
+    def test_conn_not_none(self):
+        assert self.hook.conn is not None
 
     def test_create_replication_group(self):
-        """
-        Test creation of replication group
-        """
         response = self._create_replication_group()
         assert response["ReplicationGroup"]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
         assert response["ReplicationGroup"]["Status"] == "creating"
 
     def test_describe_replication_group(self):
-        """
-        Test describing replication group
-        """
         self._create_replication_group()
 
         self.hook.conn.describe_replication_groups.return_value = {
@@ -97,9 +86,6 @@ class TestElastiCacheHook(TestCase):
         assert response["ReplicationGroups"][0]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
 
     def test_get_replication_group_status(self):
-        """
-        Test getting status of replication group
-        """
         self._create_replication_group()
 
         self.hook.conn.describe_replication_groups.return_value = {
@@ -115,9 +101,6 @@ class TestElastiCacheHook(TestCase):
         assert response in self.VALID_STATES
 
     def test_is_replication_group_available(self):
-        """
-        Test checking availability of replication group
-        """
         self._create_replication_group()
 
         self.hook.conn.describe_replication_groups.return_value = {
@@ -132,44 +115,7 @@ class TestElastiCacheHook(TestCase):
         response = self.hook.is_replication_group_available(replication_group_id=self.REPLICATION_GROUP_ID)
         assert response in (True, False)
 
-    def test_has_reached_terminal_state(self):
-        """
-        Test if we replication group has reached a terminal state or not
-        """
-        self._create_replication_group()
-
-        # Terminal state reached
-        self.hook.conn.describe_replication_groups.return_value = {
-            "ReplicationGroups": [
-                {
-                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
-                    "Status": "available"
-                }
-            ]
-        }
-
-        stop_poking, status = self.hook._has_reached_terminal_state(self.REPLICATION_GROUP_ID)
-        assert stop_poking is True
-        assert status in self.VALID_STATES
-
-        # Terminal state not reached
-        self.hook.conn.describe_replication_groups.return_value = {
-            "ReplicationGroups": [
-                {
-                    "ReplicationGroupId": self.REPLICATION_GROUP_ID,
-                    "Status": "modifying"
-                }
-            ]
-        }
-
-        stop_poking, status = self.hook._has_reached_terminal_state(self.REPLICATION_GROUP_ID)
-        assert stop_poking is False
-        assert status in self.VALID_STATES
-
     def test_wait_for_availability(self):
-        """
-        Test waiting for availability of replication group
-        """
         self._create_replication_group()
 
         # Test non availability
@@ -207,9 +153,6 @@ class TestElastiCacheHook(TestCase):
         assert response is True
 
     def test_delete_replication_group(self):
-        """
-        Test deletion of replication group
-        """
         self._create_replication_group()
 
         self.hook.conn.delete_replication_group.return_value = {
@@ -281,9 +224,6 @@ class TestElastiCacheHook(TestCase):
         raise self.hook.conn.exceptions.ReplicationGroupNotFoundFault
 
     def test_wait_for_deletion(self):
-        """
-        Test waiting for deletion of replication group
-        """
         self.describe_call_count_for_delete = 0
 
         self._create_replication_group()
@@ -308,9 +248,6 @@ class TestElastiCacheHook(TestCase):
         assert deleted is True
 
     def test_ensure_delete_replication_group_success(self):
-        """
-        Test deletion of replication group with surety that it is deleted
-        """
         self.describe_call_count_for_delete = 0
 
         self._create_replication_group()
@@ -332,9 +269,6 @@ class TestElastiCacheHook(TestCase):
         assert response["ReplicationGroup"]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
 
     def test_ensure_delete_replication_group_failure(self):
-        """
-        Test failure case for deletion of replication group with surety that it is deleted
-        """
         self.describe_call_count_for_delete = 0
 
         self._create_replication_group()

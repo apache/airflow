@@ -101,19 +101,6 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         """
         return self.get_replication_group_status(replication_group_id) == 'available'
 
-    def _has_reached_terminal_state(self, replication_group_id):
-        """
-        Helper for checking if we should stop poking replication group for availability or not
-
-        :param replication_group_id: ID of replication group to check for terminal state
-        :type replication_group_id: str
-        :return: Flag to check if availability-check should be stopped or not and current status
-        :rtype: (bool, str)
-        """
-        status = self.get_replication_group_status(replication_group_id=replication_group_id)
-
-        return status in self.TERMINAL_STATES, status
-
     def wait_for_availability(
         self,
         replication_group_id,
@@ -143,7 +130,8 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         stop_poking = False
 
         while not stop_poking and num_tries <= max_retries:
-            stop_poking, status = self._has_reached_terminal_state(replication_group_id=replication_group_id)
+            status = self.get_replication_group_status(replication_group_id=replication_group_id)
+            stop_poking = status in self.TERMINAL_STATES
 
             self.log.info(
                 'Current status of replication group with ID %s is %s',
@@ -162,7 +150,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
                 sleep(sleep_time)
 
-                sleep_time = sleep_time * exponential_back_off_factor
+                sleep_time *= exponential_back_off_factor
 
         if status != 'available':
             self.log.warning('Replication group is not available. Current status is "%s"', status)
@@ -246,7 +234,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
                 sleep(sleep_time)
 
-                sleep_time = sleep_time * exponential_back_off_factor
+                sleep_time *= exponential_back_off_factor
 
         return response, deleted
 

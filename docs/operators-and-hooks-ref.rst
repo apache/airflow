@@ -480,8 +480,8 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon ElastiCache <https://aws.amazon.com/elasticache/redis//>`__
      -
-     -
      - :mod:`airflow.providers.amazon.aws.hooks.elasticache_replication_group`
+     -
      -
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
