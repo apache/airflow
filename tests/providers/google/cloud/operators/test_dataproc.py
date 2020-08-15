@@ -1042,6 +1042,23 @@ class TestDataProcSparkOperator(unittest.TestCase):
         "spark_job": {"jar_file_uris": jars, "main_class": main_class},
     }
 
+    def setUp(self):
+        self.dagbag = DagBag(
+            dag_folder='/dev/null', include_examples=False
+        )
+        self.dag = DAG(TEST_DAG_ID, default_args={
+            'owner': 'airflow',
+            'start_date': DEFAULT_DATE
+        })
+        self.mock_context = MagicMock()
+
+    def tearDown(self):
+        session = Session()
+        session.query(TaskInstance).filter_by(
+            dag_id=TEST_DAG_ID).delete()
+        session.commit()
+        session.close()
+
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
         with pytest.warns(DeprecationWarning) as warnings:
@@ -1066,6 +1083,46 @@ class TestDataProcSparkOperator(unittest.TestCase):
         )
         job = op.generate_job()
         assert self.job == job
+
+    @provide_session
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_operator_extra_links(self, mock_hook, session):
+        job_id = 'test_spark_job_12345'
+        execution_date = datetime(2020, 7, 20)
+
+        op = DataprocSubmitSparkJobOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            main_class=self.main_class,
+            dataproc_jars=self.jars
+        )
+        self.dag.clear()
+        session.query(XCom).delete()
+
+        ti = TaskInstance(
+            task=op,
+            execution_date=execution_date
+        )
+
+        self.assertEqual(
+            op.get_extra_links(execution_date, DataprocJobLink.name), ''
+        )
+
+        ti.xcom_push(key='job_conf', value={
+            'job_id': job_id,
+            'project_id': GCP_PROJECT
+        })
+
+        self.assertEqual(
+            op.get_extra_links(execution_date, DataprocJobLink.name),
+            # pylint: disable=line-too-long
+            "https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}".format(      # noqa: E501
+                job_id=job_id,
+                region=GCP_LOCATION,
+                project_id=GCP_PROJECT
+            )
+        )
 
 
 class TestDataProcHadoopOperator(unittest.TestCase):
