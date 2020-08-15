@@ -35,11 +35,39 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, BaseOperatorLink
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
+
+# pylint: disable=line-too-long
+DATAPROC_JOB_LOG_LINK = "https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}"      # noqa: E501
+DATAPROC_CLUSTER_JOBS_LINK = "https://console.cloud.google.com/dataproc/clusters/{cluster_name}/jobs?region={region}&project={project_id}"      # noqa: E501
+
+
+class DataprocJobLink(BaseOperatorLink):
+    """
+    Helper class for constructing Dataproc Job link
+    """
+    name = "Dataproc Job"
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        if job_id:
+            return DATAPROC_JOB_LOG_LINK.format(
+                job_id=job_id,
+                region=operator.location,
+                project=operator.project_id
+            )
+
+        return DATAPROC_CLUSTER_JOBS_LINK.format(
+            cluster_name=operator.cluster_name,
+            region=operator.location,
+            project=operator.project_id
+        )
 
 
 # pylint: disable=too-many-instance-attributes
@@ -1871,6 +1899,10 @@ class DataprocSubmitJobOperator(BaseOperator):
     template_fields = ('project_id', 'location', 'job', 'impersonation_chain', 'request_id')
     template_fields_renderers = {"job": "json"}
 
+    operator_extra_links = (
+        DataprocJobLink(),
+    )
+
     @apply_defaults
     def __init__(
         self,
@@ -1933,6 +1965,8 @@ class DataprocSubmitJobOperator(BaseOperator):
     def on_kill(self):
         if self.job_id and self.cancel_on_kill:
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
+
+        context['task_instance'].xcom_push(key='job_id', value=job_id)
 
 
 class DataprocUpdateClusterOperator(BaseOperator):

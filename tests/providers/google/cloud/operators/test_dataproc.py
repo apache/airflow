@@ -25,6 +25,7 @@ from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 
 from airflow import AirflowException
+from airflow.models import DAG, DagBag, TaskInstance, XCom
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
     DataprocCreateClusterOperator,
@@ -32,6 +33,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocDeleteClusterOperator,
     DataprocInstantiateInlineWorkflowTemplateOperator,
     DataprocInstantiateWorkflowTemplateOperator,
+    DataprocJobLink,
     DataprocScaleClusterOperator,
     DataprocSubmitHadoopJobOperator,
     DataprocSubmitHiveJobOperator,
@@ -40,8 +42,10 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitPySparkJobOperator,
     DataprocSubmitSparkJobOperator,
     DataprocSubmitSparkSqlJobOperator,
-    DataprocUpdateClusterOperator,
+    DataprocUpdateClusterOperator
 )
+from airflow.settings import Session
+from airflow.utils.session import provide_session
 from airflow.version import version as airflow_version
 
 cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
@@ -171,6 +175,8 @@ WORKFLOW_TEMPLATE = {
     },
     "jobs": [{"step_id": "pig_job_1", "pig_job": {}}],
 }
+TEST_DAG_ID = 'test-dataproc-operators'
+DEFAULT_DATE = datetime(2020, 1, 1)
 
 
 def assert_warning(msg: str, warnings):
@@ -550,6 +556,23 @@ class TestDataprocClusterDeleteOperator(unittest.TestCase):
 
 
 class TestDataprocSubmitJobOperator(unittest.TestCase):
+
+    def setUp(self):
+        self.dagbag = DagBag(
+            dag_folder='/dev/null', include_examples=False
+        )
+        self.dag = DAG(TEST_DAG_ID, default_args={
+            'owner': 'airflow',
+            'start_date': DEFAULT_DATE
+        })
+
+    def tearDown(self):
+        session = Session()
+        session.query(TaskInstance).filter_by(
+            dag_id=TEST_DAG_ID).delete()
+        session.commit()
+        session.close()
+
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         job = {}
@@ -651,6 +674,50 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
         op.on_kill()
         mock_hook.return_value.cancel_job.assert_called_once_with(
             project_id=GCP_PROJECT, location=GCP_LOCATION, job_id=job_id
+        )
+
+    @provide_session
+    def test_operator_extra_links(self, session):
+        job = {}
+        job_id = 'test_job_id_12345'
+        execution_date = datetime(2020, 7, 20)
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job=job,
+            gcp_conn_id=GCP_CONN_ID,
+            cluster_name=CLUSTER_NAME
+        )
+        self.dag.clear()
+        session.query(XCom).deete()
+
+        ti = TaskInstance(
+            task=op,
+            execution_date=execution_date
+        )
+
+        self.assertEqual(
+            # pylint: disable=line-too-long
+            'https://console.cloud.google.com/dataproc/clusters/{cluster_name}/job?region={region}&project={project_id}'.format(    # noqa: E501
+                cluster_name=CLUSTER_NAME,
+                region=GCP_LOCATION,
+                project_id=GCP_PROJECT
+            ),
+            op.get_extra_links(execution_date, DataprocJobLink.name)
+        )
+
+        ti.xcom_push(key='job_id', value=job_id)
+
+        self.assertEqual(
+            # pylint: disable=line-too-long
+            'https://console.cloud.google.com/dataproc/jobs/{job_id}/?region={region}&project={project_id}'.format(     # noqa: E501
+                job_id=job_id,
+                region=GCP_LOCATION,
+                project_id=GCP_PROJECT
+            ),
+            op.get_extra_links(execution_date, DataprocJobLink.name)
         )
 
 
