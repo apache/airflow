@@ -2468,6 +2468,21 @@ class TestTriggerDag(TestBase):
         self.assertEqual(resp.status_code, 200)
         self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
 
+    @parameterized.expand([
+        ("javascript:alert(1)", "/home"),
+        ("http://google.com", "/home"),
+        ("%2Ftree%3Fdag_id%3Dexample_bash_operator", "/tree?dag_id=example_bash_operator"),
+        ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
+    ])
+    def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
+        test_dag_id = "example_bash_operator"
+
+        resp = self.client.get('trigger?dag_id={}&origin={}'.format(test_dag_id, test_origin))
+        self.check_content_in_response(
+            '<button class="btn" onclick="location.href = \'{}\'; return false">'.format(
+                expected_origin),
+            resp)
+
     def test_trigger_endpoint_uses_existing_dagbag(self):
         """
         Test that Trigger Endpoint uses the DagBag already created in views.py
