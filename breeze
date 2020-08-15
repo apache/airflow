@@ -1640,7 +1640,10 @@ function flag_credentials() {
 function flag_verbosity() {
       echo "
 -v, --verbose
-        Show verbose information about executed commands (enabled by default for running test).
+        Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
+        debugging - when you run breeze with --verbose flags you will be able to see the commands
+        executed under the hood and copy&paste them to your terminal to debug them more easily.
+
         Note that you can further increase verbosity and see all the commands executed by breeze
         by running 'export VERBOSE_COMMANDS=\"true\"' before running breeze.
 "
