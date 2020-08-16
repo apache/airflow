@@ -142,3 +142,21 @@ class TestGCSTaskHandler(unittest.TestCase):
         mock_hook.return_value.upload.assert_called_once_with(
             'bucket', 'remote/log/location/1.log', data='Old log\n'
         )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.gcs.GCSHook")
+    def test_write_to_remote_on_close_failed_read_old_logs(self, mock_hook):
+        mock_hook.return_value.download.side_effect = Exception("Fail to download")
+
+        self.gcs_task_handler.set_context(self.ti)
+        self.gcs_task_handler.emit(logging.LogRecord(
+            name="NAME", level="DEBUG", pathname=None, lineno=None,
+            msg="MESSAGE", args=None, exc_info=None
+        ))
+        self.gcs_task_handler.close()
+
+        mock_hook.return_value.download.assert_called_once_with('bucket', 'remote/log/location/1.log')
+        mock_hook.return_value.upload.assert_called_once_with(
+            'bucket', 'remote/log/location/1.log',
+            data='*** Previous log discarded: Fail to download\n\nMESSAGE\n'
+        )
+        self.assertEqual(self.gcs_task_handler.closed, True)
