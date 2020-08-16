@@ -22,6 +22,7 @@ import google
 import mock
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.instance import Instance
+from google.cloud.bigtable_admin_v2 import enums
 from mock import PropertyMock
 
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
@@ -31,6 +32,9 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 )
 
 CBT_INSTANCE = 'instance'
+CBT_INSTANCE_DISPLAY_NAME = "test instance"
+CBT_INSTANCE_TYPE = enums.Instance.Type.PRODUCTION
+CBT_INSTANCE_LABELS = {"env": "sit"}
 CBT_CLUSTER = 'cluster'
 CBT_ZONE = 'zone'
 CBT_TABLE = 'table'
@@ -100,6 +104,23 @@ class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
             main_cluster_zone=CBT_ZONE)
         get_client.assert_called_once_with(project_id='example-project')
         instance_create.assert_called_once_with(clusters=mock.ANY)
+        self.assertEqual(res.instance_id, 'instance')
+
+    @mock.patch('google.cloud.bigtable.instance.Instance.update')
+    @mock.patch('airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client')
+    def test_update_instance_overridden_project_id(self, get_client, instance_update):
+        operation = mock.Mock()
+        operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
+        instance_update.return_value = operation
+        res = self.bigtable_hook_no_default_project_id.update_instance(
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+            instance_id=CBT_INSTANCE,
+            instance_display_name=CBT_INSTANCE_DISPLAY_NAME,
+            instance_type=CBT_INSTANCE_TYPE,
+            instance_labels=CBT_INSTANCE_LABELS
+        )
+        get_client.assert_called_once_with(project_id='example-project')
+        instance_update.assert_called_once_with()
         self.assertEqual(res.instance_id, 'instance')
 
     @mock.patch('airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client')
@@ -266,6 +287,28 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
         )
         get_client.assert_called_once_with(project_id='example-project')
         instance_create.assert_called_once_with(clusters=mock.ANY)
+        self.assertEqual(res.instance_id, 'instance')
+
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
+    )
+    @mock.patch('google.cloud.bigtable.instance.Instance.update')
+    @mock.patch('airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client')
+    def test_update_instance(self, get_client, instance_update, mock_project_id):
+        operation = mock.Mock()
+        operation.result_return_value = Instance(instance_id=CBT_INSTANCE, client=get_client)
+        instance_update.return_value = operation
+        res = self.bigtable_hook_default_project_id.update_instance(
+            instance_id=CBT_INSTANCE,
+            instance_display_name=CBT_INSTANCE_DISPLAY_NAME,
+            instance_type=CBT_INSTANCE_TYPE,
+            instance_labels=CBT_INSTANCE_LABELS,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+        )
+        get_client.assert_called_once_with(project_id='example-project')
+        instance_update.assert_called_once_with()
         self.assertEqual(res.instance_id, 'instance')
 
     @mock.patch('google.cloud.bigtable.instance.Instance.create')
