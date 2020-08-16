@@ -48,8 +48,8 @@ Committers are responsible for:
 
 * Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__
 * Reviewing & Merging Pull-Requests
-* Scanning and responding to JIRAs
-* Responding to questions on the dev mailing list (dev@airflow.incubator.apache.org)
+* Scanning and responding to Github issues
+* Responding to questions on the dev mailing list (dev@airflow.apache.org)
 
 Becoming a Committer
 --------------------
@@ -60,12 +60,12 @@ Candidates for new committers are typically people that are active contributors 
 The key aspects of a committer are:
 
 * Consistent contributions over the past 6 months
-* Expressed understanding of Airflow Core or has displayed holistic understanding of a particular part and made
+* Understanding of Airflow Core or has displayed a holistic understanding of a particular part and made
   contributions towards a more strategic goal
-* Understands contributor/committer guidelines: `Contributors' Guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__
-* Quality of the commits, and asses the impact of the changes
-* Visibility on discussions on the dev mailing list and the Slack channel
-* Testing Release Candidates to improve the release cycle
+* Understanding of contributor/committer guidelines: `Contributors' Guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__
+* Quality of the commits
+* Visibility in community discussions (dev mailing list, Slack and Github)
+* Testing Release Candidates
 
 
 Contributors
