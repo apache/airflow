@@ -86,7 +86,7 @@ Content
     executor/index
     dag-run
     plugins
-    security
+    security/index
     timezone
     Using the CLI <usage-cli>
     integration

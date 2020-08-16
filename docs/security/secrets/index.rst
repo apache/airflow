@@ -15,35 +15,21 @@
     specific language governing permissions and limitations
     under the License.
 
+Secrets
+=======
 
+During Airflow operation, variables or configurations are used that contain particularly sensitive information.
+This guide provides ways to protect this data.
 
-How-to Guides
-=============
+The following are particularly protected:
 
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
+* Variables. See the :ref:`Variables Concepts <concepts:variables>` documentation for more information.
+* Connections. See the :ref:`Connections Concepts <concepts-connections>` documentation for more information.
 
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :glob:
 
-    add-dag-tags
-    add-new-role
-    set-config
-    initialize-database
-    operator/index
-    customize-state-colors-ui
-    custom-operator
-    connection/index
-    variable
-    write-logs
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    check-health
-    define_extra_link
-    tracking-user-activity
-    email-config
+    fernet
+    secrets-backend/index

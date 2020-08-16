@@ -17,33 +17,14 @@
 
 
 
-How-to Guides
-=============
-
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
-
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
+Security
+========
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :glob:
 
-    add-dag-tags
-    add-new-role
-    set-config
-    initialize-database
-    operator/index
-    customize-state-colors-ui
-    custom-operator
-    connection/index
-    variable
-    write-logs
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    check-health
-    define_extra_link
-    tracking-user-activity
-    email-config
+    *
+    secrets/index
+
+.. include:: /../.github/SECURITY.rst
