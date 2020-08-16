@@ -211,7 +211,7 @@ repos:
       - id: lint-openapi
         name: Lint OpenAPI using spectral
         language: docker_image
-        entry: stoplight/spectral lint
+        entry: stoplight/spectral lint -r ./scripts/ci/spectral_rules/connexion.yml
         files: ^airflow/api_connexion/openapi/
       - id: lint-openapi
         name: Lint OpenAPI using openapi-spec-validator
