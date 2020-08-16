@@ -72,6 +72,13 @@ _OPERATOR_EXTRA_LINKS: Set[str] = {
     "airflow.sensors.external_task_sensor.ExternalTaskSensorLink",
 }
 
+BUILTIN_OPERATOR_EXTRA_LINKS: List[str] = [
+    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink",
+    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink",
+    "airflow.providers.google.cloud.operators.dataproc.DataprocJobLink",
+    "airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink",
+    "airflow.providers.qubole.operators.qubole.QDSLink"
+]
 
 @cache
 def get_operator_extra_links():

@@ -45,6 +45,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitSparkSqlJobOperator,
     DataprocUpdateClusterOperator
 )
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import Session
 from airflow.utils.session import provide_session
 from airflow.version import version as airflow_version
@@ -683,36 +684,63 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
         job = {}
         job_id = 'test_job_id_12345'
         execution_date = datetime(2020, 7, 20)
+        # pylint: disable=line-too-long
+        expected_extra_link = 'https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}'.format(     # noqa: E501
+            job_id=job_id,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT
+        )
 
         op = DataprocSubmitJobOperator(
             task_id=TASK_ID,
             location=GCP_LOCATION,
             project_id=GCP_PROJECT,
             job=job,
-            gcp_conn_id=GCP_CONN_ID
+            gcp_conn_id=GCP_CONN_ID,
+            dag=self.dag
         )
         self.dag.clear()
         session.query(XCom).delete()
+
+        serialized_dag = SerializedDAG.to_dict(self.dag)
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_task = deserialized_dag.task_dict[TASK_ID]
+
+        # Assert operator links for serialized_dag
+        self.assertEqual(
+            serialized_dag['dag']['tasks'][0]['_operator_extra_links'],
+            [{'airflow.providers.google.cloud.operators.dataproc.DataprocJobLink': {}}]
+        )
+
+        # Assert operator link types are preserved during deserialization
+        self.assertIsInstance(deserialized_task.operator_extra_links[0], DataprocJobLink)
 
         ti = TaskInstance(
             task=op,
             execution_date=execution_date
         )
 
+        # Assert operator link is empty when no XCom push occured
         self.assertEqual(
-            op.get_extra_links(execution_date, DataprocJobLink.name), ''
+            op.get_extra_links(DEFAULT_DATE, DataprocJobLink.name), ''
+        )
+
+        # Assert operator link is empty for deserialized task when no XCom push occured
+        self.assertEqual(
+            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocJobLink.name), ''
         )
 
         ti.xcom_push(key='job_id', value=job_id)
 
+        # Assert operator links are preserved in deserialized tasks
+        self.assertEqual(
+            deserialized_task.get_extra_links(execution_date, DataprocJobLink.name),
+            expected_extra_link
+        )
+        # Assert operator links after execution
         self.assertEqual(
             op.get_extra_links(execution_date, DataprocJobLink.name),
-            # pylint: disable=line-too-long
-            'https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}'.format(     # noqa: E501
-                job_id=job_id,
-                region=GCP_LOCATION,
-                project_id=GCP_PROJECT
-            )
+            expected_extra_link
         )
 
 
@@ -1089,24 +1117,50 @@ class TestDataProcSparkOperator(unittest.TestCase):
     def test_operator_extra_links(self, mock_hook, session):
         job_id = 'test_spark_job_12345'
         execution_date = datetime(2020, 7, 20)
+        # pylint: disable=line-too-long
+        expected_extra_link = "https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}".format(      # noqa: E501
+            job_id=job_id,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT
+        )
 
         op = DataprocSubmitSparkJobOperator(
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
             main_class=self.main_class,
-            dataproc_jars=self.jars
+            dataproc_jars=self.jars,
+            dag=self.dag
         )
         self.dag.clear()
         session.query(XCom).delete()
+
+        serialized_dag = SerializedDAG.to_dict(self.dag)
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_task = deserialized_dag.task_dict[TASK_ID]
+
+        # Assert operator links for serialized DAG
+        self.assertEqual(
+            serialized_dag['dag']['tasks'][0]['_operator_extra_links'],
+            [{'airflow.providers.google.cloud.operators.dataproc.DataprocJobLink': {}}]
+        )
+
+        # Assert operator link types are preserved during deserialization
+        self.assertIsInstance(deserialized_task.operator_extra_links[0], DataprocJobLink)
 
         ti = TaskInstance(
             task=op,
             execution_date=execution_date
         )
 
+        # Assert operator link is empty when no XCom push occured
         self.assertEqual(
-            op.get_extra_links(execution_date, DataprocJobLink.name), ''
+            op.get_extra_links(DEFAULT_DATE, DataprocJobLink.name), ''
+        )
+
+        # Assert operator link is empty for deserialized task when no XCom push occured
+        self.assertEqual(
+            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocJobLink.name), ''
         )
 
         ti.xcom_push(key='job_conf', value={
@@ -1114,14 +1168,16 @@ class TestDataProcSparkOperator(unittest.TestCase):
             'project_id': GCP_PROJECT
         })
 
+        # Assert operator links are preserved in deserialized tasks
+        self.assertEqual(
+            deserialized_task.get_extra_links(execution_date, DataprocJobLink.name),
+            expected_extra_link
+        )
+
+        # Assert operator links after task execution
         self.assertEqual(
             op.get_extra_links(execution_date, DataprocJobLink.name),
-            # pylint: disable=line-too-long
-            "https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}".format(      # noqa: E501
-                job_id=job_id,
-                region=GCP_LOCATION,
-                project_id=GCP_PROJECT
-            )
+            expected_extra_link
         )
 
 
