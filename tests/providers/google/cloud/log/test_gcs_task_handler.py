@@ -58,14 +58,13 @@ class TestGCSTaskHandler(unittest.TestCase):
         self.assertIsInstance(self.gcs_task_handler.hook, GCSHook)
 
     @conf_vars({("logging", "remote_log_conn_id"): "gcs_default"})
-    def test_hook_raises(self):
-        exp_messages = "Failed to connect"
+    @mock.patch("airflow.providers.google.cloud.hooks.gcs.GCSHook")
+    def test_hook_raises(self, mock_hook):
+        mock_hook.side_effect = Exception("Failed to connect")
+
         with self.assertLogs(self.gcs_task_handler.log) as cm:
-            with mock.patch(
-                "airflow.providers.google.cloud.hooks.gcs.GCSHook"
-            ) as mock_hook:
-                mock_hook.side_effect = Exception(exp_messages)
-                self.gcs_task_handler.hook
+            self.gcs_task_handler.hook
+
         self.assertEqual(
             cm.output,
             ['ERROR:airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler:Could '
@@ -77,58 +76,62 @@ class TestGCSTaskHandler(unittest.TestCase):
         )
 
     @conf_vars({("logging", "remote_log_conn_id"): "gcs_default"})
-    def test_should_read_logs_from_remote(self):
-        with mock.patch(
-            "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler.gcs_read"
-        ) as mock_remote_read:
-            self.gcs_task_handler._read(self.ti, self.ti.try_number)
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler.gcs_read")
+    def test_should_read_logs_from_remote(self, mock_remote_read):
+        self.gcs_task_handler._read(self.ti, self.ti.try_number)
+
         mock_remote_read.assert_called_once()
 
-    def test_should_read_from_local(self):
-        with mock.patch(
-            "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler.gcs_read"
-        ) as mock_remote_read:
-            mock_remote_read.side_effect = Exception("Failed to connect")
-            self.gcs_task_handler.set_context(self.ti)
-            return_val = self.gcs_task_handler._read(self.ti, self.ti.try_number)
-            self.assertEqual(len(return_val), 2)
-            self.assertEqual(
-                return_val[0],
-                "*** Unable to read remote log from gs://bucket/remote/log/location/1.log\n*** "
-                f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n",
-            )
-            self.assertDictEqual(return_val[1], {"end_of_log": True})
-            mock_remote_read.assert_called_once()
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler.gcs_read")
+    def test_should_read_from_local(self, mock_remote_read):
+        mock_remote_read.side_effect = Exception("Failed to connect")
 
-    def test_write_to_remote_on_close(self):
-        with mock.patch(
-            "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler.gcs_write"
-        ) as mock_remote_write:
-            self.gcs_task_handler.set_context(self.ti)
-            self.gcs_task_handler.close()
-            mock_remote_write.assert_called_once()
-            self.assertEqual(self.gcs_task_handler.closed, True)
+        self.gcs_task_handler.set_context(self.ti)
+        return_val = self.gcs_task_handler._read(self.ti, self.ti.try_number)
 
-    @mock.patch.object(GCSTaskHandler, "hook")
+        self.assertEqual(len(return_val), 2)
+        self.assertEqual(
+            return_val[0],
+            "*** Unable to read remote log from gs://bucket/remote/log/location/1.log\n*** "
+            f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n",
+        )
+        self.assertDictEqual(return_val[1], {"end_of_log": True})
+        mock_remote_read.assert_called_once()
+
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler.gcs_write")
+    def test_write_to_remote_on_close(self, mock_remote_write):
+        self.gcs_task_handler.set_context(self.ti)
+        self.gcs_task_handler.close()
+
+        mock_remote_write.assert_called_once()
+        self.assertEqual(self.gcs_task_handler.closed, True)
+
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler.hook")
     def test_gcs_read(self, mock_hook):
         mock_hook.download.return_value = "Test log".encode("utf-8")
+
         return_val = self.gcs_task_handler.gcs_read(self.remote_log_location)
+
         self.assertEqual(return_val, "Test log")
 
-    @mock.patch.object(GCSTaskHandler, "gcs_read")
-    @mock.patch.object(GCSTaskHandler, "hook")
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler.gcs_read")
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler.hook")
     def test_gcs_write(self, mock_hook, mock_gcs_read):
         mock_gcs_read.return_value = "Old log"
+
         self.gcs_task_handler.gcs_write("New log", self.remote_log_location)
+
         mock_gcs_read.assert_called_once()
 
-    @mock.patch.object(GCSTaskHandler, "hook")
-    @mock.patch.object(GCSTaskHandler, "gcs_read")
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler.hook")
+    @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler.gcs_read")
     def test_gcs_write_fail_remote(self, mock_remote_read, mock_hook):
+        mock_hook.upload.side_effect = Exception("Failed to connect")
+        mock_remote_read.return_value = "Old log"
+
         with self.assertLogs(self.gcs_task_handler.log) as cm:
-            mock_hook.upload.side_effect = Exception("Failed to connect", )
-            mock_remote_read.return_value = "Old log"
             self.gcs_task_handler.gcs_write("New log", self.remote_log_location)
+
         self.assertEqual(
             cm.output,
             [
