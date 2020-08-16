@@ -123,7 +123,7 @@ class MySqlHook(DbApiHook):
 
         return conn_config
 
-    def get_conn(self) -> Any:
+    def get_conn(self):
         """
         Establishes a connection to a mysql database
         by extracting the connection configuration from the Airflow connection.
