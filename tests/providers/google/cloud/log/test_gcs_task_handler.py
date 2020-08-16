@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import logging
+import shutil
+import tempfile
 import unittest
 from datetime import datetime
 from unittest import mock
@@ -41,7 +43,7 @@ class TestGCSTaskHandler(unittest.TestCase):
         self.ti.state = State.RUNNING
         self.remote_log_base = "gs://bucket/remote/log/location"
         self.remote_log_location = "gs://my-bucket/path/to/1.log"
-        self.local_log_location = "local/log/location"
+        self.local_log_location = tempfile.mkdtemp()
         self.filename_template = "{try_number}.log"
         self.addCleanup(self.dag.clear)
         self.gcs_task_handler = GCSTaskHandler(
@@ -50,6 +52,7 @@ class TestGCSTaskHandler(unittest.TestCase):
 
     def tearDown(self) -> None:
         clear_db_runs()
+        shutil.rmtree(self.local_log_location, ignore_errors=True)
 
     def test_hook(self):
         self.assertIsInstance(self.gcs_task_handler.hook, GCSHook)
@@ -92,7 +95,7 @@ class TestGCSTaskHandler(unittest.TestCase):
             self.assertEqual(
                 return_val[0],
                 "*** Unable to read remote log from gs://bucket/remote/log/location/1.log\n*** "
-                "Failed to connect\n\n*** Reading local file: local/log/location/1.log\n",
+                f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n",
             )
             self.assertDictEqual(return_val[1], {"end_of_log": True})
             mock_remote_read.assert_called_once()
