@@ -43,12 +43,12 @@ def create_section():
 with DAG(dag_id="example_task_group", start_date=days_ago(2)) as dag:
     start = DummyOperator(task_id="start")
 
-    with TaskGroup("section_1") as section_1:
+    with TaskGroup("section_1", tooltip="Tasks for Section 1") as section_1:
         create_section()
 
     some_other_task = DummyOperator(task_id="some-other-task")
 
-    with TaskGroup("section_2") as section_2:
+    with TaskGroup("section_2", tooltip="Tasks for Section 2") as section_2:
         create_section()
 
     end = DummyOperator(task_id='end')

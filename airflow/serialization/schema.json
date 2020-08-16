@@ -168,11 +168,17 @@
       "type": "object",
       "required": [
         "_group_id",
-        "children"
+        "children",
+        "tooltip",
+        "ui_color",
+        "ui_fgcolor"
       ],
       "properties": {
         "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
-        "children":  { "$ref": "#/definitions/dict" }
+        "children":  { "$ref": "#/definitions/dict" },
+        "tooltip": { "type": "string" },
+        "ui_color": { "type": "string" },
+        "ui_fgcolor": { "type": "string" }
       },
       "additionalProperties": false
     }

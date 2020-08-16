@@ -170,12 +170,13 @@ def task_group_to_dict(task_group):
         "id": task_group.group_id,
         'value': {
             'label': task_group.label,
-            'labelStyle': "fill:{0};".format(BaseOperator.ui_fgcolor),
-            'style': "fill:CornflowerBlue",
+            'labelStyle': "fill:{0};".format(task_group.ui_fgcolor),
+            'style': f"fill:{task_group.ui_color}",
             'rx': 5,
             'ry': 5,
-            'clusterLabelPos': 'top'
+            'clusterLabelPos': 'top',
         },
+        'tooltip': task_group.tooltip,
         'children': [task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)]
     }
 

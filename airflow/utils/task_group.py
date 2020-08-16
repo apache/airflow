@@ -31,7 +31,8 @@ class TaskGroup:
     group_id of the TaskGroup. When set_downstream() or set_upstream() are called on the
     TaskGroup, it is applied across all tasks within the group if necessary.
     """
-    def __init__(self, group_id, parent_group=None, dag=None):
+    def __init__(self, group_id, parent_group=None, dag=None, tooltip="", ui_color="CornflowerBlue",
+                 ui_fgcolor="#000"):
         from airflow.models.dag import DagContext
 
         if group_id is None:
@@ -56,6 +57,10 @@ class TaskGroup:
         self.children = {}
         if self.parent_group:
             self.parent_group.add(self)
+
+        self.tooltip = tooltip
+        self.ui_color = ui_color
+        self.ui_fgcolor = ui_fgcolor
 
     @classmethod
     def create_root(cls, dag):

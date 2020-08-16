@@ -686,6 +686,9 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
                    (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
             for label, child in task_group.children.items()
         }
+        serialize_group['tooltip'] = task_group.tooltip
+        serialize_group['ui_color'] = task_group.ui_color
+        serialize_group['ui_fgcolor'] = task_group.ui_fgcolor
         return serialize_group
 
     @classmethod
@@ -696,7 +699,16 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             return None
 
         _group_id = cls._deserialize(encoded_group["_group_id"])
-        group = SerializedTaskGroup(group_id=_group_id, parent_group=parent_group)
+        tooltip = cls._deserialize(encoded_group['tooltip'])
+        ui_color = cls._deserialize(encoded_group['ui_color'])
+        ui_fgcolor = cls._deserialize(encoded_group['ui_fgcolor'])
+        group = SerializedTaskGroup(
+            group_id=_group_id,
+            parent_group=parent_group,
+            tooltip=tooltip,
+            ui_color=ui_color,
+            ui_fgcolor=ui_fgcolor
+        )
         group.children = {
             label: task_dict[val] if _type == DAT.OP
             else SerializedTaskGroup.deserialize_task_group(val, group, task_dict) for label, (_type, val)

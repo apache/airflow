@@ -33,6 +33,7 @@ EXPECTED_JSON = {
         "ry": 5,
         "clusterLabelPos": "top",
     },
+    "tooltip": "",
     "children": [
         {
             "id": "group234",
@@ -44,6 +45,7 @@ EXPECTED_JSON = {
                 "ry": 5,
                 "clusterLabelPos": "top",
             },
+            "tooltip": "",
             "children": [
                 {
                     "id": "group234.group34",
@@ -55,6 +57,7 @@ EXPECTED_JSON = {
                         "ry": 5,
                         "clusterLabelPos": "top",
                     },
+                    "tooltip": "",
                     "children": [
                         {
                             "id": "group234.group34.task3",
@@ -204,6 +207,7 @@ def test_sub_dag_task_group():
             "ry": 5,
             "clusterLabelPos": "top",
         },
+        "tooltip": "",
         "children": [
             {
                 "id": "group234",
@@ -215,6 +219,7 @@ def test_sub_dag_task_group():
                     "ry": 5,
                     "clusterLabelPos": "top",
                 },
+                "tooltip": "",
                 "children": [
                     {
                         "id": "group234.task2",
@@ -225,7 +230,7 @@ def test_sub_dag_task_group():
                             "rx": 5,
                             "ry": 5,
                         },
-                    },
+                    }
                 ],
             },
             {

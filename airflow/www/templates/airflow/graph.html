@@ -115,6 +115,7 @@
     var edges = {{ edges|tojson }};
     var execution_date = "{{ execution_date }}";
     var arrange = "{{ arrange }}";
+    var task_group_tips = get_task_group_tips(nodes);
     // This maps the actual task_id to the node_id that contains the task (because tasks may
     // be grouped into a group node)
     var map_task_to_node = new Map()
@@ -451,6 +452,43 @@
       });
     }
 
+    function group_tooltip(node_id, tis) {
+      var num_map = new Map([["failed", 0],
+                             ["upstream_failed", 0],
+                             ["up_for_retry", 0],
+                             ["running", 0],
+                             ["no_status", 0]]
+                           );
+      for(const child of get_children_ids(g.node(node_id))) {
+        if(child in tis) {
+          const ti = tis[child];
+          const state_key = ti.state == null ? "no_status" : ti.state;
+          if(num_map.has(state_key))
+            num_map.set(state_key, num_map.get(state_key) + 1);
+        }
+      }
+
+      const tip = task_group_tips.get(node_id);
+      let tt = `${escapeHtml(tip)}<br><br>`;
+      for(const [key, val] of num_map.entries())
+        tt += `<strong>${escapeHtml(key)}:</strong> ${val} <br>`;
+
+      return tt;
+    }
+
+    function get_task_group_tips(node) {
+      var tips = new Map();
+      if(node.children != undefined) {
+        tips.set(node.id, node.tooltip);
+
+        for(const child of node.children.values()) {
+          for(const [key, val] of get_task_group_tips(child))
+            tips.set(key, val);
+        }
+      }
+      return tips;
+    }
+
     // Assigning css classes based on state to nodes
     // Initiating the tooltips
     function updateNodesStates(tis) {
@@ -462,10 +500,12 @@
 
         const task_id = node_id;
         elem.onmouseover = (evt) => {
-          if(task_id in tasks && task_id in tis) {
-            const task = tasks[task_id];
+          if(task_id in tis) {
             const tt = tiTooltip(tis[task_id]);
             taskTip.show(tt, evt.target); // taskTip is defined in graph.html
+          } else if(task_group_tips.has(task_id)) {
+            const tt = group_tooltip(task_id, tis)
+            taskTip.show(tt, evt.target);
           }
         };
         elem.onmouseout = taskTip.hide;
