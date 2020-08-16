@@ -38,6 +38,7 @@
     "mysql",
     "postgres",
     "presto",
+    "salesforce",
     "sftp"
   ],
   "hashicorp": [
