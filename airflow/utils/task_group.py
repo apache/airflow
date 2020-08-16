@@ -20,9 +20,13 @@ A TaskGroup is a collection of closely related tasks on the same DAG that should
 together when the DAG is displayed graphically.
 """
 
-from typing import List, Optional
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.dag import DAG
 
 
 class TaskGroup:
@@ -31,8 +35,15 @@ class TaskGroup:
     group_id of the TaskGroup. When set_downstream() or set_upstream() are called on the
     TaskGroup, it is applied across all tasks within the group if necessary.
     """
-    def __init__(self, group_id, parent_group=None, dag=None, tooltip="", ui_color="CornflowerBlue",
-                 ui_fgcolor="#000"):
+    def __init__(
+        self,
+        group_id: Union[str, None],
+        parent_group: Optional["TaskGroup"] = None,
+        dag: Optional["DAG"] = None,
+        tooltip: str = "",
+        ui_color: str = "CornflowerBlue",
+        ui_fgcolor: str = "#000"
+    ):
         from airflow.models.dag import DagContext
 
         if group_id is None:
@@ -54,7 +65,7 @@ class TaskGroup:
             self.parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
 
         self._group_id = group_id
-        self.children = {}
+        self.children: Dict[str, Union["BaseOperator", "TaskGroup"]] = {}
         if self.parent_group:
             self.parent_group.add(self)
 
@@ -63,7 +74,7 @@ class TaskGroup:
         self.ui_fgcolor = ui_fgcolor
 
     @classmethod
-    def create_root(cls, dag):
+    def create_root(cls, dag: "DAG"):
         """
         Create a root TaskGroup with no group_id or parent.
         """
@@ -84,7 +95,7 @@ class TaskGroup:
             else:
                 yield child
 
-    def add(self, task):
+    def add(self, task: Union["BaseOperator", "TaskGroup"]) -> None:
         """
         Add a task to this TaskGroup.
         """
@@ -124,14 +135,20 @@ class TaskGroup:
 
         yield self._group_id
 
-    def set_downstream(self, task_or_task_list) -> None:
+    def set_downstream(
+        self,
+        task_or_task_list: Union['BaseOperator', Sequence['BaseOperator'], "TaskGroup"]
+    ) -> None:
         """
         Call set_downstream for all leaf tasks within this TaskGroup.
         """
         for task in self.get_leaves():
             task.set_downstream(task_or_task_list)
 
-    def set_upstream(self, task_or_task_list) -> None:
+    def set_upstream(
+        self,
+        task_or_task_list: Union['BaseOperator', Sequence['BaseOperator'], "TaskGroup"]
+    ) -> None:
         """
         Call set_upstream for all root tasks within this TaskGroup.
         """
@@ -145,7 +162,7 @@ class TaskGroup:
     def __exit__(self, _type, _value, _tb):
         TaskGroupContext.pop_context_managed_task_group()
 
-    def has_task(self, task):
+    def has_task(self, task: "BaseOperator") -> bool:
         """
         Returns True if this TaskGroup or its children TaskGroups contains the given task.
         """
@@ -154,7 +171,7 @@ class TaskGroup:
 
         return any(child.has_task(task) for child in self.children.values() if isinstance(child, TaskGroup))
 
-    def get_roots(self):
+    def get_roots(self) -> Generator["BaseOperator", None, None]:
         """
         Returns a generator of tasks that are root tasks, i.e. those with no upstream
         dependencies within the TaskGroup.
@@ -164,7 +181,7 @@ class TaskGroup:
                        for parent in task.get_direct_relatives(upstream=True)):
                 yield task
 
-    def get_leaves(self):
+    def get_leaves(self) -> Generator["BaseOperator", None, None]:
         """
         Returns a generator of tasks that are leaf tasks, i.e. those with no downstream
         dependencies within the TaskGroup

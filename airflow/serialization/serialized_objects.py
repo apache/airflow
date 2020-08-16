@@ -613,7 +613,11 @@ class SerializedDAG(DAG, BaseSerialization):
 
         # Set task_group
         if "task_group" in encoded_dag:
-            dag.task_group = SerializedTaskGroup.deserialize_task_group(encoded_dag["task_group"], None, dag.task_dict)
+            dag.task_group = SerializedTaskGroup.deserialize_task_group(
+                encoded_dag["task_group"],
+                None,
+                dag.task_dict
+            )
         else:
             # This must be old data that had no task_group. Create a root TaskGroup and add
             # all tasks to it.
@@ -671,19 +675,19 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
     A JSON serializable representation of TaskGroup.
     """
     @classmethod
-    def serialize_task_group(cls, task_group: TaskGroup) -> dict:
+    def serialize_task_group(cls, task_group: TaskGroup) -> Union[Dict[str, Any], None]:
         """Serializes TaskGroup into a JSON object.
         """
         if not task_group:
             return None
 
         serialize_group = {}
-        serialize_group["_group_id"] = task_group._group_id
+        serialize_group["_group_id"] = task_group._group_id  # pylint: disable=protected-access
 
-        serialize_group['children'] = {
+        serialize_group['children'] = {  # type: ignore
             label: (DAT.OP, child.task_id)
-                   if isinstance(child, BaseOperator) else
-                   (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
+            if isinstance(child, BaseOperator) else
+            (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
             for label, child in task_group.children.items()
         }
         serialize_group['tooltip'] = task_group.tooltip
@@ -692,7 +696,12 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         return serialize_group
 
     @classmethod
-    def deserialize_task_group(cls, encoded_group: Dict[str, Any], parent_group, task_dict) -> TaskGroup:
+    def deserialize_task_group(
+        cls,
+        encoded_group: Dict[str, Any],
+        parent_group: Union[TaskGroup, None],
+        task_dict: Dict[str, BaseOperator]
+    ) -> Union[TaskGroup, None]:
         """Deserializes a TaskGroup from a JSON object.
         """
         if not encoded_group:
@@ -710,7 +719,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             ui_fgcolor=ui_fgcolor
         )
         group.children = {
-            label: task_dict[val] if _type == DAT.OP
+            label: task_dict[val] if _type == DAT.OP  # type: ignore
             else SerializedTaskGroup.deserialize_task_group(val, group, task_dict) for label, (_type, val)
             in encoded_group["children"].items()
         }

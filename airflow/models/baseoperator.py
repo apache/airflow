@@ -27,7 +27,8 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from typing import (
-    Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Sequence, Set, Tuple, Type, Union,
+    TYPE_CHECKING, Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Sequence, Set, Tuple,
+    Type, Union,
 )
 
 import attr
@@ -55,9 +56,11 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import provide_session
-from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+
+if TYPE_CHECKING:
+    from airflow.utils.task_group import TaskGroup  # pylint: disable=cyclic-import
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -361,10 +364,12 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         do_xcom_push: bool = True,
         inlets: Optional[Any] = None,
         outlets: Optional[Any] = None,
-        task_group: Optional[TaskGroup] = None,
+        task_group: Optional["TaskGroup"] = None,
         **kwargs
     ):
         from airflow.models.dag import DagContext
+        from airflow.utils.task_group import TaskGroupContext
+
         super().__init__()
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
@@ -1188,8 +1193,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         Set a task or a task list to be directly downstream from the current
         task. Required by TaskMixin.
         """
+        from airflow.utils.task_group import TaskGroup
+
         if isinstance(task_or_task_list, TaskGroup):
-            task_or_task_list = task_or_task_list.get_roots()
+            task_or_task_list = list(task_or_task_list.get_roots())
         self._set_relatives(task_or_task_list, upstream=False)
 
     def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
@@ -1197,8 +1204,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         Set a task or a task list to be directly upstream from the current
         task. Required by TaskMixin.
         """
+        from airflow.utils.task_group import TaskGroup
+
         if isinstance(task_or_task_list, TaskGroup):
-            task_or_task_list = task_or_task_list.get_leaves()
+            task_or_task_list = list(task_or_task_list.get_leaves())
         self._set_relatives(task_or_task_list, upstream=True)
 
     @property

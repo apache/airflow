@@ -179,15 +179,18 @@ def test_build_task_group():
 
 
 def test_sub_dag_task_group():
+    """
+    Tests dag.sub_dag() updates task_group correctly.
+    """
     execution_date = pendulum.parse("20200101")
     with DAG("test_test_task_group_sub_dag", start_date=execution_date) as dag:
         task1 = DummyOperator(task_id="task1")
         with TaskGroup("group234") as group234:
-            task2 = DummyOperator(task_id="task2")
+            _ = DummyOperator(task_id="task2")
 
             with TaskGroup("group34") as group34:
-                task3 = DummyOperator(task_id="task3")
-                task4 = DummyOperator(task_id="task4")
+                _ = DummyOperator(task_id="task3")
+                _ = DummyOperator(task_id="task4")
 
         task5 = DummyOperator(task_id="task5")
         task1 >> group234
@@ -245,4 +248,3 @@ def test_sub_dag_task_group():
             },
         ],
     }
-

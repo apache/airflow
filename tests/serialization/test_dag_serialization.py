@@ -828,11 +828,11 @@ class TestStringifiedDAGs(unittest.TestCase):
         with DAG("test_task_group_serialization", start_date=execution_date) as dag:
             task1 = DummyOperator(task_id="task1")
             with TaskGroup("group234") as group234:
-                task2 = DummyOperator(task_id="task2")
+                _ = DummyOperator(task_id="task2")
 
                 with TaskGroup("group34") as group34:
-                    task3 = DummyOperator(task_id="task3")
-                    task4 = DummyOperator(task_id="task4")
+                    _ = DummyOperator(task_id="task3")
+                    _ = DummyOperator(task_id="task4")
 
             task5 = DummyOperator(task_id="task5")
             task1 >> group234
@@ -862,6 +862,5 @@ class TestStringifiedDAGs(unittest.TestCase):
 
             for child in children:
                 check_task_group(child)
-
 
         check_task_group(serialized_dag.task_group)
