@@ -481,7 +481,11 @@ class PodGenerator(object):
 
         client_container = client_containers[0]
         base_container = base_containers[0]
-        client_container = extend_object_field(base_container, client_container, 'volume_mounts')
+        client_container = extend_object_field(
+            base_container,
+            client_container,
+            'volume_mounts',
+            'mount_path')
         client_container = extend_object_field(base_container, client_container, 'env')
         client_container = extend_object_field(base_container, client_container, 'env_from')
         client_container = extend_object_field(base_container, client_container, 'ports')
@@ -623,7 +627,7 @@ def merge_objects(base_obj, client_obj):
     return client_obj_cp
 
 
-def extend_object_field(base_obj, client_obj, field_name):
+def extend_object_field(base_obj, client_obj, field_name, field_to_merge="name"):
     """
     :param base_obj: an object which has a property `field_name` that is a list
     :param client_obj: an object which has a property `field_name` that is a list.
@@ -646,8 +650,8 @@ def extend_object_field(base_obj, client_obj, field_name):
         setattr(client_obj_cp, field_name, base_obj_field)
         return client_obj_cp
 
-    base_obj_set = _get_dict_from_list(base_obj_field)
-    client_obj_set = _get_dict_from_list(client_obj_field)
+    base_obj_set = _get_dict_from_list(base_obj_field, field_to_merge)
+    client_obj_set = _get_dict_from_list(client_obj_field, field_to_merge)
 
     appended_fields = _merge_list_of_objects(base_obj_set, client_obj_set)
 
@@ -666,16 +670,16 @@ def _merge_list_of_objects(base_obj_set, client_obj_set):
     return appended_fields
 
 
-def _get_dict_from_list(base_list):
+def _get_dict_from_list(base_list, field_to_merge="name"):
     """
     :type base_list: list(Optional[dict, *to_dict])
     """
     result = {}
     for obj in base_list:
         if isinstance(obj, dict):
-            result[obj['name']] = obj
+            result[obj[field_to_merge]] = obj
         elif hasattr(obj, "to_dict"):
-            result[obj.name] = obj
+            result[getattr(obj, field_to_merge)] = obj
         else:
             raise AirflowConfigException("Trying to merge invalid object {}".format(obj))
     return result

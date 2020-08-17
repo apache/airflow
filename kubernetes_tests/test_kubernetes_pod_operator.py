@@ -284,6 +284,40 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.assertEqual(self.expected_pod['spec'], actual_pod['spec'])
         self.assertEqual(self.expected_pod['metadata']['labels'], actual_pod['metadata']['labels'])
 
+    def test_pod_with_volume_secret(self):
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            in_cluster=False,
+            labels={"foo": "bar"},
+            arguments=["echo 10"],
+            secrets=[Secret(
+                deploy_type="volume",
+                deploy_target="/var/location",
+                secret="my-secret",
+                key="content.json",
+            )],
+            name="airflow-test-pod",
+            task_id="task",
+            get_logs=True,
+            is_delete_operator_pod=True,
+        )
+
+        context = self.create_context(k)
+        k.execute(context)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['containers'][0]['volumeMounts'] = [
+            {'mountPath': '/var/location',
+             'name': mock.ANY,
+             'readOnly': True}]
+        self.expected_pod['spec']['volumes'] = [
+            {'name': mock.ANY,
+             'secret': {'secretName': 'my-secret'}}
+        ]
+        self.assertEqual(self.expected_pod['spec'], actual_pod['spec'])
+        self.assertEqual(self.expected_pod['metadata']['labels'], actual_pod['metadata']['labels'])
+
     def test_pod_hostnetwork(self):
         k = KubernetesPodOperator(
             namespace='default',

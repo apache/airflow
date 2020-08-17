@@ -317,7 +317,7 @@ def _convert_to_airflow_pod(pod):
         name=pod.metadata.name,
         ports=_extract_ports(base_container.ports),
         volumes=volumes,
-        volume_mounts=_extract_volume_mounts(base_container.volume_mounts),
+        volume_mounts=_extract_volume_mounts(base_container.volume_mounts, vol_secrets),
         namespace=pod.metadata.namespace,
         image_pull_policy=base_container.image_pull_policy or 'IfNotPresent',
         tolerations=pod.spec.tolerations,

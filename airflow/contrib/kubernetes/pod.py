@@ -260,7 +260,11 @@ def _extract_security_context(security_context):
     return security_context
 
 
-def _extract_volume_mounts(volume_mounts):
+def _extract_volume_mounts(volume_mounts, volume_secrets_to_exclude=None):
+    volume_secrets_to_exclude = volume_secrets_to_exclude or []  # type: List[Secret]
+    volume_secret_mount_paths = set(
+        [v.deploy_target for v in volume_secrets_to_exclude if v.deploy_type == "volume"]
+    )
     result = []
     volume_mounts = volume_mounts or []  # type: List[Union[k8s.V1VolumeMount, dict]]
     for volume_mount in volume_mounts:
@@ -279,8 +283,8 @@ def _extract_volume_mounts(volume_mounts):
                 sub_path=volume_mount.get("subPath"),
                 read_only=volume_mount.get("readOnly")
             )
-
-        result.append(volume_mount)
+        if volume_mount.mount_path not in volume_secret_mount_paths:
+            result.append(volume_mount)
     return result
 
 
@@ -310,6 +314,6 @@ def _extract_volume_secret(volume, volume_mount):
     if not volume.secret:
         return None
     if volume_mount:
-        return Secret("volume", volume_mount.mount_path, volume.name, volume.secret.secret_name)
+        return Secret("volume", volume_mount.mount_path, volume.secret.secret_name, volume.secret.key)
     else:
-        return Secret("volume", None, volume.name, volume.secret.secret_name)
+        return Secret("volume", None, volume.secret.secret_name, volume.secret.key)
