@@ -26,7 +26,7 @@ from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 
 from airflow import AirflowException
-from airflow.models import DAG, DagBag, TaskInstance, XCom
+from airflow.models import DAG, DagBag, TaskInstance
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
     DataprocCreateClusterOperator,
@@ -46,9 +46,8 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocUpdateClusterOperator
 )
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.settings import Session
-from airflow.utils.session import provide_session
 from airflow.version import version as airflow_version
+from tests.test_utils.db import clear_db_runs, clear_db_xcom
 
 cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
 
@@ -179,6 +178,11 @@ WORKFLOW_TEMPLATE = {
 }
 TEST_DAG_ID = 'test-dataproc-operators'
 DEFAULT_DATE = datetime(2020, 1, 1)
+TEST_JOB_ID = 'test-job'
+
+DATAPROC_JOB_LINK_EXPECTED = \
+    f'https://console.cloud.google.com/dataproc/jobs/{TEST_JOB_ID}?'    \
+    f'region={GCP_LOCATION}&project={GCP_PROJECT}'
 
 
 def assert_warning(msg: str, warnings):
@@ -559,29 +563,27 @@ class TestDataprocClusterDeleteOperator(unittest.TestCase):
 
 class TestDataprocSubmitJobOperator(unittest.TestCase):
 
-    def setUp(self):
-        self.dagbag = DagBag(
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = DagBag(
             dag_folder='/dev/null', include_examples=False
         )
-        self.dag = DAG(TEST_DAG_ID, default_args={
+        cls.dag = DAG(TEST_DAG_ID, default_args={
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
         })
-        self.mock_context = MagicMock()
+        cls.mock_context = MagicMock()
 
-    def tearDown(self):
-        session = Session()
-        session.query(TaskInstance).filter_by(
-            dag_id=TEST_DAG_ID).delete()
-        session.commit()
-        session.close()
+    @classmethod
+    def tearDownClass(cls):
+        clear_db_runs()
+        clear_db_xcom()
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         job = {}
-        job_id = "job_id"
         mock_hook.return_value.wait_for_job.return_value = None
-        mock_hook.return_value.submit_job.return_value.reference.job_id = job_id
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
 
         op = DataprocSubmitJobOperator(
             task_id=TASK_ID,
@@ -679,28 +681,17 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             project_id=GCP_PROJECT, location=GCP_LOCATION, job_id=job_id
         )
 
-    @provide_session
-    def test_operator_extra_links(self, session):
-        job = {}
-        job_id = 'test_job_id_12345'
-        execution_date = datetime(2020, 7, 20)
-        # pylint: disable=line-too-long
-        expected_extra_link = 'https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}'.format(     # noqa: E501
-            job_id=job_id,
-            region=GCP_LOCATION,
-            project_id=GCP_PROJECT
-        )
-
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_operator_extra_links(self, mock_hook):
+        mock_hook.return_value.project_id = GCP_PROJECT
         op = DataprocSubmitJobOperator(
             task_id=TASK_ID,
             location=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            job=job,
+            job={},
             gcp_conn_id=GCP_CONN_ID,
             dag=self.dag
         )
-        self.dag.clear()
-        session.query(XCom).delete()
 
         serialized_dag = SerializedDAG.to_dict(self.dag)
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
@@ -717,7 +708,7 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
 
         ti = TaskInstance(
             task=op,
-            execution_date=execution_date
+            execution_date=DEFAULT_DATE
         )
 
         # Assert operator link is empty when no XCom push occured
@@ -730,17 +721,26 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             deserialized_task.get_extra_links(DEFAULT_DATE, DataprocJobLink.name), ''
         )
 
-        ti.xcom_push(key='job_id', value=job_id)
+        ti.xcom_push(key='job_conf', value={
+            'job_id': TEST_JOB_ID,
+            'region': GCP_LOCATION,
+            'project_id': GCP_PROJECT
+        })
 
         # Assert operator links are preserved in deserialized tasks
         self.assertEqual(
-            deserialized_task.get_extra_links(execution_date, DataprocJobLink.name),
-            expected_extra_link
+            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocJobLink.name),
+            DATAPROC_JOB_LINK_EXPECTED
         )
         # Assert operator links after execution
         self.assertEqual(
-            op.get_extra_links(execution_date, DataprocJobLink.name),
-            expected_extra_link
+            op.get_extra_links(DEFAULT_DATE, DataprocJobLink.name),
+            DATAPROC_JOB_LINK_EXPECTED
+        )
+        # Check for negative case
+        self.assertEqual(
+            op.get_extra_links(datetime(2020, 7, 20), DataprocJobLink.name),
+            ''
         )
 
 
@@ -1062,30 +1062,31 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
 class TestDataProcSparkOperator(unittest.TestCase):
     main_class = "org.apache.spark.examples.SparkPi"
     jars = ["file:///usr/lib/spark/examples/jars/spark-examples.jar"]
-    job_id = "uuid_id"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {
+            "project_id": GCP_PROJECT,
+            "job_id": "{{task.task_id}}_{{ds_nodash}}_" + TEST_JOB_ID,
+        },
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "spark_job": {"jar_file_uris": jars, "main_class": main_class},
     }
 
-    def setUp(self):
-        self.dagbag = DagBag(
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = DagBag(
             dag_folder='/dev/null', include_examples=False
         )
-        self.dag = DAG(TEST_DAG_ID, default_args={
+        cls.dag = DAG(TEST_DAG_ID, default_args={
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
         })
-        self.mock_context = MagicMock()
+        cls.mock_context = MagicMock()
 
-    def tearDown(self):
-        session = Session()
-        session.query(TaskInstance).filter_by(
-            dag_id=TEST_DAG_ID).delete()
-        session.commit()
-        session.close()
+    @classmethod
+    def tearDown(cls):
+        clear_db_runs()
+        clear_db_xcom()
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
@@ -1098,9 +1099,9 @@ class TestDataProcSparkOperator(unittest.TestCase):
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, mock_uuid):
-        mock_uuid.return_value = self.job_id
+        mock_uuid.return_value = TEST_JOB_ID
         mock_hook.return_value.project_id = GCP_PROJECT
-        mock_uuid.return_value = self.job_id
+        mock_uuid.return_value = TEST_JOB_ID
 
         op = DataprocSubmitSparkJobOperator(
             task_id=TASK_ID,
@@ -1112,17 +1113,9 @@ class TestDataProcSparkOperator(unittest.TestCase):
         job = op.generate_job()
         assert self.job == job
 
-    @provide_session
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_operator_extra_links(self, mock_hook, session):
-        job_id = 'test_spark_job_12345'
-        execution_date = datetime(2020, 7, 20)
-        # pylint: disable=line-too-long
-        expected_extra_link = "https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}".format(      # noqa: E501
-            job_id=job_id,
-            region=GCP_LOCATION,
-            project_id=GCP_PROJECT
-        )
+    def test_operator_extra_links(self, mock_hook):
+        mock_hook.return_value.project_id = GCP_PROJECT
 
         op = DataprocSubmitSparkJobOperator(
             task_id=TASK_ID,
@@ -1132,8 +1125,6 @@ class TestDataProcSparkOperator(unittest.TestCase):
             dataproc_jars=self.jars,
             dag=self.dag
         )
-        self.dag.clear()
-        session.query(XCom).delete()
 
         serialized_dag = SerializedDAG.to_dict(self.dag)
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
@@ -1150,7 +1141,7 @@ class TestDataProcSparkOperator(unittest.TestCase):
 
         ti = TaskInstance(
             task=op,
-            execution_date=execution_date
+            execution_date=DEFAULT_DATE
         )
 
         # Assert operator link is empty when no XCom push occured
@@ -1164,20 +1155,27 @@ class TestDataProcSparkOperator(unittest.TestCase):
         )
 
         ti.xcom_push(key='job_conf', value={
-            'job_id': job_id,
+            'job_id': TEST_JOB_ID,
+            'region': GCP_LOCATION,
             'project_id': GCP_PROJECT
         })
 
-        # Assert operator links are preserved in deserialized tasks
-        self.assertEqual(
-            deserialized_task.get_extra_links(execution_date, DataprocJobLink.name),
-            expected_extra_link
-        )
-
         # Assert operator links after task execution
         self.assertEqual(
-            op.get_extra_links(execution_date, DataprocJobLink.name),
-            expected_extra_link
+            op.get_extra_links(DEFAULT_DATE, DataprocJobLink.name),
+            DATAPROC_JOB_LINK_EXPECTED
+        )
+
+        # Assert operator links are preserved in deserialized tasks
+        self.assertEqual(
+            deserialized_task.get_extra_links(DEFAULT_DATE, DataprocJobLink.name),
+            DATAPROC_JOB_LINK_EXPECTED
+        )
+
+        # Assert for negative case
+        self.assertEqual(
+            deserialized_task.get_extra_links(datetime(2020, 7, 20), DataprocJobLink.name),
+            ''
         )
 
 

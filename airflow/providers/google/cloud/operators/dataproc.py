@@ -42,8 +42,8 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 
-# pylint: disable=line-too-long
-DATAPROC_JOB_LOG_LINK = "https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}"      # noqa: E501
+DATAPROC_JOB_LOG_LINK = \
+    "https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}"
 
 
 class DataprocJobLink(BaseOperatorLink):
@@ -54,19 +54,12 @@ class DataprocJobLink(BaseOperatorLink):
 
     def get_link(self, operator, dttm):
         ti = TaskInstance(task=operator, execution_date=dttm)
-        if isinstance(operator, DataprocJobBaseOperator):
-            job_conf = ti.xcom_pull(task_ids=operator.task_id, key='job_conf')
-            return DATAPROC_JOB_LOG_LINK.format(
-                job_id=job_conf['job_id'],
-                region=operator.region,
-                project_id=job_conf['project_id']) if job_conf else ''
-
-        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        job_conf = ti.xcom_pull(task_ids=operator.task_id, key='job_conf')
         return DATAPROC_JOB_LOG_LINK.format(
-            job_id=job_id,
-            region=operator.location,
-            project_id=operator.project_id
-        ) if job_id else ''
+            job_id=job_conf['job_id'],
+            region=job_conf['region'],
+            project_id=job_conf['project_id']
+        ) if job_conf else ''
 
 
 # pylint: disable=too-many-instance-attributes
@@ -1036,8 +1029,9 @@ class DataprocJobBaseOperator(BaseOperator):
             )
             job_id = job_object.reference.job_id
             self.log.info('Job %s submitted successfully.', job_id)
-            context['task_instance'].xcom_push(key='job_conf', value={
+            self.xcom_push(context, key='job_conf', value={
                 'job_id': job_id,
+                'region': self.region,
                 'project_id': self.project_id
             })
 
@@ -1050,7 +1044,7 @@ class DataprocJobBaseOperator(BaseOperator):
         else:
             raise AirflowException("Create a job template before")
 
-    def on_kill(self) -> None:
+    def on_kill(self):
         """
         Callback called when the operator is killed.
         Cancel any running job.
@@ -1118,6 +1112,10 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     ui_color = '#0273d4'
     job_type = 'pig_job'
 
+    operator_extra_links = (
+        DataprocJobLink(),
+    )
+
     @apply_defaults
     def __init__(
         self,
@@ -1165,6 +1163,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         self.job_template.add_variables(self.variables)
 
         super().execute(context)
+        # context['task_instance'].xcom_push(key='job_id', value=self.job['reference']['job_id'])
 
 
 class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
@@ -1974,7 +1973,11 @@ class DataprocSubmitJobOperator(BaseOperator):
         if self.job_id and self.cancel_on_kill:
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
 
-        context['task_instance'].xcom_push(key='job_id', value=job_id)
+        self.xcom_push(context, key='job_conf', value={
+            'job_id': job_id,
+            'region': self.location,
+            'project_id': self.project_id
+        })
 
 
 class DataprocUpdateClusterOperator(BaseOperator):
