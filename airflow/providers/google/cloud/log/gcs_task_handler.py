@@ -41,13 +41,15 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     :param base_log_folder: Base log folder to place logs.
     :type base_log_folder: str
-    :param gcs_log_folder:  Path to a remote location where logs will be saved. It must have the prefix
-        "gs://". For example: ``gs://bucket/remote/log/location``
+    :param gcs_log_folder: Path to a remote location where logs will be saved. It must have the prefix
+        ``gs://``. For example: ``gs://bucket/remote/log/location``
     :type gcs_log_folder: str
     :param filename_template: template filename string
     :type filename_template: str
     :param gcp_key_path: Path to GCP Credential JSON file. Mutually exclusive with gcp_keyfile_dict.
-    use default credentials in the current environment if not provided.
+        If omitted, authorization based on `the Application Default Credentials
+        <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
+        be used.
     :type gcp_key_path: str
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. Mutually exclusive with gcp_key_path.
     :type gcp_keyfile_dict: dict
