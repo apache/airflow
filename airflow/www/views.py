@@ -177,7 +177,8 @@ def task_group_to_dict(task_group):
             'clusterLabelPos': 'top',
         },
         'tooltip': task_group.tooltip,
-        'children': [task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)]
+        'children': [task_group_to_dict(child) for child in
+                     sorted(task_group.children.values(), key=lambda t: t.label)]
     }
 
 

@@ -97,7 +97,7 @@
         "_access_control": {"$ref": "#/definitions/dict" },
         "is_paused_upon_creation":  { "type": "boolean" },
         "tags": { "type": "array" },
-        "task_group": {"anyOf": [
+        "_task_group": {"anyOf": [
           { "type": "null" },
           { "$ref": "#/definitions/task_group" }
         ]}
@@ -130,7 +130,7 @@
         "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
         "_task_id": { "type": "string" },
-        "task_group_id": {"type": "string"},
+        "_task_group_id": {"type": "string"},
         "owner": { "type": "string" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },

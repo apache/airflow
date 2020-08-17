@@ -391,10 +391,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self._task_id = task_id
 
         # Set task_group_id to identify the TaskGroup this operator belongs to
-        self.task_group_id = None
+        self._task_group_id = None
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
         if task_group:
-            self.task_group_id = task_group.group_id
+            self._task_group_id = task_group.group_id
             task_group.add(self)
 
         self.owner = owner

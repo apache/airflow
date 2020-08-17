@@ -67,12 +67,12 @@ serialized_simple_dag_ground_truth = {
             }
         },
         "start_date": 1564617600.0,
-        'task_group': {'_group_id': None,
-                       'children': {'bash_task': ('operator', 'bash_task'),
-                                    'custom_task': ('operator', 'custom_task')},
-                       'tooltip': '',
-                       'ui_color': 'CornflowerBlue',
-                       'ui_fgcolor': '#000'},
+        '_task_group': {'_group_id': None,
+                        'children': {'bash_task': ('operator', 'bash_task'),
+                                     'custom_task': ('operator', 'custom_task')},
+                        'tooltip': '',
+                        'ui_color': 'CornflowerBlue',
+                        'ui_fgcolor': '#000'},
         "is_paused_upon_creation": False,
         "_dag_id": "simple_dag",
         "fileloc": None,
@@ -83,7 +83,7 @@ serialized_simple_dag_ground_truth = {
                 "owner": "airflow",
                 "retries": 1,
                 "retry_delay": 300.0,
-                'task_group_id': None,
+                '_task_group_id': None,
                 "_downstream_task_ids": [],
                 "_inlets": [],
                 "_outlets": [],
@@ -106,7 +106,7 @@ serialized_simple_dag_ground_truth = {
                 '_task_id': 'custom_task',
                 "retries": 1,
                 "retry_delay": 300.0,
-                'task_group_id': None,
+                '_task_group_id': None,
                 "_downstream_task_ids": [],
                 "_inlets": [],
                 "_outlets": [],
@@ -339,7 +339,7 @@ class TestStringifiedDAGs(unittest.TestCase):
 
             # Need to check fields in it, to exclude functions
             'default_args',
-            "task_group"
+            "_task_group"
         }
         for field in fields_to_check:
             assert getattr(serialized_dag, field) == getattr(dag, field), \
@@ -798,7 +798,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                           'subdag': None,
                           'task_concurrency': None,
                           '_task_id': '10',
-                          'task_group_id': None,
+                          '_task_group_id': None,
                           'trigger_rule': 'all_success',
                           'wait_for_downstream': False,
                           'weight_rule': 'downstream'}, fields,

@@ -27,7 +27,9 @@ import traceback
 import warnings
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union, cast
+from typing import (
+    TYPE_CHECKING, Callable, Collection, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union, cast,
+)
 
 import jinja2
 import pendulum
@@ -58,6 +60,9 @@ from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.utils.task_group import TaskGroup
 
 log = logging.getLogger(__name__)
 
@@ -331,7 +336,7 @@ class DAG(BaseDag, LoggingMixin):
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.tags = tags
-        self.task_group = TaskGroup.create_root(self)
+        self._task_group = TaskGroup.create_root(self)
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -572,6 +577,10 @@ class DAG(BaseDag, LoggingMixin):
     @property
     def task_ids(self) -> List[str]:
         return list(self.task_dict.keys())
+
+    @property
+    def task_group(self) -> "TaskGroup":
+        return self._task_group
 
     @property
     def filepath(self) -> str:

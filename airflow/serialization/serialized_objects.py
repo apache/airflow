@@ -350,7 +350,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         """
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         serialize_op["task_id"] = op.task_id
-        serialize_op['task_group_id'] = op.task_group_id
+        serialize_op['_task_group_id'] = op.task_group_id
         serialize_op['_task_type'] = op.__class__.__name__
         serialize_op['_task_module'] = op.__class__.__module__
         if op.operator_extra_links:
@@ -582,7 +582,7 @@ class SerializedDAG(DAG, BaseSerialization):
         serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
         serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
-        serialize_dag['task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
+        serialize_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
         return serialize_dag
 
     @classmethod
@@ -611,17 +611,17 @@ class SerializedDAG(DAG, BaseSerialization):
 
             setattr(dag, k, v)
 
-        # Set task_group
-        if "task_group" in encoded_dag:
-            dag.task_group = SerializedTaskGroup.deserialize_task_group(
-                encoded_dag["task_group"],
+        # Set _task_group
+        if "_task_group" in encoded_dag:
+            dag._task_group = SerializedTaskGroup.deserialize_task_group(  # pylint: disable=protected-access
+                encoded_dag["_task_group"],
                 None,
                 dag.task_dict
             )
         else:
             # This must be old data that had no task_group. Create a root TaskGroup and add
             # all tasks to it.
-            dag.task_group = TaskGroup.create_root(dag)
+            dag._task_group = TaskGroup.create_root(dag)  # pylint: disable=protected-access
             for task in dag.tasks:
                 dag.task_group.add(task)
 

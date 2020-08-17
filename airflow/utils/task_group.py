@@ -50,7 +50,7 @@ class TaskGroup:
             if parent_group:
                 raise AirflowException("Root TaskGroup cannot have parent_group")
             # This creates a root TaskGroup.
-            self.parent_group = None
+            self._parent_group = None
         else:
             if not isinstance(group_id, str):
                 raise ValueError("group_id must be str")
@@ -62,7 +62,7 @@ class TaskGroup:
             if not parent_group and not dag:
                 raise AirflowException("TaskGroup can only be used inside a dag")
 
-            self.parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
+            self._parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
 
         self._group_id = group_id
         self.children: Dict[str, Union["BaseOperator", "TaskGroup"]] = {}
@@ -108,7 +108,7 @@ class TaskGroup:
             if task.children:
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
-        self.children[key] = task
+        self.children[key] = task  # type: ignore
 
     @property
     def label(self):
@@ -118,7 +118,14 @@ class TaskGroup:
         return self._group_id
 
     @property
-    def group_id(self):
+    def parent_group(self) -> Union["TaskGroup", None]:
+        """
+        Returns the parent group.
+        """
+        return self._parent_group
+
+    @property
+    def group_id(self) -> Union[str, None]:
         """
         group_id is prefixed with parent group_id if applicable.
         """
