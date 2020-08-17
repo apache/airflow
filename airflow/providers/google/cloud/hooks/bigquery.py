@@ -90,7 +90,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         Returns a BigQuery PEP 249 connection object.
         """
-        service = self.get_service()
+        service = self.get_client()
         return BigQueryConnection(
             service=service,
             project_id=self.project_id,

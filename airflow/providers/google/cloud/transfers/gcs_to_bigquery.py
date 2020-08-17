@@ -258,7 +258,7 @@ class GCSToBigQueryOperator(BaseOperator):
         cursor = conn.cursor()
 
         if self.external_table:
-            cursor.create_external_table(
+            bq_hook.create_external_table(
                 external_project_dataset_table=self.destination_project_dataset_table,
                 schema_fields=schema_fields,
                 source_uris=source_uris,
@@ -276,7 +276,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 encryption_configuration=self.encryption_configuration
             )
         else:
-            cursor.run_load(
+            bq_hook.insert_job(configuration=dict(
                 destination_project_dataset_table=self.destination_project_dataset_table,
                 schema_fields=schema_fields,
                 source_uris=source_uris,
@@ -297,8 +297,9 @@ class GCSToBigQueryOperator(BaseOperator):
                 time_partitioning=self.time_partitioning,
                 cluster_fields=self.cluster_fields,
                 encryption_configuration=self.encryption_configuration)
+            )
 
-        if cursor.use_legacy_sql:
+        if bq_hook.use_legacy_sql:
             escaped_table_name = f'[{self.destination_project_dataset_table}]'
         else:
             escaped_table_name = f'`{self.destination_project_dataset_table}`'
