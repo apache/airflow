@@ -159,7 +159,6 @@
 
     // Update the page to show the latest DAG.
     function draw() {
-      innerSvg = svg.select("svg g");
       innerSvg.remove()
       innerSvg = svg.append("g")
       // Run the renderer. This is what draws the final graph.
@@ -220,12 +219,12 @@
           .style("opacity", 1);
       });
       updateNodesStates(task_instances);
-      setUpZoomSupport(innerSvg);
+      setUpZoomSupport();
     }
 
     var zoom = null;
 
-    function setUpZoomSupport(innerSvg) {
+    function setUpZoomSupport() {
       // Set up zoom support for Graph
       zoom = d3.behavior.zoom().on("zoom", function() {
             innerSvg.attr("transform", "translate(" + d3.event.translate + ")" +
@@ -509,6 +508,7 @@
           }
         };
         elem.onmouseout = taskTip.hide;
+        elem.onclick = taskTip.hide;
       }
     }
 
