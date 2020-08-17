@@ -654,7 +654,7 @@ Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.
 ## Airflow merchandise
 
 If you would love to have Apache Airflow stickers, t-shirt etc. then check out
-[redbubble shop](https://www.redbubble.com/i/sticker/Apache-Airflow-by-comdev/40497530.EJUG5).
+[Redbubble Shop](https://www.redbubble.com/i/sticker/Apache-Airflow-by-comdev/40497530.EJUG5).
 
 ## Links
 
