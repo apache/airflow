@@ -160,6 +160,26 @@ look like the following.
           -H 'Cache-Control: no-cache' \
           -H "Authorization: Bearer ${ID_TOKEN}"
 
+Basic authentication
+''''''''''''''''''''
+
+Basic username password authentication is currently supported for the API.
+
+To enable basic authentication, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.basic_auth
+
+Username and password needs to be base64 encoded and send through the
+``Authorization`` HTTP header in the following format:
+
+.. code-block:: text
+
+    Authorization: Basic Base64(username:password)
+
+
 Kerberos
 --------
 
