@@ -94,7 +94,7 @@ class TestBasicAuth(unittest.TestCase):
         ("basic " + b64encode(b"test:123").decode(),),
         ("basic " + b64encode(b"test test").decode(),),
     ])
-    def test_invalid_id_token(self, token):
+    def test_invalid_auth_header(self, token):
         with self.app.test_client() as test_client:
             response = test_client.get(
                 "/api/v1/pools", headers={"Authorization": token}

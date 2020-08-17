@@ -163,7 +163,10 @@ look like the following.
 Basic authentication
 ''''''''''''''''''''
 
-Basic username password authentication is currently supported for the API.
+`Basic username password authentication <https://tools.ietf.org/html/rfc7617
+https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
+supported for the API. This works for users created through LDAP login or
+within Airflow DB using password.
 
 To enable basic authentication, set the following in the configuration:
 
@@ -178,6 +181,20 @@ Username and password needs to be base64 encoded and send through the
 .. code-block:: text
 
     Authorization: Basic Base64(username:password)
+
+Here is a sample curl command you can use to validate the setup:
+
+.. code-block:: bash
+
+    ENDPOINT_URL="http://locahost:8080/"
+    curl -X GET  \
+        "${ENDPOINT_URL}/api/v1/pools" \
+        -H "Authorization: Basic $(printf username:password | base64)"
+
+Note, you can still enable this setting to allow API access through username
+password credential even though Airflow web is using other authentication
+method. Under this setup, only users created through LDAP or ``airflow users
+create`` command will be able to pass the API authentication.
 
 
 Kerberos

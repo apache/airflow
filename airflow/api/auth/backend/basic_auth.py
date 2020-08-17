@@ -15,13 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Basic authentication backend"""
-import binascii
-from base64 import b64decode
 from functools import wraps
 from typing import Callable, Optional, Tuple, TypeVar, Union, cast
 
-from flask import Response, _request_ctx_stack, current_app, request  # type: ignore
+from flask import Response, current_app, request
+from flask_appbuilder.const import AUTH_LDAP
 from flask_appbuilder.security.sqla.models import User
+from flask_login import login_user
 from requests.auth import AuthBase
 
 CLIENT_AUTH: Optional[Union[Tuple[str, str], AuthBase]] = None
@@ -36,29 +36,18 @@ T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 def auth_current_user() -> Optional[User]:
     """Authenticate and set current user if Authorization header exists"""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
+    auth = request.authorization
+    if auth is None or not auth.username or not auth.password:
         return None
 
-    auth_parts = auth_header.split(" ", 2)
-    if len(auth_parts) != 2:
-        return None
-    if auth_parts[0].lower() != "basic":
-        return None
-
-    try:
-        cred_parts = b64decode(auth_parts[1]).decode().split(":", 2)
-    except binascii.Error:  # incorrect base64 encoding
-        return None
-
-    if len(cred_parts) != 2:
-        return None
-
-    (username_or_email, password) = cred_parts
-    user = current_app.appbuilder.sm.auth_user_db(username_or_email, password)
+    ab_security_manager = current_app.appbuilder.sm
+    user = None
+    if ab_security_manager.auth_type == AUTH_LDAP:
+        user = ab_security_manager.auth_user_ldap(auth.username, auth.password)
+    if user is None:
+        user = ab_security_manager.auth_user_db(auth.username, auth.password)
     if user is not None:
-        ctx = _request_ctx_stack.top
-        ctx.user = user
+        login_user(user, remember=False)
     return user
 
 
@@ -69,6 +58,8 @@ def requires_authentication(function: T):
         if auth_current_user() is not None:
             return function(*args, **kwargs)
         else:
-            return Response("Unauthorized", 401)
+            return Response(
+                "Unauthorized", 401, {"WWW-Authenticate": "Basic"}
+            )
 
     return cast(T, decorated)
