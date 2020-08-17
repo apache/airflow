@@ -555,7 +555,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "airflow.api.auth.backend.deny_all"
+      default: "airflow.api.auth.backend.role_based_auth"
 - name: lineage
   description: ~
   options:
