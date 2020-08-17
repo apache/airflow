@@ -567,10 +567,13 @@ In previous versions, in order to configure the service account key file, you ha
 In the current version, you can configure ``google_key_path`` option in ``[logging]`` section to set
 the key file path.
 
+Users using Application Default Credentials (ADC) need not take any action.
+
 The change aims to simplify the configuration of logging, to prevent corruption of
 the instance configuration by changing the value controlled by the user - connection entry. If you
-configure a backend secret,  it also means the webserver doesn't need to connect to it. This
-simplifies setups with multiple GCP projects.
+configure a backend secret, it also means the webserver doesn't need to connect to it. This
+simplifies setups with multiple GCP projects, because only one project will require the Secret Manager API
+to be enabled.
 
 ### Changes to the core operators/hooks
 
