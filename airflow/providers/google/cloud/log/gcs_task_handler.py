@@ -133,7 +133,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         bkt, blob = self.parse_gcs_url(remote_log_location)
         return self.hook.download(bkt, blob).decode('utf-8')
 
-    def gcs_write(self, log, remote_log_location, append=True):
+    def gcs_write(self, log, remote_log_location):
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
@@ -142,28 +142,17 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         :type log: str
         :param remote_log_location: the log's location in remote storage
         :type remote_log_location: str (path)
-        :param append: if False, any existing log file is overwritten. If True,
-            the new log is appended to any existing logs.
-        :type append: bool
         """
-        if append:
-            try:
-                old_log = self.gcs_read(remote_log_location)
-                log = '\n'.join([old_log, log]) if old_log else log
-            except Exception as e:  # pylint: disable=broad-except
-                if not hasattr(e, 'resp') or e.resp.get('status') != '404':  # pylint: disable=no-member
-                    log = '*** Previous log discarded: {}\n\n'.format(str(e)) + log
+        try:
+            old_log = self.gcs_read(remote_log_location)
+            log = '\n'.join([old_log, log]) if old_log else log
+        except Exception as e:  # pylint: disable=broad-except
+            if not hasattr(e, 'resp') or e.resp.get('status') != '404':  # pylint: disable=no-member
+                log = '*** Previous log discarded: {}\n\n'.format(str(e)) + log
 
         try:
             bkt, blob = self.parse_gcs_url(remote_log_location)
-            from tempfile import NamedTemporaryFile
-            with NamedTemporaryFile(mode='w+') as tmpfile:
-                tmpfile.write(log)
-                # Force the file to be flushed, since we're doing the
-                # upload from within the file context (it hasn't been
-                # closed).
-                tmpfile.flush()
-                self.hook.upload(bkt, blob, tmpfile.name)
+            self.hook.upload(bkt, blob, data=log)
         except Exception as e:  # pylint: disable=broad-except
             self.log.error('Could not write logs to %s: %s', remote_log_location, e)
 
