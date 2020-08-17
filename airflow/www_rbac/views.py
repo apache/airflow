@@ -31,7 +31,7 @@ from datetime import timedelta
 from urllib.parse import unquote
 
 import six
-from six.moves.urllib.parse import quote
+from six.moves.urllib.parse import quote, urlparse
 
 import pendulum
 import sqlalchemy as sqla
@@ -87,6 +87,23 @@ if os.environ.get('SKIP_DAGS_PARSING') != 'True':
     dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
 else:
     dagbag = models.DagBag(os.devnull, include_examples=False)
+
+
+def get_safe_url(url):
+    """Given a user-supplied URL, ensure it points to our web server"""
+    try:
+        valid_schemes = ['http', 'https', '']
+        valid_netlocs = [request.host, '']
+
+        parsed = urlparse(url)
+        if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
+            return url
+    except Exception as e:  # pylint: disable=broad-except
+        logging.debug("Error validating value in origin parameter passed to URL: %s", url)
+        logging.debug("Error: %s", e)
+        pass
+
+    return url_for('Airflow.index')
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
@@ -930,7 +947,7 @@ class Airflow(AirflowBaseView):
     def run(self):
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         dag = dagbag.get_dag(dag_id)
         task = dag.get_task(task_id)
 
@@ -1000,7 +1017,7 @@ class Airflow(AirflowBaseView):
         from airflow.exceptions import DagNotFound, DagFileExists
 
         dag_id = request.values.get('dag_id')
-        origin = request.values.get('origin') or url_for('Airflow.index')
+        origin = get_safe_url(request.values.get('origin'))
 
         try:
             delete_dag.delete_dag(dag_id)
@@ -1027,7 +1044,7 @@ class Airflow(AirflowBaseView):
     def trigger(self, session=None):
 
         dag_id = request.values.get('dag_id')
-        origin = request.values.get('origin') or url_for('Airflow.index')
+        origin = get_safe_url(request.values.get('origin'))
 
         if request.method == 'GET':
             return self.render_template(
@@ -1128,7 +1145,7 @@ class Airflow(AirflowBaseView):
     def clear(self):
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         dag = dagbag.get_dag(dag_id)
 
         execution_date = request.form.get('execution_date')
@@ -1158,7 +1175,7 @@ class Airflow(AirflowBaseView):
     @action_logging
     def dagrun_clear(self):
         dag_id = request.form.get('dag_id')
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         execution_date = request.form.get('execution_date')
         confirmed = request.form.get('confirmed') == "true"
 
@@ -1280,7 +1297,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         execution_date = request.form.get('execution_date')
         confirmed = request.form.get('confirmed') == 'true'
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         return self._mark_dagrun_state_as_failed(dag_id, execution_date,
                                                  confirmed, origin)
 
@@ -1292,7 +1309,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get('dag_id')
         execution_date = request.form.get('execution_date')
         confirmed = request.form.get('confirmed') == 'true'
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         return self._mark_dagrun_state_as_success(dag_id, execution_date,
                                                   confirmed, origin)
 
@@ -1345,7 +1362,7 @@ class Airflow(AirflowBaseView):
     def failed(self):
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         execution_date = request.form.get('execution_date')
 
         confirmed = request.form.get('confirmed') == "true"
@@ -1365,7 +1382,7 @@ class Airflow(AirflowBaseView):
     def success(self):
         dag_id = request.form.get('dag_id')
         task_id = request.form.get('task_id')
-        origin = request.form.get('origin')
+        origin = get_safe_url(request.form.get('origin'))
         execution_date = request.form.get('execution_date')
 
         confirmed = request.form.get('confirmed') == "true"
@@ -2382,7 +2399,7 @@ class PoolModelView(AirflowModelView):
 
     validators_columns = {
         'pool': [validators.DataRequired()],
-        'slots': [validators.NumberRange(min=0)]
+        'slots': [validators.NumberRange(min=-1)]
     }
 
 

@@ -62,8 +62,8 @@ function setup_default_breeze_variables() {
 
     # load all the common functions here - those are the functions that are shared between Breeze
     # and CI scripts (CI scripts do not use Breeze as execution environment)
-    # shellcheck source=scripts/ci/_all_libs.sh
-    . "${SCRIPTS_CI_DIR}/_all_libs.sh"
+    # shellcheck source=scripts/ci/libraries/_all_libs.sh
+    . "${SCRIPTS_CI_DIR}/libraries/_all_libs.sh"
 
     # We have different versions of images depending on the python version used. We keep up with the
     # Latest patch-level changes in Python (this is done automatically during CI builds) so we have
@@ -146,7 +146,9 @@ function setup_default_breeze_variables() {
 
     _BREEZE_DEFAULT_BACKEND="sqlite"
     _BREEZE_DEFAULT_KUBERNETES_MODE="image"
-    _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.15.3"
+    _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.18.6"
+    _BREEZE_DEFAULT_KIND_VERSION="v0.8.0"
+    _BREEZE_DEFAULT_HELM_VERSION="v3.2.4"
     _BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
     _BREEZE_DEFAULT_POSTGRES_VERSION="9.6"
     _BREEZE_DEFAULT_MYSQL_VERSION="5.7"
@@ -184,7 +186,8 @@ function initialize_virtualenv() {
         echo
         pushd "${AIRFLOW_SOURCES}"
         set +e
-        pip install -e ".[devel]" --constraint "requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        pip install -e ".[devel]" \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
         RES=$?
         set -e
         popd
@@ -506,8 +509,9 @@ function prepare_command_files() {
     export COMPOSE_CI_FILE
     export COMPOSE_PROD_FILE
 
+    get_base_image_version
     # Base python image for the build
-    export PYTHON_BASE_IMAGE=python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster
+    export PYTHON_BASE_IMAGE=python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
     export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
     export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
@@ -606,6 +610,16 @@ function parse_arguments() {
         -V|--kubernetes-version)
           export KUBERNETES_VERSION="${2}";
           echo "Kubernetes version: ${KUBERNETES_VERSION}"
+          echo
+          shift 2 ;;
+        --kind-version)
+          export KIND_VERSION="${2}";
+          echo "Kind version: ${KIND_VERSION}"
+          echo
+          shift 2 ;;
+        --helm-version)
+          export HELM_VERSION="${2}";
+          echo "Helm version: ${HELM_VERSION}"
           echo
           shift 2 ;;
         --postgres-version)
@@ -812,13 +826,12 @@ function parse_arguments() {
           fi
           COMMAND_TO_RUN="run_docker_compose"
           ;;
-        generate-requirements)
+        generate-constraints)
           LAST_SUBCOMMAND="${1}"
-          COMMAND_TO_RUN="perform_generate_requirements"
-          # if you want to  generate requirement - you want to build the image too :)
+          COMMAND_TO_RUN="perform_generate_constraints"
           export FORCE_ANSWER_TO_QUESTIONS="yes"
-          # and assume you want to build it no matter if it is needed
           export FORCE_BUILD_IMAGES="true"
+          export UPGRADE_TO_LATEST_CONSTRAINTS="true"
           shift ;;
         push-image)
           LAST_SUBCOMMAND="${1}"
@@ -833,6 +846,9 @@ function parse_arguments() {
           shift ;;
         kind-cluster)
           LAST_SUBCOMMAND="${1}"
+          # Force local cache strategy for all kind-cluster operations
+          # this helps to iterate with production images
+          DOCKER_CACHE="local"
           COMMAND_TO_RUN="manage_kind_cluster"
           export KIND_CLUSTER_OPERATION="${2:-}"
           if [[ ${KIND_CLUSTER_OPERATION} != "" ]]; then
@@ -969,6 +985,10 @@ function prepare_formatted_versions() {
       fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
     FORMATTED_KUBERNETES_VERSIONS=$(echo "${_BREEZE_ALLOWED_KUBERNETES_VERSIONS=""}" | tr '\n' ' ' | \
       fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+    FORMATTED_KIND_VERSIONS=$(echo "${_BREEZE_ALLOWED_KIND_VERSIONS=""}" | tr '\n' ' ' | \
+      fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+    FORMATTED_HELM_VERSIONS=$(echo "${_BREEZE_ALLOWED_HELM_VERSIONS=""}" | tr '\n' ' ' | \
+      fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
     FORMATTED_KIND_OPERATIONS=$(echo "${_BREEZE_ALLOWED_KIND_OPERATIONS=""}" | tr '\n' ' ' | \
       fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
     FORMATTED_INSTALL_AIRFLOW_VERSIONS=$(echo "${_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=""}" | \
@@ -994,7 +1014,7 @@ function prepare_usage() {
     export USAGE_CLEANUP_IMAGE="Cleans up the container image created"
     export USAGE_DOCKER_COMPOSE="Executes specified docker-compose command"
     export USAGE_FLAGS="Shows all breeze's flags"
-    export USAGE_GENERATE_REQUIREMENTS="Generates pinned requirements for pip dependencies"
+    export USAGE_GENERATE_CONSTRAINTS="Generates pinned constraint files"
     export USAGE_INITIALIZE_LOCAL_VIRTUALENV="Initializes local virtualenv"
     export USAGE_PUSH_IMAGE="Pushes images to registry"
     export USAGE_KIND_CLUSTER="Manages KinD cluster on the host"
@@ -1112,27 +1132,30 @@ $(flag_verbosity)
     export DETAILED_USAGE_FLAGS="
       Explains in detail all the flags that can be used with breeze.
 "
-    DETAILED_USAGE_GENERATE_REQUIREMENTS="
-${CMDNAME} generate-requirements [FLAGS]
+    # shellcheck disable=SC2089
+    DETAILED_USAGE_GENERATE_CONSTRAINTS="
+${CMDNAME} generate-constraints [FLAGS]
 
-      Generates pinned requirements from setup.py. Those requirements are generated in requirements
-      directory - separately for different python version. Those requirements are used to run
-      CI builds as well as run repeatable production image builds. You can use those requirements
-      to predictably install released Airflow versions. You should run it always after you update
-      setup.py.
+      Generates pinned constraint files from setup.py. Those files are generated in files folder
+      - separate files for different python version. Those constraint files when pushed to orphan
+      constraint-master and constraint-1-10 branches are used to generate repeatable
+      CI builds as well as run repeatable production image builds. You can use those constraints
+      to predictably install released Airflow versions. This is mainly used to test the constraint
+      generation - constraints are pushed to the orphan branches by a successful scheduled
+      CRON job in CI automatically.
 
 Flags:
 $(flag_airflow_variants)
 $(flag_verbosity)
 "
     # shellcheck disable=SC2090
-    export DETAILED_USAGE_GENERATE_REQUIREMENTS
+    export DETAILED_USAGE_GENERATE_CONSTRAINTS
     DETAILED_USAGE_INITIALIZE_LOCAL_VIRTUALENV="
 ${CMDNAME} initialize-local-virtualenv [FLAGS]
 
       Initializes locally created virtualenv installing all dependencies of Airflow
-      taking into account the frozen requirements from requirements folder.
-      This local virtualenv can be used to aid autocompletion and IDE support as
+      taking into account the constraints for the version specified.
+      This local virtualenv can be used to aid auto-completion and IDE support as
       well as run unit tests directly from the IDE. You need to have virtualenv
       activated before running this command.
 
@@ -1395,7 +1418,6 @@ function flag_breeze_actions() {
 -i, --integration <INTEGRATION>
         Integration to start during tests - it determines which integrations are started
         for integration tests. There can be more than one integration started, or all to
-        }
         start all integrations. Selected integrations are not saved for future execution.
         One of:
 
@@ -1423,6 +1445,23 @@ ${FORMATTED_KUBERNETES_MODES}
 ${FORMATTED_KUBERNETES_VERSIONS}
 
         Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
+
+--kind-version <KIND_VERSION>
+        Kind version - only used in case one of --kind-cluster-* commands is used.
+        One of:
+
+${FORMATTED_KIND_VERSIONS}
+
+        Default: ${_BREEZE_DEFAULT_KIND_VERSION:=}
+
+--helm-version <HELM_VERSION>
+        Helm version - only used in case one of --kind-cluster-* commands is used.
+        One of:
+
+${FORMATTED_HELM_VERSIONS}
+
+        Default: ${_BREEZE_DEFAULT_HELM_VERSION:=}
+
 "
 }
 
@@ -1678,6 +1717,12 @@ function read_saved_environment_variables {
     export KUBERNETES_VERSION="${KUBERNETES_VERSION:=$(read_from_file KUBERNETES_VERSION)}"
     export KUBERNETES_VERSION=${KUBERNETES_VERSION:=${_BREEZE_DEFAULT_KUBERNETES_VERSION}}
 
+    export KIND_VERSION="${KIND_VERSION:=$(read_from_file KIND_VERSION)}"
+    export KIND_VERSION=${KIND_VERSION:=${_BREEZE_DEFAULT_KIND_VERSION}}
+
+    export HELM_VERSION="${HELM_VERSION:=$(read_from_file HELM_VERSION)}"
+    export HELM_VERSION=${HELM_VERSION:=${_BREEZE_DEFAULT_HELM_VERSION}}
+
     export POSTGRES_VERSION="${POSTGRES_VERSION:=$(read_from_file POSTGRES_VERSION)}"
     export POSTGRES_VERSION=${POSTGRES_VERSION:=${_BREEZE_DEFAULT_POSTGRES_VERSION}}
 
@@ -1704,6 +1749,8 @@ function check_and_save_all_params() {
     check_and_save_allowed_param "BACKEND"  "backend" "--backend"
     check_and_save_allowed_param "KUBERNETES_MODE"  "Kubernetes mode" "--kubernetes-mode"
     check_and_save_allowed_param "KUBERNETES_VERSION"  "Kubernetes version" "--kubernetes-version"
+    check_and_save_allowed_param "KIND_VERSION"  "KinD version" "--kind-version"
+    check_and_save_allowed_param "HELM_VERSION"  "Helm version" "--helm-version"
     check_and_save_allowed_param "POSTGRES_VERSION"  "Postgres version" "--postgres-version"
     check_and_save_allowed_param "MYSQL_VERSION"  "Mysql version" "--mysql-version"
 
@@ -1840,7 +1887,7 @@ function run_build_command {
                 rebuild_ci_image_if_needed
             fi
             ;;
-        build_docs|perform_static_checks|perform_generate_requirements)
+        build_docs|perform_static_checks|perform_generate_constraints)
             prepare_ci_build
             rebuild_ci_image_if_needed
             ;;
@@ -1880,12 +1927,16 @@ function run_build_command {
               echo "Stops KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "restart" ]] ; then
               echo "Restarts KinD cluster"
+            elif [[ ${KIND_CLUSTER_OPERATION} == "recreate" ]] ; then
+              echo "Recreates KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "status" ]] ; then
               echo "Checks status of KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "deploy" ]] ; then
               echo "Deploys Airflow to KinD cluster"
             elif [[ ${KIND_CLUSTER_OPERATION} == "test" ]] ; then
               echo "Run Kubernetes tests with the KinD cluster "
+            elif [[ ${KIND_CLUSTER_OPERATION} == "shell" ]] ; then
+              echo "Enter an interactive shell for kubernetes testing"
             else
               echo "ERROR: Unknown Kind Kubernetes cluster operation: '${KIND_CLUSTER_OPERATION}'"
               echo
@@ -1914,6 +1965,7 @@ function run_breeze_command {
                 "${BUILD_CACHE_DIR}/${LAST_DC_PROD_FILE}" run --service-ports --rm airflow "${@}"
             else
                 "${BUILD_CACHE_DIR}/${LAST_DC_CI_FILE}" run --service-ports --rm airflow "${@}"
+                "${SCRIPTS_CI_DIR}/tools/ci_clear_tmp.sh"
             fi
             ;;
         run_exec)
@@ -1954,8 +2006,8 @@ function run_breeze_command {
         cleanup_image)
             remove_images
             ;;
-        perform_generate_requirements)
-            run_generate_requirements
+        perform_generate_constraints)
+            run_generate_constraints
             ;;
         perform_push_image)
             if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
@@ -1971,7 +2023,8 @@ function run_breeze_command {
             setup_autocomplete
             ;;
         manage_kind_cluster)
-            check_kind_and_kubectl_are_installed
+            make_sure_kubernetes_tools_are_installed
+            initialize_kind_variables
             perform_kind_cluster_operation "${KIND_CLUSTER_OPERATION}"
             ;;
         build_docs)

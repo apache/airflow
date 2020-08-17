@@ -115,6 +115,16 @@ function in_container_fix_ownership() {
     fi
 }
 
+function in_container_clear_tmp() {
+    if [[ ${VERBOSE} == "true" ]]; then
+        echo "Cleaning ${AIRFLOW_SOURCES}/tmp from the container"
+    fi
+    rm -rf /tmp/*
+    if [[ ${VERBOSE} == "true" ]]; then
+        echo "Cleaned ${AIRFLOW_SOURCES}/tmp from the container"
+    fi
+}
+
 function in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}"  &>/dev/null || exit 1
 }
@@ -155,7 +165,7 @@ function setup_kerberos() {
     PASS="airflow"
     KRB5_KTNAME=/etc/airflow.keytab
 
-    sudo cp "${MY_DIR}/krb5/krb5.conf" /etc/krb5.conf
+    sudo cp "${AIRFLOW_SOURCES}/scripts/ci/in_container/krb5/krb5.conf" /etc/krb5.conf
 
     echo -e "${PASS}\n${PASS}" | \
         sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \

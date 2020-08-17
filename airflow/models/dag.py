@@ -1055,7 +1055,7 @@ class DAG(BaseDag, LoggingMixin):
             instances = tis.all()
             for ti in instances:
                 if ti.operator == ExternalTaskMarker.__name__:
-                    ti.task = self.get_task(ti.task_id)
+                    ti.task = copy.copy(self.get_task(ti.task_id))
 
                     if recursion_depth == 0:
                         # Maximum recursion depth allowed is the recursion_depth of the first

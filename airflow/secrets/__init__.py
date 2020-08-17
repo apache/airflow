@@ -22,16 +22,19 @@ Secrets framework provides means of getting connection objects from various sour
     * Metatsore database
     * AWS SSM Parameter store
 """
-__all__ = ['BaseSecretsBackend', 'get_connections', 'get_variable']
+__all__ = ['BaseSecretsBackend', 'get_connections', 'get_variable', 'get_custom_secret_backend']
 
 import json
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models.connection import Connection
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.module_loading import import_string
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
+
 
 CONFIG_SECTION = "secrets"
 DEFAULT_SECRETS_SEARCH_PATH = [
@@ -41,7 +44,7 @@ DEFAULT_SECRETS_SEARCH_PATH = [
 
 
 def get_connections(conn_id):
-    # type: (str) -> List[Connection]
+    # type: (str) -> List['Connection']
     """
     Get all connections as an iterable.
 
@@ -72,25 +75,35 @@ def get_variable(key):
     return None
 
 
+def get_custom_secret_backend():
+    # type: (...) -> Optional[BaseSecretsBackend]
+    """Get Secret Backend if defined in airflow.cfg"""
+    alternative_secrets_backend = conf.get(section=CONFIG_SECTION, key='backend', fallback='')
+
+    if alternative_secrets_backend:
+        try:
+            alternative_secrets_config_dict = json.loads(
+                conf.get(section=CONFIG_SECTION, key='backend_kwargs', fallback='{}')
+            )
+        except ValueError:
+            alternative_secrets_config_dict = {}
+        secrets_backend_cls = import_string(alternative_secrets_backend)
+        return secrets_backend_cls(**alternative_secrets_config_dict)
+    return None
+
+
 def initialize_secrets_backends():
     # type: (...) -> List[BaseSecretsBackend]
     """
     * import secrets backend classes
     * instantiate them and return them in a list
     """
-    alternative_secrets_backend = conf.get(section=CONFIG_SECTION, key='backend', fallback='')
-    try:
-        alternative_secrets_config_dict = json.loads(
-            conf.get(section=CONFIG_SECTION, key='backend_kwargs', fallback='{}')
-        )
-    except ValueError:
-        alternative_secrets_config_dict = {}
-
     backend_list = []
 
-    if alternative_secrets_backend:
-        secrets_backend_cls = import_string(alternative_secrets_backend)
-        backend_list.append(secrets_backend_cls(**alternative_secrets_config_dict))
+    custom_secret_backend = get_custom_secret_backend()
+
+    if custom_secret_backend is not None:
+        backend_list.append(custom_secret_backend)
 
     for class_name in DEFAULT_SECRETS_SEARCH_PATH:
         secrets_backend_cls = import_string(class_name)

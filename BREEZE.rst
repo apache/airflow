@@ -15,35 +15,38 @@
     specific language governing permissions and limitations
     under the License.
 
-.. image:: images/AirflowBreeze_logo.png
-    :align: center
-    :alt: Airflow Breeze Logo
+.. raw:: html
+
+    <div align="center">
+      <img src="images/AirflowBreeze_logo.png"
+           alt="Airflow Breeze - Development and Test Environment for Apache Airflow">
+    </div>
 
 .. contents:: :local:
 
-Airflow Breeze CI Environment
+Airflow Breeze CI environment
 =============================
 
-Airflow Breeze is an easy-to-use development environment using
+Airflow Breeze is an easy-to-use development and test environment using
 `Docker Compose <https://docs.docker.com/compose/>`_.
 The environment is available for local use and is also used in Airflow's CI tests.
 
-We called it *Airflow Breeze* as **It's a Breeze to develop Airflow**.
+We called it *Airflow Breeze* as **It's a Breeze to contribute to Airflow**.
 
 The advantages and disadvantages of using the Breeze environment vs. other ways of testing Airflow
 are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-development-environment>`_.
 
-Here is a short 10-minute video about Airflow Breeze (note that it shows an old version of Breeze. Some
-of the points in the video are not valid anymore. The video will be updated shortly with more up-to-date
-version):
+Watch the video below about Airflow Breeze. It explains the motivation for Breeze
+and screencasts all its uses.
 
-.. image:: http://img.youtube.com/vi/ffKFHV6f3PQ/0.jpg
-   :width: 480px
-   :height: 360px
-   :scale: 100 %
-   :alt: Airflow Breeze Simplified Development Workflow
-   :align: center
-   :target: http://www.youtube.com/watch?v=ffKFHV6f3PQ
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68">
+        <img src="images/breeze/overlayed_breeze.png" width="640"
+             alt="Airflow Breeze - Development and Test Environment for Apache Airflow">
+      </a>
+    </div>
 
 Prerequisites
 =============
@@ -66,9 +69,12 @@ Docker Community Edition
 
 Here is an example configuration with more than 200GB disk space for Docker:
 
-.. image:: images/disk_space_osx.png
-    :align: left
-    :alt: Disk space OSX
+.. raw:: html
+
+    <div align="center">
+        <img src="images/disk_space_osx.png" width="640"
+             alt="Disk space MacOS">
+    </div>
 
 Docker Compose
 --------------
@@ -76,7 +82,7 @@ Docker Compose
 - **Version**: Install the latest stable Docker Compose and add it to the PATH.
   See `Docker Compose Installation Guide <https://docs.docker.com/compose/install/>`_ for details.
 
-- **Permissions**: Configure to run the ``docker-compose`` command.
+- **Permissions**: Configure permission to run the ``docker-compose`` command.
 
 Docker in WSL 2
 ---------------
@@ -94,9 +100,12 @@ Docker in WSL 2
 - **Docker setting** :
     WSL integration needs to be enabled
 
-.. image:: images/docker_wsl_integration.png
-    :align: left
-    :alt: Docker WSL2 integration
+.. raw:: html
+
+    <div align="center">
+        <img src="images/docker_wsl_integration.png" width="640"
+             alt="Airflow Breeze - Docker WSL2 integration">
+    </div>
 
 - **WSL 2 Filesystem Performance** :
     Accessing the host Windows filesystem incurs a performance penalty,
@@ -119,43 +128,6 @@ Docker in WSL 2
     Further VS Code supports developing in Windows but remotely executing in WSL.
     If VS Code is installed on the Windows host system then in the WSL Linux Distro
     you can run ``code .`` in the root directory of you Airflow repo to launch VS Code.
-
-Docker Images Used by Breeze
-----------------------------
-
-For all development tasks, unit tests, integration tests, and static code checks, we use the
-**CI image** maintained on the DockerHub in the ``apache/airflow`` repository.
-This Docker image contains a lot of test-related packages (size of ~1GB).
-Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>-ci``
-(for example, ``apache/airflow:master-python3.6-ci`` or ``apache/airflow:v1-10-test-python3.6-ci``).
-The image is built using the `<Dockerfile.ci>`_ Dockerfile.
-
-For testing production image, the **Production image** is used and maintained on the DockerHub in the
-```apache/airflow`` repository. This Docker image contains only size-optimised Airflow with selected
-extras and dependencies. Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>``
-(for example, ``apache/airflow:master-python3.6`` or ``apache/airflow:v1-10-test-python3.6``).
-
-More information about the images can be found in `<IMAGES.rst>`_.
-
-By default CI images are used unless ``--production-image`` flag is used.
-
-Before you run tests, enter the environment or run local static checks, the necessary local images should be
-pulled and built from Docker Hub. This happens automatically for the test environment but you need to
-manually trigger it for static checks as described in `Building the images <#building-the-images>`_
-and `Pulling the latest images <#pulling-the-latest-images>`_.
-The static checks will fail and inform what to do if the image is not yet built.
-
-Building the image first time pulls a pre-built version of images from the Docker Hub, which may take some
-time. But for subsequent source code changes, no wait time is expected.
-However, changes to sensitive files like ``setup.py`` or ``Dockerfile.ci`` will trigger a rebuild
-that may take more time though it is highly optimized to only rebuild what is needed.
-
-In most cases, rebuilding an image requires network connectivity (for example, to download new
-dependencies). If you work offline and do not want to rebuild the images when needed, you can set the
-``FORCE_ANSWER_TO_QUESTIONS`` variable to ``no`` as described in the
-`Default behaviour for user interaction <#default-behaviour-for-user-interaction>`_ section.
-
-See the `Troubleshooting section <#troubleshooting>`_ for steps you can make to clean the environment.
 
 Getopt and gstat
 ----------------
@@ -183,7 +155,6 @@ If you use zsh, run this command and re-login:
     echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
     . ~/.zprofile
 
-
 Memory
 ------
 
@@ -195,45 +166,252 @@ On macOS, 2GB of RAM are available for your Docker containers by default, but mo
 
 On Windows WSL 2 expect the Linux Disto and Docker containers to use 7 - 8 GB of RAM.
 
-Airflow Directory Structure inside Docker
+Cleaning the environment
+------------------------
+
+You may need to clean up your Docker environment occasionally. The images are quite big
+(1.5GB for both images needed for static code analysis and CI tests) and, if you often rebuild/update
+them, you may end up with some unused image data.
+
+To clean up the Docker environment:
+
+1. Stop Breeze with ``./breeze stop``.
+
+2. Run the ``docker system prune`` command.
+
+3. Run ``docker images --all`` and ``docker ps --all`` to verify that your Docker is clean.
+
+   Both commands should return an empty list of images and containers respectively.
+
+If you run into disk space errors, consider pruning your Docker images with the ``docker system prune --all``
+command. You may need to restart the Docker Engine before running this command.
+
+In case of disk space errors on macOS, increase the disk space available for Docker. See
+`Prerequisites <#prerequisites>`_ for details.
+
+
+Installation
+============
+
+Installation is as easy as checking out Airflow repository and running Breeze command.
+You enter the Breeze test environment by running the ``./breeze`` script. You can run it with
+the ``help`` command to see the list of available options. See `Breeze Command-Line Interface Reference`_
+for details.
+
+.. code-block:: bash
+
+  ./breeze
+
+The First time you run Breeze, it pulls and builds a local version of Docker images.
+It pulls the latest Airflow CI images from `Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
+and uses them to build your local Docker images. Note that the first run (per python) might take up to 10
+minutes on a fast connection to start. Subsequent runs should be much faster.
+
+Once you enter the environment, you are dropped into bash shell of the Airflow container and you can
+run tests immediately.
+
+To use the full potential of breeze you should set up autocomplete and you can
+add the checked-out Airflow repository to your PATH to run Breeze without the ``./`` and from any directory.
+
+The ``breeze`` command comes with a built-in bash/zsh autocomplete setup command. After installing, when you
+start typing the command, you can use <TAB> to show all the available switches and get
+auto-completion on typical values of parameters that you can use.
+
+You should set up the autocomplete option automatically by running:
+
+.. code-block:: bash
+
+   ./breeze setup-autocomplete
+
+You get the auto-completion working when you re-enter the shell.
+
+When you enter the Breeze environment, automatically an environment file is sourced from
+``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
+automatically mounted to the container under ``/files`` path and you can put there any files you want
+to make available for the Breeze container.
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=78">
+        <img src="images/breeze/overlayed_breeze_installation.png" width="640"
+             alt="Airflow Breeze - Installation">
+      </a>
+    </div>
+
+Running tests in the CI interactive environment
+===============================================
+
+Breeze helps with running tests in the same environment/way as CI tests are run. You can run various
+types of tests while you enter Breeze CI interactive environment - this is described in detail
+in `<TESTING.rst>`_
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=262">
+        <img src="images/breeze/overlayed_breeze_running_tests.png" width="640"
+             alt="Airflow Breeze - Running tests">
+      </a>
+    </div>
+
+Choosing different Breeze environment configuration
+===================================================
+
+You can use additional ``breeze`` flags to choose your environment. You can specify a Python
+version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
+environments as we have in matrix builds in the CI.
+
+For example, you can choose to run Python 3.6 tests with MySQL as backend and in the Docker environment as
+follows:
+
+.. code-block:: bash
+
+    ./breeze --python 3.6 --backend mysql
+
+The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
+``breeze`` script, it could use the values that were used previously. This way you do not have to specify
+them when you run the script. You can delete the ``.build/`` directory in case you want to restore the
+default settings.
+
+The defaults when you run the Breeze environment are Python 3.6 version and SQLite database.
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=389">
+        <img src="images/breeze/overlayed_breeze_select_backend_python.png" width="640"
+             alt="Airflow Breeze - Selecting Python and Backend version">
+      </a>
+    </div>
+
+
+Troubleshooting
+===============
+
+If you are having problems with the Breeze environment, try the steps below. After each step you
+can check whether your problem is fixed.
+
+1. If you are on macOS, check if you have enough disk space for Docker.
+2. Restart Breeze with ``./breeze restart``.
+3. Delete the ``.build`` directory and run ``./breeze build-image --force-pull-images``.
+4. Clean up Docker images via ``breeze cleanup-image`` command.
+5. Restart your Docker Engine and try again.
+6. Restart your machine and try again.
+7. Re-install Docker CE and try again.
+
+In case the problems are not solved, you can set the VERBOSE_COMMANDS variable to "true":
+
+.. code-block::
+
+        export VERBOSE_COMMANDS="true"
+
+
+Then run the failed command, copy-and-paste the output from your terminal to the
+`Airflow Slack <https://apache-airflow-slack.herokuapp.com/>`_  #airflow-breeze channel and
+describe your problem.
+
+Other uses the Airflow Breeze environment
 =========================================
 
-When you are in the CI container, the following directories are used:
+Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testing. Under the
+hood it uses other scripts that you can also run manually if you have problem with running the Breeze
+environment.
 
-.. code-block:: text
+Breeze script allows performing the following tasks:
 
-  /opt/airflow - Contains sources of Airflow mounted from the host (AIRFLOW_SOURCES).
-  /root/airflow - Contains all the "dynamic" Airflow files (AIRFLOW_HOME), such as:
-      airflow.db - sqlite database in case sqlite is used;
-      dags - folder with non-test dags (test dags are in /opt/airflow/tests/dags);
-      logs - logs from Airflow executions;
-      unittest.cfg - unit test configuration generated when entering the environment;
-      webserver_config.py - webserver configuration generated when running Airflow in the container.
+Managing CI environment:
 
-Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
-from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
-visible in the host as well. Every time you enter the container, the ``logs`` directory is
-cleaned so that logs do not accumulate.
+    * Build CI docker image with ``breeze build-image`` command
+    * Enter interactive shell in CI container when ``shell`` (or no command) is specified
+    * Join running interactive shell with ``breeze exec`` command
+    * Stop running interactive environment with ``breeze stop`` command
+    * Restart running interactive environment with ``breeze restart`` command
+    * Run test specified with ``breeze tests`` command
+    * Generate constraints with ``breeze generate-constraints`` command
+    * Execute arbitrary command in the test environment with ``breeze shell`` command
+    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
+    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
 
-When you are in the production container, the following directories are used:
+You can optionally reset database if specified as extra ``--db-reset`` flag and for CI image you can also
+start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
+chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
-.. code-block:: text
+Managing Prod environment (with ``--production-image`` flag):
 
-  /opt/airflow - Contains sources of Airflow mounted from the host (AIRFLOW_SOURCES).
-  /root/airflow - Contains all the "dynamic" Airflow files (AIRFLOW_HOME), such as:
-      airflow.db - sqlite database in case sqlite is used;
-      dags - folder with non-test dags (test dags are in /opt/airflow/tests/dags);
-      logs - logs from Airflow executions;
-      unittest.cfg - unit test configuration generated when entering the environment;
-      webserver_config.py - webserver configuration generated when running Airflow in the container.
+    * Build CI docker image with ``breeze build-image`` command
+    * Enter interactive shell in PROD container when ``shell`` (or no command) is specified
+    * Join running interactive shell with ``breeze exec`` command
+    * Stop running interactive environment with ``breeze stop`` command
+    * Restart running interactive environment with ``breeze restart`` command
+    * Execute arbitrary command in the test environment with ``breeze shell`` command
+    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
+    * Push docker images with ``breeze push-image`` command (require committer's rights to push images)
 
-Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
-from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
-visible in the host as well. Every time you enter the container, the ``logs`` directory is
-cleaned so that logs do not accumulate.
+You can optionally reset database if specified as extra ``--db-reset`` flag. You can also
+chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
+
+
+Manage and Interact with Kubernetes tests environment:
+
+    * Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze kind-cluster`` commands
+    * Run Kubernetes tests  specified with ``breeze kind-cluster tests`` command
+    * Enter the interactive kubernetes test environment with ``breeze kind-cluster shell`` command
+
+Run static checks:
+
+    * Run static checks - either for currently staged change or for all files with
+      ``breeze static-check`` command
+
+Build documentation:
+
+    * Build documentation with ``breeze build-docs`` command
+
+Set up local development environment:
+
+    * Setup local virtualenv with ``breeze setup-virtualenv`` command
+    * Setup autocomplete for itself with ``breeze setup-autocomplete`` command
+
+Launching multiple terminals
+----------------------------
+
+Often if you want to run full airflow in the Breeze environment you need to launch multiple terminals and
+run ``airflow webserver``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
+
+This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux
+is installed inside the container and you can launch it with ``tmux`` command. Tmux provides you with the
+capability of creating multiple virtual terminals and multiplex between them. More about ``tmux`` can be
+found at `tmux github wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
+that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=824">
+        <img src="images/breeze/overlayed_breeze_using_tmux.png" width="640"
+             alt="Airflow Breeze - Using tmux">
+      </a>
+    </div>
+
+
+Another way is to exec into Breeze terminal from the host's terminal. Often you can
+have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
+to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
+Breeze environment. You will be dropped into bash and environment variables will be read in the same
+way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=978">
+        <img src="images/breeze/overlayed_breeze_using_exec.png" width="640"
+             alt="Airflow Breeze - Using tmux">
+      </a>
+    </div>
+
 
 CLIs for cloud providers
-========================
+------------------------
 
 For development convenience we installed simple wrappers for the most common cloud providers CLIs. Those
 CLIs are not installed when you build or pull the image - they will be downloaded as docker images
@@ -270,146 +448,22 @@ Also - in case you run several different Breeze containers in parallel (from dif
 with different versions) - they docker images for CLI Cloud Providers tools are shared so if you update it
 for one Breeze container, they will also get updated for all the other containers.
 
+.. raw:: html
 
-Using the Airflow Breeze Environment
-=====================================
-
-Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testing. Under the
-hood it uses other scripts that you can also run manually if you have problem with running the Breeze
-environment.
-
-Breeze script allows performing the following tasks:
-
-Manage environments - CI (default) or Production - if ``--production-image`` flag is specified:
-
-    * Build docker images with ``breeze build-image`` command
-    * Enter interactive shell when no command are specified (default behaviour)
-    * Join running interactive shell with ``breeze exec`` command
-    * Start/stops/restarts Kind Kubernetes cluster with ``kind-cluster`` command
-    * Stop running interactive environment with ``breeze stop`` command
-    * Restart running interactive environment with ``breeze restart`` command
-    * Optionally reset database if specified as extra ``--db-reset`` flag
-    * Optionally start integrations (separate images) if specified as extra ``--integration`` flags (only CI)
-
-Interact with CI environment:
-
-    * Run test target specified with ``breeze tests`` command
-    * Execute arbitrary command in the test environment with ``breeze execute-command`` command
-    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
-
-Run static checks:
-
-    * Run static checks - either for currently staged change or for all files with
-      ``breeze static-check`` or ``breeze static-check-all-files`` command
-
-Build documentation:
-
-    * Build documentation with ``breeze build-docs`` command
-
-Set up local development environment:
-
-    * Setup local virtualenv with ``breeze setup-virtualenv`` command
-    * Setup autocomplete for itself with ``breeze setup-autocomplete`` command
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=1072">
+        <img src="images/breeze/overlayed_breeze_cloud_tools.png" width="640"
+             alt="Airflow Breeze - Cloud tools">
+      </a>
+    </div>
 
 
-Note that the below environment interaction is by default with the CI image. If you want to use production
-image for those commands you need to add ``--production-image`` flag.
-
-Note that you also should not run both (CI and production) environments simultaneously, as they are using
-the same docker-compose configuration which for example contain the link to the database, port mapping, etc.
-
-Entering Breeze CI environment
-------------------------------
-
-You enter the Breeze test environment by running the ``./breeze`` script. You can run it with
-the ``help`` command to see the list of available options. See `Breeze Command-Line Interface Reference`_
-for details.
-
-.. code-block:: bash
-
-  ./breeze
-
-The First time you run Breeze, it pulls and builds a local version of Docker images.
-It pulls the latest Airflow CI images from `Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
-and uses them to build your local Docker images. Note that the first run (per python) might take up to 10
-minutes on a fast connection to start. Subsequent runs should be much faster.
-
-Once you enter the environment, you are dropped into bash shell of the Airflow container and you can
-run tests immediately.
-
-You can `set up autocomplete <#setting-up-autocomplete>`_ for commands and add the
-checked-out Airflow repository to your PATH to run Breeze without the ``./`` and from any directory.
-
-
-When you enter the Breeze environment, automatically an environment file is sourced from
-``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
-automatically mounted to the container under ``/files`` path and you can put there any files you want
-to make available for the Breeze container.
-
-Launching multiple terminals
-----------------------------
-
-Often if you want to run full airflow in the Breeze environment you need to launch multiple terminals and
-run ``airflow webserver``, ``airflow scheduler``, ``airflow worker`` in separate terminals.
-
-This can be achieved either via ``tmux`` or via exec-ing into the running container from the host. Tmux
-is installed inside the container and you can launch it with ``tmux`` command. Tmux provides you with the
-capability of creating multiple virtual terminals and multiplex between them. More about ``tmux`` can be
-found at `tmux github wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
-that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
-
-Another - slightly easier - way is to exec into Breeze terminal from the host's terminal. Often you can
-have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
-to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
-Breeze environment. You will be dropped into bash and environment variables will be read in the same
-way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
-
-Stopping Interactive environment
---------------------------------
-
-After starting up, the environment runs in the background and takes precious memory.
-You can always stop it via:
-
-.. code-block:: bash
-
-   ./breeze stop
-
-Restarting Breeze environment
------------------------------
-
-You can also  restart the environment and enter it via:
-
-.. code-block:: bash
-
-   ./breeze restart
-
-Choosing a Breeze Environment
------------------------------
-
-You can use additional ``breeze`` flags to customize your environment. For example, you can specify a Python
-version to use, backend and a container environment for testing. With Breeze, you can recreate the same
-environments as we have in matrix builds in the CI.
-
-For example, you can choose to run Python 3.6 tests with MySQL as backend and in the Docker environment as
-follows:
-
-.. code-block:: bash
-
-    ./breeze --python 3.6 --backend mysql
-
-The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
-``breeze`` script, it could use the values that were used previously. This way you do not have to specify
-them when you run the script. You can delete the ``.build/`` directory in case you want to restore the
-default settings.
-
-The defaults when you run the Breeze environment are Python 3.6, Sqlite, and Docker.
-
-Launching Breeze Integrations
+Launching Breeze integrations
 -----------------------------
 
 When Breeze starts, it can start additional integrations. Those are additional docker containers
 that are started in the same docker-compose command. Those are required by some of the tests
-as described in `TESTING.rst <TESTING.rst#airflow-integration-tests>`_.
+as described in `TESTING <TESTING.rst#airflow-integration-tests>`_.
 
 By default Breeze starts only airflow container without any integration enabled. If you selected
 ``postgres`` or ``mysql`` backend, the container for the selected backend is also started (but only the one
@@ -423,47 +477,384 @@ Once integration is started, it will continue to run until the environment is st
 
 Note that running integrations uses significant resources - CPU and memory.
 
-Cleaning the Environment
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=1187">
+        <img src="images/breeze/overlayed_breeze_integrations.png" width="640"
+             alt="Airflow Breeze - Integrations">
+      </a>
+    </div>
+
+Building CI images
+------------------
+
+With Breeze you can build images that are used by Airflow CI and production ones.
+
+For all development tasks, unit tests, integration tests, and static code checks, we use the
+**CI image** maintained on the DockerHub in the ``apache/airflow`` repository.
+This Docker image contains a lot of test-related packages (size of ~1GB).
+Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>-ci``
+(for example, ``apache/airflow:master-python3.6-ci`` or ``apache/airflow:v1-10-test-python3.6-ci``).
+The image is built using the `<Dockerfile.ci>`_ Dockerfile.
+
+The CI image is built automatically as needed, however it can be rebuilt manually with
+``build-image`` command. The production
+image should be built manually - but also a variant of this image is built automatically when
+kubernetes tests are executed see `Running Kubernetes tests <#running-kubernetes-tests>`_
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=1387">
+        <img src="images/breeze/overlayed_breeze_build_images.png" width="640"
+             alt="Airflow Breeze - Building images">
+      </a>
+    </div>
+
+Building the image first time pulls a pre-built version of images from the Docker Hub, which may take some
+time. But for subsequent source code changes, no wait time is expected.
+However, changes to sensitive files like ``setup.py`` or ``Dockerfile.ci`` will trigger a rebuild
+that may take more time though it is highly optimized to only rebuild what is needed.
+
+Breeze has built in mechanism to check if your local image has not diverged too much from the
+latest image build on CI. This might happen when for example latest patches have been released as new
+Python images or when significant changes are made in the Dockerfile. In such cases, Breeze will
+download the latest images before rebuilding because this is usually faster than rebuilding the image.
+
+In most cases, rebuilding an image requires network connectivity (for example, to download new
+dependencies). If you work offline and do not want to rebuild the images when needed, you can set the
+``FORCE_ANSWER_TO_QUESTIONS`` variable to ``no`` as described in the
+`Setting default behaviour for user interaction <#setting-default-behaviour-for-user-interaction>`_ section.
+
+Building Production images
+--------------------------
+
+The **Production image** is also maintained on the DockerHub in the
+```apache/airflow`` repository. This Docker image (and Dockerfile) contains size-optimised Airflow
+installation with selected extras and dependencies. Its tag follows the pattern of
+``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>`` (for example, ``apache/airflow:master-python3.6``
+or ``apache/airflow:v1-10-test-python3.6``).
+
+However in many cases you want to add your own custom version of the image - with added apt dependencies,
+python dependencies, additional Airflow extras. Breeze's ``build-image`` command helps to build your own,
+customised variant of the image that contains everything you need.
+
+You can switch to building the production image by adding ``--production-image`` flag to the ``build_image``
+command. Note, that the images can also be build using ``docker build`` command by passing appropriate
+build-args as described in `IMAGES.rst <IMAGES.rst>`_ , but Breeze provides several flags that
+makes it easier to do it. You can see all the flags by running ``./breeze build-image --help``,
+but here typical examples are presented:
+
+.. code-block:: bash
+
+     ./breeze build-image --production-image --additional-extras "jira"
+
+This installs additional ``jira`` extra while installing airflow in the image.
+
+
+.. code-block:: bash
+
+     ./breeze build-image --production-image --additional-python-deps "torchio==0.17.10"
+
+This install additional pypi dependency - torchio in specified version.
+
+
+.. code-block:: bash
+
+     ./breeze build-image --production-image --additional-dev-deps "libasound2-dev" \
+        --additional-runtime-deps "libasound2"
+
+This install additional apt dependencies - ``libasound2-dev`` in build image and ``libasound`` in the
+final image. Those are development dependencies that might be needed to build and use python packages added
+via the ``--additional-python-deps`` flag. The ``dev`` dependencies are not installed in the final
+production image, they are only installed in the build "segment" of the production image that is used
+as an intermediate step to build the final image. Usually names of the ``dev`` dependencies end with ``-dev``
+suffix and they need to also be paired with corresponding runtime dependency added for the runtime image
+(without -dev).
+
+.. code-block:: bash
+
+     ./breeze build-image --production-image --python 3.7 --additional-dev-deps "libasound2-dev" \
+        --additional-runtime-deps "libasound2"
+
+Same as above but uses python 3.7.
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=1496">
+        <img src="images/breeze/overlayed_breeze_build_images_prod.png" width="640"
+             alt="Airflow Breeze - Building Production images">
+      </a>
+    </div>
+
+Building Production images for 1.10 Airflow versions
+----------------------------------------------------
+
+With Breeze you can also use the master Dockerfile to build custom images for released Airflow versions.
+This works in the same way as building production image from master, but you need to add additional switch
+``--install-airflow-version``. You should pass version of airflow (as released in PyPI). It can be used
+to install both released versions and release candidates. Similarly as in case of master images,
+we can pass additional extras/dependencies to install via the additional flags.
+
+.. code-block:: bash
+
+     ./breeze build-image --production-image --additional-extras "jira" --install-airflow-version="1.10.11"
+
+Builds airflow image with released Airflow version 1.10.11 and additional extra "jira" added.
+
+.. code-block:: bash
+
+     ./breeze build-image --production-image --install-airflow-version="1.10.11rc2"
+
+Builds airflow image with released Airflow version 1.10.11rc2.
+
+
+You can also build airflow directly from GitHub source code - by providing Git Reference via
+``--install-airflow-reference``. The reference can be a branch name, tag name, or commit hash. This
+is useful mostly for testing.
+
+.. code-block:: bash
+
+     ./breeze build-image --production-image --install-airflow-reference="v1-10-test"
+
+This Builds airflow image from the current ``v1-10-test`` branch of Airflow.
+
+.. code-block:: bash
+
+     ./breeze build-image --production-image \
+          --install-airflow-reference="0d91fcf725f69e10f0969ca36f9e38e1d74110d0"
+
+This Builds airflow image from the  ``0d91fcf725f69e10f0969ca36f9e38e1d74110d0`` commit hash on
+GitHub.
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=1586">
+        <img src="images/breeze/overlayed_breeze_build_images_released_versions.png" width="640"
+             alt="Airflow Breeze - Building Production images for 1.10 Airflow versions">
+      </a>
+    </div>
+
+
+Running static checks
+---------------------
+
+You can run static checks via Breeze. You can also run them via pre-commit command but with auto-completion
+Breeze makes it easier to run selective static checks. If you press <TAB> after the static-check and if
+you have auto-complete setup you should see auto-completable list of all checks available.
+
+.. code-block:: bash
+
+     ./breeze static-check mypy
+
+The above will run mypy check for currently staged files.
+
+You can also add arbitrary pre-commit flag after ``--``
+
+.. code-block:: bash
+
+     ./breeze static-check mypy -- --all-files
+
+The above will run mypy check for all files.
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=1675">
+        <img src="images/breeze/overlayed_breeze_static_checks.png" width="640"
+             alt="Airflow Breeze - Static checks">
+      </a>
+    </div>
+
+Building the Documentation
+--------------------------
+
+To build documentation in Breeze, use the ``build-docs`` command:
+
+.. code-block:: bash
+
+     ./breeze build-docs
+
+Results of the build can be found in the ``docs/_build`` folder.
+
+Often errors during documentation generation come from the docstrings of auto-api generated classes.
+During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
+easily identify the location the problems with documentation originated from.
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=1760">
+        <img src="images/breeze/overlayed_breeze_build_docs.png" width="640"
+             alt="Airflow Breeze - Build docs">
+      </a>
+    </div>
+
+Generating constraints
+----------------------
+
+Whenever setup.py gets modified, the CI master job will re-generate constraint files. Those constraint
+files ara stored in separated orphan branches: ``constraints-master`` and ``constraint-1-10``.
+They are stored separately for each python version. Those are
+constraint files as described in detail in the
+`CONTRIBUTING <CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
+
+In case someone modifies setup.py, the ``CRON`` scheduled CI build automatically upgrades and
+pushes changed to the constraint files, however you can also perform test run of this locally using
+``generate-constraints`` command of Breeze.
+
+.. code-block:: bash
+
+  ./breeze generate-constraints --python 3.6
+
+.. code-block:: bash
+
+  ./breeze generate-constraints --python 3.7
+
+.. code-block:: bash
+
+  ./breeze generate-constraints --python 3.8
+
+This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
+and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
+of changes vs the previous constraint files is printed.
+
+Using local virtualenv environment in Your Host IDE
+---------------------------------------------------
+
+You can set up your host IDE (for example, IntelliJ's PyCharm/Idea) to work with Breeze
+and benefit from all the features provided by your IDE, such as local and remote debugging,
+language auto-completion, documentation support, etc.
+
+To use your host IDE with Breeze:
+
+1. Create a local virtual environment:
+
+   You can use any of the following wrappers to create and manage your virtual environments:
+   `pyenv <https://github.com/pyenv/pyenv>`_, `pyenv-virtualenv <https://github.com/pyenv/pyenv-virtualenv>`_,
+   or `virtualenvwrapper <https://virtualenvwrapper.readthedocs.io/en/latest/>`_.
+
+   Ideally, you should have virtualenvs for all Python versions supported by Airflow (2.7, 3.5, 3.6, 3.7, 3.8)
+
+2. Use the right command to activate the virtualenv (``workon`` if you use virtualenvwrapper or
+   ``pyenv activate`` if you use pyenv.
+
+3. Initialize the created local virtualenv:
+
+.. code-block:: bash
+
+  ./breeze initialize-local-virtualenv --python 3.8
+
+4. Select the virtualenv you created as the project's default virtualenv in your IDE.
+
+Note that you can also use the local virtualenv for Airflow development without Breeze.
+This is a lightweight solution that has its own limitations.
+
+More details on using the local virtualenv are available in the `LOCAL_VIRTUALENV.rst <LOCAL_VIRTUALENV.rst>`_.
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=1920">
+        <img src="images/breeze/overlayed_breeze_initialize_virtualenv.png" width="640"
+             alt="Airflow Breeze - Initialize virtualenv">
+      </a>
+    </div>
+
+Running Kubernetes tests
 ------------------------
 
-You may need to clean up your Docker environment occasionally. The images are quite big
-(1.5GB for both images needed for static code analysis and CI tests) and, if you often rebuild/update
-them, you may end up with some unused image data.
+Breeze helps with running Kubernetes tests in the same environment/way as CI tests are run.
+Breeze helps to setup KinD cluster for testing, setting up virtualenv and downloads the right tools
+automatically to run the tests.
 
-To clean up the Docker environment:
+This is described in detail in `Testing Kubernetes <TESTING.rst#running-tests-with-kubernetes>`_.
 
-1. Stop Breeze with ``./breeze stop``.
+.. raw:: html
 
-2. Run the ``docker system prune`` command.
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=2093">
+        <img src="images/breeze/overlayed_breeze_kubernetes_tests.png" width="640"
+             alt="Airflow Breeze - Kubernetes tests">
+      </a>
+    </div>
 
-3. Run ``docker images --all`` and ``docker ps --all`` to verify that your Docker is clean.
+Stopping the interactive environment
+------------------------------------
 
-   Both commands should return an empty list of images and containers respectively.
+After starting up, the environment runs in the background and takes precious memory.
+You can always stop it via:
 
-If you run into disk space errors, consider pruning your Docker images with the ``docker system prune --all``
-command. You may need to restart the Docker Engine before running this command.
+.. code-block:: bash
 
-In case of disk space errors on macOS, increase the disk space available for Docker. See
-`Prerequisites <#prerequisites>`_ for details.
+   ./breeze stop
 
-Running Arbitrary Commands in the Breeze Environment
--------------------------------------------------------
+
+.. raw:: html
+
+    <div align="center">
+      <a href="https://youtu.be/4MCTXq-oF68?t=2639">
+        <img src="images/breeze/overlayed_breeze_stop.png" width="640"
+             alt="Airflow Breeze - Stop environment">
+      </a>
+    </div>
+
+
+Internal details of Breeze
+==========================
+
+Airflow directory structure inside container
+--------------------------------------------
+
+When you are in the CI container, the following directories are used:
+
+.. code-block:: text
+
+  /opt/airflow - Contains sources of Airflow mounted from the host (AIRFLOW_SOURCES).
+  /root/airflow - Contains all the "dynamic" Airflow files (AIRFLOW_HOME), such as:
+      airflow.db - sqlite database in case sqlite is used;
+      dags - folder with non-test dags (test dags are in /opt/airflow/tests/dags);
+      logs - logs from Airflow executions;
+      unittest.cfg - unit test configuration generated when entering the environment;
+      webserver_config.py - webserver configuration generated when running Airflow in the container.
+
+Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
+from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
+visible in the host as well. Every time you enter the container, the ``logs`` directory is
+cleaned so that logs do not accumulate.
+
+When you are in the production container, the following directories are used:
+
+.. code-block:: text
+
+  /opt/airflow - Contains sources of Airflow mounted from the host (AIRFLOW_SOURCES).
+  /root/airflow - Contains all the "dynamic" Airflow files (AIRFLOW_HOME), such as:
+      airflow.db - sqlite database in case sqlite is used;
+      dags - folder with non-test dags (test dags are in /opt/airflow/tests/dags);
+      logs - logs from Airflow executions;
+      unittest.cfg - unit test configuration generated when entering the environment;
+      webserver_config.py - webserver configuration generated when running Airflow in the container.
+
+Note that when running in your local environment, the ``/root/airflow/logs`` folder is actually mounted
+from your ``logs`` directory in the Airflow sources, so all logs created in the container are automatically
+visible in the host as well. Every time you enter the container, the ``logs`` directory is
+cleaned so that logs do not accumulate.
+
+Running Arbitrary commands in the Breeze environment
+----------------------------------------------------
 
 To run other commands/executables inside the Breeze Docker-based environment, use the
-``./breeze execute-command`` command. To add arguments, specify them
-together with the command surrounded with either ``"`` or ``'``, or pass them after ``--`` as extra arguments.
+``./breeze shell`` command. You should add your command as -c "command" after ``--`` as extra arguments.
 
 .. code-block:: bash
 
-     ./breeze execute-command "ls -la"
+     ./breeze shell -- -c "ls -la"
 
-.. code-block:: bash
-
-     ./breeze execute-command ls -- --la
-
-
-Running Docker Compose Commands
--------------------------------
+Running "Docker Compose" commands
+---------------------------------
 
 To run Docker Compose commands (such as ``help``, ``pull``, etc), use the
 ``docker-compose`` command. To add extra arguments, specify them
@@ -473,121 +864,18 @@ after ``--`` as extra arguments.
 
      ./breeze docker-compose pull -- --ignore-pull-failures
 
-
-Mounting Local Sources to Breeze
---------------------------------
-
-Important sources of Airflow are mounted inside the ``airflow`` container that you enter.
-This means that you can continue editing your changes on the host in your favourite IDE and have them
-visible in the Docker immediately and ready to test without rebuilding images. You can disable mounting
-by specifying ``--skip-mounting-local-sources`` flag when running Breeze. In this case you will have sources
-embedded in the container and changes to these sources will not be persistent.
-
-
-After you run Breeze for the first time, you will have empty directory ``files`` in your source code,
-which will be mapped to ``/files`` in your Docker container. You can pass there any files you need to
-configure and run Docker. They will not be removed between Docker runs.
-
-By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
-the directory used by airflow scheduler and webserver to scan dags for. You can use it to test your dags
-from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
-
-Adding/Modifying Dependencies
+Restarting Breeze environment
 -----------------------------
 
-If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
-add javascript dependencies in ``package.json``, you can either add dependencies temporarily for a single
-Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
-
-Installing Dependencies for a Single Breeze Session
-...................................................
-
-You can install dependencies inside the container using ``sudo apt install``, ``pip install`` or
-``yarn install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
-quickly while you are in the container. However, these changes are not retained: they disappear once you
-exit the container (except for the node.js dependencies if your sources are mounted to the container).
-Therefore, if you want to retain a new dependency, follow the second option described below.
-
-Adding Dependencies Permanently
-...............................
-
-You can add dependencies to the ``Dockerfile.ci``, ``setup.py`` or ``package.json`` and rebuild the image.
-This should happen automatically if you modify any of these files.
-After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
-asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
-if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the
-``build-image`` command to only rebuild CI image and not to go into shell.
-
-Changing apt Dependencies in the Dockerfile.ci
-..............................................
-
-During development, changing dependencies in ``apt-get`` closer to the top of the ``Dockerfile.ci``
-invalidates cache for most of the image. It takes long time for Breeze to rebuild the image.
-So, it is a recommended practice to add new dependencies initially closer to the end
-of the ``Dockerfile.ci``. This way dependencies will be added incrementally.
-
-Before merge, these dependencies should be moved to the appropriate ``apt-get install`` command,
-which is already in the ``Dockerfile.ci``.
-
-Port Forwarding
----------------
-
-When you run Airflow Breeze, the following ports are automatically forwarded:
-
-* 28080 -> forwarded to Airflow webserver -> airflow:8080
-* 25433 -> forwarded to Postgres database -> postgres:5432
-* 23306 -> forwarded to MySQL database  -> mysql:3306
-
-You can connect to these ports/databases using:
-
-* Webserver: ``http://127.0.0.1:28080``
-* Postgres: ``jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow``
-* Mysql: ``jdbc:mysql://localhost:23306/airflow?user=root``
-
-Start the webserver manually with the ``airflow webserver`` command if you want to connect
-to the webserver. You can use ``tmux`` to multiply terminals. You may need to create a user prior to
-running the webserver in order to log in. This can be done with the following command:
+You can also  restart the environment and enter it via:
 
 .. code-block:: bash
 
-    airflow create_user --role Admin --username admin --password admin --email admin@example.com --firstname foo --lastname bar
+   ./breeze restart
 
-For databases, you need to run ``airflow resetdb`` at least once (or run some tests) after you started
-Airflow Breeze to get the database/tables created. You can connect to databases with IDE or any other
-database client:
 
-.. image:: images/database_view.png
-    :align: center
-    :alt: Database view
-
-You can change the used host port numbers by setting appropriate environment variables:
-
-* ``WEBSERVER_HOST_PORT``
-* ``POSTGRES_HOST_PORT``
-* ``MYSQL_HOST_PORT``
-
-If you set these variables, next time when you enter the environment the new ports should be in effect.
-
-Setting Up Autocompletion
--------------------------
-
-The ``breeze`` command comes with a built-in bash/zsh autocomplete option for its options. When you start typing
-the command, you can use <TAB> to show all the available switches and get autocompletion on typical
-values of parameters that you can use.
-
-You can set up the autocomplete option automatically by running:
-
-.. code-block:: bash
-
-   ./breeze setup-autocomplete
-
-You get the autocompletion working when you re-enter the shell.
-
-Zsh autocompletion is currently limited to only autocomplete options. Bash autocompletion also completes
-options values (for example, Python version or static check name).
-
-Setting Defaults for User Interaction
---------------------------------------
+Setting default answers for user interaction
+--------------------------------------------
 
 Sometimes during the build, you are asked whether to perform an action, skip it, or quit. This happens
 when rebuilding or removing an image - actions that take a lot of time and could be potentially destructive.
@@ -617,67 +905,117 @@ If ``FORCE_ANSWER_TO_QUESTIONS`` is set to ``quit``, the whole script is aborted
 
 If more than one variable is set, ``yes`` takes precedence over ``no``, which takes precedence over ``quit``.
 
-Building the Documentation
---------------------------
+Fixing File/Directory Ownership
+-------------------------------
 
-To build documentation in Breeze, use the ``build-docs`` command:
+On Linux, there is a problem with propagating ownership of created files (a known Docker problem). The
+files and directories created in the container are not owned by the host user (but by the root user in our
+case). This may prevent you from switching branches, for example, if files owned by the root user are
+created within your sources. In case you are on a Linux host and have some files in your sources created
+by the root user, you can fix the ownership of those files by running this script:
+
+.. code-block::
+
+  ./scripts/ci/tools/ci_fix_ownership.sh
+
+Mounting Local Sources to Breeze
+--------------------------------
+
+Important sources of Airflow are mounted inside the ``airflow`` container that you enter.
+This means that you can continue editing your changes on the host in your favourite IDE and have them
+visible in the Docker immediately and ready to test without rebuilding images. You can disable mounting
+by specifying ``--skip-mounting-local-sources`` flag when running Breeze. In this case you will have sources
+embedded in the container and changes to these sources will not be persistent.
+
+
+After you run Breeze for the first time, you will have empty directory ``files`` in your source code,
+which will be mapped to ``/files`` in your Docker container. You can pass there any files you need to
+configure and run Docker. They will not be removed between Docker runs.
+
+By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
+the directory used by airflow scheduler and webserver to scan dags for. You can use it to test your dags
+from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze.
+
+Port Forwarding
+---------------
+
+When you run Airflow Breeze, the following ports are automatically forwarded:
+
+* 28080 -> forwarded to Airflow webserver -> airflow:8080
+* 25433 -> forwarded to Postgres database -> postgres:5432
+* 23306 -> forwarded to MySQL database  -> mysql:3306
+
+You can connect to these ports/databases using:
+
+* Webserver: ``http://127.0.0.1:28080``
+* Postgres: ``jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow``
+* Mysql: ``jdbc:mysql://localhost:23306/airflow?user=root``
+
+Start the webserver manually with the ``airflow webserver`` command if you want to connect
+to the webserver. You can use ``tmux`` to multiply terminals. You may need to create a user prior to
+running the webserver in order to log in. This can be done with the following command:
 
 .. code-block:: bash
 
-     ./breeze build-docs
+    airflow users create --role Admin --username admin --password admin --email admin@example.com --firstname foo --lastname bar
 
-Results of the build can be found in the ``docs/_build`` folder.
-
-Often errors during documentation generation come from the docstrings of auto-api generated classes.
-During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
-easily identify the location the problems with documentation originated from.
-
-Using Your Host IDE
-===================
-
-You can set up your host IDE (for example, IntelliJ's PyCharm/Idea) to work with Breeze
-and benefit from all the features provided by your IDE, such as local and remote debugging,
-autocompletion, documentation support, etc.
-
-To use your host IDE with Breeze:
-
-1. Create a local virtual environment as follows:
-
-   ``mkvirtualenv <ENV_NAME> --python=python<VERSION>``
-
-   You can use any of the following wrappers to create and manage your virtual environemnts:
-   `pyenv <https://github.com/pyenv/pyenv>`_, `pyenv-virtualenv <https://github.com/pyenv/pyenv-virtualenv>`_,
-   or `virtualenvwrapper <https://virtualenvwrapper.readthedocs.io/en/latest/>`_.
-
-   Ideally, you should have virtualenvs for all Python versions supported by Airflow (2.7, 3.5, 3.6, 3.7)
-   and switch between them with the ``workon`` command.
-
-2. Use the ``workon`` command to enter the Breeze environment.
-
-3. Initialize the created local virtualenv:
-
-   ``./breeze initialize-local-virtualenv``
-
-4. Select the virtualenv you created as the project's default virtualenv in your IDE.
-
-Note that you can also use the local virtualenv for Airflow development without Breeze.
-This is a lightweight solution that has its own limitations.
-
-More details on using the local virtualenv are available in the `LOCAL_VIRTUALENV.rst <LOCAL_VIRTUALENV.rst>`_.
-
-Running static checks in Breeze
-===============================
-
-The Breeze environment is also used to run some of the static checks as described in
-`STATIC_CODE_CHECKS.rst <STATIC_CODE_CHECKS.rst>`_.
+For databases, you need to run ``airflow db reset`` at least once (or run some tests) after you started
+Airflow Breeze to get the database/tables created. You can connect to databases with IDE or any other
+database client:
 
 
-Running Tests in Breeze
-=======================
+.. raw:: html
 
-As soon as you enter the Breeze environment, you can run Airflow unit tests via the ``pytest`` command.
+    <div align="center">
+        <img src="images/database_view.png" width="640"
+             alt="Airflow Breeze - Database view">
+    </div>
 
-For supported CI test suites, types of unit tests, and other tests, see `TESTING.rst <TESTING.rst>`_.
+You can change the used host port numbers by setting appropriate environment variables:
+
+* ``WEBSERVER_HOST_PORT``
+* ``POSTGRES_HOST_PORT``
+* ``MYSQL_HOST_PORT``
+
+If you set these variables, next time when you enter the environment the new ports should be in effect.
+
+Managing Dependencies
+---------------------
+
+If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py`` or
+add javascript dependencies in ``package.json``, you can either add dependencies temporarily for a single
+Breeze session or permanently in ``setup.py``, ``Dockerfile.ci``, or ``package.json`` files.
+
+Installing Dependencies for a Single Breeze Session
+...................................................
+
+You can install dependencies inside the container using ``sudo apt install``, ``pip install`` or
+``yarn install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
+quickly while you are in the container. However, these changes are not retained: they disappear once you
+exit the container (except for the node.js dependencies if your sources are mounted to the container).
+Therefore, if you want to retain a new dependency, follow the second option described below.
+
+Adding Dependencies Permanently
+...............................
+
+You can add dependencies to the ``Dockerfile.ci``, ``setup.py`` or ``package.json`` and rebuild the image.
+This should happen automatically if you modify any of these files.
+After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
+asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
+if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the
+``build-image`` command to only rebuild CI image and not to go into shell.
+
+Incremental apt Dependencies in the Dockerfile.ci during development
+....................................................................
+
+During development, changing dependencies in ``apt-get`` closer to the top of the ``Dockerfile.ci``
+invalidates cache for most of the image. It takes long time for Breeze to rebuild the image.
+So, it is a recommended practice to add new dependencies initially closer to the end
+of the ``Dockerfile.ci``. This way dependencies will be added incrementally.
+
+Before merge, these dependencies should be moved to the appropriate ``apt-get install`` command,
+which is already in the ``Dockerfile.ci``.
+
 
 Breeze Command-Line Interface Reference
 =======================================
@@ -706,7 +1044,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
     build-image                              Builds CI or Production docker image
     cleanup-image                            Cleans up the container image created
     exec                                     Execs into running breeze container in new terminal
-    generate-requirements                    Generates pinned requirements for pip dependencies
+    generate-constraints                     Generates pinned constraint files
     push-image                               Pushes images to registry
     initialize-local-virtualenv              Initializes local virtualenv
     setup-autocomplete                       Sets up autocomplete for breeze
@@ -808,7 +1146,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 master v1-10-test
+                 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 master
+                 v1-10-test
 
   -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
           If specified, installs Airflow directly from reference in GitHub. This happens at
@@ -950,16 +1289,18 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ####################################################################################################
 
 
-  Detailed usage for command: generate-requirements
+  Detailed usage for command: generate-constraints
 
 
-  breeze generate-requirements [FLAGS]
+  breeze generate-constraints [FLAGS]
 
-        Generates pinned requirements from setup.py. Those requirements are generated in requirements
-        directory - separately for different python version. Those requirements are used to run
-        CI builds as well as run repeatable production image builds. You can use those requirements
-        to predictably install released Airflow versions. You should run it always after you update
-        setup.py.
+        Generates pinned constraint files from setup.py. Those files are generated in files folder
+        - separate files for different python version. Those constraint files when pushed to orphan
+        constraint-master and constraint-1-10 branches are used to generate repeatable
+        CI builds as well as run repeatable production image builds. You can use those constraints
+        to predictably install released Airflow versions. This is mainly used to test the constraint
+        generation - constraints are pushed to the orphan branches by a successful scheduled
+        CRON job in CI automatically.
 
   Flags:
 
@@ -1035,8 +1376,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
   breeze initialize-local-virtualenv [FLAGS]
 
         Initializes locally created virtualenv installing all dependencies of Airflow
-        taking into account the frozen requirements from requirements folder.
-        This local virtualenv can be used to aid autocompletion and IDE support as
+        taking into account the constraints for the version specified.
+        This local virtualenv can be used to aid auto-completion and IDE support as
         well as run unit tests directly from the IDE. You need to have virtualenv
         activated before running this command.
 
@@ -1177,7 +1518,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         to the cluster so you can also pass appropriate build image flags that will influence
         rebuilding the production image. Operation is one of:
 
-                 start stop restart status deploy test
+                 start stop restart status deploy test shell
 
   Flags:
 
@@ -1393,11 +1734,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -i, --integration <INTEGRATION>
           Integration to start during tests - it determines which integrations are started
           for integration tests. There can be more than one integration started, or all to
-          }
           start all integrations. Selected integrations are not saved for future execution.
           One of:
 
-                 cassandra kerberos mongo openldap rabbitmq redis
+                 cassandra kerberos mongo openldap rabbitmq redis all
 
   ****************************************************************************************************
    Kind kubernetes and Kubernetes tests configuration(optional)
@@ -1416,9 +1756,25 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes version - only used in case one of --kind-cluster-* commands is used.
           One of:
 
-                 v1.15.3
+                 v1.18.6 v1.17.5 v1.16.9
 
-          Default: v1.15.3
+          Default: v1.18.6
+
+  --kind-version <KIND_VERSION>
+          Kind version - only used in case one of --kind-cluster-* commands is used.
+          One of:
+
+                 v0.8.0
+
+          Default: v0.8.0
+
+  --helm-version <HELM_VERSION>
+          Helm version - only used in case one of --kind-cluster-* commands is used.
+          One of:
+
+                 v3.2.4
+
+          Default: v3.2.4
 
   ****************************************************************************************************
    Manage mounting local files
@@ -1446,7 +1802,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If specified, installs Airflow directly from PIP released version. This happens at
           image building time in production image and at container entering time for CI image. One of:
 
-                 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 master v1-10-test
+                 1.10.11 1.10.10 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 master
+                 v1-10-test
 
   -t, --install-airflow-reference <INSTALL_AIRFLOW_REFERENCE>
           If specified, installs Airflow directly from reference in GitHub. This happens at
@@ -1560,42 +1917,3 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Shows detailed help message for the command specified.
 
  .. END BREEZE HELP MARKER
-
-
-Troubleshooting
-===============
-
-If you are having problems with the Breeze environment, try the steps below. After each step you
-can check whether your problem is fixed.
-
-1. If you are on macOS, check if you have enough disk space for Docker.
-2. Restart Breeze with ``./breeze restart``.
-3. Delete the ``.build`` directory and run ``./breeze build-image --force-pull-images``.
-4. Clean up Docker images via ``breeze cleanup-image`` command.
-5. Restart your Docker Engine and try again.
-6. Restart your machine and try again.
-7. Re-install Docker CE and try again.
-
-In case the problems are not solved, you can set the VERBOSE_COMMANDS variable to "true":
-
-.. code-block::
-
-        export VERBOSE_COMMANDS="true"
-
-
-Then run the failed command, copy-and-paste the output from your terminal to the
-`Airflow Slack <https://apache-airflow-slack.herokuapp.com/>`_  #airflow-breeze channel and
-describe your problem.
-
-Fixing File/Directory Ownership
--------------------------------
-
-On Linux, there is a problem with propagating ownership of created files (a known Docker problem). The
-files and directories created in the container are not owned by the host user (but by the root user in our
-case). This may prevent you from switching branches, for example, if files owned by the root user are
-created within your sources. In case you are on a Linux host and have some files in your sources created
-by the root user, you can fix the ownership of those files by running this script:
-
-.. code-block::
-
-  ./scripts/ci/ci_fix_ownership.sh

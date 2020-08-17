@@ -259,7 +259,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
     @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
     def test_pass_min_value_max_value(self, mock_get_db_hook):
         mock_hook = mock.Mock()
-        mock_hook.get_first.return_value = [(10,)]
+        mock_hook.get_first.return_value = (10,)
         mock_get_db_hook.return_value = mock_hook
 
         operator = self._construct_operator(
@@ -271,7 +271,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
     @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
     def test_fail_min_value_max_value(self, mock_get_db_hook):
         mock_hook = mock.Mock()
-        mock_hook.get_first.return_value = [(10,)]
+        mock_hook.get_first.return_value = (10,)
         mock_get_db_hook.return_value = mock_hook
 
         operator = self._construct_operator(
@@ -284,7 +284,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
     @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
     def test_pass_min_sql_max_sql(self, mock_get_db_hook):
         mock_hook = mock.Mock()
-        mock_hook.get_first.side_effect = lambda x: [(int(x.split()[1]),)]
+        mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
         mock_get_db_hook.return_value = mock_hook
 
         operator = self._construct_operator(
@@ -295,7 +295,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
     @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
     def test_fail_min_sql_max_sql(self, mock_get_db_hook):
         mock_hook = mock.Mock()
-        mock_hook.get_first.side_effect = lambda x: [(int(x.split()[1]),)]
+        mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
         mock_get_db_hook.return_value = mock_hook
 
         operator = self._construct_operator(
@@ -307,7 +307,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
     @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
     def test_pass_min_value_max_sql(self, mock_get_db_hook):
         mock_hook = mock.Mock()
-        mock_hook.get_first.side_effect = lambda x: [(int(x.split()[1]),)]
+        mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
         mock_get_db_hook.return_value = mock_hook
 
         operator = self._construct_operator("Select 75", 45, "Select 100")
@@ -317,7 +317,7 @@ class TestThresholdCheckOperator(unittest.TestCase):
     @mock.patch.object(ThresholdCheckOperator, "get_db_hook")
     def test_fail_min_sql_max_value(self, mock_get_db_hook):
         mock_hook = mock.Mock()
-        mock_hook.get_first.side_effect = lambda x: [(int(x.split()[1]),)]
+        mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
         mock_get_db_hook.return_value = mock_hook
 
         operator = self._construct_operator("Select 155", "Select 45", 100)

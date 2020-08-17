@@ -16,11 +16,17 @@
 # under the License.
 import unittest
 import mock
+from kubernetes.client import models as k8s
 
 from requests.exceptions import BaseHTTPError
 
 from airflow import AirflowException
-from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.contrib.kubernetes.pod import Pod
+from airflow.kubernetes.pod import Port
+from airflow.kubernetes.pod_launcher import PodLauncher, _convert_to_airflow_pod
+from airflow.kubernetes.volume import Volume
+from airflow.kubernetes.secret import Secret
+from airflow.kubernetes.volume_mount import VolumeMount
 
 
 class TestPodLauncher(unittest.TestCase):
@@ -162,3 +168,148 @@ class TestPodLauncher(unittest.TestCase):
             self.pod_launcher.read_pod,
             mock.sentinel
         )
+
+
+class TestPodLauncherHelper(unittest.TestCase):
+    def test_convert_to_airflow_pod(self):
+        input_pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="foo",
+                namespace="bar"
+            ),
+            spec=k8s.V1PodSpec(
+                init_containers=[
+                    k8s.V1Container(
+                        name="init-container",
+                        volume_mounts=[k8s.V1VolumeMount(mount_path="/tmp", name="init-secret")]
+                    )
+                ],
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        command=["foo"],
+                        image="myimage",
+                        env=[
+                            k8s.V1EnvVar(
+                                name="AIRFLOW_SECRET",
+                                value_from=k8s.V1EnvVarSource(
+                                    secret_key_ref=k8s.V1SecretKeySelector(
+                                        name="ai",
+                                        key="secret_key"
+                                    )
+                                ))
+                        ],
+                        ports=[
+                            k8s.V1ContainerPort(
+                                name="myport",
+                                container_port=8080,
+                            )
+                        ],
+                        volume_mounts=[
+                            k8s.V1VolumeMount(
+                                name="myvolume",
+                                mount_path="/tmp/mount",
+                                read_only="True"
+                            ),
+                            k8s.V1VolumeMount(
+                                name='airflow-config',
+                                mount_path='/config',
+                                sub_path='airflow.cfg',
+                                read_only=True
+                            ),
+                            k8s.V1VolumeMount(
+                                name="airflow-secret",
+                                mount_path="/opt/mount",
+                                read_only=True
+                            )]
+                    )
+                ],
+                security_context=k8s.V1PodSecurityContext(
+                    run_as_user=0,
+                    fs_group=0,
+                ),
+                volumes=[
+                    k8s.V1Volume(
+                        name="myvolume"
+                    ),
+                    k8s.V1Volume(
+                        name="airflow-config",
+                        config_map=k8s.V1ConfigMap(
+                            data="airflow-data"
+                        )
+                    ),
+                    k8s.V1Volume(
+                        name="airflow-secret",
+                        secret=k8s.V1SecretVolumeSource(
+                            secret_name="secret-name",
+
+                        )
+                    ),
+                    k8s.V1Volume(
+                        name="init-secret",
+                        secret=k8s.V1SecretVolumeSource(
+                            secret_name="secret-name",
+                        )
+                    )
+                ]
+            )
+        )
+        result_pod = _convert_to_airflow_pod(input_pod)
+
+        expected = Pod(
+            name="foo",
+            namespace="bar",
+            envs={},
+            init_containers=[
+                {'name': 'init-container', 'volumeMounts': [{'mountPath': '/tmp', 'name': 'init-secret'}]}
+            ],
+            cmds=["foo"],
+            image="myimage",
+            ports=[
+                Port(name="myport", container_port=8080)
+            ],
+            volume_mounts=[
+                VolumeMount(
+                    name="myvolume",
+                    mount_path="/tmp/mount",
+                    sub_path=None,
+                    read_only="True"
+                ),
+                VolumeMount(
+                    name="airflow-config",
+                    read_only=True,
+                    mount_path="/config",
+                    sub_path="airflow.cfg"
+                ),
+                VolumeMount(
+                    name="airflow-secret",
+                    read_only=True,
+                    mount_path="/opt/mount",
+                    sub_path=None,
+                )],
+            secrets=[Secret("env", "AIRFLOW_SECRET", "ai", "secret_key"),
+                     Secret('volume', '/opt/mount', 'airflow-secret', "secret-name"),
+                     Secret('volume', None, 'init-secret', 'secret-name')],
+            security_context={'fsGroup': 0, 'runAsUser': 0},
+            volumes=[Volume(name="myvolume", configs={'name': 'myvolume'}),
+                     Volume(name="airflow-config", configs={'configMap': {'data': 'airflow-data'},
+                                                            'name': 'airflow-config'})]
+        )
+        expected_dict = expected.as_dict()
+        result_dict = result_pod.as_dict()
+        parsed_configs = self.pull_out_volumes(result_dict)
+        result_dict['volumes'] = parsed_configs
+        self.assertDictEqual(expected_dict, result_dict)
+
+    @staticmethod
+    def pull_out_volumes(result_dict):
+        parsed_configs = []
+        for volume in result_dict['volumes']:
+            vol = {'name': volume['name']}
+            confs = {}
+            for k, v in volume['configs'].items():
+                if v and k[0] != '_':
+                    confs[k] = v
+            vol['configs'] = confs
+            parsed_configs.append(vol)
+        return parsed_configs

@@ -55,6 +55,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param variables_path: Specifies the path of the secret to read to get Variables.
         (default: 'variables')
     :type variables_path: str
+    :param config_path: Specifies the path of the secret to read Airflow Configurations
+        (default: 'configs').
+    :type config_path: str
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
     :param auth_type: Authentication Type for Vault (one of 'token', 'ldap', 'userpass', 'approle',
@@ -89,6 +92,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         self,
         connections_path='connections',  # type: str
         variables_path='variables',  # type: str
+        config_path='config',  # type: str
         url=None,  # type: Optional[str]
         auth_type='token',  # type: str
         mount_point='secret',  # type: str
@@ -104,9 +108,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         gcp_scopes=None,  # type: Optional[str]
         **kwargs
     ):
-        super(VaultBackend, self).__init__(**kwargs)
+        super(VaultBackend, self).__init__()
         self.connections_path = connections_path.rstrip('/')
         self.variables_path = variables_path.rstrip('/')
+        self.config_path = config_path.rstrip('/')
         self.url = url
         self.auth_type = auth_type
         self.kwargs = kwargs
@@ -179,7 +184,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     def get_variable(self, key):
         # type: (str) -> Optional[str]
         """
-        Get Airflow Variable from Environment Variable
+        Get Airflow Variable
 
         :param key: Variable Key
         :return: Variable Value
@@ -213,3 +218,16 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return_data = response["data"] if self.kv_engine_version == 1 else response["data"]["data"]
         return return_data
+
+    def get_config(self, key):
+        # type: (str) -> Optional[str]
+        """
+        Get Airflow Configuration
+
+        :param key: Configuration Option Key
+        :type key: str
+        :rtype: str
+        :return: Configuration Option Value retrieved from the vault
+        """
+        response = self._get_secret(self.config_path, key)
+        return response.get("value") if response else None

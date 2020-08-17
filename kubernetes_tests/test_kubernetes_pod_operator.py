@@ -404,7 +404,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'limits': {
                 'memory': '64Mi',
                 'cpu': 0.25,
-                'nvidia.com/gpu': None,
                 'ephemeral-storage': '2Gi'
             }
         }

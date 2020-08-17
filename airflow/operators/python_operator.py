@@ -234,8 +234,8 @@ class PythonVirtualenvOperator(PythonOperator):
         python_version=None,  # type: Optional[str]
         use_dill=False,  # type: bool
         system_site_packages=True,  # type: bool
-        op_args=None,  # type: Iterable
-        op_kwargs=None,  # type: Dict
+        op_args=None,  # type: Optional[Iterable]
+        op_kwargs=None,  # type: Optional[Dict]
         provide_context=False,  # type: bool
         string_args=None,  # type: Optional[Iterable[str]]
         templates_dict=None,  # type: Optional[Dict]

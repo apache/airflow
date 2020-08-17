@@ -29,26 +29,27 @@ function add_build_args_for_remote_install() {
     )
     if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]([0-9]*) ]]; then
         # All types of references/versions match this regexp for 1.10 series
-        # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} is the () group matches last
+        # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} matches last
         # minor digit of version and it's length is 0 for v1_10_test, 1 for 1.10.9 and 2 for 1.10.10+
-        if [[ ${#BASH_REMATCH[1]} == "1" ]]; then
-            # This is only for 1.10.0 - 1.10.9
+        AIRFLOW_MINOR_VERSION_NUMBER=${BASH_REMATCH[1]}
+        if [[ ${#AIRFLOW_MINOR_VERSION_NUMBER} == "0" ]]; then
+            # For v1_10_* branches use constraints-1-10 branch
             EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/1.10.10/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-1-10"
             )
         else
             EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                # For 1.10.10+ and v1-10-test it's ok to use AIRFLOW_VERSION as reference
-                "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+                # For specified minor version of 1.10 use specific reference constraints
+                "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}"
             )
         fi
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v1-10-test"
     else
-        # For all other (master, 2.0+) we just match ${AIRFLOW_VERSION}
+        # For all other (master, 2.0+) we just get the default constraint branch
         EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-            "--build-arg" "CONSTRAINT_REQUIREMENTS=https://raw.githubusercontent.com/apache/airflow/${AIRFLOW_VERSION}/requirements/requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt"
+            "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
         )
-        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="master"
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING=${DEFAULT_BRANCH}
     fi
 }
 
@@ -311,11 +312,17 @@ function print_build_info() {
     print_info
 }
 
+function get_base_image_version() {
+    # python image version to use
+    PYTHON_BASE_IMAGE_VERSION=${PYTHON_BASE_IMAGE_VERSION:=${PYTHON_MAJOR_MINOR_VERSION}}
+}
+
 
 
 # Prepares all variables needed by the CI build. Depending on the configuration used (python version
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function prepare_ci_build() {
+    get_base_image_version
     # We use pulled docker image cache by default for CI images to  speed up the builds
     export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
     echo
@@ -334,14 +341,14 @@ function prepare_ci_build() {
         fi
         export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_ORGANISATION}/${GITHUB_REPO}}
         export CACHED_AIRFLOW_CI_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_CI_BASE_TAG}"
-        export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
+        export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     else
         export CACHED_AIRFLOW_CI_IMAGE=""
         export CACHED_PYTHON_BASE_IMAGE=""
     fi
     export AIRFLOW_BUILD_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}/${AIRFLOW_CI_BASE_TAG}"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-ci"
-    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
+    export PYTHON_BASE_IMAGE="python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
     if [[ "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" == "${PYTHON_MAJOR_MINOR_VERSION}" ]]; then
         export DEFAULT_IMAGE="${AIRFLOW_CI_IMAGE_DEFAULT}"
@@ -415,7 +422,7 @@ function rebuild_ci_image_if_needed() {
             if [[ ${SYSTEM} != "Darwin" ]]; then
                 ROOT_FILES_COUNT=$(find "airflow" "tests" -user root | wc -l | xargs)
                 if [[ ${ROOT_FILES_COUNT} != "0" ]]; then
-                    ./scripts/ci/ci_fix_ownership.sh
+                    ./scripts/ci/tools/ci_fix_ownership.sh
                 fi
             fi
             print_info
@@ -479,7 +486,7 @@ function rebuild_ci_image_if_needed_and_confirmed() {
 }
 
 # Determines the strategy to be used for caching based on the type of CI job run.
-# In case of CRON jobs we run builds without cache and upgrade to latest requirements
+# In case of CRON jobs we run builds without cache and upgrade contstraint files to latest
 function determine_cache_strategy() {
     if [[ "${CI_EVENT_TYPE:=}" == "schedule" ]]; then
         echo
@@ -487,18 +494,14 @@ function determine_cache_strategy() {
         echo
         export DOCKER_CACHE="disabled"
         echo
-        echo "Requirements are upgraded to latest for scheduled CI build"
-        echo
-        export UPGRADE_TO_LATEST_REQUIREMENTS="true"
     else
         echo
         echo "Pull cache used for regular CI builds"
         echo
         export DOCKER_CACHE="pulled"
         echo
-        echo "Requirements are not upgraded to latest ones for regular CI builds"
+        echo "Constraints are not upgraded to latest ones for regular CI builds"
         echo
-        export UPGRADE_TO_LATEST_REQUIREMENTS="false"
     fi
 }
 
@@ -509,7 +512,7 @@ function determine_cache_strategy() {
 function build_ci_image_on_ci() {
     export SKIP_CI_IMAGE_CHECK="false"
 
-    get_ci_environment
+    get_environment_for_builds_on_ci
     determine_cache_strategy
     prepare_ci_build
 
@@ -565,14 +568,15 @@ Docker building ${AIRFLOW_CI_IMAGE}.
     verbose_docker build \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
-            --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
+        --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         --build-arg ADDITIONAL_DEV_DEPS="${ADDITIONAL_DEV_DEPS}" \
         --build-arg ADDITIONAL_RUNTIME_DEPS="${ADDITIONAL_RUNTIME_DEPS}" \
-        --build-arg UPGRADE_TO_LATEST_REQUIREMENTS="${UPGRADE_TO_LATEST_REQUIREMENTS}" \
+        --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+        --build-arg UPGRADE_TO_LATEST_CONSTRAINTS="${UPGRADE_TO_LATEST_CONSTRAINTS}" \
         "${DOCKER_CACHE_CI_DIRECTIVE[@]}" \
         -t "${AIRFLOW_CI_IMAGE}" \
         --target "main" \
@@ -591,6 +595,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
 # Prepares all variables needed by the CI build. Depending on the configuration used (python version
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function prepare_prod_build() {
+    get_base_image_version
     # We use local docker image cache by default for Production images
     export DOCKER_CACHE=${DOCKER_CACHE:="local"}
     echo
@@ -621,7 +626,7 @@ function prepare_prod_build() {
     export AIRFLOW_PROD_BUILD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-build"
     export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}"
     export AIRFLOW_PROD_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}"
-    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
+    export PYTHON_BASE_IMAGE="python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     if [[ "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" == "${PYTHON_MAJOR_MINOR_VERSION}" ]]; then
         export DEFAULT_IMAGE="${AIRFLOW_PROD_IMAGE_DEFAULT}"
     else
@@ -646,20 +651,14 @@ function prepare_prod_build() {
         export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_ORGANISATION}/${GITHUB_REPO}}
         export CACHED_AIRFLOW_PROD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}"
         export CACHED_AIRFLOW_PROD_BUILD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}-build"
-        export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
+        export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     else
         export CACHED_AIRFLOW_PROD_IMAGE=""
         export CACHED_AIRFLOW_PROD_BUILD_IMAGE=""
         export CACHED_PYTHON_BASE_IMAGE=""
     fi
-    export AIRFLOW_KUBERNETES_IMAGE=${AIRFLOW_PROD_IMAGE}-kubernetes
-    AIRFLOW_KUBERNETES_IMAGE_NAME=$(echo "${AIRFLOW_KUBERNETES_IMAGE}" | cut -f 1 -d ":")
-    export AIRFLOW_KUBERNETES_IMAGE_NAME
-    AIRFLOW_KUBERNETES_IMAGE_TAG=$(echo "${AIRFLOW_KUBERNETES_IMAGE}" | cut -f 2 -d ":")
-    export AIRFLOW_KUBERNETES_IMAGE_TAG
 
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
-
     go_to_airflow_sources
 }
 
@@ -668,7 +667,7 @@ function prepare_prod_build() {
 # Depending on the type of build (push/pr/scheduled) it will either build it incrementally or
 # from the scratch without cache (the latter for scheduled builds only)
 function build_prod_image_on_ci() {
-    get_prod_environment
+    get_environment_for_builds_on_ci
 
     determine_cache_strategy
 
@@ -726,6 +725,7 @@ function build_prod_image() {
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         --build-arg ADDITIONAL_DEV_DEPS="${ADDITIONAL_DEV_DEPS}" \
+        --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="${DEFAULT_CONSTRAINTS_BRANCH}" \
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
         -t "${AIRFLOW_PROD_BUILD_IMAGE}" \
         --target "airflow-build-image" \
@@ -741,6 +741,8 @@ function build_prod_image() {
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
+        --build-arg EMBEDDED_DAGS="${EMBEDDED_DAGS}" \
+        --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="${DEFAULT_CONSTRAINTS_BRANCH}" \
         "${DOCKER_CACHE_PROD_DIRECTIVE[@]}" \
         -t "${AIRFLOW_PROD_IMAGE}" \
         --target "main" \
