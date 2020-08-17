@@ -54,7 +54,7 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
             'os.environ',
             AIRFLOW__LOGGING__REMOTE_LOGGING="true",
             AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=f"stackdriver://{self.log_name}",
-            AIRFLOW__LOGGING__STACKDRIVER_KEY_PATH=resolve_full_gcp_key_path(GCP_STACKDDRIVER),
+            AIRFLOW__LOGGING__GOOGLE_KEY_PATH=resolve_full_gcp_key_path(GCP_STACKDDRIVER),
             AIRFLOW__CORE__LOAD_EXAMPLES="false",
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__
         ):
