@@ -167,6 +167,8 @@
 
       // When an expanded group is clicked, collapse it.
       d3.selectAll("g.cluster").on("click", function (node_id) {
+        if (d3.event.defaultPrevented) // Ignore dragging actions.
+            return;
         node = g.node(node_id)
         collapse_group(node_id, node)
       })
@@ -175,6 +177,8 @@
         node = g.node(node_id)
         if (node.children != undefined && Object.keys(node.children).length > 0) {
           // A group node
+          if (d3.event.defaultPrevented) // Ignore dragging actions.
+            return;
           expand_group(node_id, node)
         } else {
           // A task node
