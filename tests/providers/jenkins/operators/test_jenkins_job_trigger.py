@@ -17,6 +17,7 @@
 # under the License.
 
 import unittest
+from parameterized import parameterized
 
 import jenkins
 import mock
@@ -25,10 +26,17 @@ from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
 
+TEST_PARAMS = [
+    ({'a_param': 'blip', 'another_param': '42'},),
+    ('{"a_param": "blip", "another_param": "42"}',),
+    (['a_param', 'blip', 'another_param', '42'],),
+]
+
 
 class TestJenkinsOperator(unittest.TestCase):
+    @parameterized.expand(TEST_PARAMS)
     @unittest.skipIf(mock is None, 'mock package not present')
-    def test_execute(self):
+    def test_execute(self, the_parameters):
         jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
         jenkins_mock.get_build_info.return_value = \
             {'result': 'SUCCESS',
@@ -38,8 +46,6 @@ class TestJenkinsOperator(unittest.TestCase):
 
         hook_mock = mock.Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
-
-        the_parameters = {'a_param': 'blip', 'another_param': '42'}
 
         with mock.patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
             mock.patch(
@@ -64,8 +70,9 @@ class TestJenkinsOperator(unittest.TestCase):
             jenkins_mock.get_build_info.assert_called_once_with(name='a_job_on_jenkins',
                                                                 number='1')
 
+    @parameterized.expand(TEST_PARAMS)
     @unittest.skipIf(mock is None, 'mock package not present')
-    def test_execute_job_polling_loop(self):
+    def test_execute_job_polling_loop(self, the_parameters):
         jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
         jenkins_mock.get_job_info.return_value = {'nextBuildNumber': '1'}
         jenkins_mock.get_build_info.side_effect = \
@@ -77,8 +84,6 @@ class TestJenkinsOperator(unittest.TestCase):
 
         hook_mock = mock.Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
-
-        the_parameters = {'a_param': 'blip', 'another_param': '42'}
 
         with mock.patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
             mock.patch(
@@ -100,8 +105,9 @@ class TestJenkinsOperator(unittest.TestCase):
             operator.execute(None)
             self.assertEqual(jenkins_mock.get_build_info.call_count, 2)
 
+    @parameterized.expand(TEST_PARAMS)
     @unittest.skipIf(mock is None, 'mock package not present')
-    def test_execute_job_failure(self):
+    def test_execute_job_failure(self, the_parameters):
         jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
         jenkins_mock.get_job_info.return_value = {'nextBuildNumber': '1'}
         jenkins_mock.get_build_info.return_value = {
@@ -112,8 +118,6 @@ class TestJenkinsOperator(unittest.TestCase):
 
         hook_mock = mock.Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
-
-        the_parameters = {'a_param': 'blip', 'another_param': '42'}
 
         with mock.patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
             mock.patch(
