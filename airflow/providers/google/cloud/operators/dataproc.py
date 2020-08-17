@@ -42,8 +42,12 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 
+DATAPROC_BASE_LINK = "https://console.cloud.google.com/dataproc"
 DATAPROC_JOB_LOG_LINK = \
-    "https://console.cloud.google.com/dataproc/jobs/{job_id}?region={region}&project={project_id}"
+    DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
+DATAPROC_CLUSTER_LINK = \
+    DATAPROC_BASE_LINK + "/clusters/{cluster_name}/monitoring?" \
+    "region={region}&project={project_id}"
 
 
 class DataprocJobLink(BaseOperatorLink):
@@ -60,6 +64,22 @@ class DataprocJobLink(BaseOperatorLink):
             region=job_conf['region'],
             project_id=job_conf['project_id']
         ) if job_conf else ''
+
+
+class DataprocClusterLink(BaseOperatorLink):
+    """
+    Helper class for constructing Dataproc Cluster link
+    """
+    name = "Dataproc Cluster"
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        cluster_conf = ti.xcom_pull(task_ids=operator.task_id, key='cluster_conf')
+        return DATAPROC_CLUSTER_LINK.format(
+            cluster_name=cluster_conf['cluster_name'],
+            region=cluster_conf['region'],
+            project_id=cluster_conf['project_id']
+        ) if cluster_conf else ''
 
 
 # pylint: disable=too-many-instance-attributes
@@ -498,6 +518,10 @@ class DataprocCreateClusterOperator(BaseOperator):
     )
     template_fields_renderers = {'cluster_config': 'json'}
 
+    operator_extra_links = (
+        DataprocClusterLink(),
+    )
+
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -662,6 +686,11 @@ class DataprocCreateClusterOperator(BaseOperator):
             cluster = self._create_cluster(hook)
             self._handle_error_state(hook, cluster)
 
+        self.xcom_push(context, key='cluster_conf', value={
+            'cluster_name': self.cluster_name,
+            'region': self.region,
+            'project_id': self.project_id
+        })
         return Cluster.to_dict(cluster)
 
 
@@ -713,6 +742,10 @@ class DataprocScaleClusterOperator(BaseOperator):
     """
 
     template_fields = ['cluster_name', 'project_id', 'region', 'impersonation_chain']
+
+    operator_extra_links = (
+        DataprocClusterLink(),
+    )
 
     @apply_defaults
     def __init__(
@@ -803,6 +836,11 @@ class DataprocScaleClusterOperator(BaseOperator):
         )
         operation.result()
         self.log.info("Cluster scaling finished")
+        self.xcom_push(context, key='cluster_conf', value={
+            'cluster_name': self.cluster_name,
+            'region': self.region,
+            'project_id': self.project_id
+        })
 
 
 class DataprocDeleteClusterOperator(BaseOperator):
@@ -2033,6 +2071,9 @@ class DataprocUpdateClusterOperator(BaseOperator):
     """
 
     template_fields = ('impersonation_chain', 'cluster_name')
+    operator_extra_links = (
+        DataprocClusterLink(),
+    )
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
@@ -2083,3 +2124,8 @@ class DataprocUpdateClusterOperator(BaseOperator):
         )
         operation.result()
         self.log.info("Updated %s cluster.", self.cluster_name)
+        self.xcom_push(context, key='cluster_conf', value={
+            'cluster_name': self.cluster_name,
+            'region': self.location,
+            'project_id': self.project_id
+        })
