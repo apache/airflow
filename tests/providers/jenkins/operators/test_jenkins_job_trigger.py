@@ -26,17 +26,15 @@ from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
 
-TEST_PARAMS = [
-    ({'a_param': 'blip', 'another_param': '42'},),
-    ('{"a_param": "blip", "another_param": "42"}',),
-    (['a_param', 'blip', 'another_param', '42'],),
-]
 
-
+@unittest.skipIf(mock is None, 'mock package not present')
 class TestJenkinsOperator(unittest.TestCase):
-    @parameterized.expand(TEST_PARAMS)
-    @unittest.skipIf(mock is None, 'mock package not present')
-    def test_execute(self, the_parameters):
+    @parameterized.expand([
+        ("dict params", {'a_param': 'blip', 'another_param': '42'},),
+        ("string params", '{"second_param": "beep", "third_param": "153"}',),
+        ("list params", ['final_one', 'bop', 'real_final', 'eggs'],),
+    ])
+    def test_execute(self, _, parameters):
         jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
         jenkins_mock.get_build_info.return_value = \
             {'result': 'SUCCESS',
@@ -61,7 +59,7 @@ class TestJenkinsOperator(unittest.TestCase):
                 # The hook is mocked, this connection won't be used
                 task_id="operator_test",
                 job_name="a_job_on_jenkins",
-                parameters=the_parameters,
+                parameters=parameters,
                 sleep_time=1)
 
             operator.execute(None)
@@ -70,9 +68,12 @@ class TestJenkinsOperator(unittest.TestCase):
             jenkins_mock.get_build_info.assert_called_once_with(name='a_job_on_jenkins',
                                                                 number='1')
 
-    @parameterized.expand(TEST_PARAMS)
-    @unittest.skipIf(mock is None, 'mock package not present')
-    def test_execute_job_polling_loop(self, the_parameters):
+    @parameterized.expand([
+        ("dict params", {'a_param': 'blip', 'another_param': '42'},),
+        ("string params", '{"second_param": "beep", "third_param": "153"}',),
+        ("list params", ['final_one', 'bop', 'real_final', 'eggs'],),
+    ])
+    def test_execute_job_polling_loop(self, _, parameters):
         jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
         jenkins_mock.get_job_info.return_value = {'nextBuildNumber': '1'}
         jenkins_mock.get_build_info.side_effect = \
@@ -99,15 +100,18 @@ class TestJenkinsOperator(unittest.TestCase):
                 job_name="a_job_on_jenkins",
                 jenkins_connection_id="fake_jenkins_connection",
                 # The hook is mocked, this connection won't be used
-                parameters=the_parameters,
+                parameters=parameters,
                 sleep_time=1)
 
             operator.execute(None)
             self.assertEqual(jenkins_mock.get_build_info.call_count, 2)
 
-    @parameterized.expand(TEST_PARAMS)
-    @unittest.skipIf(mock is None, 'mock package not present')
-    def test_execute_job_failure(self, the_parameters):
+    @parameterized.expand([
+        ("dict params", {'a_param': 'blip', 'another_param': '42'},),
+        ("string params", '{"second_param": "beep", "third_param": "153"}',),
+        ("list params", ['final_one', 'bop', 'real_final', 'eggs'],),
+    ])
+    def test_execute_job_failure(self, _, parameters):
         jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
         jenkins_mock.get_job_info.return_value = {'nextBuildNumber': '1'}
         jenkins_mock.get_build_info.return_value = {
@@ -131,14 +135,13 @@ class TestJenkinsOperator(unittest.TestCase):
                 dag=None,
                 task_id="operator_test",
                 job_name="a_job_on_jenkins",
-                parameters=the_parameters,
+                parameters=parameters,
                 jenkins_connection_id="fake_jenkins_connection",
                 # The hook is mocked, this connection won't be used
                 sleep_time=1)
 
             self.assertRaises(AirflowException, operator.execute, None)
 
-    @unittest.skipIf(mock is None, 'mock package not present')
     def test_build_job_request_settings(self):
         jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret', timeout=2)
         jenkins_mock.build_job_url.return_value = 'http://apache.org'
