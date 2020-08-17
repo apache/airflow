@@ -42,7 +42,7 @@ from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.base import Operator
 from airflow.models.pool import Pool
 # noinspection PyPep8Naming
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -59,6 +59,8 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
+
+TaskStateChangeCallback = Callable[[Context], None]
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -220,16 +222,16 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         parameter to this function. Context contains references to related
         objects to the task instance and is documented under the macros
         section of the API.
-    :type on_failure_callback: callable
+    :type on_failure_callback: TaskStateChangeCallback
     :param on_execute_callback: much like the ``on_failure_callback`` except
         that it is executed right before the task is executed.
-    :type on_execute_callback: callable
+    :type on_execute_callback: TaskStateChangeCallback
     :param on_retry_callback: much like the ``on_failure_callback`` except
         that it is executed when retries occur.
-    :type on_retry_callback: callable
+    :type on_retry_callback: TaskStateChangeCallback
     :param on_success_callback: much like the ``on_failure_callback`` except
         that it is executed when the task succeeds.
-    :type on_success_callback: callable
+    :type on_success_callback: TaskStateChangeCallback
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
@@ -347,10 +349,10 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
         pool_slots: int = 1,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
-        on_execute_callback: Optional[Callable] = None,
-        on_failure_callback: Optional[Callable] = None,
-        on_success_callback: Optional[Callable] = None,
-        on_retry_callback: Optional[Callable] = None,
+        on_execute_callback: Optional[TaskStateChangeCallback] = None,
+        on_failure_callback: Optional[TaskStateChangeCallback] = None,
+        on_success_callback: Optional[TaskStateChangeCallback] = None,
+        on_retry_callback: Optional[TaskStateChangeCallback] = None,
         trigger_rule: str = TriggerRule.ALL_SUCCESS,
         resources: Optional[Dict] = None,
         run_as_user: Optional[str] = None,
