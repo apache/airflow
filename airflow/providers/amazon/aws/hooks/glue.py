@@ -113,7 +113,7 @@ class AwsGlueJobHook(AwsBaseHook):
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
 
-    def get_job_state(self, job_name=None, run_id=None):
+    def get_job_state(self, job_name: str = None, run_id: str = None) -> str:
         """
         Get state of the Glue job. The job state can be
         running, finished, failed, stopped or timeout.
@@ -124,15 +124,15 @@ class AwsGlueJobHook(AwsBaseHook):
         :return: State of the Glue job
         """
         glue_client = self.get_conn()
-        job_status = glue_client.get_job_run(
+        job_run = glue_client.get_job_run(
             JobName=job_name,
             RunId=run_id,
             PredecessorsIncluded=True
         )
-        job_run_state = job_status['JobRun']['JobRunState']
+        job_run_state = job_run['JobRun']['JobRunState']
         return job_run_state
 
-    def job_completion(self, job_name=None, run_id=None):
+    def job_completion(self, job_name: str = None, run_id: str = None) -> Dict[str, str]:
         """
         Waits until Glue job with job_name completes or
         fails and return final state if finished.
