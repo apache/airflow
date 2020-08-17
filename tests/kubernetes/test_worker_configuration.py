@@ -355,6 +355,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.worker_run_as_user = 0
         self.kube_config.dags_volume_claim = None
         self.kube_config.dags_volume_host = None
+        self.kube_config.base_log_folder = '/logs'
         self.kube_config.dags_in_image = None
         self.kube_config.worker_fs_group = None
         self.kube_config.git_dags_folder_mount_point = 'dags'
@@ -369,6 +370,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
     def test_make_pod_assert_labels(self):
         # Tests the pod created has all the expected labels set
         self.kube_config.dags_folder = 'dags'
+        self.kube_config.base_log_folder = '/logs'
 
         worker_config = WorkerConfiguration(self.kube_config)
         pod = PodGenerator.construct_pod(
@@ -402,6 +404,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_volume_host = None
         self.kube_config.dags_in_image = None
         self.kube_config.worker_fs_group = None
+        self.kube_config.base_log_folder = '/logs'
         self.kube_config.git_dags_folder_mount_point = 'dags'
         self.kube_config.git_sync_dest = 'repo'
         self.kube_config.git_subpath = 'path'
@@ -431,6 +434,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_volume_host = None
         self.kube_config.dags_in_image = None
         self.kube_config.worker_fs_group = None
+        self.kube_config.base_log_folder = '/logs'
         self.kube_config.git_dags_folder_mount_point = 'dags'
         self.kube_config.git_sync_dest = 'repo'
         self.kube_config.git_subpath = 'path'
@@ -469,6 +473,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_volume_host = None
         self.kube_config.dags_in_image = None
         self.kube_config.worker_fs_group = None
+        self.kube_config.base_log_folder = '/logs'
         self.kube_config.git_dags_folder_mount_point = 'dags'
         self.kube_config.git_sync_dest = 'repo'
         self.kube_config.git_subpath = 'path'
@@ -515,6 +520,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.kube_tolerations = self.tolerations_config
         self.kube_config.kube_annotations = self.worker_annotations_config
         self.kube_config.dags_folder = 'dags'
+        self.kube_config.base_log_folder = '/logs'
         worker_config = WorkerConfiguration(self.kube_config)
         pod = worker_config.as_pod()
 
@@ -533,6 +539,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
     def test_make_pod_with_executor_config(self):
         self.kube_config.dags_folder = 'dags'
+        self.kube_config.base_log_folder = '/logs'
         worker_config = WorkerConfiguration(self.kube_config)
         config_pod = PodGenerator(
             image='',
@@ -722,6 +729,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         configmap than airflow_configmap (airflow.cfg)
         """
         self.kube_config.airflow_home = '/usr/local/airflow'
+        self.kube_config.base_log_folder = '/logs'
         self.kube_config.airflow_configmap = 'airflow-configmap'
         self.kube_config.airflow_local_settings_configmap = 'airflow-ls-configmap'
         self.kube_config.dags_folder = '/workers/path/to/dags'
@@ -792,6 +800,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_volume_host = None
         self.kube_config.dags_in_image = None
         self.kube_config.git_dags_folder_mount_point = 'dags'
+        self.kube_config.base_log_folder = '/logs'
         self.kube_config.git_sync_dest = 'repo'
         self.kube_config.git_subpath = 'path'
         self.kube_config.image_pull_secrets = 'image_pull_secret1,image_pull_secret2'
