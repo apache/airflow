@@ -108,29 +108,46 @@ class AwsGlueJobHook(AwsBaseHook):
                 JobName=job_name,
                 Arguments=script_arguments
             )
-            return self.job_completion(job_name, job_run['JobRunId'])
+            return job_run
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
 
-    def job_completion(self, job_name: str, run_id: str) -> Dict[str, str]:
+    def get_job_state(self, job_name: str, run_id: str) -> str:
         """
+        Get state of the Glue job. The job state can be
+        running, finished, failed, stopped or timeout.
         :param job_name: unique job name per AWS account
         :type job_name: str
         :param run_id: The job-run ID of the predecessor job run
         :type run_id: str
-        :return: Status of the Job if succeeded or stopped
+        :return: State of the Glue job
         """
+        glue_client = self.get_conn()
+        job_run = glue_client.get_job_run(
+            JobName=job_name,
+            RunId=run_id,
+            PredecessorsIncluded=True
+        )
+        job_run_state = job_run['JobRun']['JobRunState']
+        return job_run_state
+
+    def job_completion(self, job_name: str, run_id: str) -> Dict[str, str]:
+        """
+        Waits until Glue job with job_name completes or
+        fails and return final state if finished.
+        Raises AirflowException when the job failed
+        :param job_name: unique job name per AWS account
+        :type job_name: str
+        :param run_id: The job-run ID of the predecessor job run
+        :type run_id: str
+        :return: Dict of JobRunState and JobRunId
+        """
+        failed_states = ['FAILED', 'TIMEOUT']
+        finished_states = ['SUCCEEDED', 'STOPPED']
+
         while True:
-            glue_client = self.get_conn()
-            job_status = glue_client.get_job_run(
-                JobName=job_name,
-                RunId=run_id,
-                PredecessorsIncluded=True
-            )
-            job_run_state = job_status['JobRun']['JobRunState']
-            failed_states = ['FAILED', 'TIMEOUT']
-            finished_states = ['SUCCEEDED', 'STOPPED']
+            job_run_state = self.get_job_state(job_name, run_id)
             if job_run_state in finished_states:
                 self.log.info("Exiting Job %s Run State: %s", run_id, job_run_state)
                 return {'JobRunState': job_run_state, 'JobRunId': run_id}
