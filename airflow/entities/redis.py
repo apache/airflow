@@ -57,7 +57,7 @@ class ClsRedisConnection(ClsEntity):
     def doUnsubscribe(self):
         if not self.pubsub:
             return
-        self.pubsub.punsubscribe(**self.channels)
+        self.pubsub.punsubscribe()
 
     def signal_handler(self, sig, frame):
         _logger.info('redis connection ended by signal {}, frame: {}'.format(sig, frame))
