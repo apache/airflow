@@ -17,10 +17,10 @@
 # under the License.
 
 import unittest
-from parameterized import parameterized
 
 import jenkins
 import mock
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
