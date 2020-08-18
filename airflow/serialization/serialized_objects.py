@@ -676,18 +676,18 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         if not task_group:
             return None
 
-        serialize_group = {}
-        serialize_group["_group_id"] = task_group._group_id  # pylint: disable=protected-access
-
-        serialize_group['children'] = {  # type: ignore
-            label: (DAT.OP, child.task_id)
-            if isinstance(child, BaseOperator) else
-            (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
-            for label, child in task_group.children.items()
+        serialize_group = {
+            "_group_id": task_group._group_id,  # pylint: disable=protected-access
+            "tooltip": task_group.tooltip,
+            "ui_color": task_group.ui_color,
+            "ui_fgcolor": task_group.ui_fgcolor,
+            "children": {
+                label: (DAT.OP, child.task_id)
+                if isinstance(child, BaseOperator) else
+                (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
+                for label, child in task_group.children.items()
+            },
         }
-        serialize_group['tooltip'] = task_group.tooltip
-        serialize_group['ui_color'] = task_group.ui_color
-        serialize_group['ui_fgcolor'] = task_group.ui_fgcolor
         return serialize_group
 
     @classmethod
