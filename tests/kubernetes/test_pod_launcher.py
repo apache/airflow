@@ -242,13 +242,12 @@ class TestPodLauncherHelper(unittest.TestCase):
                         name="airflow-secret",
                         secret=k8s.V1SecretVolumeSource(
                             secret_name="secret-name",
-
                         )
                     ),
                     k8s.V1Volume(
                         name="init-secret",
                         secret=k8s.V1SecretVolumeSource(
-                            secret_name="secret-name",
+                            secret_name="init-secret",
                         )
                     )
                 ]
@@ -283,22 +282,26 @@ class TestPodLauncherHelper(unittest.TestCase):
                 ),
                 VolumeMount(
                     name="airflow-secret",
-                    read_only=True,
                     mount_path="/opt/mount",
                     sub_path=None,
+                    read_only=True
                 )],
-            secrets=[Secret("env", "AIRFLOW_SECRET", "ai", "secret_key"),
-                     Secret('volume', '/opt/mount', 'airflow-secret', "secret-name"),
-                     Secret('volume', None, 'init-secret', 'secret-name')],
+            secrets=[Secret("env", "AIRFLOW_SECRET", "ai", "secret_key")],
             security_context={'fsGroup': 0, 'runAsUser': 0},
             volumes=[Volume(name="myvolume", configs={'name': 'myvolume'}),
                      Volume(name="airflow-config", configs={'configMap': {'data': 'airflow-data'},
-                                                            'name': 'airflow-config'})]
+                                                            'name': 'airflow-config'}),
+                     Volume(name='airflow-secret', configs={'name': 'airflow-secret',
+                                                            'secret': {'secretName': 'secret-name'}}),
+                     Volume(name='init-secret', configs={'name': 'init-secret', 'secret':
+                            {'secretName': 'init-secret'}})],
         )
         expected_dict = expected.as_dict()
         result_dict = result_pod.as_dict()
+        print(result_pod.volume_mounts)
         parsed_configs = self.pull_out_volumes(result_dict)
         result_dict['volumes'] = parsed_configs
+        self.assertEqual(result_dict['secrets'], expected_dict['secrets'])
         self.assertDictEqual(expected_dict, result_dict)
 
     @staticmethod

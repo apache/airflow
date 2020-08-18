@@ -175,7 +175,7 @@ class Pod(object):
         )
         for port in _extract_ports(self.ports):
             pod = port.attach_to_pod(pod)
-        volumes, _ = _extract_volumes_and_secrets(self.volumes, self.volume_mounts)
+        volumes = _extract_volumes(self.volumes)
         for volume in volumes:
             pod = volume.attach_to_pod(pod)
         for volume_mount in _extract_volume_mounts(self.volume_mounts):
@@ -260,11 +260,7 @@ def _extract_security_context(security_context):
     return security_context
 
 
-def _extract_volume_mounts(volume_mounts, volume_secrets_to_exclude=None):
-    volume_secrets_to_exclude = volume_secrets_to_exclude or []  # type: List[Secret]
-    volume_secret_mount_paths = set(
-        [v.deploy_target for v in volume_secrets_to_exclude if v.deploy_type == "volume"]
-    )
+def _extract_volume_mounts(volume_mounts):
     result = []
     volume_mounts = volume_mounts or []  # type: List[Union[k8s.V1VolumeMount, dict]]
     for volume_mount in volume_mounts:
@@ -283,37 +279,18 @@ def _extract_volume_mounts(volume_mounts, volume_secrets_to_exclude=None):
                 sub_path=volume_mount.get("subPath"),
                 read_only=volume_mount.get("readOnly")
             )
-        if volume_mount.mount_path not in volume_secret_mount_paths:
-            result.append(volume_mount)
+        result.append(volume_mount)
     return result
 
 
-def _extract_volumes_and_secrets(volumes, volume_mounts):
+def _extract_volumes(volumes):
     result = []
     volumes = volumes or []  # type: List[Union[k8s.V1Volume, dict]]
-    secrets = []
-    volume_mount_dict = {
-        volume_mount.name: volume_mount
-        for volume_mount in _extract_volume_mounts(volume_mounts)
-    }
     for volume in volumes:
         if isinstance(volume, k8s.V1Volume):
-            secret = _extract_volume_secret(volume, volume_mount_dict.get(volume.name, None))
-            if secret:
-                secrets.append(secret)
-                continue
             volume = api_client.sanitize_for_serialization(volume)
             volume = Volume(name=volume.get("name"), configs=volume)
         if not isinstance(volume, Volume):
             volume = Volume(name=volume.get("name"), configs=volume)
         result.append(volume)
-    return result, secrets
-
-
-def _extract_volume_secret(volume, volume_mount):
-    if not volume.secret:
-        return None
-    if volume_mount:
-        return Secret("volume", volume_mount.mount_path, volume.secret.secret_name, volume.secret.key)
-    else:
-        return Secret("volume", None, volume.secret.secret_name, volume.secret.key)
+    return result

@@ -607,9 +607,6 @@ class TestPodGenerator(unittest.TestCase):
                     }],
                     'volumeMounts': [{
                         'mountPath': '/foo/',
-                        'name': 'example-kubernetes-test-volume1'
-                    }, {
-                        'mountPath': '/foo/',
                         'name': 'example-kubernetes-test-volume2'
                     }]
                 }],
