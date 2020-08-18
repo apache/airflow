@@ -34,4 +34,4 @@ prepare_ci_build
 
 rebuild_ci_image_if_needed
 
-run_docs
+run_docs "${@}"
