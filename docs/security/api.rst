@@ -144,6 +144,7 @@ This conversation was marked as resolved by houqp
 Here is a sample curl command you can use to validate the setup:
 
 .. code-block:: bash
+
     ENDPOINT_URL="http://locahost:8080/"
     curl -X GET  \
         --user "username:password" \

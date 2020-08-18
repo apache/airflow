@@ -116,3 +116,20 @@ class TestBasicAuth(unittest.TestCase):
                 'title': 'Unauthorized',
                 'type': 'about:blank',
             }
+
+    def test_experimental_api(self):
+        with self.app.test_client() as test_client:
+            response = test_client.get(
+                "/api/experimental/pools", headers={"Authorization": "Basic"}
+            )
+            assert response.status_code == 401
+            assert response.headers["WWW-Authenticate"] == "Basic"
+            assert response.data == b'Unauthorized'
+
+            clear_db_pools()
+            response = test_client.get(
+                "/api/experimental/pools",
+                headers={"Authorization": "Basic " + b64encode(b"test:test").decode()}
+            )
+            assert response.status_code == 200
+            assert response.json[0]["pool"] == 'default_pool'
