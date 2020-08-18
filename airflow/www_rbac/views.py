@@ -1038,8 +1038,8 @@ class Airflow(AirflowBaseView):
                     include_parentdag=recursive,
                     only_failed=only_failed)
 
-                flash("{0} task instances have been {1}".format(count, 'cleared' if not cancel else 'cancelled'))
-                return redirect(origin)
+            flash("{0} task instances have been {1}".format(count, 'cleared' if not cancel else 'cancelled'))
+            return redirect(origin)
 
         try:
             if cancel:
