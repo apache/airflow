@@ -31,6 +31,8 @@ Bug Fixes
 - Fix task_instance_mutation_hook (#9910)
 - Fixes failing formatting of DAG file containing {} in docstring (#9779)
 - Fix is_terminal_support_colors function (#9734)
+- Fix PythonVirtualenvOperator when using ``provide_context=True`` (#8256)
+- Fix issue with mounting volumes from secrets (#10366)
 
 Improvements
 """"""""""""
@@ -41,7 +43,7 @@ Improvements
 - Add __repr__ to SerializedDagModel (#9862)
 - Update JS packages to latest versions (#9811) (#9921)
 - UI Graph View: Focus upstream / downstream task dependencies on mouseover (#9303)
-- Allow `image` in `KubernetesPodOperator` to be templated (#10068)
+- Allow ``image`` in ``KubernetesPodOperator`` to be templated (#10068)
 - [AIRFLOW-6843] Add delete_option_kwargs to delete_namespaced_pod (#7523)
 - Improve process terminating in scheduler_job (#8064)
 - Replace deprecated base classes used in bigquery_check_operator (#10272)
@@ -57,6 +59,7 @@ Improvements
 - Dockerfile: The group of embedded DAGs should be root to be OpenShift compatible (#9794)
 - Update upper limit of flask-swagger, gunicorn & jinja2 (#9684)
 - Webserver: Sanitize values passed to origin param (#10334)
+- Sort connection type list in add/edit page alphabetically (#8692)
 
 Doc only changes
 """"""""""""""""
