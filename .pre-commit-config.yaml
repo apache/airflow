@@ -22,7 +22,7 @@ default_language_version:
 minimum_pre_commit_version: "1.20.0"
 repos:
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.8
+    rev: v1.1.9
     hooks:
       - id: forbid-tabs
         exclude: ^docs/Makefile$
@@ -100,7 +100,7 @@ repos:
       - id: insert-license
         name: Add license for all XML files
         exclude: ^\.github/.*$
-        types: [xml]
+        files: .*\.xml$
         args:
           - --comment-style
           - "<!--||-->"
