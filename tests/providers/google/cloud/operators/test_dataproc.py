@@ -187,10 +187,41 @@ DATAPROC_JOB_LINK_EXPECTED = \
 DATAPROC_CLUSTER_LINK_EXPECTED = \
     f'https://console.cloud.google.com/dataproc/clusters/{CLUSTER_NAME}/monitoring?'    \
     f'region={GCP_LOCATION}&project={GCP_PROJECT}'
+DATAPROC_JOB_CONF_EXPECTED = {
+    'job_id': TEST_JOB_ID,
+    'region': GCP_LOCATION,
+    'project_id': GCP_PROJECT
+}
+DATAPROC_CLUSTER_CONF_EXPECTED = {
+    'cluster_name': CLUSTER_NAME,
+    'region': GCP_LOCATION,
+    'project_id': GCP_PROJECT
+}
 
 
 def assert_warning(msg: str, warnings):
     assert any(msg in str(w) for w in warnings)
+
+
+class DataprocTestBase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = DagBag(
+            dag_folder='/dev/null', include_examples=False
+        )
+        cls.dag = DAG(TEST_DAG_ID, default_args={
+            'owner': 'airflow',
+            'start_date': DEFAULT_DATE
+        })
+        cls.mock_ti = MagicMock()
+        cls.mock_context = {
+            'ti': cls.mock_ti
+        }
+
+    @classmethod
+    def tearDownClass(cls):
+        clear_db_runs()
+        clear_db_xcom()
 
 
 class TestsClusterGenerator(unittest.TestCase):
@@ -306,24 +337,7 @@ class TestsClusterGenerator(unittest.TestCase):
         assert CONFIG_WITH_CUSTOM_IMAGE_FAMILY == cluster
 
 
-class TestDataprocClusterCreateOperator(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = DagBag(
-            dag_folder='/dev/null', include_examples=False
-        )
-        cls.dag = DAG(TEST_DAG_ID, default_args={
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        })
-        cls.mock_context = MagicMock()
-
-    @classmethod
-    def tearDownClass(cls):
-        clear_db_runs()
-        clear_db_xcom()
-
+class TestDataprocClusterCreateOperator(DataprocTestBase):
     def test_deprecation_warning(self):
         with pytest.warns(DeprecationWarning) as warnings:
             op = DataprocCreateClusterOperator(
@@ -384,6 +398,11 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             metadata=METADATA,
         )
         to_dict_mock.assert_called_once_with(mock_hook().create_cluster().result())
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key='cluster_conf',
+            value=DATAPROC_CLUSTER_CONF_EXPECTED,
+            execution_date=None
+        )
 
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -561,11 +580,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             ''
         )
 
-        ti.xcom_push(key='cluster_conf', value={
-            'cluster_name': CLUSTER_NAME,
-            'region': GCP_LOCATION,
-            'project_id': GCP_PROJECT
-        })
+        ti.xcom_push(key='cluster_conf', value=DATAPROC_CLUSTER_CONF_EXPECTED)
 
         # Assert operator links are preserved in deserialized tasks after execution
         self.assertEqual(
@@ -586,24 +601,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
         )
 
 
-class TestDataprocClusterScaleOperator(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = DagBag(
-            dag_folder='/dev/null', include_examples=False
-        )
-        cls.dag = DAG(TEST_DAG_ID, default_args={
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        })
-        cls.mock_context = MagicMock()
-
-    @classmethod
-    def tearDownClass(cls):
-        clear_db_runs()
-        clear_db_xcom()
-
+class TestDataprocClusterScaleOperator(DataprocTestBase):
     def test_deprecation_warning(self):
         with pytest.warns(DeprecationWarning) as warnings:
             DataprocScaleClusterOperator(task_id=TASK_ID, cluster_name=CLUSTER_NAME, project_id=GCP_PROJECT)
@@ -636,6 +634,11 @@ class TestDataprocClusterScaleOperator(unittest.TestCase):
             cluster=cluster_update,
             graceful_decommission_timeout={"seconds": 600},
             update_mask=UPDATE_MASK,
+        )
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key='cluster_conf',
+            value=DATAPROC_CLUSTER_CONF_EXPECTED,
+            execution_date=None
         )
 
     def test_operator_extra_links(self):
@@ -681,11 +684,7 @@ class TestDataprocClusterScaleOperator(unittest.TestCase):
             ''
         )
 
-        ti.xcom_push(key='cluster_conf', value={
-            'cluster_name': CLUSTER_NAME,
-            'region': GCP_LOCATION,
-            'project_id': GCP_PROJECT
-        })
+        ti.xcom_push(key='cluster_conf', value=DATAPROC_CLUSTER_CONF_EXPECTED)
 
         # Assert operator links are preserved in deserialized tasks after execution
         self.assertEqual(
@@ -735,24 +734,7 @@ class TestDataprocClusterDeleteOperator(unittest.TestCase):
         )
 
 
-class TestDataprocSubmitJobOperator(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = DagBag(
-            dag_folder='/dev/null', include_examples=False
-        )
-        cls.dag = DAG(TEST_DAG_ID, default_args={
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        })
-        cls.mock_context = MagicMock()
-
-    @classmethod
-    def tearDownClass(cls):
-        clear_db_runs()
-        clear_db_xcom()
-
+class TestDataprocSubmitJobOperator(DataprocTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         job = {}
@@ -787,6 +769,12 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             job_id=job_id, project_id=GCP_PROJECT, location=GCP_LOCATION, timeout=None
         )
 
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key='job_conf',
+            value=DATAPROC_JOB_CONF_EXPECTED,
+            execution_date=None
+        )
+
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_async(self, mock_hook):
         job = {}
@@ -807,7 +795,7 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             request_id=REQUEST_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={})
+        op.execute(context=self.mock_context)
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -844,7 +832,7 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
             cancel_on_kill=False,
         )
-        op.execute(context={})
+        op.execute(context=self.mock_context)
 
         op.on_kill()
         mock_hook.return_value.cancel_job.assert_not_called()
@@ -895,11 +883,7 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             deserialized_task.get_extra_links(DEFAULT_DATE, DataprocJobLink.name), ''
         )
 
-        ti.xcom_push(key='job_conf', value={
-            'job_id': TEST_JOB_ID,
-            'region': GCP_LOCATION,
-            'project_id': GCP_PROJECT
-        })
+        ti.xcom_push(key='job_conf', value=DATAPROC_JOB_CONF_EXPECTED)
 
         # Assert operator links are preserved in deserialized tasks
         self.assertEqual(
@@ -918,24 +902,7 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
         )
 
 
-class TestDataprocUpdateClusterOperator(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = DagBag(
-            dag_folder='/dev/null', include_examples=False
-        )
-        cls.dag = DAG(TEST_DAG_ID, default_args={
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        })
-        cls.mock_context = MagicMock()
-
-    @classmethod
-    def tearDownClass(cls):
-        clear_db_runs()
-        clear_db_xcom()
-
+class TestDataprocUpdateClusterOperator(DataprocTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         op = DataprocUpdateClusterOperator(
@@ -968,6 +935,11 @@ class TestDataprocUpdateClusterOperator(unittest.TestCase):
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+        )
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key='cluster_conf',
+            value=DATAPROC_CLUSTER_CONF_EXPECTED,
+            execution_date=None
         )
 
     def test_operator_extra_links(self):
@@ -1011,11 +983,7 @@ class TestDataprocUpdateClusterOperator(unittest.TestCase):
             deserialized_task.get_extra_links(DEFAULT_DATE, DataprocClusterLink.name), ''
         )
 
-        ti.xcom_push(key='cluster_conf', value={
-            'cluster_name': CLUSTER_NAME,
-            'region': GCP_LOCATION,
-            'project_id': GCP_PROJECT
-        })
+        ti.xcom_push(key='cluster_conf', value=DATAPROC_CLUSTER_CONF_EXPECTED)
 
         # Assert operator links are preserved in deserialized tasks
         self.assertEqual(
@@ -1315,7 +1283,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
         assert self.job == job
 
 
-class TestDataProcSparkOperator(unittest.TestCase):
+class TestDataProcSparkOperator(DataprocTestBase):
     main_class = "org.apache.spark.examples.SparkPi"
     jars = ["file:///usr/lib/spark/examples/jars/spark-examples.jar"]
     job = {
@@ -1327,22 +1295,6 @@ class TestDataProcSparkOperator(unittest.TestCase):
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "spark_job": {"jar_file_uris": jars, "main_class": main_class},
     }
-
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = DagBag(
-            dag_folder='/dev/null', include_examples=False
-        )
-        cls.dag = DAG(TEST_DAG_ID, default_args={
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        })
-        cls.mock_context = MagicMock()
-
-    @classmethod
-    def tearDown(cls):
-        clear_db_runs()
-        clear_db_xcom()
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
@@ -1358,6 +1310,7 @@ class TestDataProcSparkOperator(unittest.TestCase):
         mock_uuid.return_value = TEST_JOB_ID
         mock_hook.return_value.project_id = GCP_PROJECT
         mock_uuid.return_value = TEST_JOB_ID
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
 
         op = DataprocSubmitSparkJobOperator(
             task_id=TASK_ID,
@@ -1368,6 +1321,13 @@ class TestDataProcSparkOperator(unittest.TestCase):
         )
         job = op.generate_job()
         assert self.job == job
+
+        op.execute(context=self.mock_context)
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key='job_conf',
+            value=DATAPROC_JOB_CONF_EXPECTED,
+            execution_date=None
+        )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_operator_extra_links(self, mock_hook):
@@ -1410,11 +1370,7 @@ class TestDataProcSparkOperator(unittest.TestCase):
             deserialized_task.get_extra_links(DEFAULT_DATE, DataprocJobLink.name), ''
         )
 
-        ti.xcom_push(key='job_conf', value={
-            'job_id': TEST_JOB_ID,
-            'region': GCP_LOCATION,
-            'project_id': GCP_PROJECT
-        })
+        ti.xcom_push(key='job_conf', value=DATAPROC_JOB_CONF_EXPECTED)
 
         # Assert operator links after task execution
         self.assertEqual(
