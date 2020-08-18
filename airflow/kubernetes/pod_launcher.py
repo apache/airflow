@@ -31,7 +31,7 @@ from requests.exceptions import BaseHTTPError
 from airflow import AirflowException
 from airflow import settings
 from airflow.contrib.kubernetes.pod import (
-    Pod, _extract_env_vars_and_secrets, _extract_volumes_and_secrets, _extract_volume_mounts,
+    Pod, _extract_env_vars_and_secrets, _extract_volumes, _extract_volume_mounts,
     _extract_ports, _extract_security_context
 )
 from airflow.kubernetes.kube_client import get_kube_client
@@ -300,8 +300,7 @@ def _convert_to_airflow_pod(pod):
     """
     base_container = pod.spec.containers[0]  # type: k8s.V1Container
     env_vars, secrets = _extract_env_vars_and_secrets(base_container.env)
-    volumes, vol_secrets = _extract_volumes_and_secrets(pod.spec.volumes, base_container.volume_mounts)
-    secrets.extend(vol_secrets)
+    volumes = _extract_volumes(pod.spec.volumes)
     api_client = ApiClient()
     init_containers = pod.spec.init_containers
     if pod.spec.init_containers is not None:

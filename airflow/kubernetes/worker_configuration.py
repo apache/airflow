@@ -435,7 +435,6 @@ class WorkerConfiguration(LoggingMixin):
         """Creates POD."""
         if self.kube_config.pod_template_file:
             return PodGenerator(pod_template_file=self.kube_config.pod_template_file).gen_pod()
-
         pod = PodGenerator(
             image=self.kube_config.kube_image,
             image_pull_policy=self.kube_config.kube_image_pull_policy or 'IfNotPresent',
