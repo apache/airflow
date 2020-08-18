@@ -260,14 +260,14 @@ repos:
                 ^\s*def\s*\S*\([^:#)]*:.*|          # Matches function param with Python3 type
                 ^\sdef\s*\S*\(.*\):\s*\-\>\s*\S*.*  # Matches -> return value syntax from Python3
             )$
-        exclude: ^dev|^scripts
+        exclude: ^dev|^scripts|^docs
         pass_filenames: true
       - id: python2-compile
         name: Compile code using python2
         language: system
         entry: python2.7 -m py_compile
         files: \.py$
-        exclude: ^dev|^scripts
+        exclude: ^dev|^scripts|^docs
         pass_filenames: true
         require_serial: true
       - id: pydevd
