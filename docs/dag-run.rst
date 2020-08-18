@@ -198,7 +198,7 @@ In addition, you can also manually trigger a DAG Run using the web UI (tab **
 Passing Parameters when triggering dags
 ------------------------------------------
 
-When triggering a DAG from the CLI, the REST API or the UI, it is possible to pass configuration for a DAGRun as
+When triggering a DAG from the CLI, the REST API or the UI, it is possible to pass configuration for a DAG Run as
 a JSON blob.
 
 Example of a parameterized DAG:
