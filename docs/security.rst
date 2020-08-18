@@ -188,8 +188,8 @@ Here is a sample curl command you can use to validate the setup:
 
     ENDPOINT_URL="http://locahost:8080/"
     curl -X GET  \
-        "${ENDPOINT_URL}/api/v1/pools" \
-        -H "Authorization: Basic $(printf username:password | base64)"
+        --user "username:password" \
+        "${ENDPOINT_URL}/api/v1/pools"
 
 Note, you can still enable this setting to allow API access through username
 password credential even though Airflow web is using other authentication

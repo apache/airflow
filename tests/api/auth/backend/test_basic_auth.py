@@ -87,6 +87,8 @@ class TestBasicAuth(unittest.TestCase):
                 "/api/v1/pools", headers={"Authorization": token}
             )
             assert response.status_code == 401
+            assert response.headers["WWW-Authenticate"] == "Basic"
+            assert response.data == b"Unauthorized"
 
     @parameterized.expand([
         ("basic " + b64encode(b"test").decode(),),
@@ -100,3 +102,5 @@ class TestBasicAuth(unittest.TestCase):
                 "/api/v1/pools", headers={"Authorization": token}
             )
             assert response.status_code == 401
+            assert response.headers["WWW-Authenticate"] == "Basic"
+            assert response.data == b"Unauthorized"
