@@ -26,9 +26,9 @@ trap "${HANDLERS}${HANDLERS:+;}in_container_fix_ownership" EXIT
 sudo rm -rf "${AIRFLOW_SOURCES}/docs/_build/*"
 sudo rm -rf "${AIRFLOW_SOURCES}/docs/_api/*"
 
-sudo -E "${AIRFLOW_SOURCES}/docs/build"
+sudo -E "${AIRFLOW_SOURCES}/docs/build_docs.py" "${@}"
 
-if [[ ${CI} == "true" ]]; then
+if [[ ${CI} == "true" && -d "${AIRFLOW_SOURCES}/docs/_build/html" ]]; then
     rm -rf "/files/documentation"
     cp -r "${AIRFLOW_SOURCES}/docs/_build/html" "/files/documentation"
 fi

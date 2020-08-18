@@ -21,7 +21,7 @@ function run_docs() {
     verbose_docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/docs/build" \
+            "--" "/opt/airflow/docs/build_docs.py" "${@}" \
             | tee -a "${OUTPUT_LOG}"
 }
 

@@ -1111,13 +1111,15 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Detailed usage for command: build-docs
 
 
-  breeze build-docs
+  breeze build-docs [-- <EXTRA_ARGS>]
 
         Builds Airflow documentation. The documentation is build inside docker container - to
         maintain the same build environment for everyone. Appropriate sources are mapped from
         the host to the container so that latest sources are used. The folders where documentation
-        is generated ('docs/build') are also mounted to the container - this way results of
+        is generated ('docs/_build') are also mounted to the container - this way results of
         the documentation build is available in the host.
+
+        The possible extra args are: --docs-only, --spellcheck-only, --help
 
 
   ####################################################################################################
