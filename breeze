@@ -41,7 +41,8 @@ function setup_default_breeze_variables() {
     export BREEZE=true
     # Maximum screen width to print the lines spanning the whole terminal width
     export MAX_SCREEN_WIDTH=100
-
+    # By default we build CI images  but when we specify `--production-image` we switch to production image
+    export PRODUCTION_IMAGE="false"
     # Directory where all CI scripts are located
     export SCRIPTS_CI_DIR="${AIRFLOW_SOURCES}/scripts/ci"
 
@@ -88,6 +89,7 @@ function setup_default_breeze_variables() {
 
     # Name of the script is kept in this variable
     CMDNAME="$(basename -- "$0")"
+    export CMDNAME
 
     # Update short and long options in the breeze-complete script
     # This way autocomplete will work automatically with all options available
@@ -95,19 +97,19 @@ function setup_default_breeze_variables() {
     . "${AIRFLOW_SOURCES}/breeze-complete"
 
     # By default we mount local Airflow sources
-    MOUNT_LOCAL_SOURCES="true"
+    export MOUNT_LOCAL_SOURCES="true"
 
     # By default we mount files folder
-    MOUNT_FILES="true"
+    export MOUNT_FILES="true"
 
     # Holds last sub-command used - this is used by --help flag to print help for the command entered
-    LAST_SUBCOMMAND=""
+    export LAST_SUBCOMMAND=""
 
     # Determines if help should be run (set to true by --help flag)
-    RUN_HELP="false"
+    export RUN_HELP="false"
 
     # Holds docker compose command if the `docker-compose` command is used.
-    DOCKER_COMPOSE_COMMAND=""
+    export DOCKER_COMPOSE_COMMAND=""
 
     # If set to true, the docker images are rebuilt locally. By default we assume we do not need to
     # rebuild the image but if we find we do, this variable will be set to "true"
@@ -119,9 +121,6 @@ function setup_default_breeze_variables() {
 
     # Do not enable Kind Kubernetes cluster by default
     export ENABLE_KIND_CLUSTER="false"
-
-    # By default we do not push images. This can be overridden by -u flag.
-    export PUSH_IMAGES=${PUSH_IMAGES:="false"}
 
     # Forward common host credentials to docker (gcloud, aws etc.).
     export FORWARD_CREDENTIALS="false"
@@ -554,7 +553,7 @@ function prepare_command_files() {
         "\"\${@}\"" "${COMPOSE_PROD_FILE}" "${AIRFLOW_PROD_IMAGE}"
 }
 
-# Prints detailed help for all commands and flgas. Used to generate documentation added to BREEZE.rst
+# Prints detailed help for all commands and flags. Used to generate documentation added to BREEZE.rst
 # automatically.
 function do_help_all() {
     echo
@@ -786,17 +785,29 @@ function parse_arguments() {
           echo
           export USE_GITHUB_REGISTRY="true"
           shift ;;
-        -G|--github-organisation)
+        -g|--github-repository)
           echo
-          echo "GitHub organisation"
+          echo "GitHub repository: ${2}"
           echo
-          export GITHUB_ORGANISATION="${2}"
-          shift 2;;
-        -g|--github-repo)
-          echo
-          echo "GitHub repository"
+          echo "Using github registry."
           echo
           export GITHUB_REPOSITORY="${2}"
+          export USE_GITHUB_REGISTRY="true"
+          shift 2;;
+        -s|--github-image-id)
+          echo
+          echo "GitHub image id: ${2}}"
+          echo
+          echo "Force pulling the image, using github registry and skip mounting local sources."
+          echo "This is in order to get the exact same version as used in CI environment for SHA/RUN_ID!."
+          echo
+          export FORCE_PULL_IMAGES="true"
+          export USE_GITHUB_REGISTRY="true"
+          export GITHUB_REGISTRY_PULL_IMAGE_TAG="${2}"
+          export GITHUB_REGISTRY_PUSH_IMAGE_TAG="${2}"
+          export CHECK_IMAGE_FOR_REBUILD="false"
+          export MOUNT_LOCAL_SOURCES="false"
+          export SKIP_CHECK_REMOTE_IMAGE="true"
           shift 2;;
         -S|--version-suffix-for-pypi)
           if [[ ${VERSION_SUFFIX_FOR_SVN} != "" ]]; then
@@ -1111,6 +1122,22 @@ ${CMDNAME} shell [FLAGS] [-- <EXTRA_ARGS>]
       especially useful to pass bash options, for example -c to execute command:
 
       '${CMDNAME} shell -- -c \"ls -la\"'
+      '${CMDNAME} -- -c \"ls -la\"'
+
+      For DockerHub pull --dockerhub-user and --dockerhub-repo flags can be used to specify
+      the repository to pull from. For GitHub repository, the --github-repository
+      flag can be used for the same purpose. You can also use
+      --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to pull the image
+      with specific COMMIT_SHA tag or RUN_ID.
+
+      '${CMDNAME} shell \\
+            --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
+      '${CMDNAME} \\
+            --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
+      '${CMDNAME} shell \\
+            --github-image-id 209845560' - pull/use image with RUN_ID
+      '${CMDNAME} \\
+            --github-image-id 209845560' - pull/use image with RUN_ID
 
 Flags:
 $(flag_footer)
@@ -1146,6 +1173,12 @@ ${CMDNAME} build-image [FLAGS]
       in order to modify build behaviour.
 
       You can also pass '--production-image' flag to build production image rather than CI image.
+
+      For DockerHub pull --dockerhub-user and --dockerhub-repo flags can be used to specify
+      the repository to pull from. For GitHub repository, the --github-repository
+      flag can be used for the same purpose. You can also use
+      --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to pull the image with
+      specific COMMIT_SHA tag or RUN_ID.
 
 Flags:
 $(flag_airflow_variants)
@@ -1295,8 +1328,11 @@ ${CMDNAME} push_image [FLAGS]
       or to the GitHub registry (if --github-registry flag is used).
 
       For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
-      the repository to push to. For GitHub repository --github-organisation and --github-repo
-      flags can be used for the same purpose.
+      the repository to push to. For GitHub repository, the --github-repository
+      flag can be used for the same purpose. You can also add
+      --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to push image with specific
+      SHA tag or run id. In case you specify --github-repository or --github-image-id, you
+      do not need to specify --github-registry flag.
 
       You can also add --production-image flag to switch to production image (default is CI one)
 
@@ -1306,7 +1342,12 @@ ${CMDNAME} push_image [FLAGS]
       '${CMDNAME} push-image --dockerhub-user user' to push to your private registry or
       '${CMDNAME} push-image --production-image' - to push production image or
       '${CMDNAME} push-image --github-registry' - to push to GitHub image registry or
-      '${CMDNAME} push-image --github-registry --github-organisation org' - for other organisation
+      '${CMDNAME} push-image \\
+            --github-repository user/airflow' - to push to your user's fork
+      '${CMDNAME} push-image \\
+            --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - to push with COMMIT_SHA
+      '${CMDNAME} push-image \\
+            --github-image-id 209845560' - to push with RUN_ID
 
 Flags:
 $(flag_pull_push_docker_images)
@@ -1319,7 +1360,7 @@ ${CMDNAME} kind-cluster [FLAGS] OPERATION
 
       Manages host-side Kind Kubernetes cluster that is used to run Kubernetes integration tests.
       It allows to start/stop/restart/status the Kind Kubernetes cluster and deploy Airflow to it.
-      This enables you to run tests inside the breeze environment with latest airflow images loaded.
+      This enables you to run tests inside the breeze environment with latest airflow images.
       Note that in case of deploying airflow, the first step is to rebuild the image and loading it
       to the cluster so you can also pass appropriate build image flags that will influence
       rebuilding the production image. Operation is one of:
@@ -1523,7 +1564,7 @@ ${FORMATTED_MYSQL_VERSIONS}
 "
 }
 
-# Prints production image flgas
+# Prints production image flags
 function flag_production_image() {
       echo "
 -I, --production-image
@@ -1737,14 +1778,25 @@ function flag_pull_push_docker_images() {
 
 -c, --github-registry
         If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
-        DockerHub. You need to be logged in to the registry in order to be able to pull/push from it
+        DockerHub. You need to be logged in to the registry in order to be able to pull/push from
         and you need to be committer to push to Apache Airflow' GitHub registry.
 
--G, --github-organisation
-        GitHub organisation used to pull, push images when cache is used. Default: ${_BREEZE_DEFAULT_GITHUB_ORGANISATION:=}.
+-g, --github-repository
+        GitHub repository used to pull, push images when cache is used.
+        Default: ${_BREEZE_DEFAULT_GITHUB_REPOSITORY:=}.
 
--g, --github-repo
-        GitHub repository used to pull, push images when cache is used. Default: ${_BREEZE_DEFAULT_GITHUB_REPO:=}.
+        If you use this flag, automatically --github-registry flag is enabled.
+
+-s, --github-image-id <COMMIT_SHA>|<RUN_ID>
+        <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
+        to be able to easily find the image for particular CI runs. Once you know the
+        <RUN_ID> or <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
+        automatically pull and use that image so that you can easily reproduce a problem
+        that occurred in CI.
+
+        If you use this flag, automatically --github-registry is enabled.
+
+        Default: ${_BREEZE_DEFAULT_GITHUB_IMAGE_ID:=}.
 
 "
 }
