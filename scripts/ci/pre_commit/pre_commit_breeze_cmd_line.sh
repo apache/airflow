@@ -15,12 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 set -euo pipefail
 
 PRE_COMMIT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 AIRFLOW_SOURCES=$(cd "${PRE_COMMIT_DIR}/../../../" && pwd);
 cd "${AIRFLOW_SOURCES}" || exit 1
+export PRINT_INFO_FROM_SCRIPTS="false"
+export SKIP_CHECK_REMOTE_IMAGE="true"
+
+
+# For Pre-commits run in non-interactive shell so aliases do not work for them we need to add
+# local echo script to path so that it can be silenced.
+PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ):${PATH}"
+export PATH
 
 
 TMP_FILE=$(mktemp)

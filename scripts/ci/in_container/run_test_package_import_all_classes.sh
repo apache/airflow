@@ -22,7 +22,7 @@ echo
 echo "Testing if all classes in import packages can be imported"
 echo
 
-OUT_FILE=$(mktemp)
+OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
 if [[ ! ${INSTALL_AIRFLOW_VERSION:=""} =~ 1.10* ]]; then
     echo
@@ -35,16 +35,16 @@ else
     echo
     echo "Installing remaining packages from 'all' extras"
     echo
-    pip install ".[all]" >>"${OUT_FILE}" 2>&1
+    pip install ".[all]" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
     echo
     echo "Uninstalling airflow after that"
     echo
-    pip uninstall -y apache-airflow >>"${OUT_FILE}"  2>&1
+    pip uninstall -y apache-airflow >>"${OUT_FILE_PRINTED_ON_ERROR}"  2>&1
     popd || exit
     echo
     echo "Install airflow from PyPI - ${INSTALL_AIRFLOW_VERSION}"
     echo
-    pip install "apache-airflow==${INSTALL_AIRFLOW_VERSION}" >>"${OUT_FILE}" 2>&1
+    pip install "apache-airflow==${INSTALL_AIRFLOW_VERSION}" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
 fi
 
 echo
@@ -52,10 +52,10 @@ echo  Installing all packages at once in Airflow 1.10
 echo
 
 # Install all packages at once
-pip install /dist/apache_airflow_backport_providers_*.whl >>"${OUT_FILE}" 2>&1
+pip install /dist/apache_airflow_backport_providers_*.whl >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
 
 
-echo > "${OUT_FILE}"
+echo > "${OUT_FILE_PRINTED_ON_ERROR}"
 
 echo
 echo  Importing all classes in Airflow 1.10

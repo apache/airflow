@@ -18,7 +18,7 @@
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-OUT_FILE=$(mktemp)
+OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
 # adding trap to exiting trap
 HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
@@ -33,9 +33,9 @@ export PYTHONPATH="${AIRFLOW_SOURCES}"
 echo
 echo "Installing remaining packages from 'all' extras"
 echo
-pip install -e ".[all]" >>"${OUT_FILE}" 2>&1
+pip install -e ".[all]" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
 
-echo > "${OUT_FILE}"
+echo > "${OUT_FILE_PRINTED_ON_ERROR}"
 
 cd "${AIRFLOW_SOURCES}/backport_packages" || exit 1
 

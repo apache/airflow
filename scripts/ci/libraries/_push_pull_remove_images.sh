@@ -33,7 +33,9 @@ function pull_image_if_needed() {
         echo
         echo "Pulling the image ${IMAGE_TO_PULL}"
         echo
-        verbose_docker pull "${IMAGE_TO_PULL}" | tee -a "${OUTPUT_LOG}"
+        # need eto be explicitly verbose in order to have pre-commit spinner working
+        # No aliases in pre-commit non-interactive shells :(
+        verbose_docker pull "${IMAGE_TO_PULL}"
         EXIT_VALUE="$?"
         echo
         return ${EXIT_VALUE}
@@ -57,7 +59,7 @@ function pull_image_possibly_from_cache() {
         IMAGE_PULL_RETURN_VALUE="$?"
         if [[ ${IMAGE_PULL_RETURN_VALUE} == "0" ]]; then
             # Tag the image to be the target one
-            verbose_docker tag "${CACHED_IMAGE}" "${IMAGE}"
+            docker tag "${CACHED_IMAGE}" "${IMAGE}"
         fi
     fi
     if [[ ${IMAGE_PULL_RETURN_VALUE} != "0" ]]; then
@@ -84,7 +86,9 @@ Docker pulling ${PYTHON_BASE_IMAGE}.
             if [[ ${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"} == "true" ]]; then
                 pull_image_possibly_from_cache "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
             else
-                verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+                # need eto be explicitly verbose in order to have pre-commit spinner working
+                # No aliases in pre-commit non-interactive shells :(
+                verbose_docker pull "${PYTHON_BASE_IMAGE}"
             fi
             echo
         fi
@@ -106,7 +110,9 @@ function pull_prod_images_if_needed() {
             if [[ ${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"} == "true" ]]; then
                 pull_image_possibly_from_cache "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
             else
-                verbose_docker pull "${PYTHON_BASE_IMAGE}" | tee -a "${OUTPUT_LOG}"
+                # need eto be explicitly verbose in order to have pre-commit spinner working
+                # No aliases in pre-commit non-interactive shells :(
+                verbose_docker pull "${PYTHON_BASE_IMAGE}"
             fi
             echo
         fi
@@ -121,23 +127,23 @@ function pull_prod_images_if_needed() {
 # it is pushed to the cache, not to the main registry. Manifest is only pushed to the main registry
 function push_ci_image() {
     if [[ ${CACHED_AIRFLOW_CI_IMAGE:=} != "" ]]; then
-        verbose_docker tag "${AIRFLOW_CI_IMAGE}" "${CACHED_AIRFLOW_CI_IMAGE}"
+        docker tag "${AIRFLOW_CI_IMAGE}" "${CACHED_AIRFLOW_CI_IMAGE}"
         IMAGE_TO_PUSH="${CACHED_AIRFLOW_CI_IMAGE}"
     else
         IMAGE_TO_PUSH="${AIRFLOW_CI_IMAGE}"
     fi
-    verbose_docker push "${IMAGE_TO_PUSH}"
+    docker push "${IMAGE_TO_PUSH}"
     if [[ ${CACHED_AIRFLOW_CI_IMAGE} == "" ]]; then
         # Only push manifest image for builds that are not using CI cache
-        verbose_docker tag "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
-        verbose_docker push "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+        docker tag "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+        docker push "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
         if [[ -n ${DEFAULT_IMAGE:=""} ]]; then
-            verbose_docker push "${DEFAULT_IMAGE}"
+            docker push "${DEFAULT_IMAGE}"
         fi
     fi
     if [[ ${CACHED_PYTHON_BASE_IMAGE} != "" ]]; then
-        verbose_docker tag "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
-        verbose_docker push "${CACHED_PYTHON_BASE_IMAGE}"
+        docker tag "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
+        docker push "${CACHED_PYTHON_BASE_IMAGE}"
     fi
 
 }
@@ -146,21 +152,21 @@ function push_ci_image() {
 # it is also pushed to the cache, not to the main registry
 function push_prod_images() {
     if [[ ${CACHED_AIRFLOW_PROD_IMAGE:=} != "" ]]; then
-        verbose_docker tag "${AIRFLOW_PROD_IMAGE}" "${CACHED_AIRFLOW_PROD_IMAGE}"
+        docker tag "${AIRFLOW_PROD_IMAGE}" "${CACHED_AIRFLOW_PROD_IMAGE}"
         IMAGE_TO_PUSH="${CACHED_AIRFLOW_PROD_IMAGE}"
     else
         IMAGE_TO_PUSH="${AIRFLOW_PROD_IMAGE}"
     fi
     if [[ ${CACHED_AIRFLOW_PROD_BUILD_IMAGE:=} != "" ]]; then
-        verbose_docker tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${CACHED_AIRFLOW_PROD_BUILD_IMAGE}"
+        docker tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${CACHED_AIRFLOW_PROD_BUILD_IMAGE}"
         IMAGE_TO_PUSH_BUILD="${CACHED_AIRFLOW_PROD_BUILD_IMAGE}"
     else
         IMAGE_TO_PUSH_BUILD="${AIRFLOW_PROD_BUILD_IMAGE}"
     fi
-    verbose_docker push "${IMAGE_TO_PUSH}"
-    verbose_docker push "${IMAGE_TO_PUSH_BUILD}"
+    docker push "${IMAGE_TO_PUSH}"
+    docker push "${IMAGE_TO_PUSH_BUILD}"
     if [[ -n ${DEFAULT_IMAGE:=""} && ${CACHED_AIRFLOW_PROD_IMAGE} == "" ]]; then
-        verbose_docker push "${DEFAULT_IMAGE}"
+        docker push "${DEFAULT_IMAGE}"
     fi
     # we do not need to push PYTHON base image here - they are already pushed in the CI push
 }
@@ -170,8 +176,8 @@ function remove_all_images() {
     echo
     "${AIRFLOW_SOURCES}/confirm" "Removing all local images ."
     echo
-    verbose_docker rmi "${PYTHON_BASE_IMAGE}" || true
-    verbose_docker rmi "${AIRFLOW_CI_IMAGE}" || true
+    docker rmi "${PYTHON_BASE_IMAGE}" || true
+    docker rmi "${AIRFLOW_CI_IMAGE}" || true
     echo
     echo "###################################################################"
     echo "NOTE!! Removed Airflow images for Python version ${PYTHON_MAJOR_MINOR_VERSION}."

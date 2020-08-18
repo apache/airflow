@@ -17,6 +17,8 @@
 # under the License.
 export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
 export REMEMBER_LAST_ANSWER="true"
+export PRINT_INFO_FROM_SCRIPTS="false"
+export SKIP_CHECK_REMOTE_IMAGE="true"
 
 if [[ $# -eq 0 ]]; then
     PARAMS=("tests/bats")

@@ -18,11 +18,10 @@
 
 # Docker command to build documentation
 function run_docs() {
-    verbose_docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/docs/build_docs.py" "${@}" \
-            | tee -a "${OUTPUT_LOG}"
+            "--" "/opt/airflow/docs/build_docs.py" "${@}"
 }
 
 # Docker command to generate constraint files.
@@ -30,8 +29,7 @@ function run_generate_constraints() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_generate_constraints.sh" \
-        | tee -a "${OUTPUT_LOG}"
+        "--" "/opt/airflow/scripts/ci/in_container/run_generate_constraints.sh"
 }
 
 # Docker command to prepare backport packages
@@ -41,8 +39,7 @@ function run_prepare_backport_packages() {
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_prepare_backport_packages.sh" "${@}" \
-        | tee -a "${OUTPUT_LOG}"
+        "--" "/opt/airflow/scripts/ci/in_container/run_prepare_backport_packages.sh" "${@}"
 }
 
 # Docker command to generate release notes for backport packages
@@ -52,6 +49,5 @@ function run_prepare_backport_readme() {
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_prepare_backport_readme.sh" "${@}" \
-        | tee -a "${OUTPUT_LOG}"
+        "--" "/opt/airflow/scripts/ci/in_container/run_prepare_backport_readme.sh" "${@}"
 }

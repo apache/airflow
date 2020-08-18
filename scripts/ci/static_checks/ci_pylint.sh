@@ -23,17 +23,15 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 function run_pylint() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+       docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_pylint.sh" \
-            | tee -a "${OUTPUT_LOG}"
+            "--" "/opt/airflow/scripts/ci/in_container/run_pylint.sh"
     else
         docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init" \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_pylint.sh" "${FILES[@]}" \
-            | tee -a "${OUTPUT_LOG}"
+            "--" "/opt/airflow/scripts/ci/in_container/run_pylint.sh" "${FILES[@]}"
     fi
 }
 
@@ -41,7 +39,7 @@ get_environment_for_builds_on_ci
 
 prepare_ci_build
 
-# rebuild_ci_image_if_needed
+rebuild_ci_image_if_needed
 
 if [[ "${#@}" != "0" ]]; then
     filter_out_files_from_pylint_todo_list "$@"
