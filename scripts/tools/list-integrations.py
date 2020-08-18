@@ -60,13 +60,13 @@ def _find_clazzes(directory, base_class):
             if issubclass(clazz, base_class) and clazz.__module__.startswith(package_name)
         ]
 
-        for clazz in integration_clazzes:
-            found_classes.add("{}.{}".format(clazz.__module__, clazz.__name__))
+        for found_clazz in integration_clazzes:
+            found_classes.add("{}.{}".format(found_clazz.__module__, found_clazz.__name__))
 
     return found_classes
 
 
-prog = "./" + os.path.basename(sys.argv[0])
+program = "./" + os.path.basename(sys.argv[0])
 
 HELP = """\
 List operators, hooks, sensors, secrets backend in the installed Airflow.
@@ -79,15 +79,15 @@ Examples:
 
 If you want to display only sensors, you can execute the following command.
 
-    {prog} | grep sensors
+    {program} | grep sensors
 
 If you want to display only secrets backend, you can execute the following command.
 
-    {prog} | grep secrets
+    {program} | grep secrets
 
 If you want to count the operators/sensors in each providers package, you can use the following command.
 
-    {prog} | \\
+    {program} | \\
         grep providers | \\
         grep 'sensors\\|operators' | \\
         cut -d "." -f 3 | \\
@@ -95,8 +95,11 @@ If you want to count the operators/sensors in each providers package, you can us
         sort -n -r
 """
 
+# noinspection PyTypeChecker
 parser = argparse.ArgumentParser(
-    description=HELP, formatter_class=argparse.RawTextHelpFormatter, epilog=EPILOG
+    description=HELP,
+    formatter_class=argparse.RawTextHelpFormatter,
+    epilog=EPILOG
 )
 # argparse handle `-h/--help/` internally
 parser.parse_args()
@@ -108,10 +111,11 @@ RESOURCE_TYPES = {
     "hooks": BaseHook,
 }
 
-for integration_directory, integration_class in RESOURCE_TYPES.items():
-    for integration_directory in glob(f"{AIRFLOW_ROOT}/airflow/**/{integration_directory}", recursive=True):
+for integration_base_directory, integration_class in RESOURCE_TYPES.items():
+    for integration_directory in glob(f"{AIRFLOW_ROOT}/airflow/**/{integration_base_directory}",
+                                      recursive=True):
         if "contrib" in integration_directory:
             continue
 
-        for clazz in sorted(_find_clazzes(integration_directory, integration_class)):
-            print(clazz)
+        for clazz_to_print in sorted(_find_clazzes(integration_base_directory, integration_class)):
+            print(clazz_to_print)
