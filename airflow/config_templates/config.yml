@@ -402,9 +402,9 @@
       type: string
       example: ~
       default: ""
-    - name: stackdriver_key_path
+    - name: google_key_path
       description: |
-        Path to GCP Credential JSON file. If omitted, authorization based on `the Application Default
+        Path to Google Credential JSON file. If omitted, authorization based on `the Application Default
         Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.

@@ -15,35 +15,30 @@
     specific language governing permissions and limitations
     under the License.
 
+Flower
+======
 
+Flower is a web based tool for monitoring and administrating Celery clusters. This topic describes how
+to configure Airflow to secure your flower instance.
 
-How-to Guides
-=============
+.. contents::
+  :depth: 1
+  :local:
 
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
+Flower Authentication
+---------------------
 
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
+Basic authentication for Celery Flower is supported.
 
-.. toctree::
-    :maxdepth: 2
+You can specify the details either as an optional argument in the Flower process launching
+command, or as a configuration item in your ``airflow.cfg``. For both cases, please provide
+``user:password`` pairs separated by a comma.
 
-    add-dag-tags
-    add-new-role
-    set-config
-    initialize-database
-    operator/index
-    customize-state-colors-ui
-    custom-operator
-    connection/index
-    variable
-    write-logs
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    check-health
-    define_extra_link
-    tracking-user-activity
-    email-config
+.. code-block:: bash
+
+    airflow flower --basic-auth=user1:password1,user2:password2
+
+.. code-block:: ini
+
+    [celery]
+    flower_basic_auth = user1:password1,user2:password2

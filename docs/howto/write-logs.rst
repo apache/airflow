@@ -194,10 +194,11 @@ example:
     # configuration requirements.
     remote_logging = True
     remote_base_log_folder = gs://my-bucket/path/to/logs
-    remote_log_conn_id = MyGCSConn
 
-#. Install the ``google`` package first, like so: ``pip install 'apache-airflow[google]'``.
-#. Make sure a Google Cloud Platform connection hook has been defined in Airflow. The hook should have read and write access to the Google Cloud Storage bucket defined above in ``remote_base_log_folder``.
+#. By default Application Default Credentials are used to obtain credentials. You can also
+   set ``google_key_path`` option in ``[logging]`` section, if you want to use your own service account.
+#. Make sure a Google Cloud Platform account have read and write access to the Google Cloud Storage bucket defined above in ``remote_base_log_folder``.
+#. Install the ``google`` package, like so: ``pip install 'apache-airflow[google]'``.
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
 #. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
 #. Verify that the Google Cloud Storage viewer is working in the UI. Pull up a newly executed task, and verify that you see something like:
@@ -311,7 +312,7 @@ For integration with Stackdriver, this option should start with ``stackdriver://
 The path section of the URL specifies the name of the log e.g. ``stackdriver://airflow-tasks`` writes
 logs under the name ``airflow-tasks``.
 
-You can set ``stackdriver_key_path`` option in the ``[logging]`` section to specify the path to `the service
+You can set ``google_key_path`` option in the ``[logging]`` section to specify the path to `the service
 account key file <https://cloud.google.com/iam/docs/service-accounts>`__.
 If omitted, authorization based on `the Application Default Credentials
 <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will

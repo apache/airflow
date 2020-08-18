@@ -317,7 +317,7 @@ configurations stored the metastore database. It guarantees that without the enc
 Passwords cannot be manipulated or read without the key. For information on configuring Fernet, look at :ref:`security/fernet`.
 
 In addition to retrieving connections from environment variables or the metastore database, you can enable
-an secrets backend to retrieve connections. For more details see :doc:`../secrets-backend/index`
+an secrets backend to retrieve connections. For more details see :doc:`/security/secrets/secrets-backend/index`.
 
 Connection Types
 ----------------

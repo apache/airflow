@@ -28,8 +28,7 @@ ROOT_FOLDER = os.path.realpath(
 )
 
 MISSING_TEST_FILES = {
-    'tests/providers/google/cloud/log/test_gcs_task_handler.py',
-    'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py'
+    'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py',
 }
 
 

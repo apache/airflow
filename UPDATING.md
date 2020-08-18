@@ -561,6 +561,20 @@ better handle the case when a DAG file has multiple DAGs.
 Sentry is disabled by default. To enable these integrations, you need set ``sentry_on`` option
 in ``[sentry]`` section to ``"True"``.
 
+#### Simplified GCSTaskHandler configuration
+
+In previous versions, in order to configure the service account key file, you had to create a connection entry.
+In the current version, you can configure ``google_key_path`` option in ``[logging]`` section to set
+the key file path.
+
+Users using Application Default Credentials (ADC) need not take any action.
+
+The change aims to simplify the configuration of logging, to prevent corruption of
+the instance configuration by changing the value controlled by the user - connection entry. If you
+configure a backend secret, it also means the webserver doesn't need to connect to it. This
+simplifies setups with multiple GCP projects, because only one project will require the Secret Manager API
+to be enabled.
+
 ### Changes to the core operators/hooks
 
 We strive to ensure that there are no changes that may affect the end user and your files, but this

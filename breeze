@@ -1126,13 +1126,15 @@ ${CMDNAME} exec [-- <EXTRA_ARGS>]
       webserver, workers, database console and interactive terminal.
 "
     export DETAILED_USAGE_BUILD_DOCS="
-${CMDNAME} build-docs
+${CMDNAME} build-docs [-- <EXTRA_ARGS>]
 
       Builds Airflow documentation. The documentation is build inside docker container - to
       maintain the same build environment for everyone. Appropriate sources are mapped from
       the host to the container so that latest sources are used. The folders where documentation
-      is generated ('docs/build') are also mounted to the container - this way results of
+      is generated ('docs/_build') are also mounted to the container - this way results of
       the documentation build is available in the host.
+
+      The possible extra args are: --docs-only, --spellcheck-only, --help
 "
     # shellcheck disable=SC2089
     DETAILED_USAGE_BUILD_IMAGE="
@@ -2210,7 +2212,7 @@ function run_breeze_command {
             perform_kind_cluster_operation "${KIND_CLUSTER_OPERATION}"
             ;;
         build_docs)
-            run_docs
+            run_docs "${@}"
             ;;
         *)
           echo >&2

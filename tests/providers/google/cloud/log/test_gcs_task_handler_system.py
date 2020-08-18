@@ -18,29 +18,40 @@ import importlib
 import random
 import string
 import subprocess
-import unittest
 from unittest import mock
 
 import pytest
 
 from airflow import settings
 from airflow.example_dags import example_complex
-from airflow.models import TaskInstance
+from airflow.models import DagBag, TaskInstance
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_STACKDDRIVER
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs
-from tests.test_utils.gcp_system_helpers import provide_gcp_context, resolve_full_gcp_key_path
+from tests.test_utils.db import clear_db_connections, clear_db_runs
+from tests.test_utils.gcp_system_helpers import (
+    GoogleSystemTest, provide_gcp_context, resolve_full_gcp_key_path,
+)
 
 
 @pytest.mark.system("google")
-@pytest.mark.credential_file(GCP_STACKDDRIVER)
-class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
+@pytest.mark.credential_file(GCP_GCS_KEY)
+class TestGCSTaskHandlerSystemTest(GoogleSystemTest):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        unique_suffix = ''.join(random.sample(string.ascii_lowercase, 16))
+        cls.bucket_name = f"airflow-gcs-task-handler-tests-{unique_suffix}"  # type: ignore
+        cls.create_gcs_bucket(cls.bucket_name)  # type: ignore
+        clear_db_connections()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.delete_gcs_bucket(cls.bucket_name)  # type: ignore
 
     def setUp(self) -> None:
         clear_db_runs()
-        self.log_name = 'stackdriver-tests-'.join(random.sample(string.ascii_lowercase, 16))
 
     def tearDown(self) -> None:
         from airflow.config_templates import airflow_local_settings
@@ -49,34 +60,15 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
         clear_db_runs()
 
     @provide_session
-    def test_should_support_key_auth(self, session):
+    def test_should_read_logs(self, session):
         with mock.patch.dict(
             'os.environ',
             AIRFLOW__LOGGING__REMOTE_LOGGING="true",
-            AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=f"stackdriver://{self.log_name}",
-            AIRFLOW__LOGGING__GOOGLE_KEY_PATH=resolve_full_gcp_key_path(GCP_STACKDDRIVER),
-            AIRFLOW__CORE__LOAD_EXAMPLES="false",
-            AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__
-        ):
-            self.assertEqual(0, subprocess.Popen(
-                ["airflow", "dags", "trigger", "example_complex"]
-            ).wait())
-            self.assertEqual(0, subprocess.Popen(
-                ["airflow", "scheduler", "--num-runs", "1"]
-            ).wait())
-        ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
-
-        self.assert_remote_logs("INFO - Task exited with return code 0", ti)
-
-    @provide_session
-    def test_should_support_adc(self, session):
-        with mock.patch.dict(
-            'os.environ',
-            AIRFLOW__LOGGING__REMOTE_LOGGING="true",
-            AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=f"stackdriver://{self.log_name}",
+            AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=f"gs://{self.bucket_name}/path/to/logs",
+            AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID="google_cloud_default",
             AIRFLOW__CORE__LOAD_EXAMPLES="false",
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
-            GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_STACKDDRIVER)
+            GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_GCS_KEY)
         ):
             self.assertEqual(0, subprocess.Popen(
                 ["airflow", "dags", "trigger", "example_complex"]
@@ -84,14 +76,18 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
             self.assertEqual(0, subprocess.Popen(
                 ["airflow", "scheduler", "--num-runs", "1"]
             ).wait())
-        ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
 
+        ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
+        dag = DagBag(dag_folder=example_complex.__file__).dags['example_complex']
+        task = dag.task_dict["create_entry_group"]
+        ti.task = task
         self.assert_remote_logs("INFO - Task exited with return code 0", ti)
 
     def assert_remote_logs(self, expected_message, ti):
-        with provide_gcp_context(GCP_STACKDDRIVER), conf_vars({
+        with provide_gcp_context(GCP_GCS_KEY), conf_vars({
             ('logging', 'remote_logging'): 'True',
-            ('logging', 'remote_base_log_folder'): f"stackdriver://{self.log_name}",
+            ('logging', 'remote_base_log_folder'): f"gs://{self.bucket_name}/path/to/logs",
+            ('logging', 'remote_log_conn_id'): "google_cloud_default",
         }):
             from airflow.config_templates import airflow_local_settings
             importlib.reload(airflow_local_settings)
