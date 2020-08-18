@@ -91,12 +91,11 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             scopes=self.scopes,
             disable_logging=True
         )
-        client = storage.Client(
+        return storage.Client(
             credentials=credentials,
             client_info=ClientInfo(client_library_version='airflow_v' + version.version),
             project=self.project_id if self.project_id else project_id
         )
-        return client
 
     def set_context(self, ti):
         super().set_context(ti)
@@ -165,7 +164,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def gcs_write(self, log, remote_log_location):
         """
-        Writes the log to the remote_log_location. Fails silently if no hook
+        Writes the log to the remote_log_location. Fails silently if no log
         was created.
 
         :param log: the log to write to the remote_log_location
@@ -180,6 +179,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:  # pylint: disable=broad-except
             if not hasattr(e, 'resp') or e.resp.get('status') != '404':  # pylint: disable=no-member
                 log = '*** Previous log discarded: {}\n\n'.format(str(e)) + log
+                self.log.info("Previous log discarded: %s", e)
 
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
