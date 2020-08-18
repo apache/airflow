@@ -1,4 +1,4 @@
-# Editable install with no version control (apache-airflow==1.10.11)
+# Editable install with no version control (apache-airflow==1.10.12)
 Babel==2.8.0
 Flask-Admin==1.5.4
 Flask-AppBuilder==2.3.4
@@ -25,8 +25,8 @@ PyYAML==5.3.1
 Pygments==2.6.1
 SQLAlchemy-JSONField==0.9.0
 SQLAlchemy-Utils==0.36.8
-SQLAlchemy==1.3.18
-Sphinx==3.2.0
+SQLAlchemy==1.3.19
+Sphinx==3.2.1
 Unidecode==1.1.1
 WTForms==2.3.3
 Werkzeug==0.16.1
@@ -57,23 +57,23 @@ azure-storage-blob==2.1.0
 azure-storage-common==2.1.0
 azure-storage==0.36.0
 backcall==0.2.0
-bcrypt==3.1.7
+bcrypt==3.2.0
 beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.14.42
+boto3==1.14.44
 boto==2.49.0
-botocore==1.17.42
+botocore==1.17.44
 cached-property==1.5.1
 cachetools==4.1.1
 cassandra-driver==3.20.2
 cattrs==1.0.0
 celery==4.4.7
 certifi==2020.6.20
-cffi==1.14.1
+cffi==1.14.2
 cfgv==3.2.0
-cfn-lint==0.34.1
+cfn-lint==0.35.0
 cgroupspy==0.1.6
 chardet==3.0.4
 click==6.7
@@ -101,7 +101,7 @@ elasticsearch==5.5.3
 email-validator==1.1.1
 entrypoints==0.3
 execnet==1.7.1
-fastavro==0.24.0
+fastavro==0.24.1
 filelock==3.0.12
 flake8-colors==0.1.6
 flake8==3.8.3
@@ -146,7 +146,7 @@ hmsclient==0.1.1
 httplib2==0.18.1
 humanize==2.6.0
 hvac==0.10.5
-identify==1.4.25
+identify==1.4.28
 idna==2.10
 imagesize==1.2.0
 importlib-metadata==1.7.0
@@ -173,7 +173,6 @@ kombu==4.6.11
 kubernetes==11.0.0
 lazy-object-proxy==1.5.1
 ldap3==2.8
-libcst==0.3.8
 lockfile==0.12.2
 marshmallow-enum==1.5.1
 marshmallow-sqlalchemy==0.23.1
@@ -203,7 +202,7 @@ oscrypto==1.2.1
 packaging==20.4
 pandas-gbq==0.13.2
 pandas==1.1.0
-papermill==2.1.2
+papermill==2.1.3
 parameterized==0.7.4
 paramiko==2.7.1
 parso==0.7.1
@@ -219,8 +218,7 @@ presto-python-client==0.7.0
 prison==0.1.3
 prometheus-client==0.8.0
 prompt-toolkit==3.0.6
-proto-plus==1.6.0
-protobuf==3.12.4
+protobuf==3.13.0
 psutil==5.7.2
 psycopg2-binary==2.8.5
 ptyprocess==0.6.0
@@ -241,12 +239,12 @@ pymssql==2.1.4
 pyparsing==2.4.7
 pyrsistent==0.16.0
 pysftp==0.2.9
-pytest-cov==2.10.0
+pytest-cov==2.10.1
 pytest-forked==1.3.0
 pytest-instafail==0.4.2
 pytest-rerunfailures==9.0
 pytest-timeout==1.4.2
-pytest-xdist==1.34.0
+pytest-xdist==2.0.0
 pytest==5.4.3
 python-daemon==2.2.4
 python-dateutil==2.8.1
@@ -277,7 +275,7 @@ s3transfer==0.3.3
 sasl==0.2.1
 sendgrid==5.6.0
 sentinels==1.0.0
-sentry-sdk==0.16.4
+sentry-sdk==0.16.5
 setproctitle==1.1.10
 six==1.15.0
 slackclient==1.3.2
@@ -313,14 +311,13 @@ tqdm==4.48.2
 traitlets==4.3.3
 typed-ast==1.4.1
 typing-extensions==3.7.4.2
-typing-inspect==0.6.0
 tzlocal==1.5.1
 unicodecsv==0.14.1
 uritemplate==3.0.1
 urllib3==1.25.10
 vertica-python==0.11.0
 vine==1.3.0
-virtualenv==20.0.30
+virtualenv==20.0.31
 wcwidth==0.2.5
 websocket-client==0.57.0
 wrapt==1.12.1
