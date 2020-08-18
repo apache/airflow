@@ -380,6 +380,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         op_extra_links_from_plugin = {}
 
         if "label" not in encoded_op:
+            # Handle deserialization of old data before the introduction of TaskGroup
             encoded_op["label"] = encoded_op["task_id"]
 
         for ope in plugins_manager.operator_extra_links:
@@ -669,7 +670,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
     A JSON serializable representation of TaskGroup.
     """
     @classmethod
-    def serialize_task_group(cls, task_group: TaskGroup) -> Union[Dict[str, Any], None]:
+    def serialize_task_group(cls, task_group: TaskGroup) -> Optional[Union[Dict[str, Any]]]:
         """Serializes TaskGroup into a JSON object.
         """
         if not task_group:
@@ -693,24 +694,23 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
     def deserialize_task_group(
         cls,
         encoded_group: Dict[str, Any],
-        parent_group: Union[TaskGroup, None],
+        parent_group: Optional[TaskGroup],
         task_dict: Dict[str, BaseOperator]
-    ) -> Union[TaskGroup, None]:
+    ) -> Optional[TaskGroup]:
         """Deserializes a TaskGroup from a JSON object.
         """
         if not encoded_group:
             return None
 
-        _group_id = cls._deserialize(encoded_group["_group_id"])
-        tooltip = cls._deserialize(encoded_group['tooltip'])
-        ui_color = cls._deserialize(encoded_group['ui_color'])
-        ui_fgcolor = cls._deserialize(encoded_group['ui_fgcolor'])
+        group_id = cls._deserialize(encoded_group["_group_id"])
+        kwargs = {
+            key: cls._deserialize(encoded_group[key])
+            for key in ["tooltip", "ui_color", "ui_fgcolor"]
+        }
         group = SerializedTaskGroup(
-            group_id=_group_id,
+            group_id=group_id,
             parent_group=parent_group,
-            tooltip=tooltip,
-            ui_color=ui_color,
-            ui_fgcolor=ui_fgcolor
+            **kwargs
         )
         group.children = {
             label: task_dict[val] if _type == DAT.OP  # type: ignore

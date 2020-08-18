@@ -116,8 +116,8 @@
     var execution_date = "{{ execution_date }}";
     var arrange = "{{ arrange }}";
     var task_group_tips = get_task_group_tips(nodes);
-    // This maps the actual task_id to the node_id that contains the task (because tasks may
-    // be grouped into a group node)
+    // This maps the actual task_id to the current graph node id that contains the task
+    // (because tasks may be grouped into a group node)
     var map_task_to_node = new Map()
 
     // Below variables are being used in dag.js
@@ -146,6 +146,7 @@
       });
 
     // Preparation of DagreD3 data structures
+    // "compound" is set to true to make use of clusters to display TaskGroup.
     var g = new dagreD3.graphlib.Graph({compound: true}).setGraph({
         nodesep: 15,
         ranksep: 15,
@@ -302,6 +303,7 @@
             }
         });
 
+    // Returns true if a node's id or its children's id matches search_text
     function node_matches(node_id, search_text) {
       if (node_id.indexOf(search_text) > -1)
         return true;
@@ -455,8 +457,10 @@
       });
     }
 
+    // Generate tooltip for a group node
     function group_tooltip(node_id, tis) {
-      var num_map = new Map([["failed", 0],
+      var num_map = new Map([["success", 0],
+                             ["failed", 0],
                              ["upstream_failed", 0],
                              ["up_for_retry", 0],
                              ["running", 0],
@@ -479,6 +483,7 @@
       return tt;
     }
 
+    // Build a map mapping node id to tooltip for all the TaskGroups.
     function get_task_group_tips(node) {
       var tips = new Map();
       if(node.children != undefined) {

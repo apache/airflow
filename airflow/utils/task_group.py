@@ -37,7 +37,7 @@ class TaskGroup:
     """
     def __init__(
         self,
-        group_id: Union[str, None],
+        group_id: Optional[str],
         parent_group: Optional["TaskGroup"] = None,
         dag: Optional["DAG"] = None,
         tooltip: str = "",
@@ -118,14 +118,14 @@ class TaskGroup:
         return self._group_id
 
     @property
-    def parent_group(self) -> Union["TaskGroup", None]:
+    def parent_group(self) -> Optional["TaskGroup"]:
         """
         Returns the parent group.
         """
         return self._parent_group
 
     @property
-    def group_id(self) -> Union[str, None]:
+    def group_id(self) -> Optional[str]:
         """
         group_id is prefixed with parent group_id if applicable.
         """
