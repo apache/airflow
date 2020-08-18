@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Dict, Optional
+
 from connexion import ProblemException
 
 
@@ -31,8 +33,13 @@ class BadRequest(ProblemException):
 
 class Unauthenticated(ProblemException):
     """Raise when the user is not authenticated"""
-    def __init__(self, title='Unauthorized', detail=None):
-        super().__init__(status=401, title=title, detail=detail)
+    def __init__(
+        self,
+        title: str = 'Unauthorized',
+        detail: Optional[str] = None,
+        headers: Optional[Dict] = None,
+    ):
+        super().__init__(status=401, title=title, detail=detail, headers=headers)
 
 
 class PermissionDenied(ProblemException):

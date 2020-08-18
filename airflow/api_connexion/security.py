@@ -31,7 +31,9 @@ def requires_authentication(function: T):
     def decorated(*args, **kwargs):
         response = current_app.api_auth.requires_authentication(Response)()
         if response.status_code != 200:
-            return response
+            # since this handler only checks authentication, not authorization,
+            # we should always return 401
+            raise Unauthenticated(headers=response.headers)
         return function(*args, **kwargs)
 
     return cast(T, decorated)

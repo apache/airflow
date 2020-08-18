@@ -88,7 +88,12 @@ class TestBasicAuth(unittest.TestCase):
             )
             assert response.status_code == 401
             assert response.headers["WWW-Authenticate"] == "Basic"
-            assert response.data == b"Unauthorized"
+            assert response.json == {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank',
+            }
 
     @parameterized.expand([
         ("basic " + b64encode(b"test").decode(),),
@@ -103,4 +108,9 @@ class TestBasicAuth(unittest.TestCase):
             )
             assert response.status_code == 401
             assert response.headers["WWW-Authenticate"] == "Basic"
-            assert response.data == b"Unauthorized"
+            assert response.json == {
+                'detail': None,
+                'status': 401,
+                'title': 'Unauthorized',
+                'type': 'about:blank',
+            }
