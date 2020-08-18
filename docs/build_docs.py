@@ -25,12 +25,12 @@ from subprocess import run
 from contextlib import suppress
 from glob import glob
 from tempfile import NamedTemporaryFile
-from typing import NamedTuple, List, Iterable, Set, Optional
+from typing import NamedTuple, List, Set, Optional
 
 if __name__ != "__main__":
     raise Exception(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
-        "To run this script, run the ./build command"
+        "To run this script, run the ./build_docs.py command"
     )
 
 
@@ -120,7 +120,7 @@ def check_file_not_contains(file_path: str, pattern: str, message: str) -> None:
                 build_errors.append(DocBuildError(file_path=file_path, line_no=num, message=message))
 
 
-def filter_file_list_by_pattern(file_paths: Iterable[str], pattern: str) -> List[str]:
+def filter_file_list_by_pattern(file_paths: List[str], pattern: str) -> List[str]:
     output_paths = []
     pattern_compiled = re.compile(pattern)
     for file_path in file_paths:
@@ -132,13 +132,13 @@ def filter_file_list_by_pattern(file_paths: Iterable[str], pattern: str) -> List
 
 
 def find_modules(deprecated_only: bool = False) -> Set[str]:
-    file_paths = glob(f"{ROOT_PACKAGE_DIR}/**/*.py", recursive=True)
+    file_paths_src = glob(f"{ROOT_PACKAGE_DIR}/**/*.py", recursive=True)
     # Exclude __init__.py
-    file_paths = (f for f in file_paths if not f.endswith("__init__.py"))
+    file_paths = list(f for f in file_paths_src if not f.endswith("__init__.py"))
     if deprecated_only:
         file_paths = filter_file_list_by_pattern(file_paths, r"This module is deprecated.")
     # Make path relative
-    file_paths = (os.path.relpath(f, ROOT_PROJECT_DIR) for f in file_paths)
+    file_paths = list(os.path.relpath(f, ROOT_PROJECT_DIR) for f in file_paths)
     # Convert filename to module
     modules_names = {file_path.rpartition(".")[0].replace("/", ".") for file_path in file_paths}
     return modules_names
@@ -182,7 +182,7 @@ def check_enforce_code_block():
         )
 
 
-def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int=5) -> str:
+def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:
     def guess_lexer_for_filename(filename):
         from pygments.util import ClassNotFound
         from pygments.lexers import get_lexer_for_filename
@@ -282,12 +282,6 @@ clean_files()
 
 check_enforce_code_block()
 check_exampleinclude_for_example_dags()
-
-if build_errors:
-    display_errors_summary()
-    print()
-    print("The documentation has errors. Fix them to build documentation.")
-    sys.exit(1)
 
 build_sphinx_docs()
 
