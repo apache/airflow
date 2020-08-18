@@ -19,7 +19,7 @@
 import unittest
 
 import jenkins
-import mock
+from mock import Mock, patch
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -27,7 +27,6 @@ from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
 
 
-@unittest.skipIf(mock is None, 'mock package not present')
 class TestJenkinsOperator(unittest.TestCase):
     @parameterized.expand([
         ("dict params", {'a_param': 'blip', 'another_param': '42'},),
@@ -35,18 +34,18 @@ class TestJenkinsOperator(unittest.TestCase):
         ("list params", ['final_one', 'bop', 'real_final', 'eggs'],),
     ])
     def test_execute(self, _, parameters):
-        jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret')
         jenkins_mock.get_build_info.return_value = \
             {'result': 'SUCCESS',
              'url': 'http://aaa.fake-url.com/congratulation/its-a-job'}
         jenkins_mock.build_job_url.return_value = \
             'http://www.jenkins.url/somewhere/in/the/universe'
 
-        hook_mock = mock.Mock(spec=JenkinsHook)
+        hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
-        with mock.patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
-            mock.patch(
+        with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
+            patch(
                 'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers') \
                 as mock_make_request:
             mock_make_request.side_effect = \
@@ -74,7 +73,7 @@ class TestJenkinsOperator(unittest.TestCase):
         ("list params", ['final_one', 'bop', 'real_final', 'eggs'],),
     ])
     def test_execute_job_polling_loop(self, _, parameters):
-        jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret')
         jenkins_mock.get_job_info.return_value = {'nextBuildNumber': '1'}
         jenkins_mock.get_build_info.side_effect = \
             [{'result': None},
@@ -83,11 +82,11 @@ class TestJenkinsOperator(unittest.TestCase):
         jenkins_mock.build_job_url.return_value = \
             'http://www.jenkins.url/somewhere/in/the/universe'
 
-        hook_mock = mock.Mock(spec=JenkinsHook)
+        hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
-        with mock.patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
-            mock.patch(
+        with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
+            patch(
                 'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers') \
                 as mock_make_request:
             mock_make_request.side_effect = \
@@ -112,7 +111,7 @@ class TestJenkinsOperator(unittest.TestCase):
         ("list params", ['final_one', 'bop', 'real_final', 'eggs'],),
     ])
     def test_execute_job_failure(self, _, parameters):
-        jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret')
         jenkins_mock.get_job_info.return_value = {'nextBuildNumber': '1'}
         jenkins_mock.get_build_info.return_value = {
             'result': 'FAILURE',
@@ -120,11 +119,11 @@ class TestJenkinsOperator(unittest.TestCase):
         jenkins_mock.build_job_url.return_value = \
             'http://www.jenkins.url/somewhere/in/the/universe'
 
-        hook_mock = mock.Mock(spec=JenkinsHook)
+        hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
-        with mock.patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
-            mock.patch(
+        with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
+            patch(
                 'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers') \
                 as mock_make_request:
             mock_make_request.side_effect = \
@@ -143,10 +142,10 @@ class TestJenkinsOperator(unittest.TestCase):
             self.assertRaises(AirflowException, operator.execute, None)
 
     def test_build_job_request_settings(self):
-        jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret', timeout=2)
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth='secret', timeout=2)
         jenkins_mock.build_job_url.return_value = 'http://apache.org'
 
-        with mock.patch(
+        with patch(
             'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers'
         ) as mock_make_request:
             operator = JenkinsJobTriggerOperator(
