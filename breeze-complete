@@ -98,8 +98,8 @@ EOF
 
 _BREEZE_DEFAULT_DOCKERHUB_USER="apache"
 _BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
-_BREEZE_DEFAULT_GITHUB_ORGANISATION="apache"
-_BREEZE_DEFAULT_GITHUB_REPO="airflow"
+_BREEZE_DEFAULT_GITHUB_REPOSITORY="apache/airflow"
+_BREEZE_DEFAULT_GITHUB_IMAGE_ID="latest"
 
 _BREEZE_SHORT_OPTIONS="
 h p: b: i:
@@ -108,7 +108,7 @@ l a: t: d:
 v y n q f
 F P I E: C
 L U X
-D: R: c g: G:
+D: R: c g: s:
 S: N:
 "
 
@@ -119,7 +119,7 @@ skip-mounting-local-sources install-airflow-version: install-airflow-reference: 
 verbose assume-yes assume-no assume-quit forward-credentials
 force-build-images force-pull-images production-image extras: force-clean-images
 build-cache-local build-cache-pulled build-cache-disabled
-dockerhub-user: dockerhub-repo: github-registry github-organisation: github-repo:
+dockerhub-user: dockerhub-repo: github-registry github-repository: github-image-id:
 postgres-version: mysql-version:
 version-suffix-for-pypi: version-suffix-for-svn:
 additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps:
@@ -210,11 +210,11 @@ function _get_known_values_breeze() {
     -R | --dockerhub-repo)
         _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}"
         ;;
-    -G | --github-organisation)
-        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_GITHUB_ORGANISATION}"
+    -g | --github-repository)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_GITHUB_REPOSITORY}"
         ;;
-    -g | --github-repo)
-        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_GITHUB_REPO}"
+    -s | --github-image-id)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_GITHUB_IMAGE_ID}"
         ;;
     kind-cluster)
         _BREEZE_KNOWN_VALUES="${_BREEZE_ALLOWED_KIND_OPERATIONS}"

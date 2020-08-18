@@ -339,7 +339,7 @@ function prepare_ci_build() {
                 --password-stdin \
                 "${CACHE_REGISTRY}"
         fi
-        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_ORGANISATION}/${GITHUB_REPO}}
+        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_REPOSITORY}}
         export CACHED_AIRFLOW_CI_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_CI_BASE_TAG}"
         export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     else
@@ -647,7 +647,7 @@ function prepare_prod_build() {
                 --password-stdin \
                 "${CACHE_REGISTRY}"
         fi
-        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_ORGANISATION}/${GITHUB_REPO}}
+        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_REPOSITORY}}
         export CACHED_AIRFLOW_PROD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}"
         export CACHED_AIRFLOW_PROD_BUILD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}-build"
         export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
