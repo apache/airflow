@@ -87,6 +87,7 @@ class TestBasicAuth(unittest.TestCase):
                 "/api/v1/pools", headers={"Authorization": token}
             )
             assert response.status_code == 401
+            assert response.headers["Content-Type"] == "application/problem+json"
             assert response.headers["WWW-Authenticate"] == "Basic"
             assert response.json == {
                 'detail': None,
@@ -107,6 +108,7 @@ class TestBasicAuth(unittest.TestCase):
                 "/api/v1/pools", headers={"Authorization": token}
             )
             assert response.status_code == 401
+            assert response.headers["Content-Type"] == "application/problem+json"
             assert response.headers["WWW-Authenticate"] == "Basic"
             assert response.json == {
                 'detail': None,
