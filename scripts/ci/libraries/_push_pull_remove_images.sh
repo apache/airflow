@@ -33,9 +33,7 @@ function pull_image_if_needed() {
         echo
         echo "Pulling the image ${IMAGE_TO_PULL}"
         echo
-        # need eto be explicitly verbose in order to have pre-commit spinner working
-        # No aliases in pre-commit non-interactive shells :(
-        verbose_docker pull "${IMAGE_TO_PULL}"
+        docker pull "${IMAGE_TO_PULL}"
         EXIT_VALUE="$?"
         echo
         return ${EXIT_VALUE}
@@ -86,9 +84,7 @@ Docker pulling ${PYTHON_BASE_IMAGE}.
             if [[ ${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"} == "true" ]]; then
                 pull_image_possibly_from_cache "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
             else
-                # need eto be explicitly verbose in order to have pre-commit spinner working
-                # No aliases in pre-commit non-interactive shells :(
-                verbose_docker pull "${PYTHON_BASE_IMAGE}"
+                docker pull "${PYTHON_BASE_IMAGE}"
             fi
             echo
         fi
@@ -110,9 +106,7 @@ function pull_prod_images_if_needed() {
             if [[ ${PULL_PYTHON_BASE_IMAGES_FROM_CACHE:="true"} == "true" ]]; then
                 pull_image_possibly_from_cache "${PYTHON_BASE_IMAGE}" "${CACHED_PYTHON_BASE_IMAGE}"
             else
-                # need eto be explicitly verbose in order to have pre-commit spinner working
-                # No aliases in pre-commit non-interactive shells :(
-                verbose_docker pull "${PYTHON_BASE_IMAGE}"
+                docker pull "${PYTHON_BASE_IMAGE}"
             fi
             echo
         fi
