@@ -28,13 +28,13 @@ def create_section():
     """
     Create tasks in the outer section.
     """
-    dummies = [DummyOperator(task_id=f'task-{i + 1}') for i in range(20)]
+    dummies = [DummyOperator(task_id=f'task-{i + 1}') for i in range(5)]
 
     with TaskGroup("inside_section_1") as inside_section_1:
-        _ = [DummyOperator(task_id=f'task-{i + 1}',) for i in range(10)]
+        _ = [DummyOperator(task_id=f'task-{i + 1}',) for i in range(3)]
 
     with TaskGroup("inside_section_2") as inside_section_2:
-        _ = [DummyOperator(task_id=f'task-{i + 1}',) for i in range(10)]
+        _ = [DummyOperator(task_id=f'task-{i + 1}',) for i in range(3)]
 
     dummies[-1] >> inside_section_1
     dummies[-2] >> inside_section_2
