@@ -265,7 +265,7 @@ Once that is done, you can run -
 
  airflow db upgrade
 
-``upgrade`` keeps track of migrations already applies, so it's safe to run as often as you need.
+``upgrade`` keeps track of migrations already applied, so it's safe to run as often as you need.
 
 .. note::
 
