@@ -16,7 +16,7 @@
 # under the License.
 
 from functools import wraps
-from typing import Callable, TypeVar, cast
+from typing import Callable, Sequence, Tuple, TypeVar, cast
 
 from flask import Response, current_app
 
@@ -35,3 +35,23 @@ def requires_authentication(function: T):
         return function(*args, **kwargs)
 
     return cast(T, decorated)
+
+
+def requires_access(permissions: Sequence[Tuple[str, str]]) -> Callable[[T], T]:
+    """
+    Factory for decorator that checks current user's permissions against required permissions.
+    """
+
+    def requires_access_decorator(func: T):
+        @wraps(func)
+        def wrapped_function(*args, **kwargs):
+            appbuilder = current_app.appbuilder
+            for permission in permissions:
+                if not appbuilder.sm.has_access(*permission):
+                    return Response("Forbidden", 403)
+
+            return func(*args, **kwargs)
+
+        return cast(T, wrapped_function)
+
+    return requires_access_decorator
