@@ -948,7 +948,7 @@ TaskGroup is a UI grouping concept. Tasks in TaskGroups honor all the pool confi
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<``
 operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1``
-and then puts both tasks downstream of ``task3``:
+and then puts both tasks upstream of ``task3``:
 
 .. code-block:: python
 
@@ -962,7 +962,7 @@ and then puts both tasks downstream of ``task3``:
 
 .. note::
    When tasks are created inside a TaskGroup, their ``task_id`` are prefixed with the ``group_id``
-   of their TaskGroup. For example, in the above example, ``task1.task_id`` actually
+   of their TaskGroup. For example, in the above example, ``task_id`` of ``task1`` actually
    becomes ``"group1.task1"``.
 
 Here is a more complicated example DAG with multiple levels of nested TaskGroups:
