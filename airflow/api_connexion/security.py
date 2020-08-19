@@ -20,7 +20,7 @@ from typing import Callable, Sequence, Tuple, TypeVar, cast
 
 from flask import Response, current_app
 
-from airflow.api_connexion.exceptions import Unauthenticated
+from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
