@@ -323,7 +323,7 @@ this handler. Details are available in the handler's documentation -
 :class:`~airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler`.
 
 External Links
-==============
+--------------
 
 When using remote logging, users can configure Airflow to show a link to an external UI within the Airflow Web UI. Clicking the link redirects a user to the external UI.
 
@@ -332,7 +332,7 @@ Some external systems require specific configuration in Airflow for redirection 
 .. _log-link-elasticsearch:
 
 Elasticsearch External Link
-------------------------------------
+'''''''''''''''''''''''''''
 
 A user can configure Airflow to show a link to an Elasticsearch log viewing system (e.g. Kibana).
 
@@ -349,6 +349,6 @@ To enable it, ``airflow.cfg`` must be configured as in the example below. Note t
 .. _log-link-stackdriver:
 
 Google Stackdriver External Link
----------------------------------
+''''''''''''''''''''''''''''''''
 
 Airflow automatically shows a link to Google Stackdriver when configured to use it as the remote logging system.
