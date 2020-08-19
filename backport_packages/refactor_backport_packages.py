@@ -438,7 +438,7 @@ class RefactorBackportPackages:
             self.qry.
             select_module("airflow.utils.email").
             filter(callback=amazon_package_filter).
-            rename("airflow.providers.amazon.common.email")
+            rename("airflow.providers.amazon.common.utils.email")
         )
 
     def refactor_google_package(self):
