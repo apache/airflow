@@ -30,14 +30,50 @@ fi
 
 function run_airflow_testing_in_docker() {
     set +u
-    # shellcheck disable=SC2016
-    docker-compose --log-level INFO \
-      -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-      -f "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml" \
-      "${INTEGRATIONS[@]}" \
-      "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow "${@}"
+    set +e
+    for TRY_NUM in {1..3}
+    do
+        echo
+        echo "Starting try number ${TRY_NUM}"
+        echo
+        docker-compose --log-level INFO \
+          -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+          -f "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml" \
+          "${INTEGRATIONS[@]}" \
+          "${DOCKER_COMPOSE_LOCAL[@]}" \
+             run airflow "${@}"
+        EXIT_CODE=$?
+        if [[ ${EXIT_CODE} == 254 ]]; then
+            echo
+            echo "Failed starting integration on ${TRY_NUM} try. Wiping-out docker-compose remnants"
+            echo
+            docker-compose --log-level INFO \
+                -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+                down --remove-orphans -v --timeout 5
+            echo
+            echo "Sleeping 5 seconds"
+            echo
+            sleep 5
+            continue
+        else
+            break
+        fi
+    done
+    if [[ ${ONLY_RUN_QUARANTINED_TESTS:=} == "true" ]]; then
+        if [[ ${EXIT_CODE} == "1" ]]; then
+            echo
+            echo "Some Quarantined tests failed. but we recorded it in an issue"
+            echo
+            EXIT_CODE="0"
+        else
+            echo
+            echo "All Quarantined tests succeeded"
+            echo
+        fi
+    fi
     set -u
+    set -e
+    return "${EXIT_CODE}"
 }
 
 get_environment_for_builds_on_ci
@@ -54,10 +90,13 @@ export BACKEND=${BACKEND:="sqlite"}
 # Whether necessary for airflow run local sources are mounted to docker
 export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
 
-# whethere verbose output should be produced
+# Whether files folder is mounted to docker
+export MOUNT_FILES=${MOUNT_FILES:="true"}
+
+# whether verbose output should be produced
 export VERBOSE=${VERBOSE:="false"}
 
-# whethere verbose commadns output (set-x) should be used
+# whether verbose commands output (set -x) should be used
 export VERBOSE_COMMANDS=${VERBOSE_COMMANDS:="false"}
 
 # Forwards host credentials to the container
@@ -66,10 +105,18 @@ export FORWARD_CREDENTIALS=${FORWARD_CREDENTIALS:="false"}
 # Installs different airflow version than current from the sources
 export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:=""}
 
+DOCKER_COMPOSE_LOCAL=()
+
 if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
-    DOCKER_COMPOSE_LOCAL=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local.yml")
-else
-    DOCKER_COMPOSE_LOCAL=()
+    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local.yml")
+fi
+
+if [[ ${MOUNT_FILES} == "true" ]]; then
+    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
+fi
+
+if [[ ${CI} == "true" ]]; then
+    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/ga.yml")
 fi
 
 if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
@@ -95,6 +142,7 @@ elif [[ ${TEST_TYPE:=} == "Long" ]]; then
     export ONLY_RUN_LONG_RUNNING_TESTS="true"
 elif [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
     export ONLY_RUN_QUARANTINED_TESTS="true"
+    # Do not fail in quarantined tests
 fi
 
 for _INT in ${ENABLED_INTEGRATIONS}
@@ -106,3 +154,7 @@ done
 RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
 
 run_airflow_testing_in_docker "${@}"
+
+if [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
+    export ONLY_RUN_QUARANTINED_TESTS="true"
+fi
