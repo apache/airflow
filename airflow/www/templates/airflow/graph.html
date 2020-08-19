@@ -600,7 +600,21 @@
           var [delta_x, delta_y] = [width / 2 - x * scale, height / 2 - y * scale];
           zoom.translate([delta_x, delta_y]);
           zoom.scale(scale);
-          zoom.event(innerSvg);
+          zoom.event(innerSvg.transition().duration(duration));
+
+          const children = new Set(g.children(node_id))
+          // Change opacity to highlight the focused group.
+          d3.selectAll("g.nodes g.node").filter(function(d, i){
+            if (d == node_id || children.has(d)) {
+                d3.select(this)
+                    .transition().duration(duration)
+                    .style("opacity", 1)
+            } else {
+                d3.select(this)
+                    .transition()
+                    .style("opacity", 0.2).duration(duration)
+            }
+          });
       }
     }
 
