@@ -337,7 +337,7 @@ class DataProcHook(GoogleCloudBaseHook):
             projectId=project_id,
             region=region,
             jobId=job_id
-        )
+        ).execute(num_retries=self.num_retries)
 
 
 setattr(
