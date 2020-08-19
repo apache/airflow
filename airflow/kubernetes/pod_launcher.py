@@ -125,7 +125,8 @@ class PodLauncher(LoggingMixin):
         """
         if get_logs:
             logs = self.read_pod_logs(pod)
-            if isinstance(logs, str):
+            import sys
+            if sys.version_info[0] == 2:
                 logs.encode('utf-8')
             else:
                 logs.decode('utf-8')
