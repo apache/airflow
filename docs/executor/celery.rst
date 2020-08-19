@@ -159,7 +159,7 @@ The components communicate with each other in many places
 * [11] **Scheduler** --> **Celery's broker** - Put the commands to be executed
 
 Queues
-======
+------
 
 When using the CeleryExecutor, the Celery queues that tasks are sent to
 can be specified. ``queue`` is an attribute of BaseOperator, so any
