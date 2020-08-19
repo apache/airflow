@@ -332,9 +332,7 @@ function prepare_ci_build() {
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
     if [[ ${USE_GITHUB_REGISTRY="false"} == "true" ]]; then
         if [[ ${CACHE_REGISTRY_PASSWORD:=} != "" ]]; then
-            # need eto be explicitly verbose in order to have pre-commit spinner working
-            # No aliases in pre-commit non-interactive shells :(
-            echo "${CACHE_REGISTRY_PASSWORD}" | verbose_docker login \
+            echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
                 --username "${CACHE_REGISTRY_USERNAME}" \
                 --password-stdin \
                 "${CACHE_REGISTRY}"
@@ -577,9 +575,7 @@ Docker building ${AIRFLOW_CI_IMAGE}.
 " > "${DETECTED_TERMINAL}"
     fi
     set +u
-    # need eto be explicitly verbose in order to have pre-commit spinner working
-    # No aliases in pre-commit non-interactive shells :(
-    verbose_docker build \
+    docker build \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
             --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \

@@ -23,13 +23,6 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 export PRINT_INFO_FROM_SCRIPTS="false"
 export SKIP_CHECK_REMOTE_IMAGE="true"
 
-
-# For Pre-commits run in non-interactive shell so aliases do not work for them we need to add
-# local echo script to path so that it can be silenced.
-PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ):${PATH}"
-export PATH
-
-
 TMP_FILE=$(mktemp)
 TMP_OUTPUT=$(mktemp)
 

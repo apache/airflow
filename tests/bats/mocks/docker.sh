@@ -15,18 +15,5 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
 
-PRE_COMMIT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-AIRFLOW_SOURCES=$(cd "${PRE_COMMIT_DIR}/../../../" && pwd);
-cd "${AIRFLOW_SOURCES}" || exit 1
-
-export PRINT_INFO_FROM_SCRIPTS="false"
-export SKIP_CHECK_REMOTE_IMAGE="true"
-
-PYTHONPATH="$(pwd)"
-export PYTHONPATH
-find airflow/providers -name '*.py' -print0 | \
-    xargs -0 python3 tests/build_provider_packages_dependencies.py \
-        --provider-dependencies-file "airflow/providers/dependencies.json" \
-        --documentation-file CONTRIBUTING.rst
+# Noop for now, but we can use it in the future to mock more tests of bash scripts
