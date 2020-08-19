@@ -57,9 +57,9 @@ the ``DAG`` objects. You can have as many DAGs as you want, each describing an
 arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
-.. note:: When searching for DAGs, Airflow only considers python files
+.. note:: When searching for DAGs, Airflow only considers Python files
    that contain the strings "airflow" and "DAG" by default. To consider
-   all python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
+   all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
    configuration flag.
 
 Scope
@@ -1346,8 +1346,8 @@ Exceptions
 ==========
 
 Airflow defines a number of exceptions; most of these are used internally, but a few
-are relevant to authors of custom operators or python callables called from ``PythonOperator``
-tasks. Normally any exception raised from an ``execute`` method or python callable will either
+are relevant to authors of custom operators or Python callables called from ``PythonOperator``
+tasks. Normally any exception raised from an ``execute`` method or Python callable will either
 cause a task instance to fail if it is not configured to retry or has reached its limit on
 retry attempts, or to be marked as "up for retry". A few exceptions can be used when different
 behavior is desired:
@@ -1432,7 +1432,7 @@ do the same, but then it is more suitable to use a virtualenv and pip.
 
 .. note:: packaged dags cannot contain dynamic libraries (eg. libz.so) these need
    to be available on the system if a module needs those. In other words only
-   pure python modules can be packaged.
+   pure Python modules can be packaged.
 
 
 .airflowignore
