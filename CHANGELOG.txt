@@ -1,4 +1,4 @@
-Airflow 1.10.12, 2020-08-18
+Airflow 1.10.12, 2020-08-23
 ----------------------------
 
 New Features
@@ -33,6 +33,8 @@ Bug Fixes
 - Fix is_terminal_support_colors function (#9734)
 - Fix PythonVirtualenvOperator when using ``provide_context=True`` (#8256)
 - Fix issue with mounting volumes from secrets (#10366)
+- BugFix: K8s Executor Multinamespace mode is evaluated to true by default (#10410)
+- Make KubernetesExecutor recognize kubernetes_labels (#10412)
 
 Improvements
 """"""""""""
