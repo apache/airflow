@@ -24,9 +24,12 @@ function check_verbose_setup {
     fi
 }
 
+DOCKER_BINARY="${DOCKER_BINARY:=$(command -v docker)}"
+export DOCKER_BINARY
+
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
 # printed before execution
-function verbose_docker {
+function docker {
     if [[ ${VERBOSE:="false"} == "true" && \
         # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
         ${VERBOSE_COMMANDS:=} != "true" && \
@@ -35,9 +38,9 @@ function verbose_docker {
         >&2 echo "docker" "${@}"
     fi
     if [[ ${PRINT_INFO_FROM_SCRIPTS} == "false" ]]; then
-        docker "${@}" >>"${OUTPUT_LOG}" 2>&1
+        ${DOCKER_BINARY} "${@}" >>"${OUTPUT_LOG}" 2>&1
     else
-        docker "${@}" 2>&1 | tee -a "${OUTPUT_LOG}"
+        ${DOCKER_BINARY} "${@}" 2>&1 | tee -a "${OUTPUT_LOG}"
     fi
     EXIT_CODE="$?"
     if [[ ${EXIT_CODE} == "0" ]]; then
@@ -48,43 +51,52 @@ function verbose_docker {
     return "${EXIT_CODE}"
 }
 
+HELM_BINARY="${HELM_BINARY:=$(command -v helm)}"
+export HELM_BINARY
+
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all helm commands run will be
 # printed before execution
-function verbose_helm {
+function helm {
     if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
        # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
         >&2 echo "helm" "${@}"
     fi
-    helm "${@}" | tee -a "${OUTPUT_LOG}"
+    ${HELM_BINARY} "${@}" | tee -a "${OUTPUT_LOG}"
     if [[ ${EXIT_CODE} == "0" ]]; then
         # No matter if "set -e" is used the log will be removed on success.
         rm -f "${OUTPUT_LOG}"
     fi
 }
 
+KUBECTL_BINARY=${KUBECTL_BINARY:=$(command -v kubectl)}
+export KUBECTL_BINARY
+
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all kubectl commands run will be
 # printed before execution
-function verbose_kubectl {
+function kubectl {
     if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
        # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
         >&2 echo "kubectl" "${@}"
     fi
-    kubectl "${@}" | tee -a "${OUTPUT_LOG}"
+    ${KUBECTL_BINARY} "${@}" | tee -a "${OUTPUT_LOG}"
     if [[ ${EXIT_CODE} == "0" ]]; then
         # No matter if "set -e" is used the log will be removed on success.
         rm -f "${OUTPUT_LOG}"
     fi
 }
 
+KIND_BINARY="${KIND_BINARY:=$(command -v kind)}"
+export KIND_BINARY
+
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all kind commands run will be
 # printed before execution
-function verbose_kind {
+function kind {
     if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
        # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
         >&2 echo "kind" "${@}"
     fi
     # kind outputs nice output on terminal.
-    kind "${@}"
+    ${KIND_BINARY} "${@}"
 }
 
 # Prints verbose information in case VERBOSE variable is set
@@ -106,8 +118,3 @@ function set_verbosity() {
 }
 
 set_verbosity
-
-alias docker=verbose_docker
-alias kubectl=verbose_kubectl
-alias helm=verbose_helm
-alias kind=verbose_kind
