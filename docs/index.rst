@@ -87,7 +87,7 @@ Content
     dag-run
     plugins
     security/index
-    monitoring/index
+    logging-monitoring/index
     timezone
     Using the CLI <usage-cli>
     integration

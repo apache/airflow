@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Monitoring
-==========
+Logging & Monitoring
+====================
 
 This section contains guides on how to keep your instance and your workflows in good condition.
 

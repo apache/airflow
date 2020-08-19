@@ -75,8 +75,8 @@ howto/use-alternative-secrets-backend.rst security/secrets/secrets-backend/index
 security.rst security/index.rst
 
 # Monitoring
-howto/check-health.rst monitoring/check-health.rst
-errors.rst monitoring/errors.rst
-howto/write-logs.rst monitoring/logging-tasks.rst
-metrics.rst monitoring/metrics.rst
-howto/tracking-user-activity.rst monitoring/tracking-user-activity.rst
+howto/check-health.rst logging-monitoring/check-health.rst
+errors.rst logging-monitoring/errors.rst
+howto/write-logs.rst logging-monitoring/logging-tasks.rst
+metrics.rst logging-monitoring/metrics.rst
+howto/tracking-user-activity.rst logging-monitoring/tracking-user-activity.rst
