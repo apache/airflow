@@ -939,6 +939,44 @@ See ``airflow/example_dags`` for a demonstration.
 Note that airflow pool is not honored by SubDagOperator. Hence resources could be
 consumed by SubdagOperators.
 
+
+TaskGroup
+=========
+TaskGroup can be used to organize tasks into hierarchical groups in Graph View. It is
+useful for creating repeating patterns and cutting down visual clutter. Unlike SubDagOperator,
+TaskGroup is a UI grouping concept. Tasks in TaskGroups honor all the pool configurations.
+
+Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<``
+operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1``
+and then puts both tasks downstream of ``task3``:
+
+.. code-block:: python
+
+    with TaskGroup("group1") as group1:
+        task1 = DummyOperator(task_id="task1")
+        task2 = DummyOperator(task_id="task2")
+
+    task3 = DummyOperator(task_id="task3")
+
+    group1 >> task3
+
+.. note::
+   When tasks are created inside a TaskGroup, their ``task_id`` are prefixed with the ``group_id``
+   of their TaskGroup. For example, in the above example, ``task1.task_id`` actually
+   becomes ``"group1.task1"``.
+
+Here is a more complicated example DAG with multiple levels of nested TaskGroups:
+
+.. exampleinclude:: /../airflow/example_dags/example_task_group.py
+    :language: python
+    :start-after: [START howto_task_group]
+    :end-before: [END howto_task_group]
+
+This animated gif shows the UI interactions. TaskGroups are expanded or collapsed when clicked:
+
+.. image:: img/task_group.gif
+
+
 SLAs
 ====
 

@@ -24,6 +24,7 @@ from airflow.utils.dates import days_ago
 from airflow.utils.task_group import TaskGroup
 
 
+# [START howto_task_group]
 def create_section():
     """
     Create tasks in the outer section.
@@ -54,3 +55,4 @@ with DAG(dag_id="example_task_group", start_date=days_ago(2)) as dag:
     end = DummyOperator(task_id='end')
 
     start >> section_1 >> some_other_task >> section_2 >> end
+# [END howto_task_group]
