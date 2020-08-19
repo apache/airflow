@@ -214,9 +214,6 @@ function initialize_common_environment {
     # Version of Kubernetes to run
     export KUBERNETES_VERSION="${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}"
 
-    # folder with DAGs to embed into production image
-    export EMBEDDED_DAGS=${EMBEDDED_DAGS:="empty"}
-
     # Namespace where airflow is installed via helm
     export HELM_AIRFLOW_NAMESPACE="airflow"
 
@@ -241,7 +238,7 @@ function get_environment_for_builds_on_ci() {
     export CI_JOB_ID="default-job-id"
     if [[ ${CI:=} != "true" ]]; then
         print_info
-        print_info "This is not a CI environment!. Staying with the defaults"
+        print_info "This is not a CI environment! Staying with the defaults."
         print_info
     else
         if [[ ${TRAVIS:=} == "true" ]]; then

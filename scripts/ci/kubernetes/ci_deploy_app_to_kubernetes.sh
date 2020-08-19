@@ -32,7 +32,9 @@ trap "${HANDLERS}${HANDLERS:+;}dump_kind_logs" EXIT
 get_environment_for_builds_on_ci
 initialize_kind_variables
 make_sure_kubernetes_tools_are_installed
-build_prod_image_for_kubernetes_tests
+prepare_prod_build
+build_prod_image
+build_image_for_kubernetes_tests
 load_image_to_kind_cluster
 deploy_airflow_with_helm
 forward_port_to_kind_webserver
