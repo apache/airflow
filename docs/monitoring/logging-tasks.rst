@@ -17,8 +17,8 @@
 
 
 
-Writing Logs
-============
+Logging for Tasks
+=================
 
 Writing Logs Locally
 --------------------

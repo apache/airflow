@@ -16,7 +16,7 @@
     under the License.
 
 Tracking User Activity
-=============================
+======================
 
 You can configure Airflow to route anonymous data to
 `Google Analytics <https://analytics.google.com/>`_,
