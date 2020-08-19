@@ -59,7 +59,7 @@ echo
 echo
 echo "Count changed files matching the ${1} pattern"
 echo
-COUNT_CHANGED_FILES=$(echo "${CHANGED_FILES}" | grep -c -E "${2}" || true)
+COUNT_CHANGED_FILES=$(echo "${CHANGED_FILES}" | grep -c -E "${1}" || true)
 echo "${COUNT_CHANGED_FILES}"
 echo
 
