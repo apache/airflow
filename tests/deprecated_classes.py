@@ -16,6 +16,10 @@
 # under the License.
 HOOKS = [
     (
+        'airflow.hooks.filesystem.BaseHook',
+        'airflow.hooks.base_hook.BaseHook'
+    ),
+    (
         "airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook",
         "airflow.contrib.hooks.cassandra_hook.CassandraHook",
     ),
@@ -1343,6 +1347,10 @@ OPERATORS = [
 
 SECRETS = [
     (
+        'airflow.providers.google.cloud.secrets.secret_manager.BaseSecretsBackend',  
+        'airflow.secrets.base_secrets.BaseSecretsBackend',
+    ),
+    (
         "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend",
         "airflow.contrib.secrets.aws_secrets_manager.SecretsManagerBackend",
     ),
@@ -1361,6 +1369,27 @@ SECRETS = [
 ]
 
 SENSORS = [
+    (   
+        'airflow.providers.apache.hive.sensors.metastore_partition.SqlSensor',  
+        'airflow.operators.sensors.SqlSensor',
+    ),
+    (   
+        'airflow.sensors.time_delta_sensor.TimeDeltaSensor',  
+        'airflow.operators.sensors.TimeDeltaSensor',
+    ),
+    (   
+        'airflow.sensors.time_sensor.TimeSensor',  
+        'airflow.operators.sensors.TimeSensor',
+    ),
+    (   
+        'airflow.providers.apache.hive.sensors.metastore_partition.SqlSensor',  
+        'airflow.sensors.sql_sensor.SqlSensor',
+    ),
+    (
+        "airflow.sensors.BaseSensorOperator",
+        "airflow.sensors.base_sensor_operator.BaseSensorOperator",
+
+    ),
     (
         "airflow.providers.apache.cassandra.sensors.record.CassandraRecordSensor",
         "airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor",
