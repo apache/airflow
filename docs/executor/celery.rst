@@ -72,7 +72,7 @@ to start a Flower web server:
 
     airflow celery flower
 
-Please note that you must have the ``flower`` python library already installed on your system. The recommend way is to install the airflow celery bundle.
+Please note that you must have the ``flower`` python library already installed on your system. The recommended way is to install the airflow celery bundle.
 
 .. code-block:: bash
 
