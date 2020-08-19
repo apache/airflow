@@ -15,32 +15,13 @@
     specific language governing permissions and limitations
     under the License.
 
+Logging & Monitoring
+====================
 
-
-How-to Guides
-=============
-
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
-
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
+This section contains guides on how to keep your instance and your workflows in good condition.
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :glob:
 
-    add-dag-tags
-    add-new-role
-    set-config
-    initialize-database
-    operator/index
-    customize-state-colors-ui
-    custom-operator
-    connection/index
-    variable
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    define_extra_link
-    email-config
+    *

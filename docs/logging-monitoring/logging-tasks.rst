@@ -17,8 +17,8 @@
 
 
 
-Writing Logs
-============
+Logging for Tasks
+=================
 
 Writing Logs Locally
 --------------------
@@ -28,7 +28,7 @@ Users can specify the directory to place log files in ``airflow.cfg`` using
 directory.
 
 .. note::
-    For more information on setting the configuration, see :doc:`set-config`
+    For more information on setting the configuration, see :doc:`/howto/set-config`
 
 The following convention is followed while naming logs: ``{dag_id}/{task_id}/{execution_date}/{try_number}.log``
 
@@ -323,7 +323,7 @@ this handler. Details are available in the handler's documentation -
 :class:`~airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler`.
 
 External Links
-==============
+--------------
 
 When using remote logging, users can configure Airflow to show a link to an external UI within the Airflow Web UI. Clicking the link redirects a user to the external UI.
 
@@ -332,7 +332,7 @@ Some external systems require specific configuration in Airflow for redirection 
 .. _log-link-elasticsearch:
 
 Elasticsearch External Link
-------------------------------------
+'''''''''''''''''''''''''''
 
 A user can configure Airflow to show a link to an Elasticsearch log viewing system (e.g. Kibana).
 
@@ -349,6 +349,6 @@ To enable it, ``airflow.cfg`` must be configured as in the example below. Note t
 .. _log-link-stackdriver:
 
 Google Stackdriver External Link
----------------------------------
+''''''''''''''''''''''''''''''''
 
 Airflow automatically shows a link to Google Stackdriver when configured to use it as the remote logging system.

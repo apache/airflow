@@ -24,13 +24,13 @@ Airflow has a mechanism that allows you to expand its functionality and integrat
 * :doc:`Email backends </howto/email-config>`
 * :doc:`Executor </executor/index>`
 * :doc:`Kerberos </security/kerberos>`
-* :doc:`Logging </howto/write-logs>`
-* :doc:`Metrics (statsd) </metrics>`
+* :doc:`Logging </logging-monitoring/logging-tasks>`
+* :doc:`Metrics (statsd) </logging-monitoring/metrics>`
 * :doc:`Operators and hooks </operators-and-hooks-ref>`
 * :doc:`Plugins </plugins>`
 * :doc:`Secrets backends </security/secrets/secrets-backend/index>`
-* :doc:`Tracking systems </howto/tracking-user-activity>`
+* :doc:`Tracking systems </logging-monitoring/tracking-user-activity>`
 * :doc:`Web UI Authentication backends </security/api>`
 
-It also has integration with :doc:`Sentry <errors>` service for error tracking. Other applications can also integrate using
+It also has integration with :doc:`Sentry </logging-monitoring/errors>` service for error tracking. Other applications can also integrate using
 the :doc:`REST API <rest-api-ref>`.
