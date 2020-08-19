@@ -27,14 +27,12 @@ function run_flake8() {
         docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
-            | tee -a "${OUTPUT_LOG}"
+            "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh"
     else
         docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" "${FILES[@]}" \
-            | tee -a "${OUTPUT_LOG}"
+            "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" "${FILES[@]}"
     fi
 }
 

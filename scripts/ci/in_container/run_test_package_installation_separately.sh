@@ -17,7 +17,7 @@
 # under the License.
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
-OUT_FILE=$(mktemp)
+OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
 echo
 echo "Testing if all backport packages can be installed separately on Airflow 1.10 and cause no side effects"
@@ -31,7 +31,7 @@ if [[ ! ${INSTALL_AIRFLOW_VERSION:=""} =~ 1.10* ]]; then
     exit 1
 else
     # and install specified airflow from PyPI
-    pip install "apache-airflow==${INSTALL_AIRFLOW_VERSION}" >>"${OUT_FILE}" 2>&1
+    pip install "apache-airflow==${INSTALL_AIRFLOW_VERSION}" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
 fi
 
 # Install all packages separately one-by-one
@@ -48,12 +48,12 @@ do
     echo "==================================================================================="
     echo "Installing ${PACKAGE_NAME}"
     echo "-----------------------------------------------------------------------------------"
-    pip install "${PACKAGE_FILE}" >>"${OUT_FILE}" 2>&1
+    pip install "${PACKAGE_FILE}" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
     echo "Installed ${PACKAGE_NAME}"
     echo "-----------------------------------------------------------------------------------"
     echo "Uninstalling ${PACKAGE_NAME}"
     echo "-----------------------------------------------------------------------------------"
-    pip uninstall -y "${PACKAGE_NAME}" >>"${OUT_FILE}" 2>&1
+    pip uninstall -y "${PACKAGE_NAME}" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
     echo "Uninstalled ${PACKAGE_NAME}"
     echo "-----------------------------------------------------------------------------------"
     AIRFLOW_VERSION=$(pip freeze | grep "apache-airflow==" | sed "s/apache-airflow==//")

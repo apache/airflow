@@ -24,8 +24,7 @@ function run_docs() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_docs_build.sh" \
-            | tee -a "${OUTPUT_LOG}"
+            "--" "/opt/airflow/scripts/ci/in_container/run_docs_build.sh"
 }
 
 get_environment_for_builds_on_ci

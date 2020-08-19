@@ -19,9 +19,6 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 export PYTHONPATH=${AIRFLOW_SOURCES}
-
-set +e
-
 if [[ ${#@} == "0" ]]; then
     echo
     echo "Running pylint for all sources except 'tests' and 'kubernetes_tests' folder"
@@ -42,20 +39,6 @@ if [[ ${#@} == "0" ]]; then
     -not -name 'webserver_config.py' | \
         grep  ".*.py$" | \
         grep -vFf scripts/ci/pylint_todo.txt | xargs pylint --output-format=colorized
-    RES=$?
 else
     /usr/local/bin/pylint --output-format=colorized "$@"
-    RES=$?
-fi
-set -e
-
-if [[ "${RES}" != 0 ]]; then
-    echo >&2
-    echo >&2 "There were some pylint errors. Exiting"
-    echo >&2
-    exit 1
-else
-    echo
-    echo "Pylint check succeeded"
-    echo
 fi

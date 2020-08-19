@@ -30,8 +30,7 @@ function run_mypy() {
         --entrypoint "/usr/local/bin/dumb-init"  \
         "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache" \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "${FILES[@]}" \
-        | tee -a "${OUTPUT_LOG}"
+        "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "${FILES[@]}"
 }
 
 get_environment_for_builds_on_ci

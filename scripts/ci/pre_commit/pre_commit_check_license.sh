@@ -19,6 +19,9 @@ set -euo pipefail
 
 export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
 export REMEMBER_LAST_ANSWER="true"
+export PRINT_INFO_FROM_SCRIPTS="false"
+export SKIP_CHECK_REMOTE_IMAGE="true"
+
 
 # Hide lines between ****/**** (detailed list of files)
 "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/ci_check_license.sh" 2>&1 | \
