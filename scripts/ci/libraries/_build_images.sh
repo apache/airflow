@@ -56,7 +56,7 @@ function add_build_args_for_remote_install() {
 # Retrieves version of airflow stored in the production image (used to display the actual
 # Version we use if it was build from PyPI or GitHub
 function get_airflow_version_from_production_image() {
-     docker run --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'echo "${AIRFLOW_VERSION}"'
+     VERBOSE="false" docker run --entrypoint /bin/bash "${AIRFLOW_PROD_IMAGE}" -c 'echo "${AIRFLOW_VERSION}"'
 }
 
 # Removes the "Forced answer" (yes/no/quit) given previously, unless you specifically want to remember it.
@@ -70,7 +70,7 @@ function get_airflow_version_from_production_image() {
 # So that in case they are run in a sequence of commits they will not rebuild. Similarly if your most
 # recent answer was "no" and you run `pre-commit run mypy` (for example) it will also reuse the
 # "no" answer given previously. This happens until you run any of the breeze commands or run all
-# precommits `pre-commit run` - then the "LAST_FORCE_ANSWER_FILE" will be removed and you will
+# pre-commits `pre-commit run` - then the "LAST_FORCE_ANSWER_FILE" will be removed and you will
 # be asked again.
 function forget_last_answer() {
     if [[ ${REMEMBER_LAST_ANSWER:="false"} != "true" ]]; then
@@ -181,8 +181,8 @@ function confirm_image_rebuild() {
 # We cannot use docker registry APIs as they are available only with authorisation
 # But this image can be pulled without authentication
 function build_ci_image_manifest() {
-    verbose_docker inspect "${AIRFLOW_CI_IMAGE}" > "manifests/${AIRFLOW_CI_BASE_TAG}.json"
-    verbose_docker build \
+    docker inspect "${AIRFLOW_CI_IMAGE}" > "manifests/${AIRFLOW_CI_BASE_TAG}.json"
+    docker build \
     --build-arg AIRFLOW_CI_BASE_TAG="${AIRFLOW_CI_BASE_TAG}" \
     --tag="${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" \
     -f- . <<EOF
@@ -204,10 +204,9 @@ function get_local_image_info() {
     TMP_MANIFEST_LOCAL_SHA=$(mktemp)
     set +e
     # Remove the container just in case
-    verbose_docker_hide_output_on_success rm --force "local-airflow-manifest"
+    docker rm --force "local-airflow-manifest"
     # Create manifest from the local manifest image
-    if ! verbose_docker_hide_output_on_success create --name "local-airflow-manifest" \
-        "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}"  >>"${OUTPUT_LOG}" 2>&1 ; then
+    if ! docker create --name "local-airflow-manifest" "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}"; then
         echo
         echo "Local manifest image not available"
         echo
@@ -216,10 +215,9 @@ function get_local_image_info() {
     fi
     set -e
      # Create manifest from the local manifest image
-    verbose_docker_hide_output_on_success cp "local-airflow-manifest:${AIRFLOW_CI_BASE_TAG}.json" \
-        "${TMP_MANIFEST_LOCAL_JSON}" >>"${OUTPUT_LOG}" 2>&1
+    docker cp "local-airflow-manifest:${AIRFLOW_CI_BASE_TAG}.json" "${TMP_MANIFEST_LOCAL_JSON}"
     sed 's/ *//g' "${TMP_MANIFEST_LOCAL_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_LOCAL_SHA}"
-    verbose_docker_hide_output_on_success rm --force "local-airflow-manifest" >>"${OUTPUT_LOG}" 2>&1
+    docker rm --force "local-airflow-manifest"
 }
 
 #
@@ -233,10 +231,10 @@ function get_local_image_info() {
 function get_remote_image_info() {
     set +e
     # Pull remote manifest image
-    if ! verbose_docker_hide_output_on_success pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}";  then
-        echo
-        echo "Remote docker registry unreachable"
-        echo
+    if ! docker pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}";  then
+        >&2 echo
+        >&2 echo "Remote docker registry unreachable"
+        >&2 echo
         REMOTE_DOCKER_REGISTRY_UNREACHABLE="true"
         return
     fi
@@ -250,14 +248,14 @@ function get_remote_image_info() {
     TMP_MANIFEST_REMOTE_JSON=$(mktemp)
     TMP_MANIFEST_REMOTE_SHA=$(mktemp)
     # Create container out of the manifest image without running it
-    verbose_docker_hide_output_on_success create --cidfile "${TMP_CONTAINER_ID}" \
+    docker create --cidfile "${TMP_CONTAINER_ID}" \
         "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     # Extract manifest and store it in local file
-    verbose_docker_hide_output_on_success cp "$(cat "${TMP_CONTAINER_ID}"):${AIRFLOW_CI_BASE_TAG}.json" \
+    docker cp "$(cat "${TMP_CONTAINER_ID}"):${AIRFLOW_CI_BASE_TAG}.json" \
         "${TMP_MANIFEST_REMOTE_JSON}"
     # Filter everything except SHAs of image layers
     sed 's/ *//g' "${TMP_MANIFEST_REMOTE_JSON}" | grep '^"sha256:' >"${TMP_MANIFEST_REMOTE_SHA}"
-    verbose_docker_hide_output_on_success rm --force "$( cat "${TMP_CONTAINER_ID}")"
+    docker rm --force "$( cat "${TMP_CONTAINER_ID}")"
 }
 
 # The Number determines the cut-off between local building time and pull + build time.
@@ -325,16 +323,18 @@ function prepare_ci_build() {
     get_base_image_version
     # We use pulled docker image cache by default for CI images to  speed up the builds
     export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
-    echo
-    echo "Using ${DOCKER_CACHE} cache strategy for the build."
-    echo
+    print_info
+    print_info "Using ${DOCKER_CACHE} cache strategy for the build."
+    print_info
     export AIRFLOW_CI_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
     export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
     if [[ ${USE_GITHUB_REGISTRY="false"} == "true" ]]; then
         if [[ ${CACHE_REGISTRY_PASSWORD:=} != "" ]]; then
-            echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
+            # need eto be explicitly verbose in order to have pre-commit spinner working
+            # No aliases in pre-commit non-interactive shells :(
+            echo "${CACHE_REGISTRY_PASSWORD}" | verbose_docker login \
                 --username "${CACHE_REGISTRY_USERNAME}" \
                 --password-stdin \
                 "${CACHE_REGISTRY}"
@@ -375,9 +375,9 @@ function prepare_ci_build() {
 # Whether pull is needed before rebuild.
 function rebuild_ci_image_if_needed() {
     if [[ ${SKIP_CI_IMAGE_CHECK:="false"} == "true" ]]; then
-        echo
-        echo "Skip checking CI image"
-        echo
+        print_info
+        print_info "Skip checking CI image"
+        print_info
         return
     fi
     if [[ -f "${BUILT_IMAGE_FLAG_FILE}" ]]; then
@@ -489,19 +489,19 @@ function rebuild_ci_image_if_needed_and_confirmed() {
 # In case of CRON jobs we run builds without cache and upgrade contstraint files to latest
 function determine_cache_strategy() {
     if [[ "${CI_EVENT_TYPE:=}" == "schedule" ]]; then
-        echo
-        echo "Disabling cache for scheduled jobs"
-        echo
+        print_info
+        print_info "Disabling cache for scheduled jobs"
+        print_info
         export DOCKER_CACHE="disabled"
-        echo
+        print_info
     else
-        echo
-        echo "Pull cache used for regular CI builds"
-        echo
+        print_info
+        print_info "Pull cache used for regular CI builds"
+        print_info
         export DOCKER_CACHE="pulled"
-        echo
-        echo "Constraints are not upgraded to latest ones for regular CI builds"
-        echo
+        print_info
+        print_info "Constraints are not upgraded to latest ones for regular CI builds"
+        print_info
     fi
 }
 
@@ -544,7 +544,6 @@ function build_ci_image() {
         trap "kill ${SPIN_PID}" SIGINT SIGTERM
     fi
     pull_ci_image_if_needed
-
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
         export DOCKER_CACHE_CI_DIRECTIVE=("--no-cache")
     elif [[ "${DOCKER_CACHE}" == "local" ]]; then
@@ -559,12 +558,27 @@ function build_ci_image() {
         echo >&2
         exit 1
     fi
+    if [[ -n ${SPIN_PID:=""} ]]; then
+        kill -HUP "${SPIN_PID}" || true
+        wait "${SPIN_PID}" || true
+        echo > "${DETECTED_TERMINAL}"
+    fi
+    if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
+        echo -n "Preparing ${AIRFLOW_CI_IMAGE}.
+        " > "${DETECTED_TERMINAL}"
+        spin "${OUTPUT_LOG}" &
+        SPIN_PID=$!
+        # shellcheck disable=SC2064
+        trap "kill ${SPIN_PID}" SIGINT SIGTERM
+    fi
     if [[ -n ${DETECTED_TERMINAL:=""} ]]; then
         echo -n "
 Docker building ${AIRFLOW_CI_IMAGE}.
 " > "${DETECTED_TERMINAL}"
     fi
     set +u
+    # need eto be explicitly verbose in order to have pre-commit spinner working
+    # No aliases in pre-commit non-interactive shells :(
     verbose_docker build \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
@@ -581,13 +595,13 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         "${DOCKER_CACHE_CI_DIRECTIVE[@]}" \
         -t "${AIRFLOW_CI_IMAGE}" \
         --target "main" \
-        . -f Dockerfile.ci | tee -a "${OUTPUT_LOG}"
+        . -f Dockerfile.ci
     set -u
     if [[ -n "${DEFAULT_IMAGE:=}" ]]; then
-        verbose_docker tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_IMAGE}" | tee -a "${OUTPUT_LOG}"
+        docker tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_IMAGE}"
     fi
     if [[ -n ${SPIN_PID:=""} ]]; then
-        kill "${SPIN_PID}" || true
+        kill -HUP "${SPIN_PID}" || true
         wait "${SPIN_PID}" || true
         echo > "${DETECTED_TERMINAL}"
     fi
@@ -710,13 +724,13 @@ function build_prod_image() {
             "--cache-from" "${AIRFLOW_PROD_BUILD_IMAGE}"
         )
     else
-        echo >&2
-        echo >&2 "Error - thee ${DOCKER_CACHE} cache is unknown!"
-        echo >&2
+        >&2 echo
+        >&2 echo "Error - thee ${DOCKER_CACHE} cache is unknown!"
+        >&2 echo
         exit 1
     fi
     set +u
-    verbose_docker build \
+    docker build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
@@ -731,8 +745,8 @@ function build_prod_image() {
         "${DOCKER_CACHE_PROD_BUILD_DIRECTIVE[@]}" \
         -t "${AIRFLOW_PROD_BUILD_IMAGE}" \
         --target "airflow-build-image" \
-        . -f Dockerfile | tee -a "${OUTPUT_LOG}"
-    verbose_docker build \
+        . -f Dockerfile
+    docker build \
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}" \
@@ -749,9 +763,9 @@ function build_prod_image() {
         "${DOCKER_CACHE_PROD_DIRECTIVE[@]}" \
         -t "${AIRFLOW_PROD_IMAGE}" \
         --target "main" \
-        . -f Dockerfile | tee -a "${OUTPUT_LOG}"
+        . -f Dockerfile
     set -u
     if [[ -n "${DEFAULT_IMAGE:=}" ]]; then
-        verbose_docker tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_IMAGE}" | tee -a "${OUTPUT_LOG}"
+        docker tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_IMAGE}"
     fi
 }

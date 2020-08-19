@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 export REMEMBER_LAST_ANSWER="true"
+export PRINT_INFO_FROM_SCRIPTS="false"
+export SKIP_CHECK_REMOTE_IMAGE="true"
+
 
 # shellcheck source=scripts/ci/static_checks/ci_lint_dockerfile.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/ci_lint_dockerfile.sh" "${@}"
