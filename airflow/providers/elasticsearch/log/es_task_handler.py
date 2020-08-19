@@ -224,8 +224,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                     'task_id': str(ti.task_id),
                     'execution_date': self._clean_execution_date(ti.execution_date),
                     'try_number': str(ti.try_number),
-                },
-            )
+                    'log_id': self._render_log_id(ti, ti.try_number)
+                })
 
         if self.write_stdout:
             if self.context_set:
