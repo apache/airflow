@@ -48,11 +48,30 @@ SqlAlchemy backend. We recommend using **MySQL** or **Postgres**.
    want to set a default schema for your role with a
    command similar to ``ALTER ROLE username SET search_path = airflow, foobar;``
 
+Setup your database to host Airflow
+-----------------------------------
+
+Create a database called ``airflow`` and a database user that Airflow
+will use to access this database.
+
+Example, for **MySQL**:
+
+.. code-block:: sql
+   CREATE DATABASE airflow CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+   CREATE USER 'airflow' IDENTIFIED BY 'airflow';
+   GRANT ALL PRIVILEGES ON airflow.* TO 'airflow';
+
+Configure Airflow's database connection string
+----------------------------------------------
+
 Once you've setup your database to host Airflow, you'll need to alter the
 SqlAlchemy connection string located in your configuration file
 ``$AIRFLOW_HOME/airflow.cfg``. You should then also change the "executor"
 setting to use "LocalExecutor", an executor that can parallelize task
 instances locally.
+
+Initialize the database
+-----------------------
 
 .. code-block:: bash
 
