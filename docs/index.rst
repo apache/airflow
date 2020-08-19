@@ -87,11 +87,10 @@ Content
     dag-run
     plugins
     security/index
+    monitoring/index
     timezone
     Using the CLI <usage-cli>
     integration
-    metrics
-    errors
     kubernetes
     lineage
     dag-serialization
