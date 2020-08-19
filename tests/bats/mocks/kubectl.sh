@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,14 +16,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-AIRFLOW_SOURCES=$(pwd)
-export AIRFLOW_SOURCES
-export SCRIPTS_CI_DIR=${AIRFLOW_SOURCES}/scripts/ci
-
-export DOCKER_BINARY=${AIRFLOW_SOURCES}/tests/bats/mock/docker.sh
-export KUBECTL_BINARY=${AIRFLOW_SOURCES}/tests/bats/mock/kubectl.sh
-export KIND_BINARY=${AIRFLOW_SOURCES}/tests/bats/mock/kind.sh
-export HELM_BINARY=${AIRFLOW_SOURCES}/tests/bats/mock/helm.sh
-
-# shellcheck source=scripts/ci/libraries/_all_libs.sh
-source "${SCRIPTS_CI_DIR}/libraries/_all_libs.sh"
+# Noop for now, but we can use it in the future to mock more tests of bash scripts
