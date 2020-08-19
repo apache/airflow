@@ -64,8 +64,7 @@ function initialize_common_environment {
     # Default branch name for triggered builds is the one configured in default branch
     export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
 
-    export GITHUB_ORGANISATION=${GITHUB_ORGANISATION:="apache"}
-    export GITHUB_REPO=${GITHUB_REPO:="airflow"}
+    export GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
     export CACHE_REGISTRY=${CACHE_REGISTRY:="docker.pkg.github.com"}
     export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
 
@@ -221,6 +220,10 @@ function initialize_common_environment {
     # Namespace where airflow is installed via helm
     export HELM_AIRFLOW_NAMESPACE="airflow"
 
+    COMMIT_SHA="$(git rev-parse HEAD || echo "Unknown")"
+    export COMMIT_SHA
+
+    export CI_BUILD_ID="0"
 }
 
 # Retrieves CI environment variables needed - depending on the CI system we run it in.
@@ -234,7 +237,7 @@ function get_environment_for_builds_on_ci() {
     export CI_TARGET_BRANCH="master"
     export CI_SOURCE_REPO="apache/airflow"
     export CI_SOURCE_BRANCH="master"
-    export CI_BUILD_ID="default-build-id"
+    export CI_BUILD_ID="0"
     export CI_JOB_ID="default-job-id"
     if [[ ${CI:=} != "true" ]]; then
         echo

@@ -152,3 +152,21 @@ Note, you can still enable this setting to allow API access through username
 password credential even though Airflow webserver might be using another
 authentication method. Under this setup, only users created through LDAP or
 ``airflow users create`` command will be able to pass the API authentication.
+
+Roll your own API authentication
+''''''''''''''''''''''''''''''''
+
+Each auth backend is defined as a new Python module. It must have 2 defined methods:
+
+* ``init_app(app: Flask)`` - function invoked when creating a flask application, which allows you to add a new view.
+* ``requires_authentication(fn: Callable)`` - a decorator that allows arbitrary code execution before and after or instead of a view function.
+
+and may have one of the following to support API client authorizations used by :ref:`remote mode for CLI <cli-remote>`:
+
+* function ``create_client_session() -> requests.Session``
+* attribute ``CLIENT_AUTH: Optional[Union[Tuple[str, str], requests.auth.AuthBase]]``
+
+After writing your backend module, provide the fully qualified module name in the ``auth_backend`` key in the ``[api]``
+section of ``airflow.cfg``.
+
+Additional options to your auth backend can be configured in ``airflow.cfg``, as a new option.

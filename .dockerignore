@@ -34,8 +34,20 @@
 !docs
 !licenses
 !metastore_browser
-!scripts
+
+# Add those folders to the context so that they are available in the CI container
+!scripts/ci/in_container
+!scripts/ci/pre_commit
+!scripts/prod
+!scripts/perf
+!scripts/tools
+
+# Add backport packages to the context
+!backport_packages
+
+# Add tests and kubernetes_tests to context.
 !tests
+!kubernetes_tests
 
 !.coveragerc
 !.rat-excludes

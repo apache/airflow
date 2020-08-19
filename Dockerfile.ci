@@ -281,20 +281,11 @@ RUN yarn --cwd airflow/www run prod
 COPY scripts/ci/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
 
-# Copy selected subdirectories only
-COPY .github/ ${AIRFLOW_SOURCES}/.github/
-COPY metastore_browser/ ${AIRFLOW_SOURCES}/metastore_browser/
-COPY dags/ ${AIRFLOW_SOURCES}/dags/
-COPY common/ ${AIRFLOW_SOURCES}/common/
-COPY licenses/ ${AIRFLOW_SOURCES}/licenses/
-COPY scripts/ ${AIRFLOW_SOURCES}/scripts/
-COPY docs/ ${AIRFLOW_SOURCES}/docs/
-COPY tests/ ${AIRFLOW_SOURCES}/tests/
-COPY airflow/ ${AIRFLOW_SOURCES}/airflow/
-COPY .coveragerc .rat-excludes .flake8 pylintrc LICENSE MANIFEST.in NOTICE CHANGELOG.txt \
-     .github pytest.ini \
-     setup.cfg setup.py \
-     ${AIRFLOW_SOURCES}/
+# We can copy everything here. The Context is filtered by dockerignore. This makes sure we are not
+# copying over stuff that is accidentally generated or that we do not need (such as .egginfo)
+# if you want to add something that is missing and you expect to see it in the image you can
+# add it with ! in .dockerignore next to the airflow, test etc. directories there
+COPY . ${AIRFLOW_SOURCES}/
 
 # Install autocomplete for airflow
 RUN register-python-argcomplete airflow >> ~/.bashrc
@@ -317,6 +308,21 @@ ENV PATH="${HOME}:${PATH}"
 
 # Needed to stop Gunicorn from crashing when /tmp is now mounted from host
 ENV GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm/"
+
+ARG BUILD_ID
+ENV BUILD_ID=${BUILD_ID}
+ARG COMMIT_SHA
+ENV COMMIT_SHA=${COMMIT_SHA}
+
+LABEL org.apache.airflow.distro="debian"
+LABEL org.apache.airflow.distro.version="buster"
+LABEL org.apache.airflow.module="airflow"
+LABEL org.apache.airflow.component="airflow"
+LABEL org.apache.airflow.image="airflow-ci"
+LABEL org.apache.airflow.uid="0"
+LABEL org.apache.airflow.gid="0"
+LABEL org.apache.airflow.buildId=${BUILD_ID}
+LABEL org.apache.airflow.commitSha=${COMMIT_SHA}
 
 EXPOSE 8080
 
