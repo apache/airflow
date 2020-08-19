@@ -44,7 +44,7 @@ def requires_access(permissions: Sequence[Tuple[str, str]]) -> Callable[[T], T]:
 
     def requires_access_decorator(func: T):
         @wraps(func)
-        def wrapped_function(*args, **kwargs):
+        def decorated(*args, **kwargs):
             appbuilder = current_app.appbuilder
             for permission in permissions:
                 if not appbuilder.sm.has_access(*permission):
@@ -52,6 +52,6 @@ def requires_access(permissions: Sequence[Tuple[str, str]]) -> Callable[[T], T]:
 
             return func(*args, **kwargs)
 
-        return cast(T, wrapped_function)
+        return cast(T, decorated)
 
     return requires_access_decorator
