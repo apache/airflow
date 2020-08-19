@@ -221,6 +221,10 @@ function initialize_common_environment {
     # Namespace where airflow is installed via helm
     export HELM_AIRFLOW_NAMESPACE="airflow"
 
+    COMMIT_SHA="$(git rev-parse HEAD || echo "Unknown")"
+    export COMMIT_SHA
+
+    export CI_BUILD_ID="0"
 }
 
 function set_mysql_encoding() {
@@ -246,7 +250,7 @@ function get_environment_for_builds_on_ci() {
     export CI_TARGET_BRANCH="master"
     export CI_SOURCE_REPO="apache/airflow"
     export CI_SOURCE_BRANCH="master"
-    export CI_BUILD_ID="default-build-id"
+    export CI_BUILD_ID="0"
     export CI_JOB_ID="default-job-id"
     if [[ ${CI:=} != "true" ]]; then
         echo
