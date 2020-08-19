@@ -170,3 +170,10 @@ After writing your backend module, provide the fully qualified module name in th
 section of ``airflow.cfg``.
 
 Additional options to your auth backend can be configured in ``airflow.cfg``, as a new option.
+
+Page size limit
+---------------
+
+To protect against requests that may lead to application instability, the stable API has a limit of items in response.
+The default is 100 items, but you can change it using ``maximum_page_limit``  option in ``[api]``
+section in the ``airflow.cfg`` file.
