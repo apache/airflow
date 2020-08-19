@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 import unittest
 import uuid
 from unittest import mock
@@ -730,7 +731,8 @@ class TestPodGenerator(unittest.TestCase):
         self.assertEqual(client_spec, res)
 
     def test_deserialize_model_file(self):
-        fixture = 'tests/kubernetes/pod.yaml'
+
+        fixture = sys.path[0] + '/tests/kubernetes/pod.yaml'
         result = PodGenerator.deserialize_model_file(fixture)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         self.assertEqual(sanitized_res, self.deserialize_result)
