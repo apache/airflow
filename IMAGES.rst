@@ -408,9 +408,6 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_RUNTIME_DEPS``              |                                          | additional apt runtime dependencies to   |
 |                                          |                                          | install                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``EMBEDDED_DAGS``                        | ``empty``                                | Folder containing dags embedded into the |
-|                                          |                                          | image in the ${AIRFLOW_HOME}/dags dir    |
-+------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and    |
 |                                          |                                          | sqlite databases are stored)             |
 +------------------------------------------+------------------------------------------+------------------------------------------+

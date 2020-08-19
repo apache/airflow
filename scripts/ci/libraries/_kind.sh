@@ -182,7 +182,9 @@ function perform_kind_cluster_operation() {
             get_environment_for_builds_on_ci
             make_sure_kubernetes_tools_are_installed
             initialize_kind_variables
-            build_prod_image_for_kubernetes_tests
+            prepare_prod_build
+            build_prod_image
+            build_image_for_kubernetes_tests
             load_image_to_kind_cluster
             deploy_airflow_with_helm
             forward_port_to_kind_webserver
@@ -248,20 +250,26 @@ function check_cluster_ready_for_airflow() {
 }
 
 
-function build_prod_image_for_kubernetes_tests() {
+function build_image_for_kubernetes_tests() {
     cd "${AIRFLOW_SOURCES}" || exit 1
-    export EMBEDDED_DAGS="airflow/example_dags"
-    export DOCKER_CACHE=${DOCKER_CACHE:="pulled"}
-    prepare_prod_build
-    build_prod_image
-    echo "The ${AIRFLOW_PROD_IMAGE} is prepared for test kubernetes deployment."
+    docker build --tag "${AIRFLOW_PROD_IMAGE_KUBERNETES}" . -f - <<EOF
+FROM ${AIRFLOW_PROD_IMAGE}
+
+USER root
+
+COPY --chown=airflow:root airflow/example_dags/ \${AIRFLOW_HOME}/dags/
+
+USER airflow
+
+EOF
+    echo "The ${AIRFLOW_PROD_IMAGE_KUBERNETES} is prepared for test kubernetes deployment."
 }
 
 function load_image_to_kind_cluster() {
     echo
-    echo "Loading ${AIRFLOW_PROD_IMAGE} to ${KIND_CLUSTER_NAME}"
+    echo "Loading ${AIRFLOW_PROD_IMAGE_KUBERNETES} to ${KIND_CLUSTER_NAME}"
     echo
-    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_PROD_IMAGE}"
+    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_PROD_IMAGE_KUBERNETES}"
 }
 
 function forward_port_to_kind_webserver() {
@@ -300,8 +308,8 @@ function deploy_airflow_with_helm() {
     helm install airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
         --set "defaultAirflowRepository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
         --set "images.airflow.repository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
-        --set "images.airflow.tag=${AIRFLOW_PROD_BASE_TAG}" -v 1 \
-        --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}" -v 1 \
+        --set "images.airflow.tag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
+        --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
         --set "config.api.auth_backend=airflow.api.auth.backend.default"
     echo
     popd || exit 1
