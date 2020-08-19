@@ -48,7 +48,7 @@ def requires_access(permissions: Sequence[Tuple[str, str]]) -> Callable[[T], T]:
             appbuilder = current_app.appbuilder
             for permission in permissions:
                 if not appbuilder.sm.has_access(*permission):
-                    raise PermissionDenied("Forbidden", 403)
+                    raise PermissionDenied()
 
             return func(*args, **kwargs)
 
