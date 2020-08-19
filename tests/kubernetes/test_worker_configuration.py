@@ -399,6 +399,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             'dag_id': 'test_dag_id',
             'execution_date': '2019-11-21 11:08:22.920875',
             'kubernetes_executor': 'True',
+            'my_label': 'label_id',
             'task_id': 'test_task_id',
             'try_number': '1'
         }
