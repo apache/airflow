@@ -64,7 +64,7 @@ class SESHook(AwsBaseHook):
         :param files: List of paths of files to be attached
         :param cc: List of email addresses to set as email's CC
         :param bcc: List of email addresses to set as email's BCC
-        :param mime_subtype: Can be used to specify the subtype of the message. Default = mixed
+        :param mime_subtype: Can be used to specify the sub-type of the message. Default = mixed
         :param mime_charset: Email's charset. Default = UTF-8.
         :param return_path: The email address to which replies will be sent. By default, replies
             are sent to the original sender's email address.
