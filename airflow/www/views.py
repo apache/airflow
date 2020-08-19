@@ -1936,6 +1936,21 @@ class Airflow(AirflowBaseView):  # noqa: D101
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
 
+    @expose('/refresh_all', methods=['POST'])
+    @has_access
+    @action_logging
+    def refresh_all(self):
+        if settings.STORE_SERIALIZED_DAGS:
+            current_app.dag_bag.collect_dags_from_db()
+        else:
+            current_app.dag_bag.collect_dags(only_if_updated=False)
+
+        # sync permissions for all dags
+        for dag_id, dag in current_app.dag_bag.dags.items():
+            current_app.appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
+        flash("All DAGs are now up to date")
+        return redirect(url_for('Airflow.index'))
+
     @expose('/gantt')
     @has_dag_access(can_dag_read=True)
     @has_access
