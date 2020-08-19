@@ -569,17 +569,7 @@ jobs:
     steps:
       - name: "Set constraints branch name"
         id: constraints-branch
-        run: |
-          if [[ ${GITHUB_REF} == 'refs/heads/master' ]]; then
-              echo "::set-output name=branch::constraints-master"
-          elif [[ ${GITHUB_REF} == 'refs/heads/v1-10-test' ]]; then
-              echo "::set-output name=branch::constraints-1-10"
-          else
-              echo
-              echo "Unexpected ref ${GITHUB_REF}. Exiting!"
-              echo
-              exit 1
-          fi
+        run: ./scripts/ci/constraints/ci_branch_constraints.sh
       - uses: actions/checkout@v2
         with:
           path: "repo"
@@ -589,21 +579,7 @@ jobs:
           path: 'artifacts'
         name: "Get all artifacts (constraints)"
       - name: "Commit changed constraint files"
-        run: |
-          cp -v ./artifacts/constraints-*/constraints*.txt repo/
-          cd repo
-          git config --local user.email "dev@airflow.apache.org"
-          git config --local user.name "Automated Github Actions commit"
-          git diff --exit-code || git commit --all --message "Updating constraints. GH run id:${GITHUB_RUN_ID}
-
-          This update in constraints is automatically committed by the CI 'constraints-push' step based on
-          HEAD of '${GITHUB_REF}' in '${GITHUB_REPOSITORY}'
-          with commit sha ${GITHUB_SHA}.
-
-          All tests passed in this build so we determined we can push the updated constraints.
-
-          See https://github.com/apache/airflow/blob/master/README.md#installing-from-pypi for details.
-          "
+        run: ./scripts/ci/constraints/ci_commit_constraints.sh
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
