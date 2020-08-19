@@ -44,7 +44,7 @@ To check the health status of your Airflow instance, you can simply access the e
     * If the last heartbeat was received more than 30 seconds (default value) earlier than the current time, the scheduler is
       considered unhealthy
     * This threshold value can be specified using the option ``scheduler_health_check_threshold`` within the
-      ``scheduler`` section in ``airflow.cfg``
+      ``[scheduler]`` section in ``airflow.cfg``
 
 Please keep in mind that the HTTP response code of ``/health`` endpoint **should not** be used to determine the health
 status of the application. The return code is only indicative of the state of the rest call (200 for success).
