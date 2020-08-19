@@ -126,12 +126,11 @@ class PodLauncher(LoggingMixin):
         if get_logs:
             logs = self.read_pod_logs(pod)
             import sys
-            if sys.version_info[0] == 2:
-                logs.encode('utf-8')
-            else:
-                logs.decode('utf-8')
             for line in logs:
-                self.log.info(line)
+                if sys.version_info[0] == 2:
+                    self.log.info(line)
+                else:
+                    self.log.info(line.decode('utf-8'))
         result = None
         if self.extract_xcom:
             while self.base_container_is_running(pod):
