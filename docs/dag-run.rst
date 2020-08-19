@@ -148,9 +148,9 @@ The `backfill command <cli-ref.html#backfill>`_ will re-run all the instances of
 Re-run Tasks
 ------------
 Some of the tasks can fail during the scheduled run. Once you have fixed
-the errors after going through the logs, you can re-run the tasks by clearing it for the
+the errors after going through the logs, you can re-run the tasks by clearing them for the
 scheduled date. Clearing a task instance doesn't delete the task instance record.
-Instead, it updates ``max_tries`` to ``0`` and set the current task instance state to be ``None``, this forces the task to re-run.
+Instead, it updates ``max_tries`` to ``0`` and sets the current task instance state to ``None``, which causes the task to re-run.
 
 Click on the failed task in the Tree or Graph views and then click on **Clear**.
 The executor will re-run it.
