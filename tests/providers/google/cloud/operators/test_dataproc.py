@@ -74,7 +74,7 @@ CLUSTER = {
             "num_instances": 2,
             "machine_type_uri": "https://www.googleapis.com/compute/v1/projects/"
             "project_id/zones/zone/machineTypes/master_machine_type",
-            "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128,},
+            "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
             "image_uri": "https://www.googleapis.com/compute/beta/projects/"
             "custom_image_project_id/global/images/custom_image",
         },
@@ -82,7 +82,7 @@ CLUSTER = {
             "num_instances": 2,
             "machine_type_uri": "https://www.googleapis.com/compute/v1/projects/"
             "project_id/zones/zone/machineTypes/worker_machine_type",
-            "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256,},
+            "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
             "image_uri": "https://www.googleapis.com/compute/beta/projects/"
             "custom_image_project_id/global/images/custom_image",
         },
@@ -90,14 +90,14 @@ CLUSTER = {
             "num_instances": 4,
             "machine_type_uri": "https://www.googleapis.com/compute/v1/projects/"
             "project_id/zones/zone/machineTypes/worker_machine_type",
-            "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256,},
+            "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
             "is_preemptible": True,
         },
         "software_config": {
             "properties": {"properties": "data"},
             "optional_components": ["optional_components"],
         },
-        "lifecycle_config": {"idle_delete_ttl": "60s", "auto_delete_time": "2019-09-12T00:00:00.000000Z",},
+        "lifecycle_config": {"idle_delete_ttl": "60s", "auto_delete_time": "2019-09-12T00:00:00.000000Z"},
         "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
         "autoscaling_config": {"policy_uri": "autoscaling_policy"},
         "config_bucket": "storage_bucket",
@@ -107,7 +107,7 @@ CLUSTER = {
 }
 
 UPDATE_MASK = {
-    "paths": ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances",]
+    "paths": ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
 }
 
 TIMEOUT = 120
@@ -123,12 +123,19 @@ def assert_warning(msg: str, warning: Any):
 class TestsClusterGenerator(unittest.TestCase):
     def test_image_version(self):
         with self.assertRaises(ValueError) as err:
-            ClusterGenerator(custom_image="custom_image", image_version="image_version")
+            ClusterGenerator(
+                custom_image="custom_image",
+                image_version="image_version",
+                project_id=GCP_PROJECT,
+                cluster_name=CLUSTER_NAME,
+            )
             self.assertIn("custom_image and image_version", str(err))
 
     def test_nodes_number(self):
         with self.assertRaises(AssertionError) as err:
-            ClusterGenerator(num_workers=0, num_preemptible_workers=0)
+            ClusterGenerator(
+                num_workers=0, num_preemptible_workers=0, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
+            )
             self.assertIn("num_workers == 0 means single", str(err))
 
     def test_build(self):
@@ -205,9 +212,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_cluster.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
@@ -235,9 +240,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_cluster.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
@@ -298,10 +301,10 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             op.execute(context={})
 
         mock_hook.return_value.diagnose_cluster.assert_called_once_with(
-            region=GCP_LOCATION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME,
+            region=GCP_LOCATION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
         )
         mock_hook.return_value.delete_cluster.assert_called_once_with(
-            region=GCP_LOCATION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME,
+            region=GCP_LOCATION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
         )
 
     @mock.patch(DATAPROC_PATH.format("exponential_sleep_generator"))
@@ -338,7 +341,7 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
         mock_get_cluster.assert_has_calls(calls)
         mock_create_cluster.assert_has_calls(calls)
         mock_hook.return_value.diagnose_cluster.assert_called_once_with(
-            region=GCP_LOCATION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME,
+            region=GCP_LOCATION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
         )
 
 
@@ -351,10 +354,7 @@ class TestDataprocClusterScaleOperator(unittest.TestCase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         cluster_update = {
-            "config": {
-                "worker_config": {"num_instances": 3},
-                "secondary_worker_config": {"num_instances": 4},
-            }
+            "config": {"worker_config": {"num_instances": 3}, "secondary_worker_config": {"num_instances": 4}}
         }
 
         op = DataprocScaleClusterOperator(
@@ -370,9 +370,7 @@ class TestDataprocClusterScaleOperator(unittest.TestCase):
         )
         op.execute(context={})
 
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.update_cluster.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -399,9 +397,7 @@ class TestDataprocClusterDeleteOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.delete_cluster.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
@@ -436,9 +432,7 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
         )
         op.execute(context={})
 
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -472,9 +466,7 @@ class TestDataprocUpdateClusterOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.update_cluster.assert_called_once_with(
             location=GCP_LOCATION,
             project_id=GCP_PROJECT,
@@ -511,9 +503,7 @@ class TestDataprocWorkflowTemplateInstantiateOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.instantiate_workflow_template.assert_called_once_with(
             template_name=template_id,
             location=GCP_LOCATION,
@@ -545,9 +535,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.instantiate_inline_workflow_template.assert_called_once_with(
             template=template,
             location=GCP_LOCATION,
@@ -564,7 +552,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
     variables = {"key": "value"}
     job_id = "uuid_id"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,},
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "hive_job": {"query_list": {"queries": [query]}, "script_variables": variables},
@@ -573,9 +561,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
-            DataprocSubmitHiveJobOperator(
-                task_id=TASK_ID, region=GCP_LOCATION, query="query",
-            )
+            DataprocSubmitHiveJobOperator(task_id=TASK_ID, region=GCP_LOCATION, query="query")
         assert_warning("DataprocSubmitJobOperator", warning)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
@@ -595,9 +581,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -627,7 +611,7 @@ class TestDataProcPigOperator(unittest.TestCase):
     variables = {"key": "value"}
     job_id = "uuid_id"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,},
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "pig_job": {"query_list": {"queries": [query]}, "script_variables": variables},
@@ -636,9 +620,7 @@ class TestDataProcPigOperator(unittest.TestCase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
-            DataprocSubmitPigJobOperator(
-                task_id=TASK_ID, region=GCP_LOCATION, query="query",
-            )
+            DataprocSubmitPigJobOperator(task_id=TASK_ID, region=GCP_LOCATION, query="query")
         assert_warning("DataprocSubmitJobOperator", warning)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
@@ -658,9 +640,7 @@ class TestDataProcPigOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -690,18 +670,16 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
     variables = {"key": "value"}
     job_id = "uuid_id"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,},
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
-        "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables,},
+        "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
     }
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
-            DataprocSubmitSparkSqlJobOperator(
-                task_id=TASK_ID, region=GCP_LOCATION, query="query",
-            )
+            DataprocSubmitSparkSqlJobOperator(task_id=TASK_ID, region=GCP_LOCATION, query="query")
         assert_warning("DataprocSubmitJobOperator", warning)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
@@ -721,9 +699,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -753,7 +729,7 @@ class TestDataProcSparkOperator(unittest.TestCase):
     jars = ["file:///usr/lib/spark/examples/jars/spark-examples.jar"]
     job_id = "uuid_id"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,},
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "spark_job": {"jar_file_uris": jars, "main_class": main_class},
@@ -763,7 +739,7 @@ class TestDataProcSparkOperator(unittest.TestCase):
     def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
             DataprocSubmitSparkJobOperator(
-                task_id=TASK_ID, region=GCP_LOCATION, main_class=self.main_class, dataproc_jars=self.jars,
+                task_id=TASK_ID, region=GCP_LOCATION, main_class=self.main_class, dataproc_jars=self.jars
             )
         assert_warning("DataprocSubmitJobOperator", warning)
 
@@ -790,7 +766,7 @@ class TestDataProcHadoopOperator(unittest.TestCase):
     jar = "file:///usr/lib/spark/examples/jars/spark-examples.jar"
     job_id = "uuid_id"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,},
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "hadoop_job": {"main_jar_file_uri": jar, "args": args},
@@ -800,7 +776,7 @@ class TestDataProcHadoopOperator(unittest.TestCase):
     def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
             DataprocSubmitHadoopJobOperator(
-                task_id=TASK_ID, region=GCP_LOCATION, main_jar=self.jar, arguments=self.args,
+                task_id=TASK_ID, region=GCP_LOCATION, main_jar=self.jar, arguments=self.args
             )
         assert_warning("DataprocSubmitJobOperator", warning)
 
@@ -826,7 +802,7 @@ class TestDataProcPySparkOperator(unittest.TestCase):
     uri = "gs://{}/{}"
     job_id = "uuid_id"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id,},
+        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "pyspark_job": {"main_python_file_uri": uri},
@@ -835,9 +811,7 @@ class TestDataProcPySparkOperator(unittest.TestCase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
         with self.assertWarns(DeprecationWarning) as warning:
-            DataprocSubmitPySparkJobOperator(
-                task_id=TASK_ID, region=GCP_LOCATION, main=self.uri,
-            )
+            DataprocSubmitPySparkJobOperator(task_id=TASK_ID, region=GCP_LOCATION, main=self.uri)
         assert_warning("DataprocSubmitJobOperator", warning)
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))

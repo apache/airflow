@@ -157,8 +157,8 @@ class ClusterGenerator:
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(
         self,
-        project_id: Optional[str] = None,
-        cluster_name: Optional[str] = None,
+        project_id: str,
+        cluster_name: str,
         num_workers: Optional[int] = None,
         zone: Optional[str] = None,
         network_uri: Optional[str] = None,
@@ -240,10 +240,10 @@ class ClusterGenerator:
         match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)
         if match:
             if match.group(2) == "s":
-                return self.init_action_timeout
+                return {"seconds": self.init_action_timeout}
             elif match.group(2) == "m":
                 val = float(match.group(1))
-                return "{}s".format(int(timedelta(minutes=val).total_seconds()))
+                return {"seconds": int(timedelta(minutes=val).total_seconds())}
 
         raise AirflowException(
             "DataprocClusterCreateOperator init_action_timeout"
@@ -286,7 +286,7 @@ class ClusterGenerator:
 
     def _build_lifecycle_config(self, cluster_data):
         if self.idle_delete_ttl:
-            cluster_data['config']['lifecycle_config']['idle_delete_ttl'] = "{}s".format(self.idle_delete_ttl)
+            cluster_data['config']['lifecycle_config']['idle_delete_ttl'] = {"seconds": self.idle_delete_ttl}
 
         if self.auto_delete_time:
             utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
@@ -294,19 +294,17 @@ class ClusterGenerator:
                 '%Y-%m-%dT%H:%M:%S.%fZ'
             )
         elif self.auto_delete_ttl:
-            cluster_data['config']['lifecycle_config']['auto_delete_ttl'] = "{}s".format(self.auto_delete_ttl)
+            cluster_data['config']['lifecycle_config']['auto_delete_ttl'] = {"seconds": self.auto_delete_ttl}
 
         return cluster_data
 
     def _build_cluster_data(self):
         if self.zone:
             master_type_uri = (
-                "https://www.googleapis.com/compute/v1/projects"
-                f"/{self.project_id}/zones/{self.zone}/machineTypes/{self.master_machine_type}"
+                f"projects/{self.project_id}/zones/{self.zone}/machineTypes/{self.master_machine_type}"
             )
             worker_type_uri = (
-                "https://www.googleapis.com/compute/v1/projects"
-                f"/{self.project_id}/zones/{self.zone}/machineTypes/{self.worker_machine_type}"
+                f"projects/{self.project_id}/zones/{self.zone}/machineTypes/{self.worker_machine_type}"
             )
         else:
             master_type_uri = self.master_machine_type
@@ -467,12 +465,7 @@ class DataprocCreateClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
-        'project_id',
-        'region',
-        'cluster',
-        'impersonation_chain',
-    )
+    template_fields = ('project_id', 'region', 'cluster', 'impersonation_chain')
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
@@ -550,9 +543,7 @@ class DataprocCreateClusterOperator(BaseOperator):
 
     def _delete_cluster(self, hook):
         self.log.info("Deleting the cluster")
-        hook.delete_cluster(
-            region=self.region, cluster_name=self.cluster_name, project_id=self.project_id,
-        )
+        hook.delete_cluster(region=self.region, cluster_name=self.cluster_name, project_id=self.project_id)
 
     def _get_cluster(self, hook: DataprocHook):
         return hook.get_cluster(
@@ -569,7 +560,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             return
         self.log.info("Cluster is in ERROR state")
         gcs_uri = hook.diagnose_cluster(
-            region=self.region, cluster_name=self.cluster_name, project_id=self.project_id,
+            region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
         )
         self.log.info('Diagnostic information for cluster %s available at: %s', self.cluster_name, gcs_uri)
         if self.delete_on_error:
@@ -604,7 +595,7 @@ class DataprocCreateClusterOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info('Creating cluster: %s', self.cluster_name)
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         try:
             # First try to create a new cluster
             cluster = self._create_cluster(hook)
@@ -677,12 +668,7 @@ class DataprocScaleClusterOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
-        'cluster_name',
-        'project_id',
-        'region',
-        'impersonation_chain',
-    ]
+    template_fields = ['cluster_name', 'project_id', 'region', 'impersonation_chain']
 
     @apply_defaults
     def __init__(
@@ -764,7 +750,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         scaling_cluster_data = self._build_scale_cluster_data()
         update_mask = ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
 
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         operation = hook.update_cluster(
             project_id=self.project_id,
             location=self.region,
@@ -846,7 +832,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Deleting cluster: %s", self.cluster_name)
         operation = hook.delete_cluster(
             project_id=self.project_id,
@@ -977,7 +963,7 @@ class DataprocJobBaseOperator(BaseOperator):
             self.dataproc_job_id = self.job["job"]["reference"]["job_id"]
             self.log.info('Submitting %s job %s', self.job_type, self.dataproc_job_id)
             job_object = self.hook.submit_job(
-                project_id=self.project_id, job=self.job["job"], location=self.region,
+                project_id=self.project_id, job=self.job["job"], location=self.region
             )
             job_id = job_object.reference.job_id
             self.hook.wait_for_job(job_id=job_id, location=self.region, project_id=self.project_id)
@@ -1049,10 +1035,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
         'dataproc_properties',
         'impersonation_chain',
     ]
-    template_ext = (
-        '.pg',
-        '.pig',
-    )
+    template_ext = ('.pg', '.pig')
     ui_color = '#0273d4'
     job_type = 'pig_job'
 
@@ -1127,10 +1110,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
         'dataproc_properties',
         'impersonation_chain',
     ]
-    template_ext = (
-        '.q',
-        '.hql',
-    )
+    template_ext = ('.q', '.hql')
     ui_color = '#0273d4'
     job_type = 'hive_job'
 
@@ -1596,10 +1576,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
-        'template_id',
-        'impersonation_chain',
-    ]
+    template_fields = ['template_id', 'impersonation_chain']
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
@@ -1633,7 +1610,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info('Instantiating template %s', self.template_id)
         operation = hook.instantiate_workflow_template(
             project_id=self.project_id,
@@ -1701,10 +1678,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
-        'template',
-        'impersonation_chain',
-    ]
+    template_fields = ['template', 'impersonation_chain']
 
     @apply_defaults
     def __init__(
@@ -1735,7 +1709,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info('Instantiating Inline Template')
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         operation = hook.instantiate_inline_workflow_template(
             template=self.template,
             project_id=self.project_id,
@@ -1787,12 +1761,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
-        'project_id',
-        'location',
-        'job',
-        'impersonation_chain',
-    )
+    template_fields = ('project_id', 'location', 'job', 'impersonation_chain')
 
     @apply_defaults
     def __init__(
@@ -1822,7 +1791,7 @@ class DataprocSubmitJobOperator(BaseOperator):
 
     def execute(self, context: Dict):
         self.log.info("Submitting job")
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         job_object = hook.submit_job(
             project_id=self.project_id,
             location=self.location,
@@ -1925,7 +1894,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain,)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Updating %s cluster.", self.cluster_name)
         operation = hook.update_cluster(
             project_id=self.project_id,
