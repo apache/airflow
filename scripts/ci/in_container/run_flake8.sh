@@ -17,22 +17,4 @@
 # under the License.
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
-
-set +e
-
 flake8 "$@"
-
-RES="$?"
-
-set -e
-
-if [[ "${RES}" != 0 ]]; then
-    echo >&2
-    echo >&2 "There were some flake8 errors. Exiting"
-    echo >&2
-    exit 1
-else
-    echo
-    echo "Flake8 check succeeded"
-    echo
-fi

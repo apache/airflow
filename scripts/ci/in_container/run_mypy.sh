@@ -18,20 +18,4 @@
 # Script to run mypy on all code. Can be started from any working directory
 # shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
-set +e
-
 mypy "$@"
-RES="$?"
-
-set -e
-
-if [[ "${RES}" != 0 ]]; then
-    echo >&2
-    echo >&2 "There were some mypy errors. Exiting"
-    echo >&2
-    exit 1
-else
-    echo
-    echo "Mypy check succeeded"
-    echo
-fi
