@@ -41,12 +41,6 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         'creating', 'available', 'modifying', 'deleting', 'create - failed', 'snapshotting'
     })
 
-    # Track calls to describe when deleting replication group
-    # First call will return status as `available` and we will initiate delete
-    # Second call with return status as `deleting`
-    # Subsequent call will raise ReplicationGroupNotFoundFault exception
-    describe_call_count_for_delete = 0
-
     def setUp(self):
         self.hook = ElastiCacheReplicationGroupHook()
         # noinspection PyPropertyAccess
@@ -183,52 +177,43 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         assert response["ReplicationGroup"]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
         assert response["ReplicationGroup"]["Status"] == "deleting"
 
+    def _raise_replication_group_not_found_exp(self):
+        self.hook.conn.exceptions.ReplicationGroupNotFoundFault = BaseException
+        return self.hook.conn.exceptions.ReplicationGroupNotFoundFault
+
     # noinspection PyUnusedLocal
     def _mock_describe_side_effect(self, *args, **kwargs):
-        """
-        Mock describe calls to replication group for testing delete calls
-        """
-        # On first call replication group is in available state, this will allow to initiate a delete
-        # A replication group can only be deleted when it is in `available` state
-        if self.describe_call_count_for_delete == 0:
-            self.describe_call_count_for_delete = self.describe_call_count_for_delete + 1
+        return [
+            # On first call replication group is in available state, this will allow to initiate a delete
+            # A replication group can only be deleted when it is in `available` state
 
-            return {
+            {
                 "ReplicationGroups": [
                     {
                         "ReplicationGroupId": self.REPLICATION_GROUP_ID,
                         "Status": "available"
                     }
                 ]
-            }
+            },
 
-        # On second call replication group is in deleting state
-        if self.describe_call_count_for_delete == 1:
-            self.describe_call_count_for_delete = self.describe_call_count_for_delete + 1
-
-            return {
+            # On second call replication group is in deleting state
+            {
                 "ReplicationGroups": [
                     {
                         "ReplicationGroupId": self.REPLICATION_GROUP_ID,
                         "Status": "deleting"
                     }
                 ]
-            }
+            },
 
-        # On further calls we will assume the replication group is deleted
-        class MockReplicationGroupNotFoundFault(BaseException):
-            pass
-
-        self.hook.conn.exceptions.ReplicationGroupNotFoundFault = MockReplicationGroupNotFoundFault
-
-        raise self.hook.conn.exceptions.ReplicationGroupNotFoundFault
+            # On further calls we will assume the replication group is deleted
+            self._raise_replication_group_not_found_exp()
+        ]
 
     def test_wait_for_deletion(self):
-        self.describe_call_count_for_delete = 0
-
         self._create_replication_group()
 
-        self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect
+        self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect()
 
         self.hook.conn.delete_replication_group.return_value = {
             "ReplicationGroup": {
@@ -248,11 +233,9 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         assert deleted is True
 
     def test_ensure_delete_replication_group_success(self):
-        self.describe_call_count_for_delete = 0
-
         self._create_replication_group()
 
-        self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect
+        self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect()
 
         self.hook.conn.delete_replication_group.return_value = {
             "ReplicationGroup": {
@@ -269,11 +252,9 @@ class TestElastiCacheReplicationGroupHook(TestCase):
         assert response["ReplicationGroup"]["ReplicationGroupId"] == self.REPLICATION_GROUP_ID
 
     def test_ensure_delete_replication_group_failure(self):
-        self.describe_call_count_for_delete = 0
-
         self._create_replication_group()
 
-        self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect
+        self.hook.conn.describe_replication_groups.side_effect = self._mock_describe_side_effect()
 
         self.hook.conn.delete_replication_group.return_value = {
             "ReplicationGroup": {

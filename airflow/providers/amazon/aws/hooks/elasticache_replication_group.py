@@ -25,6 +25,13 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class ElastiCacheReplicationGroupHook(AwsBaseHook):
     """
     Interact with AWS ElastiCache
+
+    :param max_retries: Max retries for checking availability of and deleting replication group
+    :type max_retries: int
+    :param exponential_back_off_factor: Factor for deciding next sleep time
+    :type exponential_back_off_factor: float
+    :param initial_poke_interval: Initial sleep time in seconds
+    :type initial_poke_interval: float
     """
 
     TERMINAL_STATES = frozenset({"available", "create-failed", "deleting"})
@@ -33,12 +40,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         self, max_retries=10, exponential_back_off_factor=1, initial_poke_interval=60, *args, **kwargs
     ):
         """
-        :param max_retries: Max retries for checking availability of and deleting replication group
-        :type max_retries: int
-        :param exponential_back_off_factor: Factor for deciding next sleep time
-        :type exponential_back_off_factor: float
-        :param initial_poke_interval: Initial sleep time in seconds
-        :type initial_poke_interval: float
+
         """
         self.max_retries = max_retries
         self.exponential_back_off_factor = exponential_back_off_factor
