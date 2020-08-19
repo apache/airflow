@@ -16,6 +16,7 @@
 # under the License.
 #
 import unittest
+import sys
 from unittest.mock import ANY
 
 import mock
@@ -879,7 +880,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         ], configmaps)
 
     def test_pod_template_file(self):
-        fixture = 'tests/kubernetes/pod.yaml'
+        fixture = sys.path[0] + '/tests/kubernetes/pod.yaml'
         self.kube_config.pod_template_file = fixture
         worker_config = WorkerConfiguration(self.kube_config)
         result = worker_config.as_pod()

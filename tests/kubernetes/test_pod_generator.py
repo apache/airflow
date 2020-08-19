@@ -16,6 +16,7 @@
 # under the License.
 import unittest
 import uuid
+import sys
 from unittest import mock
 
 from kubernetes.client import ApiClient, models as k8s
@@ -730,7 +731,8 @@ class TestPodGenerator(unittest.TestCase):
         self.assertEqual(client_spec, res)
 
     def test_deserialize_model_file(self):
-        fixture = 'tests/kubernetes/pod.yaml'
+
+        fixture = sys.path[0] + '/tests/kubernetes/pod.yaml'
         result = PodGenerator.deserialize_model_file(fixture)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         self.assertEqual(sanitized_res, self.deserialize_result)
