@@ -28,7 +28,7 @@ Users can specify the directory to place log files in ``airflow.cfg`` using
 directory.
 
 .. note::
-    For more information on setting the configuration, see :doc:`set-config`
+    For more information on setting the configuration, see :doc:`/howto/set-config`
 
 The following convention is followed while naming logs: ``{dag_id}/{task_id}/{execution_date}/{try_number}.log``
 
