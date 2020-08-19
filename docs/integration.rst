@@ -24,7 +24,7 @@ Airflow has a mechanism that allows you to expand its functionality and integrat
 * :doc:`Email backends </howto/email-config>`
 * :doc:`Executor </executor/index>`
 * :doc:`Kerberos </security/kerberos>`
-* :doc:`Logging </howto/write-logs>`
+* :doc:`Logging </monitoring/logging-tasks>`
 * :doc:`Metrics (statsd) </monitoring/metrics>`
 * :doc:`Operators and hooks </operators-and-hooks-ref>`
 * :doc:`Plugins </plugins>`
