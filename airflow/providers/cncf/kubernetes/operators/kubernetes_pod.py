@@ -288,7 +288,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
             if len(running_pods) == 1:
                 try_numbers_match = self._try_numbers_match(context, running_pods[0])
-                final_state, result = self.handle_pod_overlap(labels, try_numbers_match, launcher, running_pods[0])
+                final_state, result = self.handle_pod_overlap(
+                    labels, try_numbers_match, launcher, running_pods[0])
             else:
                 self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
