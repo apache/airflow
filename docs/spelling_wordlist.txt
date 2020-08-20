@@ -861,7 +861,6 @@ kube
 kubeclient
 kubeconfig
 kubernetes
-kubernetesOperator
 kv
 kwarg
 kwargs
