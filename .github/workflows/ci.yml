@@ -57,7 +57,7 @@ env:
   #  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   #
 
-  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
 
 
 jobs:
