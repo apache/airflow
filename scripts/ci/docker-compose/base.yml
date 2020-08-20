@@ -30,6 +30,7 @@ services:
       - CI_EVENT_TYPE
       - CI_TARGET_REPO
       - CI_TARGET_BRANCH
+      - COMMIT_SHA
       - RUN_TESTS
       - VERBOSE
       - VEROSE_COMMANDS

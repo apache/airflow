@@ -20,5 +20,5 @@ export PRINT_INFO_FROM_SCRIPTS="false"
 export SKIP_CHECK_REMOTE_IMAGE="true"
 
 
-# shellcheck source=scripts/ci/static_checks/ci_lint_dockerfile.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/ci_lint_dockerfile.sh" "${@}"
+# shellcheck source=scripts/ci/static_checks/lint_dockerfile.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/lint_dockerfile.sh" "${@}"

@@ -40,7 +40,7 @@ do
 done
 
 echo
-echo "GitHub SHA: ${GITHUB_SHA}"
+echo "GitHub SHA: ${COMMIT_SHA}"
 echo
 
 set +e
