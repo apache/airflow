@@ -29,7 +29,7 @@ echo
 echo
 echo "Check if jq is installed"
 echo
-command -v jql >/dev/null || (echo "ERROR! You must have 'jq' tool installed!" && exit 1)
+command -v jq >/dev/null || (echo "ERROR! You must have 'jq' tool installed!" && exit 1)
 
 jq --version
 
