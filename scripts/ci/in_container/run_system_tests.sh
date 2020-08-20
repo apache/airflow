@@ -42,14 +42,12 @@ pytest "${PYTEST_ARGS[@]}"
 RES=$?
 
 set +x
-if [[ "${RES}" == "0" && ${CI} == "true" ]]; then
+if [[ "${RES}" == "0" && ${GITHUB_ACTIONS} == "true" ]]; then
     echo "All tests successful"
 fi
 
-if [[ ${CI} == "true" ]]; then
+if [[ ${GITHUB_ACTIONS} == "true" ]]; then
     dump_airflow_logs
 fi
-
-in_container_script_end
 
 exit "${RES}"

@@ -26,15 +26,13 @@ export SKIP_CHECK_REMOTE_IMAGE="true"
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-cd "${AIRFLOW_SOURCES}" || exit 1
-
 . breeze-complete
 
 if [[ "${AVAILABLE_INTEGRATIONS} all" != "${_BREEZE_ALLOWED_INTEGRATIONS}" ]]; then
   echo
   echo "Error: Allowed integrations do not match!"
   echo
-  echo "The ./common/_common_values.sh integrations (AVAILABLE_INTEGRATIONS):"
+  echo "The ./scripts/ci/libraries/_initialization.sh integrations (AVAILABLE_INTEGRATIONS):"
   echo "${AVAILABLE_INTEGRATIONS}"
   echo
   echo "The ./breeze-complete integrations (_BREEZE_ALLOWED_INTEGRATIONS):"

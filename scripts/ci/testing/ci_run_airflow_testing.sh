@@ -113,7 +113,7 @@ if [[ ${MOUNT_FILES} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
 fi
 
-if [[ ${CI} == "true" ]]; then
+if [[ ${GITHUB_ACTIONS} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/ga.yml")
 fi
 

@@ -15,17 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# shellcheck source=common/_default_branch.sh
-. "${AIRFLOW_SOURCES}/common/_default_branch.sh"
+initialize_common_environment
 
-# You can override DOCKERHUB_USER to use your own DockerHub account and play with your
-# own docker images. In this case you can build images locally and push them
-export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
+function run_bats_tests() {
+    FILES=("$@")
+    if [[ "${#FILES[@]}" == "0" ]]; then
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r /airflow/tests/bats
+    else
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r "${FILES[@]}"
+    fi
+}
 
-# You can override DOCKERHUB_REPO to use your own DockerHub repository and play with your
-# own docker images. In this case you can build images locally and push them
-export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
-
-# read branch name from what has been set from sources (It can also be overridden)
-export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
+run_bats_tests "$@"

@@ -20,22 +20,28 @@ name: Quarantined Build
 on:
   schedule:
     # Run quarantined builds 4 times a day to gather better quarantine stats
-    - cron: '35 */6 * * *'
+    - cron: '12 */6 * * *'
 
 env:
   MOUNT_LOCAL_SOURCES: "false"
   MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
+  FORCE_PULL_IMAGES: "true"
+  CHECK_IMAGE_FOR_REBUILD: "true"
   SKIP_CHECK_REMOTE_IMAGE: "true"
-  SKIP_CI_IMAGE_CHECK: "true"
   DB_RESET: "true"
   VERBOSE: "true"
-  UPGRADE_TO_LATEST_CONSTRAINTS: ${{ github.event_name == 'push' || github.event_name == 'scheduled' }}
+  UPGRADE_TO_LATEST_CONSTRAINTS: false
   PYTHON_MAJOR_MINOR_VERSION: 3.6
   USE_GITHUB_REGISTRY: "true"
-  CACHE_IMAGE_PREFIX: ${{ github.repository }}
-  CACHE_REGISTRY_USERNAME: ${{ github.actor }}
-  CACHE_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+  # Since we run this build on schedule, it might be that the image has never been pushed
+  # Because the master merge was cancelled, so we have to rebuild the image for quarantined build
+  GITHUB_REPOSITORY: ${{ github.repository }}
+  GITHUB_USERNAME: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+  GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
 
 jobs:
 

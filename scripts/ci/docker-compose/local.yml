@@ -41,7 +41,6 @@ services:
       - ../../../NOTICE:/opt/airflow/NOTICE:cached
       - ../../../airflow:/opt/airflow/airflow:cached
       - ../../../backport_packages:/opt/airflow/backport_packages:cached
-      - ../../../common:/opt/airflow/common:cached
       - ../../../dags:/opt/airflow/dags:cached
       - ../../../dev:/opt/airflow/dev:cached
       - ../../../docs:/opt/airflow/docs:cached

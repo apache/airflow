@@ -473,6 +473,7 @@ export MYSQL_VERSION="${MYSQL_VERSION}"
 export AIRFLOW_SOURCES="${AIRFLOW_SOURCES}"
 export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
 export AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
+export AIRFLOW_PROD_IMAGE_KUBERNETES="${AIRFLOW_PROD_IMAGE_KUBERNETES}"
 export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
 export AIRFLOW_IMAGE="${AIRFLOW_IMAGE}"
 export SQLITE_URL="${SQLITE_URL}"
@@ -542,6 +543,7 @@ function prepare_command_files() {
     export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
     export AIRFLOW_PROD_IMAGE_KUBERNETES="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-kubernetes"
     export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
+    export AIRFLOW_PROD_IMAGE_KUBERNETES="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-kubernetes"
     export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
     LAST_DC_CI_FILE="dc_ci"
@@ -716,6 +718,11 @@ function parse_arguments() {
           echo
           export DOCKER_CACHE="no-cache"
           export FORCE_BUILD_IMAGES="true"
+          shift ;;
+        -r|--skip-rebuild-check)
+          echo "Skips checking image for rebuilds"
+          echo
+          export CHECK_IMAGE_FOR_REBUILD="false"
           shift ;;
         -L|--build-cache-local)
           echo "Use local cache to build images"
@@ -1740,6 +1747,9 @@ ${FORMATTED_DEFAULT_PROD_EXTRAS}
         Force build images with cache disabled. This will remove the pulled or build images
         and start building images from scratch. This might take a long time.
 
+-r, --skip-rebuild-check
+        Skips checking image for rebuilds. It will use whatever image is available locally/pulled.
+
 -L, --build-cache-local
         Uses local cache to build images. No pulled images will be used, but results of local
         builds in the Docker cache are used instead. This will take longer than when the pulled
@@ -2133,7 +2143,7 @@ function run_build_command {
         build_image)
             if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
                 prepare_prod_build
-                build_prod_image
+                build_prod_images
             else
                 prepare_ci_build
                 calculate_md5sum_for_all_files
@@ -2252,7 +2262,7 @@ function run_breeze_command {
             if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
                 push_prod_images
             else
-                push_ci_image
+                push_ci_images
             fi
             ;;
         perform_initialize_local_virtualenv)

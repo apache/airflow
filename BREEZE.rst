@@ -463,7 +463,7 @@ Launching Breeze integrations
 
 When Breeze starts, it can start additional integrations. Those are additional docker containers
 that are started in the same docker-compose command. Those are required by some of the tests
-as described in `TESTING.rst <TESTING.rst#airflow-integration-tests>`_.
+as described in `<TESTING.rst#airflow-integration-tests>`_.
 
 By default Breeze starts only airflow container without any integration enabled. If you selected
 ``postgres`` or ``mysql`` backend, the container for the selected backend is also started (but only the one
@@ -680,6 +680,20 @@ To build documentation in Breeze, use the ``build-docs`` command:
 
 Results of the build can be found in the ``docs/_build`` folder.
 
+The documentation build consists of three steps:
+
+* verifying consistency of indexes
+* building documentation
+* spell checking
+
+You can disable the latter two by providing ``--disable-docs-build`` or ``--disable-spell-check`` after
+extra -- flag.
+
+.. code-block:: bash
+
+     ./breeze build-docs -- --disable-docs-build
+
+
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
 During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
 easily identify the location the problems with documentation originated from.
@@ -697,10 +711,10 @@ Generating constraints
 ----------------------
 
 Whenever setup.py gets modified, the CI master job will re-generate constraint files. Those constraint
-files ara stored in separated orphan branches: ``constraints-master`` and ``constraint-1-10``.
+files are stored in separated orphan branches: ``constraints-master`` and ``constraint-1-10``.
 They are stored separately for each python version. Those are
 constraint files as described in detail in the
-`CONTRIBUTING.rst <CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
+`<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
 
 In case someone modifies setup.py, the ``CRON`` scheduled CI build automatically upgrades and
 pushes changed to the constraint files, however you can also perform test run of this locally using
@@ -1221,6 +1235,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
 
+  -r, --skip-rebuild-check
+          Skips checking image for rebuilds. It will use whatever image is available locally/pulled.
+
   -L, --build-cache-local
           Uses local cache to build images. No pulled images will be used, but results of local
           builds in the Docker cache are used instead. This will take longer than when the pulled
@@ -1654,6 +1671,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
 
+  -r, --skip-rebuild-check
+          Skips checking image for rebuilds. It will use whatever image is available locally/pulled.
+
   -L, --build-cache-local
           Uses local cache to build images. No pulled images will be used, but results of local
           builds in the Docker cache are used instead. This will take longer than when the pulled
@@ -2040,6 +2060,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -C, --force-clean-images
           Force build images with cache disabled. This will remove the pulled or build images
           and start building images from scratch. This might take a long time.
+
+  -r, --skip-rebuild-check
+          Skips checking image for rebuilds. It will use whatever image is available locally/pulled.
 
   -L, --build-cache-local
           Uses local cache to build images. No pulled images will be used, but results of local
