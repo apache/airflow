@@ -29,9 +29,11 @@ echo
 echo
 echo "Check if jq is installed"
 echo
-command -v jq
+command -v jql >/dev/null || (echo "ERROR! You must have 'jq' tool installed!" && exit 1)
 
 jq --version
+
+
 for PYTHON_MAJOR_MINOR_VERSION in "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}"
 do
     export AIRFLOW_CI_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
