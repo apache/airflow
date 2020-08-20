@@ -22,7 +22,7 @@ Basic airflow architecture
 
 Primarily intended for development use, the basic airflow architecture with the Local and Sequential executors is an excellent starting point for understanding the architecture of Apache Airflow.
 
-.. image:: arch-diag-basic.png
+.. image:: img/arch-diag-basic.png
 
 
 There are a few components to note:
