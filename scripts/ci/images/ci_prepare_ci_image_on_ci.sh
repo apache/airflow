@@ -18,36 +18,8 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# In case GITHUB_REGISTRY_PULL_IMAGE_TAG is different than latest, tries to pull the image indefinitely
-# skips further image checks - assuming that this is the right image
-function wait_for_ci_image_tag {
-    CI_IMAGE_TO_WAIT_FOR="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-    echo
-    echo "Waiting for image ${CI_IMAGE_TO_WAIT_FOR}"
-    echo
-    while true; do
-        docker pull "${CI_IMAGE_TO_WAIT_FOR}" || true
-        if [[ "$(docker images -q "${CI_IMAGE_TO_WAIT_FOR}" 2> /dev/null)" == "" ]]; then
-            echo
-            echo "The image ${CI_IMAGE_TO_WAIT_FOR} is not yet available. Waiting"
-            echo
-            sleep 10
-        else
-            echo
-            echo "The image ${CI_IMAGE_TO_WAIT_FOR} downloaded."
-            echo "Tagging ${CI_IMAGE_TO_WAIT_FOR} as ${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}."
-            docker tag  "${CI_IMAGE_TO_WAIT_FOR}" "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}"
-            echo "Tagging ${CI_IMAGE_TO_WAIT_FOR} as ${AIRFLOW_CI_IMAGE}."
-            docker tag  "${CI_IMAGE_TO_WAIT_FOR}" "${AIRFLOW_CI_IMAGE}"
-            echo
-            break
-        fi
-    done
-}
-
-# Builds the CI image in the CI environment.
-# Depending on the type of build (push/pr/scheduled) it will either build it incrementally or
-# from the scratch without cache (the latter for scheduled builds only)
+# Builds or waits for the CI image in the CI environment
+# Depending on the "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_ci_image_on_ci() {
     get_environment_for_builds_on_ci
     prepare_ci_build
@@ -58,7 +30,13 @@ function build_ci_image_on_ci() {
     if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"} == "true" ]]; then
         # Pretend that the image was build. We already have image with the right sources baked in!
         calculate_md5sum_for_all_files
-        wait_for_ci_image_tag
+
+        # Tries to wait for the image indefinitely
+        # skips further image checks - since we already have the target image
+
+        wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}" \
+            "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE}"
+
         update_all_md5_files
     else
         rebuild_ci_image_if_needed
