@@ -15,5 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
+initialize_common_environment
+
+function run_bats_tests() {
+    FILES=("$@")
+    if [[ "${#FILES[@]}" == "0" ]]; then
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r /airflow/tests/bats
+    else
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r "${FILES[@]}"
+    fi
+}
+
+run_bats_tests "$@"

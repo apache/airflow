@@ -331,27 +331,26 @@ function prepare_ci_build() {
     export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
     if [[ ${USE_GITHUB_REGISTRY="false"} == "true" ]]; then
-        if [[ ${CACHE_REGISTRY_PASSWORD:=} != "" ]]; then
-            echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
-                --username "${CACHE_REGISTRY_USERNAME}" \
+        if [[ ${GITHUB_TOKEN:=} != "" ]]; then
+            echo "${GITHUB_TOKEN}" | docker login \
+                --username "${GITHUB_USERNAME}" \
                 --password-stdin \
-                "${CACHE_REGISTRY}"
+                "${GITHUB_REGISTRY}"
         fi
-        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_REPOSITORY}}
-        export CACHED_AIRFLOW_CI_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_CI_BASE_TAG}"
-        export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+        export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY}/${AIRFLOW_CI_BASE_TAG}"
+        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     else
-        export CACHED_AIRFLOW_CI_IMAGE=""
-        export CACHED_PYTHON_BASE_IMAGE=""
+        export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE=""
+        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE=""
     fi
     export AIRFLOW_BUILD_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}/${AIRFLOW_CI_BASE_TAG}"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-ci"
     export PYTHON_BASE_IMAGE="python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     export BUILT_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
     if [[ "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" == "${PYTHON_MAJOR_MINOR_VERSION}" ]]; then
-        export DEFAULT_IMAGE="${AIRFLOW_CI_IMAGE_DEFAULT}"
+        export DEFAULT_PROD_IMAGE="${AIRFLOW_CI_IMAGE_DEFAULT}"
     else
-        export DEFAULT_IMAGE=""
+        export DEFAULT_PROD_IMAGE=""
     fi
     export THE_IMAGE_TYPE="CI"
     export IMAGE_DESCRIPTION="Airflow CI"
@@ -367,17 +366,11 @@ function prepare_ci_build() {
 
 
 # Only rebuilds CI image if needed. It checks if the docker image build is needed
-# because any of the important source files (from common/_files_for_rebuild_check.sh) has
+# because any of the important source files (from scripts/ci/libraries/_initialization.sh) has
 # changed or in any of the edge cases (docker image removed, .build cache removed etc.
 # In case rebuild is needed, it determines (by comparing layers in local and remote image)
 # Whether pull is needed before rebuild.
 function rebuild_ci_image_if_needed() {
-    if [[ ${SKIP_CI_IMAGE_CHECK:="false"} == "true" ]]; then
-        print_info
-        print_info "Skip checking CI image"
-        print_info
-        return
-    fi
     if [[ -f "${BUILT_IMAGE_FLAG_FILE}" ]]; then
         print_info
         print_info "${THE_IMAGE_TYPE} image already built locally."
@@ -388,6 +381,14 @@ function rebuild_ci_image_if_needed() {
         print_info
         export FORCE_PULL_IMAGES="true"
         export FORCE_BUILD_IMAGES="true"
+    fi
+
+    if [[ ${CHECK_IMAGE_FOR_REBUILD:="true"} == "false" ]]; then
+        print_info
+        print_info "Skip checking for rebuilds of the CI image but checking if it needs to be pulled"
+        print_info
+        pull_ci_images_if_needed
+        return
     fi
 
     NEEDS_DOCKER_BUILD="false"
@@ -483,50 +484,6 @@ function rebuild_ci_image_if_needed_and_confirmed() {
     fi
 }
 
-# Determines the strategy to be used for caching based on the type of CI job run.
-# In case of CRON jobs we run builds without cache and upgrade contstraint files to latest
-function determine_cache_strategy() {
-    if [[ "${CI_EVENT_TYPE:=}" == "schedule" ]]; then
-        print_info
-        print_info "Disabling cache for scheduled jobs"
-        print_info
-        export DOCKER_CACHE="disabled"
-        print_info
-    else
-        print_info
-        print_info "Pull cache used for regular CI builds"
-        print_info
-        export DOCKER_CACHE="pulled"
-        print_info
-        print_info "Constraints are not upgraded to latest ones for regular CI builds"
-        print_info
-    fi
-}
-
-
-# Builds the CI image in the CI environment.
-# Depending on the type of build (push/pr/scheduled) it will either build it incrementally or
-# from the scratch without cache (the latter for scheduled builds only)
-function build_ci_image_on_ci() {
-    export SKIP_CI_IMAGE_CHECK="false"
-
-    get_environment_for_builds_on_ci
-    determine_cache_strategy
-    prepare_ci_build
-
-    rm -rf "${BUILD_CACHE_DIR}"
-    mkdir -pv "${BUILD_CACHE_DIR}"
-
-    rebuild_ci_image_if_needed
-
-    # Disable force pulling forced above this is needed for the subsequent scripts so that
-    # They do not try to pull/build images again. Also skip the image check entirely for
-    # the rest of the script
-    unset FORCE_PULL_IMAGES
-    unset FORCE_BUILD
-    export SKIP_CI_IMAGE_CHECK="true"
-}
-
 # Builds CI image - depending on the caching strategy (pulled, local, disabled) it
 # passes the necessary docker build flags via DOCKER_CACHE_CI_DIRECTIVE array
 # it also passes the right Build args depending on the configuration of the build
@@ -541,7 +498,7 @@ function build_ci_image() {
         # shellcheck disable=SC2064
         trap "kill ${SPIN_PID}" SIGINT SIGTERM
     fi
-    pull_ci_image_if_needed
+    pull_ci_images_if_needed
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
         export DOCKER_CACHE_CI_DIRECTIVE=("--no-cache")
     elif [[ "${DOCKER_CACHE}" == "local" ]]; then
@@ -593,8 +550,8 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --target "main" \
         . -f Dockerfile.ci
     set -u
-    if [[ -n "${DEFAULT_IMAGE:=}" ]]; then
-        docker tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_IMAGE}"
+    if [[ -n "${DEFAULT_CI_IMAGE:=}" ]]; then
+        docker tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_CI_IMAGE}"
     fi
     if [[ -n ${SPIN_PID:=""} ]]; then
         kill -HUP "${SPIN_PID}" || true
@@ -609,9 +566,9 @@ function prepare_prod_build() {
     get_base_image_version
     # We use local docker image cache by default for Production images
     export DOCKER_CACHE=${DOCKER_CACHE:="local"}
-    echo
-    echo "Using ${DOCKER_CACHE} cache strategy for the build."
-    echo
+    print_info
+    print_info "Using ${DOCKER_CACHE} cache strategy for the build."
+    print_info
     if [[ "${INSTALL_AIRFLOW_REFERENCE:=}" != "" ]]; then
         # When --install-airflow-reference is used then the image is build from github tag
         EXTRA_DOCKER_PROD_BUILD_FLAGS=(
@@ -635,14 +592,14 @@ function prepare_prod_build() {
 
     export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
     export AIRFLOW_PROD_BUILD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-build"
-    export AIRFLOW_PROD_IMAGE_KUBERNETES="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-kubernetes"
     export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}"
+    export AIRFLOW_PROD_IMAGE_KUBERNETES="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-kubernetes"
     export AIRFLOW_PROD_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}"
     export PYTHON_BASE_IMAGE="python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     if [[ "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" == "${PYTHON_MAJOR_MINOR_VERSION}" ]]; then
-        export DEFAULT_IMAGE="${AIRFLOW_PROD_IMAGE_DEFAULT}"
+        export DEFAULT_CI_IMAGE="${AIRFLOW_PROD_IMAGE_DEFAULT}"
     else
-        export DEFAULT_IMAGE=""
+        export DEFAULT_CI_IMAGE=""
     fi
     export THE_IMAGE_TYPE="PROD"
     export IMAGE_DESCRIPTION="Airflow production"
@@ -654,57 +611,31 @@ function prepare_prod_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
 
     if [[ ${USE_GITHUB_REGISTRY="false"} == "true" ]]; then
-        if [[ ${CACHE_REGISTRY_PASSWORD:=} != "" ]]; then
-            echo "${CACHE_REGISTRY_PASSWORD}" | docker login \
-                --username "${CACHE_REGISTRY_USERNAME}" \
+        if [[ ${GITHUB_TOKEN:=} != "" ]]; then
+            echo "${GITHUB_TOKEN}" | docker login \
+                --username "${GITHUB_USERNAME}" \
                 --password-stdin \
-                "${CACHE_REGISTRY}"
+                "${GITHUB_REGISTRY}"
         fi
-        export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
-        export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_REPOSITORY}}
-        export AIRFLOW_PROD_IMAGE_KUBERNETES="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-kubernetes"
-        export CACHED_AIRFLOW_PROD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}"
-        export CACHED_AIRFLOW_PROD_BUILD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}-build"
-        export CACHED_PYTHON_BASE_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+        export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY}/${AIRFLOW_PROD_BASE_TAG}"
+        export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY}/${AIRFLOW_PROD_BASE_TAG}-build"
+        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${GITHUB_REGISTRY}/${GITHUB_REPOSITORY}/python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
     else
-        export CACHED_AIRFLOW_PROD_IMAGE=""
-        export CACHED_AIRFLOW_PROD_BUILD_IMAGE=""
-        export CACHED_PYTHON_BASE_IMAGE=""
+        export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE=""
+        export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE=""
+        export GITHUB_REGISTRY_PYTHON_BASE_IMAGE=""
     fi
 
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
     go_to_airflow_sources
 }
 
-
-# Builds the prod image in the CI environment.
-# Depending on the type of build (push/pr/scheduled) it will either build it incrementally or
-# from the scratch without cache (the latter for scheduled builds only)
-function build_prod_image_on_ci() {
-    get_environment_for_builds_on_ci
-
-    determine_cache_strategy
-
-    prepare_prod_build
-
-    rm -rf "${BUILD_CACHE_DIR}"
-    mkdir -pv "${BUILD_CACHE_DIR}"
-
-    build_prod_image
-
-    # Disable force pulling forced above this is needed for the subsequent scripts so that
-    # They do not try to pull/build images again
-    unset FORCE_PULL_IMAGES
-    unset FORCE_BUILD
-}
-
-
 # Builds PROD image - depending on the caching strategy (pulled, local, disabled) it
 # passes the necessary docker build flags via DOCKER_CACHE_PROD_DIRECTIVE and
 # DOCKER_CACHE_PROD_BUILD_DIRECTIVE (separate caching options are needed for "build" segment of the image)
 # it also passes the right Build args depending on the configuration of the build
 # selected by Breeze flags or environment variables.
-function build_prod_image() {
+function build_prod_images() {
     print_build_info
     pull_prod_images_if_needed
 
@@ -763,7 +694,43 @@ function build_prod_image() {
         --target "main" \
         . -f Dockerfile
     set -u
-    if [[ -n "${DEFAULT_IMAGE:=}" ]]; then
-        docker tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_IMAGE}"
+    if [[ -n "${DEFAULT_PROD_IMAGE:=}" ]]; then
+        docker tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_PROD_IMAGE}"
     fi
+}
+
+# Waits for image tag to appear in Github Registry, pulls it and tags with the target tag
+# Parameters:
+#  $1 - image name to wait for
+#  $2 - tag to wait for
+#  $3, $4, ... - target tags to tag the image with
+function wait_for_image_tag {
+    IMAGE_NAME="${1}"
+    TAG_TO_WAIT_FOR=${2}
+    shift 2
+
+    IMAGE_TO_WAIT_FOR="${IMAGE_NAME}:${TAG_TO_WAIT_FOR}"
+    echo
+    echo "Waiting for image ${IMAGE_TO_WAIT_FOR}"
+    echo
+    while true; do
+        docker pull "${IMAGE_TO_WAIT_FOR}" || true
+        if [[ "$(docker images -q "${IMAGE_TO_WAIT_FOR}" 2> /dev/null)" == "" ]]; then
+            echo
+            echo "The image ${IMAGE_TO_WAIT_FOR} is not yet available. Waiting"
+            echo
+            sleep 10
+        else
+            echo
+            echo "The image ${IMAGE_TO_WAIT_FOR} downloaded."
+            echo
+            for TARGET_TAG in "${@}"; do
+                echo
+                echo "Tagging ${IMAGE_TO_WAIT_FOR} as ${TARGET_TAG}."
+                echo
+                docker tag  "${IMAGE_TO_WAIT_FOR}" "${TARGET_TAG}"
+            done
+            break
+        fi
+    done
 }

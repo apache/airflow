@@ -45,7 +45,7 @@ RUN_TESTS=${RUN_TESTS:="false"}
 CI=${CI:="false"}
 INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
-if [[ ${CI} == "false" ]]; then
+if [[ ${GITHUB_ACTIONS} == "false" ]]; then
     # Create links for useful CLI tools
     # shellcheck source=scripts/ci/in_container/run_cli_tool.sh
     source <(bash scripts/ci/in_container/run_cli_tool.sh)
@@ -161,19 +161,21 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-if [[ "${CI}" == "true" ]]; then
+export RESULT_LOG_FILE="/files/test_result.xml"
+
+if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
     EXTRA_PYTEST_ARGS=(
         "--verbosity=0"
         "--strict-markers"
-        "--instafail"
         "--durations=100"
         "--cov=airflow/"
         "--cov-config=.coveragerc"
-        "--cov-report=html:airflow/www_rbac/static/coverage/"
+        "--cov-report=xml:/files/coverage.xml"
         "--color=yes"
         "--maxfail=50"
         "--pythonwarnings=ignore::DeprecationWarning"
         "--pythonwarnings=ignore::PendingDeprecationWarning"
+        "--junitxml=${RESULT_LOG_FILE}"
         )
 else
     EXTRA_PYTEST_ARGS=()
@@ -187,25 +189,43 @@ if [[ ${#@} -gt 0 && -n "$1" ]]; then
 fi
 
 if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
+    # Integration tests
     for INT in ${RUN_INTEGRATION_TESTS}
     do
         EXTRA_PYTEST_ARGS+=("--integration" "${INT}")
     done
-    EXTRA_PYTEST_ARGS+=("-rpfExX")
+    EXTRA_PYTEST_ARGS+=(
+        # timeouts in seconds for individual tests
+        "--setup-timeout=20"
+        "--execution-timeout=60"
+        "--teardown-timeout=20"
+    )
+
 elif [[ ${ONLY_RUN_LONG_RUNNING_TESTS:=""} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "long_running"
         "--include-long-running"
         "--verbosity=1"
-        "--reruns" "3"
-        "--timeout" "90")
+        "--setup-timeout=30"
+        "--execution-timeout=120"
+        "--teardown-timeout=30"
+    )
 elif [[ ${ONLY_RUN_QUARANTINED_TESTS:=""} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "quarantined"
         "--include-quarantined"
         "--verbosity=1"
-        "--reruns" "3"
-        "--timeout" "90")
+        "--setup-timeout=10"
+        "--execution-timeout=50"
+        "--teardown-timeout=10"
+    )
+else
+    # Core tests
+    EXTRA_PYTEST_ARGS+=(
+        "--setup-timeout=10"
+        "--execution-timeout=30"
+        "--teardown-timeout=10"
+    )
 fi
 
 ARGS=("${EXTRA_PYTEST_ARGS[@]}" "${TESTS_TO_RUN[@]}")

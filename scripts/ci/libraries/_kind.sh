@@ -183,7 +183,7 @@ function perform_kind_cluster_operation() {
             make_sure_kubernetes_tools_are_installed
             initialize_kind_variables
             prepare_prod_build
-            build_prod_image
+            build_prod_images
             build_image_for_kubernetes_tests
             load_image_to_kind_cluster
             deploy_airflow_with_helm

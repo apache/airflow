@@ -1,0 +1,114 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Quarantined Build
+on:
+  schedule:
+    # Run quarantined builds 4 times a day to gather better quarantine stats
+    - cron: '12 */6 * * *'
+
+env:
+  MOUNT_LOCAL_SOURCES: "false"
+  MOUNT_FILES: "true"
+  FORCE_ANSWER_TO_QUESTIONS: "yes"
+  FORCE_PULL_IMAGES: "true"
+  CHECK_IMAGE_FOR_REBUILD: "true"
+  SKIP_CHECK_REMOTE_IMAGE: "true"
+  DB_RESET: "true"
+  VERBOSE: "true"
+  UPGRADE_TO_LATEST_CONSTRAINTS: false
+  PYTHON_MAJOR_MINOR_VERSION: 3.6
+  USE_GITHUB_REGISTRY: "true"
+  # Since we run this build on schedule, it might be that the image has never been pushed
+  # Because the master merge was cancelled, so we have to rebuild the image for quarantined build
+  GITHUB_REPOSITORY: ${{ github.repository }}
+  GITHUB_USERNAME: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+  GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+
+jobs:
+
+  trigger-tests:
+    timeout-minutes: 5
+    name: "Checks if tests should be run"
+    runs-on: ubuntu-latest
+    outputs:
+      run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: "Check if tests should be run"
+        run: "./scripts/ci/tools/ci_check_if_tests_should_be_run.sh"
+        id: trigger-tests
+
+  tests-quarantined:
+    timeout-minutes: 80
+    name: "Quarantined tests"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs: [trigger-tests]
+    strategy:
+      matrix:
+        python-version: [3.6]
+        postgres-version: [9.6]
+      fail-fast: false
+    env:
+      BACKEND: postgres
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      POSTGRES_VERSION: ${{ matrix.postgres-version }}
+      RUN_TESTS: "true"
+      TEST_TYPE: Quarantined
+      NUM_RUNS: 20
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      - name: "Set issue id for master"
+        if: github.ref == 'refs/heads/master'
+        run: |
+          echo "::set-env name=ISSUE_ID::10118"
+      - name: "Set issue id for v1-10-stable"
+        if: github.ref == 'refs/heads/v1-10-stable'
+        run: |
+          echo "::set-env name=ISSUE_ID::10127"
+      - name: "Set issue id for v1-10-test"
+        if: github.ref == 'refs/heads/v1-10-test'
+        run: |
+          echo "::set-env name=ISSUE_ID::10128"
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Build CI image ${{ matrix.python-version }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Tests"
+        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - uses: actions/upload-artifact@v2
+        name: Upload Quarantine test results
+        if: always()
+        with:
+          name: 'quarantined_tests'
+          path: 'files/test_result.xml'
+      - uses: actions/upload-artifact@v2
+        name: Upload airflow logs
+        if: always()
+        with:
+          name: airflow-logs-quarantined-${{matrix.python-version}}-${{ matrix.postgres-version }}
+          path: './files/airflow_logs*'

@@ -57,14 +57,14 @@ if [[ ${DOCKER_TAG} == *python*-ci ]]; then
     rm -rf "${BUILD_CACHE_DIR}"
     prepare_ci_build
     rebuild_ci_image_if_needed
-    push_ci_image
+    push_ci_images
 elif [[ ${DOCKER_TAG} == *python* ]]; then
     echo
     echo "Building prod image"
     echo
     rm -rf "${BUILD_CACHE_DIR}"
     prepare_prod_build
-    build_prod_image
+    build_prod_images
     push_prod_images
 else
     echo
