@@ -96,3 +96,31 @@ class TestSkipMixin(unittest.TestCase):
         SkipMixin().skip(dag_run=None, execution_date=None, tasks=[], session=session)
         self.assertFalse(session.query.called)
         self.assertFalse(session.commit.called)
+
+    def test_skip_all_except(self):
+        dag = DAG(
+            'dag_test_skip_all_except',
+            start_date=DEFAULT_DATE,
+        )
+        with dag:
+            task1 = DummyOperator(task_id='task1')
+            task2 = DummyOperator(task_id='task2')
+            task3 = DummyOperator(task_id='task3')
+
+            task1 >> [task2, task3]
+
+        ti1 = TI(task1, execution_date=DEFAULT_DATE)
+        ti2 = TI(task2, execution_date=DEFAULT_DATE)
+        ti3 = TI(task3, execution_date=DEFAULT_DATE)
+
+        SkipMixin().skip_all_except(
+            ti=ti1,
+            branch_task_ids=['task2']
+        )
+
+        def get_state(ti):
+            ti.refresh_from_db()
+            return ti.state
+
+        assert get_state(ti2) == State.NONE
+        assert get_state(ti3) == State.SKIPPED
