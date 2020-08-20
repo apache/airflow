@@ -140,11 +140,11 @@ def generate_pages(current_page,
     last_page = num_of_pages - 1
 
     if current_page <= mid or num_of_pages < window:
-        pages = [i for i in range(0, min(num_of_pages, window))]
+        pages = list(range(0, min(num_of_pages, window)))
     elif mid < current_page < last_page - mid:
-        pages = [i for i in range(current_page - mid, current_page + mid + 1)]
+        pages = list(range(current_page - mid, current_page + mid + 1))
     else:
-        pages = [i for i in range(num_of_pages - window, last_page + 1)]
+        pages = list(range(num_of_pages - window, last_page + 1))
 
     def is_current(current, page):
         return page == current

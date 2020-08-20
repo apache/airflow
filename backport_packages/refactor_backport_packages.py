@@ -535,7 +535,7 @@ class RefactorBackportPackages:
         # noinspection PyUnusedLocal
         def pure_airflow_models_filter(node: LN, capture: Capture, filename: Filename) -> bool:
             """Check if select is exactly [airflow, . , models]"""
-            return len([ch for ch in node.children[1].leaves()]) == 3
+            return len(list(node.children[1].leaves())) == 3
 
         os.makedirs(os.path.join(get_target_providers_package_folder("google"), "common", "utils"),
                     exist_ok=True)

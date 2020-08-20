@@ -1044,7 +1044,7 @@ def update_release_notes_for_package(provider_package_id: str, current_release_v
             cross_providers_dependencies,
             base_url="https://github.com/apache/airflow/tree/master/airflow/providers/")
     context: Dict[str, Any] = {
-        "ENTITY_TYPES": [entity_type for entity_type in EntityType],
+        "ENTITY_TYPES": list(EntityType),
         "PROVIDER_PACKAGE_ID": provider_package_id,
         "PACKAGE_PIP_NAME": f"apache-airflow-backport-providers-{provider_package_id.replace('.', '-')}",
         "FULL_PACKAGE_NAME": full_package_name,
