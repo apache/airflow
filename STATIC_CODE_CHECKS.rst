@@ -48,9 +48,9 @@ require Breeze Docker images to be installed locally:
 =================================== ================================================================ ============
 ``base-operator``                     Checks that BaseOperator is imported properly
 ----------------------------------- ---------------------------------------------------------------- ------------
-``build``                             Builds image for check-apache-licence, mypy, flake8.                 *
+``build``                             Builds image for mypy, flake8.                                       *
 ----------------------------------- ---------------------------------------------------------------- ------------
-``check-apache-license``              Checks compatibility with Apache License requirements.               *
+``check-apache-license``              Checks compatibility with Apache License requirements.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-executables-have-shebangs``   Checks that executables have shebang.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -60,7 +60,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-xml``                         Checks XML files with xmllint.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``debug-statements``                  Detects accidenatally committed debug statements.
+``debug-statements``                  Detects accidentally committed debug statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``detect-private-key``                Detects if private key is added to the repository.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -267,10 +267,11 @@ Running Static Code Checks via Scripts from the Host
 You can trigger the static checks from the host environment, without entering the Docker container. To do
 this, run the following scripts:
 
-* `<scripts/ci/static_checks/ci_check_license.sh>`_ - checks the licenses.
-* `<scripts/ci/static_checks/ci_flake8.sh>`_ - runs Flake8 source code style enforcement tool.
-* `<scripts/ci/static_checks/ci_lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
-* `<scripts/ci/static_checks/ci_mypy.sh>`_ - runs a check for mypy type annotation consistency.
+* `<scripts/ci/docs/ci_docs.sh>`_ - checks that documentation can be built without warnings.
+* `<scripts/ci/static_checks/check_license.sh>`_ - checks the licenses.
+* `<scripts/ci/static_checks/flake8.sh>`_ - runs Flake8 source code style enforcement tool.
+* `<scripts/ci/static_checks/lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
+* `<scripts/ci/static_checks/mypy.sh>`_ - runs a check for mypy type annotation consistency.
 
 The scripts may ask you to rebuild the images, if needed.
 
@@ -313,8 +314,8 @@ On the host:
 
 .. code-block::
 
-  ./scripts/ci/static_checks/ci_mypy.sh ./airflow/example_dags/
+  ./scripts/ci/static_checks/mypy.sh ./airflow/example_dags/
 
 .. code-block::
 
-  ./scripts/ci/static_checks/ci_mypy.sh ./airflow/example_dags/test_utils.py
+  ./scripts/ci/static_checks/mypy.sh ./airflow/example_dags/test_utils.py

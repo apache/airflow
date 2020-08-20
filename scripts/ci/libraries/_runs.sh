@@ -24,6 +24,7 @@ function run_docs() {
             "--" "/opt/airflow/docs/build_docs.py" "${@}"
 }
 
+
 # Docker command to generate constraint files.
 function run_generate_constraints() {
     docker run "${EXTRA_DOCKER_FLAGS[@]}" \

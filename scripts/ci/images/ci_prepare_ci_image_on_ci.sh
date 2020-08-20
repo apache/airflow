@@ -18,4 +18,37 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+# Builds or waits for the CI image in the CI environment
+# Depending on the "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
+function build_ci_image_on_ci() {
+    get_environment_for_builds_on_ci
+    prepare_ci_build
+
+    rm -rf "${BUILD_CACHE_DIR}"
+    mkdir -pv "${BUILD_CACHE_DIR}"
+
+    if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"} == "true" ]]; then
+        # Pretend that the image was build. We already have image with the right sources baked in!
+        calculate_md5sum_for_all_files
+
+        # Tries to wait for the image indefinitely
+        # skips further image checks - since we already have the target image
+
+        wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}" \
+            "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE}"
+
+        update_all_md5_files
+    else
+        rebuild_ci_image_if_needed
+    fi
+
+    # Disable force pulling forced above this is needed for the subsequent scripts so that
+    # They do not try to pull/build images again.
+    unset FORCE_PULL_IMAGES
+    unset FORCE_BUILD
+    # Skip the image check entirely for the rest of the script
+    export CHECK_IMAGE_FOR_REBUILD="false"
+}
+
+
 build_ci_image_on_ci

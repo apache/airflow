@@ -33,7 +33,7 @@ get_environment_for_builds_on_ci
 initialize_kind_variables
 make_sure_kubernetes_tools_are_installed
 prepare_prod_build
-build_prod_image
+build_prod_images
 build_image_for_kubernetes_tests
 load_image_to_kind_cluster
 deploy_airflow_with_helm

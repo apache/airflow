@@ -18,8 +18,8 @@
 version: "2.2"
 services:
   airflow:
-    stdin_open: true # docker run -i
-    tty: true        # docker run -t
+    stdin_open: true  # docker run -i
+    tty: true  # docker run -t
     # We need to mount files an directories individually because some files
     # such apache_airflow.egg-info should not be mounted from host
     # we only mount those files that it makes sense to edit while developing
@@ -40,11 +40,9 @@ services:
       - ../../../MANIFEST.in:/opt/airflow/MANIFEST.in:cached
       - ../../../NOTICE:/opt/airflow/NOTICE:cached
       - ../../../airflow:/opt/airflow/airflow:cached
-      - ../../../common:/opt/airflow/common:cached
       - ../../../dags:/opt/airflow/dags:cached
       - ../../../dev:/opt/airflow/dev:cached
       - ../../../docs:/opt/airflow/docs:cached
-      - ../../../files:/files:cached
       - ../../../dist:/dist:cached
       - ../../../hooks:/opt/airflow/hooks:cached
       - ../../../logs:/root/airflow/logs:cached
@@ -57,12 +55,5 @@ services:
       - ../../../kubernetes_tests:/opt/airflow/kubernetes_tests:cached
       - ../../../tmp:/tmp:cached
       # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
-    environment:
-      - HOST_USER_ID
-      - HOST_GROUP_ID
-      - HOST_HOME=${HOME}
-      - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
-      - HOST_OS
-      - PYTHONDONTWRITEBYTECODE
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"

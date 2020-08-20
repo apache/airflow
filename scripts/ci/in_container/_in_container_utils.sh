@@ -39,7 +39,7 @@ function in_container_script_end() {
     #shellcheck disable=2181
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
-        if [[ "${PRINT_INFO_FROM_SCRIPTS=="ture"}" == "true" ]] ;then
+        if [[ "${PRINT_INFO_FROM_SCRIPTS=="true"}" == "true" ]] ;then
             if [[ -n ${OUT_FILE_PRINTED_ON_ERROR:=} ]]; then
                 echo "  ERROR ENCOUNTERED!"
                 echo
@@ -49,7 +49,7 @@ function in_container_script_end() {
                 echo "###########################################################################################"
             fi
             echo "###########################################################################################"
-            echo "                   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
+            echo "  [IN CONTAINER]   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
             echo "###########################################################################################"
         fi
     fi
@@ -85,7 +85,7 @@ function in_container_cleanup_pycache() {
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
-        -name "__pycache__" | grep "__pycache__" | sudo xargs rm -rvf
+        -name "__pycache__" | grep "__pycache__" | sudo xargs rm -rf
     set -o pipefail
 }
 
