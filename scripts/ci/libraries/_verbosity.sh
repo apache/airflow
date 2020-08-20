@@ -85,7 +85,7 @@ function kubectl {
     fi
 }
 
-KIND_BINARY="${KIND_BINARY:=$(command -v kind)}"
+KIND_BINARY="${KIND_BINARY:=$(command -v kind)}" || echo "kind not installed"
 export KIND_BINARY
 
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all kind commands run will be
