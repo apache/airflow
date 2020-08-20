@@ -54,7 +54,7 @@ jobs:
       cacheDirective: ${{ steps.cache-directive.outputs.docker-cache }}
     steps:
       - name: "Cancel duplicated 'CI Build' runs"
-        uses: potiuk/cancel-workflow-runs@master
+        uses: potiuk/cancel-workflow-runs@v2
         id: cancel
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -66,7 +66,7 @@ jobs:
         # in GitHub Actions, we have to use Job names to match Event/Repo/Branch from the
         # build-info step there to find the duplicates ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@master
+        uses: potiuk/cancel-workflow-runs@v2
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -82,7 +82,7 @@ jobs:
         # can cancel all the matching "Build Images" workflow runs in the two following steps.
         # Yeah. Adding to the complexity ¯\_(ツ)_/¯.
 
-        uses: potiuk/cancel-workflow-runs@master
+        uses: potiuk/cancel-workflow-runs@v2
         id: cancel-failed
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -118,7 +118,7 @@ jobs:
         # followed by one of the run ids. Yes I know it's super complex ¯\_(ツ)_/¯.
 
         if: steps.cancel-failed.outputs.cancelledRuns != '[]'
-        uses: potiuk/cancel-workflow-runs@master
+        uses: potiuk/cancel-workflow-runs@v2
         with:
           cancelMode: namedJobs
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -221,7 +221,7 @@ jobs:
         if: matrix.image-type == 'PROD'
       - name: "Canceling the CI Build source workflow in case of failure!"
         if: cancelled() || failure()
-        uses: potiuk/cancel-workflow-runs@master
+        uses: potiuk/cancel-workflow-runs@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           cancelMode: self
