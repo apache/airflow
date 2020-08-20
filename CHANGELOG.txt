@@ -1002,7 +1002,7 @@ New Features
 - [AIRFLOW-4306] Global operator extra links (#5094)
 - [AIRFLOW-4812] Add batch images annotation (#5433)
 - [AIRFLOW-4135] Add Google Cloud Build operator and hook (#5251)
-- [AIRFLOW-4781] Add the ability to specify ports in kubernetesOperator (#5410)
+- [AIRFLOW-4781] Add the ability to specify ports in KubernetesPodOperator (#5410)
 - [AIRFLOW-4521] Pause dag also pause its subdags (#5283)
 - [AIRFLOW-4738] Enforce exampleinclude for example DAGs (#5375)
 - [AIRFLOW-4326] Airflow AWS SQS Operator (#5110)
