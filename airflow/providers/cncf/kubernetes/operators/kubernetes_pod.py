@@ -276,17 +276,19 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             label_selector = self._get_pod_identifying_label_string(labels)
 
             pod_list = client.list_namespaced_pod(self.namespace, label_selector=label_selector)
+            
+            running_pods = [pod for pod in pod_list.items if pod.status.phase == 'Running']
 
-            if len(pod_list.items) > 1 and self.reattach_on_restart:
+            if len(running_pods) > 1 and self.reattach_on_restart:
                 raise AirflowException(
                     'More than one pod running with labels: '
                     '{label_selector}'.format(label_selector=label_selector))
 
             launcher = pod_launcher.PodLauncher(kube_client=client, extract_xcom=self.do_xcom_push)
 
-            if len(pod_list.items) == 1:
-                try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
-                final_state, result = self.handle_pod_overlap(labels, try_numbers_match, launcher, pod_list)
+            if len(running_pods) == 1:
+                try_numbers_match = self._try_numbers_match(context, running_pods[0])
+                final_state, result = self.handle_pod_overlap(labels, try_numbers_match, launcher, running_pods[0])
             else:
                 self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
@@ -297,7 +299,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
-    def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod_list):
+    def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod):
         """
 
         In cases where the Scheduler restarts while a KubernetsPodOperator task is running,
@@ -309,7 +311,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :param try_numbers_match: do the try numbers match? Only needed for logging purposes
         :type try_numbers_match: bool
         :param launcher: PodLauncher
-        :param pod_list: list of pods found
+        :param pod: found pod
         """
         if try_numbers_match:
             log_line = "found a running pod with labels {} and the same try_number.".format(labels)
@@ -319,7 +321,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         if self.reattach_on_restart:
             log_line = log_line + " Will attach to this pod and monitor instead of starting new one"
             self.log.info(log_line)
-            final_state, result = self.monitor_launched_pod(launcher, pod_list.items[0])
+            final_state, result = self.monitor_launched_pod(launcher, pod)
         else:
             log_line = log_line + "creating pod with labels {} and launcher {}".format(labels, launcher)
             self.log.info(log_line)
