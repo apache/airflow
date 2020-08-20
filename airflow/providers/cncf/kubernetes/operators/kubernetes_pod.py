@@ -276,7 +276,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             label_selector = self._get_pod_identifying_label_string(labels)
 
             pod_list = client.list_namespaced_pod(self.namespace, label_selector=label_selector)
-            
             running_pods = [pod for pod in pod_list.items if pod.status.phase == 'Running']
 
             if len(running_pods) > 1 and self.reattach_on_restart:
