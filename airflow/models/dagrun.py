@@ -301,8 +301,7 @@ class DagRun(Base, LoggingMixin):
 
         dag = self.get_dag()
         ready_tis: List[TI] = []
-        tis = [ti for ti in self.get_task_instances(session=session,
-                                                    state=State.task_states + (State.SHUTDOWN,))]
+        tis = list(self.get_task_instances(session=session, state=State.task_states + (State.SHUTDOWN,)))
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
         for ti in tis:
             ti.task = dag.get_task(ti.task_id)
