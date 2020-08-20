@@ -660,6 +660,7 @@ function prepare_prod_build() {
                 --password-stdin \
                 "${CACHE_REGISTRY}"
         fi
+        export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
         export CACHE_IMAGE_PREFIX=${CACHE_IMAGE_PREFX:=${GITHUB_REPOSITORY}}
         export AIRFLOW_PROD_IMAGE_KUBERNETES="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-kubernetes"
         export CACHED_AIRFLOW_PROD_IMAGE="${CACHE_REGISTRY}/${CACHE_IMAGE_PREFIX}/${AIRFLOW_PROD_BASE_TAG}"
