@@ -1143,7 +1143,7 @@ def update_release_notes_for_packages(provider_ids: List[str], release_version: 
         print()
         print(f"ERROR! There are in total: {bad} entities badly named out of {total} entities ")
         print()
-        exit(1)
+        sys.exit(1)
 
 
 def get_all_backportable_providers() -> List[str]:
@@ -1174,19 +1174,19 @@ if __name__ == "__main__":
 ERROR! Missing first param"
 """, file=sys.stderr)
         usage()
-        exit(1)
+        sys.exit(1)
     if sys.argv[1] == "--version-suffix":
         if len(sys.argv) < 3:
             print("""
 ERROR! --version-suffix needs parameter!
 """, file=sys.stderr)
             usage()
-            exit(1)
+            sys.exit(1)
         suffix = sys.argv[2]
         sys.argv = [sys.argv[0]] + sys.argv[3:]
     elif "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) < 2:
         usage()
-        exit(0)
+        sys.exit(0)
 
     if sys.argv[1] not in possible_first_params:
         print(f"""
@@ -1194,18 +1194,18 @@ ERROR! Wrong first param: {sys.argv[1]}
 """, file=sys.stderr)
         usage()
         print()
-        exit(1)
+        sys.exit(1)
 
     if sys.argv[1] == LIST_PROVIDERS_PACKAGES:
         providers = PROVIDERS_REQUIREMENTS.keys()
         for provider in providers:
             print(provider)
-        exit(0)
+        sys.exit(0)
     elif sys.argv[1] == LIST_BACKPORTABLE_PACKAGES:
         providers = get_all_backportable_providers()
         for provider in providers:
             print(provider)
-        exit(0)
+        sys.exit(0)
     elif sys.argv[1] == UPDATE_PACKAGE_RELEASE_NOTES:
         release_ver = ""
         if len(sys.argv) > 2 and re.match(r'\d{4}\.\d{2}\.\d{2}', sys.argv[2]):
@@ -1221,7 +1221,7 @@ ERROR! Wrong first param: {sys.argv[1]}
             package_list = sys.argv[2:]
         print()
         update_release_notes_for_packages(package_list, release_version=release_ver)
-        exit(0)
+        sys.exit(0)
 
     provider_package = sys.argv[1]
     if provider_package not in get_provider_packages():
