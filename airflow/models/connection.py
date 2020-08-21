@@ -79,6 +79,7 @@ class Connection(Base, LoggingMixin):
         ('hiveserver2', 'Hive Server 2 Thrift',),
         ('jdbc', 'Jdbc Connection',),
         ('jenkins', 'Jenkins'),
+        ('kubernetes', 'Kubernetes'),
         ('mysql', 'MySQL',),
         ('postgres', 'Postgres',),
         ('oracle', 'Oracle',),
