@@ -439,7 +439,7 @@
       version_added: 1.10.7
       type: string
       example: ~
-      default: "False"
+      default: "True"
     - name: min_serialized_dag_update_interval
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
@@ -463,7 +463,7 @@
         ``store_serialized_dags`` setting.
       version_added: 1.10.10
       type: string
-      example: "False"
+      example: "True"
       default: ~
     - name: max_num_rendered_ti_fields_per_task
       description: |
@@ -725,7 +725,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "30"
+      default: "1800"
     - name: reload_on_plugin_change
       description: |
         If set to True, Airflow will track files in plugins_folder directory. When it detects changes,

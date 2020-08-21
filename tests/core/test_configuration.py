@@ -540,9 +540,8 @@ notacommand = OK
     def test_store_dag_code_default_config(self):
         store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
         store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
-        self.assertFalse(conf.has_option("core", "store_dag_code"))
         self.assertTrue(store_serialized_dags)
-        self.assertTrue(store_dag_code)
+        self.assertFalse(store_dag_code)
 
     @conf_vars({
         ("core", "store_serialized_dags"): "True",

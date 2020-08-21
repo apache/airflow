@@ -21,6 +21,8 @@ import json
 from datetime import datetime
 from typing import Union, Optional, List
 
+import pendulum
+
 from airflow.exceptions import DagRunAlreadyExists, DagNotFound
 from airflow.models import DagRun, DagBag, DagModel
 from airflow.utils import timezone
@@ -62,7 +64,7 @@ def _trigger_dag(
 
     if dag.default_args and 'start_date' in dag.default_args:
         min_dag_start_date = dag.default_args["start_date"]
-        if min_dag_start_date and execution_date < min_dag_start_date:
+        if min_dag_start_date and pendulum.instance(execution_date) < min_dag_start_date:
             raise ValueError(
                 "The execution_date [{0}] should be >= start_date [{1}] from DAG's default_args".format(
                     execution_date.isoformat(),
