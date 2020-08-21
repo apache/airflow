@@ -1608,7 +1608,7 @@ function flag_kubernetes_configuration() {
 Configuration for the KinD Kubernetes cluster and tests:
 
 -K, --kubernetes-mode <KUBERNETES_MODE>
-        Kubernetes mode - only used in case one of --kind-cluster-* commands is used.
+        Kubernetes mode - only used in case one of kind-cluster commands is used.
         One of:
 
 ${FORMATTED_KUBERNETES_MODES}
@@ -1616,7 +1616,7 @@ ${FORMATTED_KUBERNETES_MODES}
         Default: ${_BREEZE_DEFAULT_KUBERNETES_MODE:=}
 
 -V, --kubernetes-version <KUBERNETES_VERSION>
-        Kubernetes version - only used in case one of --kind-cluster-* commands is used.
+        Kubernetes version - only used in case one of kind-cluster commands is used.
         One of:
 
 ${FORMATTED_KUBERNETES_VERSIONS}
@@ -1624,7 +1624,7 @@ ${FORMATTED_KUBERNETES_VERSIONS}
         Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
 
 --kind-version <KIND_VERSION>
-        Kind version - only used in case one of --kind-cluster-* commands is used.
+        Kind version - only used in case one of kind-cluster commands is used.
         One of:
 
 ${FORMATTED_KIND_VERSIONS}
@@ -1632,7 +1632,7 @@ ${FORMATTED_KIND_VERSIONS}
         Default: ${_BREEZE_DEFAULT_KIND_VERSION:=}
 
 --helm-version <HELM_VERSION>
-        Helm version - only used in case one of --kind-cluster-* commands is used.
+        Helm version - only used in case one of kind-cluster commands is used.
         One of:
 
 ${FORMATTED_HELM_VERSIONS}

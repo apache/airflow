@@ -85,7 +85,10 @@ COMMON_DOCKER_ARGS=(
 
 AWS_CREDENTIALS_DOCKER_ARGS=(-v "${HOST_HOME}/.aws:/root/.aws")
 AZURE_CREDENTIALS_DOCKER_ARGS=(-v "${HOST_HOME}/.azure:/root/.azure")
-GOOGLE_CREDENTIALS_DOCKER_ARGS=(-v "${HOST_HOME}/.config/gcloud:/root/.config/gcloud")
+GOOGLE_CREDENTIALS_DOCKER_ARGS=(
+    -v "${HOST_HOME}/.config/gcloud:/root/.config/gcloud"
+    -v "${HOST_AIRFLOW_SOURCES}/files/.kube:/root/.kube"
+)
 
 COMMAND=("${@}")
 
