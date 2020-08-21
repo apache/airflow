@@ -129,6 +129,10 @@ if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
     fi
 fi
 
+# Create symbolic link to fix possible issues with kubectl config cmd-path
+mkdir -p /usr/lib/google-cloud-sdk/bin
+touch /usr/lib/google-cloud-sdk/bin/gcloud
+ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
 
 # Set up ssh keys
 echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
