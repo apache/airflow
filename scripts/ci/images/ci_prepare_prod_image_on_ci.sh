@@ -32,11 +32,11 @@ function build_prod_images_on_ci() {
         # Tries to wait for the image indefinitely
         # skips further image checks - since we already have the target image
 
-        wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}" \
-            "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}" "${AIRFLOW_PROD_IMAGE}"
+        wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}" \
+            ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_IMAGE}"
 
-        wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}" \
-            "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" "${AIRFLOW_PROD_BUILD_IMAGE}"
+        wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" \
+            ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_BUILD_IMAGE}"
     fi
 
     build_prod_images

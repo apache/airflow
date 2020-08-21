@@ -31,11 +31,21 @@ function build_ci_image_on_ci() {
         # Pretend that the image was build. We already have image with the right sources baked in!
         calculate_md5sum_for_all_files
 
-        # Tries to wait for the image indefinitely
+        # Tries to wait for the images indefinitely
         # skips further image checks - since we already have the target image
 
-        wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}" \
-            "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE}"
+        PYTHON_TAG_SUFFIX=""
+        if [[ ${GITHUB_REGISTRY_PUSH_IMAGE_TAG} != "latest" ]]; then
+            PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+        fi
+        # first we pull base python image. We will need it to re-push it after master build
+        # Becoming the new "latest" image for other builds
+        wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
+            "${PYTHON_TAG_SUFFIX}" "${PYTHON_BASE_IMAGE}"
+
+        # And then the base image
+        wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" \
+            ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_CI_IMAGE}"
 
         update_all_md5_files
     else
