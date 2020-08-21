@@ -51,6 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
+    if: github.repository == 'apache/airflow'
     steps:
       - uses: actions/checkout@v2
       - name: "Check if tests should be run"
@@ -76,7 +77,9 @@ jobs:
       TEST_TYPE: Quarantined
       NUM_RUNS: 20
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
+    if: |
+      github.repository == 'apache/airflow' &&
+      (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request')
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
