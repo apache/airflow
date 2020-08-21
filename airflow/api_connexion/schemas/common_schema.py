@@ -83,7 +83,7 @@ class RelativeDeltaSchema(Schema):
 class CronExpressionSchema(Schema):
     """Cron expression schema"""
 
-    objectType = fields.Constant("CronExpression", data_key="__type", required=True)
+    objectType = fields.Constant("CronExpression", data_key="__type")
     value = fields.String(required=True)
 
     @marshmallow.post_load

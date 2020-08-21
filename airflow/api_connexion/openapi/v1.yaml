@@ -1171,7 +1171,6 @@ components:
           nullable: true
         schedule_interval:
           $ref: '#/components/schemas/ScheduleInterval'
-          readOnly: true
         tags:
           type: array
           nullable: true
@@ -1938,6 +1937,7 @@ components:
 
     # Common data type
     ScheduleInterval:
+      readOnly: true
       oneOf:
         - $ref: '#/components/schemas/TimeDelta'
         - $ref: '#/components/schemas/RelativeDelta'
