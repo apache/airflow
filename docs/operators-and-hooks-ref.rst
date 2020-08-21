@@ -275,6 +275,9 @@ Azure: Microsoft Azure
 
 Airflow has limited support for `Microsoft Azure <https://azure.microsoft.com/>`__.
 
+Some hooks are based on :mod:`airflow.providers.microsoft.azure.hooks.base_azure`
+which authenticate Azure's Python SDK Clients.
+
 Service operators and hooks
 '''''''''''''''''''''''''''
 
