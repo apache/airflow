@@ -19,10 +19,10 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
-# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
-. /opt/airflow/scripts/ci/in_container/_in_container_script_init.sh
+# shellcheck source=scripts/in_container/_in_container_script_init.sh
+. /opt/airflow/scripts/in_container/_in_container_script_init.sh
 
-AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../../.." || exit 1; pwd)
+AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
 PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
 BACKEND=${BACKEND:=sqlite}
@@ -47,8 +47,8 @@ INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
 if [[ ${GITHUB_ACTIONS:="false"} == "false" ]]; then
     # Create links for useful CLI tools
-    # shellcheck source=scripts/ci/in_container/run_cli_tool.sh
-    source <(bash scripts/ci/in_container/run_cli_tool.sh)
+    # shellcheck source=scripts/in_container/run_cli_tool.sh
+    source <(bash scripts/in_container/run_cli_tool.sh)
 fi
 
 if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
@@ -149,7 +149,7 @@ done
 
 ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 
-# shellcheck source=scripts/ci/in_container/configure_environment.sh
+# shellcheck source=scripts/in_container/configure_environment.sh
 . "${IN_CONTAINER_DIR}/configure_environment.sh"
 
 cd "${AIRFLOW_SOURCES}"
@@ -199,6 +199,8 @@ if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
         "--setup-timeout=20"
         "--execution-timeout=60"
         "--teardown-timeout=20"
+        # Do not display skipped tests
+        "-rfExFpP"
     )
 
 elif [[ ${ONLY_RUN_LONG_RUNNING_TESTS:=""} == "true" ]]; then

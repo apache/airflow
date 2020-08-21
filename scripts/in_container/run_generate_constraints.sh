@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+# shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 # adding trap to exiting trap
@@ -23,12 +23,28 @@ HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
 # shellcheck disable=SC2064
 trap "${HANDLERS}${HANDLERS:+;}in_container_fix_ownership" EXIT
 
-sudo rm -rf "${AIRFLOW_SOURCES}/docs/_build/*"
-sudo rm -rf "${AIRFLOW_SOURCES}/docs/_api/*"
+CONSTRAINTS_DIR="/files/constraints-${PYTHON_MAJOR_MINOR_VERSION}"
 
-sudo -E "${AIRFLOW_SOURCES}/docs/build_docs.py" "${@}"
+LATEST_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/original-constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 
-if [[ ${GITHUB_ACTIONS} == "true" && -d "${AIRFLOW_SOURCES}/docs/_build/html" ]]; then
-    rm -rf "/files/documentation"
-    cp -r "${AIRFLOW_SOURCES}/docs/_build/html" "/files/documentation"
-fi
+mkdir -pv "${CONSTRAINTS_DIR}"
+
+curl "${AIRFLOW_CONSTRAINTS_URL}" --output "${LATEST_CONSTRAINT_FILE}"
+
+echo
+echo "Freezing constraints to ${CURRENT_CONSTRAINT_FILE}"
+echo
+
+pip freeze | sort | \
+    grep -v "apache_airflow" | \
+    grep -v "/opt/airflow" >"${CURRENT_CONSTRAINT_FILE}"
+
+echo
+echo "Constraints generated in ${CURRENT_CONSTRAINT_FILE}"
+echo
+
+set +e
+diff --color=always "${LATEST_CONSTRAINT_FILE}" "${CURRENT_CONSTRAINT_FILE}"
+
+exit 0

@@ -30,7 +30,7 @@ services:
       - ../../../.inputrc:/root/.inputrc:cached
       - ../../../.kube:/root/.kube:cached
       - ../../../dist:/dist:cached
-      - ../../../scripts/prod/entrypoint_prod.sh:/entrypoint:cached
+      - ../../../scripts/in_container/prod/entrypoint_prod.sh:/entrypoint:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
       - ../../../tests:/opt/airflow/tests:cached
