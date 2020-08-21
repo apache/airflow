@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Needs to be declared outside function in MacOS
+CURRENT_PYTHON_MAJOR_MINOR_VERSIONS=()
+
 # Very basic variables that MUST be set
 function initialize_base_variables() {
     # This folder is mounted to inside the container in /files folder. This is the way how
@@ -55,7 +58,7 @@ function initialize_base_variables() {
     export BUILD_CACHE_DIR
 
     # Currently supported major/minor versions of python
-    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS=("3.6" "3.7" "3.8")
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # default python Major/Minor version
@@ -99,9 +102,13 @@ function initialize_available_integrations() {
     export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap presto rabbitmq redis"
 }
 
+
+# Needs to be declared outside of function for MacOS
+FILES_FOR_REBUILD_CHECK=()
+
 # Determine which files trigger rebuild check
 function initialize_files_for_rebuild_check() {
-    export FILES_FOR_REBUILD_CHECK=(
+    FILES_FOR_REBUILD_CHECK+=(
         "setup.py"
         "setup.cfg"
         "Dockerfile.ci"
@@ -113,6 +120,21 @@ function initialize_files_for_rebuild_check() {
     )
 }
 
+
+# Needs to be declared outside of function for MacOS
+
+# extra flags passed to docker run for PROD image
+# shellcheck disable=SC2034
+EXTRA_DOCKER_PROD_BUILD_FLAGS=()
+
+# files that should be cleaned up when the script exits
+# shellcheck disable=SC2034
+FILES_TO_CLEANUP_ON_EXIT=()
+
+# extra flags passed to docker run for CI image
+# shellcheck disable=SC2034
+EXTRA_DOCKER_FLAGS=()
+
 # Determine behaviour of mounting sources to the container
 function initialize_mount_variables() {
 
@@ -121,18 +143,6 @@ function initialize_mount_variables() {
 
     # Whether files folder from local sources are mounted to docker
     export MOUNT_FILES=${MOUNT_FILES:="true"}
-
-    # extra flags passed to docker run for PROD image
-    # shellcheck disable=SC2034
-    EXTRA_DOCKER_PROD_BUILD_FLAGS=()
-
-    # files that should be cleaned up when the script exits
-    # shellcheck disable=SC2034
-    FILES_TO_CLEANUP_ON_EXIT=()
-
-    # extra flags passed to docker run for CI image
-    # shellcheck disable=SC2034
-    EXTRA_DOCKER_FLAGS=()
 
     if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
         print_info
