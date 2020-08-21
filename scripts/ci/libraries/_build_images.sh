@@ -702,14 +702,14 @@ function build_prod_images() {
 # Waits for image tag to appear in Github Registry, pulls it and tags with the target tag
 # Parameters:
 #  $1 - image name to wait for
-#  $2 - tag to wait for
+#  $2 - suffix of the image to wait for
 #  $3, $4, ... - target tags to tag the image with
 function wait_for_image_tag {
     IMAGE_NAME="${1}"
-    TAG_TO_WAIT_FOR=${2}
+    IMAGE_SUFFIX=${2}
     shift 2
 
-    IMAGE_TO_WAIT_FOR="${IMAGE_NAME}:${TAG_TO_WAIT_FOR}"
+    IMAGE_TO_WAIT_FOR="${IMAGE_NAME}${IMAGE_SUFFIX}"
     echo
     echo "Waiting for image ${IMAGE_TO_WAIT_FOR}"
     echo
@@ -722,8 +722,12 @@ function wait_for_image_tag {
             sleep 10
         else
             echo
-            echo "The image ${IMAGE_TO_WAIT_FOR} downloaded."
+            echo "The image ${IMAGE_TO_WAIT_FOR} with '${IMAGE_NAME}' tag"
             echo
+            echo
+            echo "Tagging ${IMAGE_TO_WAIT_FOR} as ${IMAGE_NAME}."
+            echo
+            docker tag  "${IMAGE_TO_WAIT_FOR}" "${IMAGE_NAME}"
             for TARGET_TAG in "${@}"; do
                 echo
                 echo "Tagging ${IMAGE_TO_WAIT_FOR} as ${TARGET_TAG}."
