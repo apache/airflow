@@ -30,7 +30,7 @@ function run_check_license() {
     mkdir -p docs/_build/html/
 
     echo "Running license checks. This can take a while."
-
+    # We mount ALL airflow files for the licence check. We want to check them all!
     if ! docker run -v "${AIRFLOW_SOURCES}:/opt/airflow" -t \
             --user "$(id -ur):$(id -gr)" \
             --rm --env-file "${AIRFLOW_SOURCES}/scripts/ci/libraries/_docker.env" \
