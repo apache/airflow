@@ -359,8 +359,8 @@ RUN mkdir -pv "${AIRFLOW_HOME}"; \
 
 COPY --chown=airflow:root --from=airflow-build-image /root/.local "${AIRFLOW_USER_HOME_DIR}/.local"
 
-COPY scripts/prod/entrypoint_prod.sh /entrypoint
-COPY scripts/prod/clean-logs.sh /clean-logs
+COPY scripts/in_container/prod/entrypoint_prod.sh /entrypoint
+COPY scripts/in_container/prod/clean-logs.sh /clean-logs
 RUN chmod a+x /entrypoint /clean-logs
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift

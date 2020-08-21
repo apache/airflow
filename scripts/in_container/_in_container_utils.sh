@@ -224,7 +224,7 @@ function setup_kerberos() {
     PASS="airflow"
     KRB5_KTNAME=/etc/airflow.keytab
 
-    sudo cp "${AIRFLOW_SOURCES}/scripts/ci/in_container/krb5/krb5.conf" /etc/krb5.conf
+    sudo cp "${AIRFLOW_SOURCES}/scripts/in_container/krb5/krb5.conf" /etc/krb5.conf
 
     echo -e "${PASS}\n${PASS}" | \
         sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \

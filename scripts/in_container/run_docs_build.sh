@@ -15,17 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-set -euo pipefail
+# adding trap to exiting trap
+HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
+# shellcheck disable=SC2064
+trap "${HANDLERS}${HANDLERS:+;}in_container_fix_ownership" EXIT
 
-# This should only be sourced from in_container directory!
-IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+sudo rm -rf "${AIRFLOW_SOURCES}/docs/_build/*"
+sudo rm -rf "${AIRFLOW_SOURCES}/docs/_api/*"
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
+sudo -E "${AIRFLOW_SOURCES}/docs/build_docs.py" "${@}"
 
-in_container_basic_sanity_check
-
-in_container_script_start
-
-trap in_container_script_end EXIT
+if [[ ${GITHUB_ACTIONS} == "true" && -d "${AIRFLOW_SOURCES}/docs/_build/html" ]]; then
+    rm -rf "/files/documentation"
+    cp -r "${AIRFLOW_SOURCES}/docs/_build/html" "/files/documentation"
+fi

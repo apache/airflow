@@ -15,36 +15,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+# shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
+
+OUT_FILE_PRINTED_ON_ERROR=$(mktemp)
 
 # adding trap to exiting trap
 HANDLERS="$( trap -p EXIT | cut -f2 -d \' )"
 # shellcheck disable=SC2064
 trap "${HANDLERS}${HANDLERS:+;}in_container_fix_ownership" EXIT
 
-CONSTRAINTS_DIR="/files/constraints-${PYTHON_MAJOR_MINOR_VERSION}"
+cd "${AIRFLOW_SOURCES}" || exit 1
 
-LATEST_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/original-constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-
-mkdir -pv "${CONSTRAINTS_DIR}"
-
-curl "${AIRFLOW_CONSTRAINTS_URL}" --output "${LATEST_CONSTRAINT_FILE}"
+# install extra packages missing in devel_ci
+export PYTHONPATH="${AIRFLOW_SOURCES}"
 
 echo
-echo "Freezing constraints to ${CURRENT_CONSTRAINT_FILE}"
+echo "Installing remaining packages from 'all' extras"
 echo
+pip install -e ".[all]" >>"${OUT_FILE_PRINTED_ON_ERROR}" 2>&1
 
-pip freeze | sort | \
-    grep -v "apache_airflow" | \
-    grep -v "/opt/airflow" >"${CURRENT_CONSTRAINT_FILE}"
+echo > "${OUT_FILE_PRINTED_ON_ERROR}"
 
+cd "${AIRFLOW_SOURCES}/backport_packages" || exit 1
+
+python3 setup_backport_packages.py update-package-release-notes "$@"
+
+AIRFLOW_BACKPORT_README_TGZ_FILE="/files/airflow-backport-readme-$(date +"%Y-%m-%d-%H.%M.%S").tar.gz"
+
+cd "${AIRFLOW_SOURCES}" || exit 1
+
+find airflow/providers \( -name 'README.md' -o -name 'PROVIDERS_CHANGES*' \) -print0 | \
+    tar --null --no-recursion -cvzf "${AIRFLOW_BACKPORT_README_TGZ_FILE}" -T -
 echo
-echo "Constraints generated in ${CURRENT_CONSTRAINT_FILE}"
+echo "Airflow readme for backport packages are tar-gzipped in ${AIRFLOW_BACKPORT_README_TGZ_FILE}"
 echo
-
-set +e
-diff --color=always "${LATEST_CONSTRAINT_FILE}" "${CURRENT_CONSTRAINT_FILE}"
-
-exit 0

@@ -387,11 +387,11 @@ Running Static Code Checks in the Docker Container
 If you are already in the Breeze Docker environment (by running the ``./breeze`` command),
 you can also run the same static checks via run_scripts:
 
-* Mypy: ``./scripts/ci/in_container/run_mypy.sh airflow tests``
-* Pylint: ``./scripts/ci/in_container/run_pylint.sh``
-* Flake8: ``./scripts/ci/in_container/run_flake8.sh``
-* License check: ``./scripts/ci/in_container/run_check_licence.sh``
-* Documentation: ``./scripts/ci/in_container/run_docs_build.sh``
+* Mypy: ``./scripts/in_container/run_mypy.sh airflow tests``
+* Pylint: ``./scripts/in_container/run_pylint.sh``
+* Flake8: ``./scripts/in_container/run_flake8.sh``
+* License check: ``./scripts/in_container/run_check_licence.sh``
+* Documentation: ``./scripts/in_container/run_docs_build.sh``
 
 Running Static Code Checks for Selected Files
 .............................................
@@ -403,13 +403,13 @@ In the Docker container:
 
 .. code-block::
 
-  ./scripts/ci/in_container/run_pylint.sh ./airflow/example_dags/
+  ./scripts/in_container/run_pylint.sh ./airflow/example_dags/
 
 or
 
 .. code-block::
 
-  ./scripts/ci/in_container/run_pylint.sh ./airflow/example_dags/test_utils.py
+  ./scripts/in_container/run_pylint.sh ./airflow/example_dags/test_utils.py
 
 On the host:
 

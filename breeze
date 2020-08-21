@@ -2224,7 +2224,7 @@ function run_breeze_command {
               : "${AIRFLOW_TESTING_CONTAINER:?"ERROR! Breeze must be running in order to exec into running container"}"
             set -e
             docker exec -it "${AIRFLOW_TESTING_CONTAINER}" \
-                "/opt/airflow/scripts/ci/in_container/entrypoint_exec.sh" "${@}"
+                "/opt/airflow/scripts/in_container/entrypoint_exec.sh" "${@}"
             ;;
         run_tests)
             export RUN_TESTS="true"

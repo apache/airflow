@@ -201,10 +201,13 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.6
-      - name: "Override 'scripts' with the ${{ github.ref }} version so that the PR cannot override it."
+      - name: "Override 'scripts/ci' with the ${{ github.ref }} version so that the PR cannot override it."
+        # We should not override those scripts which become part of the image as they will not be
+        # changed in the image built - we should only override those that are executed to build
+        # the image.
         run: |
-          rm -rf "scripts"
-          mv "main-airflow/scripts" .
+          rm -rf "scripts/ci"
+          mv "main-airflow/scripts/ci" "scripts"
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Build CI images ${{ matrix.python-version }}:${{ github.event.workflow_run.id }}"
