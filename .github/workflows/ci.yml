@@ -69,6 +69,7 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: >
           Event: ${{ github.event_name }}
@@ -93,6 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run-tests: ${{ steps.trigger-tests.outputs.run-tests }}
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -104,6 +106,7 @@ jobs:
     timeout-minutes: 5
     name: "Checks: Helm tests"
     runs-on: ubuntu-latest
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -113,6 +116,7 @@ jobs:
   test-openapi-client-generation:
     name: "Test OpenAPI client generation"
     runs-on: ubuntu-latest
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -124,6 +128,7 @@ jobs:
     name: "Wait for CI images"
     runs-on: ubuntu-latest
     needs: [build-info, helm-tests, test-openapi-client-generation]
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     env:
       BACKEND: postgres
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
@@ -155,6 +160,7 @@ jobs:
     needs: [ci-images]
     env:
       SKIP: "pylint"
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -183,6 +189,7 @@ jobs:
     name: "Static checks: pylint"
     runs-on: ubuntu-latest
     needs: [ci-images]
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -211,6 +218,7 @@ jobs:
     name: "Build docs"
     runs-on: ubuntu-latest
     needs: [ci-images]
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -230,6 +238,7 @@ jobs:
     name: "Spell check docs"
     runs-on: ubuntu-latest
     needs: [ci-images]
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -246,6 +255,7 @@ jobs:
     env:
       INSTALL_AIRFLOW_VERSION: "1.10.10"
       PYTHON_MAJOR_MINOR_VERSION: 3.6
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -289,7 +299,9 @@ jobs:
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       RUN_TESTS: true
       TEST_TYPE: ${{ matrix.test-type }}
-    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
+    if: |
+        (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
+        (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -333,7 +345,9 @@ jobs:
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       RUN_TESTS: true
       TEST_TYPE: ${{ matrix.test-type }}
-    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
+    if: |
+        (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
+        (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -374,7 +388,8 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       RUN_TESTS: true
       TEST_TYPE: ${{ matrix.test-type }}
-    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
+    if: (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
+        (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -419,7 +434,9 @@ jobs:
       TEST_TYPE: Quarantined
       NUM_RUNS: 20
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
+    if: |
+      (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -474,6 +491,7 @@ jobs:
       - tests-sqlite
       - tests-mysql
       - tests-quarantined
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Download all artifacts from the current build"
         uses: actions/download-artifact@v2
@@ -494,6 +512,7 @@ jobs:
     env:
       BACKEND: postgres
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
+    if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -537,7 +556,9 @@ jobs:
       KUBERNETES_VERSION: "${{ matrix.kubernetes-version }}"
       KIND_VERSION: "${{ matrix.kind-version }}"
       HELM_VERSION: "${{ matrix.helm-version }}"
-    if: needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request'
+    if: |
+      (needs.trigger-tests.outputs.run-tests == 'true' || github.event_name != 'pull_request') &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -673,7 +694,8 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
     if: |
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
-      github.event_name != 'pull'
+      github.event_name != 'pull' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -700,7 +722,8 @@ jobs:
     needs: [constraints]
     if: |
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ) &&
-      github.event_name != 'pull'
+      github.event_name != 'pull' &&
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -743,7 +766,7 @@ jobs:
       - prepare-backport-packages
       - push-prod-images-to-github-registry
       - push-ci-images-to-github-registry
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' &&  github.repository == 'apache/airflow'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
