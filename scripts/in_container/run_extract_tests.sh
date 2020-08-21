@@ -15,7 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+# shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-in_container_fix_ownership
+TMP_FILE=$(mktemp)
+
+nosetests --collect-only --with-xunit --xunit-file="${TMP_FILE}"
+
+python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" "${TMP_FILE}" | sort >> "${HOME}/all_tests.txt"

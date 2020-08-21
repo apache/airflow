@@ -27,7 +27,7 @@ on:
 
 env:
 
-  MOUNT_LOCAL_SOURCES: "false"
+  MOUNT_LOCAL_SOURCES: "true"
   MOUNT_FILES: "true"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
   FORCE_PULL_IMAGES: "true"
@@ -160,7 +160,10 @@ jobs:
     needs: [ci-images]
     env:
       SKIP: "pylint"
+      MOUNT_LOCAL_SOURCES: "true"
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+      # We want to make sure we have latest sources as only in_container scripts are added
+    # to the image but we want to static-check all of them
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -190,6 +193,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ci-images]
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
+    env:
+      # We want to make sure we have latest sources as only in_container scripts are added
+      # to the image but we want to static-check all of them
+      MOUNT_LOCAL_SOURCES: "true"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2

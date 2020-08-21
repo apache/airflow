@@ -26,12 +26,12 @@ function run_pylint() {
        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_pylint.sh"
+            "--" "/opt/airflow/scripts/in_container/run_pylint.sh"
     else
         docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init" \
             "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_pylint.sh" "${FILES[@]}"
+            "--" "/opt/airflow/scripts/in_container/run_pylint.sh" "${FILES[@]}"
     fi
 }
 

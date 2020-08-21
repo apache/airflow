@@ -147,7 +147,7 @@ RES=$?
 # Set file permissions to the host user
 if [[ "${HOST_OS}" == "Linux" ]]; then
     docker run --rm "${COMMON_DOCKER_ARGS[@]}" \
-        --entrypoint /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh \
+        --entrypoint /opt/airflow/scripts/in_container/run_fix_ownership.sh \
             "${AIRFLOW_CI_IMAGE}"
 fi
 

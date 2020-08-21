@@ -278,7 +278,7 @@ COPY airflow/www/static ${AIRFLOW_SOURCES}/airflow/www/static/
 # Package JS/css for production
 RUN yarn --cwd airflow/www run prod
 
-COPY scripts/ci/in_container/entrypoint_ci.sh /entrypoint
+COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
 
 # We can copy everything here. The Context is filtered by dockerignore. This makes sure we are not

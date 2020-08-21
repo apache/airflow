@@ -25,7 +25,7 @@ function run_test_package_installation_separately() {
         --entrypoint "/usr/local/bin/dumb-init"  \
         -v "${AIRFLOW_SOURCES}/dist:/dist:cached" \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/ci/in_container/run_test_package_installation_separately.sh"
+        "--" "/opt/airflow/scripts/in_container/run_test_package_installation_separately.sh"
 }
 
 get_environment_for_builds_on_ci

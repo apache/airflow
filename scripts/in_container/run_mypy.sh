@@ -15,28 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
-
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-
-function run_mypy() {
-    FILES=("$@")
-    if [[ "${#FILES[@]}" == "0" ]]; then
-      FILES=(airflow tests docs)
-    fi
-
-    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint "/usr/local/bin/dumb-init"  \
-        "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache" \
-        "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/in_container/run_mypy.sh" "${FILES[@]}"
-}
-
-get_environment_for_builds_on_ci
-
-prepare_ci_build
-
-rebuild_ci_image_if_needed
-
-run_mypy "$@"
+# Script to run mypy on all code. Can be started from any working directory
+# shellcheck source=scripts/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
+mypy "$@"
