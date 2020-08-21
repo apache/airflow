@@ -15,20 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Docker command to build documentation
-function run_docs() {
-    docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/docs/build_docs.py" "${@}"
-}
-
-
-# Docker command to generate constraint files.
-function run_generate_constraints() {
-    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint "/usr/local/bin/dumb-init"  \
-        "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/in_container/run_generate_constraints.sh"
-}
+# Script to run mypy on all code. Can be started from any working directory
+# shellcheck source=scripts/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
+mypy "$@"

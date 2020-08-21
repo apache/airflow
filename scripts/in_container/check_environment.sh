@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # Script to check licences for all code. Can be started from any working directory
-# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+# shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 EXIT_CODE=0

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# Script to run mypy on all code. Can be started from any working directory
-# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
-mypy "$@"
+# shellcheck source=scripts/in_container/configure_environment.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
+
+exec /bin/bash "${@}"
