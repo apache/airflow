@@ -23,6 +23,7 @@ services:
       - USER=root
       - ADDITIONAL_PATH=~/.local/bin
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
+      - KUBECONFIG=/files/.kube/config
       - BACKEND
       - CI
       - CI_BUILD_ID
