@@ -24,7 +24,7 @@ function check_verbose_setup {
     fi
 }
 
-DOCKER_BINARY="${DOCKER_BINARY:=$(command -v docker)}"
+DOCKER_BINARY="${DOCKER_BINARY:=$(command -v docker || echo "/bin/docker")}"
 export DOCKER_BINARY
 
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
@@ -51,7 +51,7 @@ function docker {
     return "${EXIT_CODE}"
 }
 
-HELM_BINARY="${HELM_BINARY:=$(command -v helm)}"
+HELM_BINARY="${HELM_BINARY:=$(command -v helm || echo "/bin/helm")}"
 export HELM_BINARY
 
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all helm commands run will be
@@ -68,7 +68,7 @@ function helm {
     fi
 }
 
-KUBECTL_BINARY=${KUBECTL_BINARY:=$(command -v kubectl)}
+KUBECTL_BINARY=${KUBECTL_BINARY:=$(command -v kubectl || echo "/bin/kubectl")}
 export KUBECTL_BINARY
 
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all kubectl commands run will be
@@ -85,7 +85,7 @@ function kubectl {
     fi
 }
 
-KIND_BINARY="${KIND_BINARY:=$(command -v kind)}" || echo "kind not installed"
+KIND_BINARY="${KIND_BINARY:=$(command -v kind || echo "/bin/kind")}"
 export KIND_BINARY
 
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all kind commands run will be
