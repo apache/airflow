@@ -100,7 +100,7 @@ repos:
       - id: insert-license
         name: Add license for all XML files
         exclude: ^\.github/.*$
-        files: .*\.xml$
+        files: \.xml$
         args:
           - --comment-style
           - "<!--||-->"
@@ -128,6 +128,15 @@ repos:
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all mermaid files
+        args:
+          - --comment-style
+          - "|%%|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+        files: \.mermaid$
   - repo: https://github.com/thlorenz/doctoc.git
     rev: v1.4.0
     hooks:
@@ -335,7 +344,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_integrations.sh
         language: system
         pass_filenames: false
-        files: ^airflow/scripts/ci/libraries/_initialization.sh$|^breeze-complete$
+        files: ^common/_common_values.sh$|^breeze-complete$
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
@@ -389,3 +398,9 @@ repos:
         files: ^airflow/www/.*\.(css|scss|sass)$
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
+      - id: mermaid
+        name: Generate mermaid images
+        entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
+        language: system
+        files: \.mermaid$
+        require_serial: true
