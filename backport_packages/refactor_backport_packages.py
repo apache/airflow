@@ -430,6 +430,17 @@ class RefactorBackportPackages:
             rename("airflow.providers.amazon.common.utils.typing_compat")
         )
 
+        copyfile(
+            os.path.join(get_source_airflow_folder(), "airflow", "utils", "email.py"),
+            os.path.join(get_target_providers_package_folder("amazon"), "common", "utils", "email.py")
+        )
+        (
+            self.qry.
+            select_module("airflow.utils.email").
+            filter(callback=amazon_package_filter).
+            rename("airflow.providers.amazon.common.utils.email")
+        )
+
     def refactor_google_package(self):
         r"""
         Fixes to "google" providers package.
