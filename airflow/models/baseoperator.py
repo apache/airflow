@@ -1197,6 +1197,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         from airflow.utils.task_group import TaskGroup
 
         if isinstance(task_or_task_list, TaskGroup):
+            task_or_task_list.upstream_task_ids.add(self.task_id)
             task_or_task_list = list(task_or_task_list.get_roots())
         self._set_relatives(task_or_task_list, upstream=False)
 
@@ -1208,6 +1209,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         from airflow.utils.task_group import TaskGroup
 
         if isinstance(task_or_task_list, TaskGroup):
+            task_or_task_list.downstream_task_ids.add(self.task_id)
             task_or_task_list = list(task_or_task_list.get_leaves())
         self._set_relatives(task_or_task_list, upstream=True)
 

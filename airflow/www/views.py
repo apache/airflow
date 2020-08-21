@@ -58,6 +58,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
@@ -152,8 +153,6 @@ def task_group_to_dict(task_group):
     Create a nested dict representation of this TaskGroup and its children used for
     rendering web UI.
     """
-    from airflow.models.baseoperator import BaseOperator
-
     if isinstance(task_group, BaseOperator):
         return {
             'id': task_group.task_id,
@@ -166,6 +165,32 @@ def task_group_to_dict(task_group):
             }
         }
 
+    children = [task_group_to_dict(child) for child in
+                sorted(task_group.children.values(), key=lambda t: t.label)]
+
+    if task_group.upstream_group_ids or task_group.upstream_task_ids:
+        children.append({
+            'id': task_group.upstream_join_id,
+            'value': {
+                'label': '',
+                'labelStyle': f"fill:{task_group.ui_fgcolor};",
+                'style': f"fill:{task_group.ui_color};",
+                'shape': 'circle',
+            }
+        })
+
+    if task_group.downstream_group_ids or task_group.downstream_task_ids:
+        # This is the join node used to reduce the number of edges between two TaskGroup.
+        children.append({
+            'id': task_group.downstream_join_id,
+            'value': {
+                'label': '',
+                'labelStyle': f"fill:{task_group.ui_fgcolor};",
+                'style': f"fill:{task_group.ui_color};",
+                'shape': 'circle',
+            }
+        })
+
     return {
         "id": task_group.group_id,
         'value': {
@@ -177,9 +202,96 @@ def task_group_to_dict(task_group):
             'clusterLabelPos': 'top',
         },
         'tooltip': task_group.tooltip,
-        'children': [task_group_to_dict(child) for child in
-                     sorted(task_group.children.values(), key=lambda t: t.label)]
+        'children': children
     }
+
+
+def dag_edges(dag):
+    """
+    Create the list of edges needed to construct the Graph View.
+
+    A special case is made if TaskGroup group1 of size M has an immediate downstream
+    TaskGroup group2 of size N. Instead of adding an edge between every individual task in
+    group1 and group2 which will result in M * N number of edges between group1 and group2,
+    this function skips the individual edges, and instead add two dummy join nodes between group1
+    and group2. This reduces the number of edges to M + N + 1.
+
+    For example: A DAG with TaskGroups group1 and group2:
+        group1: task1, task2, task3
+        group2, task4, task5, task6
+
+    group2 is downstream of group1:
+        group1 >> group2
+
+    Edges to add:
+        task1 >> downstream_join_id
+        task2 >> downstream_join_id
+        task3 >> downstream_join_id
+        downstream_join_id >> upstream_join_id
+        upstream_join_id >> task4
+        upstream_join_id >> task5
+        upstream_join_id >> task6
+    """
+
+    # Edges to add between TaskGroup
+    edges_to_add = set()
+    # Edges to remove between individual tasks that are replaced by edges_to_add.
+    edges_to_skip = set()
+
+    task_group_map = dag.task_group.get_task_group_dict()
+
+    def collect_edges(task_group):
+        if isinstance(task_group, BaseOperator):
+            return
+
+        for target_id in task_group.downstream_group_ids:
+            target_group = task_group_map[target_id]
+            edges_to_add.add((task_group.downstream_join_id, target_group.upstream_join_id))
+
+            for child in task_group.get_leaves():
+                edges_to_add.add((child.task_id, task_group.downstream_join_id))
+                for target in target_group.get_roots():
+                    edges_to_skip.add((child.task_id, target.task_id))
+                edges_to_skip.add((child.task_id, target_group.upstream_join_id))
+
+            for child in target_group.get_roots():
+                edges_to_add.add((target_group.upstream_join_id, child.task_id))
+                edges_to_skip.add((task_group.downstream_join_id, child.task_id))
+
+        for target_id in task_group.downstream_task_ids:
+            edges_to_add.add((task_group.downstream_join_id, target_id))
+
+            for child in task_group.get_leaves():
+                edges_to_add.add((child.task_id, task_group.downstream_join_id))
+                edges_to_skip.add((child.task_id, target_id))
+
+        for source_id in task_group.upstream_task_ids:
+            edges_to_add.add((source_id, task_group.upstream_join_id))
+
+            for child in task_group.get_roots():
+                edges_to_skip.add((source_id, child.task_id))
+
+        for child in task_group.children.values():
+            collect_edges(child)
+
+    collect_edges(dag.task_group)
+
+    # Collect all the edges between individual tasks
+    edges = set()
+
+    def get_downstream(task):
+        for child in task.downstream_list:
+            edge = (task.task_id, child.task_id)
+            if edge not in edges:
+                edges.add(edge)
+                get_downstream(child)
+
+    for root in dag.roots:
+        get_downstream(root)
+
+    return [{'source_id': source_id, 'target_id': target_id}
+            for source_id, target_id
+            in sorted(edges.union(edges_to_add) - edges_to_skip)]
 
 
 ######################################################################################
@@ -1627,8 +1739,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @provide_session
     def graph(self, session=None):
         """Get DAG as Graph."""
-        from airflow.utils.task_group import TaskGroup
-
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = current_app.dag_bag.get_dag(dag_id)
@@ -1646,20 +1756,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         arrange = request.args.get('arrange', dag.orientation)
 
         nodes = task_group_to_dict(dag.task_group)
-        edges = []
-
-        def get_downstream(task):
-            for downstream_task in task.downstream_list:
-                edge = {
-                    'source_id': task.task_id,
-                    'target_id': downstream_task.task_id,
-                }
-                if edge not in edges:
-                    edges.append(edge)
-                    get_downstream(downstream_task)
-
-        for dag_task in dag.roots:
-            get_downstream(dag_task)
+        edges = dag_edges(dag)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dt_nr_dr_data['arrange'] = arrange

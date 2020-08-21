@@ -39,6 +39,7 @@ def create_section():
 
     dummies[-1] >> inside_section_1
     dummies[-2] >> inside_section_2
+    inside_section_1 >> inside_section_2
 
 
 with DAG(dag_id="example_task_group", start_date=days_ago(2)) as dag:

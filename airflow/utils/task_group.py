@@ -20,7 +20,7 @@ A TaskGroup is a collection of closely related tasks on the same DAG that should
 together when the DAG is displayed graphically.
 """
 
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 
@@ -35,6 +35,7 @@ class TaskGroup:
     group_id of the TaskGroup. When set_downstream() or set_upstream() are called on the
     TaskGroup, it is applied across all tasks within the group if necessary.
     """
+
     def __init__(
         self,
         group_id: Optional[str],
@@ -42,7 +43,7 @@ class TaskGroup:
         dag: Optional["DAG"] = None,
         tooltip: str = "",
         ui_color: str = "CornflowerBlue",
-        ui_fgcolor: str = "#000"
+        ui_fgcolor: str = "#000",
     ):
         from airflow.models.dag import DagContext
 
@@ -72,6 +73,13 @@ class TaskGroup:
         self.tooltip = tooltip
         self.ui_color = ui_color
         self.ui_fgcolor = ui_fgcolor
+
+        # Keep track of TaskGroups or tasks that depend on this entire TaskGroup separately
+        # so that we can optimize the number of edges when entire TaskGroups depend on each other.
+        self.upstream_group_ids: Set[Optional[str]] = set()
+        self.downstream_group_ids: Set[Optional[str]] = set()
+        self.upstream_task_ids: Set[Optional[str]] = set()
+        self.downstream_task_ids: Set[Optional[str]] = set()
 
     @classmethod
     def create_root(cls, dag: "DAG"):
@@ -143,24 +151,66 @@ class TaskGroup:
         yield self._group_id
 
     def set_downstream(
-        self,
-        task_or_task_list: Union['BaseOperator', Sequence['BaseOperator'], "TaskGroup"]
+        self, task_or_task_list: Union['BaseOperator', Sequence['BaseOperator'], "TaskGroup"]
     ) -> None:
         """
-        Call set_downstream for all leaf tasks within this TaskGroup.
+        Call set_downstream for all leaf tasks within this TaskGroup. If task_or_task_list
+        is a TaskGroup, also add its group_id to downstream_group_ids.
         """
+        from airflow.models.baseoperator import BaseOperator
+
         for task in self.get_leaves():
             task.set_downstream(task_or_task_list)
 
+        if isinstance(task_or_task_list, TaskGroup):
+            # If setting a TaskGroup downstream of this TaskGroup, store its group_id in
+            # downstream_group_ids so that we can reduce the number of edges when displaying
+            # the graph in the UI.
+            task_or_task_list.upstream_group_ids.add(self.group_id)  # pylint: disable=protected-access
+            self.downstream_group_ids.add(task_or_task_list.group_id)
+        else:
+            try:
+                task_list = list(task_or_task_list)  # type: ignore
+            except TypeError:
+                task_list = [task_or_task_list]  # type: ignore
+
+            for task in task_list:
+                if not isinstance(task, BaseOperator):
+                    raise AirflowException("Relationships can only be set between TaskGroup or operators; "
+                                           f"received {task.__class__.__name__}")
+
+                self.downstream_task_ids.add(task.task_id)
+
     def set_upstream(
-        self,
-        task_or_task_list: Union['BaseOperator', Sequence['BaseOperator'], "TaskGroup"]
+        self, task_or_task_list: Union['BaseOperator', Sequence['BaseOperator'], "TaskGroup"]
     ) -> None:
         """
-        Call set_upstream for all root tasks within this TaskGroup.
+        Call set_upstream for all root tasks within this TaskGroup. If task_or_task_list
+        is a TaskGroup, also add its group_id to downstream_group_ids of task_or_task_list.
         """
+        from airflow.models.baseoperator import BaseOperator
+
         for task in self.get_roots():
             task.set_upstream(task_or_task_list)
+
+        if isinstance(task_or_task_list, TaskGroup):
+            # If setting a TaskGroup upstream of this TaskGroup, store this TaskGroup's group_id
+            # in task_or_task_list.downstream_group_ids so that we can reduce the number of
+            # edges when displaying the graph in the UI.
+            self.upstream_group_ids.add(task_or_task_list.group_id)
+            task_or_task_list.downstream_group_ids.add(self.group_id)  # pylint: disable=protected-access
+        else:
+            try:
+                task_list = list(task_or_task_list)  # type: ignore
+            except TypeError:
+                task_list = [task_or_task_list]  # type: ignore
+
+            for task in task_list:
+                if not isinstance(task, BaseOperator):
+                    raise AirflowException("Relationships can only be set between TaskGroup or operators; "
+                                           f"received {task.__class__.__name__}")
+
+                self.upstream_task_ids.add(task.task_id)
 
     def __enter__(self):
         TaskGroupContext.push_context_managed_task_group(self)
@@ -184,8 +234,7 @@ class TaskGroup:
         dependencies within the TaskGroup.
         """
         for task in self:
-            if not any(self.has_task(parent)
-                       for parent in task.get_direct_relatives(upstream=True)):
+            if not any(self.has_task(parent) for parent in task.get_direct_relatives(upstream=True)):
                 yield task
 
     def get_leaves(self) -> Generator["BaseOperator", None, None]:
@@ -194,8 +243,7 @@ class TaskGroup:
         dependencies within the TaskGroup
         """
         for task in self:
-            if not any(self.has_task(child)
-                       for child in task.get_direct_relatives(upstream=False)):
+            if not any(self.has_task(child) for child in task.get_direct_relatives(upstream=False)):
                 yield task
 
     def __rshift__(self, other):
@@ -227,6 +275,44 @@ class TaskGroup:
         """
         self.__rshift__(other)
         return self
+
+    @property
+    def upstream_join_id(self):
+        """
+        If this TaskGroup has immediate upstream TaskGroups or tasks, a dummy node called
+        upstream_join_id will be created at the point of displaying the graph to join the
+        outgoing edges from this TaskGroup to reduce the total number of edges needed to
+        be displayed.
+        """
+        return f"{self.group_id}_upstream_join_id"
+
+    @property
+    def downstream_join_id(self):
+        """
+        If this TaskGroup has immediate downstream TaskGroups or tasks, a dummy node called
+        downstream_join_id will be created at the point of displaying the graph to join the
+        outgoing edges from this TaskGroup to reduce the total number of edges needed to
+        be displayed.
+        """
+        return f"{self.group_id}_downstream_join_id"
+
+    def get_task_group_dict(self) -> Dict[str, "TaskGroup"]:
+        """
+        Returns a flat dictionary of group_id: TaskGroup
+        """
+        task_group_map = {}
+
+        def build_map(task_group):
+            if not isinstance(task_group, TaskGroup):
+                return
+
+            task_group_map[task_group.group_id] = task_group
+
+            for child in task_group.children.values():
+                build_map(child)
+
+        build_map(self)
+        return task_group_map
 
 
 class TaskGroupContext:

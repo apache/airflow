@@ -675,9 +675,9 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         """
         if not task_group:
             return None
-
+        # pylint: disable=protected-access
         serialize_group = {
-            "_group_id": task_group._group_id,  # pylint: disable=protected-access
+            "_group_id": task_group._group_id,
             "tooltip": task_group.tooltip,
             "ui_color": task_group.ui_color,
             "ui_fgcolor": task_group.ui_fgcolor,
@@ -687,7 +687,13 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
                 (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
                 for label, child in task_group.children.items()
             },
+            "upstream_group_ids": cls._serialize(list(task_group.upstream_group_ids)),
+            "downstream_group_ids": cls._serialize(list(task_group.downstream_group_ids)),
+            "upstream_task_ids": cls._serialize(list(task_group.upstream_task_ids)),
+            "downstream_task_ids": cls._serialize(list(task_group.downstream_task_ids)),
+
         }
+        # pylint: enable=protected-access
         return serialize_group
 
     @classmethod
@@ -717,5 +723,8 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             else SerializedTaskGroup.deserialize_task_group(val, group, task_dict) for label, (_type, val)
             in encoded_group["children"].items()
         }
-
+        group.upstream_group_ids = set(cls._deserialize(encoded_group["upstream_group_ids"]))
+        group.downstream_group_ids = set(cls._deserialize(encoded_group["downstream_group_ids"]))
+        group.upstream_task_ids = set(cls._deserialize(encoded_group["upstream_task_ids"]))
+        group.downstream_task_ids = set(cls._deserialize(encoded_group["downstream_task_ids"]))
         return group

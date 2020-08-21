@@ -50,6 +50,12 @@ g.node rect {
   cursor: pointer;
 }
 
+g.node circle {
+  stroke: black;
+  stroke-width: 3px;
+  cursor: pointer;
+}
+
 g.node .label {
   font-size: inherit;
   font-weight: normal;
