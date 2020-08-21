@@ -498,7 +498,7 @@ Once you enter the environment you receive this information:
     You can run kubernetes testing via 'pytest kubernetes_tests/....'
     You can add -s to see the output of your tests on screen
 
-    The webserver is available at http://localhost:30809/
+    The webserver is available at http://localhost:8080/
 
     User/password: admin/admin
 
