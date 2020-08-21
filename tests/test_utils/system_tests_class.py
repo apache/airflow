@@ -150,7 +150,10 @@ class SystemTest(TestCase, LoggingMixin):
             )
 
         self.log.info("Attempting to run DAG: %s", dag_id)
-        dag.clear(dag_run_state=State.NONE)
+        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
+            dag.clear()
+        else:
+            dag.clear(dag_run_state=State.NONE)
         try:
             dag.run(ignore_first_depends_on_past=True, verbose=True)
         except Exception:
