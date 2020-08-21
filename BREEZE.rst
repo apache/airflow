@@ -1951,7 +1951,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   Configuration for the KinD Kubernetes cluster and tests:
 
   -K, --kubernetes-mode <KUBERNETES_MODE>
-          Kubernetes mode - only used in case one of --kind-cluster-* commands is used.
+          Kubernetes mode - only used in case one of kind-cluster commands is used.
           One of:
 
                  image git
@@ -1959,7 +1959,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Default: image
 
   -V, --kubernetes-version <KUBERNETES_VERSION>
-          Kubernetes version - only used in case one of --kind-cluster-* commands is used.
+          Kubernetes version - only used in case one of kind-cluster commands is used.
           One of:
 
                  v1.18.6 v1.17.5 v1.16.9
@@ -1967,7 +1967,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Default: v1.18.6
 
   --kind-version <KIND_VERSION>
-          Kind version - only used in case one of --kind-cluster-* commands is used.
+          Kind version - only used in case one of kind-cluster commands is used.
           One of:
 
                  v0.8.0
@@ -1975,7 +1975,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Default: v0.8.0
 
   --helm-version <HELM_VERSION>
-          Helm version - only used in case one of --kind-cluster-* commands is used.
+          Helm version - only used in case one of kind-cluster commands is used.
           One of:
 
                  v3.2.4
