@@ -470,7 +470,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
 
-        This option is only relevant if the ``py_requirements`` parameter is passed.
+        This option is only relevant if the ``py_requirements`` parameter is not None.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     :param project_id: Optional, the GCP project ID in which to start a job.
@@ -517,7 +517,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.options.setdefault('labels', {}).update(
             {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
         self.py_interpreter = py_interpreter
-        self.py_requirements = py_requirements or []
+        self.py_requirements = py_requirements
         self.py_system_site_packages = py_system_site_packages
         self.project_id = project_id
         self.location = location

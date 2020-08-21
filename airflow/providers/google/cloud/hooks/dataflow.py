@@ -24,6 +24,7 @@ import re
 import select
 import shlex
 import subprocess
+import textwrap
 import time
 import uuid
 import warnings
@@ -633,7 +634,7 @@ class DataflowHook(GoogleBaseHook):
         :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
             See virtualenv documentation for more information.
 
-            This option is only relevant if the ``py_requirements`` parameter is passed.
+            This option is only relevant if the ``py_requirements`` parameter is not None.
         :type py_interpreter: str
         :param append_job_name: True if unique suffix has to be appended to job name.
         :type append_job_name: bool
@@ -653,6 +654,19 @@ class DataflowHook(GoogleBaseHook):
                     for key, value in labels_dict.items()]
 
         if py_requirements is not None:
+            if not py_requirements and not py_system_site_packages:
+                warning_invalid_environment = textwrap.dedent(
+                    """\
+                    Invalid method invocation. You have disabled inclusion of system packages and empty list
+                    required for installation, so it is not possible to create a valid virtual environment.
+                    In the virtual environment, apache-beam package must be installed for your job to be \
+                    executed. To fix this problem:
+                    * install apache-beam on the system, then set parameter py_system_site_packages to True,
+                    * add apache-beam to the list of required packages in parameter py_requirements.
+                    """
+                )
+                raise AirflowException(warning_invalid_environment)
+
             with TemporaryDirectory(prefix='dataflow-venv') as tmp_dir:
                 py_interpreter = prepare_virtualenv(
                     venv_directory=tmp_dir,
