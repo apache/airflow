@@ -257,9 +257,9 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
 
             MyOperator(...,
                 executor_config={
-                "KubernetesExecutor":
-                    {"image": "myCustomDockerImage"}
-                    }
+                    "KubernetesExecutor":
+                        {"image": "myCustomDockerImage"}
+                }
             )
 
     :type executor_config: dict
