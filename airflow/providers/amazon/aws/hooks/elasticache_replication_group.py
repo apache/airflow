@@ -39,9 +39,6 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
     def __init__(
         self, max_retries=10, exponential_back_off_factor=1, initial_poke_interval=60, *args, **kwargs
     ):
-        """
-
-        """
         self.max_retries = max_retries
         self.exponential_back_off_factor = exponential_back_off_factor
         self.initial_poke_interval = initial_poke_interval
@@ -273,7 +270,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
         if not deleted:
             raise AirflowException(
-                'Replication group could not be deleted. Response "{0}"'.format(response)
+                f'Replication group could not be deleted. Response "{response}"'
             )
 
         return response
