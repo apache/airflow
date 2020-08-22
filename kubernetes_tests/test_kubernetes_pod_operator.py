@@ -652,7 +652,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             ))]
         )
 
-    def test_env_vars(self, mock_client, monitor_mock, start_mock):
+    def test_env_vars(self):
         # WHEN
         k = KubernetesPodOperator(
             namespace='default',
