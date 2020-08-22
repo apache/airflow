@@ -105,7 +105,7 @@ class DataFusionHook(GoogleBaseHook):
     ):
         """
         Polls pipeline state and raises an exception if the state is one of
-        `failure_states` or the operation timeouted.
+        `failure_states` or the operation timed_out.
         """
         failure_states = failure_states or FAILURE_STATES
         success_states = success_states or SUCCESS_STATES
