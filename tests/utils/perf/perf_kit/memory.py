@@ -35,6 +35,7 @@ def _human_readable_size(size, decimal_places=3):
 
 
 class TraceMemoryResult:
+    """Trace results of memory,"""
     def __init__(self):
         self.before = 0
         self.after = 0

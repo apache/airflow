@@ -45,7 +45,7 @@ def pyspy():
           cap_add:
           - SYS_PTRACE
 
-    In the case of Airflow Breeze, you should modify the ``scripts/perf/perf_kit/python.py`` file.
+    In the case of Airflow Breeze, you should modify the ``tests/utils/perf/perf_kit/python.py`` file.
     """
     pid = str(os.getpid())
     suffix = datetime.datetime.now().isoformat()
@@ -66,24 +66,28 @@ def profiled(print_callers=False):
     This decorator provide deterministic profiling. It uses ``cProfile`` internally.  It generates statistic
     and print on the screen.
     """
-    pr = cProfile.Profile()
-    pr.enable()
+    profile = cProfile.Profile()
+    profile.enable()
     try:
         yield
     finally:
-        pr.disable()
-        s = io.StringIO()
-        ps = pstats.Stats(pr, stream=s).sort_stats("cumulative")
+        profile.disable()
+        stat = io.StringIO()
+        pstatistics = pstats.Stats(profile, stream=stat).sort_stats("cumulative")
         if print_callers:
-            ps.print_callers()
+            pstatistics.print_callers()
         else:
-            ps.print_stats()
-        print(s.getvalue())
+            pstatistics.print_stats()
+        print(stat.getvalue())
 
 
 if __name__ == "__main__":
 
     def case():
+        """
+        Load modules.
+        :return:
+        """
         import logging
 
         import airflow

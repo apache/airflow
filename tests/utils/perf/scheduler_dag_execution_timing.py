@@ -101,15 +101,15 @@ def get_executor_under_test(dotted_path):
     if dotted_path == "MockExecutor":
         try:
             # Run against master and 1.10.x releases
-            from tests.test_utils.mock_executor import MockExecutor as Executor
+            from tests.test_utils.mock_executor import MockExecutor as executor
         except ImportError:
-            from tests.executors.test_executor import TestExecutor as Executor
+            from tests.executors.test_executor import TestExecutor as executor
 
     else:
-        Executor = ExecutorLoader.load_executor(dotted_path)
+        executor = ExecutorLoader.load_executor(dotted_path)
 
     # Change this to try other executors
-    class ShortCircuitExecutor(ShortCircuitExecutorMixin, Executor):
+    class ShortCircuitExecutor(ShortCircuitExecutorMixin, executor):
         """
         Placeholder class that implements the inheritance hierarchy
         """
@@ -153,16 +153,16 @@ def create_dag_runs(dag, num_runs, session):
 
     try:
         from airflow.utils.types import DagRunType
-        ID_PREFIX = f'{DagRunType.SCHEDULED.value}__'
+        id_prefix = f'{DagRunType.SCHEDULED.value}__'
     except ImportError:
         from airflow.models.dagrun import DagRun
-        ID_PREFIX = DagRun.ID_PREFIX
+        id_prefix = DagRun.ID_PREFIX  # pylint: disable=no-member
 
     next_run_date = dag.normalize_schedule(dag.start_date or min(t.start_date for t in dag.tasks))
 
     for _ in range(num_runs):
         dag.create_dagrun(
-            run_id=ID_PREFIX + next_run_date.isoformat(),
+            run_id=id_prefix + next_run_date.isoformat(),
             execution_date=next_run_date,
             start_date=timezone.utcnow(),
             state=State.RUNNING,

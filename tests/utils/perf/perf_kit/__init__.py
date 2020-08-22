@@ -32,21 +32,21 @@ Content
 =======
 The following decorators and context managers are included.
 
-.. autofunction:: perf_kit.memory.trace_memory
+.. autofunction:: tests.utils.perf.perf_kit.memory.trace_memory
 
-.. autofunction:: perf_kit.python.pyspy
+.. autofunction:: tests.utils.perf.perf_kit.python.pyspy
 
-.. autofunction:: perf_kit.python.profiled
+.. autofunction:: tests.utils.perf.perf_kit.python.profiled
 
-.. autofunction:: perf_kit.repeat_and_time.timing
+.. autofunction:: tests.utils.perf.perf_kit.repeat_and_time.timing
 
-.. autofunction:: perf_kit.repeat_and_time.repeat
+.. autofunction:: tests.utils.perf.perf_kit.repeat_and_time.repeat
 
-.. autofunction:: perf_kit.repeat_and_time.timeout
+.. autofunction:: tests.utils.perf.perf_kit.repeat_and_time.timeout
 
-.. autofunction:: perf_kit.sqlalchemy.trace_queries
+.. autofunction:: tests.utils.perf.perf_kit.sqlalchemy.trace_queries
 
-.. autofunction:: perf_kit.sqlalchemy.count_queries
+.. autofunction:: tests.utils.perf.perf_kit.sqlalchemy.count_queries
 
 Documentation for each function is provided in the function docstrings. Each module also has an example in
 the main section of the module.
@@ -54,11 +54,12 @@ the main section of the module.
 Examples
 ========
 
-If you want to run an all example for ``perf_kit.sqlalchemy``, you can run the following command.
+If you want to run an all example for ``tests.utils.perf.perf_kit.sqlalchemy``, you can run the
+following command.
 
 .. code-block:: bash
 
-    python -m perf_kit.sqlalchemy
+    python -m tests.utils.perf_kit.sqlalchemy
 
 If you want to know how to use these functions, it is worth to familiarize yourself with these examples.
 
@@ -98,7 +99,7 @@ queries in it.
         self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
         self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
 
-    from perf_kit.sqlalchemy import trace_queries
+    from tests.utils.perf.perf_kit.sqlalchemy import trace_queries
 
     @trace_queries
     def test_bulk_sync_to_db(self):
