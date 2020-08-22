@@ -89,9 +89,9 @@ class FacebookAdsReportingHook(BaseHook):
         self.log.info("Fetching fb connection: %s", self.facebook_conn_id)
         conn = self.get_connection(self.facebook_conn_id)
         config = conn.extra_dejson
-        missings_keys = self.client_required_fields - config.keys()
-        if missings_keys:
-            message = "{missings_keys} fields are missing".format(missings_keys=missings_keys)
+        missing_keys = self.client_required_fields - config.keys()
+        if missing_keys:
+            message = "{missing_keys} fields are missing".format(missing_keys=missing_keys)
             raise AirflowException(message)
         return config
 
