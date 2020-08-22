@@ -187,7 +187,8 @@ class TestBase(unittest.TestCase):
         else:
             self.assertNotIn(text, resp_html)
 
-    def percent_encode(self, obj):
+    @staticmethod
+    def percent_encode(obj):
         return urllib.parse.quote_plus(str(obj))
 
 
@@ -230,9 +231,7 @@ class TestVariableModelView(TestBase):
     def test_can_handle_error_on_decrypt(self):
 
         # create valid variable
-        resp = self.client.post('/variable/add',
-                                data=self.variable,
-                                follow_redirects=True)
+        self.client.post('/variable/add', data=self.variable, follow_redirects=True)
 
         # update the variable with a wrong value, given that is encrypted
         Var = models.Variable
@@ -317,23 +316,17 @@ class TestPoolModelView(TestBase):
 
     def test_create_pool_with_same_name(self):
         # create test pool
-        resp = self.client.post('/pool/add',
-                                data=self.pool,
-                                follow_redirects=True)
+        resp = self.client.post('/pool/add', data=self.pool, follow_redirects=True)
         self.check_content_in_response('Added Row', resp)
 
         # create pool with the same name
-        resp = self.client.post('/pool/add',
-                                data=self.pool,
-                                follow_redirects=True)
+        resp = self.client.post('/pool/add', data=self.pool, follow_redirects=True)
         self.check_content_in_response('Already exists.', resp)
 
     def test_create_pool_with_empty_name(self):
 
         self.pool['pool'] = ''
-        resp = self.client.post('/pool/add',
-                                data=self.pool,
-                                follow_redirects=True)
+        resp = self.client.post('/pool/add', data=self.pool, follow_redirects=True)
         self.check_content_in_response('This field is required.', resp)
 
     def test_odd_name(self):
@@ -556,7 +549,7 @@ class TestAirflowBaseViews(TestBase):
             self.assertEqual('example,data', flask_session[FILTER_TAGS_COOKIE])
 
             self.client.get('home?reset_tags', follow_redirects=True)
-            self.assertEqual(None, flask_session[FILTER_TAGS_COOKIE])
+            self.assertIsNone(flask_session[FILTER_TAGS_COOKIE])
 
     def test_home_status_filter_cookie(self):
         from airflow.www.views import FILTER_STATUS_COOKIE
@@ -924,7 +917,7 @@ class TestAirflowBaseViews(TestBase):
             )
             resp = self.client.post('run', data=form, follow_redirects=True)
 
-            self.check_content_in_response('', resp, resp_code=200)
+            self.check_content_in_response('', resp)
 
             msg = "Task is in the &#39;{}&#39; state which is not a valid state for execution. " \
                   .format(state) + "The task must be cleared in order to be run"
@@ -954,7 +947,7 @@ class TestAirflowBaseViews(TestBase):
             )
             resp = self.client.post('run', data=form, follow_redirects=True)
 
-            self.check_content_in_response('', resp, resp_code=200)
+            self.check_content_in_response('', resp)
 
             msg = "Task is in the &#39;{}&#39; state which is not a valid state for execution. " \
                   .format(state) + "The task must be cleared in order to be run"
@@ -2218,7 +2211,7 @@ class TestDagACLView(TestBase):
         self.check_content_not_in_response('example_bash_operator', resp)
 
     def test_success_fail_for_read_only_role(self):
-        # succcess endpoint need can_dag_edit, which read only role can not access
+        # success endpoint need can_dag_edit, which read only role can not access
         self.logout()
         self.login(username='dag_read_only',
                    password='dag_read_only')
@@ -2480,10 +2473,7 @@ class TestTriggerDag(TestBase):
 
     def test_trigger_dag_form(self):
         test_dag_id = "example_bash_operator"
-
         resp = self.client.get('trigger?dag_id={}'.format(test_dag_id))
-
-        self.assertEqual(resp.status_code, 200)
         self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
 
     @parameterized.expand([
