@@ -723,6 +723,7 @@ function parse_arguments() {
           echo "Skips checking image for rebuilds"
           echo
           export CHECK_IMAGE_FOR_REBUILD="false"
+          export SKIP_BUILDING_PROD_IMAGE="true"
           shift ;;
         -L|--build-cache-local)
           echo "Use local cache to build images"
@@ -816,6 +817,7 @@ function parse_arguments() {
           export GITHUB_REGISTRY_PULL_IMAGE_TAG="${2}"
           export GITHUB_REGISTRY_PUSH_IMAGE_TAG="${2}"
           export CHECK_IMAGE_FOR_REBUILD="false"
+          export SKIP_BUILDING_PROD_IMAGE="true"
           export MOUNT_LOCAL_SOURCES="false"
           export SKIP_CHECK_REMOTE_IMAGE="true"
           shift 2;;

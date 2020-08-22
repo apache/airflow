@@ -585,6 +585,9 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
       - name: "Deploy airflow to cluster"
         run: ./scripts/ci/kubernetes/ci_deploy_app_to_kubernetes.sh
+        env:
+          # We have the right image pulled already by the previous step
+          SKIP_BUILDING_PROD_IMAGE: "true"
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
         env:
