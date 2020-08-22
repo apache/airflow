@@ -251,21 +251,21 @@ flask_oauth = [
 ]
 gcp = [
     'PyOpenSSL',
-    'google-api-python-client>=1.6.0, <2.0.0dev',
-    'google-auth>=1.0.0, <2.0.0dev',
+    'google-api-python-client>=1.6.0, <2.0.0',
+    'google-auth>=1.0.0, <2.0.0',
     'google-auth-httplib2>=0.0.1',
-    'google-cloud-bigtable>=1.0.0',
-    'google-cloud-container>=0.1.1',
-    'google-cloud-dlp>=0.11.0',
-    'google-cloud-language>=1.1.1',
-    'google-cloud-secret-manager>=0.2.0',
-    'google-cloud-spanner>=1.10.0',
-    'google-cloud-speech>=0.36.3',
-    'google-cloud-storage>=1.16',
+    'google-cloud-bigtable>=1.0.0,<2.0.0',
+    'google-cloud-container>=0.1.1,<2.0.0',
+    'google-cloud-dlp>=0.11.0,<2.0.0',
+    'google-cloud-language>=1.1.1,<2.0.0',
+    'google-cloud-secret-manager>=0.2.0,<2.0.0',
+    'google-cloud-spanner>=1.10.0,<2.0.0',
+    'google-cloud-speech>=0.36.3,<2.0.0',
+    'google-cloud-storage>=1.16,<2.0.0',
     'google-cloud-texttospeech>=0.4.0,<2',
-    'google-cloud-translate>=1.3.3',
-    'google-cloud-videointelligence>=1.7.0',
-    'google-cloud-vision>=0.35.2',
+    'google-cloud-translate>=1.3.3,<2.0.0',
+    'google-cloud-videointelligence>=1.7.0,<2.0.0',
+    'google-cloud-vision>=0.35.2,<2.0.0',
     'grpcio-gcp>=0.2.2',
     'pandas-gbq',
 ]
@@ -307,7 +307,7 @@ ldap = [
 ]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
-    'pymongo>=3.6.0',
+    'pymongo>=3.6.0,<3.11.0',
 ]
 mssql = [
     'pymssql~=2.1.1',
@@ -325,6 +325,8 @@ pagerduty = [
 papermill = [
     'papermill[all]>=1.0.0',
     'nteract-scrapbook[all]>=0.2.1',
+    'pyarrow<1.0.0',
+    'fsspec<0.8.0;python_version=="3.5"'
 ]
 password = [
     'bcrypt>=2.0.0',
@@ -422,7 +424,7 @@ devel = [
     'paramiko',
     'pre-commit',
     'pysftp',
-    'pytest',
+    'pytest<6.0.0',  # FIXME: pylint complaining for pytest.mark.* on v6.0
     'pytest-cov',
     'pytest-instafail',
     'pytest-rerunfailures',
@@ -563,14 +565,14 @@ INSTALL_REQUIREMENTS = [
     'flask-appbuilder~=2.2;python_version>="3.6"',
     'flask-caching>=1.3.3, <1.4.0',
     'flask-login>=0.3, <0.5',
-    'flask-swagger==0.2.13',
+    'flask-swagger>=0.2.13, <0.3',
     'flask-wtf>=0.14.2, <0.15',
     'funcsigs>=1.0.0, <2.0.0',
     'future>=0.16.0, <0.19',
     'graphviz>=0.12',
-    'gunicorn>=19.5.0, <20.0',
+    'gunicorn>=19.5.0, <21.0',
     'iso8601>=0.1.12',
-    'jinja2>=2.10.1, <2.11.0',
+    'jinja2>=2.10.1, <2.12.0',
     'json-merge-patch==0.2',
     'jsonschema~=3.0',
     'lazy_object_proxy~=1.3',

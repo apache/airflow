@@ -45,7 +45,7 @@ class BigQueryGetDataOperator(BaseOperator):
             task_id='get_data_from_bq',
             dataset_id='test_dataset',
             table_id='Transaction_partitions',
-            max_results='100',
+            max_results=100,
             selected_fields='DATE',
             bigquery_conn_id='airflow-service-account'
         )
@@ -56,7 +56,7 @@ class BigQueryGetDataOperator(BaseOperator):
     :type table_id: str
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
-    :type max_results: str
+    :type max_results: int
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :type selected_fields: str
@@ -74,7 +74,7 @@ class BigQueryGetDataOperator(BaseOperator):
     def __init__(self,
                  dataset_id,
                  table_id,
-                 max_results='100',
+                 max_results=100,
                  selected_fields=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,

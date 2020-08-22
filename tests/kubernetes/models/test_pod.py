@@ -74,3 +74,86 @@ class TestPod(unittest.TestCase):
                 'volumes': []
             }
         }, result)
+
+    @mock.patch('uuid.uuid4')
+    def test_to_v1_pod(self, mock_uuid):
+        from airflow.contrib.kubernetes.pod import Pod as DeprecatedPod
+        from airflow.kubernetes.volume import Volume
+        from airflow.kubernetes.volume_mount import VolumeMount
+        from airflow.kubernetes.secret import Secret
+        from airflow.kubernetes.pod import Resources
+        import uuid
+        static_uuid = uuid.UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
+        mock_uuid.return_value = static_uuid
+
+        pod = DeprecatedPod(
+            image="foo",
+            name="bar",
+            namespace="baz",
+            image_pull_policy="Never",
+            envs={"test_key": "test_value"},
+            cmds=["airflow"],
+            resources=Resources(
+                request_memory="1G",
+                request_cpu="100Mi",
+                limit_gpu="100G"
+            ),
+            init_containers=k8s.V1Container(
+                name="test-container",
+                volume_mounts=k8s.V1VolumeMount(mount_path="/foo/bar", name="init-volume-secret")
+            ),
+            volumes=[
+                Volume(name="foo", configs={}),
+                {"name": "bar", 'secret': {'secretName': 'volume-secret'}}
+            ],
+            secrets=[
+                Secret("volume", None, "init-volume-secret"),
+                Secret('env', "AIRFLOW_SECRET", 'secret_name', "airflow_config"),
+                Secret("volume", "/opt/airflow", "volume-secret", "secret-key")
+            ],
+            volume_mounts=[VolumeMount(name="foo", mount_path="/mnt", sub_path="/", read_only=True)]
+        )
+
+        k8s_client = ApiClient()
+
+        result = pod.to_v1_kubernetes_pod()
+        result = k8s_client.sanitize_for_serialization(result)
+
+        expected = \
+            {'metadata': {'labels': {}, 'name': 'bar', 'namespace': 'baz'},
+             'spec': {'affinity': {},
+                      'containers': [{'args': [],
+                                      'command': ['airflow'],
+                                      'env': [{'name': 'test_key', 'value': 'test_value'},
+                                              {'name': 'AIRFLOW_SECRET',
+                                               'valueFrom': {'secretKeyRef': {'key': 'airflow_config',
+                                                                              'name': 'secret_name'}}}],
+                                      'image': 'foo',
+                                      'imagePullPolicy': 'Never',
+                                      'name': 'base',
+                                      'resources': {'limits': {'nvidia.com/gpu': '100G'},
+                                                    'requests': {'cpu': '100Mi',
+                                                                 'memory': '1G'}},
+                                      'volumeMounts': [{'mountPath': '/mnt',
+                                                        'name': 'foo',
+                                                        'readOnly': True,
+                                                        'subPath': '/'},
+                                                       {'mountPath': '/opt/airflow',
+                                                       'name': 'secretvol' + str(static_uuid),
+                                                        'readOnly': True}]}],
+                      'hostNetwork': False,
+                      'initContainers': {'name': 'test-container',
+                                         'volumeMounts': {'mountPath': '/foo/bar',
+                                                          'name': 'init-volume-secret'}},
+                      'securityContext': {},
+                      'tolerations': [],
+                      'volumes': [{'name': 'foo'},
+                                  {'name': 'bar',
+                                   'secret': {'secretName': 'volume-secret'}},
+                                  {'name': 'secretvolcf4a56d2-8101-4217-b027-2af6216feb48',
+                                   'secret': {'secretName': 'init-volume-secret'}},
+                                  {'name': 'secretvol' + str(static_uuid),
+                                   'secret': {'secretName': 'volume-secret'}}
+                                  ]}}
+        self.maxDiff = None
+        self.assertEqual(expected, result)

@@ -17,3 +17,4 @@
 # under the License.
 
 export DEFAULT_BRANCH="v1-10-test"
+export DEFAULT_CONSTRAINTS_BRANCH="constraints-1-10"

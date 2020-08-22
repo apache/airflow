@@ -135,6 +135,10 @@ class WorkerConfiguration(LoggingMixin):
                     value='/etc/git-secret/ssh'
                 ),
                 k8s.V1EnvVar(
+                    name='GIT_SYNC_ADD_USER',
+                    value='true'
+                ),
+                k8s.V1EnvVar(
                     name='GIT_SYNC_SSH',
                     value='true'
                 )
@@ -431,7 +435,6 @@ class WorkerConfiguration(LoggingMixin):
         """Creates POD."""
         if self.kube_config.pod_template_file:
             return PodGenerator(pod_template_file=self.kube_config.pod_template_file).gen_pod()
-
         pod = PodGenerator(
             image=self.kube_config.kube_image,
             image_pull_policy=self.kube_config.kube_image_pull_policy or 'IfNotPresent',
@@ -439,6 +442,7 @@ class WorkerConfiguration(LoggingMixin):
             volumes=self._get_volumes(),
             volume_mounts=self._get_volume_mounts(),
             init_containers=self._get_init_containers(),
+            labels=self.kube_config.kube_labels,
             annotations=self.kube_config.kube_annotations,
             affinity=self.kube_config.kube_affinity,
             tolerations=self.kube_config.kube_tolerations,

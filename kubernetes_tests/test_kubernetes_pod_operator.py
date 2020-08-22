@@ -32,6 +32,7 @@ from airflow.kubernetes import kube_client
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
@@ -284,6 +285,40 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.assertEqual(self.expected_pod['spec'], actual_pod['spec'])
         self.assertEqual(self.expected_pod['metadata']['labels'], actual_pod['metadata']['labels'])
 
+    def test_pod_with_volume_secret(self):
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            in_cluster=False,
+            labels={"foo": "bar"},
+            arguments=["echo 10"],
+            secrets=[Secret(
+                deploy_type="volume",
+                deploy_target="/var/location",
+                secret="my-secret",
+                key="content.json",
+            )],
+            name="airflow-test-pod",
+            task_id="task",
+            get_logs=True,
+            is_delete_operator_pod=True,
+        )
+
+        context = self.create_context(k)
+        k.execute(context)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['containers'][0]['volumeMounts'] = [
+            {'mountPath': '/var/location',
+             'name': mock.ANY,
+             'readOnly': True}]
+        self.expected_pod['spec']['volumes'] = [
+            {'name': mock.ANY,
+             'secret': {'secretName': 'my-secret'}}
+        ]
+        self.assertEqual(self.expected_pod['spec'], actual_pod['spec'])
+        self.assertEqual(self.expected_pod['metadata']['labels'], actual_pod['metadata']['labels'])
+
     def test_pod_hostnetwork(self):
         k = KubernetesPodOperator(
             namespace='default',
@@ -404,7 +439,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'limits': {
                 'memory': '64Mi',
                 'cpu': 0.25,
-                'nvidia.com/gpu': None,
                 'ephemeral-storage': '2Gi'
             }
         }
@@ -636,7 +670,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     def test_pod_failure(self):
         """
-            Tests that the task fails when a pod reports a failure
+        Tests that the task fails when a pod reports a failure
         """
         bad_internal_command = ["foobar 10 "]
         k = KubernetesPodOperator(
@@ -746,6 +780,41 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 name=secret_ref
             ))]
         )
+
+    def test_env_vars(self):
+        # WHEN
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            env_vars={"ENV1": "val1", "ENV2": "val2", },
+            pod_runtime_info_envs=[PodRuntimeInfoEnv("ENV3", "status.podIP")],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+
+        context = create_context(k)
+        k.execute(context)
+
+        # THEN
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['containers'][0]['env'] = [
+            {'name': 'ENV1', 'value': 'val1'},
+            {'name': 'ENV2', 'value': 'val2'},
+            {
+                'name': 'ENV3',
+                'valueFrom': {
+                    'fieldRef': {
+                        'fieldPath': 'status.podIP'
+                    }
+                }
+            }
+        ]
+        self.assertEqual(self.expected_pod, actual_pod)
 
     def test_init_container(self):
         # GIVEN

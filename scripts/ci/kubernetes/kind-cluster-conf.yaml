@@ -23,9 +23,6 @@ networking:
 nodes:
   - role: control-plane
   - role: worker
-    extraPortMappings:
-      - containerPort: 30809
-        hostPort: 30809
 kubeadmConfigPatchesJson6902:
   - group: kubeadm.k8s.io
     version: v1beta2

@@ -17,20 +17,27 @@
 """Launches PODs"""
 import json
 import time
+import warnings
 from datetime import datetime as dt
 
 import tenacity
 from kubernetes import watch, client
+from kubernetes.client.api_client import ApiClient
+from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
 
 from airflow import AirflowException
-from airflow.kubernetes.pod_generator import PodDefaults
-from airflow.settings import pod_mutation_hook
+from airflow import settings
+from airflow.contrib.kubernetes.pod import (
+    Pod, _extract_env_vars_and_secrets, _extract_volumes, _extract_volume_mounts,
+    _extract_ports, _extract_security_context
+)
+from airflow.kubernetes.kube_client import get_kube_client
+from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-from .kube_client import get_kube_client
 
 
 class PodStatus:
@@ -62,8 +69,12 @@ class PodLauncher(LoggingMixin):
         self.extract_xcom = extract_xcom
 
     def run_pod_async(self, pod, **kwargs):
-        """Runs POD asynchronously"""
-        pod_mutation_hook(pod)
+        """Runs POD asynchronously
+
+        :param pod: Pod to run
+        :type pod: k8s.V1Pod
+        """
+        pod = self._mutate_pod_backcompat(pod)
 
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
@@ -78,6 +89,27 @@ class PodLauncher(LoggingMixin):
                                'to create Namespaced Pod: %s', json_pod)
             raise e
         return resp
+
+    @staticmethod
+    def _mutate_pod_backcompat(pod):
+        """Backwards compatible Pod Mutation Hook"""
+        try:
+            dummy_pod = _convert_to_airflow_pod(pod)
+            settings.pod_mutation_hook(dummy_pod)
+            warnings.warn(
+                "Using `airflow.contrib.kubernetes.pod.Pod` is deprecated. "
+                "Please use `k8s.V1Pod` instead.", DeprecationWarning, stacklevel=2
+            )
+            dummy_pod = dummy_pod.to_v1_kubernetes_pod()
+
+            new_pod = PodGenerator.reconcile_pods(pod, dummy_pod)
+        except AttributeError as e:
+            try:
+                settings.pod_mutation_hook(pod)
+                return pod
+            except AttributeError as e2:
+                raise Exception([e, e2])
+        return new_pod
 
     def delete_pod(self, pod):
         """Deletes POD"""
@@ -104,11 +136,11 @@ class PodLauncher(LoggingMixin):
         curr_time = dt.now()
         if resp.status.start_time is None:
             while self.pod_not_started(pod):
+                self.log.warning("Pod not yet started: %s", pod.metadata.name)
                 delta = dt.now() - curr_time
                 if delta.total_seconds() >= startup_timeout:
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
-            self.log.debug('Pod not yet started')
 
     def monitor_pod(self, pod, get_logs):
         """
@@ -244,7 +276,7 @@ class PodLauncher(LoggingMixin):
         return None
 
     def process_status(self, job_id, status):
-        """Process status infomration for the JOB"""
+        """Process status information for the JOB"""
         status = status.lower()
         if status == PodStatus.PENDING:
             return State.QUEUED
@@ -259,3 +291,42 @@ class PodLauncher(LoggingMixin):
         else:
             self.log.info('Event: Invalid state %s on job %s', status, job_id)
             return State.FAILED
+
+
+def _convert_to_airflow_pod(pod):
+    """
+    Converts a k8s V1Pod object into an `airflow.kubernetes.pod.Pod` object.
+    This function is purely for backwards compatibility
+    """
+    base_container = pod.spec.containers[0]  # type: k8s.V1Container
+    env_vars, secrets = _extract_env_vars_and_secrets(base_container.env)
+    volumes = _extract_volumes(pod.spec.volumes)
+    api_client = ApiClient()
+    init_containers = pod.spec.init_containers
+    if pod.spec.init_containers is not None:
+        init_containers = [api_client.sanitize_for_serialization(i) for i in pod.spec.init_containers]
+    dummy_pod = Pod(
+        image=base_container.image,
+        envs=env_vars,
+        cmds=base_container.command,
+        args=base_container.args,
+        labels=pod.metadata.labels,
+        annotations=pod.metadata.annotations,
+        node_selectors=pod.spec.node_selector,
+        name=pod.metadata.name,
+        ports=_extract_ports(base_container.ports),
+        volumes=volumes,
+        volume_mounts=_extract_volume_mounts(base_container.volume_mounts),
+        namespace=pod.metadata.namespace,
+        image_pull_policy=base_container.image_pull_policy or 'IfNotPresent',
+        tolerations=pod.spec.tolerations,
+        init_containers=init_containers,
+        image_pull_secrets=pod.spec.image_pull_secrets,
+        resources=base_container.resources,
+        service_account_name=pod.spec.service_account_name,
+        secrets=secrets,
+        affinity=pod.spec.affinity,
+        hostnetwork=pod.spec.host_network,
+        security_context=_extract_security_context(pod.spec.security_context)
+    )
+    return dummy_pod

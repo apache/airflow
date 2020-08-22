@@ -26,6 +26,7 @@
 [![License](http://img.shields.io/:license-Apache%202-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
+[![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
 
 _NOTE: The transition from 1.8.0 (or before) to 1.8.1 (or after) requires uninstalling Apache Airflow before installing the new version. The package name was changed from `airflow` to `apache-airflow` as of version 1.8.1._
 
@@ -43,6 +44,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
+- [Building customized production images](#building-customized-production-images)
 - [Beyond the Horizon](#beyond-the-horizon)
 - [Principles](#principles)
 - [User Interface](#user-interface)
@@ -67,7 +69,7 @@ Apache Airflow is tested with:
 * Sqlite - latest stable (it is used mainly for development purpose)
 * Kubernetes - 1.16.2, 1.17.0
 
-### Stable version
+### Stable version (1.10.11)
 
 * Python versions: 2.7, 3.5, 3.6, 3.7, 3.8
 * Postgres DB: 9.6, 10
@@ -78,7 +80,6 @@ Apache Airflow is tested with:
 ### Additional notes on Python version requirements
 
 * Stable version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3 when using Python 3
-* Stable version is currently incompatible with Python 3.8 due to [a known compatibility issue](https://github.com/Tinche/cattrs/issues/77) with a dependent library
 
 ## Getting started
 Please visit the Airflow Platform documentation (latest **stable** release) for help with [installing Airflow](https://airflow.apache.org/installation.html), getting a [quick start](https://airflow.apache.org/start.html), or a more complete [tutorial](https://airflow.apache.org/tutorial.html).
@@ -98,24 +99,45 @@ our dependencies as open as possible (in `setup.py`) so users can install differ
 if needed. This means that from time to time plain `pip install apache-airflow` will not work or will
 produce unusable Airflow installation.
 
-In order to have repeatable installation, however, starting from **Airflow 1.10.10** we also keep a set of
-"known-to-be-working" requirement files in the `requirements` folder. Those "known-to-be-working"
-requirements are per major/minor python version (3.6/3.7/3.8). You can use them as constraint files
-when installing Airflow from PyPI. Note that you have to specify correct Airflow version and python versions
-in the URL.
+In order to have repeatable installation, however, introduced in **Airflow 1.10.10** and updated in
+**Airflow 1.10.12** we also keep a set of "known-to-be-working" constraint files in the
+orphan `constraints-master` and `constraints-1-10` branches. We keep those "known-to-be-working"
+constraints files separately per major/minor python version.
+You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
+correct Airflow tag/version/branch and python versions in the URL.
 
 1. Installing just airflow:
 
 ```bash
-pip install apache-airflow==1.10.11 \
- --constraint https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt
+pip install apache-airflow==1.10.12 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,gcp)
 ```bash
 pip install apache-airflow[postgres,gcp]==1.10.11 \
- --constraint https://raw.githubusercontent.com/apache/airflow/1.10.11/requirements/requirements-python3.7.txt
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-1.10.12/constraints-3.7.txt"
 ```
+
+## Building customized production images
+
+In order to use Airflow in Docker Compose or Kubernetes, you might need to use or build production images
+of Apache Airflow. The community provides two types of support for the production images:
+
+* We provide pre-build relesed version of production image in PyPI build from released
+  sources of Apache Airflow - shortly after release. Those images are available in the DockerHub.
+  You can pull those images via `docker pull apache/airflow:<VERSION>-pythonX.Y` - version is the
+  version number (for example 1.10.11). Additionally `docker pull apache/airflow` will pull latest
+  stable version of the image with default python version (currently 3.6)
+
+* In `master` branch of Airflow and in `v1-10-stable` branch we provide Dockerfiles and accompanying
+  files that allow to build your own customized version of the Airflow Production image. The instructions
+  on how to build your own image with additional dependencies (if needed) are provided in the
+  [IMAGES.rst](IMAGES.rst#production-images) if you want to build it using `docker build` command or in
+  [BREEZE.rst](BREEZE.rst#building-production-images) to use Breeze tool which easier interface,
+  auto-complete, and accompanying screencast video. Note, that while it is possible to use master
+  branch to build images for released Airflow versions, it might at times get broken so you should
+  rather rely on building your own images from the v1-10-stable branch.
 
 ## Beyond the Horizon
 
@@ -394,5 +416,5 @@ Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.
 
 
 - [Documentation](https://airflow.apache.org/)
-- [Chat](https://apache-airflow-slack.herokuapp.com/)
+- [Chat](https://s.apache.org/airflow-slack)
 - [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)

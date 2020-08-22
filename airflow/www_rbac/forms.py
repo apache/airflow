@@ -24,6 +24,7 @@ from __future__ import unicode_literals
 
 import json
 from datetime import datetime as dt
+from operator import itemgetter
 
 import pendulum
 from flask_appbuilder.fieldwidgets import (
@@ -149,7 +150,7 @@ class ConnectionForm(DynamicForm):
         widget=BS3TextFieldWidget())
     conn_type = SelectField(
         lazy_gettext('Conn Type'),
-        choices=Connection._types,
+        choices=sorted(Connection._types, key=itemgetter(1)),
         widget=Select2Widget())
     host = StringField(
         lazy_gettext('Host'),

@@ -35,6 +35,37 @@ function verbose_docker {
     docker "${@}"
 }
 
+# In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all helm commands run will be
+# printed before execution
+function verbose_helm {
+    if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
+       # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
+        echo "helm" "${@}"
+    fi
+    helm "${@}"
+}
+
+# In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all kubectl commands run will be
+# printed before execution
+function verbose_kubectl {
+    if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
+       # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
+        echo "kubectl" "${@}"
+    fi
+    kubectl "${@}"
+}
+
+# In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all kind commands run will be
+# printed before execution
+function verbose_kind {
+    if [[ ${VERBOSE:="false"} == "true" && ${VERBOSE_COMMANDS:=} != "true" ]]; then
+       # do not print echo if VERBOSE_COMMAND is set (set -x does it already)
+        echo "kind" "${@}"
+    fi
+    kind "${@}"
+}
+
+
 # In case "VERBOSE" is set to "true" (--verbose flag in Breeze) all docker commands run will be
 # printed before execution
 function verbose_docker_hide_output_on_success {
