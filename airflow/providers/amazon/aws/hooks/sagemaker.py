@@ -672,7 +672,7 @@ class SageMakerHook(AwsBaseHook):   # pylint: disable=too-many-public-methods
 
         while running:
             time.sleep(check_interval)
-            sec = sec + check_interval
+            sec += check_interval
 
             try:
                 response = describe_function(job_name)
@@ -761,7 +761,7 @@ class SageMakerHook(AwsBaseHook):   # pylint: disable=too-many-public-methods
 
         while True:
             time.sleep(check_interval)
-            sec = sec + check_interval
+            sec += check_interval
 
             state, last_description, last_describe_job_call = \
                 self.describe_training_job_with_log(job_name, positions, stream_names,

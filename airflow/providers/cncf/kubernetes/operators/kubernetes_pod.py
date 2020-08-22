@@ -317,11 +317,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             log_line = "found a running pod with labels {} but a different try_number.".format(labels)
 
         if self.reattach_on_restart:
-            log_line = log_line + " Will attach to this pod and monitor instead of starting new one"
+            log_line += " Will attach to this pod and monitor instead of starting new one"
             self.log.info(log_line)
             final_state, result = self.monitor_launched_pod(launcher, pod_list.items[0])
         else:
-            log_line = log_line + "creating pod with labels {} and launcher {}".format(labels, launcher)
+            log_line += "creating pod with labels {} and launcher {}".format(labels, launcher)
             self.log.info(log_line)
             final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
         return final_state, result

@@ -587,7 +587,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             if returncode:
                 if missed_job_status_reports < max_missed_job_status_reports:
-                    missed_job_status_reports = missed_job_status_reports + 1
+                    missed_job_status_reports += 1
                 else:
                     raise AirflowException(
                         "Failed to poll for the driver status {} times: returncode = {}"

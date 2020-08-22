@@ -75,7 +75,7 @@ class OracleToOracleOperator(BaseOperator):
             rows_total = 0
             rows = cursor.fetchmany(self.rows_chunk)
             while len(rows) > 0:
-                rows_total = rows_total + len(rows)
+                rows_total += len(rows)
                 dest_hook.bulk_insert_rows(self.destination_table, rows,
                                            target_fields=target_fields,
                                            commit_every=self.rows_chunk)
