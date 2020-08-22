@@ -38,6 +38,13 @@ CBT_INSTANCE_LABELS = {"env": "sit"}
 CBT_CLUSTER = 'cluster'
 CBT_ZONE = 'zone'
 CBT_TABLE = 'table'
+CBT_REPLICA_CLUSTER_ID = 'replica-cluster'
+CBT_REPLICA_CLUSTER_ZONE = 'us-west1-b'
+CBT_REPLICATE_CLUSTERS = [
+    {'id': 'replica-1', 'zone': 'us-west1-a'},
+    {'id': 'replica-2', 'zone': 'us-central1-f'},
+    {'id': 'replica-3', 'zone': 'us-east1-d'},
+]
 
 
 class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
@@ -284,6 +291,95 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
             main_cluster_id=CBT_CLUSTER,
             main_cluster_zone=CBT_ZONE,
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+        )
+        get_client.assert_called_once_with(project_id='example-project')
+        instance_create.assert_called_once_with(clusters=mock.ANY)
+        self.assertEqual(res.instance_id, 'instance')
+
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+    )
+    @mock.patch('google.cloud.bigtable.instance.Instance.cluster')
+    @mock.patch('google.cloud.bigtable.instance.Instance.create')
+    @mock.patch('airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client')
+    def test_create_instance_with_one_replica_cluster(
+        self, get_client, instance_create, cluster, mock_project_id
+    ):
+        operation = mock.Mock()
+        operation.result_return_value = Instance(
+            instance_id=CBT_INSTANCE, client=get_client
+        )
+        instance_create.return_value = operation
+
+        res = self.bigtable_hook_default_project_id.create_instance(
+            instance_id=CBT_INSTANCE,
+            main_cluster_id=CBT_CLUSTER,
+            main_cluster_zone=CBT_ZONE,
+            replica_cluster_id=CBT_REPLICA_CLUSTER_ID,
+            replica_cluster_zone=CBT_REPLICA_CLUSTER_ZONE,
+            cluster_nodes=1,
+            cluster_storage_type=enums.StorageType.SSD,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+        )
+        cluster.assert_has_calls(
+            [
+                unittest.mock.call(
+                    CBT_CLUSTER, CBT_ZONE, 1, enums.StorageType.SSD
+                ),
+                unittest.mock.call(
+                    CBT_REPLICA_CLUSTER_ID, CBT_REPLICA_CLUSTER_ZONE, 1, enums.StorageType.SSD
+                ),
+            ],
+            any_order=True
+        )
+        get_client.assert_called_once_with(project_id='example-project')
+        instance_create.assert_called_once_with(clusters=mock.ANY)
+        self.assertEqual(res.instance_id, 'instance')
+
+    @mock.patch(
+        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        new_callable=PropertyMock,
+        return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+    )
+    @mock.patch('google.cloud.bigtable.instance.Instance.cluster')
+    @mock.patch('google.cloud.bigtable.instance.Instance.create')
+    @mock.patch('airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client')
+    def test_create_instance_with_multiple_replica_clusters(
+        self, get_client, instance_create, cluster, mock_project_id
+    ):
+        operation = mock.Mock()
+        operation.result_return_value = Instance(
+            instance_id=CBT_INSTANCE, client=get_client
+        )
+        instance_create.return_value = operation
+
+        res = self.bigtable_hook_default_project_id.create_instance(
+            instance_id=CBT_INSTANCE,
+            main_cluster_id=CBT_CLUSTER,
+            main_cluster_zone=CBT_ZONE,
+            replica_clusters=CBT_REPLICATE_CLUSTERS,
+            cluster_nodes=1,
+            cluster_storage_type=enums.StorageType.SSD,
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+        )
+        cluster.assert_has_calls(
+            [
+                unittest.mock.call(
+                    CBT_CLUSTER, CBT_ZONE, 1, enums.StorageType.SSD
+                ),
+                unittest.mock.call(
+                    'replica-1', 'us-west1-a', 1, enums.StorageType.SSD
+                ),
+                unittest.mock.call(
+                    'replica-2', 'us-central1-f', 1, enums.StorageType.SSD
+                ),
+                unittest.mock.call(
+                    'replica-3', 'us-east1-d', 1, enums.StorageType.SSD
+                ),
+            ],
+            any_order=True
         )
         get_client.assert_called_once_with(project_id='example-project')
         instance_create.assert_called_once_with(clusters=mock.ANY)
