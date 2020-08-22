@@ -2553,7 +2553,7 @@ Airflow 1.10.0, 2018-08-03
 - [AIRFLOW-2002] Do not swallow exception on logging import
 - [AIRFLOW-2004] Import flash from flask not flask.login
 - [AIRFLOW-1997] Fix GCP operator doc strings
-- [AIRFLOW-1996] Update DataflowHook waitfordone for Streaming type job[]
+- [AIRFLOW-1996] Update DataflowHook wait_for_done for Streaming type job
 - [AIRFLOW-1995][Airflow 1995] add on_kill method to SqoopOperator
 - [AIRFLOW-1770] Allow HiveOperator to take in a file
 - [AIRFLOW-1994] Change background color of Scheduled state Task Instances

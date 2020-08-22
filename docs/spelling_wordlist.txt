@@ -1287,7 +1287,6 @@ videointelligence
 virtualenv
 vm
 volumeMounts
-waitfordone
 wasb
 webProperty
 webhdfs
