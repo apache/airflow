@@ -637,6 +637,15 @@ function prepare_prod_build() {
 # selected by Breeze flags or environment variables.
 function build_prod_images() {
     print_build_info
+
+    if [[ ${SKIP_BUILDING_PROD_IMAGE:="false"} == "true" ]]; then
+        print_info
+        print_info "Skip building production image. Assume the one we have is good!"
+        print_info
+        return
+    fi
+
+
     pull_prod_images_if_needed
 
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then

@@ -37,9 +37,10 @@ function build_prod_images_on_ci() {
 
         wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" \
             ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_BUILD_IMAGE}"
+    else
+        build_prod_images
     fi
 
-    build_prod_images
 
     # Disable force pulling forced above this is needed for the subsequent scripts so that
     # They do not try to pull/build images again
