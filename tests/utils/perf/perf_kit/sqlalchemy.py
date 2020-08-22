@@ -32,6 +32,7 @@ def _pretty_format_sql(text: str):
     return text
 
 
+# noinspection PyUnusedLocal
 class TraceQueries:
     """
     Tracking SQL queries in a code block.
@@ -61,11 +62,46 @@ class TraceQueries:
         self.print_fn = print_fn
         self.query_count = 0
 
-    def before_cursor_execute(self, conn, cursor, statement, parameters, context, executemany):
+    def before_cursor_execute(self,
+                              conn,
+                              cursor,  # pylint: disable=unused-argument
+                              statement,  # pylint: disable=unused-argument
+                              parameters,  # pylint: disable=unused-argument
+                              context,  # pylint: disable=unused-argument
+                              executemany):  # pylint: disable=unused-argument
+        """
+        Executed before cursor.
+
+        :param conn:  connection
+        :param cursor:  cursor
+        :param statement: statement
+        :param parameters: parameters
+        :param context: context
+        :param executemany: whether many statements executed
+        :return:
+        """
+
         conn.info.setdefault("query_start_time", []).append(time.monotonic())
         self.query_count += 1
 
-    def after_cursor_execute(self, conn, cursor, statement, parameters, context, executemany):
+    def after_cursor_execute(self,
+                             conn,
+                             cursor,  # pylint: disable=unused-argument
+                             statement,
+                             parameters,
+                             context,  # pylint: disable=unused-argument
+                             executemany):  # pylint: disable=unused-argument
+        """
+        Executed after cursor.
+
+        :param conn:  connection
+        :param cursor:  cursor
+        :param statement: statement
+        :param parameters: parameters
+        :param context: context
+        :param executemany: whether many statements executed
+        :return:
+        """
         total = time.monotonic() - conn.info["query_start_time"].pop()
         file_names = [
             f"{f.filename}:{f.name}:{f.lineno}"
@@ -102,7 +138,8 @@ class TraceQueries:
         event.listen(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
         event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
 
-    def __exit__(self, type_, value, traceback):
+    # noinspection PyShadowingNames
+    def __exit__(self, type_, value, traceback):  # pylint: disable=redefined-outer-name
         import airflow.settings
         event.remove(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
         event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
@@ -112,6 +149,9 @@ trace_queries = TraceQueries  # pylint: disable=invalid-name
 
 
 class CountQueriesResult:
+    """
+    Counter for number of queries.
+    """
     def __init__(self):
         self.count = 0
 
@@ -136,13 +176,30 @@ class CountQueries:
         event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
         return self.result
 
-    def __exit__(self, type_, value, traceback):
+    # noinspection PyShadowingNames
+    def __exit__(self, type_, value, traceback):  # pylint: disable=redefined-outer-name
         import airflow.settings
 
         event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
         self.print_fn(f"Count SQL queries: {self.result.count}")
 
-    def after_cursor_execute(self, *args, **kwargs):
+    def after_cursor_execute(self,
+                             conn,  # pylint: disable=unused-argument
+                             cursor,  # pylint: disable=unused-argument
+                             statement,  # pylint: disable=unused-argument
+                             parameters,  # pylint: disable=unused-argument
+                             context,  # pylint: disable=unused-argument
+                             executemany):  # pylint: disable=unused-argument
+        """
+        Executed after cursor.
+
+        :param conn:  connection
+        :param cursor:  cursor
+        :param statement: statement
+        :param parameters: parameters
+        :param context: context
+        :param executemany: whether many statements executed
+        """
         self.result.count += 1
 
 
@@ -152,6 +209,7 @@ if __name__ == "__main__":
 
     # Example:
     def case():
+        "Case of logging om/"
         import logging
         from unittest import mock
 

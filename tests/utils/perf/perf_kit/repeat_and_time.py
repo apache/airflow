@@ -23,6 +23,7 @@ import time
 
 
 class TimingResult:
+    """Timing result."""
     def __init__(self):
         self.start_time = 0
         self.end_time = 0
@@ -65,7 +66,7 @@ def repeat(repeat_count=5):
         @functools.wraps(f)
         def wrap(*args, **kwargs):
             last_result = None
-            for i in range(repeat_count):
+            for _ in range(repeat_count):
                 last_result = f(*args, **kwargs)
             return last_result
 
@@ -75,7 +76,7 @@ def repeat(repeat_count=5):
 
 
 class TimeoutException(Exception):
-    pass
+    """Exception when the test timeo uts"""
 
 
 @contextlib.contextmanager
@@ -109,13 +110,13 @@ def timeout(seconds=1):
 if __name__ == "__main__":
 
     def monte_carlo(total=10000):
-        # Monte Carlo
+        """Monte Carlo"""
         inside = 0
 
-        for i in range(0, total):
-            x2 = random.random() ** 2
-            y2 = random.random() ** 2
-            if math.sqrt(x2 + y2) < 1.0:
+        for _ in range(0, total):
+            x_val = random.random() ** 2
+            y_val = random.random() ** 2
+            if math.sqrt(x_val + y_val) < 1.0:
                 inside += 1
 
         return (float(inside) / total) * 4
@@ -134,15 +135,16 @@ if __name__ == "__main__":
     @timing(REPEAT_COUNT)
     @repeat(REPEAT_COUNT)
     @timing()
-    def pi():
+    def get_pi():
+        """Returns PI value:"""
         return monte_carlo()
 
-    result = pi()
-    print("PI: ", result)
+    res = get_pi()
+    print("PI: ", res)
     print()
 
     # Example 3:
     with timing():
-        result = monte_carlo()
+        res = monte_carlo()
 
-    print("PI: ", result)
+    print("PI: ", res)

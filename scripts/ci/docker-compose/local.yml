@@ -50,7 +50,6 @@ services:
       - ../../../pylintrc:/opt/airflow/pylintrc:cached
       - ../../../pytest.ini:/opt/airflow/pytest.ini:cached
       - ../../../scripts:/opt/airflow/scripts:cached
-      - ../../../scripts/perf:/opt/airflow/scripts/perf:cached
       - ../../../scripts/in_container/entrypoint_ci.sh:/entrypoint:cached
       - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../../setup.py:/opt/airflow/setup.py:cached
