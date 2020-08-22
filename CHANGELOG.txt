@@ -1,4 +1,4 @@
-Airflow 1.10.12, 2020-08-23
+Airflow 1.10.12, 2020-08-25
 ----------------------------
 
 New Features
@@ -35,6 +35,7 @@ Bug Fixes
 - Fix issue with mounting volumes from secrets (#10366)
 - BugFix: K8s Executor Multinamespace mode is evaluated to true by default (#10410)
 - Make KubernetesExecutor recognize kubernetes_labels (#10412)
+- Fix broken Kubernetes PodRuntimeInfoEnv (#10478)
 
 Improvements
 """"""""""""
