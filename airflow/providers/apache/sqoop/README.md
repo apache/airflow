@@ -27,7 +27,7 @@ Release: 2020.6.24
 - [Backport package](#backport-package)
 - [Installation](#installation)
 - [Compatibility](#compatibility)
-- [Provider class summary](#provider-class-summary)
+- [Provider class summary](#provider-classes-summary)
     - [Operators](#operators)
         - [Moved operators](#moved-operators)
     - [Hooks](#hooks)
