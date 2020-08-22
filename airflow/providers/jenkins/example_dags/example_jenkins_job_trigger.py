@@ -61,7 +61,7 @@ with DAG(
         # The JenkinsJobTriggerOperator store the job url in the xcom variable corresponding to the task
         # You can then use it to access things or to get the job number
         # This url looks like : http://jenkins_url/job/job_name/job_number/
-        url = url + "artifact/myartifact.xml"  # Or any other artifact name
+        url += "artifact/myartifact.xml"  # Or any other artifact name
         request = Request(url)
         response = jenkins_server.jenkins_open(request)
         return response  # We store the artifact content in a xcom variable for later use

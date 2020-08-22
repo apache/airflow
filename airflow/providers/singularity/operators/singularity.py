@@ -118,11 +118,11 @@ class SingularityOperator(BaseOperator):
 
         # Prepare list of binds
         for bind in self.volumes:
-            self.options = self.options + ['--bind', bind]
+            self.options += ['--bind', bind]
 
         # Does the user want a custom working directory?
         if self.working_dir is not None:
-            self.options = self.options + ['--workdir', self.working_dir]
+            self.options += ['--workdir', self.working_dir]
 
         # Export environment before instance is run
         for enkey, envar in self.environment.items():

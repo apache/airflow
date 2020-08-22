@@ -303,7 +303,7 @@ class AWSDataSyncHook(AwsBaseHook):
             )
             status = task_execution["Status"]
             self.log.info("status=%s", status)
-            iterations = iterations - 1
+            iterations -= 1
             if status in self.TASK_EXECUTION_FAILURE_STATES:
                 break
             if status in self.TASK_EXECUTION_SUCCESS_STATES:

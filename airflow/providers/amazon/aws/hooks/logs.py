@@ -84,7 +84,7 @@ class AwsLogsHook(AwsBaseHook):
                 events = events[skip:]
                 skip = 0
             else:
-                skip = skip - event_count
+                skip -= event_count
                 events = []
 
             yield from events

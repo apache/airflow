@@ -1165,7 +1165,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 'Granting table %s:%s.%s authorized view access to %s:%s dataset.',
                 view_project, view_dataset, view_table, project_id, source_dataset
             )
-            dataset.access_entries = dataset.access_entries + [view_access]
+            dataset.access_entries += [view_access]
             dataset = self.update_dataset(
                 fields=["access"],
                 dataset_resource=dataset.to_api_repr(),
@@ -1423,7 +1423,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         job_complete = False
         while polling_attempts < max_polling_attempts and not job_complete:
-            polling_attempts = polling_attempts + 1
+            polling_attempts += 1
             job_complete = self.poll_job_complete(job_id)
             if job_complete:
                 self.log.info('Job successfully canceled: %s, %s', project_id, job_id)
