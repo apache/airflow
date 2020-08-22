@@ -28,7 +28,7 @@ Release: 2020.6.24
 - [Installation](#installation)
 - [Compatibility](#compatibility)
 - [PIP requirements](#pip-requirements)
-- [Provider class summary](#provider-class-summary)
+- [Provider class summary](#provider-classes-summary)
     - [Operators](#operators)
         - [Moved operators](#moved-operators)
     - [Hooks](#hooks)
