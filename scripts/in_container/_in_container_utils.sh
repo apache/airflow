@@ -272,3 +272,7 @@ function install_released_airflow_version() {
     INSTALLS=("apache-airflow==${1}" "werkzeug<1.0.0")
     pip install --upgrade "${INSTALLS[@]}"
 }
+
+
+export CI=${CI:="false"}
+export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}
