@@ -183,7 +183,7 @@ def create_dag_runs(dag, num_runs, session):
 @click.option('--executor-class', default='MockExecutor',
               help=textwrap.dedent('''
           Dotted path Executor class to test, for example
-          'airflow.executors.local_executor.LocalExecutor'. Defaults to MockExcutor which doesn't run tasks.
+          'airflow.executors.local_executor.LocalExecutor'. Defaults to MockExecutor which doesn't run tasks.
       '''))
 @click.argument('dag_ids', required=True, nargs=-1)
 def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):  # pylint: disable=too-many-locals
@@ -255,9 +255,9 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):  # pyl
             if pre_create_dag_runs:
                 create_dag_runs(dag, num_runs, session)
 
-    ShortCircutExecutor = get_executor_under_test(executor_class)
+    ShortCircuitExecutor = get_executor_under_test(executor_class)
 
-    executor = ShortCircutExecutor(dag_ids_to_watch=dag_ids, num_runs=num_runs)
+    executor = ShortCircuitExecutor(dag_ids_to_watch=dag_ids, num_runs=num_runs)
     scheduler_job = SchedulerJob(dag_ids=dag_ids, do_pickle=False, executor=executor)
     executor.scheduler_job = scheduler_job
 
