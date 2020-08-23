@@ -368,7 +368,7 @@ class TestDatabricksHook(unittest.TestCase):
         mock_requests.get.assert_called_once_with(
             get_run_endpoint(HOST),
             json=None,
-            params={'run_id': RUN_ID},            
+            params={'run_id': RUN_ID},
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
