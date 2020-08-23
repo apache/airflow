@@ -19,7 +19,7 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 # Builds or waits for the CI image in the CI environment
-# Depending on the "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
+# Depending on "USE_GITHUB_REGISTRY" and "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_ci_image_on_ci() {
     get_environment_for_builds_on_ci
     prepare_ci_build
@@ -27,7 +27,7 @@ function build_ci_image_on_ci() {
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
 
-    if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"} == "true" ]]; then
+    if [[ ${USE_GITHUB_REGISTRY} == "true" && ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
         # Pretend that the image was build. We already have image with the right sources baked in!
         calculate_md5sum_for_all_files
 
