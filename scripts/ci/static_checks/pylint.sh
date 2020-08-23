@@ -20,6 +20,23 @@ export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:-3.6}
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+function filter_out_files_from_pylint_todo_list() {
+  FILTERED_FILES=()
+  set +e
+  for FILE in "$@"
+  do
+      if [[ ${FILE} == "airflow/migrations/versions/"* ]]; then
+          # Skip all generated migration scripts
+          continue
+      fi
+      if ! grep -x "./${FILE}" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt" >/dev/null; then
+          FILTERED_FILES+=("${FILE}")
+      fi
+  done
+  set -e
+  export FILTERED_FILES
+}
+
 function run_pylint() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
