@@ -49,8 +49,8 @@ def max_partition(
     from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
     if '.' in table:
         schema, table = table.split('.')
-    hh = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
-    return hh.max_partition(
+    hive_hook = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
+    return hive_hook.max_partition(
         schema=schema, table_name=table, field=field, filter_map=filter_map)
 
 
@@ -68,15 +68,15 @@ def _closest_date(target_dt, date_list, before_target=None):
     :returns: The closest date
     :rtype: datetime.date or None
     """
-    fb = lambda d: target_dt - d if d <= target_dt else datetime.timedelta.max
-    fa = lambda d: d - target_dt if d >= target_dt else datetime.timedelta.max
-    fnone = lambda d: target_dt - d if d < target_dt else d - target_dt
+    time_before = lambda d: target_dt - d if d <= target_dt else datetime.timedelta.max
+    time_after = lambda d: d - target_dt if d >= target_dt else datetime.timedelta.max
+    any_time = lambda d: target_dt - d if d < target_dt else d - target_dt
     if before_target is None:
-        return min(date_list, key=fnone).date()
+        return min(date_list, key=any_time).date()
     if before_target:
-        return min(date_list, key=fb).date()
+        return min(date_list, key=time_before).date()
     else:
-        return min(date_list, key=fa).date()
+        return min(date_list, key=time_after).date()
 
 
 def closest_ds_partition(
@@ -106,8 +106,8 @@ def closest_ds_partition(
     from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
     if '.' in table:
         schema, table = table.split('.')
-    hh = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
-    partitions = hh.get_partitions(schema=schema, table_name=table)
+    hive_hook = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
+    partitions = hive_hook.get_partitions(schema=schema, table_name=table)
     if not partitions:
         return None
     part_vals = [list(p.values())[0] for p in partitions]
