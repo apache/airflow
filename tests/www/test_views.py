@@ -48,6 +48,7 @@ from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.dag import DagModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
@@ -988,8 +989,7 @@ class TestAirflowBaseViews(TestBase):
         dag_id = 'example_bash_operator'
         test_dag_id = "non_existent_dag"
 
-        DM = models.DagModel
-        dag_query = self.session.query(DM).filter(DM.dag_id == dag_id)
+        dag_query = self.session.query(DagModel).filter(DagModel.dag_id == dag_id)
         dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error
         self.session.commit()
 
@@ -1000,7 +1000,7 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('/delete?dag_id={}'.format(test_dag_id), resp)
         self.check_content_in_response("return confirmDeleteDag(this, '{}')".format(test_dag_id), resp)
 
-        self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': dag_id})
+        self.session.query(DagModel).filter(DagModel.dag_id == test_dag_id).update({'dag_id': dag_id})
         self.session.commit()
 
     @parameterized.expand(["graph", "tree"])
@@ -1017,7 +1017,7 @@ class TestAirflowBaseViews(TestBase):
     @mock.patch('airflow.utils.log.log_reader.TaskLogReader.log_handler', new_callable=PropertyMock)
     def test_show_external_log_redirect_link_with_external_log_handler(self, endpoint, mock_log_handler):
         """Show external links if log handler is external."""
-        class ExternalHandler(ExternalLoggingMixin):
+        class ExternalHandler(ExternalLoggingMixin):  # noqa
             LOG_NAME = 'ExternalLog'
 
             @property
@@ -1100,7 +1100,7 @@ class TestLogView(TestBase):
 
         with conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'}):
             self.app = application.create_app(testing=True)
-            self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
+            self.appbuilder = self.app.appbuilder  # noqa pylint: disable=no-member
             self.app.config['WTF_CSRF_ENABLED'] = False
             self.client = self.app.test_client()
             settings.configure_orm()
@@ -1172,7 +1172,7 @@ class TestLogView(TestBase):
                        "task_id={}&execution_date={}&" \
                        "try_number={}&metadata={}&format=file"
         try_number = 1
-        url = url_template.format(self.DAG_ID,
+        url = url_template.format(self.DAG_ID,  # noqa
                                   self.TASK_ID,
                                   quote_plus(self.DEFAULT_DATE.isoformat()),
                                   try_number,
@@ -1200,7 +1200,7 @@ class TestLogView(TestBase):
                            "task_id={}&execution_date={}&" \
                            "try_number={}&metadata={}&format=file"
             try_number = 1
-            url = url_template.format(self.DAG_ID,
+            url = url_template.format(self.DAG_ID,  # noqa
                                       self.TASK_ID,
                                       quote_plus(self.DEFAULT_DATE.isoformat()),
                                       try_number,
@@ -1217,7 +1217,7 @@ class TestLogView(TestBase):
                        "task_id={}&execution_date={}&" \
                        "try_number={}&metadata={}"
         response = \
-            self.client.get(url_template.format(self.DAG_ID,
+            self.client.get(url_template.format(self.DAG_ID,  # noqa
                                                 self.TASK_ID,
                                                 quote_plus(self.DEFAULT_DATE.isoformat()),
                                                 1,
@@ -1226,17 +1226,17 @@ class TestLogView(TestBase):
                                                     password='test'),
                             follow_redirects=True)
 
-        self.assertIn('"message":', response.data.decode('utf-8'))
-        self.assertIn('"metadata":', response.data.decode('utf-8'))
-        self.assertIn('Log for testing.', response.data.decode('utf-8'))
-        self.assertEqual(200, response.status_code)
+        self.assertIn('"message":', response.data.decode('utf-8'))  # noqa
+        self.assertIn('"metadata":', response.data.decode('utf-8'))  # noqa
+        self.assertIn('Log for testing.', response.data.decode('utf-8'))  # noqa
+        self.assertEqual(200, response.status_code)  # noqa
 
     def test_get_logs_with_null_metadata(self):
         url_template = "get_logs_with_metadata?dag_id={}&" \
                        "task_id={}&execution_date={}&" \
                        "try_number={}&metadata=null"
         response = \
-            self.client.get(url_template.format(self.DAG_ID,
+            self.client.get(url_template.format(self.DAG_ID,  # noqa
                                                 self.TASK_ID,
                                                 quote_plus(self.DEFAULT_DATE.isoformat()),
                                                 1), data=dict(
@@ -1255,7 +1255,7 @@ class TestLogView(TestBase):
         url_template = "get_logs_with_metadata?dag_id={}&" \
                        "task_id={}&execution_date={}&" \
                        "try_number={}&metadata={}"
-        url = url_template.format(self.DAG_ID_REMOVED, self.TASK_ID,
+        url = url_template.format(self.DAG_ID_REMOVED, self.TASK_ID,  # noqa
                                   quote_plus(self.DEFAULT_DATE.isoformat()), 1, json.dumps({}))
         response = self.client.get(
             url,
@@ -1276,7 +1276,7 @@ class TestLogView(TestBase):
                        "task_id={}&execution_date={}&" \
                        "try_number={}&metadata={}&format=file"
         try_number = 1
-        url = url_template.format(self.DAG_ID,
+        url = url_template.format(self.DAG_ID,  # noqa
                                   'Non_Existing_ID',
                                   quote_plus(self.DEFAULT_DATE.isoformat()),
                                   try_number,
@@ -1292,7 +1292,7 @@ class TestLogView(TestBase):
                        "task_id={}&execution_date={}&" \
                        "try_number={}&metadata={}&format=json"
         try_number = 1
-        url = url_template.format(self.DAG_ID,
+        url = url_template.format(self.DAG_ID,  # noqa
                                   self.TASK_ID,
                                   quote_plus(self.DEFAULT_DATE.isoformat()),
                                   try_number,
@@ -1311,7 +1311,7 @@ class TestLogView(TestBase):
                        "task_id={}&execution_date={}&" \
                        "try_number={}&metadata={}&format=json"
         try_number = 1
-        url = url_template.format(self.DAG_ID,
+        url = url_template.format(self.DAG_ID,  # noqa
                                   self.TASK_ID,
                                   quote_plus(self.DEFAULT_DATE.isoformat()),
                                   try_number,
@@ -1334,7 +1334,7 @@ class TestLogView(TestBase):
                        "task_id={}&execution_date={}&" \
                        "try_number={}"
         try_number = 1
-        url = url_template.format(self.DAG_ID,
+        url = url_template.format(self.DAG_ID,  # noqa
                                   task_id,
                                   quote_plus(self.DEFAULT_DATE.isoformat()),
                                   try_number)
@@ -1357,7 +1357,7 @@ class TestLogView(TestBase):
                        "task_id={}&execution_date={}&" \
                        "try_number={}"
         try_number = 1
-        url = url_template.format(self.DAG_ID,
+        url = url_template.format(self.DAG_ID,  # noqa
                                   self.TASK_ID,
                                   quote_plus(self.DEFAULT_DATE.isoformat()),
                                   try_number)
@@ -1649,7 +1649,7 @@ class TestDagACLView(TestBase):
     def setUpClass(cls):
         super().setUpClass()
         dagbag = models.DagBag(include_examples=True)
-        DAG.bulk_sync_to_db(dagbag.dags.values())
+        DAG.bulk_sync_to_db(dagbag.dags.values())  # noqa
 
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
@@ -2303,7 +2303,7 @@ class TestTaskInstanceView(TestBase):
     TI_ENDPOINT = '/taskinstance/list/?_flt_0_execution_date={}'
 
     def test_start_date_filter(self):
-        resp = self.client.get(self.TI_ENDPOINT.format(
+        resp = self.client.get(self.TI_ENDPOINT.format(  # noqa
             self.percent_encode('2018-10-09 22:44:31')))
         # We aren't checking the logic of the date filter itself (that is built
         # in to FAB) but simply that our UTC conversion was run - i.e. it
@@ -2315,7 +2315,7 @@ class TestTaskRescheduleView(TestBase):
     TI_ENDPOINT = '/taskreschedule/list/?_flt_0_execution_date={}'
 
     def test_start_date_filter(self):
-        resp = self.client.get(self.TI_ENDPOINT.format(
+        resp = self.client.get(self.TI_ENDPOINT.format(  # noqa
             self.percent_encode('2018-10-09 22:44:31')))
         # We aren't checking the logic of the date filter itself (that is built
         # in to FAB) but simply that our UTC conversion was run - i.e. it
@@ -2416,7 +2416,7 @@ class TestTriggerDag(TestBase):
 
     def setUp(self):
         super().setUp()
-        self.session = Session()
+        self.session = Session()  # noqa
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
 
     def test_trigger_dag_button_normal_exist(self):
@@ -2429,13 +2429,12 @@ class TestTriggerDag(TestBase):
 
         test_dag_id = "example_bash_operator"
 
-        DR = models.DagRun
-        self.session.query(DR).delete()
+        self.session.query(DagRun).delete()
         self.session.commit()
 
         self.client.post('trigger?dag_id={}'.format(test_dag_id))
 
-        run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+        run = self.session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
         self.assertIn(DagRunType.MANUAL.value, run.run_id)
         self.assertEqual(run.run_type, DagRunType.MANUAL.value)
@@ -2446,13 +2445,12 @@ class TestTriggerDag(TestBase):
         test_dag_id = "example_bash_operator"
         conf_dict = {'string': 'Hello, World!'}
 
-        DR = models.DagRun
-        self.session.query(DR).delete()
+        self.session.query(DagRun).delete()
         self.session.commit()
 
         self.client.post('trigger?dag_id={}'.format(test_dag_id), data={'conf': json.dumps(conf_dict)})
 
-        run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+        run = self.session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
         self.assertIn(DagRunType.MANUAL.value, run.run_id)
         self.assertEqual(run.run_type, DagRunType.MANUAL.value)
@@ -2461,14 +2459,13 @@ class TestTriggerDag(TestBase):
     def test_trigger_dag_conf_malformed(self):
         test_dag_id = "example_bash_operator"
 
-        DR = models.DagRun
-        self.session.query(DR).delete()
+        self.session.query(DagRun).delete()
         self.session.commit()
 
         response = self.client.post('trigger?dag_id={}'.format(test_dag_id), data={'conf': '{"a": "b"'})
         self.check_content_in_response('Invalid JSON configuration', response)
 
-        run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+        run = self.session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
         self.assertIsNone(run)
 
     def test_trigger_dag_form(self):
@@ -2533,7 +2530,7 @@ class TestExtraLinks(TestBase):
             def get_link(self, operator, dttm):
                 return 'https://airflow.apache.org'
 
-        class DummyTestOperator(BaseOperator):
+        class DummyTestOperator(BaseOperator):  # noqa
 
             operator_extra_links = (
                 RaiseErrorLink(),

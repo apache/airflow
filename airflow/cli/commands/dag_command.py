@@ -139,7 +139,7 @@ def dag_backfill(args, dag=None):
             pool=args.pool,
             delay_on_limit_secs=args.delay_on_limit,
             verbose=args.verbose,
-            conf=run_conf,
+            conf_dict=run_conf,
             rerun_failed_tasks=args.rerun_failed_tasks,
             run_backwards=args.run_backwards
         )

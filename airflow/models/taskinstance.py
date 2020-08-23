@@ -1773,6 +1773,33 @@ class TaskInstance(Base, LoggingMixin):     # pylint: disable=R0902,R0904
 
         raise TypeError("All elements must have the same type: `TaskInstance` or `TaskInstanceKey`.")
 
+    @staticmethod
+    def filter_task_instance_by_state_or_state_array(state, tis):
+        """Filter task instance by state or state array."""
+        if state:
+            if isinstance(state, str):
+                tis = tis.filter(TaskInstance.state == state)
+            else:
+                tis = TaskInstance.filter_task_instance_by_state_array(state, tis)
+        return tis
+
+    @staticmethod
+    def filter_task_instance_by_state_array(state, tasks_instance_query_result):
+        """Filter Task Instance by array of states - dealing with None values in the array."""
+        if None in state:
+            if all(x is None for x in state):
+                tasks_instance_query_result = \
+                    tasks_instance_query_result.filter(TaskInstance.state.is_(None))  # noqa
+            else:
+                not_none_state = [s for s in state if s]
+                tasks_instance_query_result = tasks_instance_query_result.filter(
+                    or_(TaskInstance.state.in_(not_none_state),
+                        TaskInstance.state.is_(None))  # noqa
+                )
+        else:
+            tasks_instance_query_result = tasks_instance_query_result.filter(TaskInstance.state.in_(state))
+        return tasks_instance_query_result
+
 
 # State of the task instance.
 # Stores string version of the task state.
