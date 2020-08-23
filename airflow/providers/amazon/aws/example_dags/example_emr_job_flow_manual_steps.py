@@ -33,7 +33,6 @@ from airflow.utils.dates import days_ago
 DEFAULT_ARGS = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False
@@ -78,6 +77,7 @@ with DAG(
     dag_id='emr_job_flow_manual_steps_dag',
     default_args=DEFAULT_ARGS,
     dagrun_timeout=timedelta(hours=2),
+    start_date=days_ago(2),
     schedule_interval='0 3 * * *',
     tags=['example'],
 ) as dag:

@@ -45,12 +45,11 @@ DESTINATION_LOCATION_URI = getenv(
     "DESTINATION_LOCATION_URI", "s3://mybucket/prefix")
 # [END howto_operator_datasync_1_args_2]
 
-default_args = {"start_date": days_ago(1)}
 
 with models.DAG(
     "example_datasync_1_1",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
 
@@ -64,7 +63,7 @@ with models.DAG(
 
 with models.DAG(
     "example_datasync_1_2",
-    default_args=default_args,
+    start_date=days_ago(1),
     schedule_interval=None,  # Override to match your needs
 ) as dag:
     # [START howto_operator_datasync_1_2]

@@ -38,7 +38,7 @@ limit-inference-results=100
 
 # List of plugins (as comma separated values of python modules names) to load,
 # usually to register additional checkers.
-load-plugins=tests.airflow_pylint.do_not_use_asserts
+load-plugins=tests.airflow_pylint.do_not_use_asserts,tests.airflow_pylint.disable_checks_for_tests
 
 # Pickle collected data for later comparisons.
 persistent=yes
@@ -276,7 +276,7 @@ ignored-classes=optparse.Values,thread._local,_thread._local,sqlalchemy.orm.scop
 # (useful for modules/projects where namespaces are manipulated during runtime
 # and thus existing member attributes cannot be deduced by static analysis. It
 # supports qualified module names, as well as Unix pattern matching.
-ignored-modules=alembic.op
+ignored-modules=alembic.op,alembic.context
 
 # Show a hint with possible names when a member name was not found. The aspect
 # of finding the hint is based on edit distance.

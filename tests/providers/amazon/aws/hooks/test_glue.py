@@ -73,12 +73,12 @@ class TestGlueJobHook(unittest.TestCase):
             .get_or_create_glue_job()
         self.assertEqual(glue_job, mock_glue_job)
 
-    @mock.patch.object(AwsGlueJobHook, "job_completion")
+    @mock.patch.object(AwsGlueJobHook, "get_job_state")
     @mock.patch.object(AwsGlueJobHook, "get_or_create_glue_job")
     @mock.patch.object(AwsGlueJobHook, "get_conn")
     def test_initialize_job(self, mock_get_conn,
                             mock_get_or_create_glue_job,
-                            mock_completion):
+                            mock_get_job_state):
         some_data_path = "s3://glue-datasets/examples/medicare/SampleData.csv"
         some_script_arguments = {"--s3_input_data_path": some_data_path}
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
@@ -87,14 +87,15 @@ class TestGlueJobHook(unittest.TestCase):
         mock_get_or_create_glue_job.Name = mock.Mock(Name='aws_test_glue_job')
         mock_get_conn.return_value.start_job_run()
 
-        mock_job_run_state = mock_completion.return_value
-        glue_job_run_state = AwsGlueJobHook(job_name='aws_test_glue_job',
-                                            desc='This is test case job from Airflow',
-                                            iam_role_name='my_test_role',
-                                            script_location=some_script,
-                                            s3_bucket=some_s3_bucket,
-                                            region_name=self.some_aws_region)\
-            .initialize_job(some_script_arguments)
+        mock_job_run_state = mock_get_job_state.return_value
+        glue_job_hook = AwsGlueJobHook(job_name='aws_test_glue_job',
+                                       desc='This is test case job from Airflow',
+                                       iam_role_name='my_test_role',
+                                       script_location=some_script,
+                                       s3_bucket=some_s3_bucket,
+                                       region_name=self.some_aws_region)
+        glue_job_run = glue_job_hook.initialize_job(some_script_arguments)
+        glue_job_run_state = glue_job_hook.get_job_state(glue_job_run['JobName'], glue_job_run['JobRunId'])
         self.assertEqual(glue_job_run_state, mock_job_run_state, msg='Mocks but be equal')
 
 

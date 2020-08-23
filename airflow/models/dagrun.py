@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
-from typing import List, Optional, Tuple, Union, cast
+from typing import Any, List, Optional, Tuple, Union
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 from sqlalchemy.orm.session import Session
@@ -28,6 +29,7 @@ from sqlalchemy.orm.session import Session
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -65,14 +67,23 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint('dag_id', 'run_id'),
     )
 
-    def __init__(self, dag_id=None, run_id=None, execution_date=None, start_date=None, external_trigger=None,
-                 conf=None, state=None, run_type=None):
+    def __init__(
+        self,
+        dag_id: Optional[str] = None,
+        run_id: Optional[str] = None,
+        execution_date: Optional[datetime] = None,
+        start_date: Optional[datetime] = None,
+        external_trigger: Optional[bool] = None,
+        conf: Optional[Any] = None,
+        state: Optional[str] = None,
+        run_type: Optional[str] = None
+    ):
         self.dag_id = dag_id
         self.run_id = run_id
         self.execution_date = execution_date
         self.start_date = start_date
         self.external_trigger = external_trigger
-        self.conf = conf
+        self.conf = conf or {}
         self.state = state
         self.run_type = run_type
         super().__init__()
@@ -100,11 +111,12 @@ class DagRun(Base, LoggingMixin):
         return synonym('_state', descriptor=property(self.get_state, self.set_state))
 
     @provide_session
-    def refresh_from_db(self, session=None):
+    def refresh_from_db(self, session: Session = None):
         """
         Reloads the current dagrun from the database
 
         :param session: database session
+        :type session: Session
         """
         DR = DagRun
 
@@ -130,8 +142,9 @@ class DagRun(Base, LoggingMixin):
         no_backfills: Optional[bool] = False,
         run_type: Optional[DagRunType] = None,
         session: Session = None,
-        execution_start_date=None, execution_end_date=None
-    ):
+        execution_start_date: Optional[datetime] = None,
+        execution_end_date: Optional[datetime] = None
+    ) -> List["DagRun"]:
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -191,6 +204,7 @@ class DagRun(Base, LoggingMixin):
 
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
+        """Generate Run ID based on Run Type and Execution Date"""
         return f"{run_type.value}__{execution_date.isoformat()}"
 
     @provide_session
@@ -225,11 +239,14 @@ class DagRun(Base, LoggingMixin):
         return tis.all()
 
     @provide_session
-    def get_task_instance(self, task_id, session=None):
+    def get_task_instance(self, task_id: str, session: Session = None):
         """
         Returns the task instance specified by task_id for this dag run
 
         :param task_id: the task id
+        :type task_id: str
+        :param session: Sqlalchemy ORM Session
+        :type session: Session
         """
         ti = session.query(TI).filter(
             TI.dag_id == self.dag_id,
@@ -246,16 +263,13 @@ class DagRun(Base, LoggingMixin):
         :return: DAG
         """
         if not self.dag:
-            raise AirflowException("The DAG (.dag) for {} needs to be set"
-                                   .format(self))
+            raise AirflowException("The DAG (.dag) for {} needs to be set".format(self))
 
         return self.dag
 
     @provide_session
     def get_previous_dagrun(self, state: Optional[str] = None, session: Session = None) -> Optional['DagRun']:
         """The previous DagRun, if there is one"""
-
-        session = cast(Session, session)  # mypy
 
         filters = [
             DagRun.dag_id == self.dag_id,
@@ -270,7 +284,7 @@ class DagRun(Base, LoggingMixin):
         ).first()
 
     @provide_session
-    def get_previous_scheduled_dagrun(self, session=None):
+    def get_previous_scheduled_dagrun(self, session: Session = None):
         """The previous, SCHEDULED DagRun, if there is one"""
         dag = self.get_dag()
 
@@ -280,19 +294,20 @@ class DagRun(Base, LoggingMixin):
         ).first()
 
     @provide_session
-    def update_state(self, session=None):
+    def update_state(self, session: Session = None) -> List[TI]:
         """
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
 
+        :param session: Sqlalchemy ORM Session
+        :type session: Session
         :return: ready_tis: the tis that can be scheduled in the current loop
         :rtype ready_tis: list[airflow.models.TaskInstance]
         """
 
         dag = self.get_dag()
-        ready_tis = []
-        tis = [ti for ti in self.get_task_instances(session=session,
-                                                    state=State.task_states + (State.SHUTDOWN,))]
+        ready_tis: List[TI] = []
+        tis = list(self.get_task_instances(session=session, state=State.task_states + (State.SHUTDOWN,)))
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
         for ti in tis:
             ti.task = dag.get_task(ti.task_id)
@@ -327,8 +342,7 @@ class DagRun(Base, LoggingMixin):
         ):
             self.log.error('Marking run %s failed', self)
             self.set_state(State.FAILED)
-            dag.handle_callback(self, success=False, reason='task_failure',
-                                session=session)
+            dag.handle_callback(self, success=False, reason='task_failure', session=session)
 
         # if all leafs succeeded and no unfinished tasks, the run succeeded
         elif not unfinished_tasks and all(
@@ -421,18 +435,22 @@ class DagRun(Base, LoggingMixin):
             Stats.timing('dagrun.duration.failed.{}'.format(self.dag_id), duration)
 
     @provide_session
-    def verify_integrity(self, session=None):
+    def verify_integrity(self, session: Session = None):
         """
         Verifies the DagRun by checking for removed tasks or tasks that are not in the
         database yet. It will set state to removed or add the task if required.
+
+        :param session: Sqlalchemy ORM Session
+        :type session: Session
         """
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)
 
         # check for removed or restored tasks
-        task_ids = []
+        task_ids = set()
         for ti in tis:
-            task_ids.append(ti.task_id)
+            task_instance_mutation_hook(ti)
+            task_ids.add(ti.task_id)
             task = None
             try:
                 task = dag.get_task(ti.task_id)
@@ -440,18 +458,19 @@ class DagRun(Base, LoggingMixin):
                 if ti.state == State.REMOVED:
                     pass  # ti has already been removed, just ignore it
                 elif self.state is not State.RUNNING and not dag.partial:
-                    self.log.warning("Failed to get task '{}' for dag '{}'. "
-                                     "Marking it as removed.".format(ti, dag))
+                    self.log.warning("Failed to get task '%s' for dag '%s'. "
+                                     "Marking it as removed.", ti, dag)
                     Stats.incr(
                         "task_removed_from_dag.{}".format(dag.dag_id), 1, 1)
                     ti.state = State.REMOVED
 
             should_restore_task = (task is not None) and ti.state == State.REMOVED
             if should_restore_task:
-                self.log.info("Restoring task '{}' which was previously "
-                              "removed from DAG '{}'".format(ti, dag))
+                self.log.info("Restoring task '%s' which was previously "
+                              "removed from DAG '%s'", ti, dag)
                 Stats.incr("task_restored_to_dag.{}".format(dag.dag_id), 1, 1)
                 ti.state = State.NONE
+            session.merge(ti)
 
         # check for missing tasks
         for task in dag.task_dict.values():
@@ -463,13 +482,25 @@ class DagRun(Base, LoggingMixin):
                     "task_instance_created-{}".format(task.__class__.__name__),
                     1, 1)
                 ti = TI(task, self.execution_date)
+                task_instance_mutation_hook(ti)
                 session.add(ti)
 
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError as err:
+            self.log.info(str(err))
+            self.log.info('Hit IntegrityError while creating the TIs for '
+                          f'{dag.dag_id} - {self.execution_date}.')
+            self.log.info('Doing session rollback.')
+            session.rollback()
 
     @staticmethod
-    def get_run(session, dag_id, execution_date):
+    def get_run(session: Session, dag_id: str, execution_date: datetime):
         """
+        Get a single DAG Run
+
+        :param session: Sqlalchemy ORM Session
+        :type session: Session
         :param dag_id: DAG ID
         :type dag_id: unicode
         :param execution_date: execution date
@@ -491,7 +522,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def get_latest_runs(cls, session):
+    def get_latest_runs(cls, session=None):
         """Returns the latest DagRun for each DAG. """
         subquery = (
             session

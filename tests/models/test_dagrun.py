@@ -19,6 +19,7 @@
 import datetime
 import unittest
 
+import mock
 from parameterized import parameterized
 
 from airflow import models, settings
@@ -563,6 +564,51 @@ class TestDagRun(unittest.TestCase):
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
+
+    def test_already_added_task_instances_can_be_ignored(self):
+        dag = DAG('triggered_dag', start_date=DEFAULT_DATE)
+        dag.add_task(DummyOperator(task_id='first_task', owner='test'))
+
+        dagrun = self.create_dag_run(dag)
+        first_ti = dagrun.get_task_instances()[0]
+        self.assertEqual('first_task', first_ti.task_id)
+        self.assertEqual(State.NONE, first_ti.state)
+
+        # Lets assume that the above TI was added into DB by webserver, but if scheduler
+        # is running the same method at the same time it would find 0 TIs for this dag
+        # and proceeds further to create TIs. Hence mocking DagRun.get_task_instances
+        # method to return an empty list of TIs.
+        with mock.patch.object(DagRun, 'get_task_instances') as mock_gtis:
+            mock_gtis.return_value = []
+            dagrun.verify_integrity()
+            first_ti.refresh_from_db()
+            self.assertEqual(State.NONE, first_ti.state)
+
+    @parameterized.expand([(state,) for state in State.task_states])
+    @mock.patch('airflow.models.dagrun.task_instance_mutation_hook')
+    def test_task_instance_mutation_hook(self, state, mock_hook):
+        def mutate_task_instance(task_instance):
+            if task_instance.queue == 'queue1':
+                task_instance.queue = 'queue2'
+            else:
+                task_instance.queue = 'queue1'
+
+        mock_hook.side_effect = mutate_task_instance
+
+        dag = DAG('test_task_instance_mutation_hook', start_date=DEFAULT_DATE)
+        dag.add_task(DummyOperator(task_id='task_to_mutate', owner='test', queue='queue1'))
+
+        dagrun = self.create_dag_run(dag)
+        task = dagrun.get_task_instances()[0]
+        session = settings.Session()
+        task.state = state
+        session.merge(task)
+        session.commit()
+        assert task.queue == 'queue2'
+
+        dagrun.verify_integrity()
+        task = dagrun.get_task_instances()[0]
+        assert task.queue == 'queue1'
 
     @parameterized.expand([
         (State.SUCCESS, True),

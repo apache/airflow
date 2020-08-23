@@ -64,7 +64,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_create_instance_when_exists(self, mock_get_conn, mock_project_id):
@@ -87,7 +87,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_create_instance_when_not_exists(self, mock_get_conn, mock_project_id):
@@ -128,7 +128,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_delete_instance(self, mock_get_conn, mock_project_id):
@@ -148,7 +148,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_get_instance(self, mock_get_conn, mock_project_id):
@@ -168,7 +168,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_list_instances(self, mock_get_conn, mock_project_id):
@@ -192,7 +192,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_update_instance(self, mock_get_conn, mock_project_id):
@@ -222,7 +222,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         ):
             self.hook = CloudMemorystoreHook(gcp_conn_id="test")
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_create_instance_when_exists(self, mock_get_conn):
@@ -244,7 +244,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         )
         self.assertEqual(Instance(name=TEST_NAME), result)
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_create_instance_when_not_exists(self, mock_get_conn):
@@ -296,7 +296,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_create_instance_without_project_id(self, mock_get_conn, mock_project_id):
@@ -311,7 +311,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
                 metadata=TEST_METADATA,
             )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_delete_instance(self, mock_get_conn):
@@ -332,7 +332,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_delete_instance_without_project_id(self, mock_get_conn, mock_project_id):
@@ -346,7 +346,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
                 metadata=TEST_METADATA,
             )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_get_instance(self, mock_get_conn):
@@ -367,7 +367,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_get_instance_without_project_id(self, mock_get_conn, mock_project_id):
@@ -381,7 +381,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
                 metadata=TEST_METADATA,
             )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_list_instances(self, mock_get_conn):
@@ -406,7 +406,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_list_instances_without_project_id(self, mock_get_conn, mock_project_id):
@@ -420,7 +420,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
                 metadata=TEST_METADATA,
             )
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_update_instance(self, mock_get_conn):
@@ -445,7 +445,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn"
     )
     def test_update_instance_without_project_id(self, mock_get_conn, mock_project_id):

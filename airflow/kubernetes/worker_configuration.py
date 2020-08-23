@@ -18,7 +18,7 @@
 import os
 from typing import Dict, List
 
-import kubernetes.client.models as k8s
+from kubernetes.client import models as k8s
 
 from airflow.configuration import conf
 from airflow.kubernetes.k8s_model import append_to_pod
@@ -126,6 +126,10 @@ class WorkerConfiguration(LoggingMixin):
                 k8s.V1EnvVar(
                     name='GIT_SSH_KEY_FILE',
                     value='/etc/git-secret/ssh'
+                ),
+                k8s.V1EnvVar(
+                    name='GIT_SYNC_ADD_USER',
+                    value='true'
                 ),
                 k8s.V1EnvVar(
                     name='GIT_SYNC_SSH',
@@ -426,6 +430,7 @@ class WorkerConfiguration(LoggingMixin):
             volumes=self._get_volumes(),
             volume_mounts=self._get_volume_mounts(),
             init_containers=self._get_init_containers(),
+            labels=self.kube_config.kube_labels,
             annotations=self.kube_config.kube_annotations,
             affinity=self.kube_config.kube_affinity,
             tolerations=self.kube_config.kube_tolerations,

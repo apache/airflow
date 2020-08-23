@@ -26,13 +26,13 @@ from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteBucketOperator,
     GCSDeleteObjectsOperator, GCSFileTransformOperator, GCSListObjectsOperator,
-    GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
+    GCSObjectCreateAclEntryOperator,
 )
-from airflow.providers.google.cloud.operators.gcs_to_gcs import GCSToGCSOperator
-from airflow.providers.google.cloud.operators.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.dates import days_ago
-
-default_args = {"start_date": days_ago(1)}
+from airflow.utils.state import State
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-id")
 BUCKET_1 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
@@ -55,7 +55,7 @@ PATH_TO_SAVED_FILE = os.environ.get(
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 
 with models.DAG(
-    "example_gcs", default_args=default_args, schedule_interval=None, tags=['example'],
+    "example_gcs", start_date=days_ago(1), schedule_interval=None, tags=['example'],
 ) as dag:
     create_bucket1 = GCSCreateBucketOperator(
         task_id="create_bucket1", bucket_name=BUCKET_1, project_id=PROJECT_ID
@@ -106,12 +106,14 @@ with models.DAG(
     )
     # [END howto_operator_gcs_object_create_acl_entry_task]
 
-    download_file = GCSToLocalOperator(
+    # [START howto_operator_gcs_download_file_task]
+    download_file = GCSToLocalFilesystemOperator(
         task_id="download_file",
         object_name=BUCKET_FILE_LOCATION,
         bucket=BUCKET_1,
         filename=PATH_TO_SAVED_FILE,
     )
+    # [END howto_operator_gcs_download_file_task]
 
     copy_file = GCSToGCSOperator(
         task_id="copy_file",
@@ -152,5 +154,5 @@ with models.DAG(
 
 
 if __name__ == '__main__':
-    dag.clear(reset_dag_runs=True)
+    dag.clear(dag_run_state=State.NONE)
     dag.run()

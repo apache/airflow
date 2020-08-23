@@ -457,7 +457,7 @@ def dag_bag_ext():
     task_a_3 >> task_b_3
 
     for dag in [dag_0, dag_1, dag_2, dag_3]:
-        dag_bag.bag_dag(dag, None, dag)
+        dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     return dag_bag
 
@@ -487,12 +487,12 @@ def assert_ti_state_equal(task_instance, state):
     assert task_instance.state == state
 
 
-def clear_tasks(dag_bag, dag, task):
+def clear_tasks(dag_bag, dag, task, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE):
     """
     Clear the task and its downstream tasks recursively for the dag in the given dagbag.
     """
     subdag = dag.sub_dag(task_regex="^{}$".format(task.task_id), include_downstream=True)
-    subdag.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, dag_bag=dag_bag)
+    subdag.clear(start_date=start_date, end_date=end_date, dag_bag=dag_bag)
 
 
 # pylint: disable=redefined-outer-name
@@ -508,6 +508,30 @@ def test_external_task_marker_transitive(dag_bag_ext):
     ti_b_3 = tis["task_b_3"]
     assert_ti_state_equal(ti_a_0, State.NONE)
     assert_ti_state_equal(ti_b_3, State.NONE)
+
+
+def test_external_task_marker_future(dag_bag_ext):
+    """
+    Test clearing tasks with no end_date. This is the case when users clear tasks with
+    Future, Downstream and Recursive selected.
+    """
+    date_0 = DEFAULT_DATE
+    date_1 = DEFAULT_DATE + timedelta(days=1)
+
+    tis_date_0 = run_tasks(dag_bag_ext, execution_date=date_0)
+    tis_date_1 = run_tasks(dag_bag_ext, execution_date=date_1)
+
+    dag_0 = dag_bag_ext.get_dag("dag_0")
+    task_a_0 = dag_0.get_task("task_a_0")
+    # This should clear all tasks on dag_0 to dag_3 on both date_0 and date_1
+    clear_tasks(dag_bag_ext, dag_0, task_a_0, end_date=None)
+
+    ti_a_0_date_0 = tis_date_0["task_a_0"]
+    ti_b_3_date_0 = tis_date_0["task_b_3"]
+    ti_b_3_date_1 = tis_date_1["task_b_3"]
+    assert_ti_state_equal(ti_a_0_date_0, State.NONE)
+    assert_ti_state_equal(ti_b_3_date_0, State.NONE)
+    assert_ti_state_equal(ti_b_3_date_1, State.NONE)
 
 
 def test_external_task_marker_exception(dag_bag_ext):
@@ -562,7 +586,7 @@ def dag_bag_cyclic():
     task_a_1 >> task_b_1
 
     for dag in [dag_0, dag_1]:
-        dag_bag.bag_dag(dag, None, dag)
+        dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     return dag_bag
 
@@ -587,8 +611,8 @@ def dag_bag_multiple():
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
     daily_dag = DAG("daily_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
     agg_dag = DAG("agg_dag", start_date=DEFAULT_DATE, schedule_interval="@daily")
-    dag_bag.bag_dag(daily_dag, None, daily_dag)
-    dag_bag.bag_dag(agg_dag, None, agg_dag)
+    dag_bag.bag_dag(dag=daily_dag, root_dag=daily_dag)
+    dag_bag.bag_dag(dag=agg_dag, root_dag=agg_dag)
 
     daily_task = DummyOperator(task_id="daily_tas", dag=daily_dag)
 

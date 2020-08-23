@@ -94,6 +94,7 @@ class TestGKEHookDelete(unittest.TestCase):
         "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
     def test_delete_cluster_not_found(self, wait_mock, convert_mock, log_mock, mock_project_id):
         from google.api_core.exceptions import NotFound
+
         # To force an error
         message = 'Not Found'
         self.gke_hook._client.delete_cluster.side_effect = NotFound(message=message)
@@ -207,6 +208,7 @@ class TestGKEHookCreate(unittest.TestCase):
         "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook.wait_for_operation")
     def test_create_cluster_already_exists(self, wait_mock, convert_mock, log_mock, mock_get_credentials):
         from google.api_core.exceptions import AlreadyExists
+
         # To force an error
         message = 'Already Exists'
         self.gke_hook._client.create_cluster.side_effect = AlreadyExists(message=message)

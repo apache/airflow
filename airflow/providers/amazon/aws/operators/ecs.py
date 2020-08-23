@@ -61,6 +61,10 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
     Execute a task on AWS ECS (Elastic Container Service)
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ECSOperator`
+
     :param task_definition: the task definition name on Elastic Container Service
     :type task_definition: str
     :param cluster: the cluster name on Elastic Container Service
@@ -109,7 +113,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     template_fields = ('overrides',)
 
     @apply_defaults
-    def __init__(self, task_definition, cluster, overrides,  # pylint: disable=too-many-arguments
+    def __init__(self, *, task_definition, cluster, overrides,  # pylint: disable=too-many-arguments
                  aws_conn_id=None, region_name=None, launch_type='EC2',
                  group=None, placement_constraints=None, platform_version='LATEST',
                  network_configuration=None, tags=None, awslogs_group=None,

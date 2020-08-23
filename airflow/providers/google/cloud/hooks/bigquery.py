@@ -22,7 +22,6 @@ implementation for BigQuery.
 """
 import logging
 import time
-import uuid
 import warnings
 from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Sequence, Tuple, Type, Union
@@ -50,6 +49,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = logging.getLogger(__name__)
 
+BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
+
 
 # pylint: disable=too-many-public-methods
 class BigQueryHook(GoogleBaseHook, DbApiHook):
@@ -62,6 +63,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def __init__(self,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  use_legacy_sql: bool = True,
                  location: Optional[str] = None,
                  bigquery_conn_id: Optional[str] = None,
@@ -74,7 +76,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
             gcp_conn_id = bigquery_conn_id
         super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self.use_legacy_sql = use_legacy_sql
         self.location = location
         self.running_job_id = None  # type: Optional[str]
@@ -165,7 +170,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         raise NotImplementedError()
 
     def get_pandas_df(
-        self, sql: str, parameters: Optional[Union[Iterable, Mapping]] = None, dialect: Optional[str] = None
+        self, sql: str, parameters: Optional[Union[Iterable, Mapping]] = None, dialect: Optional[str] = None,
+        **kwargs
     ) -> DataFrame:
         """
         Returns a Pandas DataFrame for the results produced by a BigQuery
@@ -183,6 +189,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param dialect: Dialect of BigQuery SQL – legacy SQL or standard SQL
             defaults to use `self.use_legacy_sql` if not specified
         :type dialect: str in {'legacy', 'standard'}
+        :param kwargs: (optional) passed into pandas_gbq.read_gbq method
+        :type kwargs: dict
         """
         if dialect is None:
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
@@ -193,7 +201,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                         project_id=project_id,
                         dialect=dialect,
                         verbose=False,
-                        credentials=credentials)
+                        credentials=credentials,
+                        **kwargs)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:
@@ -212,8 +221,37 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         table_reference = TableReference(DatasetReference(project_id, dataset_id), table_id)
         try:
-            self.get_client().get_table(table_reference)
+            self.get_client(project_id=project_id).get_table(table_reference)
             return True
+        except NotFound:
+            return False
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def table_partition_exists(
+        self,
+        dataset_id: str,
+        table_id: str,
+        partition_id: str,
+        project_id: str
+    ) -> bool:
+        """
+        Checks for the existence of a partition in a table in Google BigQuery.
+
+        :param project_id: The Google cloud project in which to look for the
+            table. The connection supplied to the hook must provide access to
+            the specified project.
+        :type project_id: str
+        :param dataset_id: The name of the dataset in which to look for the
+            table.
+        :type dataset_id: str
+        :param table_id: The name of the table to check the existence of.
+        :type table_id: str
+        :param partition_id: The name of the partition to check the existence of.
+        :type partition_id: str
+        """
+        table_reference = TableReference(DatasetReference(project_id, dataset_id), table_id)
+        try:
+            return partition_id in self.get_client(project_id=project_id).list_partitions(table_reference)
         except NotFound:
             return False
 
@@ -541,7 +579,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             The missing values are treated as nulls. If false, records with missing
             trailing columns are treated as bad records, and if there are too many bad
             records, an invalid error is returned in the job result. Only applicable when
-            soure_format is CSV.
+            source_format is CSV.
         :type allow_jagged_rows: bool
         :param encoding: The character encoding of the data. See:
 
@@ -702,7 +740,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                     encryption_configuration: Optional[Dict] = None) -> None:
         """
         Patch information in an existing table.
-        It only updates fileds that are provided in the request object.
+        It only updates fields that are provided in the request object.
 
         Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
 
@@ -1127,7 +1165,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 'Granting table %s:%s.%s authorized view access to %s:%s dataset.',
                 view_project, view_dataset, view_table, project_id, source_dataset
             )
-            dataset.access_entries = dataset.access_entries + [view_access]
+            dataset.access_entries += [view_access]
             dataset = self.update_dataset(
                 fields=["access"],
                 dataset_resource=dataset.to_api_repr(),
@@ -1385,7 +1423,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         job_complete = False
         while polling_attempts < max_polling_attempts and not job_complete:
-            polling_attempts = polling_attempts + 1
+            polling_attempts += 1
             job_complete = self.poll_job_complete(job_id)
             if job_complete:
                 self.log.info('Job successfully canceled: %s, %s', project_id, job_id)
@@ -1432,7 +1470,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id: Optional[str] = None,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
-    ) -> Union[CopyJob, QueryJob, LoadJob, ExtractJob]:
+    ) -> BigQueryJob:
         """
         Executes a BigQuery job. Waits for the job to complete and returns job id.
         See here:
@@ -1453,8 +1491,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param location: location the job is running
         :type location: str
         """
-        job_id = job_id or str(uuid.uuid4())
         location = location or self.location
+        job_id = job_id or f"airflow_{int(time.time())}"
+
         client = self.get_client(project_id=project_id, location=location)
         job_data = {
             "configuration": configuration,
@@ -1481,6 +1520,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not job:
             raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
         job = job.from_api_repr(job_data, client)
+        # Start the job and wait for it to complete and get the result.
+        job.result()
         return job
 
     def run_with_configuration(self, configuration: Dict) -> str:
@@ -1501,8 +1542,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             DeprecationWarning
         )
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -1582,7 +1621,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             The missing values are treated as nulls. If false, records with missing
             trailing columns are treated as bad records, and if there are too many bad
             records, an invalid error is returned in the job result. Only applicable when
-            soure_format is CSV.
+            source_format is CSV.
         :type allow_jagged_rows: bool
         :param encoding: The character encoding of the data.
 
@@ -1746,8 +1785,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             configuration['load']['allowJaggedRows'] = allow_jagged_rows
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -1843,8 +1880,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ] = encryption_configuration
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -2167,8 +2202,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ] = encryption_configuration
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -2820,8 +2853,7 @@ def _cleanse_time_partitioning(
 
 
 def _validate_value(key: Any, value: Any, expected_type: Type) -> None:
-    """ function to check expected type and raise
-    error if type is not correct """
+    """ Function to check expected type and raise error if type is not correct. """
     if not isinstance(value, expected_type):
         raise TypeError("{} argument must have a type {} not {}".format(
             key, expected_type, type(value)))

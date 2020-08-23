@@ -30,9 +30,9 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     pass
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     pass

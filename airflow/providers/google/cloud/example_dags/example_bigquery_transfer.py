@@ -25,8 +25,8 @@ from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryDeleteDatasetOperator,
 )
-from airflow.providers.google.cloud.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
-from airflow.providers.google.cloud.operators.bigquery_to_gcs import BigQueryToGCSOperator
+from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator
+from airflow.providers.google.cloud.transfers.bigquery_to_gcs import BigQueryToGCSOperator
 from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -37,12 +37,10 @@ DATA_EXPORT_BUCKET_NAME = os.environ.get(
 ORIGIN = "origin"
 TARGET = "target"
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_bigquery_transfer",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
     copy_selected_data = BigQueryToBigQueryOperator(

@@ -4,6 +4,7 @@
     "google",
     "imap",
     "mongo",
+    "mysql",
     "postgres",
     "ssh"
   ],

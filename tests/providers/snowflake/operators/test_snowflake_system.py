@@ -63,7 +63,7 @@ class SnowflakeExampleDagsSystemTest(SystemTest):
             }
             conn = Connection(conn_id='snowflake_conn_id', login=credentials['user'],
                               password=credentials['password'], schema=credentials['schema'],
-                              extra=json.dumps(extra))
+                              conn_type='snowflake', extra=json.dumps(extra))
             db.merge_conn(conn)
 
     def test_dag_example(self):

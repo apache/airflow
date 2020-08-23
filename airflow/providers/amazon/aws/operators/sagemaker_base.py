@@ -41,11 +41,11 @@ class SageMakerBaseOperator(BaseOperator):
     integer_fields = []  # type: Iterable[Iterable[str]]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  config,
                  aws_conn_id='aws_default',
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+                 **kwargs):
+        super().__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
         self.config = config
@@ -81,7 +81,7 @@ class SageMakerBaseOperator(BaseOperator):
         for field in self.integer_fields:
             self.parse_integer(self.config, field)
 
-    def expand_role(self):
+    def expand_role(self):   # noqa: D402
         """Placeholder for calling boto3's expand_role(), which expands an IAM role name into an ARN."""
 
     def preprocess_config(self):

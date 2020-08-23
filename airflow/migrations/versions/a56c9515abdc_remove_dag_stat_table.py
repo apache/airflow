@@ -35,10 +35,12 @@ depends_on = None
 
 
 def upgrade():
+    """Drop dag_stats table"""
     op.drop_table("dag_stats")
 
 
 def downgrade():
+    """Create dag_stats table"""
     op.create_table('dag_stats',
                     sa.Column('dag_id', sa.String(length=250), nullable=False),
                     sa.Column('state', sa.String(length=50), nullable=False),

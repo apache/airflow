@@ -23,12 +23,13 @@ import google.api_core.exceptions
 import mock
 from google.cloud.bigtable.column_family import MaxVersionsGCRule
 from google.cloud.bigtable.instance import Instance
+from google.cloud.bigtable_admin_v2 import enums
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.bigtable import (
     BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
-    BigtableDeleteTableOperator, BigtableUpdateClusterOperator,
+    BigtableDeleteTableOperator, BigtableUpdateClusterOperator, BigtableUpdateInstanceOperator,
 )
 
 PROJECT_ID = 'test_project_id'
@@ -37,6 +38,9 @@ CLUSTER_ID = 'test-cluster-id'
 CLUSTER_ZONE = 'us-central1-f'
 GCP_CONN_ID = 'test-gcp-conn-id'
 NODES = 5
+INSTANCE_DISPLAY_NAME = "test instance"
+INSTANCE_TYPE = enums.Instance.Type.PRODUCTION
+INSTANCE_LABELS = {"env": "sit"}
 TABLE_ID = 'test-table-id'
 INITIAL_SPLIT_KEYS = []  # type: List
 EMPTY_COLUMN_FAMILIES = {}  # type: Dict
@@ -129,6 +133,141 @@ class TestBigtableInstanceCreate(unittest.TestCase):
             project_id=PROJECT_ID,
             replica_cluster_id=None,
             replica_cluster_zone=None,
+            timeout=None
+        )
+
+
+class TestBigtableInstanceUpdate(unittest.TestCase):
+    @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
+    def test_delete_execute(self, mock_hook):
+        op = BigtableUpdateInstanceOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            instance_display_name=INSTANCE_DISPLAY_NAME,
+            instance_type=INSTANCE_TYPE,
+            instance_labels=INSTANCE_LABELS,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
+        )
+        op.execute(None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.update_instance.assert_called_once_with(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            instance_display_name=INSTANCE_DISPLAY_NAME,
+            instance_type=INSTANCE_TYPE,
+            instance_labels=INSTANCE_LABELS,
+            timeout=None
+        )
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
+    def test_update_execute_empty_project_id(self, mock_hook):
+        op = BigtableUpdateInstanceOperator(
+            instance_id=INSTANCE_ID,
+            instance_display_name=INSTANCE_DISPLAY_NAME,
+            instance_type=INSTANCE_TYPE,
+            instance_labels=INSTANCE_LABELS,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
+        )
+        op.execute(None)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.update_instance.assert_called_once_with(
+            project_id=None,
+            instance_id=INSTANCE_ID,
+            instance_display_name=INSTANCE_DISPLAY_NAME,
+            instance_type=INSTANCE_TYPE,
+            instance_labels=INSTANCE_LABELS,
+            timeout=None
+        )
+
+    @parameterized.expand([
+        ('instance_id', PROJECT_ID, ''),
+    ], testcase_func_name=lambda f, n, p: 'test_empty_attribute.empty_' + p.args[0])
+    @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
+    def test_empty_attribute(self, missing_attribute, project_id, instance_id, mock_hook):
+        with self.assertRaises(AirflowException) as e:
+            BigtableUpdateInstanceOperator(
+                project_id=project_id,
+                instance_id=instance_id,
+                instance_display_name=INSTANCE_DISPLAY_NAME,
+                instance_type=INSTANCE_TYPE,
+                instance_labels=INSTANCE_LABELS,
+                task_id="id"
+            )
+        err = e.exception
+        self.assertEqual(str(err), 'Empty parameter: {}'.format(missing_attribute))
+        mock_hook.assert_not_called()
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
+    def test_update_instance_that_doesnt_exists(self, mock_hook):
+        mock_hook.return_value.get_instance.return_value = None
+
+        with self.assertRaises(AirflowException) as e:
+            op = BigtableUpdateInstanceOperator(
+                project_id=PROJECT_ID,
+                instance_id=INSTANCE_ID,
+                instance_display_name=INSTANCE_DISPLAY_NAME,
+                instance_type=INSTANCE_TYPE,
+                instance_labels=INSTANCE_LABELS,
+                task_id="id",
+                gcp_conn_id=GCP_CONN_ID
+            )
+            op.execute(None)
+
+        err = e.exception
+        self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(
+            INSTANCE_ID))
+
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.update_instance.assert_not_called()
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
+    def test_update_instance_that_doesnt_exists_empty_project_id(self, mock_hook):
+        mock_hook.return_value.get_instance.return_value = None
+
+        with self.assertRaises(AirflowException) as e:
+            op = BigtableUpdateInstanceOperator(
+                instance_id=INSTANCE_ID,
+                instance_display_name=INSTANCE_DISPLAY_NAME,
+                instance_type=INSTANCE_TYPE,
+                instance_labels=INSTANCE_LABELS,
+                task_id="id",
+                gcp_conn_id=GCP_CONN_ID
+            )
+            op.execute(None)
+
+        err = e.exception
+        self.assertEqual(str(err), "Dependency: instance '{}' does not exist.".format(
+            INSTANCE_ID))
+
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.update_instance.assert_not_called()
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
+    def test_different_error_reraised(self, mock_hook):
+        op = BigtableUpdateInstanceOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            instance_display_name=INSTANCE_DISPLAY_NAME,
+            instance_type=INSTANCE_TYPE,
+            instance_labels=INSTANCE_LABELS,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID
+        )
+        mock_hook.return_value.update_instance.side_effect = mock.Mock(
+            side_effect=google.api_core.exceptions.GoogleAPICallError('error'))
+
+        with self.assertRaises(google.api_core.exceptions.GoogleAPICallError):
+            op.execute(None)
+
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.return_value.update_instance.assert_called_once_with(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            instance_display_name=INSTANCE_DISPLAY_NAME,
+            instance_type=INSTANCE_TYPE,
+            instance_labels=INSTANCE_LABELS,
             timeout=None
         )
 

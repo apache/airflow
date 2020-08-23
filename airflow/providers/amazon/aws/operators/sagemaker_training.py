@@ -58,15 +58,15 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     ]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  config,
                  wait_for_completion=True,
                  print_log=True,
                  check_interval=30,
                  max_ingestion_time=None,
                  action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
-                 *args, **kwargs):
-        super().__init__(config=config, *args, **kwargs)
+                 **kwargs):
+        super().__init__(config=config, **kwargs)
 
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log

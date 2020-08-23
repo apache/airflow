@@ -24,10 +24,8 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
 
-datetime_start_date = datetime(2017, 6, 1)
 default_args = {
     "owner": "airflow",
-    "start_date": datetime_start_date,
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
     "depends_on_past": False,
@@ -40,6 +38,7 @@ default_args = {
 with DAG(
     "test_jenkins",
     default_args=default_args,
+    start_date=datetime(2017, 6, 1),
     schedule_interval=None
 ) as dag:
     job_trigger = JenkinsJobTriggerOperator(
@@ -62,7 +61,7 @@ with DAG(
         # The JenkinsJobTriggerOperator store the job url in the xcom variable corresponding to the task
         # You can then use it to access things or to get the job number
         # This url looks like : http://jenkins_url/job/job_name/job_number/
-        url = url + "artifact/myartifact.xml"  # Or any other artifact name
+        url += "artifact/myartifact.xml"  # Or any other artifact name
         request = Request(url)
         response = jenkins_server.jenkins_open(request)
         return response  # We store the artifact content in a xcom variable for later use

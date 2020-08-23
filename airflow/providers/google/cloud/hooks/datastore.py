@@ -22,7 +22,7 @@ This module contains Google Datastore hook.
 
 import time
 import warnings
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from googleapiclient.discovery import build
 
@@ -42,8 +42,9 @@ class DatastoreHook(GoogleBaseHook):
 
     def __init__(
         self,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         api_version: str = 'v1',
         datastore_conn_id: Optional[str] = None
     ) -> None:
@@ -52,7 +53,11 @@ class DatastoreHook(GoogleBaseHook):
                 "The datastore_conn_id parameter has been deprecated. You should pass "
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
             gcp_conn_id = datastore_conn_id
-        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self.connection = None
         self.api_version = api_version
 
@@ -95,7 +100,7 @@ class DatastoreHook(GoogleBaseHook):
         return resp['keys']
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def begin_transaction(self, project_id: str) -> str:
+    def begin_transaction(self, project_id: str, transaction_options: Dict[str, Any]) -> str:
         """
         Begins a new transaction.
 
@@ -104,6 +109,8 @@ class DatastoreHook(GoogleBaseHook):
 
         :param project_id: Google Cloud Platform project ID against which to make the request.
         :type project_id: str
+        :param transaction_options: Options for a new transaction.
+        :type transaction_options: Dict[str, Any]
         :return: a transaction handle.
         :rtype: str
         """
@@ -111,7 +118,7 @@ class DatastoreHook(GoogleBaseHook):
 
         resp = (conn  # pylint: disable=no-member
                 .projects()
-                .beginTransaction(projectId=project_id, body={})
+                .beginTransaction(projectId=project_id, body={"transactionOptions": transaction_options})
                 .execute(num_retries=self.num_retries))
 
         return resp['transaction']

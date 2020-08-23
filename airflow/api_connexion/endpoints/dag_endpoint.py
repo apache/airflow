@@ -14,36 +14,76 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from flask import current_app, request
+from marshmallow import ValidationError
+from sqlalchemy import func
 
-# TODO(mik-laj): We have to implement it.
-#     Do you want to help? Please look at:
-#     * https://github.com/apache/airflow/issues/8128
-#     * https://github.com/apache/airflow/issues/8138
+from airflow import DAG
+from airflow.api_connexion import security
+from airflow.api_connexion.exceptions import BadRequest, NotFound
+from airflow.api_connexion.parameters import check_limit, format_parameters
+from airflow.api_connexion.schemas.dag_schema import (
+    DAGCollection, dag_detail_schema, dag_schema, dags_collection_schema,
+)
+from airflow.models.dag import DagModel
+from airflow.utils.session import provide_session
 
 
-def get_dag():
+@security.requires_authentication
+@provide_session
+def get_dag(dag_id, session):
     """
     Get basic information about a DAG.
     """
-    raise NotImplementedError("Not implemented yet.")
+    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
+
+    if dag is None:
+        raise NotFound("DAG not found")
+
+    return dag_schema.dump(dag)
 
 
-def get_dag_details():
+@security.requires_authentication
+def get_dag_details(dag_id):
     """
     Get details of DAG.
     """
-    raise NotImplementedError("Not implemented yet.")
+    dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    if not dag:
+        raise NotFound("DAG not found")
+    return dag_detail_schema.dump(dag)
 
 
-def get_dags():
+@security.requires_authentication
+@format_parameters({
+    'limit': check_limit
+})
+@provide_session
+def get_dags(session, limit, offset=0):
     """
     Get all DAGs.
     """
-    raise NotImplementedError("Not implemented yet.")
+    dags = session.query(DagModel).order_by(DagModel.dag_id).offset(offset).limit(limit).all()
+
+    total_entries = session.query(func.count(DagModel.dag_id)).scalar()
+
+    return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
-def patch_dag():
+@security.requires_authentication
+@provide_session
+def patch_dag(session, dag_id):
     """
     Update the specific DAG
     """
-    raise NotImplementedError("Not implemented yet.")
+    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
+    if not dag:
+        raise NotFound(f"Dag with id: '{dag_id}' not found")
+    try:
+        patch_body = dag_schema.load(request.json, session=session)
+    except ValidationError as err:
+        raise BadRequest("Invalid Dag schema", detail=str(err.messages))
+    for key, value in patch_body.items():
+        setattr(dag, key, value)
+    session.commit()
+    return dag_schema.dump(dag)

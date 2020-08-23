@@ -272,7 +272,7 @@ class TestCore(unittest.TestCase):
             def __len__(self):  # pylint: disable=invalid-length-returned
                 return NotImplemented
 
-            def __bool__(self):
+            def __bool__(self):  # pylint: disable=invalid-bool-returned, bad-option-value
                 return NotImplemented
 
         op = OperatorSubclass(

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest import TestCase, mock
 
 import pendulum
@@ -85,7 +85,7 @@ class TestTsFunction(TestCase):
             'execution_date': datetime(2019, 2, 14, 0, 0)
         }
         result = ts_function(context)
-        self.assertEqual(datetime(2019, 2, 19, 0, 0), result)
+        self.assertEqual(datetime(2019, 2, 19, 0, 0, tzinfo=timezone.utc), result)
 
     def test_should_support_cron(self):
         dag = DAG(
@@ -212,10 +212,21 @@ class TestGCSUploadSessionCompleteSensor(TestCase):
             poke_interval=10,
             min_objects=1,
             allow_delete=False,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
             dag=self.dag
         )
 
         self.last_mocked_date = datetime(2019, 4, 24, 0, 0, 0)
+
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
+    def test_get_gcs_hook(self, mock_hook):
+        self.sensor._get_gcs_hook()
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            delegate_to=TEST_DELEGATE_TO,
+        )
+        self.assertEqual(mock_hook.return_value, self.sensor.hook)
 
     @mock.patch('airflow.providers.google.cloud.sensors.gcs.get_time', mock_time)
     def test_files_deleted_between_pokes_throw_error(self):

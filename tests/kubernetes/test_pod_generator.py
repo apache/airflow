@@ -14,13 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import sys
 import unittest
-import unittest.mock as mock
 import uuid
+from unittest import mock
 
-import kubernetes.client.models as k8s
-from kubernetes.client import ApiClient
+from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.k8s_model import append_to_pod
@@ -330,6 +329,7 @@ class TestPodGenerator(unittest.TestCase):
                 'hostPath': {'path': '/tmp/'},
                 'name': 'example-kubernetes-test-volume1'
             }],
+            labels={"foo": "bar"},
             volume_mounts=[{
                 'mountPath': '/foo/',
                 'name': 'example-kubernetes-test-volume1'
@@ -340,6 +340,7 @@ class TestPodGenerator(unittest.TestCase):
             envs={'key2': 'val2'},
             image='',
             name='name2',
+            labels={"bar": "baz"},
             cmds=['/bin/command2.sh', 'arg2'],
             volumes=[{
                 'hostPath': {'path': '/tmp/'},
@@ -356,7 +357,8 @@ class TestPodGenerator(unittest.TestCase):
         self.assertEqual({
             'apiVersion': 'v1',
             'kind': 'Pod',
-            'metadata': {'name': 'name2-' + self.static_uuid.hex},
+            'metadata': {'name': 'name2-' + self.static_uuid.hex,
+                         'labels': {'foo': 'bar', "bar": "baz"}},
             'spec': {
                 'containers': [{
                     'args': [],
@@ -729,7 +731,8 @@ class TestPodGenerator(unittest.TestCase):
         self.assertEqual(client_spec, res)
 
     def test_deserialize_model_file(self):
-        fixture = 'tests/kubernetes/pod.yaml'
+
+        fixture = sys.path[0] + '/tests/kubernetes/pod.yaml'
         result = PodGenerator.deserialize_model_file(fixture)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         self.assertEqual(sanitized_res, self.deserialize_result)

@@ -66,7 +66,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         transfer_config: dict,
         project_id: Optional[str] = None,
         authorization_code: Optional[str] = None,
@@ -74,10 +74,9 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.transfer_config = transfer_config
         self.authorization_code = authorization_code
         self.project_id = project_id
@@ -133,17 +132,16 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         transfer_config_id: str,
         project_id: Optional[str] = None,
         retry: Retry = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.transfer_config_id = transfer_config_id
         self.retry = retry
@@ -210,7 +208,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         transfer_config_id: str,
         project_id: Optional[str] = None,
         requested_time_range: Optional[dict] = None,
@@ -219,10 +217,9 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id="google_cloud_default",
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.transfer_config_id = transfer_config_id
         self.requested_time_range = requested_time_range

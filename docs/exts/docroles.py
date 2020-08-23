@@ -75,8 +75,7 @@ def template_field_role(app,
 
     Sample usage::
 
-    :template-fields:
-        `airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentimentOperator`
+    :template-fields:`airflow.operators.bash.BashOperator`
 
     For further information look at:
 

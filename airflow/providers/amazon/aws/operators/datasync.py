@@ -88,7 +88,7 @@ class AWSDataSyncOperator(BaseOperator):
     :raises AirflowException: If ``task_arn`` was not specified, or if
         either ``source_location_uri`` or ``destination_location_uri`` were
         not specified.
-    :raises AirflowException: If source or destination Location weren't found
+    :raises AirflowException: If source or destination Location were not found
         and could not be created.
     :raises AirflowException: If ``choose_task`` or ``choose_location`` fails.
     :raises AirflowException: If Task creation, update, execution or delete fails.
@@ -107,7 +107,7 @@ class AWSDataSyncOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         aws_conn_id="aws_default",
         wait_interval_seconds=5,
         task_arn=None,
@@ -121,10 +121,9 @@ class AWSDataSyncOperator(BaseOperator):
         update_task_kwargs=None,
         task_execution_kwargs=None,
         delete_task_after_execution=False,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
         # Assignments
         self.aws_conn_id = aws_conn_id
@@ -137,16 +136,16 @@ class AWSDataSyncOperator(BaseOperator):
         self.allow_random_task_choice = allow_random_task_choice
         self.allow_random_location_choice = allow_random_location_choice
 
-        self.create_task_kwargs = create_task_kwargs if create_task_kwargs else dict()
-        self.create_source_location_kwargs = dict()
+        self.create_task_kwargs = create_task_kwargs if create_task_kwargs else {}
+        self.create_source_location_kwargs = {}
         if create_source_location_kwargs:
             self.create_source_location_kwargs = create_source_location_kwargs
-        self.create_destination_location_kwargs = dict()
+        self.create_destination_location_kwargs = {}
         if create_destination_location_kwargs:
             self.create_destination_location_kwargs = create_destination_location_kwargs
 
-        self.update_task_kwargs = update_task_kwargs if update_task_kwargs else dict()
-        self.task_execution_kwargs = task_execution_kwargs if task_execution_kwargs else dict()
+        self.update_task_kwargs = update_task_kwargs if update_task_kwargs else {}
+        self.task_execution_kwargs = task_execution_kwargs if task_execution_kwargs else {}
         self.delete_task_after_execution = delete_task_after_execution
 
         # Validations

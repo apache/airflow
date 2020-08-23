@@ -49,10 +49,6 @@ from airflow.utils.dates import days_ago
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
 
-default_args = {
-    'start_date': days_ago(1)
-}
-
 # [START howto_operator_compute_template_copy_args]
 GCE_TEMPLATE_NAME = os.environ.get('GCE_TEMPLATE_NAME', 'instance-template-test')
 GCE_NEW_TEMPLATE_NAME = os.environ.get('GCE_NEW_TEMPLATE_NAME',
@@ -95,8 +91,8 @@ UPDATE_POLICY = {
 
 with models.DAG(
     'example_gcp_compute_igm',
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     # [START howto_operator_gce_igm_copy_template]

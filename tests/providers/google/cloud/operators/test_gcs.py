@@ -23,7 +23,7 @@ import mock
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteBucketOperator,
     GCSDeleteObjectsOperator, GCSFileTransformOperator, GCSListObjectsOperator,
-    GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
+    GCSObjectCreateAclEntryOperator, GCSSynchronizeBucketsOperator,
 )
 
 TASK_ID = "test-gcs-operator"
@@ -145,22 +145,6 @@ class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
         )
 
 
-class TestGoogleCloudStorageDownloadOperator(unittest.TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
-    def test_execute(self, mock_hook):
-        operator = GCSToLocalOperator(
-            task_id=TASK_ID,
-            bucket=TEST_BUCKET,
-            object_name=TEST_OBJECT,
-            filename=LOCAL_FILE_PATH,
-        )
-
-        operator.execute(None)
-        mock_hook.return_value.download.assert_called_once_with(
-            bucket_name=TEST_BUCKET, object_name=TEST_OBJECT, filename=LOCAL_FILE_PATH
-        )
-
-
 class TestGoogleCloudStorageListOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook):
@@ -241,3 +225,35 @@ class TestGCSDeleteBucketOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.delete_bucket.assert_called_once_with(bucket_name=TEST_BUCKET, force=True)
+
+
+class TestGoogleCloudStorageSync(unittest.TestCase):
+
+    @mock.patch('airflow.providers.google.cloud.operators.gcs.GCSHook')
+    def test_execute(self, mock_hook):
+        task = GCSSynchronizeBucketsOperator(
+            task_id="task-id",
+            source_bucket="SOURCE_BUCKET",
+            destination_bucket="DESTINATION_BUCKET",
+            source_object="SOURCE_OBJECT",
+            destination_object="DESTINATION_OBJECT",
+            recursive=True,
+            delete_extra_files=True,
+            allow_overwrite=True,
+            gcp_conn_id="GCP_CONN_ID",
+            delegate_to="DELEGATE_TO",
+        )
+        task.execute({})
+        mock_hook.assert_called_once_with(
+            google_cloud_storage_conn_id='GCP_CONN_ID',
+            delegate_to='DELEGATE_TO'
+        )
+        mock_hook.return_value.sync.assert_called_once_with(
+            source_bucket='SOURCE_BUCKET',
+            source_object='SOURCE_OBJECT',
+            destination_bucket='DESTINATION_BUCKET',
+            destination_object='DESTINATION_OBJECT',
+            delete_extra_files=True,
+            recursive=True,
+            allow_overwrite=True,
+        )

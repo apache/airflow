@@ -25,7 +25,9 @@ from typing import Any, Dict, Iterable
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSensorTimeout, AirflowSkipException,
 )
-from airflow.models import BaseOperator, SkipMixin, TaskReschedule
+from airflow.models import BaseOperator
+from airflow.models.skipmixin import SkipMixin
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
@@ -66,15 +68,14 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  poke_interval: float = 60,
                  timeout: float = 60 * 60 * 24 * 7,
                  soft_fail: bool = False,
                  mode: str = 'poke',
                  exponential_backoff: bool = False,
-                 *args,
                  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.timeout = timeout
@@ -120,7 +121,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 # give it a chance and fail with timeout.
                 # This gives the ability to set up non-blocking AND soft-fail sensors.
                 if self.soft_fail and not context['ti'].is_eligible_to_retry():
-                    self._do_skip_downstream_tasks(context)
                     raise AirflowSkipException(
                         f"Snap. Time is OUT. DAG id: {log_dag_id}")
                 else:
@@ -134,12 +134,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 sleep(self._get_next_poke_interval(started_at, try_number))
                 try_number += 1
         self.log.info("Success criteria met. Exiting.")
-
-    def _do_skip_downstream_tasks(self, context: Dict) -> None:
-        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream task_ids %s", downstream_tasks)
-        if downstream_tasks:
-            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
 
     def _get_next_poke_interval(self, started_at, try_number):
         """
@@ -199,8 +193,7 @@ def poke_mode_only(cls):
 
         def mode_setter(_, value):
             if value != 'poke':
-                raise ValueError(
-                    f"cannot set mode to 'poke'.")
+                raise ValueError("cannot set mode to 'poke'.")
 
         if not issubclass(cls_type, BaseSensorOperator):
             raise ValueError(f"poke_mode_only decorator should only be "

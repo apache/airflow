@@ -75,7 +75,7 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         product_set: Union[dict, ProductSet],
         location: str,
         project_id: Optional[str] = None,
@@ -84,10 +84,9 @@ class CloudVisionCreateProductSetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.project_id = project_id
         self.product_set = product_set
@@ -151,7 +150,7 @@ class CloudVisionGetProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         product_set_id: str,
         project_id: Optional[str] = None,
@@ -159,10 +158,9 @@ class CloudVisionGetProductSetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.project_id = project_id
         self.product_set_id = product_set_id
@@ -236,7 +234,7 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         product_set: Union[Dict, ProductSet],
         location: Optional[str] = None,
         product_set_id: Optional[str] = None,
@@ -246,10 +244,9 @@ class CloudVisionUpdateProductSetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.product_set = product_set
         self.update_mask = update_mask
         self.location = location
@@ -310,7 +307,7 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         product_set_id: str,
         project_id: Optional[str] = None,
@@ -318,10 +315,9 @@ class CloudVisionDeleteProductSetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.project_id = project_id
         self.product_set_id = product_set_id
@@ -388,7 +384,7 @@ class CloudVisionCreateProductOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         product: str,
         project_id: Optional[str] = None,
@@ -397,10 +393,9 @@ class CloudVisionCreateProductOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.product = product
         self.project_id = project_id
@@ -467,7 +462,7 @@ class CloudVisionGetProductOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         product_id: str,
         project_id: Optional[str] = None,
@@ -475,10 +470,9 @@ class CloudVisionGetProductOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.product_id = product_id
         self.project_id = project_id
@@ -563,7 +557,7 @@ class CloudVisionUpdateProductOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         product: Union[Dict, Product],
         location: Optional[str] = None,
         product_id: Optional[str] = None,
@@ -573,10 +567,9 @@ class CloudVisionUpdateProductOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.product = product
         self.location = location
         self.product_id = product_id
@@ -642,7 +635,7 @@ class CloudVisionDeleteProductOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         product_id: str,
         project_id: Optional[str] = None,
@@ -650,10 +643,9 @@ class CloudVisionDeleteProductOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.product_id = product_id
         self.project_id = project_id
@@ -703,15 +695,14 @@ class CloudVisionImageAnnotateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         request: Union[Dict, AnnotateImageRequest],
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.request = request
         self.retry = retry
         self.timeout = timeout
@@ -783,20 +774,19 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         reference_image: Union[Dict, ReferenceImage],
         product_id: str,
         reference_image_id: Optional[str] = None,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
-        timeout: Optional[str] = None,
+        timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.product_id = product_id
         self.reference_image = reference_image
@@ -826,6 +816,85 @@ class CloudVisionCreateReferenceImageOperator(BaseOperator):
                 self.product_id,
             )
             return self.reference_image_id
+
+
+class CloudVisionDeleteReferenceImageOperator(BaseOperator):
+    """
+    Deletes a ReferenceImage ID resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionDeleteReferenceImageOperator`
+
+    :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
+        us-east1, us-west1, europe-west1, asia-east1
+    :type location: str
+    :param reference_image_id: (Optional) A user-supplied resource id for the ReferenceImage to be added.
+        If set, the server will attempt to use this value as the resource id. If it is already in use, an
+        error is returned with code ALREADY_EXISTS. Must be at most 128 characters long. It cannot contain
+        the character `/`.
+    :type reference_image_id: str
+    :param product_id: (Optional) The resource id of this Product.
+    :type product_id: str
+    :param project_id: (Optional) The project in which the Product is located. If set to None or
+        missing, the default project_id from the GCP connection is used.
+    :type project_id: str
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: (Optional) The amount of time, in seconds, to wait for the request to
+        complete. Note that if retry is specified, the timeout applies to each individual
+        attempt.
+    :type timeout: float
+    :param metadata: (Optional) Additional metadata that is provided to the method.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+    # [START vision_reference_image_create_template_fields]
+    template_fields = (
+        "location",
+        "product_id",
+        "reference_image_id",
+        "project_id",
+        "gcp_conn_id",
+    )
+    # [END vision_reference_image_create_template_fields]
+
+    @apply_defaults
+    def __init__(
+        self, *,
+        location: str,
+        product_id: str,
+        reference_image_id: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[MetaData] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+        self.location = location
+        self.product_id = product_id
+        self.reference_image_id = reference_image_id
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        hook.delete_reference_image(
+            location=self.location,
+            product_id=self.product_id,
+            reference_image_id=self.reference_image_id,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
 
 
 class CloudVisionAddProductToProductSetOperator(BaseOperator):
@@ -870,7 +939,7 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         product_set_id: str,
         product_id: str,
         location: str,
@@ -879,10 +948,9 @@ class CloudVisionAddProductToProductSetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.product_set_id = product_set_id
         self.product_id = product_id
         self.location = location
@@ -941,7 +1009,7 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         product_set_id: str,
         product_id: str,
         location: str,
@@ -950,10 +1018,9 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.product_set_id = product_set_id
         self.product_id = product_id
         self.location = location
@@ -1018,10 +1085,9 @@ class CloudVisionDetectTextOperator(BaseOperator):
         web_detection_params: Optional[Dict] = None,
         additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.image = image
         self.max_results = max_results
         self.retry = retry
@@ -1087,10 +1153,9 @@ class CloudVisionTextDetectOperator(BaseOperator):
         web_detection_params: Optional[Dict] = None,
         additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.image = image
         self.max_results = max_results
         self.retry = retry
@@ -1147,10 +1212,9 @@ class CloudVisionDetectImageLabelsOperator(BaseOperator):
         timeout: Optional[float] = None,
         additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.image = image
         self.max_results = max_results
         self.retry = retry
@@ -1203,10 +1267,9 @@ class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
         timeout: Optional[float] = None,
         additional_properties: Optional[Dict] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.image = image
         self.max_results = max_results
         self.retry = retry

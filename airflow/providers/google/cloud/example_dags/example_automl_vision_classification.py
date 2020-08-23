@@ -53,15 +53,14 @@ DATASET = {
 
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_VISION_BUCKET]}}
 
-default_args = {"start_date": days_ago(1)}
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 
 # Example DAG for AutoML Vision Classification
 with models.DAG(
     "example_automl_vision",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     user_defined_macros={"extract_object_id": extract_object_id},
     tags=['example'],
 ) as example_dag:

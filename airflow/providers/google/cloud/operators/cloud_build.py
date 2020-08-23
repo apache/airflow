@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Operators that integrates with Google Cloud Build service."""
 
+"""Operators that integrate with Google Cloud Build service."""
 
 import json
 import re
@@ -75,10 +75,9 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.id_ = id_
         self.project_id = project_id
         self.retry = retry
@@ -142,10 +141,9 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.build = build
         # Not template fields to keep original value
         self.build_raw = build
@@ -223,10 +221,9 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.trigger = trigger
         self.project_id = project_id
         self.retry = retry
@@ -278,10 +275,9 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.trigger_id = trigger_id
         self.project_id = project_id
         self.retry = retry
@@ -334,10 +330,9 @@ class CloudBuildGetBuildOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.id_ = id_
         self.project_id = project_id
         self.retry = retry
@@ -391,10 +386,9 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.trigger_id = trigger_id
         self.project_id = project_id
         self.retry = retry
@@ -451,10 +445,9 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.page_size = page_size
         self.page_token = page_token
@@ -513,10 +506,9 @@ class CloudBuildListBuildsOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.page_size = page_size
         self.filter_ = filter_
@@ -576,10 +568,9 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.id_ = id_
         self.project_id = project_id
         self.wait = wait
@@ -642,10 +633,9 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.trigger_id = trigger_id
         self.source = source
         self.project_id = project_id
@@ -707,10 +697,9 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.trigger_id = trigger_id
         self.trigger = trigger
         self.project_id = project_id

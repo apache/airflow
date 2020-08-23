@@ -36,12 +36,10 @@ CLUSTER_NAME = os.environ.get("GCP_GKE_CLUSTER_NAME", "cluster-name")
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 # [END howto_operator_gcp_gke_create_cluster_definition]
 
-default_args = {"start_date": days_ago(1)}
-
 with models.DAG(
     "example_gcp_gke",
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     # [START howto_operator_gke_create_cluster]

@@ -28,7 +28,7 @@ from contextlib import contextmanager
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Optional, Set, Tuple, TypeVar, Union
+from typing import Callable, Optional, Sequence, Set, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -39,13 +39,14 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
 def _fallback_object_url_to_object_name_and_bucket_name(
     object_url_keyword_arg_name='object_url',
     bucket_name_keyword_arg_name='bucket_name',
     object_name_keyword_arg_name='object_name',
-):
+) -> Callable[[T], T]:
     """
     Decorator factory that convert object URL parameter to object name and bucket name parameter.
 
@@ -57,7 +58,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
     :type object_name_keyword_arg_name: str
     :return: Decorator
     """
-    def _wrapper(func):
+    def _wrapper(func: T):
 
         @functools.wraps(func)
         def _inner_wrapper(self: "GCSHook", * args, **kwargs) -> RT:
@@ -99,7 +100,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
                 )
 
             return func(self, *args, **kwargs)
-        return _inner_wrapper
+        return cast(T, _inner_wrapper)
     return _wrapper
 
 
@@ -113,9 +114,10 @@ class GCSHook(GoogleBaseHook):
 
     def __init__(
         self,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            google_cloud_storage_conn_id: Optional[str] = None
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_cloud_storage_conn_id: Optional[str] = None
     ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
@@ -124,7 +126,11 @@ class GCSHook(GoogleBaseHook):
                 "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
                 "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
             gcp_conn_id = google_cloud_storage_conn_id
-        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
 
     def get_conn(self):
         """
@@ -273,7 +279,7 @@ class GCSHook(GoogleBaseHook):
         self,
         bucket_name: Optional[str] = None,
         object_name: Optional[str] = None,
-        object_url: Optional[str] = None
+        object_url: Optional[str] = None    # pylint: disable=unused-argument
     ):
         """
         Downloads the file to a temporary directory and returns a file handle
@@ -475,8 +481,9 @@ class GCSHook(GoogleBaseHook):
         """
         blob_update_time = self.get_blob_update_time(bucket_name, object_name)
         if blob_update_time is not None:
-            from airflow.utils import timezone
             from datetime import timedelta
+
+            from airflow.utils import timezone
             current_time = timezone.utcnow()
             given_time = current_time - timedelta(seconds=seconds)
             self.log.info("Verify object date: %s is older than %s", blob_update_time, given_time)

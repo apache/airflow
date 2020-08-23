@@ -48,7 +48,7 @@ class LatestOnlyOperator(BaseBranchOperator):
                 "Externally triggered DAG_Run: allowing execution to proceed.")
             return list(context['task'].get_direct_relative_ids(upstream=False))
 
-        now = pendulum.utcnow()
+        now = pendulum.now('UTC')
         left_window = context['dag'].following_schedule(
             context['execution_date'])
         right_window = context['dag'].following_schedule(left_window)

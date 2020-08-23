@@ -146,7 +146,7 @@ HADOOP_JOB = {
 
 with models.DAG(
     "example_gcp_dataproc",
-    default_args={"start_date": days_ago(1)},
+    start_date=days_ago(1),
     schedule_interval=None,
 ) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator]

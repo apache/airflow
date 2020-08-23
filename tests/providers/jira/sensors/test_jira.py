@@ -64,6 +64,7 @@ class TestJiraSensor(unittest.TestCase):
         jira_mock.return_value.issue.return_value = minimal_test_ticket
 
         ticket_label_sensor = JiraTicketSensor(
+            method_name='issue',
             task_id='search-ticket-test',
             ticket_id='TEST-1226',
             field_checker_func=TestJiraSensor.field_checker_func,

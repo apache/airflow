@@ -42,19 +42,25 @@ def get_object_id(obj: dict) -> str:
 
 class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     """
-     Hook for Google Bigquery Transfer API.
+    Hook for Google Bigquery Transfer API.
 
-     All the methods in the hook where ``project_id`` is used must be called with
-     keyword arguments rather than positional.
-
-     """
+    All the methods in the hook where ``project_id`` is used must be called with
+    keyword arguments rather than positional.
+    """
 
     _conn = None  # type: Optional[Resource]
 
     def __init__(
-        self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
 
     @staticmethod
     def _disable_auto_scheduling(config: Union[dict, TransferConfig]) -> TransferConfig:

@@ -18,6 +18,7 @@
 """
 This module contains Google Search Ads operators.
 """
+import json
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Optional
 
@@ -56,19 +57,24 @@ class GoogleSearchAdsInsertReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         report: Dict[str, Any],
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.report = report
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+
+    def prepare_template(self) -> None:
+        # If .json is passed then we have to read the file
+        if isinstance(self.report, str) and self.report.endswith('.json'):
+            with open(self.report, 'r') as file:
+                self.report = json.load(file)
 
     def execute(self, context: Dict):
         hook = GoogleSearchAdsHook(
@@ -118,7 +124,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         report_id: str,
         bucket_name: str,
         report_name: Optional[str] = None,
@@ -127,10 +133,9 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.report_id = report_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id

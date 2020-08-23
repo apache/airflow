@@ -33,6 +33,7 @@ class TestGoogleDiscoveryApiHook(unittest.TestCase):
         db.merge_conn(
             models.Connection(
                 conn_id='google_test',
+                conn_type='google_cloud_platform',
                 host='google',
                 schema='refresh_token',
                 login='client_id',

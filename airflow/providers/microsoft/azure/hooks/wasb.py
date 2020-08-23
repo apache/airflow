@@ -88,6 +88,23 @@ class WasbHook(BaseHook):
                                              num_results=1, **kwargs)
         return len(list(matches)) > 0
 
+    def get_blobs_list(self, container_name: str, prefix: str, **kwargs):
+        """
+        Return a list of blobs from path defined in prefix param
+
+        :param container_name: Name of the container.
+        :type container_name: str
+        :param prefix: Prefix of the blob.
+        :type prefix: str
+        :param kwargs: Optional keyword arguments that
+            `BlockBlobService.list_blobs()` takes (num_results, include,
+            delimiter, marker, timeout)
+        :type kwargs: object
+        :return: List of blobs.
+        :rtype: list(azure.storage.common.models.ListGenerator)
+        """
+        return self.connection.list_blobs(container_name, prefix, **kwargs)
+
     def load_file(self, file_path, container_name, blob_name, **kwargs):
         """
         Upload a file to Azure Blob Storage.

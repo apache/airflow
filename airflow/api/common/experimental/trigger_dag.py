@@ -120,7 +120,7 @@ def trigger_dag(
         return conf.getboolean('core', 'store_serialized_dags')
     dagbag = DagBag(
         dag_folder=dag_model.fileloc,
-        store_serialized_dags=read_store_serialized_dags()
+        read_dags_from_db=read_store_serialized_dags()
     )
     dag_run = DagRun()
     triggers = _trigger_dag(

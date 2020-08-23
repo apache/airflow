@@ -92,13 +92,13 @@ aws_to_gcs_transfer_body = {
 
 
 # [START howto_operator_gcp_transfer_default_args]
-default_args = {'start_date': days_ago(1)}
+default_args = {'owner': 'airflow'}
 # [END howto_operator_gcp_transfer_default_args]
 
 with models.DAG(
     'example_gcp_transfer_aws',
-    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
 

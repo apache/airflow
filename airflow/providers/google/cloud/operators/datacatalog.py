@@ -82,7 +82,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry_id: str,
@@ -92,10 +92,9 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.entry_group = entry_group
         self.entry_id = entry_id
@@ -186,7 +185,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group_id: str,
         entry_group: Union[Dict, EntryGroup],
@@ -195,10 +194,9 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.entry_group_id = entry_group_id
         self.entry_group = entry_group
@@ -290,7 +288,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry: str,
@@ -301,10 +299,9 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.entry_group = entry_group
         self.entry = entry
@@ -407,7 +404,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template_id: str,
         tag_template: Union[Dict, TagTemplate],
@@ -416,10 +413,9 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.tag_template_id = tag_template_id
         self.tag_template = tag_template
@@ -511,7 +507,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template: str,
         tag_template_field_id: str,
@@ -521,10 +517,9 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.tag_template = tag_template
         self.tag_template_field_id = tag_template_field_id
@@ -608,7 +603,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry: str,
@@ -617,10 +612,9 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.entry_group = entry_group
         self.entry = entry
@@ -680,7 +674,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         project_id: Optional[str] = None,
@@ -688,10 +682,9 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.entry_group = entry_group
         self.project_id = project_id
@@ -761,7 +754,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry: str,
@@ -771,10 +764,9 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.entry_group = entry_group
         self.entry = entry
@@ -847,7 +839,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template: str,
         force: bool,
@@ -856,10 +848,9 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.tag_template = tag_template
         self.force = force
@@ -931,7 +922,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template: str,
         field: str,
@@ -941,10 +932,9 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.tag_template = tag_template
         self.field = field
@@ -1015,7 +1005,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry: str,
@@ -1024,10 +1014,9 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.entry_group = entry_group
         self.entry = entry
@@ -1097,7 +1086,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         read_mask: Union[Dict, FieldMask],
@@ -1106,10 +1095,9 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.entry_group = entry_group
         self.read_mask = read_mask
@@ -1173,7 +1161,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template: str,
         project_id: Optional[str] = None,
@@ -1181,10 +1169,9 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.tag_template = tag_template
         self.project_id = project_id
@@ -1254,7 +1241,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         entry_group: str,
         entry: str,
@@ -1264,10 +1251,9 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.entry_group = entry_group
         self.entry = entry
@@ -1335,7 +1321,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         linked_resource: Optional[str] = None,
         sql_resource: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -1343,10 +1329,9 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.linked_resource = linked_resource
         self.sql_resource = sql_resource
         self.project_id = project_id
@@ -1415,7 +1400,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         tag_template: str,
         field: str,
@@ -1425,10 +1410,9 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.tag_template = tag_template
         self.field = field
@@ -1458,7 +1442,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
     Searches Data Catalog for multiple resources like entries, tags that match a query.
 
     This does not return the complete resource, only the resource identifier and high level fields.
-    Clients can subsequentally call ``Get`` methods.
+    Clients can subsequently call ``Get`` methods.
 
     Note that searches do not have full recall. There may be results that match your query but are not
     returned, even in subsequent pages of results. These missing results may vary across repeated calls to
@@ -1523,7 +1507,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         scope: Union[Dict, SearchCatalogRequest.Scope],
         query: str,
         page_size: int = 100,
@@ -1532,10 +1516,9 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.scope = scope
         self.query = query
         self.page_size = page_size
@@ -1615,7 +1598,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         entry: Union[Dict, Entry],
         update_mask: Union[Dict, FieldMask],
         location: Optional[str] = None,
@@ -1626,10 +1609,9 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.entry = entry
         self.update_mask = update_mask
         self.location = location
@@ -1713,7 +1695,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         tag: Union[Dict, Tag],
         update_mask: Union[Dict, FieldMask],
         location: Optional[str] = None,
@@ -1725,10 +1707,9 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.tag = tag
         self.update_mask = update_mask
         self.location = location
@@ -1815,7 +1796,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         tag_template: Union[Dict, TagTemplate],
         update_mask: Union[Dict, FieldMask],
         location: Optional[str] = None,
@@ -1825,10 +1806,9 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.tag_template = tag_template
         self.update_mask = update_mask
         self.location = location
@@ -1919,7 +1899,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-        self,
+        self, *,
         tag_template_field: Union[Dict, TagTemplateField],
         update_mask: Union[Dict, FieldMask],
         tag_template_field_name: Optional[str] = None,
@@ -1931,10 +1911,9 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.tag_template_field_name = tag_template_field_name
         self.location = location
         self.tag_template = tag_template

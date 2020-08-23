@@ -48,8 +48,8 @@ The following code shows how to add extra links to an operator:
         )
 
         @apply_defaults
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
 
         def execute(self, context):
             self.log.info("Hello World!")
@@ -66,7 +66,7 @@ You can also add (or override) an extra link to an existing operators
 through an Airflow plugin.
 
 For example, the following Airflow plugin will add an Operator Link on all
-tasks using :class:`~airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Operator` operator.
+tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator` operator.
 
 **Adding Operator Links to Existing Operators**
 ``plugins/extra_link.py``:
@@ -75,7 +75,7 @@ tasks using :class:`~airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Ope
 
   from airflow.plugins_manager import AirflowPlugin
   from airflow.models.baseoperator import BaseOperatorLink
-  from airflow.providers.amazon.aws.operators.gcs_to_s3 import GCSToS3Operator
+  from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
   class S3LogLink(BaseOperatorLink):
       name = 'S3'

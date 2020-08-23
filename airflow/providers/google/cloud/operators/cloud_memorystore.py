@@ -83,7 +83,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance_id: str,
         instance: Union[Dict, Instance],
@@ -92,10 +92,9 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.instance_id = instance_id
         self.instance = instance
@@ -150,7 +149,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         project_id: Optional[str] = None,
@@ -158,10 +157,9 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.instance = instance
         self.project_id = project_id
@@ -228,7 +226,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         output_config: Union[Dict, OutputConfig],
@@ -237,10 +235,9 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.instance = instance
         self.output_config = output_config
@@ -307,7 +304,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
@@ -316,10 +313,9 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.instance = instance
         self.data_protection_mode = data_protection_mode
@@ -372,7 +368,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         project_id: Optional[str] = None,
@@ -380,10 +376,9 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.instance = instance
         self.project_id = project_id
@@ -452,7 +447,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         input_config: Union[Dict, InputConfig],
@@ -461,10 +456,9 @@ class CloudMemorystoreImportOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.instance = instance
         self.input_config = input_config
@@ -521,7 +515,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         page_size: int,
         project_id: Optional[str] = None,
@@ -529,10 +523,9 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.page_size = page_size
         self.project_id = project_id
@@ -613,7 +606,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         update_mask: Union[Dict, FieldMask],
         instance: Union[Dict, Instance],
         location: Optional[str] = None,
@@ -623,10 +616,9 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.update_mask = update_mask
         self.instance = instance
         self.location = location
@@ -693,7 +685,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         memory_size_gb: int,
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
@@ -702,10 +694,9 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.memory_size_gb = memory_size_gb
         self.location = location
         self.instance_id = instance_id
@@ -792,7 +783,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance_id: str,
         instance: Union[Dict, Instance],
@@ -802,10 +793,9 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.instance_id = instance_id
         self.instance = instance
@@ -887,7 +877,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
+        self, *,
         location: str,
         instance: str,
         output_config: Union[Dict, OutputConfig],
@@ -896,10 +886,9 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
-        *args,
         **kwargs
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.location = location
         self.instance = instance
         self.output_config = output_config

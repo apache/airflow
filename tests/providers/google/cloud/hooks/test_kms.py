@@ -45,7 +45,12 @@ TEST_KEY_ID = "projects/{}/locations/{}/keyRings/{}/cryptoKeys/{}".format(
 RESPONSE = Response(PLAINTEXT, PLAINTEXT)
 
 
-def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
+def mock_init(
+    self,
+    gcp_conn_id,
+    delegate_to=None,
+    impersonation_chain=None,
+):  # pylint: disable=unused-argument
     pass
 
 

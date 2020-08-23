@@ -23,7 +23,7 @@ protocol from a mail server to S3 Bucket.
 from os import getenv
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.imap_attachment_to_s3 import ImapAttachmentToS3Operator
+from airflow.providers.amazon.aws.transfers.imap_attachment_to_s3 import ImapAttachmentToS3Operator
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_imap_attachment_to_s3_env_variables]
@@ -33,11 +33,9 @@ IMAP_MAIL_FILTER = getenv("IMAP_MAIL_FILTER", "All")
 S3_DESTINATION_KEY = getenv("S3_DESTINATION_KEY", "s3://bucket/key.json")
 # [END howto_operator_imap_attachment_to_s3_env_variables]
 
-default_args = {"start_date": days_ago(1)}
-
 with DAG(
     dag_id="example_imap_attachment_to_s3",
-    default_args=default_args,
+    start_date=days_ago(1),
     schedule_interval=None,
     tags=['example']
 ) as dag:

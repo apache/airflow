@@ -24,8 +24,8 @@ from unittest.mock import Mock, patch
 from freezegun import freeze_time
 
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
-from airflow.models import DagBag, DagRun, TaskInstance, TaskReschedule
-from airflow.models.dag import DAG, settings
+from airflow.models import DagBag, TaskInstance, TaskReschedule
+from airflow.models.dag import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -33,6 +33,7 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+from tests.test_utils import db
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
@@ -51,18 +52,22 @@ class DummySensor(BaseSensorOperator):
 
 
 class TestBaseSensor(unittest.TestCase):
+    @staticmethod
+    def clean_db():
+        db.clear_db_runs()
+        db.clear_db_task_reschedule()
+        db.clear_db_xcom()
+
     def setUp(self):
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
         }
         self.dag = DAG(TEST_DAG_ID, default_args=args)
+        self.clean_db()
 
-        session = settings.Session()
-        session.query(TaskReschedule).delete()
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
-        session.commit()
+    def tearDown(self) -> None:
+        self.clean_db()
 
     def _make_dag_run(self):
         return self.dag.create_dagrun(
@@ -134,7 +139,10 @@ class TestBaseSensor(unittest.TestCase):
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 2)
         for ti in tis:
-            self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == SENSOR_OP:
+                self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == DUMMY_OP:
+                self.assertEqual(ti.state, State.NONE)
 
     def test_soft_fail_with_retries(self):
         sensor = self._make_sensor(
@@ -161,7 +169,10 @@ class TestBaseSensor(unittest.TestCase):
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 2)
         for ti in tis:
-            self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == SENSOR_OP:
+                self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == DUMMY_OP:
+                self.assertEqual(ti.state, State.NONE)
 
     def test_ok_with_reschedule(self):
         sensor = self._make_sensor(
@@ -289,7 +300,10 @@ class TestBaseSensor(unittest.TestCase):
         tis = dr.get_task_instances()
         self.assertEqual(len(tis), 2)
         for ti in tis:
-            self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == SENSOR_OP:
+                self.assertEqual(ti.state, State.SKIPPED)
+            if ti.task_id == DUMMY_OP:
+                self.assertEqual(ti.state, State.NONE)
 
     def test_ok_with_reschedule_and_retry(self):
         sensor = self._make_sensor(

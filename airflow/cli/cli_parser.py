@@ -28,6 +28,7 @@ from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Un
 from tabulate import tabulate_formats
 
 from airflow import settings
+from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -51,7 +52,7 @@ def lazy_load_command(import_path: str) -> Callable:
         func = import_string(import_path)
         return func(*args, **kwargs)
 
-    command.__name__ = name  # type: ignore
+    command.__name__ = name
 
     return command
 
@@ -65,6 +66,8 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if value == 'celery' and executor != ExecutorLoader.CELERY_EXECUTOR:
             message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
             raise ArgumentError(action, message)
+        if action.choices is not None and value not in action.choices:
+            check_legacy_command(action, value)
 
         super()._check_value(action, value)
 
@@ -141,7 +144,7 @@ ARG_END_DATE = Arg(
     type=parsedate)
 ARG_DRY_RUN = Arg(
     ("-n", "--dry-run"),
-    help="Perform a dry run",
+    help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
     action="store_true")
 ARG_PID = Arg(
     ("--pid",),
@@ -171,6 +174,7 @@ ARG_OUTPUT = Arg(
         "Output table format. The specified value is passed to "
         "the tabulate module (https://pypi.org/project/tabulate/). "
     ),
+    metavar="FORMAT",
     choices=tabulate_formats,
     default="plain")
 ARG_COLOR = Arg(
@@ -578,7 +582,7 @@ ARG_ENV_VARS = Arg(
 # connections
 ARG_CONN_ID = Arg(
     ('conn_id',),
-    help='Connection id, required to add/delete a connection',
+    help='Connection id, required to get/add/delete a connection',
     type=str)
 ARG_CONN_ID_FILTER = Arg(
     ('--conn-id',),
@@ -616,15 +620,15 @@ ARG_CONN_EXTRA = Arg(
     ('--conn-extra',),
     help='Connection `Extra` field, optional when adding a connection',
     type=str)
-ARG_INCLUDE_SECRETS = Arg(
-    ('--include-secrets',),
-    help=(
-        "If passed, the connection in the secret backend will also be displayed."
-        "To use this option you must pass `--conn_id` option."
-        ""
-    ),
-    action="store_true",
-    default=False)
+ARG_CONN_EXPORT = Arg(
+    ('file',),
+    help='Output file path for exporting the connections',
+    type=argparse.FileType('w', encoding='UTF-8'))
+ARG_CONN_EXPORT_FORMAT = Arg(
+    ('--format',),
+    help='Format of the connections data in file',
+    type=str,
+    choices=['json', 'yaml', 'env'])
 # users
 ARG_USERNAME = Arg(
     ('-u', '--username'),
@@ -728,6 +732,17 @@ ARG_FILE_IO = Arg(
     ),
     action='store_true'
 )
+
+# config
+ARG_SECTION = Arg(
+    ("section",),
+    help="The section name",
+)
+ARG_OPTION = Arg(
+    ("option",),
+    help="The option name",
+)
+
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE, ARG_CONN_HOST, ARG_CONN_LOGIN, ARG_CONN_PASSWORD, ARG_CONN_SCHEMA, ARG_CONN_PORT
@@ -1075,10 +1090,16 @@ DB_COMMANDS = (
 )
 CONNECTIONS_COMMANDS = (
     ActionCommand(
+        name='get',
+        help='Get a connection',
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_get'),
+        args=(ARG_CONN_ID, ARG_COLOR),
+    ),
+    ActionCommand(
         name='list',
         help='List connections',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
-        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER, ARG_INCLUDE_SECRETS),
+        args=(ARG_OUTPUT, ARG_CONN_ID_FILTER),
     ),
     ActionCommand(
         name='add',
@@ -1091,6 +1112,22 @@ CONNECTIONS_COMMANDS = (
         help='Delete a connection',
         func=lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
         args=(ARG_CONN_ID,),
+    ),
+    ActionCommand(
+        name='export',
+        help='Export all connections',
+        description=("All connections can be exported in STDOUT using the following command:\n"
+                     "airflow connections export -\n"
+                     "The file format can be determined by the provided file extension. eg, The following "
+                     "command will export the connections in JSON format:\n"
+                     "airflow connections export /tmp/connections.json\n"
+                     "The --format parameter can be used to mention the connections format. eg, "
+                     "the default format is JSON in STDOUT mode, which can be overridden using: \n"
+                     "airflow connections export - --format yaml\n"
+                     "The --format parameter can also be used for the files, for example:\n"
+                     "airflow connections export /tmp/connections --format json\n"),
+        func=lazy_load_command('airflow.cli.commands.connection_command.connections_export'),
+        args=(ARG_CONN_EXPORT, ARG_CONN_EXPORT_FORMAT,),
     ),
 )
 USERS_COMMANDS = (
@@ -1183,6 +1220,21 @@ CELERY_COMMANDS = (
     )
 )
 
+CONFIG_COMMANDS = (
+    ActionCommand(
+        name='get-value',
+        help='Print the value of the configuration',
+        func=lazy_load_command('airflow.cli.commands.config_command.get_value'),
+        args=(ARG_SECTION, ARG_OPTION, ),
+    ),
+    ActionCommand(
+        name='list',
+        help='List options for the configuration.',
+        func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
+        args=(ARG_COLOR, ),
+    ),
+)
+
 airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
@@ -1272,11 +1324,10 @@ airflow_commands: List[CLICommand] = [
         ),
         args=(),
     ),
-    ActionCommand(
-        name='config',
-        help='Show current application configuration',
-        func=lazy_load_command('airflow.cli.commands.config_command.show_config'),
-        args=(ARG_COLOR, ),
+    GroupCommand(
+        name="config",
+        help='View the configuration options.',
+        subcommands=CONFIG_COMMANDS
     ),
     ActionCommand(
         name='info',
@@ -1314,15 +1365,21 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
     """
     def _format_action(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
+
             parts = []
+            action_header = self._format_action_invocation(action)
+            action_header = '%*s%s\n' % (self._current_indent, '', action_header)
+            parts.append(action_header)
+
+            self._indent()
             subactions = action._get_subactions()  # pylint: disable=protected-access
-            action_subcommnads, group_subcommnands = partition(
+            action_subcommands, group_subcommands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
             )
             parts.append("\n")
             parts.append('%*s%s:\n' % (self._current_indent, '', "Groups"))
             self._indent()
-            for subaction in group_subcommnands:
+            for subaction in group_subcommands:
                 parts.append(self._format_action(subaction))
             self._dedent()
 
@@ -1330,8 +1387,9 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
             parts.append('%*s%s:\n' % (self._current_indent, '', "Commands"))
             self._indent()
 
-            for subaction in action_subcommnads:
+            for subaction in action_subcommands:
                 parts.append(self._format_action(subaction))
+            self._dedent()
             self._dedent()
 
             # return a single string
@@ -1343,7 +1401,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Creates and returns command line argument parser"""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
-    subparsers = parser.add_subparsers(dest='subcommand')
+    subparsers = parser.add_subparsers(dest='subcommand', metavar="GROUP_OR_COMMAND")
     subparsers.required = True
 
     subparser_list = DAG_CLI_COMMANDS if dag_parser else ALL_COMMANDS_DICT.keys()
@@ -1393,7 +1451,7 @@ def _add_action_command(sub: ActionCommand, sub_proc: argparse.ArgumentParser) -
 
 def _add_group_command(sub: GroupCommand, sub_proc: argparse.ArgumentParser) -> None:
     subcommands = sub.subcommands
-    sub_subparsers = sub_proc.add_subparsers(dest="subcommand")
+    sub_subparsers = sub_proc.add_subparsers(dest="subcommand", metavar="COMMAND")
     sub_subparsers.required = True
 
     for command in sorted(subcommands, key=lambda x: x.name):

@@ -16,9 +16,10 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
-import kubernetes.client.models as k8s
+import yaml
+from kubernetes.client import models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
@@ -39,8 +40,13 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     """
     Execute a task in a Kubernetes Pod
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:KubernetesPodOperator`
+
     .. note::
-        If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, use
+        If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__
+        and Airflow is not running in the same cluster, consider using
         :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`, which
         simplifies the authorization process.
 
@@ -141,10 +147,12 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :param priority_class_name: priority class name for the launched Pod
     :type priority_class_name: str
     """
-    template_fields = ('cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
+    template_fields: Iterable[str] = (
+        'image', 'cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
+                 *,
                  namespace: Optional[str] = None,
                  image: Optional[str] = None,
                  name: Optional[str] = None,
@@ -183,11 +191,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  do_xcom_push: bool = False,
                  pod_template_file: Optional[str] = None,
                  priority_class_name: Optional[str] = None,
-                 *args,
                  **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-        super().__init__(*args, resources=None, **kwargs)
+        super().__init__(resources=None, **kwargs)
 
         self.pod = None
         self.do_xcom_push = do_xcom_push
@@ -270,24 +277,18 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
             pod_list = client.list_namespaced_pod(self.namespace, label_selector=label_selector)
 
-            if len(pod_list.items) > 1:
+            if len(pod_list.items) > 1 and self.reattach_on_restart:
                 raise AirflowException(
                     'More than one pod running with labels: '
                     '{label_selector}'.format(label_selector=label_selector))
 
             launcher = pod_launcher.PodLauncher(kube_client=client, extract_xcom=self.do_xcom_push)
 
-            if len(pod_list.items) == 1 and \
-                    self._try_numbers_do_not_match(context, pod_list.items[0]) and \
-                    self.reattach_on_restart:
-                self.log.info("found a running pod with labels %s but a different try_number"
-                              "Will attach to this pod and monitor instead of starting new one", labels)
-                final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
-            elif len(pod_list.items) == 1:
-                self.log.info("found a running pod with labels %s."
-                              "Will monitor this pod instead of starting new one", labels)
-                final_state, result = self.monitor_launched_pod(launcher, pod_list[0])
+            if len(pod_list.items) == 1:
+                try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
+                final_state, result = self.handle_pod_overlap(labels, try_numbers_match, launcher, pod_list)
             else:
+                self.log.info("creating pod with labels %s and launcher %s", labels, launcher)
                 final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
             if final_state != State.SUCCESS:
                 raise AirflowException(
@@ -296,14 +297,43 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
+    def handle_pod_overlap(self, labels, try_numbers_match, launcher, pod_list):
+        """
+
+        In cases where the Scheduler restarts while a KubernetsPodOperator task is running,
+        this function will either continue to monitor the existing pod or launch a new pod
+        based on the `reattach_on_restart` parameter.
+
+        :param labels: labels used to determine if a pod is repeated
+        :type labels: dict
+        :param try_numbers_match: do the try numbers match? Only needed for logging purposes
+        :type try_numbers_match: bool
+        :param launcher: PodLauncher
+        :param pod_list: list of pods found
+        """
+        if try_numbers_match:
+            log_line = "found a running pod with labels {} and the same try_number.".format(labels)
+        else:
+            log_line = "found a running pod with labels {} but a different try_number.".format(labels)
+
+        if self.reattach_on_restart:
+            log_line += " Will attach to this pod and monitor instead of starting new one"
+            self.log.info(log_line)
+            final_state, result = self.monitor_launched_pod(launcher, pod_list.items[0])
+        else:
+            log_line += "creating pod with labels {} and launcher {}".format(labels, launcher)
+            self.log.info(log_line)
+            final_state, _, result = self.create_new_pod_for_operator(labels, launcher)
+        return final_state, result
+
     @staticmethod
     def _get_pod_identifying_label_string(labels):
         filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != 'try_number'}
         return ','.join([label_id + '=' + label for label_id, label in sorted(filtered_labels.items())])
 
     @staticmethod
-    def _try_numbers_do_not_match(context, pod):
-        return pod.metadata.labels['try_number'] != context['ti'].try_number
+    def _try_numbers_match(context, pod):
+        return pod.metadata.labels['try_number'] == context['ti'].try_number
 
     @staticmethod
     def _set_resources(resources):
@@ -321,9 +351,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         """
         Creates a new pod and monitors for duration of task
 
-        @param labels: labels used to track pod
-        @param launcher: pod launcher that will manage launching and monitoring pods
-        @return:
+        :param labels: labels used to track pod
+        :param launcher: pod launcher that will manage launching and monitoring pods
+        :return:
         """
         if not (self.full_pod_spec or self.pod_template_file):
             # Add Airflow Version to the label
@@ -366,16 +396,16 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         # noinspection PyTypeChecker
         pod = append_to_pod(
             pod,
-            self.pod_runtime_info_envs +  # type: ignore
+            self.pod_runtime_info_envs +
             self.ports +  # type: ignore
-            self.resources +  # type: ignore
+            self.resources +
             self.secrets +  # type: ignore
             self.volumes +  # type: ignore
             self.volume_mounts  # type: ignore
         )
 
         self.pod = pod
-
+        self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod.to_dict()))
         try:
             launcher.start_pod(
                 pod,
@@ -393,9 +423,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     def monitor_launched_pod(self, launcher, pod) -> Tuple[State, Optional[str]]:
         """
-        Montitors a pod to completion that was created by a previous KubernetesPodOperator
+        Monitors a pod to completion that was created by a previous KubernetesPodOperator
 
-        @param launcher: pod launcher that will manage launching and monitoring pods
+        :param launcher: pod launcher that will manage launching and monitoring pods
         :param pod: podspec used to find pod using k8s API
         :return:
         """

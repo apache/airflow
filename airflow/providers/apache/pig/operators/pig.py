@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import re
-from typing import Optional
+from typing import Any, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
@@ -48,14 +47,14 @@ class PigOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
+            self, *,
             pig: str,
             pig_cli_conn_id: str = 'pig_cli_default',
             pigparams_jinja_translate: bool = False,
             pig_opts: Optional[str] = None,
-            *args, **kwargs) -> None:
+            **kwargs: Any) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.pigparams_jinja_translate = pigparams_jinja_translate
         self.pig = pig
         self.pig_cli_conn_id = pig_cli_conn_id

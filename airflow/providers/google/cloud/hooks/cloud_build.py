@@ -41,14 +41,32 @@ class CloudBuildHook(GoogleBaseHook):
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self._client: Optional[CloudBuildClient] = None
 
     def get_conn(self) -> CloudBuildClient:
@@ -59,7 +77,10 @@ class CloudBuildHook(GoogleBaseHook):
         :rtype: `google.cloud.devtools.cloudbuild_v1.CloudBuildClient`
         """
         if not self._client:
-            self._client = CloudBuildClient(credentials=self._get_credentials(), client_info=self.client_info)
+            self._client = CloudBuildClient(
+                credentials=self._get_credentials(),
+                client_info=self.client_info,
+            )
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -95,7 +116,11 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         return client.cancel_build(
-            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata
+            project_id=project_id,
+            id_=id_,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -135,20 +160,26 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         operation = client.create_build(
-            project_id=project_id, build=build, retry=retry, timeout=timeout, metadata=metadata
+            project_id=project_id,
+            build=build,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
         operation_dict = MessageToDict(operation)
         try:
             id_ = operation_dict["metadata"]["build"]["id"]
         except Exception:
-            raise AirflowException("Could not retrieve Build ID from Operation.")
+            raise AirflowException(
+                "Could not retrieve Build ID from Operation."
+            )
 
         if wait:
             self._wait_for_operation_to_complete(
                 func=self.get_build,
                 id_=id_,  # type: ignore
-                project_id=project_id  # type: ignore
+                project_id=project_id,  # type: ignore
             )
         return self.get_build(id_=id_, project_id=project_id)
 
@@ -186,7 +217,11 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         return client.create_build_trigger(
-            project_id=project_id, trigger=trigger, retry=retry, timeout=timeout, metadata=metadata
+            project_id=project_id,
+            trigger=trigger,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -220,7 +255,11 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         client.delete_build_trigger(
-            project_id=project_id, trigger_id=trigger_id, retry=retry, timeout=timeout, metadata=metadata
+            project_id=project_id,
+            trigger_id=trigger_id,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -256,7 +295,11 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         return client.get_build(
-            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata
+            project_id=project_id,
+            id_=id_,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -292,7 +335,11 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         return client.get_build_trigger(
-            project_id=project_id, trigger_id=trigger_id, retry=retry, timeout=timeout, metadata=metadata
+            project_id=project_id,
+            trigger_id=trigger_id,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -422,20 +469,26 @@ class CloudBuildHook(GoogleBaseHook):
 
         client = self.get_conn()
         operation = client.retry_build(
-            project_id=project_id, id_=id_, retry=retry, timeout=timeout, metadata=metadata
+            project_id=project_id,
+            id_=id_,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
         operation_dict = MessageToDict(operation)
         try:
             id_ = operation_dict["metadata"]["build"]["id"]
         except Exception:
-            raise AirflowException("Could not retrieve Build ID from Operation.")
+            raise AirflowException(
+                "Could not retrieve Build ID from Operation."
+            )
 
         if wait:
             self._wait_for_operation_to_complete(
                 func=self.get_build,
                 id_=id_,  # type: ignore
-                project_id=project_id  # type: ignore
+                project_id=project_id,  # type: ignore
             )
         return self.get_build(id_=id_, project_id=project_id)
 
@@ -491,13 +544,15 @@ class CloudBuildHook(GoogleBaseHook):
         try:
             id_ = operation_dict["metadata"]["build"]["id"]
         except Exception:
-            raise AirflowException("Could not retrieve Build ID from Operation.")
+            raise AirflowException(
+                "Could not retrieve Build ID from Operation."
+            )
 
         if wait:
             self._wait_for_operation_to_complete(
                 func=self.get_build,
                 id_=id_,  # type: ignore
-                project_id=project_id  # type: ignore
+                project_id=project_id,  # type: ignore
             )
         return self.get_build(id_=id_, project_id=project_id)
 
@@ -546,7 +601,9 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-    def _wait_for_operation_to_complete(self, func: Callable, **kwargs: Optional[dict]) -> dict:
+    def _wait_for_operation_to_complete(
+        self, func: Callable, **kwargs: Optional[dict]
+    ) -> dict:
         """
         Waits for the named operation to complete - checks status of the
         asynchronous call.
@@ -566,6 +623,12 @@ class CloudBuildHook(GoogleBaseHook):
             if status:
                 if status == "SUCCESS":
                     return operation_dict
-                elif status in ["FAILURE", "INTERNAL_ERROR", "TIMEOUT", "CANCELLED", "EXPIRED"]:
+                elif status in [
+                    "FAILURE",
+                    "INTERNAL_ERROR",
+                    "TIMEOUT",
+                    "CANCELLED",
+                    "EXPIRED",
+                ]:
                     raise AirflowException(str(operation_dict))
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)

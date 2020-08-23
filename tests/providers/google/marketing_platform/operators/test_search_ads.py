@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
+from tempfile import NamedTemporaryFile
 from unittest import TestCase, mock
 
 from airflow.providers.google.marketing_platform.operators.search_ads import (
@@ -25,7 +27,7 @@ API_VERSION = "api_version"
 GCP_CONN_ID = "google_cloud_default"
 
 
-class TestSearchAdsGenerateReportOperator(TestCase):
+class TestGoogleSearchAdsInsertReportOperator(TestCase):
     @mock.patch(
         "airflow.providers.google.marketing_platform."
         "operators.search_ads.GoogleSearchAdsHook"
@@ -52,8 +54,21 @@ class TestSearchAdsGenerateReportOperator(TestCase):
         hook_mock.return_value.insert_report.assert_called_once_with(report=report)
         xcom_mock.assert_called_once_with(None, key="report_id", value=report_id)
 
+    def test_prepare_template(self):
+        report = {"key": "value"}
+        with NamedTemporaryFile("w+", suffix=".json") as f:
+            f.write(json.dumps(report))
+            f.flush()
+            op = GoogleSearchAdsInsertReportOperator(
+                report=report, api_version=API_VERSION, task_id="test_task"
+            )
+            op.prepare_template()
 
-class TestSearchAdsGetfileReportOperator(TestCase):
+        assert isinstance(op.report, dict)
+        assert op.report == report
+
+
+class TestGoogleSearchAdsDownloadReportOperator(TestCase):
     @mock.patch(
         "airflow.providers.google.marketing_platform."
         "operators.search_ads.NamedTemporaryFile"

@@ -65,9 +65,9 @@ class SingularityOperator(BaseOperator):
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
-            self,
+            self, *,
             image: str,
-            command: Union[int, List[str]],
+            command: Union[str, List[str]],
             start_command: Optional[Union[str, List[str]]] = None,
             environment: Optional[Dict[str, Any]] = None,
             pull_folder: Optional[str] = None,
@@ -76,10 +76,9 @@ class SingularityOperator(BaseOperator):
             volumes: Optional[List[str]] = None,
             options: Optional[List[str]] = None,
             auto_remove: Optional[bool] = False,
-            *args,
             **kwargs) -> None:
 
-        super(SingularityOperator, self).__init__(*args, **kwargs)
+        super(SingularityOperator, self).__init__(**kwargs)
         self.auto_remove = auto_remove
         self.command = command
         self.start_command = start_command
@@ -119,11 +118,11 @@ class SingularityOperator(BaseOperator):
 
         # Prepare list of binds
         for bind in self.volumes:
-            self.options = self.options + ['--bind', bind]
+            self.options += ['--bind', bind]
 
         # Does the user want a custom working directory?
         if self.working_dir is not None:
-            self.options = self.options + ['--workdir', self.working_dir]
+            self.options += ['--workdir', self.working_dir]
 
         # Export environment before instance is run
         for enkey, envar in self.environment.items():

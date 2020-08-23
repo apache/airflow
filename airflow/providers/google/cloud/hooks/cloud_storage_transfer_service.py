@@ -25,7 +25,7 @@ import time
 import warnings
 from copy import deepcopy
 from datetime import timedelta
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Sequence, Set, Union
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -129,10 +129,15 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
     def __init__(
         self,
         api_version: str = 'v1',
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        super().__init__(gcp_conn_id, delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
         self.api_version = api_version
         self._conn = None
 

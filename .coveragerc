@@ -24,3 +24,6 @@ omit =
     airflow/migrations/*
     airflow/www/node_modules/**
     airflow/www_rbac/node_modules/**
+
+[run]
+relative_files = True

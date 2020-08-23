@@ -34,6 +34,9 @@ default_args = dict(
 
 
 class CallableClass:
+    """
+    Class that is callable.
+    """
     def __call__(self):
         """ A __call__ method """
 

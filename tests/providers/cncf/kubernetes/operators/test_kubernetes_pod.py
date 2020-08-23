@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 from unittest import mock
 
-import kubernetes.client.models as k8s
 import pendulum
+from kubernetes.client import models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskInstance
@@ -132,3 +131,16 @@ class TestKubernetesPodOperator(unittest.TestCase):
             context = self.create_context(k)
             k.execute(context=context)
         assert delete_pod_mock.called
+
+    def test_jinja_templated_fields(self):
+        task = KubernetesPodOperator(
+            namespace='default',
+            image="{{ image_jinja }}:16.04",
+            cmds=["bash", "-cx"],
+            name="test_pod",
+            task_id="task",
+        )
+
+        self.assertEqual(task.image, "{{ image_jinja }}:16.04")
+        task.render_template_fields(context={"image_jinja": "ubuntu"})
+        self.assertEqual(task.image, "ubuntu:16.04")

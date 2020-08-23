@@ -20,15 +20,15 @@ DAG Runs
 A DAG Run is an object representing an instantiation of the DAG in time.
 
 Each DAG may or may not have a schedule, which informs how DAG Runs are
-created. ``schedule_interval`` is defined as a DAG argument, and receives
-preferably a
+created. ``schedule_interval`` is defined as a DAG argument, which can be passed a
 `cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_ as
-a ``str``, or a ``datetime.timedelta`` object.
+a ``str``, a ``datetime.timedelta`` object, or one of of the following cron "presets".
 
 .. tip::
     You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
 
-Alternatively, you can also use one of these cron "presets":
+Cron Presets
+''''''''''''
 
 +----------------+----------------------------------------------------------------+-----------------+
 | preset         | meaning                                                        | cron            |
@@ -52,7 +52,7 @@ Alternatively, you can also use one of these cron "presets":
 +----------------+----------------------------------------------------------------+-----------------+
 
 Your DAG will be instantiated for each schedule along with a corresponding
-DAG Run entry in the database backend.
+DAG Run entry in the database backend.
 
 .. note::
 
@@ -84,7 +84,7 @@ If your DAG is written to handle its catchup (i.e., not limited to the interval,
 then you will want to turn catchup off. This can be done by setting ``catchup = False`` in DAG  or ``catchup_by_default = False``
 in the configuration file. When turned off, the scheduler creates a DAG run only for the latest interval.
 
-.. code:: python
+.. code-block:: python
 
     """
     Code that goes along with the Airflow tutorial located at:
@@ -136,18 +136,21 @@ This process is known as Backfill.
 You may want to backfill the data even in the cases when catchup is disabled. This can be done through CLI.
 Run the below command
 
-.. code:: bash
+.. code-block:: bash
 
-    airflow dags backfill -s START_DATE -e END_DATE dag_id
+    airflow dags backfill \
+        --start-date START_DATE \
+        --end-date END_DATE \
+        dag_id
 
 The `backfill command <cli-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
 
 Re-run Tasks
 ------------
 Some of the tasks can fail during the scheduled run. Once you have fixed
-the errors after going through the logs, you can re-run the tasks by clearing it for the
+the errors after going through the logs, you can re-run the tasks by clearing them for the
 scheduled date. Clearing a task instance doesn't delete the task instance record.
-Instead, it updates ``max_tries`` to ``0`` and set the current task instance state to be ``None``, this forces the task to re-run.
+Instead, it updates ``max_tries`` to ``0`` and sets the current task instance state to ``None``, which causes the task to re-run.
 
 Click on the failed task in the Tree or Graph views and then click on **Clear**.
 The executor will re-run it.
@@ -163,31 +166,71 @@ There are multiple options you can select to re-run -
 
 You can also clear the task through CLI using the command:
 
-.. code:: bash
+.. code-block:: bash
 
-    airflow tasks clear dag_id -t task_regex -s START_DATE -d END_DATE
+    airflow tasks clear dag_id \
+        --task-regex task_regex \
+        --start-date START_DATE \
+        --end-date END_DATE
 
 For the specified ``dag_id`` and time interval, the command clears all instances of the tasks matching the regex.
 For more options, you can check the help of the `clear command <cli-ref.html#clear>`_ :
 
-.. code:: bash
+.. code-block:: bash
 
-    airflow tasks clear -h
+    airflow tasks clear --help
 
 External Triggers
 '''''''''''''''''
 
 Note that DAG Runs can also be created manually through the CLI. Just run the command -
 
-.. code:: bash
+.. code-block:: bash
 
-    airflow dags trigger -e execution_date run_id
+    airflow dags trigger --exec-date execution_date run_id
 
 The DAG Runs created externally to the scheduler get associated with the trigger’s timestamp and are displayed
 in the UI alongside scheduled DAG runs. The execution date passed inside the DAG can be specified using the ``-e`` argument.
 The default is the current date in the UTC timezone.
 
 In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
+
+Passing Parameters when triggering dags
+------------------------------------------
+
+When triggering a DAG from the CLI, the REST API or the UI, it is possible to pass configuration for a DAG Run as
+a JSON blob.
+
+Example of a parameterized DAG:
+
+.. code-block:: python
+
+    from airflow import DAG
+    from airflow.operators.bash_operator import BashOperator
+    from airflow.utils.dates import days_ago
+
+    dag = DAG("example_parametrized_dag", schedule_interval=None, start_date=days_ago(2))
+
+    parameterized_task = BashOperator(
+        task_id='parameterized_task',
+        bash_command="echo value: {{ dag_run.conf['conf1'] }}",
+        dag=dag,
+    )
+
+
+**Note**: The parameters from ``dag_run.conf`` can only be used in a template field of an operator.
+
+Using CLI
+^^^^^^^^^^^
+
+.. code-block:: bash
+
+    airflow dags trigger --conf '{"conf1": "value1"}' example_parametrized_dag
+
+Using UI
+^^^^^^^^^^
+
+.. image:: img/example_passing_conf.png
 
 To Keep in Mind
 ''''''''''''''''

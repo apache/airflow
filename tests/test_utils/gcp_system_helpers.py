@@ -26,7 +26,7 @@ import pytest
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY, GCP_SECRET_MANAGER_KEY
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.system_tests_class import SystemTest
 from tests.utils.logging_command_executor import get_executor
@@ -113,7 +113,8 @@ class GoogleSystemTest(SystemTest):
         return os.environ.get(CREDENTIALS)
 
     @classmethod
-    def execute_with_ctx(cls, cmd: List[str], key: str = GCP_GCS_KEY, project_id=None, scopes=None):
+    def execute_with_ctx(cls, cmd: List[str], key: str = GCP_GCS_KEY, project_id=None, scopes=None,
+                         silent: bool = False):
         """
         Executes command with context created by provide_gcp_context and activated
         service key.
@@ -121,7 +122,7 @@ class GoogleSystemTest(SystemTest):
         executor = get_executor()
         current_project_id = project_id or cls._project_id()
         with provide_gcp_context(key, project_id=current_project_id, scopes=scopes):
-            executor.execute_cmd(cmd=cmd)
+            executor.execute_cmd(cmd=cmd, silent=silent)
 
     @classmethod
     def create_gcs_bucket(cls, name: str, location: Optional[str] = None) -> None:
@@ -172,3 +173,29 @@ class GoogleSystemTest(SystemTest):
                 bucket_name,
             ]
         )
+
+    @classmethod
+    def delete_secret(cls, name: str, silent: bool = False):
+        cmd = ["gcloud", "secrets", "delete", name, "--project", GoogleSystemTest._project_id(), "--quiet"]
+        cls.execute_with_ctx(cmd, key=GCP_SECRET_MANAGER_KEY, silent=silent)
+
+    @classmethod
+    def create_secret(cls, name: str, value: str):
+        with tempfile.NamedTemporaryFile() as tmp:
+            tmp.write(value.encode("UTF-8"))
+            tmp.flush()
+            cmd = ["gcloud", "secrets", "create", name,
+                   "--replication-policy", "automatic",
+                   "--project", GoogleSystemTest._project_id(),
+                   "--data-file", tmp.name]
+            cls.execute_with_ctx(cmd, key=GCP_SECRET_MANAGER_KEY)
+
+    @classmethod
+    def update_secret(cls, name: str, value: str):
+        with tempfile.NamedTemporaryFile() as tmp:
+            tmp.write(value.encode("UTF-8"))
+            tmp.flush()
+            cmd = ["gcloud", "secrets", "versions", "add", name,
+                   "--project", GoogleSystemTest._project_id(),
+                   "--data-file", tmp.name]
+            cls.execute_with_ctx(cmd, key=GCP_SECRET_MANAGER_KEY)

@@ -74,7 +74,7 @@ class TestStats(unittest.TestCase):
         self.statsd_client.incr.assert_called_once_with('test_stats_run', 1, 1)
 
     def test_stat_name_must_be_a_string(self):
-        self.stats.incr(list())
+        self.stats.incr([])
         self.statsd_client.assert_not_called()
 
     def test_stat_name_must_not_exceed_max_length(self):
@@ -152,7 +152,7 @@ class TestDogStats(unittest.TestCase):
         )
 
     def test_stat_name_must_be_a_string_with_dogstatsd(self):
-        self.dogstatsd.incr(list())
+        self.dogstatsd.incr([])
         self.dogstatsd_client.assert_not_called()
 
     def test_stat_name_must_not_exceed_max_length_with_dogstatsd(self):

@@ -39,20 +39,20 @@ class ComputeEngineBaseOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  zone: str,
                  resource_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.project_id = project_id
         self.zone = zone
         self.resource_id = resource_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -96,16 +96,16 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     # [END gce_instance_start_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  zone: str,
                  resource_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         super().__init__(
             project_id=project_id, zone=zone, resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
+            gcp_conn_id=gcp_conn_id, api_version=api_version, **kwargs)
 
     def execute(self, context):
         hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
@@ -144,16 +144,16 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     # [END gce_instance_stop_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  zone: str,
                  resource_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         super().__init__(
             project_id=project_id, zone=zone, resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
+            gcp_conn_id=gcp_conn_id, api_version=api_version, **kwargs)
 
     def execute(self, context):
         hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
@@ -202,7 +202,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     # [END gce_instance_set_machine_type_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  zone: str,
                  resource_id: str,
                  body: dict,
@@ -210,7 +210,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
                  validate_body: bool = True,
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.body = body
         self._field_validator = None  # type: Optional[GcpBodyFieldValidator]
         if validate_body:
@@ -218,7 +218,7 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
                 SET_MACHINE_TYPE_VALIDATION_SPECIFICATION, api_version=api_version)
         super().__init__(
             project_id=project_id, zone=zone, resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
+            gcp_conn_id=gcp_conn_id, api_version=api_version, **kwargs)
 
     def _validate_all_body_fields(self):
         if self._field_validator:
@@ -324,7 +324,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     # [END gce_instance_template_copy_operator_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  resource_id: str,
                  body_patch: dict,
                  project_id: Optional[str] = None,
@@ -332,7 +332,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
                  validate_body: bool = True,
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.body_patch = body_patch
         self.request_id = request_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
@@ -347,7 +347,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             GCE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id, zone='global', resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
+            gcp_conn_id=gcp_conn_id, api_version=api_version, **kwargs)
 
     def _validate_all_body_fields(self):
         if self._field_validator:
@@ -434,7 +434,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
     # [END gce_igm_update_template_operator_template_fields]
 
     @apply_defaults
-    def __init__(self,
+    def __init__(self, *,
                  resource_id: str,
                  zone: str,
                  source_template: str,
@@ -444,7 +444,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
                  request_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version='beta',
-                 *args, **kwargs) -> None:
+                 **kwargs) -> None:
         self.zone = zone
         self.source_template = source_template
         self.destination_template = destination_template
@@ -457,7 +457,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
                                    " api version or above")
         super().__init__(
             project_id=project_id, zone=self.zone, resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
+            gcp_conn_id=gcp_conn_id, api_version=api_version, **kwargs)
 
     def _possibly_replace_template(self, dictionary: Dict) -> None:
         if dictionary.get('instanceTemplate') == self.source_template:

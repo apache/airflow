@@ -100,12 +100,13 @@ class BashOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
+            *,
             bash_command: str,
             env: Optional[Dict[str, str]] = None,
             output_encoding: str = 'utf-8',
-            *args, **kwargs) -> None:
+            **kwargs) -> None:
 
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding

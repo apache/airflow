@@ -34,11 +34,11 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
+def upgrade():   # noqa: D103
     op.add_column('dag', sa.Column('description', sa.Text(), nullable=True))
     op.add_column('dag', sa.Column('default_view', sa.String(25), nullable=True))
 
 
-def downgrade():
+def downgrade():   # noqa: D103
     op.drop_column('dag', 'description')
     op.drop_column('dag', 'default_view')

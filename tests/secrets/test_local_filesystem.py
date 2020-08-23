@@ -24,7 +24,7 @@ from unittest import mock
 
 from parameterized import parameterized
 
-from airflow.exceptions import AirflowException, AirflowFileParseException
+from airflow.exceptions import AirflowException, AirflowFileParseException, ConnectionNotUnique
 from airflow.secrets import local_filesystem
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 
@@ -104,22 +104,36 @@ class TestLoadVariables(unittest.TestCase):
         ):
             local_filesystem.load_variables("a.json")
 
+    @parameterized.expand(
+        (
+            ("KEY: AAA", {"KEY": "AAA"}),
+            ("""
+            KEY_A: AAA
+            KEY_B: BBB
+            """, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+        )
+    )
+    def test_yaml_file_should_load_variables(self, file_content, expected_variables):
+        with mock_local_file(file_content):
+            variables = local_filesystem.load_variables('a.yaml')
+            self.assertEqual(expected_variables, variables)
+
 
 class TestLoadConnection(unittest.TestCase):
     @parameterized.expand(
         (
             ("CONN_ID=mysql://host_1/", {"CONN_ID": ["mysql://host_1"]}),
             (
-                "CONN_ID=mysql://host_1/\nCONN_ID=mysql://host_2/",
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
+                "CONN_ID1=mysql://host_1/\nCONN_ID2=mysql://host_2/",
+                {"CONN_ID1": ["mysql://host_1"], "CONN_ID2": ["mysql://host_2"]},
             ),
             (
-                "CONN_ID=mysql://host_1/\n # AAAA\nCONN_ID=mysql://host_2/",
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
+                "CONN_ID1=mysql://host_1/\n # AAAA\nCONN_ID2=mysql://host_2/",
+                {"CONN_ID1": ["mysql://host_1"], "CONN_ID2": ["mysql://host_2"]},
             ),
             (
-                "\n\n\n\nCONN_ID=mysql://host_1/\n\n\n\n\nCONN_ID=mysql://host_2/\n\n\n",
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
+                "\n\n\n\nCONN_ID1=mysql://host_1/\n\n\n\n\nCONN_ID2=mysql://host_2/\n\n\n",
+                {"CONN_ID1": ["mysql://host_1"], "CONN_ID2": ["mysql://host_2"]},
             ),
         )
     )
@@ -148,16 +162,8 @@ class TestLoadConnection(unittest.TestCase):
         (
             ({"CONN_ID": "mysql://host_1"}, {"CONN_ID": ["mysql://host_1"]}),
             ({"CONN_ID": ["mysql://host_1"]}, {"CONN_ID": ["mysql://host_1"]}),
-            (
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
-            ),
             ({"CONN_ID": {"uri": "mysql://host_1"}}, {"CONN_ID": ["mysql://host_1"]}),
             ({"CONN_ID": [{"uri": "mysql://host_1"}]}, {"CONN_ID": ["mysql://host_1"]}),
-            (
-                {"CONN_ID": [{"uri": "mysql://host_1"}, {"uri": "mysql://host_2"}]},
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
-            ),
         )
     )
     def test_json_file_should_load_connection(self, file_content, expected_connection_uris):
@@ -193,6 +199,145 @@ class TestLoadConnection(unittest.TestCase):
         ):
             local_filesystem.load_connections("a.json")
 
+    @parameterized.expand(
+        (
+            ("""CONN_A: 'mysql://host_a'""", {"CONN_A": ["mysql://host_a"]}),
+            ("""
+            conn_a: mysql://hosta
+            conn_b:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra_dejson:
+                 extra__google_cloud_platform__keyfile_dict:
+                   a: b
+                 extra__google_cloud_platform__keyfile_path: asaa""",
+                {"conn_a": ["mysql://hosta"],
+                    "conn_b": [''.join("""scheme://Login:None@host:1234/lschema?
+                        extra__google_cloud_platform__keyfile_dict=%7B%27a%27%3A+%27b%27%7D
+                        &extra__google_cloud_platform__keyfile_path=asaa""".split())]}),
+        )
+    )
+    def test_yaml_file_should_load_connection(self, file_content, expected_connection_uris):
+        with mock_local_file(file_content):
+            connections_by_conn_id = local_filesystem.load_connections("a.yaml")
+            connection_uris_by_conn_id = {
+                conn_id: [connection.get_uri() for connection in connections]
+                for conn_id, connections in connections_by_conn_id.items()
+            }
+
+            self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
+
+    @parameterized.expand(
+        (
+            ("""conn_c:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra_dejson:
+                 aws_conn_id: bbb
+                 region_name: ccc
+                 """, {"conn_c": [{"aws_conn_id": "bbb", "region_name": "ccc"}]}),
+            ("""conn_d:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra_dejson:
+                 extra__google_cloud_platform__keyfile_dict:
+                   a: b
+                 extra__google_cloud_platform__key_path: xxx
+                 """, {"conn_d": [{"extra__google_cloud_platform__keyfile_dict": {"a": "b"},
+                                   "extra__google_cloud_platform__key_path": "xxx"}]}),
+            ("""conn_d:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra: '{\"extra__google_cloud_platform__keyfile_dict\": {\"a\": \"b\"}}'""", {"conn_d": [
+                {"extra__google_cloud_platform__keyfile_dict": {"a": "b"}}]})
+
+        )
+    )
+    def test_yaml_file_should_load_connection_extras(self, file_content, expected_extras):
+        with mock_local_file(file_content):
+            connections_by_conn_id = local_filesystem.load_connections("a.yaml")
+            connection_uris_by_conn_id = {
+                conn_id: [connection.extra_dejson for connection in connections]
+                for conn_id, connections in connections_by_conn_id.items()
+            }
+            self.assertEqual(expected_extras, connection_uris_by_conn_id)
+
+    @parameterized.expand(
+        (
+            ("""conn_c:
+               conn_type: scheme
+               host: host
+               schema: lschema
+               login: Login
+               password: None
+               port: 1234
+               extra:
+                 abc: xyz
+               extra_dejson:
+                 aws_conn_id: bbb
+                 region_name: ccc
+                 """, "The extra and extra_dejson parameters are mutually exclusive."),
+        )
+    )
+    def test_yaml_invalid_extra(self, file_content, expected_message):
+        with mock_local_file(file_content):
+            with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
+                local_filesystem.load_connections("a.yaml")
+
+    @parameterized.expand(
+        (
+            "CONN_ID=mysql://host_1/\nCONN_ID=mysql://host_2/",
+        ),
+    )
+    def test_ensure_unique_connection_env(self, file_content):
+        with mock_local_file(file_content):
+            with self.assertRaises(ConnectionNotUnique):
+                local_filesystem.load_connections("a.env")
+
+    @parameterized.expand(
+        (
+            (
+                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
+            ),
+            (
+                {"CONN_ID": [{"uri": "mysql://host_1"}, {"uri": "mysql://host_2"}]},
+            ),
+        )
+    )
+    def test_ensure_unique_connection_json(self, file_content):
+        with mock_local_file(json.dumps(file_content)):
+            with self.assertRaises(ConnectionNotUnique):
+                local_filesystem.load_connections("a.json")
+
+    @parameterized.expand(
+        (
+            ("""
+            conn_a:
+              - mysql://hosta
+              - mysql://hostb"""),
+        ),
+    )
+    def test_ensure_unique_connection_yaml(self, file_content):
+        with mock_local_file(file_content):
+            with self.assertRaises(ConnectionNotUnique):
+                local_filesystem.load_connections("a.yaml")
+
 
 class TestLocalFileBackend(unittest.TestCase):
     def test_should_read_variable(self):
@@ -205,11 +350,11 @@ class TestLocalFileBackend(unittest.TestCase):
 
     def test_should_read_connection(self):
         with NamedTemporaryFile(suffix=".env") as tmp_file:
-            tmp_file.write("CONN_A=mysql://host_a\nCONN_A=mysql://host_b".encode())
+            tmp_file.write("CONN_A=mysql://host_a".encode())
             tmp_file.flush()
             backend = LocalFilesystemBackend(connections_file_path=tmp_file.name)
             self.assertEqual(
-                ["mysql://host_a", "mysql://host_b"],
+                ["mysql://host_a"],
                 [conn.get_uri() for conn in backend.get_connections("CONN_A")],
             )
             self.assertIsNone(backend.get_variable("CONN_B"))

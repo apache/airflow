@@ -35,8 +35,10 @@ depends_on = None
 
 
 def upgrade():
+    """Add pid column to task_instance table."""
     op.add_column('task_instance', sa.Column('pid', sa.Integer))
 
 
 def downgrade():
+    """Drop pid column from task_instance table."""
     op.drop_column('task_instance', 'pid')

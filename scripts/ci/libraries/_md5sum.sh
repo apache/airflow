@@ -24,7 +24,7 @@
 function calculate_file_md5sum {
     local FILE="${1}"
     local MD5SUM
-    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${BRANCH_NAME}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
     mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM=$(md5sum "${FILE}")
     local MD5SUM_FILE
@@ -54,7 +54,7 @@ function calculate_file_md5sum {
 function move_file_md5sum {
     local FILE="${1}"
     local MD5SUM_FILE
-    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${BRANCH_NAME}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
     mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
@@ -119,7 +119,7 @@ function check_if_docker_build_is_needed() {
     print_info "Checking if image build is needed for ${THE_IMAGE_TYPE} image."
     print_info
     if [[ ${FORCE_BUILD_IMAGES:=""} == "true" ]]; then
-        echo "Docker image build is forced for ${THE_IMAGE_TYPE} image"
+        print_info "Docker image build is forced for ${THE_IMAGE_TYPE} image"
         calculate_md5sum_for_all_files
         export NEEDS_DOCKER_BUILD="true"
     else
@@ -128,7 +128,7 @@ function check_if_docker_build_is_needed() {
             export NEEDS_DOCKER_BUILD="true"
         fi
         if [[ ${NEEDS_DOCKER_BUILD} == "true" ]]; then
-            echo "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
+            print_info "Docker image build is needed for ${THE_IMAGE_TYPE} image!"
         else
             print_info "Docker image build is not needed for ${THE_IMAGE_TYPE} image!"
         fi

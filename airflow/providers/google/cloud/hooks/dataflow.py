@@ -22,13 +22,15 @@ import functools
 import json
 import re
 import select
+import shlex
 import subprocess
+import textwrap
 import time
 import uuid
 import warnings
 from copy import deepcopy
 from tempfile import TemporaryDirectory
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar, Union, cast
 
 from googleapiclient.discovery import build
 
@@ -42,17 +44,16 @@ from airflow.utils.python_virtualenv import prepare_virtualenv
 DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 
 
-# https://github.com/apache/beam/blob/75eee7857bb80a0cdb4ce99ae3e184101092e2ed/sdks/go/pkg/beam/runners/
-# universal/runnerlib/execute.go#L85
 JOB_ID_PATTERN = re.compile(
-    r'https?://console\.cloud\.google\.com/dataflow/jobsDetail/locations/.+?/jobs/([a-z|0-9|A-Z|\-|\_]+).*?')
+    r'Submitted job: (?P<job_id_java>.*)|Created job with id: \[(?P<job_id_python>.*)\]'
+)
 
-RT = TypeVar('RT')  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 
 
-def _fallback_variable_parameter(parameter_name, variable_key_name):
+def _fallback_variable_parameter(parameter_name: str, variable_key_name: str) -> Callable[[T], T]:
 
-    def _wrapper(func: Callable[..., RT]) -> Callable[..., RT]:
+    def _wrapper(func: T) -> T:
         """
         Decorator that provides fallback for location from `region` key in `variables` parameters.
 
@@ -60,7 +61,7 @@ def _fallback_variable_parameter(parameter_name, variable_key_name):
         :return: result of the function call
         """
         @functools.wraps(func)
-        def inner_wrapper(self: "DataflowHook", *args, **kwargs) -> RT:
+        def inner_wrapper(self: "DataflowHook", *args, **kwargs):
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than positional")
@@ -81,7 +82,7 @@ def _fallback_variable_parameter(parameter_name, variable_key_name):
                 kwargs['variables'] = copy_variables
 
             return func(self, *args, **kwargs)
-        return inner_wrapper
+        return cast(T, inner_wrapper)
 
     return _wrapper
 
@@ -319,8 +320,9 @@ class _DataflowRunner(LoggingMixin):
         on_new_job_id_callback: Optional[Callable[[str], None]] = None
     ) -> None:
         super().__init__()
-        self.log.info("Running command: %s", ' '.join(cmd))
+        self.log.info("Running command: %s", ' '.join(shlex.quote(c) for c in cmd))
         self.on_new_job_id_callback = on_new_job_id_callback
+        self.job_id: Optional[str] = None
         self._proc = subprocess.Popen(
             cmd,
             shell=False,
@@ -328,39 +330,45 @@ class _DataflowRunner(LoggingMixin):
             stderr=subprocess.PIPE,
             close_fds=True)
 
-    def _read_line_by_fd(self, fd):
-        if fd == self._proc.stderr.fileno():
-            line = self._proc.stderr.readline().decode()
-            if line:
-                self.log.warning(line[:-1])
-            return line
+    def _process_fd(self, fd):
+        """
+        Prints output to logs and lookup for job ID in each line.
 
-        if fd == self._proc.stdout.fileno():
-            line = self._proc.stdout.readline().decode()
-            if line:
-                self.log.info(line[:-1])
-            return line
+        :param fd: File descriptor.
+        """
+        if fd == self._proc.stderr:
+            while True:
+                line = self._proc.stderr.readline().decode()
+                if not line:
+                    return
+                self._process_line_and_extract_job_id(line)
+                self.log.warning(line.rstrip("\n"))
+
+        if fd == self._proc.stdout:
+            while True:
+                line = self._proc.stdout.readline().decode()
+                if not line:
+                    return
+                self._process_line_and_extract_job_id(line)
+                self.log.info(line.rstrip("\n"))
 
         raise Exception("No data in stderr or in stdout.")
 
-    def _extract_job(self, line: str) -> Optional[str]:
+    def _process_line_and_extract_job_id(self, line: str) -> None:
         """
         Extracts job_id.
 
         :param line: URL from which job_id has to be extracted
         :type line: str
-        :return: job_id or None if no match
-        :rtype: Optional[str]
         """
         # Job id info: https://goo.gl/SE29y9.
         matched_job = JOB_ID_PATTERN.search(line)
         if matched_job:
-            job_id = matched_job.group(1)
+            job_id = matched_job.group('job_id_java') or matched_job.group('job_id_python')
             self.log.info("Found Job ID: %s", job_id)
+            self.job_id = job_id
             if self.on_new_job_id_callback:
                 self.on_new_job_id_callback(job_id)
-            return job_id
-        return None
 
     def wait_for_done(self) -> Optional[str]:
         """
@@ -369,35 +377,31 @@ class _DataflowRunner(LoggingMixin):
         :return: Job id
         :rtype: Optional[str]
         """
-        reads = [self._proc.stderr.fileno() if self._proc.stderr else 0,
-                 self._proc.stdout.fileno() if self._proc.stdout else 0]
         self.log.info("Start waiting for DataFlow process to complete.")
-        job_id = None
-        # Make sure logs are processed regardless whether the subprocess is
-        # terminated.
-        process_ends = False
+        self.job_id = None
+        reads = [self._proc.stderr, self._proc.stdout]
         while True:
             # Wait for at least one available fd.
-            readable_fbs, _, _ = select.select(reads, [], [], 5)
-            if readable_fbs is None:
+            readable_fds, _, _ = select.select(reads, [], [], 5)
+            if readable_fds is None:
                 self.log.info("Waiting for DataFlow process to complete.")
                 continue
 
-            # Read available fds.
-            for readable_fb in readable_fbs:
-                line = self._read_line_by_fd(readable_fb)
-                if line and not job_id:
-                    job_id = job_id or self._extract_job(line)
+            for readable_fd in readable_fds:
+                self._process_fd(readable_fd)
 
-            if process_ends:
-                break
             if self._proc.poll() is not None:
-                # Mark process completion but allows its outputs to be consumed.
-                process_ends = True
+                break
+
+        # Corner case: check if more output was created between the last read and the process termination
+        for readable_fd in reads:
+            self._process_fd(readable_fd)
+
+        self.log.info("Process exited with return code: %s", self._proc.returncode)
+
         if self._proc.returncode != 0:
-            raise Exception("DataFlow failed with return code {}".format(
-                self._proc.returncode))
-        return job_id
+            raise Exception("DataFlow failed with return code {}".format(self._proc.returncode))
+        return self.job_id
 
 
 class DataflowHook(GoogleBaseHook):
@@ -410,12 +414,17 @@ class DataflowHook(GoogleBaseHook):
 
     def __init__(
         self,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         poll_sleep: int = 10
     ) -> None:
         self.poll_sleep = poll_sleep
-        super().__init__(gcp_conn_id, delegate_to)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
 
     def get_conn(self):
         """
@@ -625,7 +634,7 @@ class DataflowHook(GoogleBaseHook):
         :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
             See virtualenv documentation for more information.
 
-            This option is only relevant if the ``py_requirements`` parameter is passed.
+            This option is only relevant if the ``py_requirements`` parameter is not None.
         :type py_interpreter: str
         :param append_job_name: True if unique suffix has to be appended to job name.
         :type append_job_name: bool
@@ -645,6 +654,19 @@ class DataflowHook(GoogleBaseHook):
                     for key, value in labels_dict.items()]
 
         if py_requirements is not None:
+            if not py_requirements and not py_system_site_packages:
+                warning_invalid_environment = textwrap.dedent(
+                    """\
+                    Invalid method invocation. You have disabled inclusion of system packages and empty list
+                    required for installation, so it is not possible to create a valid virtual environment.
+                    In the virtual environment, apache-beam package must be installed for your job to be \
+                    executed. To fix this problem:
+                    * install apache-beam on the system, then set parameter py_system_site_packages to True,
+                    * add apache-beam to the list of required packages in parameter py_requirements.
+                    """
+                )
+                raise AirflowException(warning_invalid_environment)
+
             with TemporaryDirectory(prefix='dataflow-venv') as tmp_dir:
                 py_interpreter = prepare_virtualenv(
                     venv_directory=tmp_dir,
