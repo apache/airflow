@@ -21,6 +21,7 @@
 This module contains various unit tests for GCP DLP Operators
 """
 
+import json
 import tempfile
 from copy import deepcopy
 from datetime import datetime
@@ -31,7 +32,6 @@ from google.protobuf.json_format import ParseDict
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, TaskInstance
 from airflow.providers.google.cloud.operators.cloud_build import (
     BuildProcessor, CloudBuildCancelBuildOperator, CloudBuildCreateBuildOperator,
     CloudBuildCreateBuildTriggerOperator, CloudBuildDeleteBuildTriggerOperator, CloudBuildGetBuildOperator,
@@ -123,30 +123,44 @@ class TestCloudBuildOperator(TestCase):
             metadata=None,
         )
 
-    def test_load_templated_yaml(self):
-        dag = DAG(dag_id='example_cloudbuild_operator', start_date=TEST_DEFAULT_DATE)
-        with tempfile.NamedTemporaryFile(suffix='.yaml', mode='w+t') as build:
-            build.writelines("""
-            steps:
+    @parameterized.expand(
+        [
+            (".json",
+                json.dumps(
+                    {
+                        "steps": [
+                            {
+                                "name": 'ubuntu',
+                                "args": ['echo', 'Hello {{ params.name }}!']
+                            }
+                        ]
+                    }
+                )),
+            (".yaml",
+                """
+                steps:
                 - name: 'ubuntu'
                   args: ['echo', 'Hello {{ params.name }}!']
-            """)
-            build.seek(0)
-            body_path = build.name
+                """)
+        ]
+    )
+    def test_load_templated(self, file_type, file_content):
+        with tempfile.NamedTemporaryFile(suffix=file_type, mode='w+') as f:
+            f.writelines(file_content)
+            f.flush()
+
             operator = CloudBuildCreateBuildOperator(
-                build=body_path,
-                task_id="task-id", dag=dag,
+                build=f.name,
+                task_id="task-id",
                 params={'name': 'airflow'}
             )
             operator.prepare_template()
-            ti = TaskInstance(operator, TEST_DEFAULT_DATE)
-            ti.render_templates()
             expected_body = {'steps': [
-                {'name': 'ubuntu',
-                 'args': ['echo', 'Hello airflow!']
-                 }
-            ]
-            }
+                {
+                    'name': 'ubuntu',
+                    'args': ['echo', 'Hello {{ params.name }}!']
+                }
+            ]}
             self.assertEqual(expected_body, operator.body)
 
     @mock.patch(

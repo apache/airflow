@@ -178,7 +178,7 @@ class CloudBuildHook(GoogleBaseHook):
         if wait:
             self._wait_for_operation_to_complete(
                 func=self.get_build,
-                id_=id_,  # type: ignore
+                id_=id_,
                 project_id=project_id,  # type: ignore
             )
         return self.get_build(id_=id_, project_id=project_id)
@@ -551,7 +551,7 @@ class CloudBuildHook(GoogleBaseHook):
         if wait:
             self._wait_for_operation_to_complete(
                 func=self.get_build,
-                id_=id_,  # type: ignore
+                id_=id_,
                 project_id=project_id,  # type: ignore
             )
         return self.get_build(id_=id_, project_id=project_id)

@@ -266,7 +266,7 @@ google = [
     'google-cloud-automl>=0.4.0,<2.0.0',
     'google-cloud-bigquery-datatransfer>=0.4.0,<2.0.0',
     'google-cloud-bigtable>=1.0.0,<2.0.0',
-    'google-cloud-build>=2.0.0',
+    'google-cloud-build==1.0.0',
     'google-cloud-container>=0.1.1,<2.0.0',
     'google-cloud-datacatalog>=0.5.0, <0.8',  # TODO: we should migrate to 1.0 likely and add <2.0.0 then
     'google-cloud-dataproc>=1.0.1,<2.0.0',

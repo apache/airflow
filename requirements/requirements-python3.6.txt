@@ -72,9 +72,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.3.0
 black==19.10b0
 blinker==1.4
-boto3==1.13.26
+boto3==1.14.20
 boto==2.49.0
-botocore==1.16.26
+botocore==1.17.20
 bowler==0.8.0
 cached-property==1.5.1
 cachetools==4.1.1
@@ -388,7 +388,7 @@ virtualenv==20.0.26
 watchtower==0.7.3
 wcwidth==0.2.5
 websocket-client==0.57.0
-wrapt==1.11.2
+wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.23.0
 yandexcloud==0.43.0
