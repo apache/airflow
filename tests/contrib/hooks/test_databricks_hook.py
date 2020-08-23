@@ -267,6 +267,7 @@ class DatabricksHookTest(unittest.TestCase):
                 'notebook_task': NOTEBOOK_TASK,
                 'new_cluster': NEW_CLUSTER,
             },
+            params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
@@ -293,6 +294,7 @@ class DatabricksHookTest(unittest.TestCase):
                 'jar_params': JAR_PARAMS,
                 'job_id': JOB_ID
             },
+            params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
@@ -306,7 +308,8 @@ class DatabricksHookTest(unittest.TestCase):
         self.assertEqual(run_page_url, RUN_PAGE_URL)
         mock_requests.get.assert_called_once_with(
             get_run_endpoint(HOST),
-            json={'run_id': RUN_ID},
+            json=None,
+            params={'run_id': RUN_ID},
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
@@ -323,7 +326,8 @@ class DatabricksHookTest(unittest.TestCase):
             STATE_MESSAGE))
         mock_requests.get.assert_called_once_with(
             get_run_endpoint(HOST),
-            json={'run_id': RUN_ID},
+            json=None,
+            params={'run_id': RUN_ID},
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
@@ -337,6 +341,7 @@ class DatabricksHookTest(unittest.TestCase):
         mock_requests.post.assert_called_once_with(
             cancel_run_endpoint(HOST),
             json={'run_id': RUN_ID},
+            params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
@@ -353,6 +358,7 @@ class DatabricksHookTest(unittest.TestCase):
         mock_requests.post.assert_called_once_with(
             start_cluster_endpoint(HOST),
             json={'cluster_id': CLUSTER_ID},
+            params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
@@ -369,6 +375,7 @@ class DatabricksHookTest(unittest.TestCase):
         mock_requests.post.assert_called_once_with(
             restart_cluster_endpoint(HOST),
             json={'cluster_id': CLUSTER_ID},
+            params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
@@ -385,6 +392,7 @@ class DatabricksHookTest(unittest.TestCase):
         mock_requests.post.assert_called_once_with(
             terminate_cluster_endpoint(HOST),
             json={'cluster_id': CLUSTER_ID},
+            params=None,
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
