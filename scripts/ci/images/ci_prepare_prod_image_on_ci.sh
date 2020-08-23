@@ -19,7 +19,7 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 # Builds or waits for the PROD image in the CI environment
-# Depending on the "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
+# Depending on the "USE_GITHUB_REGISTRY" and "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_prod_images_on_ci() {
     get_environment_for_builds_on_ci
     prepare_prod_build
@@ -27,7 +27,7 @@ function build_prod_images_on_ci() {
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
 
-    if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"} == "true" ]]; then
+    if [[ ${USE_GITHUB_REGISTRY} == "true" && ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
 
         # Tries to wait for the image indefinitely
         # skips further image checks - since we already have the target image
