@@ -21,12 +21,6 @@ Perf-kit
 
 Useful decorators and context managers used when testing the performance of various Airflow components.
 
-To use this package, you must add the parent directory to the :envvar:`PYTHONPATH` environment variable.
-If the repository root directory is ``/opt/airflow/``, then you need to run the following command:
-
-.. code-block:: bash
-
-    export PYTHONPATH=/opt/airflow/scripts/perf
 
 Content
 =======
