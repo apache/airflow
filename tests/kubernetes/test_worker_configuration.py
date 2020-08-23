@@ -388,6 +388,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             1,
             "2019-11-21 11:08:22.920875",
             ["bash -c 'ls /'"],
+            [],
             None,
             worker_config.as_pod(),
             "default",

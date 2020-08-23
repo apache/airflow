@@ -450,6 +450,7 @@ class PodGenerator:
         try_number: int,
         date: str,
         command: List[str],
+        args: List[str],
         kube_executor_config: Optional[k8s.V1Pod],
         worker_config: k8s.V1Pod,
         namespace: str,
@@ -473,6 +474,7 @@ class PodGenerator:
                 'kubernetes_executor': 'True',
             },
             cmds=command,
+            args=args,
             name=pod_id
         ).gen_pod()
 

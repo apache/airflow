@@ -1869,6 +1869,14 @@
       type: string
       example: ~
       default: "False"
+    - name: override_container_entrypoint
+      description: |
+        if True, the airflow command overrides container's entrypoint
+        if False, the airflow command is passed as args to the container's entrypoint
+      version_added: ~
+      type: string
+      example: ~
+      default: "True"
     - name: worker_pods_creation_batch_size
       description: |
         Number of Kubernetes Worker Pod creation calls per scheduler loop.

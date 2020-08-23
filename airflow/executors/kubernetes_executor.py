@@ -106,6 +106,9 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
             self.kubernetes_section, 'delete_worker_pods')
         self.delete_worker_pods_on_failure = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods_on_failure')
+        self.override_container_entrypoint = conf.getboolean(
+            self.kubernetes_section, 'override_container_entrypoint')
+
         self.worker_pods_creation_batch_size = conf.getint(
             self.kubernetes_section, 'worker_pods_creation_batch_size')
         self.worker_service_account_name = conf.get(
@@ -476,6 +479,13 @@ class AirflowKubernetesScheduler(LoggingMixin):
         if command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
 
+        if self.kube_config.override_container_entrypoint:
+            pod_command = command
+            pod_args = []
+        else:
+            pod_command = []
+            pod_args = command
+
         pod = PodGenerator.construct_pod(
             namespace=self.namespace,
             worker_uuid=self.worker_uuid,
@@ -484,7 +494,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
             task_id=pod_generator.make_safe_label_value(task_id),
             try_number=try_number,
             date=self._datetime_to_label_safe_datestring(execution_date),
-            command=command,
+            command=pod_command,
+            args=pod_args,
             kube_executor_config=kube_executor_config,
             worker_config=self.worker_configuration_pod
         )
