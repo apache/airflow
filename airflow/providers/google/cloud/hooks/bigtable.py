@@ -183,10 +183,10 @@ class BigtableHook(GoogleBaseHook):
                 "The replica_cluster_id and replica_cluster_zone parameter have been deprecated."
                 "You should pass the replica_clusters parameter.", DeprecationWarning, stacklevel=2)
             clusters.append(instance.cluster(
-                    replica_cluster_id,
-                    replica_cluster_zone,
-                    cluster_nodes,
-                    cluster_storage_type
+                replica_cluster_id,
+                replica_cluster_zone,
+                cluster_nodes,
+                cluster_storage_type
             ))
         if replica_clusters:
             for replica_cluster in replica_clusters:
