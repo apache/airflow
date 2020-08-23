@@ -212,3 +212,6 @@ class SubDagOperator(BaseSensorOperator):
             self.skip(context['dag_run'], context['execution_date'], downstream_tasks)
 
         self.log.info('Done.')
+
+    def is_subdag(self) -> bool:
+        return True

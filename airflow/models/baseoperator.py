@@ -1334,6 +1334,9 @@ class BaseOperator(Operator, LoggingMixin, metaclass=BaseOperatorMeta):
 
         return cls.__serialized_fields
 
+    def is_subdag(self) -> bool:  # noqa
+        return False
+
 
 def chain(*tasks: Union[BaseOperator, Sequence[BaseOperator]]):
     r"""
