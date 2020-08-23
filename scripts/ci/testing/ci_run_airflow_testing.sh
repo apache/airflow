@@ -152,6 +152,10 @@ readonly TEST_TYPES
 export RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
 export ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
 
+if [[ " ${ENABLED_INTEGRATIONS[*]} " =~ " kerberos " ]]; then
+    kerberos::create_kerberos_network
+fi
+
 echo "Running TEST_TYPES: ${TEST_TYPES}"
 
 for TEST_TYPE in ${TEST_TYPES}

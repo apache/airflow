@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,29 +17,33 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -exuo pipefail
+set -euo pipefail
 
-FQDN=$(hostname)
-readonly FQDN
-ADMIN="admin"
-readonly ADMIN
-PASS="airflow"
-readonly PASS
+function usage() {
+    CMDNAME="$(basename -- "$0")"
 
-KRB5_KTNAME=/etc/airflow.keytab
-readonly KRB5_KTNAME
+      echo """
+Usage: ${CMDNAME} <username> <password>
 
-cat /etc/hosts
-echo "hostname: ${FQDN}"
-# create kerberos database
-echo -e "${PASS}\n${PASS}" | kdb5_util create -s
-# create admin
-echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc ${ADMIN}/admin"
-# create airflow
-echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc -randkey airflow"
-echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc -randkey airflow/${FQDN}"
-kadmin.local -q "ktadd -k ${KRB5_KTNAME} airflow"
-kadmin.local -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}"
+Creates an account for the administrator.
+"""
+}
 
-# Start services
-/usr/local/bin/supervisord -n -c /etc/supervisord.conf
+if [[ ! "$#" -eq 2 ]]; then
+    echo "You must provide exactly two arguments."
+    usage
+    exit 1
+fi
+
+USERNAME=$1
+PASSWORD=$2
+
+REALM_NAME=EXAMPLE.COM
+
+cat << EOF | kadmin.local &>/dev/null
+add_principal -pw $PASSWORD "${USERNAME}/admmin@${REALM_NAME}"
+listprincs
+quit
+EOF
+
+echo "Created admin: ${USERNAME}"

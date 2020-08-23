@@ -125,24 +125,6 @@ if [[ ${ENVIRONMENT_EXIT_CODE} != 0 ]]; then
     exit ${ENVIRONMENT_EXIT_CODE}
 fi
 
-
-if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
-    set +e
-    setup_kerberos
-    RES=$?
-    set -e
-
-    if [[ ${RES} != 0 ]]; then
-        echo
-        echo "ERROR !!!!Kerberos initialisation requested, but failed"
-        echo
-        echo "I will exit now, and you need to run 'breeze --integration kerberos restart'"
-        echo "to re-enter breeze and restart kerberos."
-        echo
-        exit 1
-    fi
-fi
-
 # Create symbolic link to fix possible issues with kubectl config cmd-path
 mkdir -p /usr/lib/google-cloud-sdk/bin
 touch /usr/lib/google-cloud-sdk/bin/gcloud

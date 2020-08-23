@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,11 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-import unittest
 
-if os.environ.get('INTEGRATION_PRESTO') == 'true':
-    raise unittest.SkipTest(
-        'Snowflake monkeypatch the Python core to force SSL certificate validation.'
-        'To avoid these side effects, these tests were skipped.'
-    )
+set -xeuo pipefail
+
+(
+  export
+  sleep 2;
+  if [[ -v POST_BOOTSTRAP_COMMAND ]]; then
+      bash -c "$POST_BOOTSTRAP_COMMAND"
+  fi
+) &
+exec "$@"
