@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import shutil
 
 from azure.common import AzureHttpError
 from cached_property import cached_property
@@ -53,7 +52,7 @@ class LawsTaskHandler(FileTaskHandler, LoggingMixin):
         table_name = conf.get('azlaws', 'TABLE_NAME')
         try:
             from airflow.providers.microsoft.azure.hooks.laws import LawsHook
-            return LawsHook(remote_conn_id,account_id,access_key,table_name)
+            return LawsHook(remote_conn_id, account_id, access_key, table_name)
         except AzureHttpError:
             self.log.error(
                 'Could not create an LawsHook with connection id "%s". '
@@ -106,4 +105,5 @@ class LawsTaskHandler(FileTaskHandler, LoggingMixin):
         :param log: the log to write to the LAWS
         :type log: str
         """
-        result=self.hook.post_log(log, ti)
+        result = self.hook.post_log(log, ti)
+        return result

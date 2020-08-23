@@ -162,7 +162,7 @@ REMOTE_LOGGING: bool = conf.getboolean('logging', 'remote_logging')
 if REMOTE_LOGGING:
 
     ELASTICSEARCH_HOST: str = conf.get('elasticsearch', 'HOST')
-    LAWS_ACCOUNT_ID: str = conf.get('azlaws','ACCOUNT_ID')
+    LAWS_ACCOUNT_ID: str = conf.get('azlaws', 'ACCOUNT_ID')
     # Storage bucket URL for remote logging
     # S3 buckets should start with "s3://"
     # Cloudwatch log groups should start with "cloudwatch://"
