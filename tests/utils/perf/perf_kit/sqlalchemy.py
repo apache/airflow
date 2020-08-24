@@ -209,7 +209,7 @@ if __name__ == "__main__":
 
     # Example:
     def case():
-        "Case of logging om/"
+        """Case of logging om/"""
         import logging
         from unittest import mock
 
