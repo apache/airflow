@@ -383,7 +383,10 @@ def dag_list_dag_runs(args, dag=None):
 def dag_test(args, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=State.NONE)
+    session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.execution_date == args.execution_date,
+    ).delete()
     try:
         dag.run(executor=DebugExecutor(), start_date=args.execution_date, end_date=args.execution_date)
     except BackfillUnfinished as e:
