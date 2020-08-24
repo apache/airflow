@@ -29,6 +29,7 @@ from airflow.providers.google.cloud.operators.video_intelligence import (
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 CONFIG = {"encoding": "LINEAR16"}
 AUDIO = {"uri": "gs://bucket/object"}
 
@@ -44,10 +45,16 @@ class TestCloudVideoIntelligenceOperators(unittest.TestCase):
         mock_hook.return_value.annotate_video.return_value = mocked_operation
 
         CloudVideoIntelligenceDetectVideoLabelsOperator(
-            input_uri=INPUT_URI, task_id="id", gcp_conn_id=GCP_CONN_ID
+            input_uri=INPUT_URI,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         ).execute(context={"task_instance": mock.Mock()})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
             features=[enums.Feature.LABEL_DETECTION],
@@ -65,10 +72,16 @@ class TestCloudVideoIntelligenceOperators(unittest.TestCase):
         mock_hook.return_value.annotate_video.return_value = mocked_operation
 
         CloudVideoIntelligenceDetectVideoExplicitContentOperator(
-            input_uri=INPUT_URI, task_id="id", gcp_conn_id=GCP_CONN_ID
+            input_uri=INPUT_URI,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         ).execute(context={"task_instance": mock.Mock()})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
             features=[enums.Feature.EXPLICIT_CONTENT_DETECTION],
@@ -86,10 +99,16 @@ class TestCloudVideoIntelligenceOperators(unittest.TestCase):
         mock_hook.return_value.annotate_video.return_value = mocked_operation
 
         CloudVideoIntelligenceDetectVideoShotsOperator(
-            input_uri=INPUT_URI, task_id="id", gcp_conn_id=GCP_CONN_ID
+            input_uri=INPUT_URI,
+            task_id="id",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         ).execute(context={"task_instance": mock.Mock()})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
             features=[enums.Feature.SHOT_CHANGE_DETECTION],

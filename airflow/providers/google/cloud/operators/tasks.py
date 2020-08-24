@@ -63,6 +63,16 @@ class CloudTasksQueueCreateOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: google.cloud.tasks_v2.types.Queue
     """
 
@@ -72,6 +82,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         "location",
         "queue_name",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -85,6 +96,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -96,9 +108,13 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         try:
             queue = hook.create_queue(
                 location=self.location,
@@ -154,6 +170,16 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: google.cloud.tasks_v2.types.Queue
     """
 
@@ -164,6 +190,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         "queue_name",
         "update_mask",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -178,6 +205,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -190,9 +218,13 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queue = hook.update_queue(
             task_queue=self.task_queue,
             project_id=self.project_id,
@@ -228,10 +260,21 @@ class CloudTasksQueueGetOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: google.cloud.tasks_v2.types.Queue
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id")
+    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
+                       "impersonation_chain",)
 
     @apply_defaults
     def __init__(
@@ -243,6 +286,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -253,9 +297,13 @@ class CloudTasksQueueGetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queue = hook.get_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -292,10 +340,21 @@ class CloudTasksQueuesListOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = ("location", "project_id", "gcp_conn_id")
+    template_fields = ("location", "project_id", "gcp_conn_id",
+                       "impersonation_chain",)
 
     @apply_defaults
     def __init__(
@@ -308,6 +367,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -319,9 +379,13 @@ class CloudTasksQueuesListOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queues = hook.list_queues(
             location=self.location,
             project_id=self.project_id,
@@ -356,9 +420,19 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id")
+    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
+                       "impersonation_chain",)
 
     @apply_defaults
     def __init__(
@@ -370,6 +444,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -380,9 +455,13 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook.delete_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -415,10 +494,21 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id")
+    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
+                       "impersonation_chain",)
 
     @apply_defaults
     def __init__(
@@ -430,6 +520,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -440,9 +531,13 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queue = hook.purge_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -476,10 +571,21 @@ class CloudTasksQueuePauseOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id")
+    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
+                       "impersonation_chain",)
 
     @apply_defaults
     def __init__(
@@ -491,6 +597,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -501,9 +608,13 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queues = hook.pause_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -537,10 +648,21 @@ class CloudTasksQueueResumeOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id")
+    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
+                       "impersonation_chain",)
 
     @apply_defaults
     def __init__(
@@ -552,6 +674,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -562,9 +685,13 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queue = hook.resume_queue(
             location=self.location,
             queue_name=self.queue_name,
@@ -607,6 +734,16 @@ class CloudTasksTaskCreateOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: google.cloud.tasks_v2.types.Task
     """
 
@@ -617,6 +754,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         "queue_name",
         "task_name",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -632,6 +770,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -645,9 +784,13 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         task = hook.create_task(
             location=self.location,
             queue_name=self.queue_name,
@@ -689,6 +832,16 @@ class CloudTasksTaskGetOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: google.cloud.tasks_v2.types.Task
     """
 
@@ -698,6 +851,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
         "task_name",
         "project_id",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -712,6 +866,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -724,9 +879,13 @@ class CloudTasksTaskGetOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         task = hook.get_task(
             location=self.location,
             queue_name=self.queue_name,
@@ -768,10 +927,21 @@ class CloudTasksTasksListOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: list[google.cloud.tasks_v2.types.Task]
     """
 
-    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id")
+    template_fields = ("location", "queue_name", "project_id", "gcp_conn_id",
+                       "impersonation_chain",)
 
     @apply_defaults
     def __init__(
@@ -785,6 +955,7 @@ class CloudTasksTasksListOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -797,9 +968,13 @@ class CloudTasksTasksListOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         tasks = hook.list_tasks(
             location=self.location,
             queue_name=self.queue_name,
@@ -837,6 +1012,15 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = (
@@ -845,6 +1029,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         "task_name",
         "project_id",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -858,6 +1043,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -869,9 +1055,13 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         hook.delete_task(
             location=self.location,
             queue_name=self.queue_name,
@@ -910,6 +1100,16 @@ class CloudTasksTaskRunOperator(BaseOperator):
     :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :rtype: google.cloud.tasks_v2.types.Task
     """
 
@@ -919,6 +1119,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
         "task_name",
         "project_id",
         "gcp_conn_id",
+        "impersonation_chain",
     )
 
     @apply_defaults
@@ -933,6 +1134,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[MetaData] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -945,9 +1147,13 @@ class CloudTasksTaskRunOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = CloudTasksHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTasksHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         task = hook.run_task(
             location=self.location,
             queue_name=self.queue_name,

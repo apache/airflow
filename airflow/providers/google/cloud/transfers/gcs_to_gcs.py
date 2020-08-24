@@ -19,6 +19,7 @@
 This module contains a Google Cloud Storage operator.
 """
 import warnings
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -80,8 +81,8 @@ class GCSToGCSOperator(BaseOperator):
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
         Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
     :param last_modified_time: When specified, the objects will be copied or moved,
@@ -95,6 +96,15 @@ class GCSToGCSOperator(BaseOperator):
     :param is_older_than: When specified, the objects will be copied if they are older
         than the specified time in seconds.
     :type is_older_than: int
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
 
     :Example:
 
@@ -166,7 +176,7 @@ class GCSToGCSOperator(BaseOperator):
 
     """
     template_fields = ('source_bucket', 'source_object', 'source_objects', 'destination_bucket',
-                       'destination_object', 'delimiter')
+                       'destination_object', 'delimiter', 'impersonation_chain',)
     ui_color = '#f0eee4'
 
     @apply_defaults
@@ -185,6 +195,7 @@ class GCSToGCSOperator(BaseOperator):
                  last_modified_time=None,
                  maximum_modified_time=None,
                  is_older_than=None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs):
         super().__init__(**kwargs)
         if google_cloud_storage_conn_id:
@@ -206,12 +217,14 @@ class GCSToGCSOperator(BaseOperator):
         self.last_modified_time = last_modified_time
         self.maximum_modified_time = maximum_modified_time
         self.is_older_than = is_older_than
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
 
         hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
         )
         if self.source_objects and self.source_object:
             error_msg = "You can either set source_object parameter or source_objects " \

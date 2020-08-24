@@ -266,6 +266,8 @@ class _CredentialProvider(LoggingMixin):
                 target_scopes=self.scopes
             )
 
+            project_id = _get_project_id_from_service_account_email(self.target_principal)
+
         return credentials, project_id
 
     def _get_credentials_using_keyfile_dict(self):
@@ -358,3 +360,20 @@ def _get_target_principal_and_delegates(
         return impersonation_chain, None
 
     return impersonation_chain[-1], impersonation_chain[:-1]
+
+
+def _get_project_id_from_service_account_email(service_account_email: str) -> str:
+    """
+    Extracts project_id from service account's email address.
+
+    :param service_account_email: email of the service account.
+    :type service_account_email: str
+
+    :return: Returns the project_id of the provided service account.
+    :rtype: str
+    """
+    try:
+        return service_account_email.split('@')[1].split('.')[0]
+    except IndexError:
+        raise AirflowException(f"Could not extract project_id from service account's email: "
+                               f"{service_account_email}.")

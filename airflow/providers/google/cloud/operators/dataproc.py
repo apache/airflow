@@ -133,10 +133,6 @@ class ClusterGenerator:
     :type region: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
-    :type delegate_to: str
     :param service_account: The service account of the dataproc instances.
     :type service_account: str
     :param service_account_scopes: The URIs of service account scopes to be included.
@@ -460,9 +456,18 @@ class DataprocCreateClusterOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('project_id', 'region', 'cluster')
+    template_fields = ('project_id', 'region', 'cluster', 'impersonation_chain',)
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
@@ -478,6 +483,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         timeout: float = 1 * 60 * 60,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         # TODO: remove one day
@@ -520,6 +526,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delete_on_error = delete_on_error
         self.use_if_exists = use_if_exists
+        self.impersonation_chain = impersonation_chain
 
     def _create_cluster(self, hook):
         operation = hook.create_cluster(
@@ -602,7 +609,10 @@ class DataprocCreateClusterOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info('Creating cluster: %s', self.cluster_name)
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
+        hook = DataprocHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         try:
             # First try to create a new cluster
             cluster = self._create_cluster(hook)
@@ -664,9 +674,18 @@ class DataprocScaleClusterOperator(BaseOperator):
     :type graceful_decommission_timeout: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['cluster_name', 'project_id', 'region']
+    template_fields = ['cluster_name', 'project_id', 'region', 'impersonation_chain', ]
 
     @apply_defaults
     def __init__(self, *,
@@ -677,6 +696,7 @@ class DataprocScaleClusterOperator(BaseOperator):
                  num_preemptible_workers: int = 0,
                  graceful_decommission_timeout: Optional[str] = None,
                  gcp_conn_id: str = "google_cloud_default",
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id
@@ -686,6 +706,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         self.num_preemptible_workers = num_preemptible_workers
         self.graceful_decommission_timeout = graceful_decommission_timeout
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
         # TODO: Remove one day
         warnings.warn(
@@ -750,7 +771,10 @@ class DataprocScaleClusterOperator(BaseOperator):
             "config.secondary_worker_config.num_instances"
         ]
 
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
+        hook = DataprocHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         operation = hook.update_cluster(
             project_id=self.project_id,
             location=self.region,
@@ -790,7 +814,18 @@ class DataprocDeleteClusterOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
+
+    template_fields = ('impersonation_chain',)
 
     @apply_defaults
     def __init__(
@@ -804,6 +839,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -816,9 +852,13 @@ class DataprocDeleteClusterOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
+        hook = DataprocHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Deleting cluster: %s", self.cluster_name)
         operation = hook.delete_cluster(
             project_id=self.project_id,
@@ -852,9 +892,9 @@ class DataprocJobBaseOperator(BaseOperator):
     :type dataproc_jars: list
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
+    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: str
     :param labels: The labels to associate with this job. Label keys must contain 1 to 63 characters,
         and must conform to RFC 1035. Label values may be empty, but, if present, must contain 1 to 63
@@ -869,6 +909,16 @@ class DataprocJobBaseOperator(BaseOperator):
         ``'ERROR'`` and ``'CANCELLED'``, but could change in the future. Defaults to
         ``{'ERROR'}``.
     :type job_error_states: set
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+
     :var dataproc_job_id: The actual "jobId" as submitted to the Dataproc API.
         This is useful for identifying or linking to the job in the Google Cloud Console
         Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
@@ -888,6 +938,7 @@ class DataprocJobBaseOperator(BaseOperator):
                  labels: Optional[Dict] = None,
                  region: str = 'global',
                  job_error_states: Optional[Set[str]] = None,
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -899,8 +950,9 @@ class DataprocJobBaseOperator(BaseOperator):
         self.dataproc_jars = dataproc_jars
         self.region = region
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
+        self.impersonation_chain = impersonation_chain
 
-        self.hook = DataprocHook(gcp_conn_id=gcp_conn_id)
+        self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
         self.project_id = self.hook.project_id
         self.job_template = None
         self.job = None
@@ -1003,7 +1055,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     :type variables: dict
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars', 'dataproc_properties']
+                       'region', 'dataproc_jars', 'dataproc_properties', 'impersonation_chain', ]
     template_ext = ('.pg', '.pig',)
     ui_color = '#0273d4'
     job_type = 'pig_job'
@@ -1068,7 +1120,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     :type variables: dict
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars', 'dataproc_properties']
+                       'region', 'dataproc_jars', 'dataproc_properties', 'impersonation_chain', ]
     template_ext = ('.q', '.hql',)
     ui_color = '#0273d4'
     job_type = 'hive_job'
@@ -1133,7 +1185,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     :type variables: dict
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars', 'dataproc_properties']
+                       'region', 'dataproc_jars', 'dataproc_properties', 'impersonation_chain', ]
     template_ext = ('.q',)
     ui_color = '#0273d4'
     job_type = 'spark_sql_job'
@@ -1206,7 +1258,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     """
 
     template_fields = ['arguments', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars', 'dataproc_properties']
+                       'region', 'dataproc_jars', 'dataproc_properties', 'impersonation_chain', ]
     ui_color = '#0273d4'
     job_type = 'spark_job'
 
@@ -1278,7 +1330,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     """
 
     template_fields = ['arguments', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars', 'dataproc_properties']
+                       'region', 'dataproc_jars', 'dataproc_properties', 'impersonation_chain', ]
     ui_color = '#0273d4'
     job_type = 'hadoop_job'
 
@@ -1350,7 +1402,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     """
 
     template_fields = ['main', 'arguments', 'job_name', 'cluster_name',
-                       'region', 'dataproc_jars', 'dataproc_properties']
+                       'region', 'dataproc_jars', 'dataproc_properties', 'impersonation_chain', ]
     ui_color = '#0273d4'
     job_type = 'pyspark_job'
 
@@ -1372,7 +1424,8 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         self.log.info("Uploading %s to %s", local_file, temp_filename)
 
         GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id
+            google_cloud_storage_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain
         ).upload(
             bucket_name=bucket,
             object_name=temp_filename,
@@ -1467,10 +1520,6 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     :type project_id: str
     :param region: leave as 'global', might become relevant in the future
     :type region: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
-    :type delegate_to: str
     :param parameters: a map of parameters for Dataproc Template in key-value format:
         map (key: string, value: string)
         Example: { "date_from": "2019-08-01", "date_to": "2019-08-02"}.
@@ -1495,9 +1544,18 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['template_id']
+    template_fields = ['template_id', 'impersonation_chain', ]
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
@@ -1512,6 +1570,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1526,9 +1585,13 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         self.metadata = metadata
         self.request_id = request_id
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
+        hook = DataprocHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info('Instantiating template %s', self.template_id)
         operation = hook.instantiate_workflow_template(
             project_id=self.project_id,
@@ -1585,9 +1648,18 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['template']
+    template_fields = ['template', 'impersonation_chain', ]
 
     @apply_defaults
     def __init__(
@@ -1600,6 +1672,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1612,10 +1685,14 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
         self.log.info('Instantiating Inline Template')
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
+        hook = DataprocHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         operation = hook.instantiate_inline_workflow_template(
             template=self.template,
             project_id=self.project_id,
@@ -1656,9 +1733,18 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id:
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ('project_id', 'location', 'job')
+    template_fields = ('project_id', 'location', 'job', 'impersonation_chain',)
 
     @apply_defaults
     def __init__(
@@ -1671,6 +1757,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -1682,10 +1769,14 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
         self.log.info("Submitting job")
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
+        hook = DataprocHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         job_object = hook.submit_job(
             project_id=self.project_id,
             location=self.location,
@@ -1746,7 +1837,17 @@ class DataprocUpdateClusterOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
+    template_fields = ('impersonation_chain',)
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
@@ -1762,6 +1863,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -1776,9 +1878,13 @@ class DataprocUpdateClusterOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Dict):
-        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
+        hook = DataprocHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         self.log.info("Updating %s cluster.", self.cluster_name)
         operation = hook.update_cluster(
             project_id=self.project_id,

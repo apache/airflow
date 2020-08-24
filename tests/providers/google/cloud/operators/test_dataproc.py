@@ -44,6 +44,7 @@ TASK_ID = "task-id"
 GCP_PROJECT = "test-project"
 GCP_LOCATION = "test-location"
 GCP_CONN_ID = "test-conn"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 CLUSTER_NAME = "cluster_name"
 CLUSTER = {
@@ -210,9 +211,13 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_cluster.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
@@ -237,9 +242,13 @@ class TestDataprocClusterCreateOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
             request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.create_cluster.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
@@ -376,10 +385,14 @@ class TestDataprocClusterScaleOperator(unittest.TestCase):
             num_preemptible_workers=4,
             graceful_decommission_timeout="10m",
             gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.update_cluster.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -403,9 +416,13 @@ class TestDataprocClusterDeleteOperator(unittest.TestCase):
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.delete_cluster.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
@@ -436,10 +453,14 @@ class TestDataprocSubmitJobOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
             request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -470,9 +491,13 @@ class TestDataprocUpdateClusterOperator(unittest.TestCase):
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.update_cluster.assert_called_once_with(
             location=GCP_LOCATION,
             project_id=GCP_PROJECT,
@@ -506,9 +531,13 @@ class TestDataprocWorkflowTemplateInstantiateOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
             gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.instantiate_workflow_template.assert_called_once_with(
             template_name=template_id,
             location=GCP_LOCATION,
@@ -537,9 +566,13 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
             gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.instantiate_inline_workflow_template.assert_called_once_with(
             template=template,
             location=GCP_LOCATION,
@@ -589,9 +622,13 @@ class TestDataProcHiveOperator(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             query=self.query,
             variables=self.variables,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -654,9 +691,13 @@ class TestDataProcPigOperator(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             query=self.query,
             variables=self.variables,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -722,9 +763,13 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
             gcp_conn_id=GCP_CONN_ID,
             query=self.query,
             variables=self.variables,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )

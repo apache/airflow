@@ -22,7 +22,7 @@ This module contains Google Kubernetes Engine operators.
 
 import os
 import tempfile
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Sequence, Union
 
 from google.cloud.container_v1.types import Cluster
 
@@ -69,8 +69,18 @@ class GKEDeleteClusterOperator(BaseOperator):
     :type gcp_conn_id: str
     :param api_version: The api version to use
     :type api_version: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ['project_id', 'gcp_conn_id', 'name', 'location', 'api_version']
+    template_fields = ['project_id', 'gcp_conn_id', 'name', 'location', 'api_version',
+                       'impersonation_chain', ]
 
     @apply_defaults
     def __init__(self,
@@ -80,6 +90,7 @@ class GKEDeleteClusterOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v2',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -88,6 +99,7 @@ class GKEDeleteClusterOperator(BaseOperator):
         self.location = location
         self.api_version = api_version
         self.name = name
+        self.impersonation_chain = impersonation_chain
         self._check_input()
 
     def _check_input(self):
@@ -97,7 +109,11 @@ class GKEDeleteClusterOperator(BaseOperator):
             raise AirflowException('Operator has incorrect or missing input.')
 
     def execute(self, context):
-        hook = GKEHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
+        hook = GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
         delete_result = hook.delete_cluster(name=self.name, project_id=self.project_id)
         return delete_result
 
@@ -148,8 +164,18 @@ class GKECreateClusterOperator(BaseOperator):
     :type gcp_conn_id: str
     :param api_version: The api version to use
     :type api_version: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
-    template_fields = ['project_id', 'gcp_conn_id', 'location', 'api_version', 'body']
+    template_fields = ['project_id', 'gcp_conn_id', 'location', 'api_version', 'body',
+                       'impersonation_chain', ]
 
     @apply_defaults
     def __init__(self,
@@ -159,6 +185,7 @@ class GKECreateClusterOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v2',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -167,6 +194,7 @@ class GKECreateClusterOperator(BaseOperator):
         self.location = location
         self.api_version = api_version
         self.body = body
+        self.impersonation_chain = impersonation_chain
         self._check_input()
 
     def _check_input(self):
@@ -181,7 +209,11 @@ class GKECreateClusterOperator(BaseOperator):
             raise AirflowException("Operator has incorrect or missing input.")
 
     def execute(self, context):
-        hook = GKEHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
+        hook = GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
         create_op = hook.create_cluster(cluster=self.body, project_id=self.project_id)
         return create_op
 

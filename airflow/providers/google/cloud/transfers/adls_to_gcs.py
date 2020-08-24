@@ -22,7 +22,7 @@ Google Cloud Storage operator.
 import os
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
@@ -51,10 +51,19 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
     :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
         Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
+    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
+        if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param google_impersonation_chain: Optional Google service account to impersonate using
+        short-term credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type google_impersonation_chain: Union[str, Sequence[str]]
 
     **Examples**:
         The following Operator would copy a single file named
@@ -94,7 +103,7 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
                 gcp_conn_id='google_cloud_default'
             )
     """
-    template_fields: Sequence[str] = ('src_adls', 'dest_gcs')
+    template_fields: Sequence[str] = ('src_adls', 'dest_gcs', 'google_impersonation_chain',)
     ui_color = '#f0eee4'
 
     @apply_defaults
@@ -107,6 +116,7 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
                  delegate_to: Optional[str] = None,
                  replace: bool = False,
                  gzip: bool = False,
+                 google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
 
         super().__init__(
@@ -127,13 +137,16 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.gzip = gzip
+        self.google_impersonation_chain = google_impersonation_chain
 
     def execute(self, context):
         # use the super to list all files in an Azure Data Lake path
         files = super().execute(context)
         g_hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to)
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.google_impersonation_chain,
+        )
 
         if not self.replace:
             # if we are not replacing -> list all files in the ADLS path

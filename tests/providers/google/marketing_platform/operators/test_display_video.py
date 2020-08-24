@@ -30,6 +30,7 @@ from airflow.providers.google.marketing_platform.operators.display_video import 
 API_VERSION = "api_version"
 GCP_CONN_ID = "google_cloud_default"
 DELEGATE_TO: Optional[str] = None
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
 class TestGoogleDisplayVideo360CreateReportOperator(TestCase):
@@ -54,7 +55,10 @@ class TestGoogleDisplayVideo360CreateReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.create_query.assert_called_once_with(query=body)
         xcom_mock.assert_called_once_with(None, key="report_id", value=query_id)
@@ -89,7 +93,10 @@ class TestGoogleDisplayVideo360DeleteReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.delete_query.assert_called_once_with(query_id=query_id)
 
@@ -151,12 +158,17 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
         )
         op.execute(context=None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         mock_hook.return_value.get_query.assert_called_once_with(query_id=report_id)
 
         mock_gcs_hook.assert_called_once_with(
-            google_cloud_storage_conn_id=GCP_CONN_ID, delegate_to=None
+            google_cloud_storage_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            impersonation_chain=None,
         )
         mock_gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=bucket_name,
@@ -190,7 +202,10 @@ class TestGoogleDisplayVideo360RunReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.run_query.assert_called_once_with(
             query_id=report_id, params=params
@@ -231,6 +246,7 @@ class TestGoogleDisplayVideo360DownloadLineItemsOperator(TestCase):
             gcp_conn_id=GCP_CONN_ID,
             delegate_to=DELEGATE_TO,
             task_id="test_task",
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         op.execute(context=None)
@@ -244,10 +260,15 @@ class TestGoogleDisplayVideo360DownloadLineItemsOperator(TestCase):
         )
 
         gcs_hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION, delegate_to=DELEGATE_TO
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.download_line_items.assert_called_once_with(
             request_body=request_body
@@ -285,11 +306,16 @@ class TestGoogleDisplayVideo360UploadLineItemsOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION, delegate_to=DELEGATE_TO
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=None,
         )
 
         gcs_hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=None,
         )
 
         gcs_hook_mock.return_value.download.assert_called_once_with(
@@ -333,11 +359,15 @@ class TestGoogleDisplayVideo360SDFtoGCSOperator(TestCase):
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
             task_id="test_task",
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         op.execute(context=None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION, delegate_to=DELEGATE_TO
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         mock_hook.return_value.get_sdf_download_operation.assert_called_once()
@@ -359,7 +389,9 @@ class TestGoogleDisplayVideo360SDFtoGCSOperator(TestCase):
 
         gcs_mock_hook.assert_called_once()
         gcs_mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=DELEGATE_TO
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
         gcs_mock_hook.return_value.upload.assert_called_once()
@@ -392,7 +424,10 @@ class TestGoogleDisplayVideo360CreateSDFDownloadTaskOperator(TestCase):
 
         op.execute(context=None)
         mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, api_version=API_VERSION, delegate_to=DELEGATE_TO
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=None,
         )
 
         mock_hook.return_value.create_sdf_download_operation.assert_called_once()

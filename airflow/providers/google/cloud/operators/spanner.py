@@ -18,7 +18,7 @@
 """
 This module contains Google Spanner operators.
 """
-from typing import List, Optional, Union
+from typing import List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -53,10 +53,19 @@ class SpannerDeployInstanceOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_spanner_deploy_template_fields]
     template_fields = ('project_id', 'instance_id', 'configuration_name', 'display_name',
-                       'gcp_conn_id')
+                       'gcp_conn_id', 'impersonation_chain', )
     # [END gcp_spanner_deploy_template_fields]
 
     @apply_defaults
@@ -67,6 +76,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
                  display_name: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
@@ -75,6 +85,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
         self.display_name = display_name
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def _validate_inputs(self):
@@ -85,7 +96,10 @@ class SpannerDeployInstanceOperator(BaseOperator):
                                    "is empty or None")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         if not hook.get_instance(project_id=self.project_id, instance_id=self.instance_id):
             self.log.info("Creating Cloud Spanner instance '%s'", self.instance_id)
             func = hook.create_instance
@@ -115,9 +129,18 @@ class SpannerDeleteInstanceOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_spanner_delete_template_fields]
-    template_fields = ('project_id', 'instance_id', 'gcp_conn_id')
+    template_fields = ('project_id', 'instance_id', 'gcp_conn_id', 'impersonation_chain',)
     # [END gcp_spanner_delete_template_fields]
 
     @apply_defaults
@@ -125,11 +148,13 @@ class SpannerDeleteInstanceOperator(BaseOperator):
                  instance_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def _validate_inputs(self):
@@ -140,7 +165,10 @@ class SpannerDeleteInstanceOperator(BaseOperator):
                                    "is empty or None")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         if hook.get_instance(project_id=self.project_id, instance_id=self.instance_id):
             return hook.delete_instance(project_id=self.project_id,
                                         instance_id=self.instance_id)
@@ -170,9 +198,19 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_spanner_query_template_fields]
-    template_fields = ('project_id', 'instance_id', 'database_id', 'query', 'gcp_conn_id')
+    template_fields = ('project_id', 'instance_id', 'database_id', 'query', 'gcp_conn_id',
+                       'impersonation_chain',)
     template_ext = ('.sql',)
     # [END gcp_spanner_query_template_fields]
 
@@ -183,6 +221,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
                  query: Union[str, List[str]],
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
@@ -190,6 +229,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         self.query = query
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def _validate_inputs(self):
@@ -205,7 +245,10 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
             raise AirflowException("The required parameter 'query' is empty")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         queries = self.query
         if isinstance(self.query, str):
             queries = [x.strip() for x in self.query.split(';')]
@@ -252,10 +295,19 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_spanner_database_deploy_template_fields]
     template_fields = ('project_id', 'instance_id', 'database_id', 'ddl_statements',
-                       'gcp_conn_id')
+                       'gcp_conn_id', 'impersonation_chain',)
     template_ext = ('.sql', )
     # [END gcp_spanner_database_deploy_template_fields]
 
@@ -266,6 +318,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
                  ddl_statements: List[str],
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
@@ -273,6 +326,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         self.ddl_statements = ddl_statements
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def _validate_inputs(self):
@@ -286,7 +340,10 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
                                    " or None")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         if not hook.get_database(project_id=self.project_id,
                                  instance_id=self.instance_id,
                                  database_id=self.database_id):
@@ -326,10 +383,19 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
     :type operation_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_spanner_database_update_template_fields]
     template_fields = ('project_id', 'instance_id', 'database_id', 'ddl_statements',
-                       'gcp_conn_id')
+                       'gcp_conn_id', 'impersonation_chain',)
     template_ext = ('.sql', )
     # [END gcp_spanner_database_update_template_fields]
 
@@ -341,6 +407,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
                  project_id: Optional[str] = None,
                  operation_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
@@ -349,6 +416,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         self.operation_id = operation_id
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def _validate_inputs(self):
@@ -365,7 +433,10 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
                                    " or None")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         if not hook.get_database(project_id=self.project_id,
                                  instance_id=self.instance_id,
                                  database_id=self.database_id):
@@ -399,10 +470,19 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
     :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
     # [START gcp_spanner_database_delete_template_fields]
     template_fields = ('project_id', 'instance_id', 'database_id',
-                       'gcp_conn_id')
+                       'gcp_conn_id', 'impersonation_chain',)
     # [END gcp_spanner_database_delete_template_fields]
 
     @apply_defaults
@@ -411,12 +491,14 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
                  database_id: str,
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
                  **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
         self.gcp_conn_id = gcp_conn_id
         self._validate_inputs()
+        self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def _validate_inputs(self):
@@ -430,7 +512,10 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
                                    " or None")
 
     def execute(self, context):
-        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
         database = hook.get_database(project_id=self.project_id,
                                      instance_id=self.instance_id,
                                      database_id=self.database_id)

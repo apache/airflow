@@ -49,7 +49,10 @@ class TestGoogleSearchAdsInsertReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.insert_report.assert_called_once_with(report=report)
         xcom_mock.assert_called_once_with(None, key="report_id", value=report_id)
@@ -111,7 +114,10 @@ class TestGoogleSearchAdsDownloadReportOperator(TestCase):
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID, delegate_to=None, api_version=API_VERSION
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=None,
+            api_version=API_VERSION,
+            impersonation_chain=None,
         )
         hook_mock.return_value.get_file.assert_called_once_with(
             report_fragment=0, report_id=report_id

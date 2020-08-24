@@ -1038,6 +1038,12 @@ of this provider.
 This section describes the changes that have been made, and what you need to do to update your if
 you use operators or hooks which integrate with Google services (including Google Cloud Platform - GCP).
 
+#### Direct impersonation added to operators communicating with Google services
+[Directly impersonating a service account](https://cloud.google.com/iam/docs/understanding-service-accounts#directly_impersonating_a_service_account)
+has been made possible for operators communicating with Google services via new argument called `impersonation_chain`
+(`google_impersonation_chain` in case of operators that also communicate with services of other cloud providers).
+As a result, GCSToS3Operator no longer derivatives from GCSListObjectsOperator.
+
 #### Normalize gcp_conn_id for Google Cloud Platform
 
 Previously not all hooks and operators related to Google Cloud Platform use

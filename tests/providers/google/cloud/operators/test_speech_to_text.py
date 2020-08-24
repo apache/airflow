@@ -25,6 +25,7 @@ from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechT
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"
+IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 CONFIG = {"encoding": "LINEAR16"}
 AUDIO = {"uri": "gs://bucket/object"}
 
@@ -35,10 +36,18 @@ class TestCloudSql(unittest.TestCase):
         mock_hook.return_value.recognize_speech.return_value = MagicMock()
 
         CloudSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
-            project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, config=CONFIG, audio=AUDIO, task_id="id"
+            project_id=PROJECT_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            config=CONFIG,
+            audio=AUDIO,
+            task_id="id",
+            impersonation_chain=IMPERSONATION_CHAIN,
         ).execute(context={"task_instance": Mock()})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.recognize_speech.assert_called_once_with(
             config=CONFIG, audio=AUDIO, retry=None, timeout=None
         )
